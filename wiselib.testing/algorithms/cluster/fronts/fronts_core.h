@@ -1,6 +1,6 @@
 /*
  * File:   fronts_core.h
- * Author: Amaxilatis
+ * Author: amaxilat
  *
  */
 
