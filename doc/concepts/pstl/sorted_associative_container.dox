@@ -1,0 +1,41 @@
+#include "associative_container.h"
+
+namespace concepts
+{
+
+/** \brief Sorted version of an \ref associated_container_concept "associative container"
+ * 
+ * Sorted Associative Containers use an ordering relation on their keys; two keys are considered to be equivalent if neither one is less than the other.
+ * 
+ * @ingroup sorted_associative_container_concept
+ */
+class SortedAssociativeContainer_concept 
+    : public AssociativeContainer_concept
+{
+  public:
+    /** Used to compare keys, has to implement StrictWeakOrdering. Argument type has to be X::key_type.
+    */
+    typedef ... key_compare;
+    /** Used to compare values, has to implement StrictWeakOrdering. Argument type has to be X::value_type. Comparators of this type shall compare two objects of type value_type by passing their keys to an instance of X::key_compare.
+    */
+    typedef ... value_compare;
+
+    /** Return the key comparator instance.
+    */
+    key_compare& key_comp();
+    /** Return the value comparator instance.
+    */
+    static value_compare value_compare();
+    /** Return an iterator pointing to the first element whose key is not less than k. Return end() if no such element exists.
+    */
+    iterator lower_bound(key_type k);
+    /** Return an iterator pointing to the first element whose key is greater than k. Return end() if no such element exists.
+    */
+    iterator upper_bound(key_type k);
+    /** Return a pair whose first element is lower_bound(k) and whose second element is upper_bound(k).
+    */
+    pair<iterator, iterator> equal_range(key_type k) {
+      return make_pair(lower_bound(k), upper_bound(k));
+    }
+};
+}

@@ -1,0 +1,79 @@
+package server;
+
+option java_package = "de.tubs.cs.ibr.iphoneconnector.server";
+option java_outer_classname = "IOSAppMessage";
+
+message Envelope{
+
+    enum MsgType {
+        LOGIN = 1;
+        LISTENER_EVENT = 2;
+        OPERATION_INVOCATION_REQUEST = 3;
+    }
+
+    required MsgType msgType = 1;
+    optional uint32 source = 2;
+    optional uint32 destination = 3;
+    optional LoginMessage loginMessage = 4;
+    repeated SensorMessage sensorMessage = 5;
+}
+
+message LoginMessage {
+    optional bool login = 1; // true for login false for logout
+    optional string user = 2;
+    optional string pwd = 3;
+    optional uint32 deviseId = 4;
+}
+
+
+message SensorMessage {
+    enum MsgType {
+        LED_UPDATE = 1;
+        LED_TEMP = 2;
+        DMS_UPDATE = 3;
+        DMS_LOADED = 4;
+        TILE_LOADED = 5;
+        CUSTOM = 6;
+    }
+
+
+    required MsgType msgType = 1;
+    required uint32 id = 2;
+    optional uint64 timestamp = 3;
+    optional LedColor ledColor = 4;
+    optional LedTemperature ledTemperature = 5;
+    repeated DmsUpdate dmsUpdate= 6;
+    optional DmsLoaded dmsLoaded= 7;
+    optional TileLoaded tileLoaded= 8;
+    optional Custom custom = 9;
+
+}
+
+message LedColor {
+    required uint32 red = 1;
+    required uint32 green = 2;
+    required uint32 blue = 3;
+}
+
+message LedTemperature {
+    required uint32 temperature = 1;
+}
+
+message DmsUpdate {
+    required uint32 valueAbs = 1;
+    required uint32 valueRel = 2;
+}
+
+message DmsLoaded {
+    required uint32 dmsId = 1;
+    required bool isLoaded = 2;
+}
+
+message TileLoaded {
+    required uint32 tileId = 1;
+    required bool isLoaded = 2;
+}
+
+message Custom {
+    required bytes bytes = 1;
+}

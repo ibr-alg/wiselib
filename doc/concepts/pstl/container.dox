@@ -1,0 +1,48 @@
+namespace concepts
+{
+
+/**
+ * This is the base concept that every kind of container should implement. A 
+ * container by itself is defined to be something that holds a number of 
+ * elements of the same type. Thus, a container supports querying the number of 
+ * these elements (size()) and provides a mechanism to iterate through all of
+ * the elements (begin() and end()).
+ *
+ * Note that this base concept does not provide any methods for inserting
+ * elements. That is because inserting elements can work very different on
+ * different kinds of containers and in some cases the user of the container
+ * shouldn't be allowed to insert elements himself at all.
+ * 
+ * @ingroup container_concept
+ */
+class Container_concept 
+{
+  public:
+    /** Type of elements of the container.
+    */
+    typedef ... value_type;
+    /** Type of the iterators returned by begin() and end(). This type is expected to implement the iterator concept.
+    */
+    typedef ... iterator;
+    /** Type of the element-counts returned by size() and maxsize(). Usually an (unsigned) integer type.
+    */
+    typedef ... size_type;
+
+    /** Return an iterator that points at the first element.
+    */
+    iterator begin();
+    /** Return an iterator that points "after" the last element. I.e. dereferencing this iterator does not need to work, but (equality) comparison to any iterator that has finished iterating over all elements of the container should yield true
+    */
+    iterator end();
+    /** Return number of elements in the container
+    */
+    size_type size();
+    /** Return maximum number of elements in the container. If the container is not limited in size, return 0.
+    */
+    size_type max_size();
+    /** Return true if the container is empty.
+    */
+    bool empty() { return size() == 0; }
+};
+
+}

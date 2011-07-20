@@ -1,0 +1,40 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Timer
+ *
+ * Another important feature when generalizing OS functionality is the
+ * registration of timer events, which is covered with the timer concept. It
+ * provides the basic type OsModel?, and it defines of which type the amount
+ * of milliseconds is given. Note that using a uint16_t would only result in
+ * approximately 60 seconds.
+ *
+ * The important method is set_timer, which awaits among other parameters the
+ * amount of milliseconds after which the given callback function is called,
+ * and a void pointer to arbitrary data that is passed to the callback
+ * function when the timer expires.
+ *
+ * @ingroup timer_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Timer_concept {
+   public:
+      /** Type of \ref os_concept "Os Concept" which has been set for the timer.
+       */
+      typedef ... OsModel;
+
+      /** Internally used type for millisecond representation.
+       */
+      typedef ... millis_t;
+
+      /** Register timer event in millis ms. When timer event fires, userdata
+       *  is passed as parameter. TMethod shall only be called repeadetly if
+       *  set_timer is called from TMethod, i.e. no automatic repetition.
+       */
+      template<typename T, void (T::*TMethod)(void*)>
+      int set_timer( millis_t millis, T *obj_pnt, void *userdata );
+};
+
+}

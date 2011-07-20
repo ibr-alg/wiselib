@@ -1,0 +1,18 @@
+#include "radio.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Extension of \ref radio_concept "Radio Concept"
+ *
+ * @ingroup reliable_radio_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class ReliableRadio_concept
+   : public Radio_concept 
+{
+};
+
+}

@@ -1,0 +1,172 @@
+#------------------------------------------------------------------------------
+#-- DO NOT TOUCH - Modify Makefile.properties instead
+#------------------------------------------------------------------------------
+
+include Makefile.properties
+
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+
+ifndef JENNIC_CHIP
+$(error You must specify a Jennic chip variant)
+endif
+
+ifeq ($(JENNIC_CHIP),JN5121)
+
+    JENNIC_PCB=DEVKIT1
+    #DK_DIR=DK1
+    ISENSE_HARDWARE_TYPE=ISENSE_JENNIC_JN5121
+    
+else 
+ifeq ($(JENNIC_CHIP),JN5139R)
+
+    JENNIC_PCB=DEVKIT2
+    #DK_DIR=DK2
+    ISENSE_HARDWARE_TYPE=ISENSE_JENNIC_JN513xR
+
+else 
+ifeq ($(JENNIC_CHIP),JN5139R1)
+
+    JENNIC_PCB=DEVKIT2
+    #DK_DIR=DK2
+    ISENSE_HARDWARE_TYPE=ISENSE_JENNIC_JN513xR1
+
+else 
+    $(error Unknown Jennic chip variant specified)
+endif
+endif
+endif
+
+#This is used by config.mk
+BASE_DIR=$(JENNIC_SDK_PATH)
+include $(JENNIC_SDK_PATH)/Common/Build/config.mk
+
+#------------------------------------------------------------------------------
+#-- Set up the internally used paths to the Jennic libs
+#------------------------------------------------------------------------------
+
+JENNIC_COMMON_INCLUDE_PATH  = $(JENNIC_SDK_PATH)/Common/Include
+JENNIC_CHIP_INCLUDE_PATH    = $(CHIP_BASE)/Include
+JENNIC_CHIP_LIBRARY         = $(CHIP_BASE)/Library/ChipLib.a
+JENNIC_PLATFORM_INCLUDE_PATH= $(BOARDAPI_PLATFORM_PUB)
+JENNIC_PLATFORM_LIBRARY     = $(BOARDAPI_BASE)/Library/BoardLib_$(JENNIC_CHIP_FAMILY).a
+
+SRC_PATH = src
+OBJS_PATH = bin/$(JENNIC_CHIP)
+
+#------------------------------------------------------------------------------
+#-- Set up the C compiler flags
+#------------------------------------------------------------------------------
+
+LOCAL_COMMON_FLAGS =  -Isrc
+LOCAL_COMMON_FLAGS += -I$(JENNIC_COMMON_INCLUDE_PATH)
+LOCAL_COMMON_FLAGS += -I$(JENNIC_CHIP_INCLUDE_PATH)
+LOCAL_COMMON_FLAGS += -I$(JENNIC_PLATFORM_INCLUDE_PATH)
+LOCAL_COMMON_FLAGS += -I$(BOARDAPI_COMMON_PUB)
+LOCAL_COMMON_FLAGS += -I$(ISENSE_PATH)/src
+LOCAL_COMMON_FLAGS += -DISENSE_JENNIC
+LOCAL_COMMON_FLAGS += -D$(ISENSE_HARDWARE_TYPE)
+LOCAL_COMMON_FLAGS += -DNDEBUG
+LOCAL_COMMON_FLAGS += -I$(WISELIB_PATH_TESTING)
+LOCAL_COMMON_FLAGS += -I$(WISELIB_PATH)
+
+LOCAL_CFLAGS = 
+LOCAL_CPPFLAGS = 
+
+CFLAGS   += $(LOCAL_COMMON_FLAGS) $(LOCAL_CFLAGS)
+CPPFLAGS += $(LOCAL_COMMON_FLAGS) $(LOCAL_CPPFLAGS)
+
+#------------------------------------------------------------------------------
+#-- Set up the linker libraries
+#------------------------------------------------------------------------------
+
+LIBFILE =
+LIBFILE += $(ISENSE_PATH)/lib/jennic/iSenseLibrary$(JENNIC_CHIP).a  
+LIBFILE += $(ISENSE_PATH)/lib/jennic/ba-elf-float-double-moddiv.a
+#LIBFILE += $(ISENSE_PATH)/lib/jennic/libc.a
+#LIBFILE += $(ISENSE_PATH)/lib/jennic/div_mod.a 
+#LIBFILE += $(ISENSE_PATH)/lib/jennic/float.a 
+#LIBFILE += $(ISENSE_PATH)/lib/jennic/double.a
+
+#------------------------------------------------------------------------------
+#-- This converts the *.c/*.S source file names to the output file names in
+#-- the binary folder
+#------------------------------------------------------------------------------
+
+TMP_C_OBJECTS  = $(filter %.o,$(BLDSRCS:.c=.o))   
+TMP_CPP_OBJECTS= $(filter %.o,$(BLDSRCS:.cpp=.o))   
+
+C_OBJECTS  =$(TMP_C_OBJECTS:%=$(OBJS_PATH)/%)
+CPP_OBJECTS=$(TMP_CPP_OBJECTS:%=$(OBJS_PATH)/%)
+
+OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
+
+#------------------------------------------------------------------------------
+#-- Build rules for the main application
+#------------------------------------------------------------------------------
+
+all: buildbin
+
+buildbin: $(OBJS_PATH)/$(TARGET).bin Makefile
+
+debug:
+	@echo -e "\n----- Objects of this build -------------------------- \
+	\n\tSources    : $(BLDSRCS) \
+	\n\tObjects    : $(OBJECTS) \
+	\n\tLibfiles   : $(LIBFILE) \
+	"
+
+#------------------------------------------------------------------------------
+#-- Build rules for the .c files
+#------------------------------------------------------------------------------
+	
+$(OBJS_PATH)/%.o: $(SRC_PATH)/%.cpp
+	@echo "----- Compiling (Jennic $(JENNIC_CHIP_FAMILY)) $<"
+	mkdir -p `dirname $@`
+	$(CCP) $(CPPFLAGS) -MMD -c $< -o $@	
+	mv $(@:%.o=%.d) $(@:%.o=%.P)
+
+
+$(OBJS_PATH)/%.o: $(SRC_PATH)/%.c
+	@echo "----- Compiling (Jennic $(JENNIC_CHIP_FAMILY)) $<"
+	mkdir -p `dirname $@`
+	$(CC) $(CFLAGS) -MMD -c $< -o $@	
+	mv $(@:%.o=%.d) $(@:%.o=%.P)
+
+#------------------------------------------------------------------------------
+#-- Linker
+#------------------------------------------------------------------------------
+
+$(OBJS_PATH)/$(TARGET).or32: $(OBJECTS) $(LIBFILE)
+	@echo "----- Linking to $@"
+	$(LD) -T$(CHIP_BASE)/Build/$(LINKER_FILE) --gc-sections -z muldefs -o $@ $(LDFLAGS) -u _AppWarmStart -u _AppColdStart $(OBJECTS) $(LIBFILE) 
+
+#------------------------------------------------------------------------------
+#-- Copy the .or32 file to a .bin file
+#------------------------------------------------------------------------------
+
+$(OBJS_PATH)/$(TARGET).bin: $(OBJS_PATH)/$(TARGET).or32
+	@echo "----- Copying to or32 $<"
+	#$(STRIP) $<
+	$(SIZE) $<
+	$(OBJCOPY) -S -O binary $< $@
+
+#------------------------------------------------------------------------------
+#--  
+#------------------------------------------------------------------------------
+
+clean:
+	rm -rf $(OBJS_PATH)
+
+#------------------------------------------------------------------------------
+#-- End
+#------------------------------------------------------------------------------
+.PRECIOUS: %.o %.or32
+.PHONY: all buildbin debug buildlibs
+.SUFFIXES:
+
+#------------------------------------------------------------------------------
+# Dependency lists
+#------------------------------------------------------------------------------
+-include $(BLDSRCS:%.c=$(OBJS_PATH)/%.P)
+-include $(BLDSRCS:%.cpp=$(OBJS_PATH)/%.P)

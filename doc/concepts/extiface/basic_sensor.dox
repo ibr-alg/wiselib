@@ -1,0 +1,36 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Sensors
+ * 
+ * A sensor provides a value for a certain sensor. The basic sensor facet implements the \ref state_concept "State concept", and additionally provides a value type for its values. It does not provide access to values --- this is done by the derived concepts.
+ * @ingroup basic_sensor_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class BasicSensor_concept {
+   public:
+      /** Type of \ref os_concept "Os Concept" which has been set for the sensor facet.
+       */
+      typedef ... OsModel;
+
+      /** Type of value that is returned.
+       */
+      typedef ... value_t;
+
+      /** State data.
+       */
+      enum StateData
+      {
+	  READY = ...,
+	  NO_VALUE = ...,
+	  INACTIVE = ...
+      };
+
+      /** Returns the current state.
+       */
+      int state();
+};
+
+}

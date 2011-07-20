@@ -1,0 +1,37 @@
+#include "basic_sensor.h"
+#include "basic_return_values.h"
+
+namespace concepts
+{
+
+/**
+ * \brief A basic callback sensor.
+ * A callback sensor refines the \ref basic_sensor_concept "Basic Sensor" and provides callback functionality, so that a user can register a callback function to be notified when a sensor value changes.
+
+When registering a callback method, this method is either called immediately after registration (id sensor is READY),or called immediately after sensor gets READY (if previously INACTIVE or NO_VALUE).
+
+After that, the callback is called each time the sensor value changes. It is in the responsibility of the concrete model how such a change is realized.
+ * 
+ * @ingroup callback_sensor_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class CallbackSensor_concept
+   : public BasicSensor_concept, public BasicReturnValues_concept
+{
+   public:
+      /** Basic return values.
+       */
+      enum BasicReturnValues
+      {
+	  OK = ...,
+	  FAILED = ...
+      };
+
+      /**Register sensor value changed callback function - method signature must be void RCV_METHOD_NAME(value_t value). Returns either OK or FAILED.
+      */
+      template<class T, void (T::*TMethod)(value_t)>
+      int register_sensor_callback( T *obj_pnt )
+};
+
+}

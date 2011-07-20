@@ -1,0 +1,20 @@
+#include "container.h"
+
+namespace concepts
+{
+
+/** \brief Container for ordered access to it's elements.
+ * 
+ * A container that allows ordered access to its elements. The access is assumed to be read- and writeable, i.e. the subscript operator returns a reference to the actual elemen
+ * 
+ * @ingroup random_access_container_concept
+ */
+class RandomAccessContainer_concept 
+    : public Container_concept
+{
+  public:
+    /** The subscript operator.
+    */
+    value_type& operator[](size_type n);
+};
+}

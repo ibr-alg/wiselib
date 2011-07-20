@@ -1,0 +1,13 @@
+new zkp protocols
+--This line, and those below, will be ignored--
+
+M    schnorr-zkp-verifier.h
+M    TestofDLEquality-verifier.h
+M    schnorr-zkp-prover.h
+M    TestofDLEquality-prover.h
+M    zkp-verifier.h
+M    zkp-prover.h
+M    schnorr-zkpnint-verifier.h
+M    ZKPofSingleBit-verifier.h
+M    schnorr-zkpnint-prover.h
+M    ZKPofSingleBit-prover.h

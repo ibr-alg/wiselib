@@ -1,0 +1,40 @@
+CXXFLAGS    = -Os  -Wall -pedantic -mdisable-hwmul \
+				-fno-defer-pop -fno-exceptions -fno-rtti \
+				-fomit-frame-pointer -fno-strength-reduce -fno-use-cxa-atexit
+INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)
+DEFINITIONS = -DTINYOS -DOSMODEL=TinyOsModel
+
+COMPONENT=$(WISELIB_PATH)/external_interface/tinyos/TinyosWiselibGlueAppC
+PFLAGS += -fnesc-separator=__ -I$(WISELIB_PATH)/external_interface/tinyos/ \
+	-I$(WISELIB_PATH_TESTING)/external_interface/tinyos/
+CFLAGS += -I$(TOSDIR)/lib/printf
+LDFLAGS += out/tinyos_timer.o out/tinyos_radio.o out/tinyos_os.o \
+	out/tinyos_com_uart.o out/tinyos_$(BIN_OUT).o
+BUILD_EXTRA_DEPS = out/tinyos_timer.o out/tinyos_radio.o out/tinyos_os.o \
+	out/tinyos_com_uart.o out/tinyos_$(BIN_OUT).o
+
+include $(MAKERULES)
+
+out/tinyos_timer.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o out/tinyos_timer.o \
+	  -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
+out/tinyos_radio.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_radio.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o out/tinyos_radio.o \
+	  -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_radio.cpp
+out/tinyos_com_uart.o: $(WISELIB_PATH_TESTING)/external_interface/tinyos/tinyos_com_uart.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o out/tinyos_com_uart.o \
+	  -c $(WISELIB_PATH_TESTING)/external_interface/tinyos/tinyos_com_uart.cpp
+out/tinyos_os.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_os.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o out/tinyos_os.o \
+	  -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_os.cpp
+out/tinyos_$(BIN_OUT).o: ./$(APP_SRC)
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+	  -o out/tinyos_$(BIN_OUT).o -c ./$(APP_SRC)
+
+
+tinyos-gnode:
+	@echo "make hex..."
+	msp430-objcopy -O ihex build/gnode/main.exe out/$(BIN_OUT).hex
+	msp430-objcopy -O binary build/gnode/main.exe out/$(BIN_OUT).bin
+	@echo "show sizes..."
+	msp430-size build/gnode/main.exe

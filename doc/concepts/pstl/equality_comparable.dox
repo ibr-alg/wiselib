@@ -1,0 +1,20 @@
+namespace concepts
+{
+
+/**
+ * Models implementing this concept are comparable by the operations == and !=.
+ * 
+ * @ingroup equality_comparable_concept
+ */
+class EqualityComparable_concept
+{
+  public:
+    /** ==-Operator (equality)
+    */
+    bool operator==(X& other);
+    /** !=-Operator (inequality)
+    */
+    bool operator!=(X& other);
+};
+
+}

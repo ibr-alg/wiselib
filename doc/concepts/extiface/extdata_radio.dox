@@ -1,0 +1,28 @@
+#include "radio.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Extension of \ref radio_concept "Radio Concept"
+ *
+ * This concept extends the radio concept adding a new argument to the receive
+ * callback method. This argument is a class that contains additional
+ * information related to the received packet - for instance, this can be link
+ * quality information such as LQI or RSSI.
+ *
+ * @ingroup extdata_radio_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class ExtendedDataRadio_concept
+   : public Radio_concept 
+{
+   public:
+      typedef ... ExtendedData;
+
+      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*, ExtendedData&)>
+      int reg_recv_callback( T *obj_pnt );
+};
+
+}

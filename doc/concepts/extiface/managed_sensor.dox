@@ -1,0 +1,47 @@
+#include "basic_sensor.h"
+
+namespace concepts
+{
+
+/**
+ * \brief A basic managed sensor concept.
+ * A managed sensor refines the \ref basic_sensor_concept "basic sensor", and
+ * provides methods to handle generic sensor types. It offers a name (as a
+ * human readable identifier, as char*), and a generic sensor representation as
+ * a char*.
+ *
+ * The purpose of this concept is to create a standardized method of sending
+ * sensor values to a gateway station - being able to read values of any type.
+ * We therefore define a simple and efficient packet format, consisting of
+ * three fields: The first field (1 byte) defines the value type, the second
+ * field (1 byte) the length of the payload, and the third field contains the
+ * encoded sensor value (dynamic length depending on the value).
+ * 
+ * For the encoding of the sensor values, Wiselib Serialization should be
+ * used. That means, values are always encoded in network byte order 
+ * (big-endian). However, there are also peculiarities for some data types
+ * that must be considered. Char pointers do not need to be null-terminated,
+ * since the packet contains a separate length field. When dealing with
+ * floating point values, usually both single and double have a length of 4
+ * bytes - this is due to the fact that on some compilers (e.g., msp430-gcc
+ * 3.2.3), double values have only a length of 4 bytes. This is stated to
+ * preserve platform independence, also when a managed sensor is read out on a
+ * restricted platform (e.g. when using msp430-gcc 3.2.3). However, if wanted,
+ * there is an own encoding type for standard 8-byte-long double values.
+ * @ingroup managed_sensor_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class ManagedSensor_concept 
+  : public BasicSensor_concept
+{
+  public:
+    /** Return null-terminated character array that (roughly) describes the sensor. E.g., "temp\0" for a temperature sensor.
+    */
+    char* name();
+    /** Return encoded sensor packet as described above.
+    */
+    char* encoded_value();
+};
+
+}

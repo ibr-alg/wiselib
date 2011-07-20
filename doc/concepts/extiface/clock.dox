@@ -1,0 +1,37 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Clock
+ *
+ * The basic clock only provides the current time - without any possibility
+ * to change or set the time.
+ *
+ * @ingroup clock_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Clock_concept {
+   public:
+      /** Type of \ref os_concept "Os Concept" which has been set for the timer.
+       */
+      typedef ... OsModel;
+      typedef ... Os;
+
+      /** Type of the Time
+       */
+      typedef ... time_t;
+
+      /** Number of clock tics per second - to be able to deal with platform independent time calculations.
+      */
+      enum ClockSpecificData
+      {
+	  CLOCKS_PER_SEC = ...,
+      };
+
+      /** Return the current system time.
+       */
+      time_t time();
+};
+
+}

@@ -1,0 +1,72 @@
+export CONTIKI=$(CONTIKI_PATH)
+include $(CONTIKI_PATH)/Makefile.include
+
+CXXFLAGS += $(CFLAGS)
+CXXFLAGS += -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH)
+CXXFLAGS += -fno-defer-pop -fno-exceptions -fno-rtti -fomit-frame-pointer \
+		-fno-strength-reduce -fno-use-cxa-atexit 
+# -pedantic
+CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel
+
+LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
+	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
+   contiki-$(TARGET).a
+
+OUTPUT = out/contiki-$(TARGET)
+OUTHEX = out
+
+contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
+	@mkdir -p $(OUTPUT)
+	@echo "compiling..."
+	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_os.o \
+		-c $(WISELIB_PATH)/external_interface/contiki/contiki_os.cpp
+	msp430-g++ -DCONTIKI_TARGET_SKY $(CXXFLAGS) -o $(OUTPUT)/contiki_timer.o \
+		-c $(WISELIB_PATH)/external_interface/contiki/contiki_timer.cpp
+	msp430-g++ -DCONTIKI_TARGET_SKY $(CXXFLAGS) -o $(OUTPUT)/contiki_radio.o \
+		-c $(WISELIB_PATH)/external_interface/contiki/contiki_radio.cpp
+	msp430-g++ -DCONTIKI_TARGET_SKY $(CXXFLAGS) -o $(OUTPUT)/contiki_ext_radio.o \
+		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_extended_radio.cpp
+	msp430-g++ -DCONTIKI_TARGET_SKY $(CXXFLAGS) -o $(OUTPUT)/contiki_uart.o \
+		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_com_uart.cpp
+	msp430-g++ -DCONTIKI_TARGET_SKY $(CXXFLAGS) -o $(OUTPUT)/contiki_byte_uart.o \
+		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_byte_com_uart.cpp
+	msp430-g++ -DCONTIKI_TARGET_SKY $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
+	@echo "linking..."
+	msp430-g++ $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).o \
+		$(OUTPUT)/contiki_os.o $(OUTPUT)/contiki_timer.o $(OUTPUT)/contiki_radio.o \
+		$(OUTPUT)/contiki_ext_radio.o $(OUTPUT)/contiki_uart.o $(OUTPUT)/contiki_byte_uart.o
+	@echo "make hex..."
+	msp430-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
+	msp430-objcopy -O binary $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).bin
+	@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTHEX)/
+	@cp $(OUTPUT)/$(BIN_OUT).* $(OUTHEX)/
+	@echo "show sizes..."
+	msp430-size $(OUTPUT)/$(BIN_OUT).elf
+
+contiki_atmel: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
+	@mkdir -p $(OUTPUT)
+	@echo "compiling..."
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_os.o \
+		-c $(WISELIB_PATH)/external_interface/contiki/contiki_os.cpp
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_timer.o \
+		-c $(WISELIB_PATH)/external_interface/contiki/contiki_timer.cpp
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_radio.o \
+		-c $(WISELIB_PATH)/external_interface/contiki/contiki_radio.cpp
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_ext_radio.o \
+		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_extended_radio.cpp
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_uart.o \
+		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_com_uart.cpp
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_byte_uart.o \
+		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_byte_com_uart.cpp
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
+	@echo "linking..."
+	avr-g++ $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).o \
+		$(OUTPUT)/contiki_os.o $(OUTPUT)/contiki_timer.o $(OUTPUT)/contiki_radio.o \
+		$(OUTPUT)/contiki_ext_radio.o $(OUTPUT)/contiki_uart.o $(OUTPUT)/contiki_byte_uart.o
+	@echo "make hex..."
+	avr-objcopy -O srec $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).srec
+	avr-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
+	avr-objcopy -O binary $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).bin
+	@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTHEX)/
+	@echo "show sizes..."
+	avr-size $(OUTPUT)/$(BIN_OUT).elf

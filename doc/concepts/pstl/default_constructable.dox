@@ -1,0 +1,18 @@
+namespace concepts
+{
+
+/**
+ * Models implementing this concept provide a default constructor, i.e. instances 
+ * of them are createable without arguments.
+ * 
+ * @ingroup default_constructable_concept
+ */
+class DefaultConstructable_concept
+{
+  public:
+    /** The default constructor.
+    */
+    X();
+};
+
+}

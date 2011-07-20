@@ -1,0 +1,22 @@
+#include "basic_algorithm.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Cryptographic Algorithms
+ *
+ * There are several kinds of cryptographic algorithms. This interface provides some essential cryptographic utilities that are commonly used in applications. Examples are encryption algorithms, key agreement algorithms, digital signature algorithms as well as hash algorithms.
+ * 
+ * When considering cryptographic algorithms a typical categorization is based on the keys used by the communicating parties. In symmetric-key cryptographic algorithms both the sender and receiver share the same key which is used for encryption and decryption respectively. An example of a symmetric-key algorithm is the Advanced Encryption Standard (AES). In contrast, in public-key cryptography algorithms, different keys are used for encryption and decryption respectively. Each participant holds a pair of keys: a private key, known only to himself and a public key which is freely distributed. The most popular examples of public key cryptography algorithms are RSA (Rivest, Shamir and Adleman) as well as ECC (Elliptic Curve Cryptography). With a public key cryptography algorithm as the basis, several encryption, key agreement and digital signature algorithms can be built.
+ * 
+ * @ingroup cryptographic_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Cryptographic_concept
+    : public BasicAlgorithm_concept
+{
+};
+
+}

@@ -1,0 +1,37 @@
+#include "basic_return_values.h"
+
+namespace concepts
+{
+
+/**
+ * Memory allocator.
+ * 
+ * @ingroup allocator_concept
+ */
+class Allocator_concept : public BasicReturnValues_concept {
+	public:
+		typedef ... OsModel;
+		typedef ... self_type;
+		
+		template<typename T>
+		struct Ref {
+			typedef ... pointer_t;
+		}
+		
+		template<typename T>
+		typename Ref<T>::pointer_t allocate();
+		
+		template<typename T>
+		typename Ref<T>::pointer_t allocate_array(OsModel::size_t n);
+		
+		template<typename T>
+		int free(typename Ref<T>::pointer_t);
+		
+		template<typename T>
+		int free_array(typename Ref<T>::pointer_t);
+		
+		size_t size();
+		size_t capacity();
+};
+
+}

@@ -1,0 +1,43 @@
+
+//------------------------------------------------
+// Simulation parameters
+//------------------------------------------------
+  String em = "simple";
+  String cm = "disk_graph";
+  String procs = "isense";
+
+  //
+	 int iterations = 6 * 60 * 60;
+	 int width = 200;
+	 int height = 200;
+	 int range = 50;
+	 int nodecount = 50;
+
+  // The random seed. Use something greater or equal zero to enable the seed
+	 int seed = -1; 
+  
+
+//------------------------------------------------
+// Execution
+//------------------------------------------------
+  long startTime = System.currentTimeMillis();
+
+  //Set the seed
+    if( seed > 0 )
+      shawn.runCommand("random_seed", "action=set seed=" + seed);
+
+  //Create a new simulation world and set its parameters
+    shawn.runCommand("prepare_world","edge_model=" + em + 
+                                     " comm_model=" + cm +" range=" + range + " size_hint=" + range + 
+                                     " transm_model=reliable immediate_delivery=true");
+
+	 shawn.runCommand("rect_world", "width="+width+" height="+height+" count="+nodecount+" processors=" + procs);
+	 
+  //Run the simulations
+  shawn.runCommand("simulation", "max_iterations="+iterations);
+  
+  long endTime = System.currentTimeMillis();
+  long executionTimeMs = endTime - startTime;
+  System.err.println("Execution time: " + (executionTimeMs/1000) + " secs");
+    
+

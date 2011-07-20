@@ -1,0 +1,30 @@
+namespace concepts
+{
+
+/**
+ * Each algorithm must have one init() and one destruct() method. Calling
+ * init(), the complete state of the algorithm is reset - as if it was newly
+ * started (e.g., turning on the radio, deleting previous states, ...).
+ * Calling destruct, it should turn off all used components (e.g., turn off
+ * radio) and is not allowed to use any Os facet functionality (e.g., no timer
+ * registration).
+ * In addition, it may have an init() method that expects parameters - where
+ * references to Os facet instances can be passed. If so, this method is expected
+ * to be called only once during program run-time.
+ * 
+ * @ingroup basic_algorithm_concept
+ */
+class BasicAlgorithm_concept {
+	public:
+		/**
+		 * Reset algorithm. Re-init all states, turn on Os facets (if used and enable function is existent).
+		 */
+		int init();
+		
+		/**
+		 * Turn off algorithm - and thus all Os facets where possible. Do not use any Os facet functionality until @ref init() is called.
+		 */
+		int destruct();
+};
+
+}

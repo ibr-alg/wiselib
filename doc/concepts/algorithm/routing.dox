@@ -1,0 +1,98 @@
+#include "basic_algorithm.h"
+#include "radio.h"
+#include "basic_return_values.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Routing Algorithms
+ *
+ * The routing concept basically refines the
+ * \ref radio_concept "radio concept", since
+ * messages are sent via a send() method to a given destination, and messages
+ * can be received when a callback method is registered. In addition, it
+ * implements the \ref basic_algorithm_concept "basic algorithm" concept
+ * (and thus provides an init() and destruct() method).
+ *
+ * There are several kinds of routing algorithms available: one distinction
+ * is, for example, route maintenance. Proactive protocols build the routing
+ * tables directly after algorithm initialization. That means, if a message
+ * is going to be sent, the route to the destination is generally known in
+ * advance. However, since nodes may move or fail after some time, routes
+ * must be maintained continuously to ensure that the initially built
+ * routing tables are valid. An example for a proactive protocol is DSDV.
+ * In contrast, reactive protocols build routes on demand. That means,
+ * whenever a node sends a message to a destination, the required route is
+ * spontaneously built. This does not require any overhead for route
+ * maintenance, but may lead to delays in message sending, because of the
+ * additional build phase. An example for such an algorithm is DSR.
+ * 
+ * The routing algorithm concept is therefore as abstract as possible, to
+ * cover all kinds of possible algorithms. Thus, a routing algorithm is
+ * supposed to provide only seven methods. Enable/disable are for
+ * starting/initializing/stopping an algorithm. It must also, of course, be
+ * possible to send a message to a given destination, and to (un)register a
+ * callback method for received routing methods. At last, the Os pointer that
+ * is passed to static member functions in the external interface can be
+ * set/accessed.
+ * 
+ * @ingroup routing_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Routing_concept
+    : public BasicAlgorithm_concept, public Radio_concept, public BasicReturnValues_concept
+{
+   public:
+      /** 
+      */
+      typedef ... OsModel;
+      /** Radio that is used for message sending and registration of message reception callback. Provided type is implementation of Radio Facet.
+      */
+      typedef ... Radio;
+
+      /** 
+      */
+      typedef ... self_type;
+      /** 
+      */
+      typedef ... self_pointer_t;
+
+      /** 
+      */
+      typedef ... node_id_t;
+      /** 
+      */
+      typedef ... size_t;
+      /** 
+      */
+      typedef ... block_data_t;
+      /** 
+      */
+      typedef ... message_id_t;
+
+      int init();
+      int destruct();
+
+      /** 
+      */
+      int enable_radio( void );
+      /** 
+      */
+      int disable_radio( void );
+
+      /** 
+      */
+      int send( node_id_t receiver, size_t len, block_data_t *data );
+
+      /** 
+      */
+      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
+	  int reg_recv_callback( T *obj_pnt );
+      /** 
+      */
+      void unreg_recv_callback( int idx );
+};
+
+}

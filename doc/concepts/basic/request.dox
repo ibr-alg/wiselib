@@ -1,0 +1,24 @@
+namespace concepts
+{
+
+/**
+ * The Request concept defines a basic structure for everything that can 
+ * return a value (e.g., a sensor or a position). Access is provided via
+ * operator overloading of round bracket.
+ * 
+ * @ingroup request_concept
+ */
+class Request_concept {
+    public:
+	/** Type of \ref os_concept "Os Concept" which has been set.
+        */
+        typedef ... OsModel;
+	/** Type of value that is returned.
+	*/
+	typedef ... value_t;
+	/** Return current value.
+	*/
+	value_t operator()();
+};
+
+}

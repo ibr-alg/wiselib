@@ -1,0 +1,16 @@
+#include "clock.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Extension of \ref clock_concept "Clock Concept"
+ *
+ * @ingroup alarm_clock_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class AlarmClock_concept {
+};
+
+}

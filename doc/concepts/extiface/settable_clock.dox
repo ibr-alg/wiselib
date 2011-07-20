@@ -1,0 +1,23 @@
+#include "clock.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Extension of \ref clock_concept "Clock Concept"
+ *
+ * The settable clock extends the basic one by one method to change/set 
+ * the current time.
+ *
+ * @ingroup settable_clock_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Settable_clock_concept {
+   public:
+      /** Set the current time.
+      */
+      int set_time( time_t time );
+};
+
+}

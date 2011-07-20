@@ -1,0 +1,50 @@
+#include "container.h"
+#include "default_constructable.h"
+
+namespace concepts
+{
+
+/**
+ * A Sequence is a container whose elements are arranged in a strict order.
+ * Sequences support insertion and removal of elements.
+ * 
+ * @ingroup sequence_concept
+ */
+class Sequence_concept
+    : public Container_concept, public DefaultConstructable_concept
+{
+  public:
+    /** Create a sequence consisting of n copies of t.
+    */
+    X(size_type n, value_type t);
+    /** Create a sequence consisting of n instances of the default value for value_type.
+    */
+    X(size_type n);
+    /** Create a sequence that contains the values from a to b, including a and excluding b or in mathematical notation: [a, b).
+    */
+    X(value_type a, value_type b);
+    
+    /** Insert value t before the place pointed to by p.
+    */
+    void insert(iterator p, value_type t);
+    /** Insert n copies of t before p.
+    */
+    void insert(iterator p, size_type n, value_type t);
+    /** Insert [a, b) before p.
+    */
+    void insert(iterator p, value_type a, value_type b);
+    /** Erase element pointed to by p from the container.
+    */
+    void erase(iterator p);
+    /** Erase all elements pointed to by [p, q).
+    */
+    void erase(iterator p, iterator q);
+    /** Clear container (remove all elements).
+    */
+    void clear();
+    /** Resize container by removing elements from the end or appending copies of t at the end.
+    */
+    void resize(size_type n, value_type t);
+};
+
+}

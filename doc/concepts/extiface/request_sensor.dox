@@ -1,0 +1,24 @@
+#include "basic_sensor.h"
+#include "request.h"
+
+namespace concepts
+{
+
+/**
+ * \brief A basic request sensor.
+ * A request sensor refines both the \ref basic_sensor_concept "Basic Sensor"
+ * and the \ref request_concept "Request", so that a user can call a function
+ * to get the current sensor value (via operator()()). The status of the sensor
+ * (is it active and provides a reasonable value) can be requested via the
+ * state().
+ * 
+ * @ingroup request_sensor_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class RequestSensor_concept 
+  : public BasicSensor_concept, public Request_concept
+{
+};
+
+}

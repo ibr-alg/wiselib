@@ -1,0 +1,61 @@
+#include "basic_return_values.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic concept for Os specialization.
+ *
+ * Each Os Model of the Os Concept (that is, an implementation for a
+ * specific system) provide default types for the basic Os facets
+ * (Radio, Timer, Debug). Hence, a routing algorithm can typically use
+ * Os::Radio as its Radio, but also accept a Radio as a template
+ * parameter, so that also special implementations can be passed to
+ * the algorithm.
+ *
+ * Furthermore, an Os Model provides a size type size_t, which is used
+ * for any kind of size information and should be set to an unsigned
+ * integral type, and a default block data type block_data_t used for
+ * data buffers.
+ *
+ * @ingroup os_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Os_concept
+   : public BasicReturnValues_concept
+{
+   public:
+      /** Unsigned integer that represents length information.
+		 */
+      typedef ... size_t;
+		/** Data type used for raw data in message sending
+		 *	 process. Usually an uint8_t.
+		 */
+		typedef ... block_data_t;
+
+		/**
+		 * Standard \ref radio_concept "Radio" that is used for message
+		 * sending and registration of message reception callback. If no
+		 * Radio is passed to an algorithm, it is able to get a standard
+		 * one over a model of the Os Facet.
+		 */
+		typedef ... Radio;
+		/**
+		 * Standard \ref timer_concept "Timer" that is used for message
+		 * sending and registration of message reception callback. If no
+		 * Timer is passed to an algorithm, it is able to get a standard
+		 * one over a model of the Os Facet.
+		 */
+		typedef ... Timer;
+		/**
+		 * Standard \ref debug_concept "Debug" interface that is used
+		 * for message sending and registration of message reception
+		 * callback. If no Debug interface is passed to an algorithm, it
+		 * is able to get a standard one over a model of the Os Facet.
+		 */
+		typedef ... Debug;
+
+};
+
+}

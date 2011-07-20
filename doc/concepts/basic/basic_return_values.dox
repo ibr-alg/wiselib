@@ -1,0 +1,46 @@
+namespace concepts
+{
+
+/**
+ * Since nearly every method within the Wiselib returns at least, if the call
+ * was successful or not, the concept for the Basic Return Values defines
+ * constants for success and failure.
+ *
+ * Derived concepts may define more fine-grained failure values (which are not
+ * allowed to equal SUCCESS or ERR_UNSPEC).
+ *
+ * @ingroup basic_return_values_concept
+ */
+class BasicReturnValues_concept
+{
+   public:
+      enum
+      {
+         /// Default return value of success
+         SUCCESS,
+         /// Unspecified error value - if no other fits
+         ERR_UNSPEC,
+         /// Out of memory
+         ERR_NOMEM,
+         /// Device or resource busy - try again later
+         ERR_BUSY,
+         /// Function not implemented
+         ERR_NOTIMPL,
+         /// Network is down
+         ERR_NETDOWN,
+         /// No route to host
+         ERR_HOSTUNREACH
+      };
+
+      enum StateValues
+      {
+         /// Ready for asking for data
+         READY,
+         /// Currently no data available
+         NO_VALUE,
+         /// Currently inactive - so no values available.
+         INACTIVE
+      };
+};
+
+}

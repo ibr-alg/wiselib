@@ -1,0 +1,28 @@
+#include "sequence.h"
+
+namespace concepts
+{
+
+/**
+ * A front insertion sequence guarantees that insertion and access operations
+ * at the front of the container happen in amortized constant time and provides
+ * additional shorthands for those operations.
+ * 
+ * @ingroup front_insertion_sequence_concept
+ */
+class FrontInsertionSequence_concept
+    : public Sequence_concept
+{
+  public:
+    /** Return reference to first element (equivalent to *(begin())).
+    */
+    value_type& front() { return *(begin()); }
+    /** Insert element as new first element of the container (equivalent to insert(begin(), t) ).
+    */
+    void push_front(value_type& t) { insert(begin(), t); }
+    /** Remove first element (equivalent to erase(begin()) ).
+    */
+    void pop_front() { erase(begin()); }
+};
+
+}

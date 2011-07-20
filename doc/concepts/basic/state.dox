@@ -1,0 +1,22 @@
+namespace concepts
+{
+
+/**
+ * @ingroup state_concept
+ */
+class State_concept {
+	public:
+			enum State {
+				READY, ///< Ready for returning a value.
+				NO_VALUE, ///< There is no value available.
+				INACTIVE, ///< Not yet enabled - implementation is inactive and cannot return meaningful values.
+				DATA_AVAILABLE ///< There is new data availbale
+			};
+			
+			/**
+			 * Return the current state.
+			 */
+			int state();
+};
+
+}

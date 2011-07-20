@@ -1,0 +1,37 @@
+#include "algorithm.h"
+#include "basic_return_values.h"
+#include "state_callback.h"
+#include "state.h"
+
+namespace concepts
+{
+
+/**
+ * A class tracking  motions over time.
+ * Whenever the object turns, or moves, internal counters will adjust their
+ * guessing of the objects traveled distance and current orientation.
+ * 
+ * @ingroup odometer_concept
+ */
+class Odometer_concept :
+		public StateCallback_concept,
+		public State_concept {
+	public:
+		typedef ... OsModel;
+		typedef ... angle_t;
+		typedef ... distance_t;
+		
+		/// Reset angle counter to zero.
+		int reset_angle();
+		
+		/// Return current angle.
+		angle_t angle();
+		
+		/// Reset distance counter to zero.
+		int reset_distance();
+		
+		/// Return current distance.
+		distance_t distance();
+};
+
+}

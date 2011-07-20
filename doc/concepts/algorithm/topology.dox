@@ -1,0 +1,92 @@
+#include "basic_algorithm.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Topology Algorithms
+ *
+ * If the network is though as a graph, with sensors as nodes and
+ * communication links at full power as edges, topology algorithms
+ * build a subgraph, choosing for every sensors a subset of its
+ * neighbors.
+ *
+ * Topology algorithms can later be complemented by radio power
+ * adjustment. By reducing the radio range, the node can still
+ * comunicate to its topology neighbors. Some algorithms don't
+ * implement this, so the topology concept only gives a vector
+ * with the topology, and the radio power will be changed by the
+ * user if desired.
+ *
+ * Topology algorithms can depend on a positioning system,
+ * distance estimation, link quality measurement... The basic
+ * concept leaves this as free features for each algorithm.
+ * 
+ * @ingroup topology_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Topology_concept
+    : public BasicAlgorithm_concept
+{
+   public:
+      /** 
+      */
+      typedef ... OsModel;
+      /** Radio that is used for message sending and registration of message reception callback. Provided type is implementation of Radio Facet.
+      */
+      typedef ... Radio;
+
+      /** 
+      */
+      typedef ... self_type;
+      /** 
+      */
+      typedef ... self_pointer_t;
+
+      /** 
+      */
+      typedef ... node_id_t;
+      /** 
+      */
+      typedef ... size_t;
+      /** 
+      */
+      typedef ... block_data_t;
+      /** 
+      */
+      typedef ... message_id_t;
+
+		/**
+		*/
+		typedef Float position_t;
+
+		/** Type for the topology: vector of nodes.
+		*/
+		typedef vector_static<OsModel, node_id_t, MAX_NODES> Neighbors;
+
+      int init();
+      int destruct();
+
+		/** Start topology construction.
+		*/
+		void enable();
+
+      /** Stop topology construction.
+      */
+      void disable();
+
+		/** Return topology (vector of neighbors)
+		*/
+      Neighbors &topology();
+
+		/**
+      */
+      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
+	   int reg_recv_callback( T *obj_pnt );
+      /** 
+      */
+      void unreg_recv_callback( int idx );
+};
+
+}

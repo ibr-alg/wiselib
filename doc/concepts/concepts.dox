@@ -1,0 +1,118 @@
+
+/**
+ * @defgroup concepts Concepts
+ * @{
+ *
+ *    @defgroup basic_concepts Basic Concepts
+ *    @{
+ *       @defgroup basic_algorithm_concept Basic Algorithm
+ *       @defgroup basic_return_values_concept Basic Return Values
+ * 	 @defgroup request_concept Request
+ *       @defgroup state_concept State
+ *       @defgroup state_callback_concept StateCallback
+ *    @}
+ *
+ *    @defgroup extiface_concepts External Interface Concepts
+ *    @{
+ *       @defgroup os_concept Os
+ *       @defgroup radio_concept Radio
+ *       @{
+ *          @defgroup extdata_radio_concept Extended Data Radio
+ *          @defgroup tx_radio_concept Tx Radio
+ *          @defgroup reliable_radio_concept Reliable Radio
+ *       @}
+ *       @defgroup timer_concept Timer
+ *       @defgroup debug_concept Debug
+ *       @defgroup clock_concept Clock
+ *       @{
+ *          @defgroup settable_clock_concept Settable Clock
+ *          @defgroup clock_time_translation_concept Clock-Time-Translation
+ *          @defgroup alarm_clock_concept Alarm Clock
+ *       @}
+ *       @defgroup serial_communication_concept Serial Communication
+ *       @defgroup random_number_concept Random Number
+ *       @defgroup basic_sensor_concept Basic Sensor
+ *       @{
+ *          @defgroup request_sensor_concept Request Sensor
+ *          @defgroup callback_sensor_concept Callback Sensor
+ *          @defgroup managed_sensor_concept Managed Sensor
+ *       @}
+ *    @}
+ *
+ *    @defgroup pstl_concepts pSTL Concepts
+ *    @{
+ *       @defgroup allocator_concept Allocator
+ *       @defgroup assignable_concept Assignable
+ *       @defgroup default_constructable_concept Default Contructable
+ *       @defgroup lessthan_concept LessThan Comparable
+ *       @defgroup equality_concept Equality Comparable
+ *       @defgroup container_concept Container
+ *       @{
+ *          @defgroup random_access_container_concept Random Access Container
+ *          @defgroup associative_container_concept Associative Container
+ *          @defgroup sorted_associative_container_concept Sorted Associative Container
+ *          @defgroup unique_associative_container_concept Unique Associative Container
+ *       @}
+ *       @defgroup sequence_concept Sequence
+ *       @{
+ *          @defgroup front_insertion_sequence_concept Front Insertion Sequence
+ *          @defgroup back_insertion_sequence_concept Back Insertion Sequence
+ *       @}
+ *    @}
+ *
+ *    @defgroup robot_motion_concepts Robot Motion Concepts
+ *    @{
+ *       @defgroup turn_walk_motion_concept TurnWalkMotion
+ *       @defgroup odometer_concept Odometer
+ *    @}
+ *
+ *    @defgroup algorithm_concepts Algorithm Concepts
+ *    @{
+ *       @defgroup routing_concept Routing
+ *       @defgroup neighbourhood_discovery_concept Neighbourhood Discovery
+ *       @defgroup topology_concept Topology Control
+ *       @defgroup graph_concept Graph Algorithm
+ *       @defgroup position_concept Position
+ *       @defgroup node_distance_estimation_concept Node Distance Estimation
+ *       @defgroup cryptographic_concept Cryptographic
+ *       @defgroup coloring_concept Coloring
+ *       @defgroup synchronization_concept Time Synchronization
+ *       @defgroup tracking_concept Tracking
+ *       @defgroup energy_preservation_concept Energy Preservation
+ *       @defgroup clustering_concept Clustering
+ *       @defgroup modular_clustering_concept Modular Clustering
+ *       @{
+ *          @defgroup cc_concept Core Component
+ *          @defgroup chd_concept Cluster Head Decision
+ *          @defgroup jd_concept Join Decision
+ *          @defgroup it_concept Iterator
+ *       @}
+ *    @}
+ *
+ * @}
+ *
+ *
+ * @defgroup facets_overview Facet Implementations for Sensor OSs
+ * @{
+ *    @defgroup contiki_facets Contiki Facets
+ *    @defgroup isense_facets iSense Facets
+ *    @defgroup osa_facets OSA Facets
+ *    @defgroup scw_facets Scatterweb^2 Facets
+ *    @defgroup shawn_facets Shawn Facets
+ *    @defgroup tinyos_facets TinyOs Facets
+ *    @defgroup trisos_facets TrisOs Facets
+ *    @defgroup lorien_facets Lorien Facets
+ * @}
+ *
+ * @defgroup algorithm_classes Algorithm Categories
+ * @{
+ *    @defgroup routing_algorithm Routing Algorithm
+ *    @defgroup clustering_algorithm Clustering Algorithm
+ *    @defgroup cryptographic_algorithm Cryptographic Algorithm
+ *    @defgroup graph_algorithm Graph Algorithm
+ *    @defgroup topology_algorithm Topology Algorithm
+ *    @defgroup coloring_algorithm Coloring Algorithm
+ *    @defgroup neighbourhood_discovery_algorithm Neighbourhood Discovery
+ *    @defgroup synchronization_algorithm Synchronization
+ * @}
+ */

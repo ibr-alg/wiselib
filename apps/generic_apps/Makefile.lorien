@@ -1,0 +1,49 @@
+SUBMAKE = Makefile.lorien
+
+CXXFLAGS += $(CFLAGS)
+CXXFLAGS += -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) -I$(LORIEN) -I$(LORIEN)/lxr/headers/
+CXXFLAGS += -fno-defer-pop -fno-exceptions -fno-rtti -fomit-frame-pointer \
+		-fno-strength-reduce -fno-use-cxa-atexit 
+# -pedantic
+CXXFLAGS += -DOSMODEL=LorienOsModel -DLORIEN
+
+LDFLAGS  += -L.
+
+OUTPUT = out/lorien-sky
+OUTHEX = out
+
+default: base $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES)
+	@mkdir -p $(OUTPUT)
+	@echo "compiling..."
+	#wiselib
+	msp430-g++ $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC) -DLORIEN_COMPONENT_CONSTRUCTION
+	cp $(OUTPUT)/$(BIN_OUT).o $(OBJDIR)/wiselib.so
+	$(CFBUILD) $(WISELIB_PATH)/external_interface/lorien/Wiselib.cfg -o $(OBJDIR)/Wiselib
+	#Lorien support
+	$(LCC) $(PLATFORM_DIR)/concurrency/task_scheduler.c -o $(OBJDIR)/tasksched.so
+	$(CFBUILD) $(PLATFORM_DIR)/concurrency/Scheduler.cfg -o $(OBJDIR)/Scheduler
+	$(LCC) $(PLATFORM_DIR)/networking/radio_iducmx_task_cca_crc.c -o $(OBJDIR)/radio.so
+	$(CFBUILD) $(PLATFORM_DIR)/networking/Radio.cfg -o $(OBJDIR)/Radio
+	$(LCC) $(LIBRARY_DIR)/protocols/mac/lpl.c -o $(OBJDIR)/mac.so
+	$(CFBUILD) $(LIBRARY_DIR)/protocols/mac/MAC.cfg -o $(OBJDIR)/MAC
+	$(LCC) $(LIBRARY_DIR)/random/park_miller_carta.c -o $(OBJDIR)/random.so
+	$(CFBUILD) $(LIBRARY_DIR)/random/Random.cfg -o $(OBJDIR)/Random
+	$(LCC) $(CPU_DIR)/time/timer_32ms_task.c -o $(OBJDIR)/timer.so
+	$(CFBUILD) $(CPU_DIR)/time/Timer.cfg -o $(OBJDIR)/Timer
+	$(LCC) $(PLATFORM_DIR)/peripherals/serial_port_task.c -o $(OBJDIR)/serial.so
+	$(CFBUILD) $(PLATFORM_DIR)/peripherals/SerialPort.cfg -o $(OBJDIR)/SerialPort
+	@echo "linking..."
+	$(MAKE) -f $(LORIEN)/xmakefiles/tmote/Makefile.include lorien_open CONFIG="$(CORE_CONFIG) $(OBJDIR)/Scheduler $(OBJDIR)/Timer $(OBJDIR)/MAC $(OBJDIR)/Random $(OBJDIR)/Radio $(OBJDIR)/SerialPort $(OBJDIR)/Wiselib" RUNTIME=$(LORIEN)/lxr LORIEN=$(LORIEN)
+	#dynamically loadable object
+	$(E2PD) $(OBJDIR)/wiselib.so
+	@echo "make hex..."
+	msp430-objcopy -O ihex lorien.o lorien.ihex
+	@echo "show sizes..."
+	msp430-objcopy -O ihex lorien.o lorien.hex
+#msp430-objcopy -O binary $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).bin
+#@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTHEX)/
+#@cp $(OUTPUT)/$(BIN_OUT).* $(OUTHEX)/
+	msp430-size lorien.o
+
+include $(LORIEN)/xmakefiles/tmote/Makefile.include
+

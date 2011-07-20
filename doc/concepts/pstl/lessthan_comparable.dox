@@ -1,0 +1,26 @@
+namespace concepts
+{
+
+/**
+ * Models implementing this concept are comparable by the operations <,>,<= and >=.
+ * 
+ * @ingroup lessthan_comparable_concept
+ */
+class LessThanComparable_concept
+{
+  public:
+    /** <-Operator
+    */
+    bool operator<(X& other);
+    /** <=-Operator
+    */
+    bool operator<=(X& other);
+    /** >-Operator
+    */
+    bool operator>(X& other);
+    /** >=-Operator
+    */
+    bool operator>=(X& other);
+};
+
+}

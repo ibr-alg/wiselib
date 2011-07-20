@@ -1,0 +1,51 @@
+#include "basic_algorithm.h"
+#include "request.h"
+#include "state.h"
+#include "state_callback.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Position Algorithms
+ *
+ * The position is a refinement of a \ref request_concept "Request", and returns either the current position (of type value_t) via operator()() (as defined in \ref request_concept "Request").
+ *
+ * Since a position may also be unknown, it also implements \ref state_concept "State" or \ref state_callback_concept "State Callback" to indicate whether a correct position is available (state must be X::READY). The concrete implementation (state or state callback) is implementation dependent, and must be given in documentation. Of course, a model may implement both state and state callback.
+ * 
+ * @ingroup position_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Position_concept
+    : public BasicAlgorithm_concept, public Request_concept, public State_concept, public StateCallback_concept
+{
+   public:
+      typedef ... value_t; ///< Define position type.
+
+      enum State {
+	  READY, ///< Ready for returning a value.
+	  NO_VALUE, ///< There is no value available.
+	  INACTIVE, ///< Not yet enabled - implementation is inactive and cannot return meaningful values.
+	  OK, ///< Only State Callback. When callback registration was successful.
+	  FAILED ///< Only State Callback. When callback registration failed.
+      };
+
+      /** Reset algorithm. Known position (if so) is lost, state is set back to NO_VALUE.
+      */
+      int init();
+      /** Turn off algorithm. State is set to INACTIVE.
+      */
+      int destruct();
+      /** Return current position.
+      */
+      value_t operator()();
+      /** Only State. Return current state - can either be READY, NO_VALUE, or INACTIVE.
+      */
+      int state();
+      /** Only State Callback. Register state changed callback function - method signature must be void RCV_METHOD_NAME(int state). Returns either OK or FAILED.
+      */
+      int register_state_callback(T *obj_pnt );	
+};
+
+}

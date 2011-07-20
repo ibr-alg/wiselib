@@ -1,0 +1,25 @@
+#include "radio.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Extension of \ref radio_concept "Radio Concept"
+ *
+ * Add ability to change tx power fir radio.
+ *
+ * @ingroup tx_radio_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class TxRadio_concept
+   : public Radio_concept 
+{
+   public:
+      typedef ... TxPower;
+
+		TxPower power();
+		void set_power(TxPower&);
+};
+
+}

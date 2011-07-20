@@ -1,0 +1,42 @@
+CXXFLAGS    = -W -Wall -Os -mmcu=msp430x1612 \
+		-fno-defer-pop -fno-exceptions -fno-rtti
+LDFLAGS     = -Wl,-T"$(SCATTERWEB_PATH)/../System/lddefault.x" \
+		-Wl,-Map="out/testapp.map" -Wl,--cref
+DEFINITIONS = -D__SCATTERWEB__ -D__EOSVER_MAJOR=1 -D__EOSVER_MINOR=1 \
+		-D__COMPILE_TIME=1221577098 -D__APP_NAME="\"TestApp\"" \
+		-D__WITH_LIBSCATTERWEB -D__WITH_LIBCC1020 -DLIBRARY_COUNT=2 \
+		-DLIBRARY_STRINGLIST="\"scatterweb\",\"CC1020\"" \
+		-DMSP430 -DOSMODEL=ScwOsModel -DWISELIB_COMPILATION
+INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING) \
+		-I"$(SCATTERWEB_PATH)/libscatterweb/include" \
+		-I"$(SCATTERWEB_PATH)/libCC1020/include" \
+		-include $(SCATTERWEB_PATH)/libCC1020/libCC1020.h  \
+		-include $(SCATTERWEB_PATH)/libscatterweb/libscatterweb.h
+LIBDIRS     = -L. -L$(SCATTERWEB_PATH) -L$(WISELIB_BASE)/applications/lib
+LIBS        = -lscatterweb -lCC1020
+# --------------------------------------------------------
+OUTPUT = out/scw
+OUTHEX = out
+# --------------------------------------------------------
+scw_msb:
+	@mkdir -p $(OUTPUT)
+	@echo "compiling..."
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/scw_os.o -c $(WISELIB_PATH)/external_interface/scw/scw_os.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/scw_radio.o -c $(WISELIB_PATH)/external_interface/scw/scw_radio.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/scw_timer.o -c $(WISELIB_PATH)/external_interface/scw/scw_timer.cpp
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
+	@echo "linking..."
+	msp430-g++ $(LDFLAGS) $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).o $(OUTPUT)/scw_os.o \
+		$(OUTPUT)/scw_radio.o $(OUTPUT)/scw_timer.o \
+		$(LIBDIRS) $(LIBS)
+	@echo "make hex..."
+	msp430-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
+	msp430-objcopy -O binary $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).bin
+	@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTHEX)/
+	@echo "show sizes..."
+	msp430-size $(OUTPUT)/$(BIN_OUT).elf

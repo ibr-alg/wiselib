@@ -1,0 +1,98 @@
+#------------------------------------------------------------------------------
+#-- DO NOT TOUCH - Modify Makefile.properties instead
+#------------------------------------------------------------------------------
+
+CCP	 = g++
+CC 	 = g++
+CC 	 = ld
+AR 	 = ar
+SIZE = size
+
+include Makefile.properties
+
+OBJS_PATH		= bin/shawn
+
+#------------------------------------------------------------------------------
+#-- Set up the C compiler flags
+#------------------------------------------------------------------------------
+
+LIBFILE = $(ISENSE_PATH)/lib/shawn/iSenseSimulationLibrary.a
+LOCAL_CFLAGS = 
+LOCAL_CPPFLAGS = 
+LOCAL_COMMON_FLAGS = -g -O3 -Wall -I$(SRC_PATH) -I$(ISENSE_PATH)/src -I$(SHAWN_INCLUDE) $(SHAWN_EXTRA_FLAGS)
+
+CFLAGS   += $(LOCAL_COMMON_FLAGS) $(LOCAL_CFLAGS)
+CPPFLAGS += $(LOCAL_COMMON_FLAGS) $(LOCAL_CPPFLAGS)
+
+#------------------------------------------------------------------------------
+#-- This converts the *.c/*.cpp,*.S source file names to the output file names in
+#-- the binary folder
+#------------------------------------------------------------------------------
+
+TMP_C_OBJECTS  = $(filter %.o,$(BLDSRCS:.c=.o))   
+TMP_CPP_OBJECTS= $(filter %.o,$(BLDSRCS:.cpp=.o))   
+
+C_OBJECTS  =$(TMP_C_OBJECTS:%=$(OBJS_PATH)/%)
+CPP_OBJECTS=$(TMP_CPP_OBJECTS:%=$(OBJS_PATH)/%)
+
+OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
+
+SHAWN_TARGET=shawn-$(TARGET)
+
+#------------------------------------------------------------------------------
+#-- Build rules for the main application
+#------------------------------------------------------------------------------
+
+all: $(SHAWN_TARGET) Makefile.shawn
+
+debug:
+	@echo -e "\n-------------------------------------------------------------------------\
+	\n   Sources    : $(BLDSRCS) \
+	\n   AsmSources : $(ASMSRCS) \
+	\n   Objects    : $(OBJECTS) \
+	\n-------------------------------------------------------------------------"
+
+
+#------------------------------------------------------------------------------
+#-- Build rules for the .c files
+#------------------------------------------------------------------------------
+	
+$(OBJS_PATH)/%.o: $(SRC_PATH)/%.cpp
+	@echo "   - Compiling for Shawn: $<"
+	@mkdir -p `dirname $@`
+	@$(CCP) $(CPPFLAGS) -MMD -c $< -o $@	
+	
+
+$(OBJS_PATH)/%.o: $(SRC_PATH)/%.c
+	@echo "   - Compiling for Shawn: $<"
+	@mkdir -p `dirname $@`
+	@$(CC) $(CFLAGS) -MMD -c $< -o $@	
+	
+#------------------------------------------------------------------------------
+#-- Linker
+#------------------------------------------------------------------------------
+
+$(SHAWN_TARGET): $(ASMOBJS) $(OBJECTS) $(SHAWN_LIB) $(LIBFILE) $(SHAWN_EXTRA_LIB)
+	echo "   - Building executable $@"
+	$(CCP) -o $(SHAWN_TARGET) -Wl,--start-group $(ASMOBJS) $(OBJECTS) $(SHAWN_LIB) $(LIBFILE) $(SHAWN_EXTRA_LIB)  -Wl,--end-group $(SHAWN_EXTRA_LD_FLAGS)
+
+#------------------------------------------------------------------------------
+#--  
+#------------------------------------------------------------------------------
+
+clean:
+	rm -rf $(OBJS_PATH) $(SHAWN_TARGET)
+
+#------------------------------------------------------------------------------
+#-- End
+#------------------------------------------------------------------------------
+
+.PRECIOUS: %.o %.or32
+.PHONY: all buildbin debug buildlibs
+.SUFFIXES:
+
+#------------------------------------------------------------------------------
+# Dependency lists
+#------------------------------------------------------------------------------
+-include $(BLDSRCS:%.c=$(OBJS_PATH)/%.d)
+-include $(BLDSRCS:%.cpp=$(OBJS_PATH)/%.d)

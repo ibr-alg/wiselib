@@ -1,0 +1,43 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Serial Communication
+ *
+ * 
+ * @ingroup serial_communication_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Serial_communication_concept {
+   public:
+      /** Type of \ref os_concept "Os Concept" which has been set for the serial communication facet.
+       */
+      typedef ... OsModel;
+
+      /** Data type used for raw data in message sending process. Usually an uint8_t.
+       */
+      typedef ... block_data_t;
+      /** Unsigned integer that represents length information.
+       */
+      typedef ... size_t;
+
+      /** Turn on serial communication. Data can be sent and received..
+       */
+      int enable_serial_comm();
+      /** Turn off serial communication. Data can not be sent and received.
+       */
+      int disable_serial_comm();
+      /** Write len bytes of data to serial port.
+       */
+      int write( size_t len, block_data_t *buf );
+      /** Register callback function. Whenever data is received, the callback function is called. Data can be anything (bytes, lines, packets), but must be described in detail in the appropriate model. Return unique identifier for this registration.
+       */
+      template<class T, void (T::*TMethod)(size_t, block_data_t*)>
+      int reg_read_callback( T *obj_pnt );
+      /** Unregister callback function - use unique identifier returned by registration
+       */
+      int unreg_read_callback( int idx );
+};
+
+}

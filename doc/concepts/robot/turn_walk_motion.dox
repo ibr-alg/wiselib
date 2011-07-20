@@ -1,0 +1,44 @@
+#include "algorithm.h"
+#include "basic_return_values.h"
+
+namespace concepts
+{
+
+/**
+ * @ingroup turn_walk_motion_concept
+ */
+class TurnWalkMotion_concept : public BasicReturnValues_concept {
+	public:
+	
+	typedef ... velocity_t; ///< Type for velocity measurement
+	typedef ... angular_velocity_t; ///< Type for anglular velocity measurement
+	
+	enum MotionParameters {
+		PRECISE_ANGULAR_VELOCITY,
+		DEFAULT_ANGULAR_VELOCITY,
+		FAST_ANGULAR_VELOCITY,
+		PRECISE_VELOCITY,
+		DEFAULT_VELOCITY,
+		FAST_VELOCITY
+	};
+	
+	
+	/**
+	 */
+	int turn(angular_velocity_t v = DEFAULT_ANGULAR_VELOCITY);
+	
+	/**
+	 */
+	int move(velocity_t v = DEFAULT_VELOCITY);
+	
+	/**
+	 */
+	int stop();
+	
+	/**
+	 * @blocking
+	 */
+	int wait_for_stop();
+};
+
+}

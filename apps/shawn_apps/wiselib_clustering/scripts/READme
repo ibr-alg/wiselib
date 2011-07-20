@@ -1,0 +1,11 @@
+all Script files are to be moved to the shawn/buildfiles/ folder
+an execution is started using the run.sh script
+ie ./run.sh start_parameter end_parameter step_parameter topologies_folder_name algorithm_name
+topologies have to be placed under shawn/buildfiles/topologies/
+after the execution results are placed to the shawn/buildfiles/data folder
+and plots generated to the shawn/buildfiles/plots
+also a pdf report with all results is generated in shawn/buildfiles folder
+
+** Debug defines have to be uncommented to get the actual data **
+
+For mmoca algorithm no plots and report generating scripts exist

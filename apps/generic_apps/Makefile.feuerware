@@ -1,0 +1,116 @@
+OUTPUT = out/feuerware
+OUTHEX = out
+
+CXXFLAGS    = -O2 -Wall -mcpu=arm7tdmi-s \
+		-include $(FEUERWARE_PATH)/sys/include/configure.h \
+		-fno-defer-pop -fno-exceptions -fno-rtti
+CFLAGS    = -O2 -Wall -mcpu=arm7tdmi-s \
+		-include $(FEUERWARE_PATH)/sys/include/configure.h \
+		-fno-defer-pop
+DEFINITIONS = -DMODULE_BOARD -DMODULE_CPU -DMODULE_CPU_DRIVERS \
+		-DMODULE_ARM_COMMON -DMODULE_CORE -DMODULE_TRACELOG -DMODULE_SYSMON \
+		-DMODULE_CC110X -DMODULE_BOARD_CC1100 -DMODULE_SYS_LIB \
+		-DOSMODEL=FeuerwhereOsModel -DFEUERWARE \
+		-DAUTOSTART_ENABLE
+#HDRS += $(TOP) ;
+#HDRS += [ FPath $(TOP) core include ] ;
+#HDRS += [ FPath $(TOP) hal include ] ;
+#HDRS += [ FPath $(TOP) sys include ] [ FPath $(TOP) sys config ] [ FPath $(TOP) sys drivers include ] [ FPath $(TOP) sys drivers cc110x ] ;
+#HDRS += [ FPath $(TOP) sys net ] ;
+#HDRS += [ FPath $(TOP) sys lib ] [ FPath $(TOP) sys lib fat ] ;
+#HDRS += [ FPath $(TOP) sys lib cmdengine ] ;
+#HDRS += [ FPath $(TOP) sys lib gps ] [ FPath $(TOP) sys lib gps conversion ] [ FPath $(TOP) sys lib gps drivers ] [ FPath $(TOP) sys lib gps geo ] [ FPath $(TOP) #sys lib gps geo  ] ;
+#HDRS += [ FPath $(TOP) sys net phy ] [ FPath $(TOP) sys net mm ] ;
+#HDRS += [ FPath $(TOP) thirdparty nanotron ] ;
+#HDRS += [ FPath $(TOP) sys lib ezxml ] ;
+INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING) \
+		-I$(WISELIB_PATH_TESTING)/external_interface/feuerwhere \
+		-I. -I$(FEUERWARE_PATH)/core/include -I$(FEUERWARE_PATH)/hal/include \
+		-I$(FEUERWARE_PATH)/sys/include -I$(FEUERWARE_PATH)/sys/config \
+		-I$(FEUERWARE_PATH)/sys/drivers/include \
+		-I$(FEUERWARE_PATH)/sys/drivers/cc110x -I$(FEUERWARE_PATH)/sys/net \
+		-I$(FEUERWARE_PATH)/sys/lib -I$(FEUERWARE_PATH)/sys/lib/cmdengine -I$(FEUERWARE_PATH)/sys/lib/fat/include \
+		-I$(FEUERWARE_PATH)/sys/net/phy -I$(FEUERWARE_PATH)/sys/net/mm \
+		-I$(FEUERWARE_PATH)/board/msba2/drivers/include \
+		-I$(FEUERWARE_PATH)/cpu/lpc2387/drivers/include \
+		-I$(FEUERWARE_PATH)/cpu/lpc2387/hal/include \
+		-I$(FEUERWARE_PATH)/cpu/arm_common/include \
+		-I$(FEUERWARE_PATH)/board/msba2/include \
+		-I$(FEUERWARE_PATH)/cpu/lpc2387/include
+#LDFLAGS     = -Wl,-T"$(SCATTERWEB_PATH)/../System/lddefault.x" -Wl,-Map="out/testapp.map" -Wl,--cref
+LDFLAGS     = -Wl,-T"$(WISELIB_PATH_TESTING)/external_interface/feuerwhere/linkerscript.x" \
+		-Wl,-Map="$(FEUERWARE_PATH)/bin/msba2.map" -Wl,--cref
+#LIBDIRS     = -L. -L$(SCATTERWEB_PATH) -L$(APP_PATH)/lib
+LIBDIRS     = -L. -L$(FEUERWARE_PATH) -L$(APP_PATH)/lib
+LIBS        = -lscatterweb -lCC1020
+# --------------------------------------------------------
+feuerware:
+	@mkdir -p $(OUTPUT)
+	@echo "compiling..."
+	arm-elf-gcc -std=gnu99 $(CFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/feuerwhere_startup.o -c $(WISELIB_PATH_TESTING)/external_interface/feuerwhere/feuerwhere_startup.c
+	arm-elf-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/feuerwhere_os.o -c $(WISELIB_PATH_TESTING)/external_interface/feuerwhere/feuerwhere_os.cpp
+	arm-elf-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/feuerware_timer.o -c $(WISELIB_PATH_TESTING)/external_interface/feuerwhere/feuerwhere_timer.cpp
+	arm-elf-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/feuerwhere_cc1100_radio.o -c $(WISELIB_PATH_TESTING)/external_interface/feuerwhere/feuerwhere_cc1100_radio.cpp
+	arm-elf-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
+	@echo "linking..."
+	arm-elf-g++ -mcpu=arm7tdmi-s -static -g -lgcc -nostartfiles \
+		-T $(WISELIB_PATH_TESTING)/external_interface/feuerwhere/linkerscript.x $(FEUERWARE_PATH)/bin/startup.o \
+		$(FEUERWARE_PATH)/bin/syscalls.o $(FEUERWARE_PATH)/bin/builddate.o \
+		$(OUTPUT)/$(BIN_OUT).o $(OUTPUT)/feuerwhere_os.o $(OUTPUT)/feuerwhere_startup.o \
+		$(OUTPUT)/feuerware_timer.o $(OUTPUT)/feuerwhere_cc1100_radio.o \
+		-Wl,--start-group \
+		$(FEUERWARE_PATH)/bin/board.a $(FEUERWARE_PATH)/bin/cpu.a \
+		$(FEUERWARE_PATH)/bin/cpu_drivers.a $(FEUERWARE_PATH)/bin/arm_common.a \
+		$(FEUERWARE_PATH)/bin/core.a \
+		$(FEUERWARE_PATH)/bin/sys_lib.a \
+		$(FEUERWARE_PATH)/bin/board_ltc4150.a \
+		$(FEUERWARE_PATH)/bin/cmdengine.a \
+		$(FEUERWARE_PATH)/bin/hal_drivers.a \
+		$(FEUERWARE_PATH)/bin/net_mm.a \
+		$(FEUERWARE_PATH)/bin/configuration.a \
+		$(FEUERWARE_PATH)/bin/fat.a \
+		$(FEUERWARE_PATH)/bin/inilib.a \
+		$(FEUERWARE_PATH)/bin/powermon.a \
+		$(FEUERWARE_PATH)/bin/sys_lib.a \
+		$(FEUERWARE_PATH)/bin/utimer.a \
+		$(FEUERWARE_PATH)/bin/board_cc1100.a \
+		$(FEUERWARE_PATH)/bin/cc110x.a \
+		$(FEUERWARE_PATH)/bin/hal.a \
+		$(FEUERWARE_PATH)/bin/ltc4150.a \
+		$(FEUERWARE_PATH)/bin/sysmon.a \
+		$(FEUERWARE_PATH)/bin/board_hal.a \
+		$(FEUERWARE_PATH)/bin/cmdd.a \
+		$(FEUERWARE_PATH)/bin/hal_cpu.a \
+		$(FEUERWARE_PATH)/bin/net_kernel.a \
+		$(FEUERWARE_PATH)/bin/sysmon_cpu.a \
+		-lm -Wl,--end-group -Wl,-Map=$(FEUERWARE_PATH)/bin/msba2.map \
+		-o $(OUTPUT)/$(BIN_OUT).elf
+	@echo "make hex..."
+	arm-elf-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
+	arm-elf-objcopy -O binary $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).bin
+	@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTHEX)/
+	@echo "sizes..."
+	arm-elf-size $(OUTPUT)/$(BIN_OUT).elf
+
+#	arm-elf-g++ -mcpu=arm7tdmi-s -static -g -lgcc -nostartfiles -T $(FEUERWARE_PATH)/cpu/lpc2387/linkerscript.x out/feuerware_startup.o out/feuerware_os.o out/$(BIN_OUT).o -o out/$(BIN_OUT).elf
+
+#	arm-elf-g++ -mcpu=arm7tdmi-s -static -g -lgcc -nostartfiles \
+#		-T $(FEUERWARE_PATH)/cpu/lpc2387/linkerscript.x $(FEUERWARE_PATH)/bin/startup.o \
+#		$(FEUERWARE_PATH)/bin/syscalls.o $(FEUERWARE_PATH)/bin/builddate.o out/$(BIN_OUT).o out/feuerware_os.o \
+#		-Wl,--start-group out/feuerware_startup.o $(FEUERWARE_PATH)/bin/board.a $(FEUERWARE_PATH)/bin/cpu.a \
+#		$(FEUERWARE_PATH)/bin/cpu_drivers.a $(FEUERWARE_PATH)/bin/arm_common.a  $(FEUERWARE_PATH)/bin/core.a \
+#		$(FEUERWARE_PATH)/bin/sys_lib.a -lm -Wl,--end-group -Wl,-Map=$(FEUERWARE_PATH)/bin/msba2.map -o out/$(BIN_OUT).elf	
+
+#	arm-elf-g++ -mcpu=arm7tdmi-s -static -g -lgcc -nostartfiles \
+#		-T $(FEUERWARE_PATH)/cpu/lpc2387/linkerscript.x $(FEUERWARE_PATH)/bin/startup.o \
+#		$(FEUERWARE_PATH)/bin/syscalls.o $(FEUERWARE_PATH)/bin/builddate.o \
+#		out/$(BIN_OUT).o out/feuerware_os.o \
+#		-Wl,--start-group out/feuerware_startup.o \
+#		$(FEUERWARE_PATH)/bin/board.a $(FEUERWARE_PATH)/bin/cpu.a \
+#		$(FEUERWARE_PATH)/bin/cpu_drivers.a $(FEUERWARE_PATH)/bin/arm_common.a \
+#		$(FEUERWARE_PATH)/bin/core.a $(FEUERWARE_PATH)/bin/tracelog.a \
+#		$(FEUERWARE_PATH)/bin/sysmon.a $(FEUERWARE_PATH)/bin/cc110x.a \
+#		$(FEUERWARE_PATH)/bin/board_cc1100.a $(FEUERWARE_PATH)/bin/sys_lib.a \
+#		-lm -Wl,--end-group -Wl,-Map=$(FEUERWARE_PATH)/bin/msba2.map \
+#		-o out/$(BIN_OUT).elf
+

@@ -1,0 +1,46 @@
+CXXFLAGS    = -shared -fPIC
+INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)
+DEFINITIONS = -DTINYOS -DOSMODEL=TinyOsModel -DTINYOS_TOSSIM
+# --------------------------------------------------------
+OUTPUT = out/tinyos-telosb
+OUTBIN = .
+# --------------------------------------------------------
+COMPONENT=$(WISELIB_PATH)/external_interface/tinyos/TinyosWiselibGlueAppC
+PFLAGS += -I$(WISELIB_PATH)/external_interface/tinyos/ \
+	-I$(WISELIB_PATH_TESTING)/external_interface/tinyos/ -DTINYOS_TOSSIM
+CFLAGS += -I$(TOSDIR)/lib/printf
+BUILD_EXTRA_DEPS = $(OUTPUT)/tinyos_timer.so $(OUTPUT)/tinyos_radio.so $(OUTPUT)/tinyos_os.so \
+					  $(OUTPUT)/tinyos_$(BIN_OUT).so
+# --------------------------------------------------------
+include $(MAKERULES)
+# --------------------------------------------------------
+$(OUTPUT)/tinyos_timer.so: $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
+	@mkdir -p $(OUTPUT)
+	g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/tinyos_timer.so -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
+$(OUTPUT)/tinyos_radio.so: $(WISELIB_PATH)/external_interface/tinyos/tinyos_radio.cpp
+	@mkdir -p $(OUTPUT)
+	g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/tinyos_radio.so -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_radio.cpp
+$(OUTPUT)/tinyos_os.so: $(WISELIB_PATH)/external_interface/tinyos/tinyos_os.cpp
+	@mkdir -p $(OUTPUT)
+	g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/tinyos_os.so -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_os.cpp
+$(OUTPUT)/tinyos_$(BIN_OUT).so: ./$(APP_SRC)
+	@mkdir -p $(OUTPUT)
+	g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+		-o $(OUTPUT)/tinyos_$(BIN_OUT).so -c ./$(APP_SRC)
+# --------------------------------------------------------
+tinyos-tossim:
+	@# Additional linking must be done, since in support/make/sim.extra,
+	@# PLATFORM_BUILD_FLAGS and PLATFORM_LIB_FLAGS are both directly
+	@# set, and LDFLAGS is not used. So there is no way (without
+	@# changing the TinyOs Makefile) to pass the Wiselib object files
+	@# when linking _TOSSIMmodule.so. Or do I get sth wrong?
+	@echo "linking..."
+	g++ -shared -fPIC \
+	   simbuild/micaz/pytossim.o simbuild/micaz/sim.o simbuild/micaz/tossim.o \
+		simbuild/micaz/c-support.o $(OUTPUT)/tinyos_timer.so $(OUTPUT)/tinyos_radio.so \
+		$(OUTPUT)/tinyos_os.so $(OUTPUT)/tinyos_$(BIN_OUT).so -lstdc++ -o $(OUTBIN)/_TOSSIMmodule.so
+	@echo "show sizes..."
+	size $(OUTBIN)/_TOSSIMmodule.so

@@ -1,0 +1,22 @@
+namespace concepts
+{
+
+/**
+ * \brief Random Number Concept
+ *
+ * @ingroup random_number_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class RandomNumber_concept {
+	typedef ... value_t;
+	
+	enum {
+		RANDOM_MAX = ...,
+	}
+	
+	void srand(value_t seed);
+	value_t operator()();
+};
+
+}

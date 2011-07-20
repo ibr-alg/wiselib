@@ -1,0 +1,31 @@
+#include "basic_return_values.h"
+
+namespace concepts
+{
+
+/**
+ * @ingroup state_callback_concept
+ */
+class StateCallback_concept : public BasicReturnValues_concept {
+	public:
+			enum State {
+				READY, ///< Ready for returning a value.
+				NO_VALUE, ///< There is no value available.
+				INACTIVE, ///< Not yet enabled - implementation is inactive and cannot return meaningful values.
+				DATA_AVAILABLE ///< There is new data availbale
+			};
+			
+			/**
+			 * Register state changed callback function - method signature must be void RCV_METHOD_NAME(int state).
+			 * Returns callback-identifier or -1 in order to signal an error.
+			 */
+			template<typename T, void (T::*TMethod)(int)>
+			int register_state_callback(T* obj);
+			
+			/**
+			 * Unregister state-changed callback
+			 */
+			int unregister_state_callback(int);
+};
+
+}

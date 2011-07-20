@@ -1,0 +1,14 @@
+#ifndef __ALGORITHMS_NEIGHBOR_DISCOVERY_PG_PAYLOADS_IDS_H__
+#define __ALGORITHMS_NEIGHBOR_DISCOVERY_PG_PAYLOADS_IDS_H__
+
+#define TEST 0
+#define RESERVED 1
+#define PLTT 2
+#define HWY_N 3
+#define MOBILITY 4
+#define CLUSTERING 5
+#define CLRADIO 6
+
+#define TOTAL_REG_ALG 7
+
+#endif

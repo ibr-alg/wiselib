@@ -1,0 +1,20 @@
+#include "associative_container.h"
+
+namespace concepts
+{
+
+/** \brief Unique version of an \ref associated_container_concept "associative container"
+ * 
+ * Sorted Associative Containers use an ordering relation on their keys; two keys are considered to be equivalent if neither one is less than the other.
+ * 
+ * @ingroup unique_associative_container_concept
+ */
+class UniqueAssociativeContainer_concept 
+    : public AssociativeContainer_concept
+{
+  public:
+    /** Inserts t into a if and only if a does not already contain an element whose key is the same as the key of t. The return value contains an iterator to the element (if the bool is true) or to an already contained element with the same key (if the bool is false) in which case the element was not inserted.
+    */
+    pair<iterator, bool> insert(value_type& t);
+};
+}

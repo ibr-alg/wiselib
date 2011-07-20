@@ -1,0 +1,36 @@
+#include "container.h"
+
+namespace concepts
+{
+
+/** \brief Container for key-based access to it's elements.
+ * 
+ * A container that allows access to values by keys of arbitrary type. Note that the value_type is usually *not* the mapped_type (type of the values indexed by the keys) but a pair of key type and the mapped_type. In case multiple values can be associated to a single key, value_type should be something that can contain all of them plus the key.
+ * 
+ * @ingroup associative_container_concept
+ */
+class AssociativeContainer_concept 
+    : public Container_concept
+{
+  public:
+    /** Type of keys of this container
+    */
+    typedef ... key_type;
+    /** Type of values indexed by keys
+    */
+    typedef ... mapped_type
+
+    /** Erase value associated to the given key
+    */
+    size_type erase(const key_type& k);
+    /** Return an iterator to the element associated to the given key
+    */
+    iterator find(const key_type& k);
+    /** Return number of elements associated with the given key
+    */
+    size_type count(const key_type&);
+    /** Access the element identified by the given key
+    */
+    value_type& operator[](const key_type& k);
+};
+}

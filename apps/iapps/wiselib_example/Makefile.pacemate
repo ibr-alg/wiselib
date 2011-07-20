@@ -1,0 +1,129 @@
+#------------------------------------------------------------------------------
+#-- DO NOT TOUCH - Modify Makefile.properties instead
+#------------------------------------------------------------------------------
+
+include Makefile.properties
+
+#------------------------------------------------------------------------------
+#-- DO NOT TOUCH
+#-- Set up the internally stuff for the Pacemates
+#------------------------------------------------------------------------------
+
+LD	= arm-elf-gcc
+CCP	= arm-elf-g++
+CC 	= arm-elf-gcc
+AR 	= arm-elf-ar
+AS 	= arm-elf-as
+SIZE = arm-elf-size
+OBJCOPY = arm-elf-objcopy
+
+#------------------------------------------------------------------------------
+#-- Set up the C compiler flags
+#------------------------------------------------------------------------------
+
+SRC_PATH = src
+OBJS_PATH = bin/pacemate
+
+LOCAL_COMMON_FLAGS = -I$(SRC_PATH)
+LOCAL_COMMON_FLAGS += -I$(ISENSE_PATH)/src
+LOCAL_COMMON_FLAGS += -DISENSE_PACEMATE
+LOCAL_COMMON_FLAGS += -DENABLE_MALLOC_SIMPLE
+LOCAL_COMMON_FLAGS  += -mcpu=arm7tdmi-s -MMD -MP
+LOCAL_COMMON_FLAGS  += -Wcast-align -Wcast-qual -Wimplicit -Wpointer-arith -Wswitch 
+LOCAL_COMMON_FLAGS  += -Wredundant-decls -Wreturn-type -Wshadow -Wunused
+
+LOCAL_CFLAGS = 
+LOCAL_CPPFLAGS = -fno-exceptions -fconserve-space -fno-implicit-inline-templates -fno-rtti
+
+CFLAGS   += $(LOCAL_COMMON_FLAGS) $(LOCAL_CFLAGS)
+CPPFLAGS += $(LOCAL_COMMON_FLAGS) $(LOCAL_CPPFLAGS)
+
+LDFLAGS = -u _boot -nostartfiles -nostdlib -Wl,-Map=pacemate.map,--cref $(ISENSE_PATH)/lib/pacemate/libc.a $(ISENSE_PATH)/lib/pacemate/libgcc.a
+
+#------------------------------------------------------------------------------
+#-- Set up the linker libraries
+#------------------------------------------------------------------------------
+
+LIBFILE = $(ISENSE_PATH)/lib/pacemate/iSenseLibraryPacemate.a  
+LINKER_SCRIPT = $(ISENSE_PATH)/src/isense/platforms/pacemate/firmware/LPC2136-ROM.ld
+
+#------------------------------------------------------------------------------
+#-- This converts the *.c/*.S source file names to the output file names in
+#-- the binary folder
+#------------------------------------------------------------------------------
+
+TMP_C_OBJECTS  = $(filter %.o,$(BLDSRCS:.c=.o))   
+TMP_CPP_OBJECTS= $(filter %.o,$(BLDSRCS:.cpp=.o))   
+
+C_OBJECTS  =$(TMP_C_OBJECTS:%=$(OBJS_PATH)/%)
+CPP_OBJECTS=$(TMP_CPP_OBJECTS:%=$(OBJS_PATH)/%)
+
+OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
+
+#------------------------------------------------------------------------------
+#-- Build rules for the main application
+#------------------------------------------------------------------------------
+
+all: buildbin
+
+buildbin: $(TARGET).pacemate.bin Makefile
+
+debug:
+	@echo -e "\n----- Objects of this build -------------------------- \
+	\n\tSources    : $(BLDSRCS) \
+	\n\tObjects    : $(OBJECTS) \
+	\n\tLibfiles   : $(LIBFILE) \
+	"
+
+#------------------------------------------------------------------------------
+#-- Build rules for the .c files
+#------------------------------------------------------------------------------
+	
+$(OBJS_PATH)/%.o: $(SRC_PATH)/%.cpp
+	@echo "----- Compiling (Pacemate, C++) $<"
+	mkdir -p `dirname $@`
+	$(CCP) $(CPPFLAGS) -MMD -c $< -o $@	
+	mv $(@:%.o=%.d) $(@:%.o=%.P)
+
+$(OBJS_PATH)/%.o: $(SRC_PATH)/%.c
+	@echo "----- Compiling (Pacemate, C) $<"
+	mkdir -p `dirname $@`
+	$(CC) $(CFLAGS) -MMD -c $< -o $@	
+	mv $(@:%.o=%.d) $(@:%.o=%.P)
+
+#------------------------------------------------------------------------------
+#-- Linker
+#------------------------------------------------------------------------------
+
+$(OBJS_PATH)/$(TARGET).elf: $(OBJECTS) $(LIBFILE)
+	@echo "----- Linking to $@"
+	$(LD)  --output $@ $(OFILES) $(OBJECTS) $(LIBFILE) $(LDFLAGS) -T$(LINKER_SCRIPT)
+#------------------------------------------------------------------------------
+#-- Copy the .or32 file to a .bin file
+#------------------------------------------------------------------------------
+
+$(TARGET).pacemate.bin: $(OBJS_PATH)/$(TARGET).elf
+	@echo "----- Copying to ihex $<"
+	#$(STRIP) $<
+	$(SIZE) $<
+	$(OBJCOPY) -O ihex $< $@
+
+#------------------------------------------------------------------------------
+#--  
+#------------------------------------------------------------------------------
+
+clean:
+	rm -rf $(OBJS_PATH)
+
+#------------------------------------------------------------------------------
+#-- End
+#------------------------------------------------------------------------------
+.PRECIOUS: %.o %.or32
+.PHONY: all buildbin debug buildlibs
+.SUFFIXES:
+
+#------------------------------------------------------------------------------
+# Dependency lists
+#------------------------------------------------------------------------------
+-include $(BLDSRCS:%.c=$(OBJS_PATH)/%.P)
+-include $(BLDSRCS:%.cpp=$(OBJS_PATH)/%.P)

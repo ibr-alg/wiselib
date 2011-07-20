@@ -1,0 +1,53 @@
+#include "basic_algorithm.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Synchronization Algorithms
+ *
+ * @ingroup synchronization_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Position_concept
+    : public BasicAlgorithm_concept
+{
+   public:
+
+      /**
+      */
+      typedef ... OsModel;
+      /** Radio that is used for message sending and registration of message reception callback. Provided type is implementation of Radio Facet.
+      */
+      typedef ... Radio;
+
+      /**
+      */
+      typedef ... self_type;
+      /**
+      */
+      typedef ... self_pointer_t;
+
+      int init();
+
+		int destruct();
+
+		/** Returns the time
+		*/
+		time_t time();
+
+		/** Sets the node as reference node
+		*/
+		void set_root( bool root );
+
+		/** Starts synchronization
+		*/
+		void enable();
+
+		/** Stops synchronization
+		*/
+		void disable();
+};
+
+}

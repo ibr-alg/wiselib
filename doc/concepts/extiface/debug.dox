@@ -1,0 +1,29 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Debug
+ *
+ * Ability to debug or log messages. Underlying implementation should be
+ * hidden, so that it can be anything such as simple UART, i2c, flash memory,
+ * or even a routing algorithm that routes debug messages to a gate.
+ *
+ * @ingroup debug_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Debug_concept {
+   public:
+      /** Type of \ref os_concept "Os Concept" which has been set for the timer.
+       */
+      typedef ... OsModel;
+
+      /**
+       * Send debug message. Can be simply put to UART or std::out, but it is
+       * also possible to hide a whole routing algorithm that collects debug
+       * data at a sink.
+       */
+      void debug( const char *msg, ... );
+};
+
+}

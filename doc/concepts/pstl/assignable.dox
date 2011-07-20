@@ -1,0 +1,20 @@
+namespace concepts
+{
+
+/**
+ * A type that provides assignement and a copy constructor as basic operations for value semantics. This concept must be fullfilled for a type in order to qualify as element type for a \ref container_concept "container".
+ * 
+ * @ingroup assignable_concept
+ */
+class Assignable_concept
+{
+  public:
+    /** Copy constructor.
+    */
+    X(X& x);
+    /** Assignment operator.
+    */
+    X& operator=(X& other);
+};
+
+}

@@ -1,0 +1,166 @@
+###############################################################################
+# Makefile for the project $(PROJECT)
+###############################################################################
+
+## General Flags
+# Changed by the user
+
+# Project Name
+PROJECT = example_app
+
+## MCU ( MCU=[atmega2560|atxmega128a1] )
+MCU = atmega2560
+
+## Optimization ( OPTI=[0|1|2|3|s] )
+OPTI=0
+
+# Directories were the sourcefiles are
+SOURCEDIRS += .
+
+# Application specific sources
+SOURCEFILES += 
+			   
+CPPSOURCEFILES += $(APP_SRC) \
+					trisos_main.cpp
+
+# TriSOS specific firmware
+# Add modules from the TriSOS firmware here
+SOURCEFILES += com.c \
+			   display.c \
+			   encoder.c \
+			   led.c \
+			   spi.c \
+			   twi_master.c \
+			   hal_avr.c \
+			   rf.c \
+		   	   tat.c \
+			   display_stdout.c \
+			   io.c \
+			   sys.c \
+			   fonts.c \
+			   graphics.c \
+			   tfs.c \
+			   extcom.c \
+			   i2c_eeprom.c 
+			   
+# Post preprocessor defines here 
+CFLAGS += -DNO_TEST_FUNCTIONS \
+		  -DTRISOS \
+		  -DOSMODEL=TriSOSOsModel
+
+###############################################################################
+
+## Special flags
+# Normally no need to be changed by the user
+
+TARGET = $(PROJECT).elf
+CC = avr-gcc
+CPP = avr-g++
+			   
+## Options common to compile, link and assembly rules
+COMMON += -mmcu=$(MCU)
+
+## Compile options common for all C compilation units.
+CFLAGS += $(COMMON)
+CFLAGS += -Wall -gdwarf-2 -DF_CPU=8000000UL -O$(OPTI) -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
+CFLAGS += -H -MD -MP -MT $(OBJECTDIR)/$(*F).o -MF $(OBJECTDIR)/$(*F).d 
+
+## For wiselib 
+CXXFLAGS += -fno-defer-pop -fno-exceptions -fno-rtti -fomit-frame-pointer \
+		-fno-strength-reduce -fno-use-cxa-atexit 
+
+## Assembly specific flags
+ASMFLAGS += $(COMMON)
+ASMFLAGS += $(CFLAGS)
+ASMFLAGS += -x assembler-with-cpp -Wa,-gdwarf2
+
+## Linker flags
+LDFLAGS += $(COMMON)
+LDFLAGS += -Wl,--defsym=__heap_end=0x8021ff -Wl,-Map=$(PROJECT).map
+
+
+## Intel Hex file production flags
+HEX_FLASH_FLAGS += -R .eeprom -R .fuse -R .lock -R .signature
+
+HEX_EEPROM_FLAGS = -j .eeprom
+HEX_EEPROM_FLAGS += --set-section-flags=.eeprom="alloc,load"
+HEX_EEPROM_FLAGS += --change-section-lma .eeprom=0 --no-change-warnings
+
+## Source directories
+SOURCEDIRS +=  ..\
+			   ../../../.. \
+			   ../../../../.. \
+			   ${addprefix ../../../../src/os/contiki/, core core/sys cpu} \
+			   ${addprefix ../../../wiselib/wiselib.stable/, . external_interface internal_interface/routing_table} \
+			   ${addprefix ../../../wiselib/wiselib.stable/algorithms/routing/, dsr dsdv tree} \
+			   ${addprefix ../../../wiselib/wiselib.stable/util/, base_classes delegates delegates/detail pstl serialization} \
+			   ${addprefix ../../../wiselib/wiselib.testing/, . external_interface external_interface/trisos} \
+			   ${addprefix ../../../wiselib/wiselib.testing/util/, . pstl} \
+			   ${addprefix ../../../../src/, hw hw/rf hw/xmega sys gui hwmodule fs util}
+
+# Contiki specific (mandatory)
+SOURCEFILES += autostart.c \
+			   clock.c \
+			   etimer.c \
+			   process.c \
+			   procinit.c \
+			   timer.c
+
+# wiselib specific (mandatory)			   
+CPPSOURCEFILES += trisos_os.cpp \
+				  trisos_radio.cpp \
+				  trisos_timer.cpp
+
+## Include Directories
+INCLUDEDIRS += ${addprefix -I,$(SOURCEDIRS)}
+
+## Object files
+OBJECTDIR = obj_$(PROJECT)
+OBJECTFILES += ${SOURCEFILES:.c=.o}
+OBJECTFILES += ${CPPSOURCEFILES:.cpp=.o}
+OBJECTS += $(patsubst %,$(OBJECTDIR)/%,$(OBJECTFILES))
+
+## Objects explicitly added by the user
+LINKONLYOBJECTS += 
+
+vpath %.c $(SOURCEDIRS)
+vpath %.cpp $(SOURCEDIRS)
+
+## Build
+all: dirs $(TARGET) $(PROJECT).hex $(PROJECT).eep $(PROJECT).lss size
+
+dirs:
+	@-if [ ! -e $(OBJECTDIR) ]; then mkdir $(OBJECTDIR); fi;
+
+size: 
+	avr-size -C --mcu=$(MCU) $(TARGET)
+	
+## Compile
+$(OBJECTDIR)/%.o: %.c
+	$(CC) $(INCLUDEDIRS) $(CFLAGS) -std=gnu99 -c  $< -o $@
+	
+$(OBJECTDIR)/%.o: %.cpp
+	$(CPP) $(INCLUDEDIRS) $(CFLAGS) $(CXXFLAGS) -c  $< -o $@
+	
+##Link
+$(TARGET): $(OBJECTS)
+	 $(CC) $(LDFLAGS) $(OBJECTS) $(LINKONLYOBJECTS) $(LIBDIRS) $(LIBS) -o $(TARGET)
+
+%.hex: $(TARGET)
+	avr-objcopy -O ihex $(HEX_FLASH_FLAGS)  $< $@
+
+%.eep: $(TARGET)
+	-avr-objcopy $(HEX_EEPROM_FLAGS) -O ihex $< $@ || exit 0
+
+%.lss: $(TARGET)
+	avr-objdump -h -S $< > $@
+
+## Clean target
+.PHONY: clean
+clean:
+	-rm -rf $(OBJECTDIR)/*.o $(OBJECTDIR)/*.d $(PROJECT).elf $(PROJECT).hex $(PROJECT).eep $(PROJECT).lss $(PROJECT).map
+
+
+
+
+

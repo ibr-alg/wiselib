@@ -1,0 +1,28 @@
+#include "sequence.h"
+
+namespace concepts
+{
+
+/**
+ * A back insertion sequence guarantees that insertion and access operations
+ * at the end of the container happen in amortized constant time and provides
+ * additional shorthands for those operations.
+ * 
+ * @ingroup back_insertion_sequence_concept
+ */
+class BackInsertionSequence_concept
+    : public Sequence_concept
+{
+  public:
+    /** Return reference to last element.
+    */
+    value_type& back() { return *(--end()); }
+    /** Insert element as new last element of the container.
+    */
+    void push_back(value_type& t) { insert(end(), t); }
+    /** Remove last element.
+    */
+    void pop_back() { erase(--end()); }
+};
+
+}

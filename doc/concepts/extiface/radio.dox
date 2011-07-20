@@ -1,0 +1,125 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Radios
+ *
+ * The radio facet is responsible for sending and receiving messages. This can
+ * be done either over a real hardware radio, or as a virtual implementation
+ * that does, say, node ID conversion.
+ *
+ * First of all, a radio must define certain data types. These are the current
+ * OS model, the type for node ids, the type for block data (usually a
+ * uint8_t), the size type, and a type for message ids.
+ *
+ * A radio also provides some constants. These are the ones related to node
+ * IDs: BROADCAST_ADDRESS, which defines the node ID used for a local
+ * broadcast when sending a message, and NULL_NODE_ID, which represents an
+ * unknown or unset node address. MAX_MESSAGE_LENGTH must be set to the
+ * maximal message length the radio can handle.
+ *
+ * Next, there are the member functions. The most important one is send, which
+ * sends a block of data to the given destination address. The radio can also
+ * be enabled and disabled, and it provides the current node ID. At last, the
+ * registration of a callback function works with the templated method
+ * reg_recv_callback. Usually, delegates should be used to store the passed
+ * member function pointer. Since the used delegates are not comparable at the
+ * moment, the registration method returns an unique id that in turn must be
+ * used for de-registration of the method.
+ *
+ * @ingroup radio_concept
+ * @ingroup extiface_concepts
+ * @ingroup concepts
+ */
+class Radio_concept {
+   public:
+
+      /**
+       * Type of \ref os_concept "Os Concept" which has been set for the
+       * radio.
+       */
+      typedef ... OsModel;
+
+      /**
+       * Defines type of pointer to this radio.
+       */
+      typedef ... self_pointer_t;
+
+      /**
+       * Type of node id - must be unique for a node in the network.
+       */
+      typedef ... node_id_t;
+      /**
+       * Data type used for raw data in message sending process. Usually an\
+       * uint8_t.
+       */
+      typedef ... block_data_t;
+      /**
+       * Unsigned integer that represents length information.
+       */
+      typedef ... size_t;
+      /**
+       * Type of message Ids - should be common for all radios if
+       * heterogeneity should be supported. Standard is unit16_t.
+       */
+      typedef ... message_id_t;
+
+      enum SpecialNodeIds
+      {
+         /// Send a message to all nodes in communication range of the radio.
+         BROADCAST_ADDRESS,
+         /// Used if node id is not known or not (yet) set.
+         NULL_NODE_ID
+      };
+      enum Restrictions
+      {
+         /// Maximal size of a message in bytes.
+         MAX_MESSAGE_LENGTH
+      };
+
+      /**
+       * Turn on radio. Messages can be sent and received.
+       *
+       * @return Error (or success) value from \ref basic_return_values_concept "Basic Return Values".
+       */
+      int enable_radio();
+      /**
+       * Turn off radio. Messages can <br>not</br> be sent and received.
+       *
+       * @return Error (or success) value from \ref basic_return_values_concept "Basic Return Values".
+       */
+      int disable_radio();
+
+      /**
+       * Send message of len units beginning at *data to given receiver.
+       *
+       * @return If message has successfully passed to radio. <br>Not</br> if message has really been sent!
+       */
+      int send(node_id_t receiver, size_t len, block_data_t *data );
+
+      /**
+       * Return id of node for current radio. This can just be the id provided
+       * by the Os, but also any other one for special models. For example, a
+       * virtual radio model providing IPv6 addresses.
+       *
+       * @return Unique node identifier of type node_id_t.
+       */
+      node_id_t id();
+
+      /**
+       * Register message reception callback function.
+       *
+       * @return Unique identifier for this registration. Value must be used when <br>un</br>-registering a callback.
+       */
+      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
+      int reg_recv_callback( T *obj_pnt );
+
+      /**
+       * Unregister message reception callback function - use unique identifier returned by registration.
+       *
+       * @return Error (or success) value from \ref basic_return_values_concept "Basic Return Values".
+       */
+      int unreg_recv_callback( int idx );
+};
+
+}

@@ -1,0 +1,48 @@
+CXXFLAGS    = -Os  -Wall -pedantic -mdisable-hwmul \
+				-fno-defer-pop -fno-exceptions -fno-rtti \
+				-fomit-frame-pointer -fno-strength-reduce -fno-use-cxa-atexit
+INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)
+DEFINITIONS = -DTINYOS -DOSMODEL=TinyOsModel
+# --------------------------------------------------------
+OUTPUT = out/tinyos-telosb
+OUTHEX = out
+# --------------------------------------------------------
+COMPONENT=$(WISELIB_PATH)/external_interface/tinyos/TinyosWiselibGlueAppC
+PFLAGS += -fnesc-separator=__ -I$(WISELIB_PATH)/external_interface/tinyos/ \
+	-I$(WISELIB_PATH_TESTING)/external_interface/tinyos/
+CFLAGS += -I$(TOSDIR)/lib/printf
+LDFLAGS += $(OUTPUT)/tinyos_timer.o $(OUTPUT)/tinyos_radio.o $(OUTPUT)/tinyos_os.o \
+	$(OUTPUT)/tinyos_com_uart.o $(OUTPUT)/tinyos_$(BIN_OUT).o
+BUILD_EXTRA_DEPS = $(OUTPUT)/tinyos_timer.o $(OUTPUT)/tinyos_radio.o $(OUTPUT)/tinyos_os.o \
+	$(OUTPUT)/tinyos_com_uart.o $(OUTPUT)/tinyos_$(BIN_OUT).o
+# --------------------------------------------------------
+include $(MAKERULES)
+# --------------------------------------------------------
+$(OUTPUT)/tinyos_timer.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
+	@mkdir -p $(OUTPUT)
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/tinyos_timer.o \
+	  -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
+$(OUTPUT)/tinyos_radio.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_radio.cpp
+	@mkdir -p $(OUTPUT)
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/tinyos_radio.o \
+	  -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_radio.cpp
+$(OUTPUT)/tinyos_com_uart.o: $(WISELIB_PATH_TESTING)/external_interface/tinyos/tinyos_com_uart.cpp
+	@mkdir -p $(OUTPUT)
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/tinyos_com_uart.o \
+	  -c $(WISELIB_PATH_TESTING)/external_interface/tinyos/tinyos_com_uart.cpp
+$(OUTPUT)/tinyos_os.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_os.cpp
+	@mkdir -p $(OUTPUT)
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) -o $(OUTPUT)/tinyos_os.o \
+	  -c $(WISELIB_PATH)/external_interface/tinyos/tinyos_os.cpp
+$(OUTPUT)/tinyos_$(BIN_OUT).o: ./$(APP_SRC)
+	@mkdir -p $(OUTPUT)
+	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
+	  -o $(OUTPUT)/tinyos_$(BIN_OUT).o -c ./$(APP_SRC)
+# --------------------------------------------------------
+tinyos-telosb:
+	@echo "make hex..."
+	msp430-objcopy -O ihex build/telosb/main.exe $(OUTPUT)/$(BIN_OUT).hex
+	msp430-objcopy -O binary build/telosb/main.exe $(OUTPUT)/$(BIN_OUT).bin
+	@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTHEX)/
+	@echo "show sizes..."
+	msp430-size build/telosb/main.exe
