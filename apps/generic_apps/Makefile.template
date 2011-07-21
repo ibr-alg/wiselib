@@ -40,7 +40,7 @@ export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -llegacyapps -lapps_exampleslib \
 #
 #export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -llegacyapps -lapps_exampleslib \
 	-lapps_localizationlib -lapps_topologylib -lapps_readinglib \
-	-lapps_vislib -lapps_externalapplib \
+	-lapps_vislib -lapps_externalapplib -lapps_wiseliblib\
 	-ldl -lCGAL -lcairo -lpixman-1 -lpng -lfreetype -lfontconfig -lz \
 	-lboost_regex-mt -lboost_date_time-mt -lboost_thread-mt -lboost_system-mt \
 	-lGL -lglut -lGLU
