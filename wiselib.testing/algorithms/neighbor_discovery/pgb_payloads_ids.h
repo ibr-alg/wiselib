@@ -8,7 +8,8 @@
 #define MOBILITY 4
 #define CLUSTERING 5
 #define CLRADIO 6
+#define CONTROLL 7
 
-#define TOTAL_REG_ALG 7
+#define TOTAL_REG_ALG 8
 
 #endif
