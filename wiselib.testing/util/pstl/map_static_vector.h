@@ -170,6 +170,14 @@ namespace wiselib
          return dummy_;
       }
       ///@}
+      
+      
+      bool contains (const key_type& k ){
+      iterator it = find(k);
+         if ( it != this->end() )
+         return true;
+         else return false;
+      }
 
    private:
       mapped_type dummy_;
