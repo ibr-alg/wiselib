@@ -36,15 +36,22 @@ namespace wiselib {
     };
 
     enum EventIds {
-        CLUSTER_HEAD_CHANGED = 0,
+        ELECTED_CLUSTER_HEAD = 0,//former CLUSTER_HEAD_CHANGED
         NODE_JOINED = 1,
         NODE_LEFT = 2,
         CLUSTER_FORMED = 3,
-        GATEWAY_NODE = 4
+        GATEWAY_NODE = 4,
+        MESSAGE_SENT = 5
+    };
+
+    enum clustering_status {
+        FORMED = 0,
+        FORMING = 1,
+        UNFORMED = 2
     };
 
     enum ClusterIds {
-        UNKNOWN_CLUSTER_HEAD = -1
+        UNKNOWN_CLUSTER_HEAD = 0xffff
     };
 }
 

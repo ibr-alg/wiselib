@@ -1,11 +1,15 @@
-#ifndef __BFS_JOIN_DECISION_H_
-#define __BFS_JOIN_DECISION_H_
+/*
+ * File:   bfs_jd.h
+ * Author: amaxilat
+ *
+ */
+
+#ifndef __BFS_JD_H_
+#define __BFS_JD_H_
 
 namespace wiselib {
 
-    /**
-     * \ingroup jd_concept
-     * 
+    /*
      * BFS join decision module.
      */
 template<typename OsModel_P, typename Radio_P>
@@ -75,19 +79,11 @@ public:
 		JoinClusterMsg<OsModel, Radio> msg;
 		msg.set_cluster_id(cluster_id_);
 		msg.set_hops(hops_);
-
-#ifdef DEBUG_PAYLOAD
-		debug().debug("[%d|%x|%d]\n",JOIN,cluster_id_,hops_);
-#endif
 		return msg;
 	}
 	JoinAccClusterMsg<OsModel, Radio> get_join_accept_payload() {
 		JoinAccClusterMsg<OsModel, Radio> msg;
 		msg.set_node_id(radio_->id());
-
-#ifdef DEBUG_PAYLOAD
-		debug().debug("[%d|%x]\n",JOIN_ACCEPT,radio_->id());
-#endif
 		return msg;
 	}
 
@@ -99,9 +95,9 @@ public:
 	bool join(uint8_t *payload, uint8_t length) {
 		JoinClusterMsg<OsModel, Radio> msg;
 		memcpy(&msg, payload, length);
-#ifdef SHAWN
-                if (msg.cluster_id()==-1) return false;
-#endif
+//#ifdef SHAWN
+//                if (msg.cluster_id()==-1) return false;
+//#endif
                 int mess_hops = msg.hops();
 	
 		if (msg.cluster_id()>radio_->id()) return false;
@@ -109,11 +105,11 @@ public:
 		//if in no cluster yet
 		if (cluster_id_ == Radio::NULL_NODE_ID) {
 #ifdef DEBUG_CLUSTERING_EXTRA
-                    debug().debug("JOIN::%x::%d<%d::%d\n",radio_->id(),mess_hops,maxhops_,msg.cluster_id());
+                    debug().debug("CL;JD;join2any;%x;%d<%d;%d",radio_->id(),mess_hops,maxhops_,msg.cluster_id());
 #endif
 			if (mess_hops < maxhops_) {
 #ifdef DEBUG_CLUSTERING_EXTRA
-                        debug().debug("Joined::%x::",radio_->id());
+                        debug().debug("CL;JD;Joined;%x;", radio_->id());
 #endif
 				//join the cluster
 				cluster_id_ = msg.cluster_id();
@@ -129,12 +125,12 @@ public:
                 cluster_id_t mess_cluster_id = msg.cluster_id();
                 uint8_t mess_hops = msg.hops();
 #ifdef DEBUG_CLUSTERING_EXTRA
-                debug().debug("JOIN2::%x::%d<%d::%x<%x::", radio_->id(), mess_hops, maxhops_, mess_cluster_id, cluster_id_);
+                debug().debug("CL;JD;join2better;%x;%d<%d;%x<%x", radio_->id(), mess_hops, maxhops_, mess_cluster_id, cluster_id_);
 #endif
                 if (mess_hops + 1 <= hops_) {
                     if (mess_cluster_id < cluster_id_) {
 #ifdef DEBUG_CLUSTERING_EXTRA
-                        debug().debug("Joined::%x::", radio_->id());
+                        debug().debug("CL;JD;Joined;%x;", radio_->id());
 #endif
                         //join the cluster
                         cluster_id_ = mess_cluster_id;
@@ -148,7 +144,7 @@ public:
                 } else {
                     if ((hops_ == 0) && (msg.hops() < maxhops_) && (msg.cluster_id() < cluster_id_)) {
 #ifdef DEBUG_CLUSTERING_EXTRA
-                        debug().debug("Joined::%x::", radio_->id());
+                        debug().debug("CL;JD;Joined;%x;", radio_->id());
 #endif
                         //join the cluster
                         cluster_id_ = mess_cluster_id;
@@ -185,4 +181,4 @@ public:
     };
 }
 
-#endif
+#endif //__BFS_JD_H_
