@@ -32,11 +32,7 @@
 
 namespace wiselib {
 
-    /**
-     * \ingroup cc_concept
-    *  \ingroup basic_algorithm_concept
-     * \ingroup clustering_algorithm
-     * 
+    /*
      * Fronts clustering core component.
      */
     template<typename OsModel_P, typename Radio_P, typename HeadDecision_P,
@@ -57,8 +53,7 @@ namespace wiselib {
         typedef Iterator_P Iterator_t;
 
         // self type
-        typedef FrontsCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P,
-        Iterator_P> self_type;
+        typedef FrontsCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P> self_type;
         typedef wiselib::Echo<OsModel, Radio, Timer, Debug> nb_t;
 
         // data types
@@ -73,57 +68,47 @@ namespace wiselib {
         typedef wiselib::pair<node_id_t, node_id_t> node_role_t;
 #endif
 
-        // delegate
-        //typedef delegate1<void, uint32_t> cluster_delegate_t;
-
-      	typedef delegate3<void, uint8_t, cluster_id_t, node_id_t>	cradio_delegate_t;
-        
+        typedef delegate3<void, uint8_t, cluster_id_t, node_id_t> cradio_delegate_t;
 
         /*
          * Constructor
-         * */
+         */
         FrontsCore() :
-        enabled_(false), status_(0), maxhops_(1), auto_reform_(0), reform_(
-        false), head_lost_(false) {
+        enabled_(false),
+        status_(0),
+        maxhops_(1),
+        auto_reform_(0),
+        reform_(false),
+        head_lost_(false),
+        do_cleanup(false) {
         }
 
-        /*
-         * Destructor
-         * */
         ~FrontsCore() {
         }
 
         /*
-         * INIT
          * initializes the values of radio timer and debug
          */
-        void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt,
-                nb_t& neighbor_discovery) {
+        void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery) {
             radio_ = &radiot;
             timer_ = &timert;
             debug_ = &debugt;
             rand_ = &randt;
 
-
             neighbor_discovery_ = &neighbor_discovery;
 
-            uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI
-                    | nb_t::NEW_PAYLOAD_BIDI ;//| nb_t::NB_READY;
+            uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI | nb_t::NEW_PAYLOAD_BIDI;
 
             neighbor_discovery_->template reg_event_callback<self_type,
                     &self_type::ND_callback > (CLUSTERING, flags, this);
             neighbor_discovery_->register_payload_space((uint8_t) CLUSTERING);
 
-            cradio_delegate_=cradio_delegate_t();
+            cradio_delegate_ = cradio_delegate_t();
 
             //initialize the clustering modules
             chd().init(radio(), debug());
             jd().init(radio(), debug());
             it().init(radio(), timer(), debug());
-
-            rand().srand(radio().id());
-
-
         }
 
         /*
@@ -133,22 +118,25 @@ namespace wiselib {
         inline void set_iterator(Iterator_t &it) {
             it_ = &it;
         }
+
         inline void set_join_decision(JoinDecision_t &jd) {
             jd_ = &jd;
         }
+
         inline void set_cluster_head_decision(HeadDecision_t &chd) {
             chd_ = &chd;
         }
 
-        /* Set Clustering Parameters
+        /*
+         * Set Clustering Parameters
          * maxhops
          */
         inline void set_maxhops(uint8_t maxhops) {
             maxhops_ = maxhops;
             jd().set_maxhops(maxhops);
-		if (hops()>maxhops){
-			node_lost(parent());
-		}
+            if (hops() > maxhops) {
+                node_lost(parent());
+            }
         }
 
         /* Get Clustering Values
@@ -163,32 +151,46 @@ namespace wiselib {
          * is_cluster_head
          */
         inline cluster_id_t cluster_id(void) {
-		if (enabled_)
+            if (!enabled_) return 0;
             return it().cluster_id();
-		else return 0;
         }
+
         inline node_id_t parent(void) {
+            if (!enabled_) return 0;
             return it().parent();
         }
+
         inline uint8_t hops(void) {
+            if (!enabled_) return 0;
             return it().hops();
         }
+
         inline int node_type(void) {
+            if (!enabled_) return 0;
             return it().node_type();
         }
+
         inline int childs_count() {
+            if (!enabled_) return 0;
             return it().childs_count();
         }
+
         inline void childs(node_id_t * list) {
             it().childs(list);
         }
-        inline size_t node_count(int type){
-            return  it().node_count(type);
+
+        inline size_t node_count(int type) {
+            if (!enabled_) return 0;
+            return it().node_count(type);
         }
-          inline bool is_gateway(){
+
+        inline bool is_gateway() {
+            if (!enabled_) return false;
             return it().is_gateway();
         }
+
         inline bool is_cluster_head() {
+            if (!enabled_) return false;
             if (node_type() != UNCLUSTERED) {
                 return it().cluster_id() == radio().id();
             } else {
@@ -196,13 +198,29 @@ namespace wiselib {
             }
         }
 
-        
+        inline bool is_child(node_id_t node) {
+            return it().is_child(node);
+        }
+
         /*
-         * Register a callback that prints specific debug information
-         * upon any generated event
+         * for legacy
          */
         void register_debug_callback() {
-//            enable_debug_ = true;
+            this-> template reg_state_changed_callback<self_type, &self_type::debug_callback > (this);
+        }
+
+        void debug_callback(int event) {
+            switch (event) {
+                case ELECTED_CLUSTER_HEAD:
+                case NODE_JOINED:
+                case CLUSTER_FORMED:
+                    debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
+                    return;
+                case MESSAGE_SENT:
+                    debug().debug("CLS;%x;45;%x", radio().id(), 0xffff);
+                    return;
+
+            }
         }
 
         /*
@@ -215,11 +233,9 @@ namespace wiselib {
             if (enabled_) {
                 return status_;
             } else {
-                return 2;
+                return UNFORMED;
             }
         }
-
-
 
         /*
          * Size of the payload to the ND module beacon
@@ -230,71 +246,32 @@ namespace wiselib {
             return msg.length();
         }
 
-                /*
+        /*
          * Receive a beacon payload
          * check for new head if needed
          * check if in need to reform
          */
         void receive_beacon(node_id_t node_from, size_t len, uint8_t * data) {
-            //receive the beacon data
-            JoinClusterMsg<OsModel, Radio> *msg;
-            msg = (JoinClusterMsg<OsModel, Radio> *)data;
-//DOWN            memcpy(&msg, data, len);
-            node_id_t cluster = msg->cluster_id();
-            int hops = msg->hops();
+            if (!enabled_) return;
+            //Cast the beacon to a Join message
+            JoinClusterMsg<OsModel, Radio> msg;
+            memcpy(&msg, data, len);
+            node_id_t cluster = msg.cluster_id();
+            int hops = msg.hops();
 #ifndef SHAWN
-            if (cluster == 0 ) return;
+            if (cluster == 0) return;
 #endif
+            if (cluster == UNKNOWN_CLUSTER_HEAD) return;
 
-	    if (cluster == UNKNOWN_CLUSTER_HEAD) return;
+            //Pass beacon to the JD to decide the Cluster 2 Join
+            receive(node_from, len, data);
 
-            //if the connection to the cluster head was lost
-            if (head_lost_) {
-                //if the beacon came from a cluster head
-                if ((hops < maxhops_) && (cluster < radio().id()) && (neighbor_discovery_->is_neighbor_bidi(node_from))) {
-                    // join him
-                    // inform iterator about the new cluster
-                    it().set_parent(node_from);
-                    it().set_cluster_id(cluster);
-                    jd().set_cluster_id(cluster);
-                    it().set_hops(hops+1);
-                    jd().set_hops(hops+1);
-                    it().set_node_type(SIMPLE);
-                    it().node_joined(node_from);
 
-                    //mark that the head_lost_ situation was resolved
-                    head_lost_ = false;
-
-                    JoinClusterMsg<OsModel, Radio> join_msg = jd().get_join_request_payload();
-                    // Forward message from previous node
-                    radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (block_data_t *) & join_msg);
-#ifdef DEBUG_CLUSTERING
-                    debug().debug("Send::%x::%d::%x::%d::", radio().id(),
-                            join_msg.msg_id(), Radio::BROADCAST_ADDRESS,
-                            join_msg.hops());
-#ifdef SHAWN
-                    debug().debug("\n");
-#endif
-#endif
-//                    if (enable_debug_){
-                        debug().debug("CLS;%x;%d;%x", radio().id(),
-                            join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
-//                    }
-                    //set the timer to check for clustering end
-                    timer().template set_timer
-                            <self_type, &self_type::wait2form_cluster >
-                            (time_slice_, this, (void*) 0);
-                    }
-            }
-            else{
-		receive(node_from,len,data);
-            }
-            //debug().debug("Node %x(%x) from %x(%x)\n",radio().id(),it().cluster_id(),node_from,cluster);
-            //if Beacon from cluster neighbor
-            if (cluster == it().cluster_id() ) {
+            if (cluster == it().cluster_id()) {
+                //if Beacon from cluster neighbor
                 it().node_joined(node_from);
-            }//if Beacon from non cluster neighbor
-            else {
+            } else {
+                //if Beacon from non cluster neighbor
                 it().node_not_joined(node_from, cluster);
                 notify_cradio(RESUME, cluster, node_from);
             }
@@ -303,7 +280,8 @@ namespace wiselib {
             if ((node_from == parent()) && (cluster != it().cluster_id())) {
                 node_lost(node_from);
             }
-            if ((node_from == parent()) && (it().hops() != hops+1 )) {
+            //if the sender was my parent but has changed its connection to the cluster head
+            if ((node_from == parent()) && (it().hops() != hops + 1)) {
                 node_lost(node_from);
             }
         }
@@ -313,12 +291,13 @@ namespace wiselib {
          * to save on a beacon message
          */
         void get_beacon(uint8_t * mess) {
+            if (!enabled_) return;
             JoinClusterMsg<OsModel, Radio> msg = jd().get_join_request_payload();
             memcpy(mess, &msg, msg.length());
         }
 
         void present_neighbors(void) {
-            if (status() != 2) {
+            if (status() != UNFORMED) {
                 it().present_neighbors();
             }
         }
@@ -331,8 +310,10 @@ namespace wiselib {
          */
         inline void enable() {
 #ifdef SHAWN
+            //typical time for shawn to form stable links
             enable(6);
 #else
+            //typical time for isense test to form stable links
             enable(40);
 #endif
         }
@@ -345,7 +326,7 @@ namespace wiselib {
             head_lost_ = false;
 
 #ifdef DEBUG_CLUSTERING
-            debug().debug("Enable::%x::%d::", radio().id(), maxhops_);
+            debug().debug("CL;%x;enable", radio().id());
 #ifdef SHAWN
             debug().debug("\n");
 #endif
@@ -391,20 +372,51 @@ namespace wiselib {
                     start_in * 1000, this, (void *) maxhops_);
 #endif
 #endif
+            timer().template set_timer<self_type, &self_type::report2head > (
+                    10000, this, (void *) 0);
+
         }
+
+        /*
+         * Report with a RESUME message to cluster head to declare
+         * presense and keep routing tables up-to-date
+         */
+        void report2head(void * a) {
+            if (enabled_) {
+                if ((parent() != radio().id()) && (parent() != 0xffff)) {
+                    // create a resume message
+                    ResumeClusterMsg<OsModel, Radio> msg = it().get_resume_payload();
+                    //do send the message
+                    radio().send(it().parent(), msg.length(), (block_data_t *) & msg);
+                }
+            }
+
+            //clean up own lists (every second time)
+            if (do_cleanup) {
+                it().cleanup();
+                do_cleanup = false;
+            } else {
+                do_cleanup = true;
+            }
+
+            timer().template set_timer<self_type, &self_type::report2head > (
+                    4000, this, (void *) 0);
+
+        }
+
 
         // Call with a timer to start a reform procedure from the cluster head
 
         inline void reform_cluster(void * parameter) {
+            if (!enabled_) return;
             reform_ = true;
         }
 
         // Start the procedure needed to form a cluster
 
         void form_cluster(void * parameter) {
-            if (!enabled_)
-                return;
-            status_ = 1;
+            if (!enabled_) return;
+            status_ = FORMING;
             //enabling
             chd().reset();
             chd().set_attribute(radio().id());
@@ -427,15 +439,16 @@ namespace wiselib {
 
         /*
          * Disable
-         * disables the bfsclustering module
+         * disables the module
          * unregisters callbacks
          */
         inline void disable(void) {
+            if (!enabled_) return;
             // Unregister the callback
             radio().unreg_recv_callback(callback_id_);
+            neighbor_discovery_->unregister_payload_space(CLUSTERING);
             enabled_ = false;
         }
-        ;
 
         /*
          * wait2form_cluster
@@ -445,38 +458,38 @@ namespace wiselib {
          * node has to respond to head with a resume message
          */
         void wait2form_cluster(void * timer_value) {
+            if (!enabled_) return;
             // if none joind under the node
             if (!it().any_joined()) {
-                // if not a cluster head
+
                 if (it().node_type() != HEAD) {
+                    // if not a cluster head
                     // create a resume message
                     ResumeClusterMsg<OsModel, Radio> msg =
                             it().get_resume_payload();
                     //do send the message
                     radio().send(it().parent(), msg.length(), (block_data_t *) & msg);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CL::Send::from%x::type%d::to%x::", radio().id(), msg.msg_id(),
-                            it().parent());
+                    debug().debug("CLS;%x;%d;x", radio().id(), msg.msg_id(), it().parent());
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
-#else
-//                    if (enable_debug_) {
-                        debug().debug("CLS;%x;%d;%x", radio().id(), msg.msg_id(),
-                                it().parent());
- //                   }
 #endif
+                    this->state_changed(MESSAGE_SENT);
 
 
-                    // if a cluster head end the clustering under this branch
                 } else {
-                    cluster_state_changed(CLUSTER_FORMED);
+                    // if a cluster head end the clustering under this branch
+#ifdef DEBUG_CLUSTERING
+                    debug().debug("CLP;%x;%d;%x;%x", radio().id(), it().node_type(), it().cluster_id(), it().parent());
+#ifdef SHAWN
+                    debug().debug("\n");
+#endif
+#endif
                     this->state_changed(CLUSTER_FORMED);
                     reset_beacon_payload();
                 }
                 status_ = 0;
-            } else {
-
             }
         }
 
@@ -487,40 +500,27 @@ namespace wiselib {
          * from the head of each cluster
          * */
         void find_head(void * value) {
-
+            if (!enabled_) return;
             long round = (long) value;
 
             if (round < maxhops_) {
                 //SEND my Attribute to my neighbors (Broadcast the ID)
 
-                AttributeClusterMsg<OsModel, Radio> msg =
-                        chd().get_attribute_payload();
-                radio().send(Radio::BROADCAST_ADDRESS, msg.length(),
-                        (block_data_t *) & msg);
+                AttributeClusterMsg<OsModel, Radio> msg = chd().get_attribute_payload();
+                radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t *) & msg);
 #ifdef DEBUG_CLUSTERING
-                debug().debug("CL::Send::from%x::type%d::to%x::%d::%x::", radio().id(), ATTRIBUTE,
-                            Radio::BROADCAST_ADDRESS, round, msg.attribute());
+                debug().debug("CLS;%x;%d;%x", radio().id(), ATTRIBUTE, Radio::BROADCAST_ADDRESS);
 #ifdef SHAWN
                 debug().debug("\n");
 #endif
-#else
-//                if (enable_debug_) {
-                    debug().debug("CLS;%x;%d;%x", radio().id(), ATTRIBUTE,
-                        Radio::BROADCAST_ADDRESS);
-//                }
 #endif
-
-
+                this->state_changed(MESSAGE_SENT);
                 round++;
-
                 //Recall find_head funtion to resend attribute messages if round<maxhops or elect cluster heads
-                timer().template set_timer<self_type, &self_type::find_head > (
-                        time_slice_, this, (void *) round);
-
+                timer().template set_timer<self_type, &self_type::find_head > (time_slice_, this, (void *) round);
             } else {
                 // if Cluster Head
                 if (chd().calculate_head() == true) {
-
 
                     // set values for iterator and join_decision
                     it().set_parent(radio().id());
@@ -529,11 +529,14 @@ namespace wiselib {
                     it().set_hops(0);
                     jd().set_hops(0);
 
-
-
                     // inform : node is a cluster head
-                    cluster_state_changed(CLUSTER_HEAD_CHANGED);
-                    this->state_changed(CLUSTER_HEAD_CHANGED);
+#ifdef DEBUG_CLUSTERING
+                    debug().debug("CLP;%x;%d;%x;%x", radio().id(), it().node_type(), it().cluster_id(), it().parent());
+#ifdef SHAWN
+                    debug().debug("\n");
+#endif
+#endif
+                    this->state_changed(ELECTED_CLUSTER_HEAD);
                     reset_beacon_payload();
 
                     if (auto_reform_ > 0) {
@@ -542,7 +545,7 @@ namespace wiselib {
                                 * time_slice_, this, (void *) maxhops_);
                     }
 
-                    status_ = 0;
+                    status_ = FORMED;
 
                     JoinClusterMsg<OsModel, Radio> join_msg =
                             jd().get_join_request_payload();
@@ -550,17 +553,12 @@ namespace wiselib {
                     radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(),
                             (block_data_t *) & join_msg);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CL::Send::from%x::type%d::to%x::", radio().id(),
-                            join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
+                    debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
-#else
-//                    if (enable_debug_) {
-                        debug().debug("CLS;%x;%d;%x", radio().id(),
-                                join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
-//                    }
 #endif
+                    this->state_changed(MESSAGE_SENT);
 
                     //Check after some time if any accept messages were received
                     //2*time_slice for messages to be sent and received
@@ -615,12 +613,13 @@ namespace wiselib {
          *  - remove node from known nodes
          */
         void node_lost(node_id_t node) {
-
+            if (!enabled_) return;
             if (status_ == 0) {
                 //If the node was my route to CH
                 if (node == parent()) {
                     //Reset Iterator
                     it().reset();
+                    jd().reset();
                     //Mark as headless
                     head_lost_ = true;
                     //Timeout for new CH beacons
@@ -633,58 +632,38 @@ namespace wiselib {
             }
         }
 
-        void cluster_state_changed(int event) throw () {
-                    debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
-/*CDOWN
-//            if (enable_debug_) {
-                if (event == wiselib::NODE_JOINED) {
-//                    debug().debug("Present::%x::%d::%x::%d::%x::", radio().id(), it().node_type(), it().cluster_id(), it().hops(), it().parent());
-                    debug().debug("Present::%x::%d::%x::", radio().id(), it().node_type(), it().cluster_id());
-#ifdef SHAWN
-                    debug().debug("\n");
-#endif
-                } else if (event == wiselib::CLUSTER_HEAD_CHANGED) {
-//                    debug().debug("Present::%x::%d::%d::%d::", radio().id(), it().node_type(), it().childs_count(), 0);
-                    debug().debug("Present::%x::%d::", radio().id(), it().node_type(), it().childs_count(), 0);
-#ifdef SHAWN
-                    debug().debug("\n");
-#endif
-                }
-//            }
- */
-        }
-
         /*
          * RECEIVE
          * respond to the new messages received
          * callback from the radio
          * */
-        void receive(node_id_t from, size_t len, block_data_t * recvm) {
+        void receive(node_id_t from, size_t len, block_data_t * msg) {
+            if (!enabled_) return;
+            uint8_t recvm[len];
+            memcpy(recvm, msg, len);
 
-            if (radio().id() == from)
-                return;
-            if (!neighbor_discovery_->is_neighbor_bidi(from))
-                return;
-
-//CDOWN            uint8_t type = *recvm;
+            if (radio().id() == from) return;
+            if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
 
             if (*recvm == ATTRIBUTE) {
 #ifdef DEBUG_RECEIVED
-                debug().debug("Received::%x::%d::%x::%d::", radio().id(), *recvm, from, len);
+                debug().debug("CL;Received;%x;%d;%x;%d", radio().id(), *recvm, from, len);
+#ifdef SHAWN
+                debug().debug("\n");
+#endif
 #endif
                 chd().receive(from, len, recvm);
             }
 
             if (*recvm == JOIN) {
-                //                if ((!status()) || (it().node_type() == HEAD)) return;
-
 #ifdef DEBUG_RECEIVED
-                debug().debug("Received::%x::%d::%x::%d::", radio().id(), *recvm, from, len);
+                debug().debug("CL;Received;%x;%d;%x;%d", radio().id(), *recvm, from, len);
+#ifdef SHAWN
+                debug().debug("\n");
 #endif
-
+#endif
                 // check if the node Joins
                 if (jd().join(recvm, len)) {
-
                     // set values for iterator and join_decision
                     it().set_parent(from);
                     it().set_cluster_id(jd().cluster_id());
@@ -692,37 +671,37 @@ namespace wiselib {
                     it().node_joined(from);
                     it().set_hops(jd().hops());
 
-                    cluster_state_changed(NODE_JOINED);
-                    this->state_changed(NODE_JOINED);
-
-		     ResumeClusterMsg<OsModel, Radio> msg =
-                            it().get_resume_payload();
-                    //do send the message
-                    radio().send(it().parent(), msg.length(), (block_data_t *) & msg);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CL::Send::from%x::type%d::to%x::", radio().id(), msg.msg_id(),
-                            it().parent());
+                    debug().debug("CLP;%x;%d;%x;%x", radio().id(), it().node_type(), it().cluster_id(), it().parent());
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
-#else
-//                    if (enable_debug_) {
-                        debug().debug("CLS;%x;%d;%x", radio().id(), msg.msg_id(),
-                                it().parent());
- //                   }
 #endif
+                    this->state_changed(NODE_JOINED);
 
+                    ResumeClusterMsg<OsModel, Radio> msg = it().get_resume_payload();
+                    //do send the message
+                    radio().send(it().parent(), msg.length(), (block_data_t *) & msg);
+#ifdef DEBUG_CLUSTERING
+                    debug().debug("CLS;%x;%d;%x", radio().id(), msg.msg_id(), it().parent());
+#ifdef SHAWN
+                    debug().debug("\n");
+#endif
+#endif
+                    this->state_changed(MESSAGE_SENT);
 
                 }
             } else if (*recvm == RESUME) {
                 if (from == parent()) return;
 
-//CDOWN                ResumeClusterMsg<OsModel, Radio> msg;
                 ResumeClusterMsg<OsModel, Radio> *msg;
                 msg = (ResumeClusterMsg<OsModel, Radio> *)recvm;
-//CDOWN                memcpy(&msg, recvm, len);
+
 #ifdef DEBUG_RECEIVED
-                debug().debug("Received::%x::%d::%x::%d::", radio().id(), msg->mess_id(), from, len);
+                debug().debug("CL;Received;%x;%d;%x;%d", radio().id(), *recvm, from, len);
+#ifdef SHAWN
+                debug().debug("\n");
+#endif
 #endif
                 // if not a cluster head forward the message to head
                 if (it().node_type() != HEAD) {
@@ -735,29 +714,24 @@ namespace wiselib {
                     it().add_resume(from, msg->node_id());
 
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CL::Send::from%x::type%d::to%x::forw::", radio().id(),
-                            msg->msg_id(), it().parent()); //old4
+                    debug().debug("CLS;%x;%d;%x", radio().id(), msg.msg_id(), it().parent());
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
-#else
-//                    if (enable_debug_) {
-                        debug().debug("CLS;%x;%d;%x", radio().id(),
-                                msg->msg_id(), it().parent()); //old4
-//                    }
 #endif
+                    //no notification as there may be many messages (periodic updates - keepalives)
 
                 } else {
                     //if a cluster head add node to cluster nodes
                     it().node_joined(msg->node_id());
                     it().add_resume(from, msg->node_id());
                 }
-
                 notify_cradio(RESUME, msg->node_id(), from);
             }
         }
 
         void notify_cradio(uint8_t event, cluster_id_t from, node_id_t to) {
+            if (!enabled_) return;
             if (cradio_delegate_ != 0) {
                 cradio_delegate_(event, from, to);
             }
@@ -766,23 +740,21 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         void wait_for_joins(void * data) {
-
+            if (!enabled_) return;
             long wait_round = (long) data;
             if (it().node_type() == UNCLUSTERED) {
 
                 if (wait_round < maxhops_) {
 #ifdef DEBUG_CLUSTERING_EXTRA
-                    debug().debug("Waiting::%x::%d::", radio().id(), wait_round);
+                    debug().debug("CL;Waiting;%x;%d", radio().id(), wait_round);
 #endif
                     //reset the timer and wait for wait_round+1 hop cluster heads
-                    timer().template set_timer
-                            <self_type, &self_type::wait_for_joins >
+                    timer().template set_timer<self_type, &self_type::wait_for_joins >
                             (time_slice_ / 2, this, (void *) (wait_round + 1));
                 } else {
 
                     head_lost_ = false;
                     //no cluster head in maxhops
-
                     // set values for iterator and join_decision
                     it().set_parent(radio().id());
                     it().set_cluster_id(radio().id());
@@ -791,14 +763,17 @@ namespace wiselib {
                     jd().set_hops(0);
 
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("ForcedCH::%x::", radio().id());
+                    debug().debug("CL;ForcedCH;%x", radio().id());
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
+                    debug().debug("CLP;%x;%d;%x;%x", radio().id(), it().node_type(), it().cluster_id(), it().parent());
+#ifdef SHAWN
+                    debug().debug("\n");
 #endif
-                    //INFORM I AM A CLUSTER HEAD
-                    cluster_state_changed(CLUSTER_HEAD_CHANGED);
-                    this->state_changed(CLUSTER_HEAD_CHANGED);
+#endif                    
+
+                    this->state_changed(ELECTED_CLUSTER_HEAD);
                     reset_beacon_payload();
 
                     if (auto_reform_ > 0) {
@@ -809,19 +784,18 @@ namespace wiselib {
                     }
 
                     // the cluster was formed
-                    status_ = 0;
+                    status_ = FORMED;
 
                     JoinClusterMsg<OsModel, Radio> join_msg = jd().get_join_request_payload();
                     // Forward message from previous node
                     radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (block_data_t *) & join_msg);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("Send::%x::%d::%x::%d::", radio().id(),
-                            join_msg.msg_id(), Radio::BROADCAST_ADDRESS,
-                            join_msg.hops());
+                    debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
 #endif
+                    this->state_changed(MESSAGE_SENT);
 
 
                     //Check after some time if Any accept messages were received
@@ -840,18 +814,12 @@ namespace wiselib {
                     radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(),
                             (block_data_t *) & join_msg);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CL::Send::from%x::type%d::to%x::%d::", radio().id(),
-                            join_msg.msg_id(), Radio::BROADCAST_ADDRESS,
-                            join_msg.hops());
+                    debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 #ifdef SHAWN
                     debug().debug("\n");
 #endif
-#else
-//                    if (enable_debug_) {
-                        debug().debug("CLS;%x;%d;%x", radio().id(),
-                                join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
-//                    }
 #endif
+                    this->state_changed(MESSAGE_SENT);
 
                     //set the timer to check for clustering end
                     timer().template set_timer
@@ -862,7 +830,7 @@ namespace wiselib {
                     wait2form_cluster(0);
                 }
                 //notify for join
-                cluster_state_changed(NODE_JOINED);
+                //debug().debug("CLP;%x;%d;%x;%x", radio().id(), it().node_type(), it().cluster_id(),it().parent());
                 this->state_changed(NODE_JOINED);
                 reset_beacon_payload();
             }
@@ -871,19 +839,24 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         void reset_beacon_payload() {
+            if (!enabled_) return;
             //reset my beacon according to the new status
             uint8_t buf[beacon_size()];
             get_beacon(buf);
             if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
                     it().cluster_id() != UNKNOWN_CLUSTER_HEAD ? beacon_size() : 0) != 0) {
 #ifdef DEBUG_CLUSTERING
-                debug_->debug("Error::%x::", radio_->id());
+                debug_->debug("CL;nb_t;Error;payload");
+#ifdef SHAWN
+                debug().debug("\n");
+#endif
 #endif
             }
         }
         // --------------------------------------------------------------------
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
+            if (!enabled_) return;
             if (nb_t::NEW_PAYLOAD_BIDI == event) {
                 receive_beacon(from, len, data);
                 //reset my beacon according to the new status
@@ -900,7 +873,6 @@ namespace wiselib {
     private:
         nb_t * neighbor_discovery_;
         bool enabled_;
-//        bool enable_debug_;
         uint8_t status_; // the status of the clustering algorithm
         int callback_id_; // receive message callback
         int maxhops_; // clustering parameter
@@ -908,6 +880,7 @@ namespace wiselib {
         int auto_reform_; //time to autoreform the clusters
         bool reform_; // flag to start reforming
         bool head_lost_; // flag when the head was lost
+        bool do_cleanup;
 
         cradio_delegate_t cradio_delegate_;
 
@@ -945,9 +918,6 @@ namespace wiselib {
         }
 
         Debug & debug() {
-#ifdef SHAWN
-//          debug_->debug("\n");
-#endif
             return *debug_;
         }
 
@@ -956,4 +926,4 @@ namespace wiselib {
         }
     };
 }
-#endif
+#endif //__FRONTS_CORE_H_
