@@ -162,9 +162,13 @@ namespace wiselib {
 
         void set_virtual_link(block_data_t* data) {
 
+
             uint8_t request_id = read<OsModel, block_data_t, uint8_t > (data);
             node_id_t dest = read<OsModel, block_data_t, uint64_t > (data + 1);
 
+#ifdef VIRTUAL_RADIO_DEBUG
+            debug().debug("EXVR::setVlink1::node%x::for%x::", id(), dest);
+#endif
             destinations_.push_back(dest);
 
             send_response_message(SET_VIRTUAL_LINK, request_id, COMMAND_SUCCESS, 0, NULL);
@@ -175,10 +179,14 @@ namespace wiselib {
             uint8_t request_id = read<OsModel, block_data_t, uint8_t > (data);
             node_id_t dest = read<OsModel, block_data_t, uint64_t > (data + 1);
 
-            for (DestinationVectorIterator it = destinations_.begin(); it != destinations_.begin(); ++it) {
-
+#ifdef VIRTUAL_RADIO_DEBUG            
+            debug().debug("EXVR::destroyVlink::node%x::for%x::", id(), dest);
+#endif            
+            DestinationVectorIterator it = destinations_.begin();
+            for (size_t i = 0; i < destinations_.size(); i++) {
                 if (*it == dest)
                     destinations_.erase(it);
+                it++;
             }
 
             send_response_message(DESTROY_VIRTUAL_LINK, request_id, COMMAND_SUCCESS, 0, NULL);
@@ -247,8 +255,10 @@ namespace wiselib {
                 {
 
                     InMessage *msg = (InMessage*) data;
-                    //debug().debug("RECEIVED VIRTUAL LINK from %d to %d with size %d",
-                    //(uint32_t) msg->source(), (uint32_t) msg->destination(), msg->payload_length());
+#ifdef VIRTUAL_RADIO_DEBUG
+                    debug().debug("RECEIVED VIRTUAL LINK from %x to %x with size %d to %d,%d",
+                            (uint32_t) msg->source(), (uint32_t) msg->destination(), msg->payload_length(), extended_receivers_.size(), receivers_.size());
+#endif
 
                     ExtendedData ex;
                     ex.set_link_metric(1);
@@ -307,6 +317,7 @@ namespace wiselib {
 
         void enable_radio() {
 
+            //		if (!nodeactive_){
             nodeactive_ = true;
             virtual_node_id_ = radio().id();
 
@@ -314,6 +325,7 @@ namespace wiselib {
             radio().template reg_recv_callback<self_type, &self_type::receive_message > (this);
             uart().enable_serial_comm();
             uart().template reg_read_callback<self_type, &self_type::rcv_uart_packet > (this);
+            //		}
         }
         // --------------------------------------------------------------------
 
