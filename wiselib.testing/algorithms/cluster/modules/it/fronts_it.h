@@ -1,12 +1,13 @@
 /*
  * File:   fronts_it.h
- * Author: Amaxilatis
+ * Author: amaxilat
  */
 
-#ifndef __BFS_ITERATOR_H_
-#define __BFS_ITERATOR_H_
+#ifndef __FRONTS_IT_H_
+#define __FRONTS_IT_H_
 
 #include "util/pstl/vector_static.h"
+#include "util/pstl/map_static_vector.h"
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/iterator.h"
 #include "util/pstl/pair.h"
@@ -35,11 +36,12 @@ namespace wiselib {
         typedef int cluster_id_t;
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::block_data_t block_data_t;
-        typedef wiselib::vector_static<OsModel, node_id_t, 10 > vector_t;
-        typedef wiselib::pair<node_id_t, cluster_id_t> gateway_vector_entry_t;
-        typedef wiselib::vector_static<OsModel, gateway_vector_entry_t, 10 > gateway_vector_t;
-
+        typedef typename wiselib::pair<node_id_t, bool> node_entry_t;
+        typedef wiselib::MapStaticVector<OsModel, node_id_t, bool, 20 > vector_t;
+        typedef wiselib::pair<node_id_t, cluster_id_t> gateway_entry_t;
+        typedef wiselib::MapStaticVector<OsModel, node_id_t, cluster_id_t, 20 > gateway_vector_t;
         typedef wiselib::vector_static<OsModel, wiselib::pair<node_id_t, node_id_t>, 20 > tree_childs_t;
+
         /*
          * Constructor
          */
@@ -50,7 +52,7 @@ namespace wiselib {
         node_type_(UNCLUSTERED),
         hops_(0),
         any_joined_(false),
-        is_gateway_(false){
+        is_gateway_(false) {
             cluster_neighbors_.clear();
             non_cluster_neighbors_.clear();
             tree_childs.clear();
@@ -70,7 +72,7 @@ namespace wiselib {
             radio_ = &radio;
             timer_ = &timer;
             debug_ = &debug;
-            is_gateway_=false;
+            is_gateway_ = false;
         }
 
         /*
@@ -169,10 +171,19 @@ namespace wiselib {
          * neighbors list
          */
         inline void node_joined(node_id_t node) {
-            //remove node_id from both structs if exists
-            drop_node(node);
-            //add to cluster_neighbors list
-            cluster_neighbors_.push_back(node);
+            if (!is_child(node)) {
+                node_entry_t newnode;
+                newnode.first = node;
+                newnode.second = true;
+
+
+                non_cluster_neighbors_.erase(node);
+                cluster_neighbors_.insert(newnode);
+            }
+        }
+
+        bool is_child(node_id_t node) {
+            return cluster_neighbors_.contains(node);
         }
 
         /*
@@ -180,7 +191,14 @@ namespace wiselib {
          * neighbors list
          */
         void add_resume(node_id_t from, node_id_t originator) {
-            tree_childs.push_back(wiselib::pair<node_id_t, node_id_t>(from, originator));
+            for (typename tree_childs_t::iterator it = tree_childs.begin();
+                    it != tree_childs.end(); it++) {
+                if ((it->second == originator) && (it->first == from)) {
+                    return;
+                }
+            }
+            //debug().debug("Addding in tree%x %d",radio().id(),tree_childs.size());
+            tree_childs.push_back(wiselib::pair<node_id_t, node_id_t > (from, originator));
         }
 
         /*
@@ -188,11 +206,8 @@ namespace wiselib {
          * neighbors list
          */
         node_id_t get_child(node_id_t target) {
-
-            for (typename tree_childs_t::iterator
-                    it = tree_childs.begin();
-                    it != tree_childs.end();
-                    it++) {
+            for (typename tree_childs_t::iterator it = tree_childs.begin();
+                    it != tree_childs.end(); it++) {
                 if (it->second == target) {
                     return it->first;
                 }
@@ -200,20 +215,30 @@ namespace wiselib {
             return radio().NULL_NODE_ID;
         }
 
-
         /*
          * Add node to non_cluster
          * neighbors list
          */
         inline void node_not_joined(node_id_t node, cluster_id_t cluster) {
-            //remove node_id from both structs if exists
-            drop_node(node);
-            gateway_vector_entry_t new_entry;
-            new_entry.first = node;
-            new_entry.second = cluster;
-            //add to non_cluster_neighbors list
-            non_cluster_neighbors_.push_back(new_entry);
-            is_gateway_ = true;
+
+            if (!is_different(node)) {
+
+                gateway_entry_t newnode;
+                newnode.first = node;
+                newnode.second = cluster;
+
+                cluster_neighbors_.erase(node);
+                non_cluster_neighbors_.insert(newnode);
+            } else if (non_cluster_neighbors_[node] != cluster) {
+                non_cluster_neighbors_.erase(node);
+                gateway_entry_t newnode;
+                newnode.first = node;
+                newnode.second = cluster;
+            }
+        }
+
+        inline bool is_different(node_id_t node) {
+            return non_cluster_neighbors_.contains(node);
         }
 
         bool is_gateway() {
@@ -226,27 +251,12 @@ namespace wiselib {
          * and non_cluster neighbors
          */
         inline void drop_node(node_id_t node) {
-            for (typename vector_t::iterator it = cluster_neighbors_.begin(); it
-                    != cluster_neighbors_.end(); ++it) {
-                if (*it == node) {
-                    cluster_neighbors_.erase(it);
-                    break;
-                }
-            }
-            for (typename gateway_vector_t::iterator it = non_cluster_neighbors_.begin(); it
-                    != non_cluster_neighbors_.end(); ++it) {
-                if ((*it).first == node) {
-                    non_cluster_neighbors_.erase(it);
-                    if (non_cluster_neighbors_.size() == 0) {
-                        is_gateway_ = false;
-                    }
-                    break;
-                }
-            }
+            cluster_neighbors_.erase(node);
+            non_cluster_neighbors_.erase(node);
         }
 
         //return the number of nodes known
-        /*
+
         inline size_t node_count(int type) {
             if (type == 1) {
                 //inside cluster
@@ -257,7 +267,7 @@ namespace wiselib {
             }
             return 0;
         }
-         */
+
 
 
         //get the cluster neighbors in a list
@@ -266,10 +276,25 @@ namespace wiselib {
             return cluster_neighbors_.size();
         }
 
+        //TODO: IMPLEMENT CLEAN-UP 
+        //TODO: TEST CLEAN-UP for stability
+        void cleanup() {
+            //                for (typename vector_t::iterator it = cluster_neighbors_.begin(); it
+            //                                != cluster_neighbors_.end(); ++it) {
+            //                            if ((*it).second == false) {
+            //                                cluster_neighbors_.erase(it);
+            //                            } else {
+            //                                (*it).second = false;
+            //                            }
+            //                        }
+        }
+
+        //TODO: CHANGE TO return HASHMAP
         void childs(node_id_t *list) {
-            for (size_t i = 0; i < cluster_neighbors_.size(); i++) {
-                list[i] = cluster_neighbors_.at(i);
-            }
+            //            for (size_t i = 0; i < cluster_neighbors_.size(); i++) {
+            //                list[i] = cluster_neighbors_.at(i).first;
+            //            }
+
         }
 
         //get the non cluster neighbors in a list
@@ -281,9 +306,6 @@ namespace wiselib {
         ResumeClusterMsg<OsModel, Radio> get_resume_payload() {
             ResumeClusterMsg<OsModel, Radio> msg;
             msg.set_node_id(radio().id());
-#ifdef DEBUG_PAYLOADS
-            debug().debug("[%d|%x]\n", msg.msg_id(), msg.node_id());
-#endif
             return msg;
         }
 
@@ -299,10 +321,10 @@ namespace wiselib {
 
 #else
             if (node_type() == HEAD)
-//                debug().debug("Clusters::%x::%d::%d::%d::", radio().id(), node_type(), cluster_neighbors_.size(), non_cluster_neighbors_.size());
+                //                debug().debug("Clusters::%x::%d::%d::%d::", radio().id(), node_type(), cluster_neighbors_.size(), non_cluster_neighbors_.size());
                 debug().debug("Clusters::%x::%d::", radio().id(), node_type());
             else
-//                debug().debug("Clusters::%x::%d::%x::%d::%x::", radio().id(), node_type(), cluster_id(), hops_, parent_);
+                //                debug().debug("Clusters::%x::%d::%x::%d::%x::", radio().id(), node_type(), cluster_id(), hops_, parent_);
                 debug().debug("Clusters::%x::%d::%x::", radio().id(), node_type(), cluster_id());
 #endif
         }
@@ -339,4 +361,4 @@ namespace wiselib {
 
     };
 }
-#endif
+#endif //__FRONTS_IT_H_
