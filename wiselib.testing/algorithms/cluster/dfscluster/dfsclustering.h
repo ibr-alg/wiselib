@@ -311,7 +311,7 @@ namespace wiselib {
             SID_ = radio().id();
             parent_ = radio().id();
             hops_ = 0;
-            if (state_changed_callback_) state_changed_callback_(CLUSTER_HEAD_CHANGED);
+            if (state_changed_callback_) state_changed_callback_(ELECTED_CLUSTER_HEAD);
             
             discover_neighbors();
         }

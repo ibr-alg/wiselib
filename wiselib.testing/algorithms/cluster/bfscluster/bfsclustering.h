@@ -320,7 +320,7 @@ namespace wiselib {
             //Set me as the parent node
             parent_ = radio().id();
             //Callback to show cluster_head selection
-            if (state_changed_callback_) state_changed_callback_(CLUSTER_HEAD_CHANGED);
+            if (state_changed_callback_) state_changed_callback_(ELECTED_CLUSTER_HEAD);
 #ifdef ISENSE_APP
             debug().debug("START 1");
 #endif
