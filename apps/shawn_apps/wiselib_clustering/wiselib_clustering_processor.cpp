@@ -299,6 +299,31 @@ namespace wiselib {
 	    Aeecclustering_.enable();
 	}
 #endif
+#ifdef ENABLE_KOCA
+	else if (cluster_algo_ == "koca")
+	{	    
+	    shawn::DoubleTag *nodetypetag = new shawn::DoubleTag("nodetype", (double) 0);
+            owner_w().add_tag(nodetypetag);
+	    shawn::DoubleTag *csidtag = new shawn::DoubleTag("csid", (double) 0);
+            owner_w().add_tag(csidtag);
+            shawn::StringTag *parenttag = new shawn::StringTag("predecessor", "");
+            owner_w().add_tag(parenttag);
+	    
+	    int probability = se.optional_int_param("probability", 10);
+	    int max_hops = se.optional_int_param("max_hops", 3);
+	    
+	    koca_chd_.set_probability(probability);
+	    
+	    koca_clustering_.set_cluster_head_decision(koca_chd_);
+	    koca_clustering_.set_join_decision(koca_jd_);
+	    koca_clustering_.set_iterator(koca_it_);
+	    koca_clustering_.set_max_hops(max_hops);
+	    
+	    koca_clustering_.init(wiselib_radio_, wiselib_timer_, wiselib_debug_, wiselib_clock_, wiselib_rand_, *wiselib_distance_);
+	    
+	    koca_clustering_.enable();
+	}
+#endif
         else {
             ERROR(logger(), "Given routing algorithm '" << cluster_algo_ << "' not known.");
             ERROR(logger(), "Try 'tree', 'dsdv', or 'dsr'.");

@@ -28,9 +28,11 @@ namespace wiselib {
         typedef OverlappingIterator<OsModel_P> self_t;
 
         // data types
-        typedef int cluster_id_t;
+        
         typedef typename Radio::node_id_t node_id_t;
+	typedef node_id_t cluster_id_t;
         typedef typename Radio::block_data_t block_data_t;
+	typedef typename Radio::message_id_t message_id_t;
 
         /*
          * Constructor
@@ -153,24 +155,26 @@ namespace wiselib {
             size_t clusters_joined_ = clusters_joined();
             memcpy(mess + 1 + sizeof (node_id_t) + sizeof (cluster_id_t), &clusters_joined_, sizeof (size_t));
 
-            debug().debug("[%d,%x,%x,%d", type, id_, cluster_id, clusters_joined_);
+            //debug().debug("[%d,%x,%x,%d", type, id_, cluster_id, clusters_joined_);
 
             for (size_t i = 0; i < clusters_joined(); i++) {
                 //ret[6 + 2 * i] = CH_table_.at(i).cluster_id % 256;
                 //ret[6 + 1 + 2 * i] = CH_table_.at(i).cluster_id / 256;
                 cluster_id_t clust = CH_table_.at(i).cluster_id;
                 memcpy(mess + 1 + sizeof (node_id_t) + sizeof (cluster_id_t) + sizeof (size_t) + i * sizeof (cluster_id_t), &clust, sizeof (cluster_id_t));
-                debug().debug(",%x", clust);
+                //debug().debug(",%x", clust);
 
             }
-            debug().debug("]\n");
+            //debug().debug("]\n");
 
             //memcpy(mess, ret, get_payload_length(JOIN_REQUEST, cluster_id));
         };
 
-        size_t get_payload_length(int type, cluster_id_t cluster_id) {
+        size_t get_payload_length(int type, cluster_id_t cluster_id = Radio::NULL_NODE_ID) {
             if (type == JOIN_REQUEST)
-                return 1 + sizeof (node_id_t) + sizeof (cluster_id_t) + sizeof (size_t) + sizeof (cluster_id_t) * clusters_joined();
+                return sizeof(message_id_t) + sizeof (node_id_t) + sizeof (cluster_id_t) + sizeof (size_t) + sizeof (cluster_id_t) * clusters_joined();
+	    else if(type == INFORM)
+		return sizeof(message_id_t) + sizeof (node_id_t) + sizeof (cluster_id_t) + sizeof(int);
             else
                 return 0;
         };
@@ -323,27 +327,28 @@ namespace wiselib {
         /* SHOW all the known nodes */
         void present_neighbors() {
 #ifdef DEBUG
-            debug().debug("Present Node %x type %d\n", radio().id(), node_type());
+            debug().debug("Present Node %d type %d\n", radio().id(), node_type());
             if (node_type() == HEAD) {
-                debug().debug("mCluster %d : ", cluster_neighbors_.size());
+                debug().debug("%d Cluster Members : ", cluster_neighbors_.size());
                 for (size_t i = 0; i < cluster_neighbors_.size(); i++) {
-                    debug().debug("%x ", cluster_neighbors_.at(i));
+                    debug().debug("%d ", cluster_neighbors_.at(i));
                 }
                 debug().debug("\n");
                 for (size_t i = 0; i < AC_table_.size(); i++) {
-                    debug().debug("kCluster %d: ", AC_table_.at(i).cluster_id);
+                    debug().debug("Gateways to Cluster %d : ", AC_table_.at(i).cluster_id);
                     for (size_t j = 0; j < AC_table_.at(i).gateways.size(); j++) {
-                        debug().debug(" %x", AC_table_.at(i).gateways.at(j));
+                        debug().debug(" %d", AC_table_.at(i).gateways.at(j));
                     }
                     debug().debug("\n");
                 }
 
             }
-            debug().debug("Routing Table:\n");
+            debug().debug("Head Routing Table:\n");
             for (size_t i = 0; i < CH_table_.size(); i++) {
-                debug().debug("Cluster %x dist %d prev %x ", CH_table_.at(i).cluster_id, CH_table_.at(i).hops, CH_table_.at(i).previous);
+                debug().debug("Cluster %d dist %d prev %d ", CH_table_.at(i).cluster_id, CH_table_.at(i).hops, CH_table_.at(i).previous);
                 debug().debug("\n");
             }
+            debug().debug("\n");
 #endif
         };
 
