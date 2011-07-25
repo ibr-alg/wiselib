@@ -25,7 +25,8 @@ namespace wiselib {
     wiselib_timer_(os_),
     wiselib_debug_(os_),
     wiselib_clock_(os_),
-    wiselib_rand_(os_)
+    wiselib_rand_(os_),
+    wiselib_distance_(NULL)
     {
     }
     // ----------------------------------------------------------------------
@@ -40,7 +41,8 @@ namespace wiselib {
     boot(void)
     throw () {
         os_.proc = this;
-
+	if(wiselib_distance_ == NULL)
+	    wiselib_distance_ = new Os::Distance(os_);
         const shawn::SimulationEnvironment& se = owner().world().
                 simulation_controller().environment();
         cluster_algo_ = se.optional_string_param("clustering_algorithm", "bfs");
@@ -247,12 +249,9 @@ namespace wiselib {
             theta_ = se.optional_int_param("min_waiting", 4000);
             int kappa_ = se.optional_int_param("max_waiting", 50000);
 	    cawt_max_round_ = kappa_ / 100;
-
             // tags
-            shawn::DoubleTag *nodetypetag = new shawn::DoubleTag("nodetype", 0.0);
+            shawn::DoubleTag *nodetypetag = new shawn::DoubleTag("nodetype", (double) 0);
             owner_w().add_tag(nodetypetag);
-	    shawn::IntegerTag *nodetypetag_int = new shawn::IntegerTag("integer_nodetype", 0);
-            owner_w().add_tag(nodetypetag_int);
 	    shawn::DoubleTag *csidtag = new shawn::DoubleTag("csid", (double) 0);
             owner_w().add_tag(csidtag);
             shawn::StringTag *parenttag = new shawn::StringTag("predecessor", "");
@@ -278,9 +277,27 @@ namespace wiselib {
 	    wtCHD_.set_timer_decrease_factor(se.optional_double_param("beta", 0.9));
             // start algorithm
             Mcawtclustering_.enable();
-	    
-	    
         }
+#endif
+#ifdef ENABLE_AEEC
+	else if (cluster_algo_ == "aeec")
+	{	    
+	    shawn::DoubleTag *nodetypetag = new shawn::DoubleTag("nodetype", (double) 0);
+            owner_w().add_tag(nodetypetag);
+	    shawn::DoubleTag *csidtag = new shawn::DoubleTag("csid", (double) 0);
+            owner_w().add_tag(csidtag);
+            shawn::StringTag *parenttag = new shawn::StringTag("predecessor", "");
+            owner_w().add_tag(parenttag);
+	    
+	    int cluster_time = se.optional_int_param("max_waiting", 25000);
+	    Aeecclustering_.set_cluster_head_decision(jrCHD_);
+	    Aeecclustering_.set_join_decision(aeecJD_);
+	    Aeecclustering_.set_iterator(aeecIT_);
+	    Aeecclustering_.init(wiselib_radio_, wiselib_timer_, wiselib_debug_, wiselib_clock_, wiselib_rand_, *wiselib_distance_);
+	    Aeecclustering_.set_cluster_time(cluster_time);
+	    
+	    Aeecclustering_.enable();
+	}
 #endif
         else {
             ERROR(logger(), "Given routing algorithm '" << cluster_algo_ << "' not known.");
@@ -493,7 +510,6 @@ namespace wiselib {
 
             if (simulation_round() <= cawt_max_round_ + 10) {
                 owner_w().write_simple_tag("nodetype", ((double) (Mcawtclustering_.node_type()-1)));
-		owner_w().write_simple_tag("integer_nodetype", ( Mcawtclustering_.node_type()));
                 owner_w().write_simple_tag("csid", ((double) (Mcawtclustering_.cluster_id())));
 		//owner_w().write_simple_tag("csid", ((double) (Mcawtclustering_.cluster_id() % 10 ) / 10));
             }
@@ -532,6 +548,50 @@ namespace wiselib {
 
         }
 #endif
+#ifdef ENABLE_AEEC
+            else if (cluster_algo_ == "aeec") {
+            //INFO( logger(), "Node "<<owner().id()<<" runs work for round "<< simulation_round() );
+
+            if (simulation_round() <= Aeecclustering_.cluster_time()/1000 + 5) {
+                 owner_w().write_simple_tag("nodetype", ((double) (Aeecclustering_.node_type()-1)));
+                 owner_w().write_simple_tag("csid", ((double) (Aeecclustering_.cluster_id())));
+            }
+            if (simulation_round() == Aeecclustering_.cluster_time()/1000 + 5) {
+// 		INFO(logger(), "RESULTS: ");
+ 		owner_w().write_simple_tag("predecessor", owner().world().find_node_by_id(Aeecclustering_.parent())->label());
+// 		
+ 		std::string typestring = "";
+		if(Aeecclustering_.node_type() == 0)
+		{
+		    typestring = "UNASSIGNED";
+		}
+		else if (Aeecclustering_.node_type() == 1)
+		{
+		    typestring = "NODE";
+		}
+		else
+		{
+		    typestring = "HEAD";
+		}
+		
+		int hops = 1;
+		if(Aeecclustering_.cluster_id() != Aeecclustering_.parent())
+		{
+		    hops++;
+		}
+		
+		INFO(logger(), "RESULTS: " << owner().id() << " | " << typestring << " | " 
+			<< Aeecclustering_.cluster_id() << " | " << hops);
+		
+                /*INFO(logger(), "RESULTS Node " << owner().id()
+                        << " has type " << Mcawtclustering_.node_type()
+			<< " and belongs to cluster ");*/
+		//TODO: Parent-ID; Cluster-ID
+            }
+
+
+        }
+#endif
 
     }
     // ----------------------------------------------------------------------
@@ -555,7 +615,7 @@ namespace wiselib {
                 INFO(logger(), "Node " << owner().id() << " joined sector " << dfsclustering_.cluster_id()
                         << " at simulation round " << owner().world().simulation_round());
             } else
-                if (event == CLUSTER_HEAD_CHANGED) {
+                if (event == ELECTED_CLUSTER_HEAD) {
                 INFO(logger(), "Node " << owner().id() << " is now head if cluster " << dfsclustering_.cluster_id()
                         << " at simulation round " << owner().world().simulation_round());
             } else
@@ -571,7 +631,7 @@ namespace wiselib {
                 INFO(logger(), "Node " << owner().id() << " joined sector " << Mbfsclustering_.cluster_id()
                         << " at simulation round " << owner().world().simulation_round());
             } else
-                if (event == CLUSTER_HEAD_CHANGED) {
+                if (event == ELECTED_CLUSTER_HEAD) {
                 INFO(logger(), "Node " << owner().id() << " is now head if cluster " << Mbfsclustering_.cluster_id()
                         << " at simulation round " << owner().world().simulation_round());
                 INFO(logger(), "CHEAD DECIDED round " << owner().world().simulation_round());
@@ -601,7 +661,7 @@ namespace wiselib {
 #endif
 #ifdef ENABLE_MMAXMIND
         else if (cluster_algo_ == "mmaxmind") {
-            if (event == CLUSTER_HEAD_CHANGED) {
+            if (event == ELECTED_CLUSTER_HEAD) {
                 INFO(logger(), "Node " << owner().id() << " is now Head of cluster " << Mmaxmindclustering_.cluster_id()
                         << " at simulation round " << owner().world().simulation_round());
                 INFO(logger(), "CHEAD DECIDED round " << owner().world().simulation_round());

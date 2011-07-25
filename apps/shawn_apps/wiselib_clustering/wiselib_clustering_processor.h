@@ -33,6 +33,7 @@
 //#define ENABLE_MMOCA
 //#define ENABLE_MAXMIND
 #define ENABLE_MCAWT
+#define ENABLE_AEEC
 
 // bfsclustering MONOLITHIC
 #ifdef ENABLE_BFS
@@ -74,16 +75,23 @@
 #include "algorithms/cluster/modules/chd/prob_chd.h"
 #include "algorithms/cluster/modules/it/overlapping_it.h"
 #include "algorithms/cluster/modules/jd/moca_jd.h"
-#include <concept_check.hpp>
 #endif
 //cawt
 #ifdef ENABLE_MCAWT
 #include "algorithms/cluster/cores/cawt.h"
 #include "algorithms/cluster/modules/chd/wt_chd.h"
 #include "algorithms/cluster/modules/jd/cawt_jd.h"
-#include "algorithms/cluster/modules/it/normal_it.h"
-//#include <concept_check.hpp>
+#include "algorithms/cluster/modules/it/generic_normal_it.h"
 #endif
+#ifdef ENABLE_AEEC
+#include "algorithms/cluster/cores/aeec.h"
+#include "algorithms/cluster/modules/chd/join_request_chd.h"
+#include "algorithms/cluster/modules/jd/nearest_head_jd.h"
+#include "algorithms/cluster/modules/it/generic_normal_it.h"
+#endif
+
+#include "util/metrics/energy_consumption_radio_wrapper.h"
+#include <concept_check.hpp>
 
 typedef wiselib::ShawnOsModel Os;
 
@@ -132,12 +140,21 @@ typedef wiselib::MocaJoinDecision<Os> mocaJD_t;
 typedef wiselib::OverlappingIterator<Os> overlappingIT_t;
 typedef wiselib::MocaCore<Os, probabilisticCHD_t, mocaJD_t, overlappingIT_t> Mmocaclustering_t;
 #endif
+//#include "util/metrics/energy_consumption_radio_wrapper.h"
+//typedef wiselib::EnergyConsumptionRadioWrapperModel<Os, Os::Radio, Os::Clock> EnergyRadio;
 #ifdef ENABLE_MCAWT
 typedef wiselib::WaitingTimerClusterHeadDecision<Os> wtCHD_t;
 typedef wiselib::CawtJoinDecision<Os> cawtJD_t;
-typedef wiselib::NormalIterator<Os> normIT_t;
+typedef wiselib::GenericNormalIterator<Os, Os::Radio, Os::Timer, Os::Debug, Os::Radio::node_id_t> normIT_t;
 typedef wiselib::CawtCore<Os, wtCHD_t, cawtJD_t, normIT_t> Mcawtclustering_t;
 #endif
+#ifdef ENABLE_AEEC
+typedef wiselib::JoinRequestClusterHeadDecision<Os, Os::Radio> jrCHD_t;
+typedef wiselib::NearestHeadJoinDecision<Os, Os::Radio> nearestJD_t;
+typedef wiselib::GenericNormalIterator<Os, Os::Radio, Os::Timer, Os::Debug, wiselib::AeecNeighbourInfo<Os> > aeec_normIT_t;
+typedef wiselib::AeecCore<Os, jrCHD_t, nearestJD_t, aeec_normIT_t> Aeecclustering_t;
+#endif
+
 
 //typedef wiselib::ClusterFormation<Os, RandomClusterHeadDecision, SimpleJoinDecision, BfsIterator, BfsGroupKeyFormation>
 
@@ -188,6 +205,7 @@ namespace wiselib {
         Os::Debug wiselib_debug_;
 	Os::Clock wiselib_clock_;
 	Os::Rand wiselib_rand_;
+	Os::Distance* wiselib_distance_;
         //ReliableRadio_t ReliableRadio_;
         //VolumeRadio_t VolumeRadio_;
 
@@ -243,7 +261,12 @@ namespace wiselib {
 	Mcawtclustering_t Mcawtclustering_;
 	int cawt_max_round_;
 #endif
-
+#ifdef ENABLE_AEEC
+	jrCHD_t jrCHD_;
+	nearestJD_t aeecJD_;
+	aeec_normIT_t aeecIT_;
+	Aeecclustering_t Aeecclustering_;
+#endif
     };
 
 
