@@ -34,6 +34,7 @@
 //#define ENABLE_MAXMIND
 #define ENABLE_MCAWT
 #define ENABLE_AEEC
+#define ENABLE_KOCA
 
 // bfsclustering MONOLITHIC
 #ifdef ENABLE_BFS
@@ -89,8 +90,14 @@
 #include "algorithms/cluster/modules/jd/nearest_head_jd.h"
 #include "algorithms/cluster/modules/it/generic_normal_it.h"
 #endif
+#ifdef ENABLE_KOCA
+#include "algorithms/cluster/cores/koca.h"
+#include "algorithms/cluster/modules/chd/prob_chd.h"
+#include "algorithms/cluster/modules/it/overlapping_it.h"
+#include "algorithms/cluster/modules/jd/cawt_jd.h"
+#endif
 
-#include "util/metrics/energy_consumption_radio_wrapper.h"
+//#include "util/metrics/energy_consumption_radio_wrapper.h"
 #include <concept_check.hpp>
 
 typedef wiselib::ShawnOsModel Os;
@@ -153,6 +160,12 @@ typedef wiselib::JoinRequestClusterHeadDecision<Os, Os::Radio> jrCHD_t;
 typedef wiselib::NearestHeadJoinDecision<Os, Os::Radio> nearestJD_t;
 typedef wiselib::GenericNormalIterator<Os, Os::Radio, Os::Timer, Os::Debug, wiselib::AeecNeighbourInfo<Os> > aeec_normIT_t;
 typedef wiselib::AeecCore<Os, jrCHD_t, nearestJD_t, aeec_normIT_t> Aeecclustering_t;
+#endif
+#ifdef ENABLE_KOCA
+typedef wiselib::ProbabilisticClusterHeadDecision<Os, Os::Radio> KocaCHD;
+typedef wiselib::CawtJoinDecision<Os> KocaJD;
+typedef wiselib::OverlappingIterator<Os> KocaIT;
+typedef wiselib::KocaCore<Os, KocaCHD, KocaJD, KocaIT> KocaClustering;
 #endif
 
 
@@ -266,6 +279,12 @@ namespace wiselib {
 	nearestJD_t aeecJD_;
 	aeec_normIT_t aeecIT_;
 	Aeecclustering_t Aeecclustering_;
+#endif
+#ifdef ENABLE_KOCA
+	KocaCHD koca_chd_;
+	KocaJD koca_jd_;
+	KocaIT koca_it_;
+	KocaClustering koca_clustering_;
 #endif
     };
 
