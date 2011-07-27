@@ -185,6 +185,7 @@ namespace wiselib
       ///@{
       void update_routing_table( node_id_t from, BroadcastMessage& message );
       void print_routing_table( RoutingTable& rt );
+      void update_table_on_failure(node_id_t fnode, RoutingTable& rt );
       ///@}
       millis_t startup_time_;
       millis_t work_period_;
@@ -314,11 +315,18 @@ namespace wiselib
          message.set_source( radio().id() );
          message.set_destination( destination );
          message.set_payload( len, data );
+         if((it->second.next_hop!=message.destination())&&(it->second.hops==1))
+         {
+         routing_table_[message.destination()]=RoutingTableEntry(Radio_P::NULL_NODE_ID, 0);
+         }
+         else
+         {
          radio().send( it->second.next_hop, message.buffer_size(), (uint8_t*)&message );
          ndis_->register_debug_callback(flags);
-         
-#ifdef ROUTING_DSDV_DEBUG
-         debug().debug( "Send to %i over %i From %i\n", message.destination(), it->second.next_hop, radio().id() );
+         }
+#ifdef ROUTING_DSDV_DEBUG 
+//if(radio_->id()==418)
+         //debug().debug( "Send to %i over %i From %i\n", message.destination(), it->second.next_hop, radio().id() );
 #endif
       }
       else
@@ -369,8 +377,8 @@ namespace wiselib
             message.set_entry_cnt( idx );
             radio().send( Radio::BROADCAST_ADDRESS, message.buffer_size(), (uint8_t*)&message );
 #ifdef ROUTING_DSDV_DEBUG
-            messages++;
-            debug().debug( "DsdvRouting: BC-Message %d with %i entries (%d max)\n", messages, idx, BroadcastMessage::MAX_ENTRIES );
+            //messages++; if(radio_->id()==418)
+            ///debug().debug( "DsdvRouting: BC-Message %d with %i entries (%d max)\n", messages, idx, BroadcastMessage::MAX_ENTRIES );
 #endif
          }
       }
@@ -393,6 +401,7 @@ namespace wiselib
    void DsdvRoutingNdis<OsModel_P, RoutingTable_P, Radio_P, Clock_P, Timer_P, NeighborhoodDiscovery_P, Debug_P>::
    receive( node_id_t from, size_t len, block_data_t *data )
    {
+   	  	
       if ( from == radio().id() )
          return;
 
@@ -401,8 +410,9 @@ namespace wiselib
       {
          BroadcastMessage *message = (BroadcastMessage *)data;
          //checks to see if the broadcast message is received from a neighbor, if so updates the routing table accordingly
-         if(ndis_->is_neighbor(from))
+         if(ndis_->is_neighbor_bidi(from))
          {
+         debug().debug("Checking\n");
          routing_table_[from] = RoutingTableEntry( from, 1 );
          update_routing_table( from, *message );
          }
@@ -421,6 +431,7 @@ namespace wiselib
          {
             notify_receivers( message->source(), message->payload_size(), message->payload() );
 #ifdef ROUTING_DSDV_DEBUG
+            
             debug().debug( "DsdvRouting: Received Dsdv-Routing-Message from %i\n",
                               message->source() );
 #endif
@@ -431,8 +442,11 @@ namespace wiselib
             if ( it != routing_table_.end() &&
                   it->second.next_hop != radio().NULL_NODE_ID )
             {	//checks to see if the node the current message will be sent to is still a neighbor or not. If yes, it sends to it. If no, it refreshes the routing tables by triggering a timer to resend broadcast messages
-               if(ndis_->is_neighbor(it->second.next_hop))
+               if(ndis_->is_neighbor_bidi(it->second.next_hop))
                {
+               if((it->second.next_hop!=message->destination())&&(it->second.hops==1))
+               routing_table_[message->source()]=RoutingTableEntry(Radio_P::NULL_NODE_ID, 0);
+               else
                radio().send( it->second.next_hop, len, data );
                }
                else
@@ -460,6 +474,7 @@ namespace wiselib
    void DsdvRoutingNdis<OsModel_P, RoutingTable_P, Radio_P, Clock_P, Timer_P, NeighborhoodDiscovery_P, Debug_P>::
    update_routing_table( node_id_t from, BroadcastMessage& message )
    {
+   node_id_t fnode;
       for ( int i = 0; i < message.entry_cnt(); i++ )
       {
          node_id_t id;
@@ -474,37 +489,93 @@ namespace wiselib
             RoutingTableIterator cur = routing_table_.find( value.first );
             
             //checks if the respective routing table entry is a neighbor. If so, adds it to the routing table with hop count 1      
-            if((ndis_->is_neighbor(value.first)))
+            if((ndis_->is_neighbor_bidi(value.first)))
             {
+            //debug().debug("1. Value.First = %d",value.first);
             routing_table_[value.first]=RoutingTableEntry(value.first,1);
             }
-            
-            else if ( cur == routing_table_.end() )
+            else
+            if ( (cur == routing_table_.end()))
             {
 #ifdef ROUTING_DSDV_DEBUG
-                //debug().debug( "DsdvRouting: Add %i because not known\n", value.first );
+//                debug().debug( "DsdvRouting: Add %i because not known\n", value.first );
 #endif
                routing_table_[value.first] = RoutingTableEntry(
                   from, value.second.hops + 1 );
             }
-            else if ( cur->second.hops >= value.second.hops + 1 )
+            else
+            if ( cur->second.hops > value.second.hops + 1 )
             {
 #ifdef ROUTING_DSDV_DEBUG
-                //debug().debug( "DsdvRouting: Update %i because smaller hopcount (new %i < old %i)\n",
-                      //value.first, value.second.hops, cur->second.hops );
+//                debug().debug( "DsdvRouting: Update %i because smaller hopcount (new %i < old %i)\n",
+//                      value.first, value.second.hops, cur->second.hops );
 #endif
-               //The checker is used to make sure that the next hop listed for the current node is still active. If not it replaces the entry with a neighbor which is as many hops away as the previous failed node
-               if(!(ndis_->is_neighbor(cur->second.next_hop)))
+               routing_table_[value.first] = RoutingTableEntry(
+                  from, value.second.hops + 1 );
+            }
+            else
+            if ((cur->second.next_hop==from) && (cur->second.hops <= value.second.hops + 1))
+            {
+            	routing_table_[value.first] = RoutingTableEntry(
+                  from, value.second.hops + 1 );
+            }
+            else
+            if( (cur->second.next_hop==0) && (cur->second.hops==0) && (value.second.hops!=0))
+            {
+            debug().debug( "DsdvRouting: Update %i because correct hopcount (new %i < old %i) send to %i\n", value.first, value.second.hops+1, cur->second.hops, from );
+            routing_table_[value.first] = RoutingTableEntry(
+                  from, value.second.hops + 1 );
+            }
+            
+            cur = routing_table_.find( value.first );
+            
+            if(!(ndis_->is_neighbor_bidi(cur->second.next_hop)))
                {
-               debug().debug("Radio id = %d value.first = %d, from = %d\n", radio().id(), value.first, from);
+               debug().debug("Radio id = %d value.first = %d, from = %d next hop = %d\n", radio().id(), value.first, from, cur->second.next_hop);
+           
+               fnode=cur->second.next_hop;
+               update_table_on_failure(fnode, routing_table_);
                routing_table_[value.first] = RoutingTableEntry(
                   from, value.second.hops + 1 );
-               }   
-            }
+               }
+               
+             cur = routing_table_.find( value.first );
+               
+             if(cur->second.next_hop==from && value.second.next_hop==radio().id() && (cur->second.hops>value.second.hops))
+             {
+             routing_table_.erase(cur);
+             }
+             
+             
             
-            
-            }
+         }       
+      
       }
+   
+   
+   }
+   
+   template<typename OsModel_P,
+            typename RoutingTable_P,
+            typename Radio_P,
+            typename Clock_P,
+            typename Timer_P,
+            typename NeighborhoodDiscovery_P,
+            typename Debug_P>
+            void DsdvRoutingNdis<OsModel_P, RoutingTable_P, Radio_P, Clock_P, Timer_P, NeighborhoodDiscovery_P, Debug_P>::
+            update_table_on_failure( node_id_t fnode, RoutingTable& rt)
+   {
+   int i = 0;
+     
+      for ( RoutingTableIterator it = rt.begin(); it != rt.end(); ++it )
+      {
+         if(it->second.next_hop==fnode)
+         {
+         debug().debug( "Removed Entry of %d in Table with fnode %d:\n", i, fnode );
+         rt.erase(it);
+         } 
+         i++;
+     }
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P,
@@ -522,11 +593,23 @@ namespace wiselib
      debug().debug( "DsdvRouting: Routing Table of %i (%d entries):\n", radio().id(), rt.size() );
       for ( RoutingTableIterator it = rt.begin(); it != rt.end(); ++it )
       {
-         debug().debug( "DsdvRouting:   %i: Dest %i SendTo %i Hops %i\n",
+         if((it->second.next_hop!=it->first)&&(it->second.hops==1))
+         {
+         debug().debug( "Removed Entry of %i in Table with next hop : %i wrong hop count\n", it->first, it->second.next_hop );
+         rt.erase(it);
+         }
+         else
+         if(!(ndis_->is_neighbor_bidi(it->second.next_hop)))
+         {
+         debug().debug( "Removed Entry of %i in Table with next hop %i:\n", it->first, it->second.next_hop );
+         rt.erase(it);
+         }
+         else
+         {debug().debug( "DsdvRouting:   %i: Dest %i SendTo %i Hops %i\n",
             i++,
             it->first,
             it->second.next_hop,
-            it->second.hops ); 
+            it->second.hops ); }
      }
 #endif
    }
