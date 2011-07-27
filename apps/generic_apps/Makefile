@@ -89,8 +89,7 @@ flash-jtag:
 
 flash-sky:
 	$(CONTIKI_PATH)/tools/sky/msp430-bsl-linux --telosb -D \
-		-c $(PORT) -r -e -I -p lorien.hex
-#out/$(BIN_OUT).hex
+		-c $(PORT) -r -e -I -p out/$(BIN_OUT).hex
 
 flash-micaz:
 	uisp -dprog=mib510 -dserial=$(PORT) -dpart=ATmega128 --wr_fuse_h=0xd1 \
