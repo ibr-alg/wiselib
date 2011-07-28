@@ -3,7 +3,7 @@
 fit_and_plot() {
   FILE=$1
   echo ==================================
-  echo Fitting $FILE...
+  echo $FILE...
   #FIT=`echo "data <- read.table('$FILE'); lm(data[,3] ~ data[,1] + data[,2])"|R --vanilla --batch|grep -E '^( +[-0-9.]+){3}'`
   #INTERCEPT=`echo $FIT|awk '{ print $1; }'`
   #X=`echo $FIT|awk '{ print $2; }'`
@@ -11,23 +11,33 @@ fit_and_plot() {
   #echo intercept: $INTERCEPT, x: $X, y: $Y
   if [ -n "$TOFILE" ]; then
     OUTFILE=${FILE//./_}.pdf
-    TOFILE="set term pdf; set output '$OUTFILE'";
+    TOFILE="set term pdf font 'LMRoman10'; set pointsize 0.5; set output '$OUTFILE'";
     echo "Writing to file $OUTFILE";
   fi
   echo > .$FILE.gp "$TOFILE
 set title '$2'
+set key right bottom outside vertical title 'velocities:'
+set style line 1 lc rgb '#555753'
+set style line 2 lc rgb '#EF2929'
+set style line 3 lc rgb '#8AE234'
+set style line 4 lc rgb '#FFE300'
+set style line 5 lc rgb '#729FCF'
+set style line 6 lc rgb '#AD7FA8'
+set style line 7 lc rgb '#34E2E2'
+set style line 8 lc rgb '#000000'
+set style increment user
 set logscale x
 set xlabel 'input [mm]'
 set ylabel 'error of measured value [mm]'
 plot \\
-  '$FILE' index 0 using 2:5:3:4 title 'velocity=20' with yerrorlines, \\
-  '$FILE' index 1 using 2:5:3:4 title 'velocity=50' with yerrorlines, \\
-  '$FILE' index 2 using 2:5:3:4 title 'velocity=70' with yerrorlines, \\
-  '$FILE' index 3 using 2:5:3:4 title 'velocity=100' with yerrorlines, \\
-  '$FILE' index 4 using 2:5:3:4 title 'velocity=150' with yerrorlines, \\
-  '$FILE' index 5 using 2:5:3:4 title 'velocity=200' with yerrorlines, \\
-  '$FILE' index 6 using 2:5:3:4 title 'velocity=300' with yerrorlines, \\
-  '$FILE' index 7 using 2:5:3:4 title 'velocity=400' with yerrorlines
+  '$FILE' index 0 using 2:5:3:4 title '20 mm/s' with yerrorlines, \\
+  '$FILE' index 1 using 2:5:3:4 title '50 mm/s' with yerrorlines, \\
+  '$FILE' index 2 using 2:5:3:4 title '70 mm/s' with yerrorlines, \\
+  '$FILE' index 3 using 2:5:3:4 title '100 mm/s' with yerrorlines, \\
+  '$FILE' index 4 using 2:5:3:4 title '150 mm/s' with yerrorlines, \\
+  '$FILE' index 5 using 2:5:3:4 title '200 mm/s' with yerrorlines, \\
+  '$FILE' index 6 using 2:5:3:4 title '300 mm/s' with yerrorlines, \\
+  '$FILE' index 7 using 2:5:3:4 title '400 mm/s' with yerrorlines
 "
   gnuplot -persist .$FILE.gp &
 }
@@ -36,7 +46,6 @@ TITLE="Original behaviour"
 PREFIX=
 TOFILE=
 while [ "$#" -gt 0 ]; do
-  echo test: $1
   case "$1" in
     --help|-h)
       echo "Usage: $0 [--help|-h|--mean|-m|--soft|-s] [--to-file|-o]"
