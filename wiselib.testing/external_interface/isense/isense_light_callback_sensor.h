@@ -28,7 +28,7 @@
 namespace wiselib
 {	
 	/** \brief iSense implementation of \ref callback_sensor_concept "Callback 
-	 * 		  Sensor Concept"
+	 * 		  Sensor Concept" for Light Sensor
 	 *
 	 *  This is the implementation of an iSense light sensor. As it implements
 	 *  \ref callback_sensor_concept "Callback Sensor Concept", access to the 
@@ -40,201 +40,199 @@ namespace wiselib
 		:  public SensorCallbackBase<OsModel_P, uint32, 1000>,
 			public isense::Uint32DataHandler
 	{			
-		public:								
-			// Inherited from BasicReturnValues_concept
-			enum { SUCCESS,
-					 ERR_UNSPEC,
-					 ERR_NOMEM,
-					 ERR_BUSY,
-					 ERR_NOTIMPL,
-					 ERR_NETDOWN,
-					 ERR_HOSTUNREACH };
-					 
-			// Inherited from BasicSensor_concept
-			enum StateData { READY = OsModel_P::READY,
-								  NO_VALUE = OsModel_P::NO_VALUE,
-								  INACTIVE = OsModel_P::INACTIVE };
-								 
-			// Inherited from BasicReturnValues_concept
-			/*enum StateValues { READY = READY,
-									 NO_VALUE = NO_VALUE,
-									 INACTIVE = INACTIVE };
-									 
-			enum BasicReturnValues { OK = true,
-											 FAILED = false };*/
-						  
-			typedef OsModel_P OsModel;
-
-			typedef iSenseLightCallbackSensor<OsModel> self_t;
-			typedef self_t* self_pointer_t;
-
-			typedef uint32 value_t;
-			
-			//---------------------------------------------------------------------
-			
-			///@name Constructor/Destructor
-			///
-			/** Default constructor
-			*
-			*/
-			iSenseLightCallbackSensor( isense::Os& os ) 
-				: os_( os ), curState_( INACTIVE )
-			{
-				module_ = new isense::EnvironmentModule( os );
-
-				if( module_ != 0 )
-				{	
-					if( module_->light_sensor() != 0) 
-					{
-						module_->light_sensor()->set_data_handler( this );
+	public:								
+		// Inherited from BasicReturnValues_concept
+		enum { SUCCESS,
+					ERR_UNSPEC,
+					ERR_NOMEM,
+					ERR_BUSY,
+					ERR_NOTIMPL,
+					ERR_NETDOWN,
+					ERR_HOSTUNREACH };
+					
+		// Inherited from BasicSensor_concept
+		enum StateData { READY = OsModel_P::READY,
+								NO_VALUE = OsModel_P::NO_VALUE,
+								INACTIVE = OsModel_P::INACTIVE };
+								
+		// Inherited from BasicReturnValues_concept
+		/*enum StateValues { READY = READY,
+									NO_VALUE = NO_VALUE,
+									INACTIVE = INACTIVE };
+									
+		enum BasicReturnValues { OK = true,
+											FAILED = false };*/
 						
-						if(!module_->enable( true ))
-						{
-							os.fatal( "Can't enable environment module and/or light sensor" );
-							curState_ = INACTIVE;
-						}
-						else
-						{
-							setThreshold(0);
-							curState_ = NO_VALUE;
-							os_.debug("Enabled");
-						}
+		typedef OsModel_P OsModel;
+
+		typedef iSenseLightCallbackSensor<OsModel> self_t;
+		typedef self_t* self_pointer_t;
+
+		typedef uint32 value_t;
+		
+		//------------------------------------------------------------------------
+		
+		///@name Constructor/Destructor
+		///
+		/** Constructor
+		*
+		*/
+		iSenseLightCallbackSensor( isense::Os& os ) 
+			: os_( os ), curState_( INACTIVE )
+		{
+			module_ = new isense::EnvironmentModule( os );
+
+			if( module_ != 0 )
+			{	
+				if( module_->light_sensor() != 0) 
+				{
+					module_->light_sensor()->set_data_handler( this );
+					
+					if(!module_->enable( true ))
+					{
+						os.fatal( "Can't enable environment module and/or light sensor" );
+						curState_ = INACTIVE;
 					}
 					else
 					{
-						os.fatal( "Could not allocate light sensor" );
-						curState_ = INACTIVE;
+						setThreshold(0);
+						curState_ = NO_VALUE;
 					}
 				}
-				else 
-				{
-					os.fatal( "Could not allocate Environment Module" );
-					curState_ = INACTIVE;
-				}
-				
-				value_ = 0;
-				thr_ = 0;
-			}
-			///
-			
-			//---------------------------------------------------------------------
-
-			///@name Getters and Setters
-			///
-			/** Returns the current state of the sensor
-			*
-			*  \return The current state
-			*/
-			int state( void ) 
-			{ 
-				return curState_;
-			}
-			
-			//---------------------------------------------------------------------
-			
-			/** Returns the current luminance
-			 * 
-			 * \return The current value for the luminance
-			 */
-			value_t get_value( void ) 
-			{ 
-				if( curState_ != READY )
-					return 0;
 				else
-					return value_;
-			}
-			
-			//---------------------------------------------------------------------
-			
-			/** Sets the minimum change of luminance (in percent) until callback
-			 *  function is called
-			 * 
-			 *  The threshold defines the width of a luminance corridor in percent.  
-			 *  If this corridor is left, the handler is called.
-			 * 
-			 *  \return Return true if the setting was successfull, else false
-			 */
-			bool setThreshold( uint16 delta)
-			{
-				if(module_->light_sensor()->enable_threshold_interrupt( true,
-					delta ))
 				{
-					thr_ = delta;
-					return true;
-				}
-				else return false;
-			}
-			
-			//---------------------------------------------------------------------
-			
-			/** Gets the currently specified threshold
-			 * 
-			 * \return Currently specified threshold
-			 */
-			uint16 getThreshold( void )
-			{ 
-				return thr_;
-			}
-			///
-
-			//---------------------------------------------------------------------
-			
-			/** Function called, when light sensor has new Data
-			 *  (and luminance corridor was left)
-			 */
-			void handle_uint32_data ( uint32 data )
-			{
-				value_ = data;
-				curState_ = READY;
-				
-				this->notify_receivers( value_ );
-			}
-			
-			//---------------------------------------------------------------------
-
-			/** Enables the sensor (if not already enabled)
-			 * 
-			 * \return True if sensor was already or is now enabled, else false.
-			 */
-			bool enable()
-			{
-				return module_->light_sensor()->enable();
-			}
-			
-			/** Disables the sensor and replaces the DataHandler
-			 * 
-			 */
-			void disable() 
-			{
-				if( curState_ != INACTIVE )
-				{
-					module_->light_sensor()->set_data_handler( NULL );
-					module_->light_sensor()->disable();		// Already done by
-													// set_data_handler(NULL) but 
-													//	just to be absolutly sure!
-				
+					os.fatal( "Could not allocate light sensor" );
 					curState_ = INACTIVE;
 				}
 			}
+			else 
+			{
+				os.fatal( "Could not allocate Environment Module" );
+				curState_ = INACTIVE;
+			}
 			
-			//---------------------------------------------------------------------
+			value_ = 0;
+			thr_ = 0;
+		}
+		///
+		
+		//------------------------------------------------------------------------
 
+		///@name Getters and Setters
+		///
+		/** Returns the current state of the sensor
+		*
+		*  \return The current state
+		*/
+		int state( void ) 
+		{ 
+			return curState_;
+		}
+		
+		//------------------------------------------------------------------------
+		
+		/** Returns the current luminance
+			* 
+			* \return The current value for the luminance
+			*/
+		value_t get_value( void ) 
+		{ 
+			if( curState_ != READY )
+				return 0;
+			else
+				return value_;
+		}
+		
+		//------------------------------------------------------------------------
+		
+		/** Sets the minimum change of luminance (in percent) until callback
+			*  function is called
+			* 
+			*  The threshold defines the width of a luminance corridor in percent.  
+			*  If this corridor is left, the handler is called.
+			* 
+			*  \return Return true if the setting was successfull, else false
+			*/
+		bool setThreshold( uint16 delta)
+		{
+			if(module_->light_sensor()->enable_threshold_interrupt( true,
+				delta ))
+			{
+				thr_ = delta;
+				return true;
+			}
+			else return false;
+		}
+		
+		//------------------------------------------------------------------------
+		
+		/** Gets the currently specified threshold
+			* 
+			* \return Currently specified threshold
+			*/
+		uint16 getThreshold( void )
+		{ 
+			return thr_;
+		}
+		///
 
-		private:	 
-			/// Current value of accelerometer
-			value_t value_;
-
-			/// Pointer to the module this sensor is located on
-			isense::EnvironmentModule* module_;
-
-			/// Pointer to the OS
-			isense::Os& os_;
-
-			/// Current State
-			StateData curState_;
+		//------------------------------------------------------------------------
+		
+		/** Function called, when light sensor has new Data
+			*  (and luminance corridor was left)
+			*/
+		void handle_uint32_data ( uint32 data )
+		{
+			value_ = data;
+			curState_ = READY;
 			
-			/// Current threshold
-			uint16 thr_;
+			this->notify_receivers( value_ );
+		}
+		
+		//------------------------------------------------------------------------
+
+		/** Enables the sensor (if not already enabled)
+			* 
+			* \return True if sensor was already or is now enabled, else false.
+			*/
+		bool enable()
+		{
+			return module_->light_sensor()->enable();
+		}
+		
+		/** Disables the sensor and replaces the DataHandler
+			* 
+			*/
+		void disable() 
+		{
+			if( curState_ != INACTIVE )
+			{
+				module_->light_sensor()->set_data_handler( NULL );
+				module_->light_sensor()->disable();		// Already done by
+												// set_data_handler(NULL) but 
+												//	just to be absolutly sure!
+			
+				curState_ = INACTIVE;
+			}
+		}
+		
+		//------------------------------------------------------------------------
+		
+	private:	 
+		/// Current value of accelerometer
+		value_t value_;
+		
+		/// Pointer to the module this sensor is located on
+		isense::EnvironmentModule* module_;
+		
+		/// Pointer to the OS
+		isense::Os& os_;
+		
+		/// Current State
+		StateData curState_;
+		
+		/// Current threshold
+		uint16 thr_;
 	};
 };
 #endif

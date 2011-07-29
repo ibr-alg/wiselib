@@ -16,37 +16,59 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ISENSE_LIGHT_REQUEST_SENSOR__
-#define __ISENSE_LIGHT_REQUEST_SENSOR__
+#ifndef __ISENSE_TEMPERATURE_CALLBACK_SENSOR__
+#define __ISENSE_TEMPERATURE_CALLBACK_SENSOR__
 
 #include "external_interface/isense/isense_types.h"
+#include "util/base_classes/sensor_callback_base.h"
 #include <isense/os.h>
 #include <isense/data_handlers.h>
 #include <isense/modules/environment_module/environment_module.h>
 
 namespace wiselib
-{		
-	/** \brief iSense implementation of \ref request_sensor_concept "Request 
-	 *  		  Sensor Concept" for Light Sensor
+{
+	/** \brief iSense implementation of temperature sensor 
+	 *  \ref callback_sensor_concept "Callback Sensor Concept"
 	 *
-	 *  This is the implementation of an iSense light sensor. As it implements
-	 *  \ref request_sensor_concept "Request Sensor Concept", access to the 
-	 *  measured value is simply given by requesting the values from the sensor 
+	 *  This is the implementation of an iSense temperature sensor. As it
+	 *  implements \ref callback_sensor_concept "Callback Sensor Concept", access
+	 *  to the measured value is simply given by registering a callback function 
+	 *  which the sensor will call everytime a specified threshold is exceeded. 
 	 */
 	template <typename OsModel_P>
-	class iSenseLightRequestSensor
-	{
-	public:						
+	class iSenseTemperatureCallbackSensor 
+		:  public SensorCallbackBase<OsModel_P, int8, 1000>,
+			public isense::Int8DataHandler
+	{			
+	public:								
+		// Inherited from BasicReturnValues_concept
+		enum { SUCCESS,
+					ERR_UNSPEC,
+					ERR_NOMEM,
+					ERR_BUSY,
+					ERR_NOTIMPL,
+					ERR_NETDOWN,
+					ERR_HOSTUNREACH };
+					
+		// Inherited from BasicSensor_concept
 		enum StateData { READY = OsModel_P::READY,
 								NO_VALUE = OsModel_P::NO_VALUE,
 								INACTIVE = OsModel_P::INACTIVE };
+								
+		// Inherited from BasicReturnValues_concept
+		/*enum StateValues { READY = READY,
+									NO_VALUE = NO_VALUE,
+									INACTIVE = INACTIVE };
+									
+		enum BasicReturnValues { OK = true,
+											FAILED = false };*/
 						
 		typedef OsModel_P OsModel;
-		
-		typedef iSenseLightRequestSensor<OsModel> self_t;
+
+		typedef iSenseTemperatureCallbackSensor<OsModel> self_t;
 		typedef self_t* self_pointer_t;
-		
-		typedef uint32_t value_t;
+
+		typedef int8 value_t;
 		
 		//------------------------------------------------------------------------
 		
@@ -55,22 +77,27 @@ namespace wiselib
 		/** Constructor
 		*
 		*/
-		iSenseLightRequestSensor( isense::Os& os )
+		iSenseTemperatureCallbackSensor( isense::Os& os ) 
 			: os_( os ), curState_( INACTIVE )
 		{
 			module_ = new isense::EnvironmentModule( os );
 
 			if( module_ != 0 )
 			{	
-				if( module_->light_sensor() != 0) 
-				{	
+				if( module_->temp_sensor() != 0) 
+				{
+					module_->temp_sensor()->set_data_handler( this );
+					
 					if(!module_->enable( true ))
 					{
-						os.fatal( "Can't enable environment module and/or light sensor" );
+						os.fatal( "Can't enable environment module and/or temperature sensor" );
 						curState_ = INACTIVE;
 					}
 					else
+					{
+						setThreshold( 0 , 0 );
 						curState_ = NO_VALUE;
+					}
 				}
 				else
 				{
@@ -89,43 +116,80 @@ namespace wiselib
 		///
 		
 		//------------------------------------------------------------------------
-		
+
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the sensor
 		*
 		*  \return The current state
 		*/
-		int state( void )
-		{
+		int state( void ) 
+		{ 
 			return curState_;
 		}
 		
 		//------------------------------------------------------------------------
 		
-		/** Returns the current value
-		*
-		*	\return The current value
-		*/
-		value_t operator()( void ) 
-		{
-			return get_value();
+		/** Returns the current luminance
+			* 
+			* \return The current value for the luminance
+			*/
+		value_t get_value( void ) 
+		{ 
+			if( curState_ != READY )
+				return 0;
+			else
+				return value_;
 		}
 		
 		//------------------------------------------------------------------------
 		
-		/** Returns the current luminance measured)
-			*  
-			*  \return The current luminance or 0 if sensor is not ready
+		/** Sets the threshold and the hysteresis
+			* 
+			*  \return Return true if the setting was successfull, else false
 			*/
-		value_t get_value( void )
+		bool setThreshold( int8 threshold, int8 hysteresis)
 		{
-			if( curState_ != INACTIVE )
-				return value_ = module_->light_sensor()->luminance();
-			else
-				return 0;
-		} 
+			return module_->temp_sensor()->set_threshold( threshold, hysteresis );
+		}
+		
+		//------------------------------------------------------------------------
+		
+		/** Gets the currently specified threshold
+			* 
+			* \return Currently specified threshold
+			*/
+		int8 getThreshold( void )
+		{ 
+			return module_->temp_sensor()->threshold();
+		}
+		
+		/** Gets the currently specified hysteresis
+			* 
+			* \return Currently specified hysteresis
+			*/
+		int8 getHysteresis( void )
+		{ 
+			return module_->temp_sensor()->hysteresis();
+		}
+		
+		bool enabled( void )
+		{
+			return module_->temp_sensor()->enabled();
+		}
 		///
+		
+		//------------------------------------------------------------------------
+		
+		/** Function called, when temp sensor has new Data
+			*/
+		void handle_int8_data ( int8 data )
+		{
+			value_ = data;
+			curState_ = READY;
+			
+			this->notify_receivers( value_ );
+		}
 		
 		//------------------------------------------------------------------------
 		
@@ -135,8 +199,10 @@ namespace wiselib
 			*/
 		bool enable()
 		{
-			return module_->light_sensor()->enable();
+			return module_->temp_sensor()->enable();
 		}
+		
+		//------------------------------------------------------------------------
 		
 		/** Disables the sensor and replaces the DataHandler
 			* 
@@ -160,7 +226,7 @@ namespace wiselib
 		/// Current value of accelerometer
 		value_t value_;
 		
-		/// Pointer to the module on which the sensor is located
+		/// Pointer to the module this sensor is located on
 		isense::EnvironmentModule* module_;
 		
 		/// Pointer to the OS
