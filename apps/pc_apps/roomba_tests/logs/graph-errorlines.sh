@@ -11,7 +11,9 @@ fit_and_plot() {
   #echo intercept: $INTERCEPT, x: $X, y: $Y
   if [ -n "$TOFILE" ]; then
     OUTFILE=${FILE//./_}.pdf
-    TOFILE="set term pdf font 'LMRoman10'; set pointsize 0.5; set output '$OUTFILE'";
+    TOFILE="set term pdf font 'LMRoman10' size 5.00in, 2.80in;
+set pointsize 0.5;
+set output '$OUTFILE'";
     echo "Writing to file $OUTFILE";
   fi
   echo > .$FILE.gp "$TOFILE
@@ -27,6 +29,7 @@ set style line 7 lc rgb '#34E2E2'
 set style line 8 lc rgb '#000000'
 set style increment user
 set logscale x
+set tmargin 2
 set xlabel 'input [mm]'
 set ylabel 'error of measured value [mm]'
 plot \\
