@@ -9,8 +9,6 @@
 typedef wiselib::SoftStartMotion<OsModel, Roomba> SoftStartMotion;
 SoftStartMotion g_soft_motion;
 
-const size_t STEPS = 20; // TODO!
-
 using namespace std;
 
 /**
@@ -41,7 +39,7 @@ bool drive(int distance = 0, int velocity = 0) {
   std::cout << "Driving with velocity=" << velocity << " dist=" << distance
     << std::endl;
 
-  g_soft_motion.move_distance(STEPS, distance, velocity);
+  g_soft_motion.move_distance(distance, velocity);
   g_roomba.wait_for_stop();
 
   // measured deviation
@@ -108,7 +106,7 @@ bool turn(int& cur_orientation, int velocity = 0, int angle = 0) {
   std::cout << "Turning with velocity=" << velocity << " angle=" << angle
     << std::endl;
 
-  g_soft_motion.turn_about(STEPS, Math::degrees_to_radians(angle), velocity);
+  g_soft_motion.turn_about(Math::degrees_to_radians(angle), velocity);
   g_roomba.wait_for_stop();
 
   // new current angle
