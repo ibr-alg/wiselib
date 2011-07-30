@@ -54,9 +54,12 @@ template<
 
       inline int destruct();
 
-      inline int move_distance(Profile p, distance_t d, velocity_t v = Robot::PRECISE_VELOCITY);
-      inline int turn_about(Profile p, angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
-      inline int turn_to(Profile p, angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
+      inline void set_profile(Profile p) { profile_ = p; }
+      inline int profile() { return profile_; }
+
+      inline int move_distance(distance_t d, velocity_t v = Robot::PRECISE_VELOCITY);
+      inline int turn_about(angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
+      inline int turn_to(angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
 
       void on_state_change(int);
 
@@ -73,6 +76,7 @@ template<
       typename Odometer::self_pointer_t odometer_;
 
       Mode mode_;
+      Profile profile_;
       distance_t distance_, target_distance_;
       angle_t angle_, target_angle_;
       bool angle_increasing_, distance_increasing_;
@@ -125,7 +129,6 @@ template<typename OsModel_P, typename Robot_P, typename Odometer_P, typename Mat
 int
 CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::
 move_distance(
-  Profile p,
   CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::distance_t distance,
   CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::velocity_t velocity
 ) {
@@ -141,7 +144,7 @@ move_distance(
     { 2.578843, -0.005908, 0.079851 }, // CARPET
     { -3.840179, 0.004569, 0.143651 } // LAMINATE
   };
-  distance_t correction = distanceFit_[p][0] + distanceFit_[p][1] * distance + distanceFit_[p][2] * velocity;
+  distance_t correction = distanceFit_[profile_][0] + distanceFit_[profile_][1] * distance + distanceFit_[profile_][2] * velocity;
 
   target_distance_ = distance_ + distance - correction;
   /***FIXME**/printf("dist %f, velo %d, correcting by %f\n", distance, velocity, correction);/******/
@@ -156,18 +159,16 @@ template<typename OsModel_P, typename Robot_P, typename Odometer_P, typename Mat
 int
 CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::
 turn_about(
-  Profile p,
   CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::angle_t angle,
   CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::angular_velocity_t velocity
 ) {
-  return turn_to(p, angle_ + angle, velocity);
+  return turn_to(angle_ + angle, velocity);
 }
 
 template<typename OsModel_P, typename Robot_P, typename Odometer_P, typename Math_P, typename OsModel_P::size_t MAX_RECEIVERS>
 int
 CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::
 turn_to(
-  Profile p,
   CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::angle_t angle,
   CorrectedMeanMotion<OsModel_P, Robot_P, Odometer_P, Math_P, MAX_RECEIVERS>::angular_velocity_t velocity
 ) {
@@ -183,7 +184,7 @@ turn_to(
     { 0.88015, -0.01415, 0.05357 } // LAMINATE
   };
 
-  angle_t correction = angleFit_[p][0] + angleFit_[p][1] * angle + angleFit_[p][2] * velocity;
+  angle_t correction = angleFit_[profile_][0] + angleFit_[profile_][1] * angle + angleFit_[profile_][2] * velocity;
   target_angle_ = angle - Math::degrees_to_radians(correction);
   /**FIXME***/printf("angle %f, velo %d, correcting by %f\n", angle, velocity, correction);/******/
 
