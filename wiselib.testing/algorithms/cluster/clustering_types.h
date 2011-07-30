@@ -20,6 +20,7 @@ namespace wiselib {
         ATTRIBUTE = 45, FLOOD = 45,
         REFORM = 46,
         INFORM = 47,
+        JOINM=43,
 
         JOIN_ACCEPT = 22,
         JOIN_DENY = 23,
@@ -57,6 +58,7 @@ namespace wiselib {
 
 
 #include "algorithms/cluster/join_message.h"
+#include "algorithms/cluster/join_multiple_message.h"
 #include "algorithms/cluster/join_accept_message.h"
 #include "algorithms/cluster/resume_message.h"
 #include "algorithms/cluster/reform_message.h"

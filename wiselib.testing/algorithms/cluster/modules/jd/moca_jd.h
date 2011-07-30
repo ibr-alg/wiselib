@@ -1,6 +1,13 @@
 #ifndef _MOCA_JD_H
 #define	_MOCA_JD_H
 
+
+
+#include "util/delegates/delegate.hpp"
+#include "util/pstl/vector_static.h"
+#include "util/pstl/map_static_vector.h"
+#include "algorithms/cluster/clustering_types.h"
+
 namespace wiselib {
 
     /**
@@ -8,14 +15,14 @@ namespace wiselib {
      * 
      * Moca join decision module.
      */
-    template<typename OsModel_P>
+    template<typename OsModel_P, typename Radio_P>
 
     class MocaJoinDecision {
     public:
 
         //TYPEDEFS
         typedef OsModel_P OsModel;
-        typedef typename OsModel::Radio Radio;
+        typedef Radio_P Radio;
         typedef typename OsModel::Debug Debug;
 
 
@@ -24,17 +31,23 @@ namespace wiselib {
         typedef typename Radio::block_data_t block_data_t;
         typedef node_id_t cluster_id_t;
 
+        typedef delegate3<void, cluster_id_t, int, node_id_t> join_delegate_t;
+        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, 10 > clusters_joined_t;
+        typedef wiselib::pair<cluster_id_t, int> clusters_joined_entry_t;
+
+        // --------------------------------------------------------------------
+
         /*
          * Constructor
-         * */
+         */
         MocaJoinDecision() :
-        id_(0),
         maxhops_(0) {
+            clusters_joined_.clear();
         };
 
         /*
          * Destructor
-         * */
+         */
         ~MocaJoinDecision() {
         };
 
@@ -47,50 +60,15 @@ namespace wiselib {
             debug_ = &debug;
         };
 
-
         /* SET functions */
 
-        //set the id
-
-        void set_id(node_id_t id) {
-            id_ = id;
-        };
-
-        void set_maxhops(int maxhops){
+        void set_maxhops(int maxhops) {
             maxhops_ = maxhops;
         }
 
-        
-        /* GET functions */
-
-        //get the CH_ADVERTISE payload
-        
-        void get_join_request_payload(block_data_t * mess) {
-
-            //block_data_t ret[ get_payload_length(JOIN) ];
-
-            uint8_t type = JOIN;
-            memcpy(mess,&type,sizeof(uint8_t));
-//            ret[0] = JOIN; // type of message
-
-            memcpy(mess+sizeof(uint8_t),&id_,sizeof(cluster_id_t));
-//            ret[1] = cluster_id_ % 256; // cluster_id
-//            ret[2] = cluster_id_ / 256;
-
-//            ret[3] = hops_ + 1; // hops
-            uint8_t now_hops = 1;
-            memcpy(mess+sizeof(uint8_t)+sizeof(cluster_id_t),&now_hops,sizeof(uint8_t));
-
-            //memcpy(mess, ret, get_payload_length(JOIN));
-        };
-
-        size_t get_payload_length(int type) {
-            if (type == JOIN)
-                return 1+sizeof(cluster_id_t)+1;
-            else
-                return 0;
-        };
-
+        void reset() {
+            clusters_joined_.clear();
+        }
 
         /*
          * JOIN
@@ -98,22 +76,36 @@ namespace wiselib {
          * either join to a cluster or not
          * */
         bool join(uint8_t *payload, uint8_t length) {
+
             //copy message to local memory
+            bool joined_any = false;
+            JoinMultipleClusterMsg<OsModel, Radio> mess;
+            memcpy(&mess, payload, length);
 
-            uint8_t hops;
-            memcpy(&hops, payload+1+sizeof(cluster_id_t),sizeof(uint8_t));          
+            typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[5];
+            uint8_t count = mess.clusters(cl_list);
+            //debug().debug("got a message with %d cluster ids", count);
+            if (count > 0) {
+                for (int i = 0; i < count; i++) {
+                    //debug().debug("Contains %x | %d ", cl_list[i].first, cl_list[i].second);
+                    if (!clusters_joined_.contains(cl_list[i].first)) {
+                        if (cl_list[i].second <= maxhops_) {
+                            clusters_joined_entry_t cl_joined;
+                            cl_joined.first = cl_list[i].first;
+                            cl_joined.second = cl_list[i].second + 1;
 
-            //if cluser is close
-            if (hops <= maxhops_) {
-                //join the cluster
-                //return true
-                return true;
-            }//if cluster is away
-            else {
-                //return false
-                return false;
+                            clusters_joined_.insert(cl_joined);
+
+                            //join the cluster
+                            //return true
+                            joined_any = true;
+                            joined_cluster(cl_joined.first, cl_joined.second, mess.sender_id());
+                        }
+                    }
+                }
             }
-        };
+            return joined_any;
+        }
 
         /*
          * ENABLE
@@ -121,7 +113,6 @@ namespace wiselib {
          * initializes values
          * */
         void enable() {
-            id_ = -1;
             maxhops_ = 0;
         };
 
@@ -133,10 +124,29 @@ namespace wiselib {
         void disable() {
         };
 
+        template<class T, void (T::*TMethod)(cluster_id_t, int, node_id_t) >
+        int reg_cluster_joined_callback(T *obj_pnt) {
+            join_delegate_ = join_delegate_t::template from_method<T, TMethod > (obj_pnt);
+            return join_delegate_;
+        }
+        // --------------------------------------------------------------------
 
+        int unreg_cluster_joined_callback(int idx) {
+            join_delegate_ = join_delegate_t();
+            return idx;
+        }
+        // --------------------------------------------------------------------
+
+        void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
+
+            if (join_delegate_ != join_delegate_t()) {
+                (join_delegate_) (cluster, hops, parent);
+            }
+        }
     private:
-        node_id_t id_; //the node's id
         int maxhops_; //hops from cluster head
+        join_delegate_t join_delegate_;
+        clusters_joined_t clusters_joined_;
 
         Radio * radio_; //radio module
         Debug * debug_; //debug module
@@ -148,7 +158,6 @@ namespace wiselib {
         Debug& debug() {
             return *debug_;
         }
-
     };
 }
 

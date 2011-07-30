@@ -13,9 +13,9 @@ namespace wiselib {
      * 
      * Probabilistic cluster head decision module.
      */
-template<typename OsModel_P, typename Radio_P>
-class ProbabilisticClusterHeadDecision {
-public:
+    template<typename OsModel_P, typename Radio_P>
+    class ProbabilisticClusterHeadDecision {
+    public:
 
         //TYPEDEFS
         typedef OsModel_P OsModel;
@@ -27,7 +27,8 @@ public:
          * Constructor
          * */
         ProbabilisticClusterHeadDecision() :
-        cluster_head_(false), probability_(30) {
+        cluster_head_(false),
+        probability_(30) {
         }
 
         /*
@@ -87,7 +88,6 @@ public:
 
         bool calculate_head() {
             int random_num = rand()(100);
-
             // check condition to be a cluster head
             if (random_num < probability_) {
                 cluster_head_ = true;
