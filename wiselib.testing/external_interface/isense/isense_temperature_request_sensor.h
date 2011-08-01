@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ISENSE_LIGHT_REQUEST_SENSOR__
-#define __ISENSE_LIGHT_REQUEST_SENSOR__
+#ifndef __ISENSE_TEMPERATURE_REQUEST_SENSOR__
+#define __ISENSE_TEMPERATURE_REQUEST_SENSOR__
 
 #include "external_interface/isense/isense_types.h"
 #include <isense/os.h>
@@ -25,28 +25,28 @@
 #include <isense/modules/environment_module/environment_module.h>
 
 namespace wiselib
-{		
-	/** \brief iSense implementation of \ref request_sensor_concept "Request 
-	 *  		  Sensor Concept" for Light Sensor
+{
+	/** \brief iSense implementation of temperature sensor 
+	 *  \ref request_sensor_concept "Request Sensor Concept"
 	 *
-	 *  This is the implementation of an iSense light sensor. As it implements
+	 *  This is the implementation of an iSense temp sensor. As it implements
 	 *  \ref request_sensor_concept "Request Sensor Concept", access to the 
 	 *  measured value is simply given by requesting the values from the sensor 
 	 */
 	template <typename OsModel_P>
-	class iSenseLightRequestSensor
+	class iSenseTemperatureRequestSensor
 	{
 	public:						
 		enum StateData { READY = OsModel_P::READY,
 								NO_VALUE = OsModel_P::NO_VALUE,
 								INACTIVE = OsModel_P::INACTIVE };
-						
+		
 		typedef OsModel_P OsModel;
 		
-		typedef iSenseLightRequestSensor<OsModel> self_t;
+		typedef iSenseTemperatureRequestSensor<OsModel> self_t;
 		typedef self_t* self_pointer_t;
 		
-		typedef uint32_t value_t;
+		typedef int8 value_t;
 		
 		//------------------------------------------------------------------------
 		
@@ -55,18 +55,18 @@ namespace wiselib
 		/** Constructor
 		*
 		*/
-		iSenseLightRequestSensor( isense::Os& os )
+		iSenseTemperatureRequestSensor( isense::Os& os )
 			: os_( os ), curState_( INACTIVE )
 		{
 			module_ = new isense::EnvironmentModule( os );
-
+		
 			if( module_ != 0 )
 			{	
-				if( module_->light_sensor() != 0) 
+				if( module_->temp_sensor() != 0) 
 				{	
 					if(!module_->enable( true ))
 					{
-						os.fatal( "Can't enable environment module and/or light sensor" );
+						os.fatal( "Can't enable environment module and/or temperature sensor" );
 						curState_ = INACTIVE;
 					}
 					else
@@ -114,14 +114,14 @@ namespace wiselib
 		
 		//------------------------------------------------------------------------
 		
-		/** Returns the current luminance measured)
+		/** Returns the current temperature measured)
 			*  
-			*  \return The current luminance or 0 if sensor is not ready
+			*  \return The current temperature or 0 if sensor is not ready
 			*/
 		value_t get_value( void )
 		{
 			if( curState_ != INACTIVE )
-				return value_ = module_->light_sensor()->luminance();
+				return value_ = module_->temp_sensor()->temperature();
 			else
 				return 0;
 		} 
@@ -135,7 +135,7 @@ namespace wiselib
 			*/
 		bool enable()
 		{
-			return module_->light_sensor()->enable();
+			return module_->temp_sensor()->enable();
 		}
 		
 		/** Disables the sensor and replaces the DataHandler
@@ -145,8 +145,8 @@ namespace wiselib
 		{
 			if( curState_ != INACTIVE )
 			{
-				module_->light_sensor()->set_data_handler( NULL );
-				module_->light_sensor()->disable();		// Already done by
+				module_->temp_sensor()->set_data_handler( NULL );
+				module_->temp_sensor()->disable();		// Already done by
 												// set_data_handler(NULL) but 
 												//	just to be absolutly sure!
 			
@@ -156,6 +156,7 @@ namespace wiselib
 		
 		//------------------------------------------------------------------------
 		
+	
 	private:	 
 		/// Current value of accelerometer
 		value_t value_;
