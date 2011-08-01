@@ -39,7 +39,8 @@ bool drive(CorrectedMeanMotion::Profile p, int distance = 0, int velocity = 0) {
   std::cout << "Driving with velocity=" << velocity << " dist=" << distance
     << std::endl;
 
-  g_mean_motion.move_distance(p, distance, velocity);
+  g_mean_motion.set_profile(p);
+  g_mean_motion.move_distance(distance, velocity);
   g_roomba.wait_for_stop();
 
   // measured deviation
@@ -107,7 +108,8 @@ bool turn(CorrectedMeanMotion::Profile p, int& cur_orientation,
   std::cout << "Turning with velocity=" << velocity << " angle=" << angle
     << std::endl;
 
-  g_mean_motion.turn_about(p, Math::degrees_to_radians(angle), velocity);
+  g_mean_motion.set_profile(p);
+  g_mean_motion.turn_about(Math::degrees_to_radians(angle), velocity);
   g_roomba.wait_for_stop();
 
   // new current angle

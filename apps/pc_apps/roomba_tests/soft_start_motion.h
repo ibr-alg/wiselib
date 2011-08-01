@@ -50,9 +50,9 @@ template<
 
       inline int destruct();
 
-      inline int move_distance(unsigned int steps, distance_t d, velocity_t v = Robot::PRECISE_VELOCITY);
-      inline int turn_about(unsigned int steps, angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
-      inline int turn_to(unsigned int steps, angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
+      inline int move_distance(distance_t d, velocity_t v = Robot::PRECISE_VELOCITY);
+      inline int turn_about(angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
+      inline int turn_to(angle_t a, angular_velocity_t v = Robot::PRECISE_ANGULAR_VELOCITY);
 
       void on_state_change(int);
       void on_next_step(void*);
@@ -66,6 +66,7 @@ template<
     private:
       enum Mode { NONE, ANGLE, DISTANCE };
       static const int SOFT_START_INTERVAL = 10000; // in milliseconds
+	   static const unsigned int STEPS = 20; // TODO: increase this
 
       typename Robot::self_pointer_t robot_;
       typename Odometer::self_pointer_t odometer_;
@@ -134,12 +135,11 @@ template<typename OsModel_P, typename Robot_P, typename Odometer_P, typename Tim
 int
 SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::
 move_distance(
-  unsigned int steps,
   SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::distance_t distance,
   SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::velocity_t velocity
 ) {
   mode_ = DISTANCE;
-  steps_total_ = steps;
+  steps_total_ = STEPS;
   soft_stopping_ = false;
   target_velocity_ = velocity;
   distance_ = robot_->distance();
@@ -156,23 +156,21 @@ template<typename OsModel_P, typename Robot_P, typename Odometer_P, typename Tim
 int
 SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::
 turn_about(
-  unsigned int steps,
   SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::angle_t angle,
   SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::angular_velocity_t velocity
 ) {
-  return turn_to(steps, angle_ + angle, velocity);
+  return turn_to(angle_ + angle, velocity);
 }
 
 template<typename OsModel_P, typename Robot_P, typename Odometer_P, typename Timer_P, typename Math_P, typename OsModel_P::size_t MAX_RECEIVERS>
 int
 SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::
 turn_to(
-  unsigned int steps,
   SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::angle_t angle,
   SoftStartMotion<OsModel_P, Robot_P, Odometer_P, Timer_P, Math_P, MAX_RECEIVERS>::angular_velocity_t velocity
 ) {
   mode_ = ANGLE;
-  steps_total_ = steps;
+  steps_total_ = STEPS;
   soft_stopping_ = false;
   target_angular_velocity_ = velocity;
   target_angle_ = angle;
