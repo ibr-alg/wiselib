@@ -59,8 +59,11 @@ platforms, or implementations of concepts that may change in the near
 future. The structure is the same as in wiselib.stable: algorithms,
 external interfaces, internal interfaces, and util.
 
-applications
+apps
 -------------------
+
+apps/generic_apps
+.................
 
 Contains examples of standalone Wiselib applications with an own
 application_main method. These apps can be used to write a whole
@@ -68,21 +71,28 @@ application once, and compile it for different platforms just by
 changing the make target.
 
 iapps
--------------------
+...................
 
 Examples of Wiselib integration in native iSense applications.
 
 shawn_apps
+...................
+
+Examples of Wiselib integration in Shawn processors. Note that the
+Wiselib module in shawn.svn/src/apps must be enabled!
+
+pc_apps
+...................
+
+Run Wiselib application on PC - examples for ordinary appplications
+(with an iSense node attached to the PC, the PC can participate in a
+iSense sensor network!), and apps where a netbook is attached to a
+Roomba.
+
+doc
 -------------------
 
-Wiselib integration in Shawn. The wiselib subfolder is required when
-running Wiselib code in the simulator Shawn. It must be integrated as
-a legacy application (see http://shawn.sf.net for details). The
-wiselib_examples subfolder contains examples of direct Wiselib
-algorithm integration in Shawn processors.
-
-sandbox
--------------------
-
-Test routines - e.g., compare virtual inheritance against template
-solutions.
+Main sources for doxygen documentation. Contains concept descriptions
+and main doxygen pages. To create doygen documentation, just run:
+  * doxygen Doxyfile
+in Wiselib's root folder.
