@@ -6,6 +6,8 @@
 #include "ios_system.h"
 #include "ios_timer.h"
 
+#include "ios_clock.h"
+
 //#include "com_cocos_radio.h"
 //#include "com_testbed_radio.h"
 
@@ -19,12 +21,16 @@ namespace wiselib {
 			typedef iOsSystem AppMainParameter;
 			typedef iOsSystem System;
 			
-			typedef unsigned int size_t;
+			//typedef unsigned int size_t;
+            typedef __darwin_size_t size_t;
+            
 			typedef uint8_t block_data_t;
 			
             //typedef iOsRadioModel<iOsModel> Radio;
 			typedef iOsDebug<iOsModel> Debug;
             typedef iOsTimerModel<iOsModel> Timer;
+            
+            typedef iOsClockModel<iOsModel> Clock;
          
          static const Endianness endianness = WISELIB_ENDIANNESS;
 	};

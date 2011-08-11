@@ -1,0 +1,65 @@
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto
+END
+IOSAppMessage.proto
+K 25
+svn:wc:ra_dav:version-url
+V 122
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/IOSAppMessage.proto
+END
+Messages.pb.m
+K 25
+svn:wc:ra_dav:version-url
+V 116
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/Messages.pb.m
+END
+WSNAppMessages.proto
+K 25
+svn:wc:ra_dav:version-url
+V 123
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/WSNAppMessages.proto
+END
+IOSAppMessage.pb.h
+K 25
+svn:wc:ra_dav:version-url
+V 121
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/IOSAppMessage.pb.h
+END
+WSNAppMessages.pb.h
+K 25
+svn:wc:ra_dav:version-url
+V 122
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/WSNAppMessages.pb.h
+END
+generate_proto.sh
+K 25
+svn:wc:ra_dav:version-url
+V 120
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/generate_proto.sh
+END
+Messages.proto
+K 25
+svn:wc:ra_dav:version-url
+V 117
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/Messages.proto
+END
+IOSAppMessage.pb.m
+K 25
+svn:wc:ra_dav:version-url
+V 121
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/IOSAppMessage.pb.m
+END
+WSNAppMessages.pb.m
+K 25
+svn:wc:ra_dav:version-url
+V 122
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/WSNAppMessages.pb.m
+END
+Messages.pb.h
+K 25
+svn:wc:ra_dav:version-url
+V 116
+/wisebed/!svn/ver/5363/wiselib/trunk/wiselib.testing/external_interface/ios/ios_radio_controller/proto/Messages.pb.h
+END
