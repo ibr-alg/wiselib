@@ -12,9 +12,9 @@
 
 - (int) sendTo: (node_id_t)to withData: (block_data_t*)data withLenght: (size_t)len {
     
-    NSString* device_id = [NSString stringWithFormat:@"urn:wisebed:tubs:%i",[self getRadioId]];
+    NSString* device_id = [NSString stringWithFormat:@"%i",[self getRadioId]];
     NSString* urn = [NSString stringWithFormat:@"urn:wisebed:tubs:%i",to];
-    
+        
     uint8_t binData[1];
     binData[0] = 10;
     
@@ -38,7 +38,7 @@
                           setTo:urn]
                          setPayload:[operation data]]
                         setPriority:2]
-                       setValidUntil:([[NSDate date] timeIntervalSince1970]*1000) + 60000]
+                       setValidUntil:6000]
                       build];
     
     NSUInteger trmessageSize = [[trmessage data] length];
@@ -74,36 +74,22 @@
     
     if(tag == READ_BODY) {
         
+        
         Msg *trmessage = [Msg parseFromData:data];
         
         if ([[trmessage msgType] isEqualToString:@"de.uniluebeck.itm.tr.runtime.wsnapp.WSNApp/LISTENER_MESSAGE"]) {
 
-#ifdef IOS_RADIO_CONTROLLER_DEBUG
-            //NSLog(@"IOS_RADIO_CONTROLLER_DEBUG: got LISTENER_MESSAGE");
-#endif
-            
             Message *message = [Message parseFromData:[trmessage payload]];
             [message sourceNodeId];
             
             NSRange range = NSMakeRange([[message sourceNodeId] length]-3, 3);
             node_id_t sourceId = (node_id_t)[[[message sourceNodeId] substringWithRange:range] intValue];
             
-            ///////////////
-            //uint8_t old_msg[[[message binaryData] length]];
-            //[[message binaryData] getBytes:old_msg];
-            //[self fireDelegateWithData:old_msg  lenght:[[message binaryData] length] from: sourceId];
-            /////////////
-            
             uint8_t messageHeader[1];
             [[message binaryData] getBytes:messageHeader range:NSMakeRange(0, 1)];
             
             
-            //NSLog(@"%i", messageHeader[0]);
-            //NSLog(@"%@", [[[NSString alloc] initWithBytes:[message binaryData] length:[[message binaryData] length] encoding:NSUTF8StringEncoding] autorelease] );
-            //NSLog(@"%@", [message binaryData]);
-            
-            
-            if( (messageHeader[0] & 0xff) == 0x6a || (messageHeader[0] & 0xff) == 0x69) {
+            if( (messageHeader[0] & 0xff) == 0x6a ) {
                 NSMutableData *binDataWithoutHeader = [NSMutableData dataWithData:[message binaryData]];
                 [binDataWithoutHeader replaceBytesInRange:NSMakeRange(0, 1) withBytes:NULL length:0];
                 
@@ -112,13 +98,11 @@
                 [binDataWithoutHeader getBytes:binary];
                 
 #ifdef IOS_RADIO_CONTROLLER_DEBUG
-    //NSLog(@"IOS_RADIO_CONTROLLER_DEBUG: Message from: %i", sourceId);
+    NSLog(@"IOS_RADIO_CONTROLLER_DEBUG: Message from: %i", sourceId);
 #endif
                 
                 [self fireDelegateWithData:binary lenght:[binDataWithoutHeader length] from: sourceId];
             }
-            
-            
     
         } else {
 #ifdef IOS_RADIO_CONTROLLER_DEBUG
