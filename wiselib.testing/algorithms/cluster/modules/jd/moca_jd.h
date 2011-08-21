@@ -32,7 +32,7 @@ namespace wiselib {
         typedef node_id_t cluster_id_t;
 
         typedef delegate3<void, cluster_id_t, int, node_id_t> join_delegate_t;
-        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, 10 > clusters_joined_t;
+        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, 15 > clusters_joined_t;
         typedef wiselib::pair<cluster_id_t, int> clusters_joined_entry_t;
 
         // --------------------------------------------------------------------
@@ -82,11 +82,12 @@ namespace wiselib {
             JoinMultipleClusterMsg<OsModel, Radio> mess;
             memcpy(&mess, payload, length);
 
-            typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[5];
-            uint8_t count = mess.clusters(cl_list);
-            //debug().debug("got a message with %d cluster ids", count);
+            typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[10];
+            size_t count = mess.clusters(cl_list);
+            //debug().debug("got a message with %d cluster ids", mess.clusters(cl_list));
+            //debug().debug("Got clusters from %x", mess.sender_id());
             if (count > 0) {
-                for (int i = 0; i < count; i++) {
+                for (size_t i = 0; i < count; i++) {
                     //debug().debug("Contains %x | %d ", cl_list[i].first, cl_list[i].second);
                     if (!clusters_joined_.contains(cl_list[i].first)) {
                         if (cl_list[i].second <= maxhops_) {

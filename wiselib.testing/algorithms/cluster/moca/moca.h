@@ -10,6 +10,12 @@
 #include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
 #include "util/base_classes/clustering_base.h"
+
+#include "algorithms/cluster/modules/chd/prob_chd.h"
+#include "algorithms/cluster/modules/jd/moca_jd.h"
+#include "algorithms/cluster/modules/it/moca_it.h"
+
+//ECHO PROTOCOL
 #include "algorithms/neighbor_discovery/echo.h"
 #include "algorithms/neighbor_discovery/pgb_payloads_ids.h"
 
@@ -61,16 +67,13 @@ namespace wiselib {
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
 
-        //messages
-        typedef JoinMultipleClusterMsg<OsModel, Radio> JoinMsg_t;
-
 
         // delegate
         //typedef delegate1<void, int> cluster_delegate_t;
 
-        /*
+        /**
          * Constructor
-         * */
+         */
         MocaCore() :
         enabled_(false),
         status_(0),
@@ -82,13 +85,13 @@ namespace wiselib {
         do_cleanup(false) {
         }
 
-        /*
+        /**
          * Destructor
-         * */
+         */
         ~MocaCore() {
         }
 
-        /*
+        /**
          * initializes the values of radio timer and debug
          */
         void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery) {
@@ -131,7 +134,7 @@ namespace wiselib {
             chd_ = &chd;
         }
 
-        /*
+        /**
          * Set Clustering Parameters
          * maxhops probability
          */
@@ -184,7 +187,9 @@ namespace wiselib {
             return it().is_cluster_head();
         }
 
-        /* SHOW all the known nodes */
+        /**
+         SHOW all the known nodes
+         */
 
         void present_neighbors(void) {
             if (status() != UNFORMED) {
@@ -192,8 +197,8 @@ namespace wiselib {
             }
         }
 
-        /*
-         * for legacy
+        /**
+         Self Register a debug callback
          */
         void register_debug_callback() {
             this-> template reg_state_changed_callback<self_type, &self_type::debug_callback > (this);
@@ -228,62 +233,16 @@ namespace wiselib {
         }
 
         /*
-         * Size of the payload to the ND module beacon
-         */
-        inline size_t beacon_size() {
-            JoinMsg_t msg;
-            // send a join payload
-            return msg.length();
-        }
-
-        /*
          * Receive a beacon payload
          * check for new head if needed
          * check if in need to reform
          */
         void receive_beacon(node_id_t node_from, size_t len, uint8_t * data) {
+
             if (!enabled_) return;
-            //Cast the beacon to a Join message
-            JoinClusterMsg<OsModel, Radio> msg;
-            memcpy(&msg, data, len);
-            node_id_t cluster = msg.cluster_id();
-            int hops = msg.hops();
-#ifndef SHAWN
-            if (cluster == 0) return;
-#endif
-            if (cluster == UNKNOWN_CLUSTER_HEAD) return;
-
-            //Pass beacon to the JD to decide the Cluster 2 Join
-            receive(node_from, len, data);
-
-
-            if (cluster == it().cluster_id()) {
-                //if Beacon from cluster neighbor
-                it().node_joined(node_from);
-            } else {
-                //if Beacon from non cluster neighbor
-                it().node_not_joined(node_from, cluster);
-                //                notify_cradio(RESUME, cluster, node_from);
+            if (data[0] == JOINM) {
+                receive(node_from, len, data);
             }
-
-            //if the sender was my cluster head but is no more a cluster head (possible reform was lost)
-            if ((node_from == parent()) && (cluster != it().cluster_id())) {
-                node_lost(node_from);
-            }
-            //if the sender was my parent but has changed its connection to the cluster head
-            if ((node_from == parent()) && (it().hops() != hops + 1)) {
-                node_lost(node_from);
-            }
-        }
-
-        /*
-         * Get a payload
-         * to save on a beacon message
-         */
-        void get_beacon(uint8_t * mess) {
-            if (!enabled_) return;
-            //JoinMsg_t msg = it().get_join_request_payload();
-            //memcpy(mess, &msg, msg.length());
         }
 
         /*
@@ -313,12 +272,16 @@ namespace wiselib {
             callback_id_ = radio().template reg_recv_callback<self_type,
                     &self_type::receive > (this);
 
-#ifdef DEBUG_CLUSTERING
+#ifdef DEBUG_EXTRA
             debug().debug("CL;%x;enable", radio().id());
 #ifdef SHAWN
             debug().debug("\n");
 #endif
 #endif
+
+            chd().reset();
+            jd().reset();
+            it().reset();
 
             // set variables of other modules
             chd().set_probability(probability_);
@@ -330,8 +293,6 @@ namespace wiselib {
                     start_in * 1000, this, (void *) maxhops_);
 
 #endif
-            //            timer().template set_timer<self_type, &self_type::report2head > (
-            //                    10000, this, (void *) 0);
         }
 
         /*
@@ -341,8 +302,18 @@ namespace wiselib {
             if (!enabled_) return;
             // Unregister the callback
             radio().unreg_recv_callback(callback_id_);
-            neighbor_discovery_->unregister_payload_space(CLUSTERING);
             enabled_ = false;
+        }
+
+        // --------------------------------------------------------------------
+
+        void reset_beacon_payload() {
+            if (!enabled_) return;
+            //reset my beacon according to the new status
+            if (clusters_joined() > 0) {
+                JoinMultipleClusterMsg_t msg = it().get_join_request_payload();
+                neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (uint8_t*) & msg, msg.length());
+            }
         }
 
 
@@ -366,11 +337,9 @@ namespace wiselib {
             jd().set_maxhops(maxhops_);
             it().reset();
 
-            uint8_t buf[beacon_size()];
-            get_beacon(buf);
-
-            neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
-                    beacon_size());
+            //            JoinMultipleClusterMsg_t msg = it().get_join_request_payload();
+            //
+            //            neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (uint8_t *) & msg, msg.length());
 
             // start the procedure to find new head
             timer().template set_timer<self_type, &self_type::find_head > (
@@ -405,7 +374,7 @@ namespace wiselib {
 #endif
 
                 //jd(). get join payload
-                JoinMsg_t join_msg = it().get_join_request_payload();
+                JoinMultipleClusterMsg_t join_msg = it().get_join_request_payload();
 
                 // send JOIN
                 radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t *) & join_msg);
@@ -421,10 +390,9 @@ namespace wiselib {
                 //                timer().template set_timer<self_type,
                 //                        &self_type::wait2form_cluster > (2 * maxhops_ * time_slice_, this, (void*) 0);
 
-            } else {
-                timer().template set_timer<self_type,
-                        &self_type::reply_to_head > (maxhops_ * time_slice_, this, (void*) 0);
             }
+            timer().template set_timer<self_type,
+                    &self_type::reply_to_head > (maxhops_ * time_slice_, this, (void*) 0);
         }
 
         /*
@@ -456,7 +424,7 @@ namespace wiselib {
 
             if (it().clusters_joined() < 1) {
 #ifdef DEBUG
-                debug().debug("CL;Node Joined no cluster, change to cluster_head");
+                //                debug().debug("CL;Node Joined no cluster, change to cluster_head");
                 debug().debug("CL;UNcovered");
 #endif
                 it().set_node_type(HEAD);
@@ -467,29 +435,34 @@ namespace wiselib {
                         &self_type::wait2form_cluster > (maxhops_ * time_slice_, this, (void*) 0);
 
             } else {
-                //#ifdef DEBUG
-                //                debug().debug("Reply_to_head Node %x, %d clusters\n", radio().id(), it().clusters_joined());
-                //#endif
-                //                JoinMultipleClusterMsg<OsModel, Radio> join_msg = it().get_join_request_payload();
-                //#ifdef DEBUG_CLUSTERING
-                //                debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
-                //#ifdef SHAWN
-                //                debug().debug("\n");
-                //#endif
-                //#endif
-                //                this->state_changed(MESSAGE_SENT);
-                //
-                //
-                //                radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t*) & join_msg);
-                //
-            }
+#ifdef DEBUG_EXTRA
+                debug().debug("CL;Node%x,reply %d clusters", radio().id(), it().clusters_joined());
+#endif
 
+                ConvergecastMsg_t mess = it().get_resume_payload();
+
+                for (size_t count = 0; count < it().clusters_joined(); count++) {
+                    mess.set_cluster_id(it().cluster_id(count));
+                    radio().send(it().parent(it().cluster_id(count)), mess.length(), (uint8_t *) & mess);
+#ifdef DEBUG_CLUSTERING
+                    debug().debug("CLS;%x;%d;%x; for %x", radio().id(), mess.msg_id(), it().parent(it().cluster_id(count)), it().cluster_id(count));
+#endif
+                    //#ifdef DEBUG_EXTRA
+                    //                    debug().debug("send to %x|%x message with size %d and id %d ", it().parent(it().cluster_id(count)), it().cluster_id(count), mess.length(), mess.msg_id());
+                    //#endif
+                }
+                this->state_changed(MESSAGE_SENT);
+            }
+            reset_beacon_payload();
         }
 
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
             if (it().add_cluster(cluster, hops, parent)) {
-
+                //reset_beacon_payload();
                 this->state_changed(NODE_JOINED);
+#ifdef DEBUG
+                debug().debug("CLP;%x;%d;%x", radio().id(), radio().id() == cluster ? HEAD : SIMPLE, cluster);
+#endif
             }
         }
 
@@ -501,10 +474,12 @@ namespace wiselib {
          *  - remove node from known nodes
          */
         void node_lost(node_id_t node) {
-            //            if (!enabled_) return;
-            //            if (status_ == FORMED) {
-            //                //If the node was my route to CH
-            //                if (node == parent(node)) {
+            if (!enabled_) return;
+            debug().debug("Dropping node %x, status %d", node, status());
+            it().drop_node(node);
+            //            if (status() == FORMED) {
+            //If the node was my route to CH
+
             //                    if (it().clusters_joined() == 1) {
             //                        //Reset Iterator
             //                        it().reset();
@@ -520,17 +495,52 @@ namespace wiselib {
             //                    //if not my CH
             //                    //Remove from Iterator
             //                    it().drop_node(node);
-            //                }
+
             //            }
         }
-
 
         /*
          * RECEIVE
          * respond to the new messages received
          * callback from the radio
          * */
-        void receive(node_id_t receiver, size_t len, block_data_t *data);
+        void receive(node_id_t from, size_t len, block_data_t *data) {
+            if (!enabled_) return;
+            if (from == radio().id()) return;
+
+            if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
+
+            // get Type of Message
+            int type = data[0];
+
+            if (type == JOINM) {
+                if (jd().join(data, len)) {
+                    JoinMultipleClusterMsg_t join_msg;
+                    join_msg = it().get_join_request_payload();
+                    radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t*) & join_msg);
+#ifdef DEBUG
+                    debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
+#endif
+
+                }
+            } else if (type == CONVERGECAST) {
+                ConvergecastMsg_t * mess = (ConvergecastMsg_t*) data;
+
+                //            debug().debug("CL;Received;CONVERGECAST;%x;%x", from,mess.sender_id());
+                if ((mess->cluster_id() != radio().id()) && (it().parent(mess->cluster_id()) != 0)) {
+#ifdef DEBUG
+                    debug().debug("CLS;%x;%d;%x for %x", radio().id(), mess->msg_id(), it().parent(mess->cluster_id()), mess->cluster_id()); //mess.sender_id()
+#endif
+                    radio().send(it().parent(mess->cluster_id()), mess->length(), (uint8_t*) mess);
+                } else {
+                    it().eat_request(mess);
+                }
+            } else {
+#ifdef DEBUG_RECEIVED
+                debug().debug("CL;Received;%x;%d;%x;UNKNOWN", radio().id(), data[0], from);
+#endif
+            }
+        }
 
         void notify_cradio(uint8_t event, cluster_id_t from, node_id_t to) {
             if (!enabled_) return;
@@ -539,32 +549,16 @@ namespace wiselib {
             //            }
         }
 
-        // --------------------------------------------------------------------
 
-        void reset_beacon_payload() {
-            if (!enabled_) return;
-            //reset my beacon according to the new status
-            uint8_t buf[beacon_size()];
-            get_beacon(buf);
-            if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
-                    it().clusters_joined() != 0 ? beacon_size() : 0) != 0) {
-#ifdef DEBUG_CLUSTERING
-                debug_->debug("CL;nb_t;Error;payload");
-#ifdef SHAWN
-                debug().debug("\n");
-#endif
-#endif
-            }
-        }
 
         // --------------------------------------------------------------------
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
             if (nb_t::NEW_PAYLOAD_BIDI == event) {
-                //receive_beacon(from, len, data);
+                receive_beacon(from, len, data);
                 //reset my beacon according to the new status
-                reset_beacon_payload();
+                //reset_beacon_payload();
             } else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
 #ifndef FIXED_ROLES
 #ifdef MAINTENANCE
@@ -625,75 +619,7 @@ namespace wiselib {
         Rand& rand() {
             return *rand_;
         }
-
-
     };
-
-    template<typename OsModel_P, typename Radio_P, typename HeadDecision_P, typename JoinDecision_P, typename Iterator_P>
-    void MocaCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P>
-    ::receive(node_id_t from, size_t len, block_data_t* data) {
-        if (from == radio().id()) return;
-        if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
-
-        // get Type of Message
-        int type = data[0];
-
-        if (type == JOINM) {
-            debug().debug("received from %x", from);
-
-            
-            if (jd().join(data, len)) {
-
-                JoinMsg_t join_msg;
-                join_msg = it().get_join_request_payload();
-                radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t*) & join_msg);
-#ifdef DEBUG
-                debug().debug("CLS;%x;%d;%x;size%d", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS, join_msg.length());
-#endif
-
-            }
-            //            else {
-            //                cluster_id_t cluster;
-            //                memcpy(&cluster, data + 1, sizeof (cluster_id_t));
-            //                uint8_t hops;
-            //                memcpy(&hops, data + 1 + sizeof (cluster_id_t), 1);
-            //                if (it().add_cluster(cluster, hops, from)) {
-            //#ifdef DEBUG
-            //                    debug().debug("Node %x knows Cluster %x, %d hops away\n", radio().id(), cluster, hops);
-            //#endif
-            //                    hops++;
-            //                    uint8_t newjoin[len];
-            //                    memcpy(newjoin, data, len);
-            //                    memcpy(newjoin + 1 + sizeof (cluster_id_t), (void *) & hops, 1);
-            //
-            //                    if (hops <= maxhops_) {
-            //
-            //                        radio().send(Radio::BROADCAST_ADDRESS, len, newjoin);
-            //#ifdef DEBUG
-            //                        debug().debug("SEND JOIN Node %x [%x,%d]\n", radio().id(), cluster, hops);
-            //#endif
-            //                    }
-            //                }
-            //            }
-        } else if (type == JOIN_REQUEST) {
-            debug().debug("Join req\n");
-            if (!it().eat_request(len, data)) {
-                node_id_t original_sender;
-                memcpy(&original_sender, data + 1, sizeof (node_id_t));
-                cluster_id_t mess_cluster;
-                memcpy(&mess_cluster, data + 1 + sizeof (node_id_t), sizeof (cluster_id_t));
-                node_id_t dest = it().parent(mess_cluster);
-#ifdef DEBUG
-                debug().debug("To resend %x , cluster %x from %x sender %x \n", radio().id(), mess_cluster, from, original_sender);
-#endif
-                radio().send(dest, len, data);
-#ifdef DEBUG
-                debug().debug("SEND JOIN_REQUEST %x -> %x\n", radio().id(), dest);
-#endif
-            }
-        }
-    }
-
 }
 #endif	/* _MOCA_MocaCore_H */
 

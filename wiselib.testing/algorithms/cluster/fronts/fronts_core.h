@@ -10,6 +10,13 @@
 #include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
 #include "util/base_classes/clustering_base.h"
+
+#include "algorithms/cluster/modules/chd/attr_chd.h"
+#include "algorithms/cluster/modules/it/fronts_it.h"
+#include "algorithms/cluster/modules/jd/bfs_jd.h"
+
+
+//ECHO PROTOCOL
 #include "algorithms/neighbor_discovery/echo.h"
 #include "algorithms/neighbor_discovery/pgb_payloads_ids.h"
 
@@ -200,6 +207,14 @@ namespace wiselib {
 
         inline bool is_child(node_id_t node) {
             return it().is_child(node);
+        }
+
+        inline size_t clusters_joined() {
+            if (node_type() != UNCLUSTERED) {
+                return 1;
+            } else {
+                return 0;
+            }
         }
 
         /*
