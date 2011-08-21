@@ -15,7 +15,7 @@
 namespace wiselib
 {
 
-   template<typename OsModel_P, bool iOsLinkRadio = false>
+   template<typename OsModel_P, bool iOsLinkRadio = true>
    class ComTestbedRadioModel
       : public RadioBase<OsModel_P, uint16_t, __darwin_size_t, uint8_t>
    {
@@ -110,7 +110,7 @@ namespace wiselib
             message.set_source( this->id() );
             message.set_payload( len, data );
          
-            [iOsRadio_ sendTo:to withData:(uint8_t*)(&message) withLenght:message.buffer_size()];
+            //[iOsRadio_ sendTo:to withData:(uint8_t*)(&message) withLenght:message.buffer_size()];
             return [iOsRadio_ sendTo:to withData:(uint8_t*)(&message) withLenght:message.buffer_size()];
          }
             
@@ -124,6 +124,17 @@ namespace wiselib
             this->notify_receivers( from, len, buf );
          
          } else {
+             
+             /*
+             NSMutableString* outputString = [NSMutableString stringWithFormat:@"output: "];
+             
+             for (int i =0; i<len; i++) {
+                 [outputString appendFormat:@"%d ", buf[i]];
+             }
+             
+             NSLog(@"%@", outputString); 
+             */
+             
             switch (*buf) {
                case IOS_LINK_MESSAGE: 
                {
@@ -131,8 +142,8 @@ namespace wiselib
                   IOSLinkMessage *msg = (IOSLinkMessage*)buf;
                   
                   #ifdef IOS_RADIO_DEBUG
-                     NSLog( @"IOS_RADIO_DEBUG: RECEIVED IOsLinkMessage from %d to %d with size %d",
-                        (uint32_t)msg->source(), (uint32_t)msg->destination(), msg->payload_length() );
+                     //NSLog( @"IOS_RADIO_DEBUG: RECEIVED IOsLinkMessage from %d to %d with size %d payload: %s",
+                     //      (node_id_t)msg->source(), (node_id_t)msg->destination(), msg->payload_length(), msg->payload() );
                   #endif
                   
                   this->notify_receivers( msg->source() , msg->payload_length(), msg->payload() );
@@ -141,7 +152,7 @@ namespace wiselib
                default:
                {
                   #ifdef IOS_RADIO_DEBUG
-                     NSLog( @"IOS_RADIO_DEBUG: Received message is not a IOsLinkMessage" );
+                     NSLog( @"IOS_RADIO_DEBUG: Received message is not a IOsLinkMessage: %s\n", buf );
                   #endif
                } break;
             }

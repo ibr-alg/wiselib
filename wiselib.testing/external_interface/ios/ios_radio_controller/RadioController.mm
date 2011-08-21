@@ -87,7 +87,7 @@
    if([asyncSocket_ isConnected]) {
 
 #ifdef IOS_RADIO_CONTROLLER_DEBUG
-      NSLog(@"IOS_RADIO_CONTROLLER_DEBUG: Send data %@",data);
+      //NSLog(@"IOS_RADIO_CONTROLLER_DEBUG: Send data %@",data);
 #endif
 
       [asyncSocket_ writeData:data withTimeout:TIME_OUT tag:0];
