@@ -29,6 +29,7 @@ extern "C"
 	#include "contiki.h" 
 	#include "light-sensor.h"
 	#include "lib/sensors.h"
+#include <stdio.h>
 }
 
 namespace wiselib
@@ -132,28 +133,71 @@ namespace wiselib
 		 *
 		 *   \return Luminance in lux measured by specified sensor
 		 */
-		value_t get_value( SensorType sensorType = TOTAL_SOLAR_LIGHT_SENSOR )
+		value_t get_value( SensorType sensorType = PHOTOSYNTHETIC_LIGHT_SENSOR )
 		{
+			/*SENSORS_ACTIVATE( light_sensor );
 			int rawValue = 0, value = 0;
 			double trueVoltage = 0.0;
 			double trueCurrent = 0.0;
-			
+			double factor = 0.0;
 			switch( sensorType )
 			{
 				case TOTAL_SOLAR_LIGHT_SENSOR: 
 					rawValue = light_sensor.value( LIGHT_SENSOR_TOTAL_SOLAR );
+					factor = 0.769;	
 					break;
 					
 				case PHOTOSYNTHETIC_LIGHT_SENSOR:
 					rawValue = light_sensor.value( LIGHT_SENSOR_PHOTOSYNTHETIC );
+					factor = 0.625;
 					break;
 			}
-			
+			printf( "Int Size %d", sizeof( double ) );
+			printf( "raw %d", rawValue );
 			trueVoltage = ( ( ( double ) rawValue ) / 4096.0 ) * 1.5;
+			printf( "trueVolt %d", trueVoltage);
 			trueCurrent = trueVoltage / 100000.0;
-			value = ( int ) ( 0.769 * 100000.0 * trueVoltage * 1000.0 );
+			printf( "trueCurrent %d", trueCurrent );
+			value = ( int ) ( factor * 100000.0 * trueVoltage * 1000.0 );
+			printf( "VALUE %d", value);
+			//SENSORS_DEACTIVATE( light_sensor );*/
+			/*
+			uint32_t lxTSR = 0;
+			uint32_t lxPAR = 0;
+			switch( sensorType )
+			{
+				case TOTAL_SOLAR_LIGHT_SENSOR: 
+					lxTSR = 625 * ( uint32_t ) light_sensor.value( LIGHT_SENSOR_TOTAL_SOLAR ) / 1024  ;
+					//return ( ( int ) ( ( ( double ) light_sensor.value( LIGHT_SENSOR_TOTAL_SOLAR ) ) * 2.28 ) );
+					return lxTSR;
+					break;
+					
+				case PHOTOSYNTHETIC_LIGHT_SENSOR:
+					lxPAR = 3125 * ( uint32_t ) light_sensor.value( LIGHT_SENSOR_PHOTOSYNTHETIC ) / 512; 
+					//return ( ( int ) ( ( ( double ) light_sensor.value( LIGHT_SENSOR_PHOTOSYNTHETIC ) ) * 0.23 ) );
+					return lxPAR;
+					break;
+					
+				default:	return 0;
+			}*/
 			
-			return value;
+			uint32_t temp;
+			switch( sensorType )
+			{ 
+				case PHOTOSYNTHETIC_LIGHT_SENSOR:
+					temp = (uint32_t) light_sensor.value( LIGHT_SENSOR_PHOTOSYNTHETIC );
+					temp = (temp*3125)>> 9; //Conversion to lux
+					return (uint16_t)(temp & 0xFFFF); 
+					break;
+					
+				case TOTAL_SOLAR_LIGHT_SENSOR:
+					temp = (uint32_t) light_sensor.value( LIGHT_SENSOR_TOTAL_SOLAR );
+					temp = (temp*625)>> 10; //Conversion to lux
+					return (uint16_t)(temp & 0xFFFF);
+					break;
+					
+				default: return 0;
+			}
 		}
 		///
 		

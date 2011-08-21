@@ -37,7 +37,7 @@ namespace wiselib
 	 */
 	template <typename OsModel_P>
 	class iSenseLightCallbackSensor 
-		:  public SensorCallbackBase<OsModel_P, uint32, 1000>,
+		:  public SensorCallbackBase<OsModel_P, uint32, 5>,
 			public isense::Uint32DataHandler
 	{			
 	public:								
