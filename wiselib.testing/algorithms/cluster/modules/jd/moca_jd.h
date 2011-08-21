@@ -84,11 +84,14 @@ namespace wiselib {
 
             typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[10];
             size_t count = mess.clusters(cl_list);
-            //debug().debug("got a message with %d cluster ids", mess.clusters(cl_list));
-            //debug().debug("Got clusters from %x", mess.sender_id());
+#ifdef DEBUG_EXTRA
+            debug().debug("got a message with %d cluster ids", mess.clusters(cl_list));
+#endif
             if (count > 0) {
                 for (size_t i = 0; i < count; i++) {
-                    //debug().debug("Contains %x | %d ", cl_list[i].first, cl_list[i].second);
+#ifdef DEBUG_EXTRA
+                    debug().debug("Contains %x | %d ", cl_list[i].first, cl_list[i].second);
+#endif
                     if (!clusters_joined_.contains(cl_list[i].first)) {
                         if (cl_list[i].second <= maxhops_) {
                             clusters_joined_entry_t cl_joined;
