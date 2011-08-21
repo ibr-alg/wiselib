@@ -28,7 +28,7 @@
 // Uncomment to enable Debug
 #define DEBUG
 #ifdef DEBUG
-//#define DEBUG_PAYLOADS
+//#define DEBUG_EXTRA
 //#define DEBUG_RECEIVED
 #define DEBUG_CLUSTERING
 #endif
@@ -356,20 +356,18 @@ namespace wiselib {
          * from the head of each cluster
          * */
         void find_head(void * value) {
-#ifdef DEBUG
+#ifdef DEBUG_EXTRA
             debug().debug("CL;stage1;Clusterheaddecision");
 #endif
             // if Cluster Head
             if (chd().calculate_head() == true) {
 
-                // Cluster is head now
-
-
+                //Node is head now
                 // set values for iterator and join_decision
                 it().set_node_type(HEAD);
                 this->state_changed(ELECTED_CLUSTER_HEAD);
 
-#ifdef DEBUG
+#ifdef DEBUG_EXTRA
                 debug().debug("CL;stage2;Join");
 #endif
 
@@ -405,7 +403,7 @@ namespace wiselib {
             if (is_cluster_head()) {
                 // if a cluster head end the clustering under this branch
 #ifdef DEBUG_CLUSTERING
-                debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
+//                debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
 #ifdef SHAWN
                 debug().debug("\n");
 #endif
@@ -418,14 +416,14 @@ namespace wiselib {
         //TODO:REPORT TO HEADS
 
         void reply_to_head(void *) {
-#ifdef DEBUG
+#ifdef DEBUG_EXTRA
             debug().debug("CL;stage3;Reply");
 #endif
 
             if (it().clusters_joined() < 1) {
-#ifdef DEBUG
+#ifdef DEBUG_CLUSTERING
                 //                debug().debug("CL;Node Joined no cluster, change to cluster_head");
-                debug().debug("CL;UNcovered");
+                debug().debug("CL;Uncovered");
 #endif
                 it().set_node_type(HEAD);
                 // Cluster is head now
@@ -442,16 +440,18 @@ namespace wiselib {
                 ConvergecastMsg_t mess = it().get_resume_payload();
 
                 for (size_t count = 0; count < it().clusters_joined(); count++) {
-                    mess.set_cluster_id(it().cluster_id(count));
-                    radio().send(it().parent(it().cluster_id(count)), mess.length(), (uint8_t *) & mess);
+                    cluster_id_t cluster_id_n = it().cluster_id(count);
+                    if ((cluster_id_n == 0xffff)) {
+                        continue;
+                    }
+                    mess.set_cluster_id(cluster_id_n);
+                    radio().send(it().parent(cluster_id_n), mess.length(), (uint8_t *) & mess);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CLS;%x;%d;%x; for %x", radio().id(), mess.msg_id(), it().parent(it().cluster_id(count)), it().cluster_id(count));
+                    debug().debug("CLS;%x;%d;%x; for %x", radio().id(), mess.msg_id(), it().parent(cluster_id_n), cluster_id_n);
 #endif
-                    //#ifdef DEBUG_EXTRA
-                    //                    debug().debug("send to %x|%x message with size %d and id %d ", it().parent(it().cluster_id(count)), it().cluster_id(count), mess.length(), mess.msg_id());
-                    //#endif
+                    this->state_changed(MESSAGE_SENT);
+
                 }
-                this->state_changed(MESSAGE_SENT);
             }
             reset_beacon_payload();
         }
@@ -460,7 +460,7 @@ namespace wiselib {
             if (it().add_cluster(cluster, hops, parent)) {
                 //reset_beacon_payload();
                 this->state_changed(NODE_JOINED);
-#ifdef DEBUG
+#ifdef DEBUG_CLUSTERING
                 debug().debug("CLP;%x;%d;%x", radio().id(), radio().id() == cluster ? HEAD : SIMPLE, cluster);
 #endif
             }
@@ -475,7 +475,6 @@ namespace wiselib {
          */
         void node_lost(node_id_t node) {
             if (!enabled_) return;
-            debug().debug("Dropping node %x, status %d", node, status());
             it().drop_node(node);
             //            if (status() == FORMED) {
             //If the node was my route to CH
@@ -518,20 +517,23 @@ namespace wiselib {
                     JoinMultipleClusterMsg_t join_msg;
                     join_msg = it().get_join_request_payload();
                     radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t*) & join_msg);
-#ifdef DEBUG
+#ifdef DEBUG_CLUSTERING
                     debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 #endif
+                    this->state_changed(MESSAGE_SENT);
 
                 }
             } else if (type == CONVERGECAST) {
                 ConvergecastMsg_t * mess = (ConvergecastMsg_t*) data;
-
-                //            debug().debug("CL;Received;CONVERGECAST;%x;%x", from,mess.sender_id());
+#ifdef DEBUG_RECEIVED
+                debug().debug("CL;Received;CONVERGECAST;%x;%x", from, mess.sender_id());
+#endif
                 if ((mess->cluster_id() != radio().id()) && (it().parent(mess->cluster_id()) != 0)) {
 #ifdef DEBUG
                     debug().debug("CLS;%x;%d;%x for %x", radio().id(), mess->msg_id(), it().parent(mess->cluster_id()), mess->cluster_id()); //mess.sender_id()
 #endif
                     radio().send(it().parent(mess->cluster_id()), mess->length(), (uint8_t*) mess);
+                    this->state_changed(MESSAGE_SENT);
                 } else {
                     it().eat_request(mess);
                 }
