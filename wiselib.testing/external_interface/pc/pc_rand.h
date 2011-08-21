@@ -3,8 +3,8 @@
 #ifndef PC_RAND_H
 #define PC_RAND_H
 
+#include <cstdlib>
 #include "external_interface/pc/pc_os.h"
-#include <boost/random.hpp>
 
 namespace wiselib {
 	
@@ -17,7 +17,7 @@ namespace wiselib {
 			typedef PCRandModel<OsModel> self_type;
 			typedef self_type* self_pointer_t;
 			
-			enum { RANDOM_MAX = 0xffffffff };
+			enum { RANDOM_MAX = RAND_MAX };
 			
 			enum States
 			{
@@ -34,50 +34,34 @@ namespace wiselib {
 			int state();
 			
 		private:
-			boost::uniform_int<uint32_t> distribution_;
-			boost::mt19937 generator_;
-			boost::variate_generator<
-				boost::mt19937&, boost::uniform_int<uint32_t>
-			> die_;
 	};
 	
 	template<typename OsModel_P>
 	PCRandModel<OsModel_P>::
-	PCRandModel() :
-		distribution_(0, RAND_MAX),
-		generator_(),
-		die_(generator_, distribution_)
-	{
+	PCRandModel() {
 	}
 	
 	template<typename OsModel_P>
 	PCRandModel<OsModel_P>::
-	PCRandModel(PCOs& os) :
-		distribution_(0, RAND_MAX),
-		generator_(),
-		die_(generator_, distribution_)
-	{
+	PCRandModel(PCOs& os) {
 	}
 	
 	template<typename OsModel_P>
 	PCRandModel<OsModel_P>::
-	PCRandModel(PCOs& os, value_t seed) :
-		distribution_(0, RAND_MAX),
-		generator_(seed),
-		die_(generator_, distribution_)
-	{
+	PCRandModel(PCOs& os, value_t seed) {
+		::srand(seed);
 	}
 	
 	template<typename OsModel_P>
 	void PCRandModel<OsModel_P>::
 	srand(value_t seed) {
-		generator_.seed(seed);
+		::srand(seed);
 	}
 	
 	template<typename OsModel_P>
 	typename PCRandModel<OsModel_P>::value_t PCRandModel<OsModel_P>::
 	operator()() {
-		return die_();
+		return rand();
 	}
 	
 	template<typename OsModel_P>
