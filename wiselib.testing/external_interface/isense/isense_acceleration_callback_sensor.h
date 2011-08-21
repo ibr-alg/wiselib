@@ -53,7 +53,7 @@ namespace wiselib
 	template <typename OsModel_P>
 	class iSenseAccelerationCallbackSensor 
 		:  public SensorCallbackBase<OsModel_P, 
-					 wiselib::sensorData::AccelerationData, 1000>,
+					 wiselib::sensorData::AccelerationData, 5>,
 			public isense::BufferDataHandler
 	{			
 	public:								
