@@ -37,7 +37,7 @@ namespace wiselib
 	 */
 	template <typename OsModel_P>
 	class iSenseTemperatureCallbackSensor 
-		:  public SensorCallbackBase<OsModel_P, int8, 1000>,
+		:  public SensorCallbackBase<OsModel_P, int8, 5>,
 			public isense::Int8DataHandler
 	{			
 	public:								
