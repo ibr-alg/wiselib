@@ -45,7 +45,7 @@ namespace wiselib
 		typedef ContikiButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
-		typedef bool value_t;
+		typedef int value_t;
 		
 		//------------------------------------------------------------------------
 		
@@ -100,13 +100,13 @@ namespace wiselib
 		
 		/** Returns current button status
 		 *
-		 *  \returns True, if button is pressed or false if it is currently
+		 *  \returns 0, if button is pressed or 1 if it is currently
 		 *  released.
 		 */
 		value_t operator()( void )
 		{	
 			int button_pressed = button_sensor.value( 0 );
-			return button_pressed == 0;
+			return button_pressed;
 		}
 		
 		/** Disables the Sensor

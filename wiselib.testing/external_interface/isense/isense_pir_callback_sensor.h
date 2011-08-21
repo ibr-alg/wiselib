@@ -48,7 +48,7 @@ namespace wiselib
 	 */
 	template<typename OsModel_P,int PIR_INTERVAL = SECOND >
 	class iSensePirCallbackSensor
-		:  public SensorCallbackBase<OsModel_P, bool, 1000>,
+		:  public SensorCallbackBase<OsModel_P, bool, 5>,
 			public isense::TimeoutHandler,
 			public isense::SensorHandler
 	{
