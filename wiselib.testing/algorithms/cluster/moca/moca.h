@@ -382,7 +382,7 @@ namespace wiselib {
                 debug().debug("\n");
 #endif
 #endif
-                this->state_changed(MESSAGE_SENT);
+                //this->state_changed(MESSAGE_SENT);
 
                 //                //set the time to check for finished clustering
                 //                timer().template set_timer<self_type,
@@ -398,20 +398,20 @@ namespace wiselib {
          * if wait2form_cluster is called
          * clustering procedure ends
          * */
-        void wait2form_cluster(void *) {
-            if (!enabled_)return;
-            if (is_cluster_head()) {
-                // if a cluster head end the clustering under this branch
-#ifdef DEBUG_CLUSTERING
-//                debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
-#ifdef SHAWN
-                debug().debug("\n");
-#endif
-#endif
-                this->state_changed(CLUSTER_FORMED);
-                reset_beacon_payload();
-            }
-        }
+        //        void wait2form_cluster(void *) {
+        //            if (!enabled_)return;
+        //            if (is_cluster_head()) {
+        //                // if a cluster head end the clustering under this branch
+        //#ifdef DEBUG_CLUSTERING
+        //                //                debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
+        //#ifdef SHAWN
+        //                debug().debug("\n");
+        //#endif
+        //#endif
+        //                this->state_changed(CLUSTER_FORMED);
+        //                reset_beacon_payload();
+        //            }
+        //        }
 
         //TODO:REPORT TO HEADS
 
@@ -428,32 +428,49 @@ namespace wiselib {
                 it().set_node_type(HEAD);
                 // Cluster is head now
                 this->state_changed(ELECTED_CLUSTER_HEAD);
-
-                timer().template set_timer<self_type,
-                        &self_type::wait2form_cluster > (maxhops_ * time_slice_, this, (void*) 0);
+                //
+                //                timer().template set_timer<self_type,
+                //                        &self_type::wait2form_cluster > (maxhops_ * time_slice_, this, (void*) 0);
 
             } else {
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;Node%x,reply %d clusters", radio().id(), it().clusters_joined());
 #endif
 
-                ConvergecastMsg_t mess = it().get_resume_payload();
+                send_convergecast(0);
 
-                for (size_t count = 0; count < it().clusters_joined(); count++) {
-                    cluster_id_t cluster_id_n = it().cluster_id(count);
-                    if ((cluster_id_n == 0xffff)) {
-                        continue;
-                    }
+            }
+            reset_beacon_payload();
+        }
+
+        void send_convergecast(void * counter) {
+            int count = (int) counter;
+            //debug().debug("sending to cluster %d", count);
+
+
+
+            ConvergecastMsg_t mess = it().get_resume_payload();
+
+            if (count < it().clusters_joined()) {
+                cluster_id_t cluster_id_n = it().cluster_id(count);
+
+                if ((cluster_id_n != radio().id()) || (cluster_id_n == 0x0)) {
                     mess.set_cluster_id(cluster_id_n);
                     radio().send(it().parent(cluster_id_n), mess.length(), (uint8_t *) & mess);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CLS;%x;%d;%x; for %x", radio().id(), mess.msg_id(), it().parent(cluster_id_n), cluster_id_n);
+                    debug().debug("CLS;%x;%d;%x; for %x|%d|%d", radio().id(), mess.msg_id(), it().parent(cluster_id_n), cluster_id_n, count, it().clusters_joined());
 #endif
-                    this->state_changed(MESSAGE_SENT);
+                    //this->state_changed(MESSAGE_SENT);
 
                 }
+                //debug().debug("sent to cluster %d", count);
+                count++;
+                if (count < it().clusters_joined()) {
+                    timer().template set_timer <self_type, &self_type::send_convergecast > (400, this, (void*) count);
+                }
+            } else {
+                //timer().template set_timer <self_type, &self_type::send_convergecast > (2000, this, (void*) 0);
             }
-            reset_beacon_payload();
         }
 
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
@@ -520,7 +537,7 @@ namespace wiselib {
 #ifdef DEBUG_CLUSTERING
                     debug().debug("CLS;%x;%d;%x", radio().id(), join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 #endif
-                    this->state_changed(MESSAGE_SENT);
+                    //this->state_changed(MESSAGE_SENT);
 
                 }
             } else if (type == CONVERGECAST) {
@@ -528,12 +545,14 @@ namespace wiselib {
 #ifdef DEBUG_RECEIVED
                 debug().debug("CL;Received;CONVERGECAST;%x;%x", from, mess.sender_id());
 #endif
+                if (from == it().parent(mess->cluster_id())) return;
+
                 if ((mess->cluster_id() != radio().id()) && (it().parent(mess->cluster_id()) != 0)) {
 #ifdef DEBUG
                     debug().debug("CLS;%x;%d;%x for %x", radio().id(), mess->msg_id(), it().parent(mess->cluster_id()), mess->cluster_id()); //mess.sender_id()
 #endif
                     radio().send(it().parent(mess->cluster_id()), mess->length(), (uint8_t*) mess);
-                    this->state_changed(MESSAGE_SENT);
+                    //this->state_changed(MESSAGE_SENT);
                 } else {
                     it().eat_request(mess);
                 }
@@ -558,9 +577,10 @@ namespace wiselib {
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
             if (nb_t::NEW_PAYLOAD_BIDI == event) {
+
                 receive_beacon(from, len, data);
                 //reset my beacon according to the new status
-                //reset_beacon_payload();
+                reset_beacon_payload();
             } else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
 #ifndef FIXED_ROLES
 #ifdef MAINTENANCE

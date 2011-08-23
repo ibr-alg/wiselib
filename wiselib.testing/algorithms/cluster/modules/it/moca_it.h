@@ -13,6 +13,7 @@
 #include "algorithms/cluster/clustering_types.h"
 
 namespace wiselib {
+#define MAX_NODES 20
 
     /**
      * \ingroup it_concept
@@ -36,14 +37,22 @@ namespace wiselib {
         typedef typename Radio::block_data_t block_data_t;
         typedef typename Radio::message_id_t message_id_t;
 
-        typedef wiselib::vector_static<OsModel, cluster_id_t, 10 > clusters_vector_t;
-        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, 10 > hops_map_t;
-        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, node_id_t, 10 > parent_map_t;
+        struct clusters_entry {
+            cluster_id_t cluster_id_;
+            int hops_;
+            node_id_t parent_;
+        };
+
+        typedef struct clusters_entry clusters_entry_t;
+
+        typedef wiselib::vector_static<OsModel, clusters_entry_t, MAX_NODES > clusters_vector_t;
+        //        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, MAX_NODES> hops_map_t;
+        //        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, node_id_t, MAX_NODES > parent_map_t;
 
         typedef wiselib::vector_static<OsModel, cluster_id_t, 10 > gateway_list_t;
 
         typedef wiselib::pair<node_id_t, gateway_list_t> AC_table_entry;
-        typedef wiselib::vector_static<OsModel, AC_table_entry, 10 > AC_table_t;
+        typedef wiselib::vector_static<OsModel, AC_table_entry, MAX_NODES > AC_table_t;
 
         /**
          Constructor
@@ -51,11 +60,9 @@ namespace wiselib {
         OverlappingIterator() :
         node_type_(UNCLUSTERED) {
             clusters_vector_.clear();
-            hops_map_.clear();
-            parent_map_.clear();
+            //            hops_map_.clear();
+            //            parent_map_.clear();
             AC_table_.clear();
-            //            CH_table_.clear();
-
         };
 
         /**
@@ -91,13 +98,20 @@ namespace wiselib {
         //get the parent
 
         node_id_t parent(cluster_id_t cluster) {
-            return parent_map_[cluster];
+            for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
+                if ((*chit).cluster_id_ == cluster) {
+                    return (*chit).parent_;
+                }
+            }
+            return 0xffff;
+
         }
 
         cluster_id_t cluster_id(size_t count) {
             if (clusters_vector_.size() > count) {
-                return clusters_vector_.at(count);
+                return clusters_vector_.at(count).cluster_id_;
             } else {
+                debug().debug("ERRRRR");
                 return 0xffff;
             }
         }
@@ -109,7 +123,13 @@ namespace wiselib {
         };
 
         int hops(cluster_id_t cluster) {
-            return hops_map_[cluster];
+            for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
+                if ((*chit).cluster_id_ == cluster) {
+                    return (*chit).hops_;
+                }
+            }
+            return 0;
+
         }
 
         bool is_cluster_head() {
@@ -126,10 +146,11 @@ namespace wiselib {
 
             mess.set_sender_id(radio().id());
             mess.set_cluster_count(count);
+
             if (!clusters_vector_.empty()) {
                 for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
-                    cl_list[--count].first = (*chit);
-                    cl_list[count].second = hops_map_[(*chit)];
+                    cl_list[--count].first = (*chit).cluster_id_;
+                    cl_list[count].second = (*chit).hops_;
                 }
             }
             mess.set_clusters(cl_list);
@@ -140,21 +161,21 @@ namespace wiselib {
             ConvergecastMsg_t mess;
             typedef typename ConvergecastMsg_t::cluster_entry_t cluster_entry_t;
 
-            size_t count = clusters_joined();
 #ifdef DEBUG_EXTRA
             debug().debug("Added %d clusters to conv message", count);
 #endif
-            cluster_entry_t cl_list[count];
-
+            cluster_entry_t cl_list[15];
+            size_t count = 0;
             mess.set_sender_id(radio().id());
-            mess.set_cluster_count(count);
+
             if (!clusters_vector_.empty()) {
                 for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
-                    cl_list[--count].first = (*chit);
-                    cl_list[count].second = hops_map_[(*chit)];
+                    cl_list[count].first = (*chit).cluster_id_;
+                    cl_list[count++].second = (*chit).hops_;
                 }
             }
-            mess.set_clusters(cl_list);
+            mess.set_cluster_count(count);
+            mess.set_clusters(cl_list, count);
             return mess;
         };
 
@@ -162,40 +183,42 @@ namespace wiselib {
             return 0;
         };
 
+//        bool drop_cluster(node_id_t from, cluster_id_t cluster) {
+//            for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
+//                if ((from == (*chit).parent_) && (cluster == (*chit).cluster_id_)) {
+//                    clusters_vector_.erase(chit);
+//                    break;
+//                }
+//            }
+//        }
+
         bool drop_node(node_id_t node) {
             bool found = false;
             for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
-                if (parent_map_[(*chit)] == node) {
+
+                if ((*chit).parent_ == node) {
                     clusters_vector_.erase(chit);
-                    hops_map_.erase((*chit));
-                    parent_map_.erase((*chit));
 #ifdef DEBUG_EXTRA
                     debug().debug("removing from CH-parent");
 #endif
                     found = true;
+                    chit--;
                     continue;
-                }
-                if ((*chit) == node) {
-                    clusters_vector_.erase(chit);
-                    hops_map_.erase(node);
-                    parent_map_.erase(node);
-#ifdef DEBUG_EXTRA
-                    debug().debug("removing from CH");
-#endif
-                    found = true;
                 }
             }
 
 
             if (node_type() == HEAD) {
-                for (typename AC_table_t::iterator acit = AC_table_.begin(); acit != AC_table_.end(); ++acit) {
-                    if ((*acit).first == node) {
-                        AC_table_.erase(acit);
+                if (!AC_table_.empty()) {
+                    for (typename AC_table_t::iterator acit = AC_table_.begin(); acit != AC_table_.end(); ++acit) {
+                        if ((*acit).first == node) {
+                            AC_table_.erase(acit);
 #ifdef DEBUG_EXTRA
-                        debug().debug("removing from AC");
+                            debug().debug("removing from AC");
 #endif
-                        found = true;
-                        break;
+                            found = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -210,25 +233,24 @@ namespace wiselib {
         };
 
         bool add_cluster(cluster_id_t cluster_id, int hops, node_id_t previous) {
-            for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
-                if (cluster_id == (*chit)) {
-                    return false;
+            if (!clusters_vector_.empty()) {
+                for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
+                    if (cluster_id == (*chit).cluster_id_) {
+                        return false;
+                    }
                 }
             }
 
-            clusters_vector_.push_back(cluster_id);
-            typename wiselib::pair<cluster_id_t, int >a;
-            a.first = cluster_id;
-            a.second = hops;
-            typename wiselib::pair<cluster_id_t, node_id_t >b;
-            b.first = cluster_id;
-            b.second = previous;
-            parent_map_.push_back(b);
+            clusters_entry_t clnew;
+            clnew.cluster_id_ = cluster_id;
+            clnew.hops_ = hops;
+            clnew.parent_ = previous;
+            clusters_vector_.push_back(clnew);
+
             return true;
         };
 
         size_t clusters_joined() {
-            //            return CH_table_.size();
             return clusters_vector_.size();
         }
 
@@ -236,13 +258,15 @@ namespace wiselib {
             node_id_t node = mess->sender_id();
             ConvergecastMsg_t::cluster_entry_t clusts[10];
             uint8_t count = mess->clusters(clusts);
-            for (typename AC_table_t::iterator acit = AC_table_.begin(); acit != AC_table_.end(); ++acit) {
-                if ((*acit).first == node) {
-                    //(*acit).gateways.clear();
-                    for (size_t i = 0; i < count; i++) {
-                        //(*acit).gateways.push_back(clusts[i].first);
+            if (!AC_table_.empty()) {
+                for (typename AC_table_t::iterator acit = AC_table_.begin(); acit != AC_table_.end(); ++acit) {
+                    if ((*acit).first == node) {
+                        (*acit).second.clear();
+                        for (size_t i = 0; i < count; i++) {
+                            (*acit).second.push_back(clusts[i].first);
+                        }
+                        return false;
                     }
-                    return false;
                 }
             }
             AC_table_entry newent;
@@ -281,9 +305,8 @@ namespace wiselib {
         void reset() {
             node_type_ = UNCLUSTERED;
             clusters_vector_.clear();
-            hops_map_.clear();
-            parent_map_.clear();
-            AC_table_.clear();
+            //            hops_map_.clear();
+            //            parent_map_.clear();
             AC_table_.clear();
         }
 
@@ -294,8 +317,8 @@ namespace wiselib {
 
         // for every node
         clusters_vector_t clusters_vector_;
-        hops_map_t hops_map_;
-        parent_map_t parent_map_;
+        //        hops_map_t hops_map_;
+        //        parent_map_t parent_map_;
 
         // only for cluster head
         AC_table_t AC_table_;
@@ -304,17 +327,17 @@ namespace wiselib {
 
         Radio * radio_;
 
-        Radio& radio() {
+        Radio & radio() {
             return *radio_;
         }
         Timer * timer_;
 
-        Timer& timer() {
+        Timer & timer() {
             return *timer_;
         }
         Debug * debug_;
 
-        Debug& debug() {
+        Debug & debug() {
             return *debug_;
         }
 

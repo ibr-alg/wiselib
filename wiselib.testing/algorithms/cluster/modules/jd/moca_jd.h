@@ -32,7 +32,7 @@ namespace wiselib {
         typedef node_id_t cluster_id_t;
 
         typedef delegate3<void, cluster_id_t, int, node_id_t> join_delegate_t;
-        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, 15 > clusters_joined_t;
+        typedef wiselib::MapStaticVector<OsModel, cluster_id_t, int, 20 > clusters_joined_t;
         typedef wiselib::pair<cluster_id_t, int> clusters_joined_entry_t;
 
         // --------------------------------------------------------------------
@@ -77,13 +77,11 @@ namespace wiselib {
          * */
         bool join(uint8_t *payload, uint8_t length) {
 
-            //copy message to local memory
             bool joined_any = false;
-            JoinMultipleClusterMsg<OsModel, Radio> mess;
-            memcpy(&mess, payload, length);
+            JoinMultipleClusterMsg<OsModel, Radio> *mess = (JoinMultipleClusterMsg<OsModel, Radio> *) payload;
 
             typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[10];
-            size_t count = mess.clusters(cl_list);
+            size_t count = mess->clusters(cl_list);
 #ifdef DEBUG_EXTRA
             debug().debug("got a message with %d cluster ids", mess.clusters(cl_list));
 #endif
@@ -103,7 +101,7 @@ namespace wiselib {
                             //join the cluster
                             //return true
                             joined_any = true;
-                            joined_cluster(cl_joined.first, cl_joined.second, mess.sender_id());
+                            joined_cluster(cl_joined.first, cl_joined.second, mess->sender_id());
                         }
                     }
                 }
@@ -111,20 +109,20 @@ namespace wiselib {
             return joined_any;
         }
 
-        /*
-         * ENABLE
-         * enables the module
-         * initializes values
-         * */
+        /**
+          ENABLE
+          enables the module
+          initializes values
+         */
         void enable() {
             maxhops_ = 0;
         };
 
-        /*
-         * DISABLE
-         * disables this bfsclustering module
-         * unregisters callbacks
-         * */
+        /**
+          DISABLE
+          disables this bfsclustering module
+          unregisters callbacks
+         */
         void disable() {
         };
 

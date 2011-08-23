@@ -18,6 +18,7 @@ namespace wiselib {
         JOIN = 43, REJOIN = 43,
         RESUME = 44, CONVERGECAST = 44,
         ATTRIBUTE = 45, FLOOD = 45,
+        HEAD_LOST = 46,
         REFORM = 46,
         INFORM = 47,
         JOINM = 43,
@@ -59,6 +60,10 @@ namespace wiselib {
 
 #include "algorithms/cluster/join_message.h"
 typedef wiselib::JoinClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinClusterMsg_t;
+#include "algorithms/cluster/messages/head_lost.h"
+typedef wiselib::LostClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> LostClusterMsg_t;
+#include "algorithms/cluster/messages/join_sema.h"
+typedef wiselib::JoinSemanticClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinSemanticClusterMsg_t;
 #include "algorithms/cluster/join_multiple_message.h"
 typedef wiselib::JoinMultipleClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinMultipleClusterMsg_t;
 #include "algorithms/cluster/convergecast_message.h"
