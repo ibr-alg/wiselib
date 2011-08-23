@@ -95,13 +95,13 @@ namespace wiselib {
             return cluster_count();
         }
 
-        inline void set_clusters(cluster_entry_t * clusters) {
-            memcpy(buffer + CLUSTER_LIST_POS, clusters, cluster_count() * sizeof (cluster_entry_t));
+        inline void set_clusters(cluster_entry_t * clusters, size_t count) {
+            memcpy(buffer + CLUSTER_LIST_POS, clusters, count * sizeof (cluster_entry_t));
         }
         // --------------------------------------------------------------------
 
         inline size_t length() {
-            return sizeof (message_id_t) + sizeof (node_id_t) + sizeof (size_t) + cluster_count() * sizeof (cluster_entry_t);
+            return sizeof (message_id_t) + sizeof (node_id_t) + sizeof (node_id_t) + sizeof (size_t) + cluster_count() * sizeof (cluster_entry_t);
         }
 
     private:
