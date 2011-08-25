@@ -55,7 +55,20 @@ namespace wiselib {
     enum ClusterIds {
         UNKNOWN_CLUSTER_HEAD = 0xffff
     };
+
+    struct semantics {
+        wiselib::OSMODEL::Radio::node_id_t node_id_;
+        int semantic_id_;
+        int semantic_value_;
+//        int semantic_hops_;
+        bool cluster_head_;
+        bool enabled_;
+    };
+    typedef struct semantics semantics_t;
 }
+
+
+#include "algorithms/cluster/semantics.h" 
 
 
 #include "algorithms/cluster/join_message.h"
@@ -74,6 +87,9 @@ typedef wiselib::ResumeClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> Res
 #include "algorithms/cluster/reform_message.h"
 #include "algorithms/cluster/attribute_message.h"
 
+
+#include "algorithms/cluster/messages/sema_attr.h"
+typedef wiselib::SemaAttrClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaAttributeMsg_t;
 
 #include "algorithms/cluster_radio/cluster_radio_message.h"
 
