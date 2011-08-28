@@ -24,24 +24,24 @@ namespace wiselib {
         typedef typename OsModel::Debug Debug;
 
         // data types
-        typedef int cluster_id_t;
-        typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
+        typedef node_id_t cluster_id_t;
+        typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
 
         typedef wiselib::vector_static<OsModel, semantics_t, 10 > semantics_vector_t;
 
         // delegate
         typedef delegate1<int, int*> chd_delegate_t;
 
-        typedef delegate2<void, cluster_id_t, int> head_delegate_t;
+        typedef delegate1<void, int > head_delegate_t;
 
         /*
          * Constructor
          * */
         SemanticClusterHeadDecision() :
-        cluster_head_(false), participating_(false) {
+        cluster_head_(false) {
             semantics_vector_.clear();
             head_delegate_ = head_delegate_t();
         }
@@ -94,26 +94,26 @@ namespace wiselib {
         inline bool calculate_head() {
 
             for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                debug_->debug("semantic is %d|%d  %x", si->semantic_id_, si->semantic_value_, si->node_id_);
+                //                debug_->debug("semantic is %d|%d  %x", si->semantic_id_, si->semantic_value_, si->node_id_);
                 if ((si->node_id_ == radio_->id()) && (si->enabled_)) {
-                    debug_->debug("semantic chead of c %x|%x", si->semantic_id_, si->semantic_value_);
-                    si->cluster_head_ = true;
+                    //                    debug_->debug("semantic chead of c %x|%x", si->semantic_id_, si->semantic_value_);
                     cluster_head_ = true;
-                    became_head(si->semantic_id_, si->semantic_value_);
                 } else {
                     //                    debug_->debug("NOT semantic chead of c %x|%x", si->semantic_id_, si->semantic_value_);
                 }
+            }
+            if (cluster_head_) {
+                became_head(1);
             }
 
             return cluster_head_;
         }
 
-        void set_semantic(cluster_id_t sema, int value) {
+        void set_semantic(int sema, int value) {
             for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if (si->semantic_id_ == sema) {
                     si->node_id_ = radio_->id();
                     si->semantic_value_ = value;
-                    si->cluster_head_ = false;
                     si->enabled_ = false;
                     return;
                 }
@@ -121,7 +121,6 @@ namespace wiselib {
             semantics_t newse;
             newse.semantic_id_ = sema;
             newse.node_id_ = radio_->id();
-            newse.cluster_head_ = false;
             newse.semantic_value_ = value;
             newse.enabled_ = false;
             semantics_vector_.push_back(newse);
@@ -172,7 +171,6 @@ namespace wiselib {
 
         bool check_condition(int semantic, int value) {
             //            debug_->debug("checking semantic value %d|%d", semantic, value);
-
             for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if ((si->semantic_id_ == semantic) && (si->semantic_value_ == value)) {
                     si->enabled_ = true;
@@ -180,14 +178,6 @@ namespace wiselib {
                 }
             }
             return false;
-        }
-
-        bool participating() {
-            return participating_;
-        }
-
-        void set_participating() {
-            participating_ = true;
         }
 
         size_t enabled_semantics() {
@@ -205,7 +195,6 @@ namespace wiselib {
             SemaAttributeMsg_t msg;
             size_t count = 0;
             semantics_t a[enabled_semantics()];
-
             //            debug_->debug("total semantics %d", semantics_vector_.size());
             for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if (si->enabled_) {
@@ -222,7 +211,7 @@ namespace wiselib {
             return msg;
         }
 
-        template<class T, void (T::*TMethod)(cluster_id_t, int) >
+        template<class T, void (T::*TMethod)(int) >
         int reg_became_head_callback(T *obj_pnt) {
             head_delegate_ = head_delegate_t::template from_method<T, TMethod > (obj_pnt);
             return head_delegate_;
@@ -235,17 +224,16 @@ namespace wiselib {
         }
         // --------------------------------------------------------------------
 
-        void became_head(cluster_id_t semantic_id, int semantic_value) {
+        void became_head(int val) {
 
             if (head_delegate_ != head_delegate_t()) {
-                (head_delegate_) (semantic_id, semantic_value);
+                (head_delegate_) (val);
             }
         }
 
     private:
 
-        bool cluster_head_; // if a cluster head
-        bool participating_;
+        bool cluster_head_; // if a cluster head        
         node_id_t theta_; // clustering parameter
         head_delegate_t head_delegate_;
         semantics_vector_t semantics_vector_;

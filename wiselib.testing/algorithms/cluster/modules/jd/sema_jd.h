@@ -29,7 +29,7 @@ namespace wiselib {
         // data types
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::block_data_t block_data_t;
-        typedef int cluster_id_t;
+        typedef node_id_t cluster_id_t;
 
         typedef delegate3<void, cluster_id_t, int, node_id_t> join_delegate_t;
 
@@ -38,21 +38,22 @@ namespace wiselib {
 
         // --------------------------------------------------------------------
 
-        /*
+        /**
          * Constructor
          */
-        SemanticJoinDecision() : hops_(200) {
+        SemanticJoinDecision() :
+        cluster_id_(0xffff)
+        , hops_(200) {
             semantics_vector_.clear();
-
         };
 
-        /*
+        /**
          * Destructor
          */
         ~SemanticJoinDecision() {
         };
 
-        /*
+        /**
          * INIT
          * initializes the values of radio and debug
          */
@@ -62,19 +63,19 @@ namespace wiselib {
             semantics_vector_.clear();
         };
 
-        /* SET functions */
+        /**
+         * SET functions
+         */
 
         void reset() {
 
         }
 
-        void set_semantic(cluster_id_t sema, int value) {
+        void set_semantic(int sema, int value) {
             for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if (si->semantic_id_ == sema) {
                     si->node_id_ = radio_->id();
                     si->semantic_value_ = value;
-
-                    si->cluster_head_ = false;
                     si->enabled_ = false;
                     return;
                 }
@@ -82,9 +83,7 @@ namespace wiselib {
             semantics_t newse;
             newse.semantic_id_ = sema;
             newse.node_id_ = radio_->id();
-            newse.cluster_head_ = false;
             newse.semantic_value_ = value;
-            //            newse.semantic_hops_ = 200;
             newse.enabled_ = false;
             semantics_vector_.push_back(newse);
         }
@@ -109,14 +108,9 @@ namespace wiselib {
             return false;
         }
 
-        void set_head(int semantic) {
-            for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == semantic) {
-                    hops_ = 0;
-                    si->cluster_head_ = true;
-                    return;
-                }
-            }
+        void set_head() {
+            hops_ = 0;
+            cluster_id_ = radio().id();
         }
 
         size_t enabled_semantics() {
@@ -131,12 +125,11 @@ namespace wiselib {
 
         JoinSemanticClusterMsg_t get_join_request_payload() {
             JoinSemanticClusterMsg_t msg;
-
             size_t count = 0;
             size_t total = enabled_semantics();
             semantics_t a[total];
-
             msg.set_sender(radio().id());
+            msg.set_cluster_id(cluster_id_);
             msg.set_hops(hops_ + 1);
             for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if (si->enabled_) {
@@ -144,24 +137,14 @@ namespace wiselib {
                     a[count++].semantic_value_ = si->semantic_value_;
                 }
             }
-
             msg.set_payload((uint8_t *) a, total * sizeof (semantics_t));
             return msg;
         }
-
-
-        //
-        //        void set_head() {
-        //            for (typename semantics_vector_t::iterator svit = semantics_vector_.begin(); svit != semantics_vector_.end(); ++svit) {
-        //                (*svit).semantic_hops_ = 0;
-        //            }
-        //        }
 
         void drop_node(node_id_t node) {
             for (typename semantics_vector_t::iterator svit = semantics_vector_.begin(); svit != semantics_vector_.end(); ++svit) {
                 if ((*svit).node_id_ == node) {
                     (*svit).node_id_ = 0xffff;
-                    //                    (*svit).semantic_hops_ = 200;
                 }
             }
         }
@@ -174,7 +157,6 @@ namespace wiselib {
                 }
             }
             return false;
-
         }
 
         /*
@@ -197,7 +179,8 @@ namespace wiselib {
             }
             if ((join) && (hops_ > mess->hops())) {
                 hops_ = mess->hops();
-                joined_cluster(mess->sender(), mess->hops(), mess->sender());
+                cluster_id_ = mess->cluster_id();
+                joined_cluster(mess->cluster_id(), mess->hops(), mess->sender());
                 return true;
             }
             return false;
@@ -233,18 +216,18 @@ namespace wiselib {
         }
 
         /**
-          ENABLE
-          enables the module
-          initializes values
+         * ENABLE
+         * enables the module
+         * initializes values
          */
         void enable() {
 
         };
 
         /**
-          DISABLE
-          disables this bfsclustering module
-          unregisters callbacks
+         * DISABLE
+         * disables this bfsclustering module
+         * unregisters callbacks
          */
         void disable() {
         };
@@ -271,6 +254,7 @@ namespace wiselib {
     private:
         join_delegate_t join_delegate_;
         semantics_vector_t semantics_vector_;
+        cluster_id_t cluster_id_;
         int hops_;
 
         Radio * radio_; //radio module
@@ -285,7 +269,4 @@ namespace wiselib {
         }
     };
 }
-
-
 #endif
-

@@ -63,7 +63,7 @@ namespace wiselib {
         // data types
         typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
         typedef typename Radio::node_id_t node_id_t;
-        typedef int cluster_id_t;
+        typedef node_id_t cluster_id_t;
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
 
@@ -88,74 +88,75 @@ namespace wiselib {
          */
         SpitCore() :
         enabled_(false),
+        participating_(true),
         status_(0),
         head_lost_(false),
         do_cleanup(false) {
+            /*
+                        semantics_vector_.clear();
 
-            semantics_vector_.clear();
+                        semantics_input_t sema;
 
-            semantics_input_t sema;
+                        //set rooms
+                        sema.nodes_.clear();
+                        sema.semantic = ROOM;
+                        sema.semantic_value = 1;
+                        sema.nodes_.push_back(0x9979);
+                        sema.nodes_.push_back(0x153d);
+                        sema.nodes_.push_back(0xcaa);
+                        sema.nodes_.push_back(0x1c98);
+                        semantics_vector_.push_back(sema);
 
-            //set rooms
-            sema.nodes_.clear();
-            sema.semantic = ROOM;
-            sema.semantic_value = 1;
-            sema.nodes_.push_back(0x9979);
-            sema.nodes_.push_back(0x153d);
-            sema.nodes_.push_back(0xcaa);
-            sema.nodes_.push_back(0x1c98);
-            semantics_vector_.push_back(sema);
+                        sema.nodes_.clear();
+                        sema.semantic_value = 2;
+                        sema.nodes_.push_back(0x295);
+                        sema.nodes_.push_back(0x1b77);
+                        semantics_vector_.push_back(sema);
 
-            sema.nodes_.clear();
-            sema.semantic_value = 2;
-            sema.nodes_.push_back(0x295);
-            sema.nodes_.push_back(0x1b77);
-            semantics_vector_.push_back(sema);
+                        sema.nodes_.clear();
+                        sema.semantic_value = 3;
+                        sema.nodes_.push_back(0xca3);
+                        sema.nodes_.push_back(0x1cde);
+                        semantics_vector_.push_back(sema);
 
-            sema.nodes_.clear();
-            sema.semantic_value = 3;
-            sema.nodes_.push_back(0xca3);
-            sema.nodes_.push_back(0x1cde);
-            semantics_vector_.push_back(sema);
+                        sema.nodes_.clear();
+                        sema.semantic_value = 4;
+                        sema.nodes_.push_back(0x296);
+                        sema.nodes_.push_back(0x1ccd);
+                        semantics_vector_.push_back(sema);
 
-            sema.nodes_.clear();
-            sema.semantic_value = 4;
-            sema.nodes_.push_back(0x296);
-            sema.nodes_.push_back(0x1ccd);
-            semantics_vector_.push_back(sema);
+                        sema.nodes_.clear();
+                        sema.semantic_value = 5;
+                        sema.nodes_.push_back(0x585);
+                        sema.nodes_.push_back(0x786a);
+                        semantics_vector_.push_back(sema);
 
-            sema.nodes_.clear();
-            sema.semantic_value = 5;
-            sema.nodes_.push_back(0x585);
-            sema.nodes_.push_back(0x786a);
-            semantics_vector_.push_back(sema);
+                        //set floor
+                        sema.semantic = FLOOR;
+                        sema.semantic_value = 0;
+                        sema.nodes_.clear();
+                        sema.nodes_.push_back(0x9979);
+                        sema.nodes_.push_back(0x153d);
+                        sema.nodes_.push_back(0xcaa);
+                        sema.nodes_.push_back(0x1c98);
+                        sema.nodes_.push_back(0x295);
+                        sema.nodes_.push_back(0x1b77);
+                        sema.nodes_.push_back(0xca3);
+                        sema.nodes_.push_back(0x1cde);
+                        sema.nodes_.push_back(0x296);
+                        sema.nodes_.push_back(0x1ccd);
+                        sema.nodes_.push_back(0x585);
+                        sema.nodes_.push_back(0x786a);
+                        semantics_vector_.push_back(sema);
 
-            //set floor
-            sema.semantic = FLOOR;
-            sema.semantic_value = 0;
-            sema.nodes_.clear();
-            sema.nodes_.push_back(0x9979);
-            sema.nodes_.push_back(0x153d);
-            sema.nodes_.push_back(0xcaa);
-            sema.nodes_.push_back(0x1c98);
-            sema.nodes_.push_back(0x295);
-            sema.nodes_.push_back(0x1b77);
-            sema.nodes_.push_back(0xca3);
-            sema.nodes_.push_back(0x1cde);
-            sema.nodes_.push_back(0x296);
-            sema.nodes_.push_back(0x1ccd);
-            sema.nodes_.push_back(0x585);
-            sema.nodes_.push_back(0x786a);
-            semantics_vector_.push_back(sema);
-
-            sema.semantic = SCREEN;
-            sema.semantic_value = 1;
-            sema.nodes_.clear();
-            sema.nodes_.push_back(0x9979);
-            sema.nodes_.push_back(0x296);
-            sema.nodes_.push_back(0x1c98);
-            semantics_vector_.push_back(sema);
-
+                        sema.semantic = SCREEN;
+                        sema.semantic_value = 1;
+                        sema.nodes_.clear();
+                        sema.nodes_.push_back(0x9979);
+                        sema.nodes_.push_back(0x296);
+                        sema.nodes_.push_back(0x1c98);
+                        semantics_vector_.push_back(sema);
+             */
         }
 
         /**
@@ -194,15 +195,15 @@ namespace wiselib {
 
 
 
-            for (typename semantics_input_vector_t::iterator svi = semantics_vector_.begin(); svi != semantics_vector_.end(); ++svi) {
-                for (typename nodes_vector_t::iterator nvi = (*svi).nodes_.begin(); nvi != (*svi).nodes_.end(); ++nvi) {
-                    if (radio().id() == (*nvi)) {
-                        //debug().debug("semantic %d|%d|%d , node %x",semantics_vector_.size(), svi->semantic, svi->semantic_value, radio().id());
-                        chd().set_semantic((*svi).semantic, svi->semantic_value);
-                        jd().set_semantic((*svi).semantic, svi->semantic_value);
-                    }
-                }
-            }
+            //            for (typename semantics_input_vector_t::iterator svi = semantics_vector_.begin(); svi != semantics_vector_.end(); ++svi) {
+            //                for (typename nodes_vector_t::iterator nvi = (*svi).nodes_.begin(); nvi != (*svi).nodes_.end(); ++nvi) {
+            //                    if (radio().id() == (*nvi)) {
+            //                        //debug().debug("semantic %d|%d|%d , node %x",semantics_vector_.size(), svi->semantic, svi->semantic_value, radio().id());
+            //                        chd().set_semantic((*svi).semantic, svi->semantic_value);
+            //                        jd().set_semantic((*svi).semantic, svi->semantic_value);
+            //                    }
+            //                }
+            //            }
         }
 
         /**
@@ -240,16 +241,23 @@ namespace wiselib {
         }
 
         void set_semantic(int semantic, int value) {
-
+            debug().debug("seting semantic %d , value %d ", semantic, value);
+            chd().set_semantic(semantic, value);
+            jd().set_semantic(semantic, value);
         }
 
-        inline void set_demands() {
-            if (
-                    (check_condition(ROOM))
-                    && (check_condition(SCREEN))
-                    //                 && (chd().check_condition_value(FLOOR, 0))
-                    ) {
-                chd().set_participating();
+        inline void set_demands(int id, int value) {
+            bool response = false;
+            if (value == 0xff) {
+                debug_->debug("Set demands:%d", id);
+                response = check_condition(id);
+            } else {
+                debug_->debug("Set demands:%d|%d", id, value);
+                response = check_condition(id, value);
+            }
+            participating_ = participating_ && response;
+            if (participating_) {
+                debug().debug("participating in (%d|%d) ", id, value);
             }
         }
 
@@ -324,7 +332,6 @@ namespace wiselib {
                 case MESSAGE_SENT:
                     debug().debug("CLS;%x;%d;%x", radio().id(), type, node);
                     return;
-
             }
         }
 
@@ -461,7 +468,7 @@ namespace wiselib {
             long round = (long) value;
 
             if (round == 0) {
-                if (!chd().participating()) return;
+                if (!participating_) return;
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage1;ExchangeSemantics;%d");
 #endif
@@ -537,15 +544,15 @@ namespace wiselib {
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
             if (it().add_cluster(cluster, hops, parent)) {
                 //reset_beacon_payload();
-                this->state_changed(NODE_JOINED, SIMPLE, parent);
+                this->state_changed(NODE_JOINED, SIMPLE, cluster);
                 //#ifdef DEBUG_CLUSTERING
                 //                debug().debug("CLP;%x;%d;%x", radio().id(), radio().id() == cluster ? HEAD : SIMPLE, cluster);
                 //#endif
             }
         }
 
-        void became_head(cluster_id_t semantic, int value) {
-            jd().set_head(semantic);
+        void became_head(int a) {
+            jd().set_head();
         }
 
         /**
@@ -567,9 +574,10 @@ namespace wiselib {
          * callback from the radio
          */
         void receive(node_id_t from, size_t len, block_data_t * data) {
+
             if (!enabled_) return;
             if (from == radio().id()) return;
-            if (!chd().participating()) return;
+            if (!participating_) return;
 
             //if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
 
@@ -577,6 +585,7 @@ namespace wiselib {
             int type = data[0];
 
             if (type == ATTRIBUTE) {
+
                 chd().receive(from, len, data);
             } else if (type == JOINM) {
 
@@ -645,6 +654,7 @@ namespace wiselib {
     private:
         nb_t * neighbor_discovery_;
         bool enabled_;
+        bool participating_;
         uint8_t status_; // the status of the clustering algorithm
         int callback_id_; // receive message callback
         static const uint32_t time_slice_ = 2000; // time to wait for cluster accept replies
