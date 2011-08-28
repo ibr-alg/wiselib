@@ -56,15 +56,7 @@ namespace wiselib {
         UNKNOWN_CLUSTER_HEAD = 0xffff
     };
 
-    struct semantics {
-        wiselib::OSMODEL::Radio::node_id_t node_id_;
-        int semantic_id_;
-        int semantic_value_;
-//        int semantic_hops_;
-        bool cluster_head_;
-        bool enabled_;
-    };
-    typedef struct semantics semantics_t;
+    
 }
 
 
@@ -73,8 +65,8 @@ namespace wiselib {
 
 #include "algorithms/cluster/join_message.h"
 typedef wiselib::JoinClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinClusterMsg_t;
-#include "algorithms/cluster/messages/head_lost.h"
-typedef wiselib::LostClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> LostClusterMsg_t;
+//#include "algorithms/cluster/messages/head_lost.h"
+//typedef wiselib::LostClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> LostClusterMsg_t;
 #include "algorithms/cluster/messages/join_sema.h"
 typedef wiselib::JoinSemanticClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinSemanticClusterMsg_t;
 #include "algorithms/cluster/join_multiple_message.h"
