@@ -15,7 +15,7 @@ namespace wiselib {
      * 
      * Moca join decision module.
      */
-    template<typename OsModel_P, typename Radio_P>
+    template<typename OsModel_P, typename Radio_P, typename Semantics_P >
 
     class SemanticJoinDecision {
     public:
@@ -24,7 +24,10 @@ namespace wiselib {
         typedef OsModel_P OsModel;
         typedef Radio_P Radio;
         typedef typename OsModel::Debug Debug;
-
+        typedef Semantics_P Semantics_t;
+        typedef typename Semantics_t::semantics_t semantics_t;
+        typedef typename Semantics_t::semantics_vector_t semantics_vector_t;
+        typedef typename Semantics_t::semantics_vector_iterator_t semantics_vector_iterator_t;
 
         // data types
         typedef typename Radio::node_id_t node_id_t;
@@ -32,9 +35,6 @@ namespace wiselib {
         typedef node_id_t cluster_id_t;
 
         typedef delegate3<void, cluster_id_t, int, node_id_t> join_delegate_t;
-
-
-        typedef wiselib::vector_static<OsModel, semantics_t, 10 > semantics_vector_t;
 
         // --------------------------------------------------------------------
 
@@ -44,7 +44,6 @@ namespace wiselib {
         SemanticJoinDecision() :
         cluster_id_(0xffff)
         , hops_(200) {
-            semantics_vector_.clear();
         };
 
         /**
@@ -57,10 +56,10 @@ namespace wiselib {
          * INIT
          * initializes the values of radio and debug
          */
-        void init(Radio& radio, Debug& debug) {
+        void init(Radio& radio, Debug& debug, Semantics_t &semantics) {
             radio_ = &radio;
             debug_ = &debug;
-            semantics_vector_.clear();
+            semantics_ = &semantics;
         };
 
         /**
@@ -71,67 +70,20 @@ namespace wiselib {
 
         }
 
-        void set_semantic(int sema, int value) {
-            for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == sema) {
-                    si->node_id_ = radio_->id();
-                    si->semantic_value_ = value;
-                    si->enabled_ = false;
-                    return;
-                }
-            }
-            semantics_t newse;
-            newse.semantic_id_ = sema;
-            newse.node_id_ = radio_->id();
-            newse.semantic_value_ = value;
-            newse.enabled_ = false;
-            semantics_vector_.push_back(newse);
-        }
-
-        bool check_condition(int semantic) {
-            for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == semantic) {
-                    si->enabled_ = true;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        bool check_condition(int semantic, int value) {
-            for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if ((si->semantic_id_ == semantic) && (si->semantic_value_ == value)) {
-                    si->enabled_ = true;
-                    return true;
-                }
-            }
-            return false;
-        }
-
         void set_head() {
             hops_ = 0;
             cluster_id_ = radio().id();
         }
 
-        size_t enabled_semantics() {
-            size_t count = 0;
-            for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->enabled_ == true) {
-                    count++;
-                }
-            }
-            return count;
-        }
-
         JoinSemanticClusterMsg_t get_join_request_payload() {
             JoinSemanticClusterMsg_t msg;
             size_t count = 0;
-            size_t total = enabled_semantics();
+            size_t total = semantics_->enabled_semantics();
             semantics_t a[total];
             msg.set_sender(radio().id());
             msg.set_cluster_id(cluster_id_);
             msg.set_hops(hops_ + 1);
-            for (typename semantics_vector_t::iterator si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
+            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
                 if (si->enabled_) {
                     a[count].semantic_id_ = si->semantic_id_;
                     a[count++].semantic_value_ = si->semantic_value_;
@@ -142,39 +94,42 @@ namespace wiselib {
         }
 
         void drop_node(node_id_t node) {
-            for (typename semantics_vector_t::iterator svit = semantics_vector_.begin(); svit != semantics_vector_.end(); ++svit) {
-                if ((*svit).node_id_ == node) {
-                    (*svit).node_id_ = 0xffff;
-                }
-            }
+            //            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
+            //                if ((*si).node_id_ == node) {
+            //                    (*si).node_id_ = 0xffff;
+            //                }
+            //            }
         }
 
         bool has_semantic(int id, int value) {
-            for (typename semantics_vector_t::iterator svit = semantics_vector_.begin(); svit != semantics_vector_.end(); ++svit) {
-                if (((*svit).semantic_id_ == id) && ((*svit).semantic_value_ == value)) {
-                    debug().debug("joining semantic cluster %d|%d", id, value);
+            if (id > 200) {
+                return true;
+            }
+            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
+                if (((*si).semantic_id_ == id) && ((*si).semantic_value_ == value)) {
+                    //                    debug().debug("joining semantic cluster %d|%d", id, value);
                     return true;
                 }
             }
             return false;
         }
 
-        /*
+        /**
          * JOIN
          * respond to an JOIN message received
          * either join to a cluster or not
-         * */
+         */
         bool join(uint8_t *payload, uint8_t length) {
-            //
+
             //            bool joined_any = false;
             JoinSemanticClusterMsg_t *mess = (JoinSemanticClusterMsg_t*) payload;
             size_t count = mess->contained() / sizeof (semantics_t);
             semantics_t a[count];
             mess->payload((uint8_t *) a);
-            debug().debug("Got a semantic cluster from %x|%d of %d semantics", mess->sender(), mess->hops(), count);
+            //            debug().debug("Got a semantic cluster from %x|%d of %d semantics", mess->sender(), mess->hops(), count);
             bool join = true;
             for (size_t i = 0; i < count; i++) {
-                debug().debug("checking from %d|%d ", a[i].semantic_id_, a[i].semantic_value_);
+                //                debug().debug("checking from %d|%d ", a[i].semantic_id_, a[i].semantic_value_);
                 join = join && has_semantic(a[i].semantic_id_, a[i].semantic_value_);
             }
             if ((join) && (hops_ > mess->hops())) {
@@ -253,9 +208,9 @@ namespace wiselib {
         }
     private:
         join_delegate_t join_delegate_;
-        semantics_vector_t semantics_vector_;
         cluster_id_t cluster_id_;
         int hops_;
+        Semantics_t * semantics_;
 
         Radio * radio_; //radio module
         Debug * debug_; //debug module

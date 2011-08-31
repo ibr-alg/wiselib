@@ -103,7 +103,7 @@ namespace wiselib {
         }
 
         inline size_t length() {
-            return sizeof (uint8_t) + sizeof (node_id_t) + sizeof (int) + 1 + buffer[PAYLOAD_POS];
+            return sizeof (message_id_t) + sizeof (node_id_t) + sizeof (int) + sizeof (cluster_id_t) + 1 + buffer[PAYLOAD_POS];
         }
 
     private:

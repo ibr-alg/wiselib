@@ -43,7 +43,8 @@ namespace wiselib {
      * 
      */
     template<typename OsModel_P, typename Radio_P, typename HeadDecision_P,
-    typename JoinDecision_P, typename Iterator_P, typename NB_P>
+    typename JoinDecision_P, typename Iterator_P, typename NB_P, typename Semantics_P >
+
     class SpitCore : public ClusteringBase <OsModel_P> {
     public:
         //TYPEDEFS
@@ -58,26 +59,18 @@ namespace wiselib {
         typedef HeadDecision_P HeadDecision_t;
         typedef JoinDecision_P JoinDecision_t;
         typedef Iterator_P Iterator_t;
+        typedef Semantics_P Semantics_t;
+        typedef typename Semantics_t::semantics_t semantics_t;
+        typedef typename Semantics_t::semantics_vector_t semantics_vector_t;
+        typedef typename Semantics_t::semantics_vector_iterator_t semantics_vector_iterator_t;
         // self_type
-        typedef SpitCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, NB_P> self_type;
+        typedef SpitCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, NB_P, Semantics_P> self_type;
         // data types
         typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
         typedef typename Radio::node_id_t node_id_t;
         typedef node_id_t cluster_id_t;
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
-
-
-
-        typedef wiselib::vector_static<OsModel, node_id_t, 20 > nodes_vector_t;
-
-        struct semantics_input {
-            int semantic;
-            int semantic_value;
-            nodes_vector_t nodes_;
-        };
-        typedef struct semantics_input semantics_input_t;
-        typedef wiselib::vector_static<OsModel, semantics_input_t, 10 > semantics_input_vector_t;
 
 
         // delegate
@@ -92,71 +85,8 @@ namespace wiselib {
         status_(0),
         head_lost_(false),
         do_cleanup(false) {
-            /*
-                        semantics_vector_.clear();
-
-                        semantics_input_t sema;
-
-                        //set rooms
-                        sema.nodes_.clear();
-                        sema.semantic = ROOM;
-                        sema.semantic_value = 1;
-                        sema.nodes_.push_back(0x9979);
-                        sema.nodes_.push_back(0x153d);
-                        sema.nodes_.push_back(0xcaa);
-                        sema.nodes_.push_back(0x1c98);
-                        semantics_vector_.push_back(sema);
-
-                        sema.nodes_.clear();
-                        sema.semantic_value = 2;
-                        sema.nodes_.push_back(0x295);
-                        sema.nodes_.push_back(0x1b77);
-                        semantics_vector_.push_back(sema);
-
-                        sema.nodes_.clear();
-                        sema.semantic_value = 3;
-                        sema.nodes_.push_back(0xca3);
-                        sema.nodes_.push_back(0x1cde);
-                        semantics_vector_.push_back(sema);
-
-                        sema.nodes_.clear();
-                        sema.semantic_value = 4;
-                        sema.nodes_.push_back(0x296);
-                        sema.nodes_.push_back(0x1ccd);
-                        semantics_vector_.push_back(sema);
-
-                        sema.nodes_.clear();
-                        sema.semantic_value = 5;
-                        sema.nodes_.push_back(0x585);
-                        sema.nodes_.push_back(0x786a);
-                        semantics_vector_.push_back(sema);
-
-                        //set floor
-                        sema.semantic = FLOOR;
-                        sema.semantic_value = 0;
-                        sema.nodes_.clear();
-                        sema.nodes_.push_back(0x9979);
-                        sema.nodes_.push_back(0x153d);
-                        sema.nodes_.push_back(0xcaa);
-                        sema.nodes_.push_back(0x1c98);
-                        sema.nodes_.push_back(0x295);
-                        sema.nodes_.push_back(0x1b77);
-                        sema.nodes_.push_back(0xca3);
-                        sema.nodes_.push_back(0x1cde);
-                        sema.nodes_.push_back(0x296);
-                        sema.nodes_.push_back(0x1ccd);
-                        sema.nodes_.push_back(0x585);
-                        sema.nodes_.push_back(0x786a);
-                        semantics_vector_.push_back(sema);
-
-                        sema.semantic = SCREEN;
-                        sema.semantic_value = 1;
-                        sema.nodes_.clear();
-                        sema.nodes_.push_back(0x9979);
-                        sema.nodes_.push_back(0x296);
-                        sema.nodes_.push_back(0x1c98);
-                        semantics_vector_.push_back(sema);
-             */
+            temp_ = -1;
+            light_ = -1;
         }
 
         /**
@@ -168,13 +98,14 @@ namespace wiselib {
         /**
          * initializes the values of radio timer and debug
          */
-        void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery) {
+        void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery, Semantics_t& semantics) {
             radio_ = &radiot;
             timer_ = &timert;
             debug_ = &debugt;
             rand_ = &randt;
 
             neighbor_discovery_ = &neighbor_discovery;
+            semantics_ = &semantics;
 
             uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI | nb_t::NEW_PAYLOAD_BIDI;
 
@@ -188,22 +119,10 @@ namespace wiselib {
             //cradio_delegate_ = cradio_delegate_t();
 
             //initialize the clustering modules
-            chd().init(radio(), debug());
-            jd().init(radio(), debug());
-            it().init(radio(), timer(), debug());
+            chd().init(radio(), debug(), semantics);
+            jd().init(radio(), debug(), semantics);
+            it().init(radio(), timer(), debug(), semantics);
 
-
-
-
-            //            for (typename semantics_input_vector_t::iterator svi = semantics_vector_.begin(); svi != semantics_vector_.end(); ++svi) {
-            //                for (typename nodes_vector_t::iterator nvi = (*svi).nodes_.begin(); nvi != (*svi).nodes_.end(); ++nvi) {
-            //                    if (radio().id() == (*nvi)) {
-            //                        //debug().debug("semantic %d|%d|%d , node %x",semantics_vector_.size(), svi->semantic, svi->semantic_value, radio().id());
-            //                        chd().set_semantic((*svi).semantic, svi->semantic_value);
-            //                        jd().set_semantic((*svi).semantic, svi->semantic_value);
-            //                    }
-            //                }
-            //            }
         }
 
         /**
@@ -231,19 +150,11 @@ namespace wiselib {
         }
 
         bool check_condition(cluster_id_t id, int value) {
-            jd().check_condition(id, value);
-            return chd().check_condition(id, value);
+            return semantics_->check_condition(id, value);
         }
 
         bool check_condition(cluster_id_t id) {
-            jd().check_condition(id);
-            return chd().check_condition(id);
-        }
-
-        void set_semantic(int semantic, int value) {
-            debug().debug("seting semantic %d , value %d ", semantic, value);
-            chd().set_semantic(semantic, value);
-            jd().set_semantic(semantic, value);
+            return semantics_->check_condition(id);
         }
 
         inline void set_demands(int id, int value) {
@@ -273,8 +184,8 @@ namespace wiselib {
          * is_gateway
          * is_cluster_head
          */
-        inline cluster_id_t cluster_id(size_t cluster_no = 0) {
-            return it().cluster_id(cluster_no);
+        inline cluster_id_t cluster_id() {
+            return it().cluster_id();
         }
 
         inline node_id_t parent(cluster_id_t cluster_id = 0) {
@@ -302,7 +213,7 @@ namespace wiselib {
 
         inline bool is_cluster_head() {
             if (!enabled_) return false;
-            return it().is_cluster_head();
+            return chd().is_cluster_head();
         }
 
         /**
@@ -453,8 +364,8 @@ namespace wiselib {
 
             // start the procedure to find new head
             timer().template set_timer<self_type, &self_type::find_head > (
-                    time_slice_, this, (void *) 0);
-            //                    rand()() % 300 + time_slice_, this, (void *) 0);
+                    rand()() % 300 + time_slice_, this, (void *) 0);
+
 
         }
 
@@ -470,7 +381,7 @@ namespace wiselib {
             if (round == 0) {
                 if (!participating_) return;
 #ifdef DEBUG_EXTRA
-                debug().debug("CL;stage1;ExchangeSemantics;%d");
+                debug().debug("CL;stage1;ExchangeSemantics");
 #endif
 
 
@@ -506,9 +417,11 @@ namespace wiselib {
 #endif
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
+                } else {
+                    debug().debug("is not a cluster_head");
                 }
-                //            timer().template set_timer<self_type,
-                //                    &self_type::reply_to_head > (2 * time_slice_, this, (void*) 0);
+                timer().template set_timer<self_type,
+                        &self_type::reply_to_head > (2 * time_slice_, this, (void*) 0);
             }
         }
 
@@ -516,38 +429,38 @@ namespace wiselib {
         //TODO:REPORT TO HEADS
 
         void reply_to_head(void *) {
-            //#ifdef DEBUG_EXTRA
-            //            debug().debug("CL;stage3;Reply");
-            //#endif
-            //
-            //            if (it().clusters_joined() < 1) {
-            //#ifdef DEBUG_CLUSTERING
-            //                //                debug().debug("CL;Node Joined no cluster, change to cluster_head");
-            //                debug().debug("CL;Uncovered");
-            //#endif
-            //                it().set_node_type(HEAD);
-            //                // Cluster is head now
-            //                this->state_changed(ELECTED_CLUSTER_HEAD);
-            //                //
-            //                //                timer().template set_timer<self_type,
-            //                //                        &self_type::wait2form_cluster > (maxhops_ * time_slice_, this, (void*) 0);
-            //
-            //            } else {
-            //#ifdef DEBUG_EXTRA
-            //                debug().debug("CL;Node%x,reply %d clusters", radio().id(), it().clusters_joined());
-            //#endif
-            //
-            //            }
-            //            reset_beacon_payload();
+
+            if (chd().is_cluster_head()) {
+#ifdef DEBUG_EXTRA
+                debug().debug("CL;stage3;wait4answer");
+#endif
+
+                timer().template set_timer<self_type,
+                        &self_type::answer > (time_slice_, this, (void*) 0);
+            } else {
+#ifdef DEBUG_EXTRA
+                debug().debug("CL;stage3;Reply");
+#endif
+
+                if (it().parent() != 0xffff) {
+                    //                debug().debug("will add %d semantics", semantics_->semantics_vector_.size());
+                    //                debug().debug("will add %d enabled semantics", semantics_->enabled_semantics());
+                    SemaResumeMsg_t msg = it().get_resume_payload();
+
+                    radio().send(it().parent(), msg.length(), (uint8_t *) & msg);
+                    this->state_changed(MESSAGE_SENT, msg.msg_id(), it().parent());
+                }
+            }
+        }
+
+        void answer(void *) {
+            debug().debug("answering....");
+            it().present_neighbors();
         }
 
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
             if (it().add_cluster(cluster, hops, parent)) {
-                //reset_beacon_payload();
                 this->state_changed(NODE_JOINED, SIMPLE, cluster);
-                //#ifdef DEBUG_CLUSTERING
-                //                debug().debug("CLP;%x;%d;%x", radio().id(), radio().id() == cluster ? HEAD : SIMPLE, cluster);
-                //#endif
             }
         }
 
@@ -602,26 +515,15 @@ namespace wiselib {
 #endif
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
                 }
+            } else if (type == RESUME) {
+                if (is_cluster_head()) {
+
+                    it().eat_resume(len, data);
+                    //it().node_joined(from);
+                } else {
+                    radio().send(it().parent(), len, data);
+                }
             }
-            //            else if (type == CONVERGECAST) {
-            //                ConvergecastMsg_t * mess = (ConvergecastMsg_t*) data;
-            //#ifdef DEBUG_RECEIVED
-            //                debug().debug("CL;Received;CONVERGECAST;%x;%x", from, mess.sender_id());
-            //#endif
-            //                if ((mess->cluster_id() != radio().id()) && (it().parent(mess->cluster_id()) != 0)) {
-            //#ifdef DEBUG
-            //                    debug().debug("CLS;%x;%d;%x for %x", radio().id(), mess->msg_id(), it().parent(mess->cluster_id()), mess->cluster_id()); //mess.sender_id()
-            //#endif
-            //                    radio().send(it().parent(mess->cluster_id()), mess->length(), (uint8_t*) mess);
-            //                    //this->state_changed(MESSAGE_SENT);
-            //                } else {
-            //                    it().eat_request(mess);
-            //                }
-            //            } else {
-            //#ifdef DEBUG_RECEIVED
-            //                debug().debug("CL;Received;%x;%d;%x;UNKNOWN", radio().id(), data[0], from);
-            //#endif
-            //            }
         }
 
         void notify_cradio(uint8_t event, cluster_id_t from, node_id_t to) {
@@ -636,19 +538,19 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
-            if (!enabled_) return;
-            if (nb_t::NEW_PAYLOAD_BIDI == event) {
-                //
-                //                receive_beacon(from, len, data);
-                //                //reset my beacon according to the new status
-                //                reset_beacon_payload();
-            } else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
-#ifndef FIXED_ROLES
-#ifdef MAINTENANCE
-                node_lost(from);
-#endif
-#endif
-            }
+            //            if (!enabled_) return;
+            //            if (nb_t::NEW_PAYLOAD_BIDI == event) {
+            //                //
+            //                //                receive_beacon(from, len, data);
+            //                //                //reset my beacon according to the new status
+            //                //                reset_beacon_payload();
+            //            } else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
+            //#ifndef FIXED_ROLES
+            //#ifdef MAINTENANCE
+            //                node_lost(from);
+            //#endif
+            //#endif
+            //            }
         }
 
     private:
@@ -660,8 +562,13 @@ namespace wiselib {
         static const uint32_t time_slice_ = 2000; // time to wait for cluster accept replies
         bool head_lost_; // flag when the head was lost
         bool do_cleanup;
+        int light_;
+        int temp_;
 
-        semantics_input_vector_t semantics_vector_;
+        int count;
+        int myvalues;
+
+        Semantics_t * semantics_;
 
 
         HeadDecision_t * chd_;
