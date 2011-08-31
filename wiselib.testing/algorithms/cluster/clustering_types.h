@@ -56,7 +56,7 @@ namespace wiselib {
         UNKNOWN_CLUSTER_HEAD = 0xffff
     };
 
-    
+
 }
 
 
@@ -82,6 +82,8 @@ typedef wiselib::ResumeClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> Res
 
 #include "algorithms/cluster/messages/sema_attr.h"
 typedef wiselib::SemaAttrClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaAttributeMsg_t;
+#include "algorithms/cluster/messages/sema_resu.h"
+typedef wiselib::SemaResuClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaResumeMsg_t;
 
 #include "algorithms/cluster_radio/cluster_radio_message.h"
 
