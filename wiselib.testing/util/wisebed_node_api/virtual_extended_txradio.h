@@ -277,7 +277,7 @@ namespace wiselib {
                 case DISABLE_NODE:
                     disable_node(data + sizeof (block_data_t));
                     break;
-                case SET_VIRTUAL_LINK:
+                case SET_VIRTUAL_LINK:                    
                     set_virtual_link(data + sizeof (block_data_t));
                     break;
                 case DESTROY_VIRTUAL_LINK:
@@ -330,9 +330,18 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         int set_channel(int channel) {
-
             return radio().set_channel(channel);
         }
+
+        // --------------------------------------------------------------------
+        //---------- From concept VariablePowerRadio ------------
+
+        int set_power(TxPower p) {
+            radio().set_power(p);
+            return 1;
+        }
+
+
         // --------------------------------------------------------------------
 
         void disable_radio() {
