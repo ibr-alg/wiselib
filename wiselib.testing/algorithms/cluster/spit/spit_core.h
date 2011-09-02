@@ -10,6 +10,7 @@
 #include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
 #include "util/base_classes/clustering_base2.h"
+#include "util/pstl/vector_static.h"
 
 #include "algorithms/cluster/modules/chd/sema_chd.h"
 #include "algorithms/cluster/modules/jd/sema_jd.h"
@@ -27,7 +28,7 @@
 // Uncomment to enable Debug
 #define DEBUG
 #ifdef DEBUG
-#define DEBUG_EXTRA
+//#define DEBUG_EXTRA
 //#define DEBUG_RECEIVED
 //#define DEBUG_PAYLOADS
 #define DEBUG_CLUSTERING
@@ -72,6 +73,10 @@ namespace wiselib {
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
 
+        typedef wiselib::pair<int, int> demands_entry_t;
+        typedef wiselib::vector_static<OsModel, demands_entry_t, 10 > demands_vector_t;
+        typedef typename demands_vector_t::iterator demands_vector_iterator_t;
+
 
         // delegate
         //typedef delegate1<void, int> cluster_delegate_t;
@@ -85,8 +90,7 @@ namespace wiselib {
         status_(0),
         head_lost_(false),
         do_cleanup(false) {
-            temp_ = -1;
-            light_ = -1;
+            demands_vector_.clear();
         }
 
         /**
@@ -160,16 +164,21 @@ namespace wiselib {
         inline void set_demands(int id, int value) {
             bool response = false;
             if (value == 0xff) {
-                debug_->debug("Set demands:%d", id);
+                //                debug_->debug("Set demands:%d", id);
                 response = check_condition(id);
             } else {
-                debug_->debug("Set demands:%d|%d", id, value);
+                //                debug_->debug("Set demands:%d|%d", id, value);
                 response = check_condition(id, value);
             }
             participating_ = participating_ && response;
             if (participating_) {
-                debug().debug("participating in (%d|%d) ", id, value);
+                //                debug().debug("participating in (%d|%d) ", id, value);
             }
+
+            demands_entry_t newdemand;
+            newdemand.first = id;
+            newdemand.second = value;
+            demands_vector_.push_back(newdemand);
         }
 
         /**
@@ -310,7 +319,6 @@ namespace wiselib {
             jd().reset();
             it().reset();
 
-
 #ifndef FIXED_ROLES
 
             timer().template set_timer<self_type, &self_type::form_cluster > (
@@ -359,14 +367,9 @@ namespace wiselib {
             jd().reset();
             it().reset();
 
-
-
-
             // start the procedure to find new head
             timer().template set_timer<self_type, &self_type::find_head > (
                     rand()() % 300 + time_slice_, this, (void *) 0);
-
-
         }
 
         /**
@@ -378,18 +381,18 @@ namespace wiselib {
         void find_head(void * value) {
             long round = (long) value;
 
-            if (round == 0) {
+            if (round < 3) {
                 if (!participating_) return;
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage1;ExchangeSemantics");
 #endif
 
-
                 SemaAttributeMsg_t mess = chd().get_attribute_payload();
                 radio().send(0xffff, mess.length(), (uint8_t*) & mess);
                 // start the procedure to find new head
+                round++;
                 timer().template set_timer<self_type, &self_type::find_head > (
-                        10 * time_slice_, this, (void *) 1);
+                        time_slice_, this, (void *) round);
             } else {
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage1;Clusterheaddecision");
@@ -417,16 +420,11 @@ namespace wiselib {
 #endif
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
-                } else {
-                    debug().debug("is not a cluster_head");
                 }
                 timer().template set_timer<self_type,
-                        &self_type::reply_to_head > (2 * time_slice_, this, (void*) 0);
+                        &self_type::reply_to_head > (time_slice_, this, (void*) 0);
             }
         }
-
-
-        //TODO:REPORT TO HEADS
 
         void reply_to_head(void *) {
 
@@ -436,15 +434,13 @@ namespace wiselib {
 #endif
 
                 timer().template set_timer<self_type,
-                        &self_type::answer > (time_slice_, this, (void*) 0);
+                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
             } else {
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage3;Reply");
 #endif
 
                 if (it().parent() != 0xffff) {
-                    //                debug().debug("will add %d semantics", semantics_->semantics_vector_.size());
-                    //                debug().debug("will add %d enabled semantics", semantics_->enabled_semantics());
                     SemaResumeMsg_t msg = it().get_resume_payload();
 
                     radio().send(it().parent(), msg.length(), (uint8_t *) & msg);
@@ -454,8 +450,32 @@ namespace wiselib {
         }
 
         void answer(void *) {
-            debug().debug("answering....");
-            it().present_neighbors();
+            bool result = true;
+            for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                if (dvit->first > 200) {
+                    int agg_sema_value = it().get_agg_semantic(dvit->first);
+                    //lower than condition ( accept only if the agg value is lower than the given demand)
+                    if ((dvit->second < agg_sema_value) || (agg_sema_value == 4294967295) || (agg_sema_value == -1)) {
+                        result = false;
+                    }
+                }
+            }
+            if (result) {
+                char str[100];
+                int bytes_written = 0;
+                bytes_written += sprintf(str + bytes_written, "Yes it is!");
+                for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                    if (dvit->first > 200) {
+                        bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, it().get_agg_semantic(dvit->first));
+                        //                        debug().debug("has a %d|%d", dvit->first, it().get_agg_semantic(dvit->first));
+                    } else {
+                        bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, semantics_->semantic_value(dvit->first));
+                        //                        debug().debug("has a %d|%d", dvit->first, dvit->second);
+                    }
+                }
+                str[bytes_written] = '\0';
+                debug().debug("%s", str);
+            }
         }
 
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
@@ -466,6 +486,7 @@ namespace wiselib {
 
         void became_head(int a) {
             jd().set_head();
+            it().add_my_sems();
         }
 
         /**
@@ -492,7 +513,7 @@ namespace wiselib {
             if (from == radio().id()) return;
             if (!participating_) return;
 
-            //if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
+            //            if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
 
             // get Type of Message
             int type = data[0];
@@ -559,14 +580,14 @@ namespace wiselib {
         bool participating_;
         uint8_t status_; // the status of the clustering algorithm
         int callback_id_; // receive message callback
-        static const uint32_t time_slice_ = 2000; // time to wait for cluster accept replies
+        static const uint32_t time_slice_ = 500; // time to wait for cluster accept replies
         bool head_lost_; // flag when the head was lost
         bool do_cleanup;
-        int light_;
-        int temp_;
 
         int count;
         int myvalues;
+
+        demands_vector_t demands_vector_;
 
         Semantics_t * semantics_;
 

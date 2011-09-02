@@ -98,7 +98,7 @@ namespace wiselib {
 
             for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
                 //                debug_->debug("semantic is %d|%d  %x", si->semantic_id_, si->semantic_value_, si->node_id_);
-                if ((si->node_id_ == radio_->id()) && (si->enabled_)) {
+                if ((si->semantic_id_ <= 200) && (si->node_id_ == radio_->id()) && (si->enabled_)) {
                     //                    debug_->debug("semantic chead of c %x|%x", si->semantic_id_, si->semantic_value_);
                     cluster_head_ = true;
                 } else {
@@ -126,7 +126,7 @@ namespace wiselib {
                     if (si->semantic_id_ <= 200) {
                         if ((si->semantic_id_ == a[i].semantic_id_) && (si->semantic_value_ != a[i].semantic_value_)) {
                             //        debug_->debug("seting %x as my sh %x", si->node_id_, si->cluster_id_);
-//                            debug_->debug("dropping from %x", from);
+                            //                            debug_->debug("dropping from %x", from);
                             fits = false;
                         }
                     }
@@ -137,7 +137,7 @@ namespace wiselib {
                     //  debug_->debug("semantic is %x  |from %x", a[i].cluster_id_, a[i].node_id_);                
                     for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
                         if ((si->node_id_ > a[i].node_id_) && (si->semantic_id_ == a[i].semantic_id_)) {
-//                            debug_->debug("setting from %x", from);
+                            //                            debug_->debug("setting from %x", from);
                             si->node_id_ = a[i].node_id_;
                         }
                     }

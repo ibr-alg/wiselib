@@ -29,7 +29,8 @@ namespace wiselib {
             ROOM = 4,
             SCREEN = 10,
             LIGHT = 210,
-            TEMP = 211
+            TEMP = 211,
+            PIR = 212
         };
 
 
@@ -100,11 +101,12 @@ namespace wiselib {
                     return true;
                 }
             }
+            if (semantic > 200) return true;
             return false;
         }
 
         bool check_condition(int semantic, int value) {
-            if (semantic > 200) check_condition(semantic);
+            if (semantic > 200) return check_condition(semantic);
             //            debug_->debug("checking semantic value %d|%d", semantic, value);
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if ((si->semantic_id_ == semantic) && (si->semantic_value_ == value)) {
