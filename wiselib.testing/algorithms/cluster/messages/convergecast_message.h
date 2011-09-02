@@ -26,8 +26,7 @@ namespace wiselib {
             MSG_ID_POS = 0, // message id position inside the message [uint8]
             SENDER_ID_POS = 1,
             CLUSTER_ID_POS = 1 + sizeof (node_id_t),
-            CLUSTER_COUNT_POS = sizeof (message_id_t) + sizeof (node_id_t) + sizeof (node_id_t),
-            CLUSTER_LIST_POS = sizeof (message_id_t) + sizeof (node_id_t) + sizeof (node_id_t) + sizeof (size_t)
+            CLUSTER_LIST_POS = sizeof (message_id_t) + sizeof (node_id_t) + sizeof (node_id_t)
         };
 
         // --------------------------------------------------------------------
@@ -81,27 +80,24 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         inline size_t cluster_count() {
-            return read<OsModel, block_data_t, size_t > (buffer + CLUSTER_COUNT_POS);
-        }
-
-        inline void set_cluster_count(size_t count) {
-            write<OsModel, block_data_t, size_t > (buffer + CLUSTER_COUNT_POS, count);
+            return buffer[CLUSTER_LIST_POS];
         }
 
         // --------------------------------------------------------------------
 
-        inline size_t clusters(cluster_entry_t* buf) {
-            memcpy(buf, buffer + CLUSTER_LIST_POS, cluster_count() * sizeof (cluster_entry_t));
+        inline size_t clusters(uint8_t* buf) {
+            memcpy(buf, buffer + CLUSTER_LIST_POS + 1, cluster_count());
             return cluster_count();
         }
 
-        inline void set_clusters(cluster_entry_t * clusters, size_t count) {
-            memcpy(buffer + CLUSTER_LIST_POS, clusters, count * sizeof (cluster_entry_t));
+        inline void set_clusters(uint8_t * clusters, size_t count) {
+            buffer[CLUSTER_LIST_POS] = count;
+            memcpy(buffer + CLUSTER_LIST_POS + 1, clusters, count);
         }
         // --------------------------------------------------------------------
 
         inline size_t length() {
-            return sizeof (message_id_t) + sizeof (node_id_t) + sizeof (node_id_t) + sizeof (size_t) + cluster_count() * sizeof (cluster_entry_t);
+            return sizeof (message_id_t) + sizeof (node_id_t) + sizeof (node_id_t) + 1 + buffer[CLUSTER_LIST_POS];
         }
 
     private:
