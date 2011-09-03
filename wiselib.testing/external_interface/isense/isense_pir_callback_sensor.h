@@ -44,7 +44,11 @@ namespace wiselib
 	 * This class implements the \ref request_sensor_concept "Request Sensor
 	 * Concept". So access to the value is possible by simply using the 
 	 * operator(). The sensor returns if controlled sector (approx. 13m in 
-	 * depth at an angle of 130°) is free or occupied.  
+	 * depth at an angle of 130°) is free or occupied. 
+	 *
+	 *  \attention For this class to work properly the iSense Security 
+	 *  Sensor Module must be connected. Please make sure that your Security 
+	 *  Module actually has a PIR-Sensor! 
 	 */
 	template<typename OsModel_P,int PIR_INTERVAL = SECOND >
 	class iSensePirCallbackSensor

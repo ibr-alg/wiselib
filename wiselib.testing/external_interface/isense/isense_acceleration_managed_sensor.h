@@ -49,6 +49,10 @@ namespace wiselib
 	 *  \ref managed_sensor_concept "Managed Sensor Concept", access to the 
 	 *  measured value is simply given by requesting the values from the sensor
 	 *	 via encoded_value() or encoded_value( AxisSpecifier ) 
+	 * 
+	 *  \attention For this class to work properly the iSense Security Sensor 
+	 *  Module must be connected. Please make sure your Security Module actually 
+	 *  has an accelerometer!
 	 */
 	template <typename OsModel_P>
 	class iSenseAccelerationManagedSensor : public isense::BufferDataHandler
