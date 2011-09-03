@@ -37,7 +37,7 @@ namespace wiselib
 		 */
 		struct AccelerationData { 	int16 x;
 											int16 y;
-											int16 z;};
+											int16 z; };
 	}
 	#endif // __ACCEL_DATA__
 		
@@ -47,6 +47,10 @@ namespace wiselib
 	 *  This is the implementation of an iSense accelerometer. As it implements
 	 *  \ref request_sensor_concept "Request Sensor Concept", access to the 
 	 *  measured value is simply given by requesting the values from the sensor 
+	 * 
+	 *  \attention For this class to work properly the iSense Security Sensor 
+	 *  Module must be connected. Please make sure your Security Module actually 
+	 *  has an accelerometer!
 	 */
 	template <typename OsModel_P>
 	class iSenseAccelerationRequestSensor : public isense::BufferDataHandler

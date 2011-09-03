@@ -25,6 +25,10 @@
 #include <isense/data_handlers.h>
 #include <isense/modules/environment_module/environment_module.h>
 
+#ifndef ISENSE_ENABLE_TEMP_SENSOR_THRESHOLD
+#define ISENSE_ENABLE_TEMP_SENSOR_THRESHOLD
+#endif
+
 namespace wiselib
 {
 	/** \brief iSense implementation of temperature sensor 
@@ -34,6 +38,11 @@ namespace wiselib
 	 *  implements \ref callback_sensor_concept "Callback Sensor Concept", access
 	 *  to the measured value is simply given by registering a callback function 
 	 *  which the sensor will call everytime a specified threshold is exceeded. 
+	 *  The default corridor is Hyst: 25, Thres: 30. See setThreshold() for more
+	 *  information!
+	 *
+	 *  \attention For this class to work properly the iSense Environmental 
+	 *  Sensor Module must be connected.   
 	 */
 	template <typename OsModel_P>
 	class iSenseTemperatureCallbackSensor 
@@ -98,6 +107,7 @@ namespace wiselib
 						setThreshold( 0 , 0 );
 						curState_ = NO_VALUE;
 					}
+					//module_->temp_sensor()->enable();
 				}
 				else
 				{
@@ -112,6 +122,7 @@ namespace wiselib
 			}
 			
 			value_ = 0;
+			setThreshold( 25 , 30 );
 		}
 		///
 		
@@ -120,9 +131,9 @@ namespace wiselib
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the sensor
-		*
-		*  \return The current state
-		*/
+			*
+			*  \return The current state
+			*/
 		int state( void ) 
 		{ 
 			return curState_;
@@ -130,22 +141,29 @@ namespace wiselib
 		
 		//------------------------------------------------------------------------
 		
-		/** Returns the current luminance
+		/** Returns the current temperature
 			* 
-			* \return The current value for the luminance
+			* \return The current value for the temperature
 			*/
 		value_t get_value( void ) 
 		{ 
-			if( curState_ != READY )
-				return 0;
-			else
-				return value_;
+			return module_->temp_sensor()->temperature();
 		}
 		
 		//------------------------------------------------------------------------
 		
 		/** Sets the threshold and the hysteresis
-			* 
+			* If hysteresis is greater then threshold the values are swapped so 
+			* at any time threshold >= hysteresis is true.
+			*
+			* If the threshold is exceeded the first time, there will be a
+			* callback. When temperature falls below hysteresis there will be
+			* another callback. 
+			* There will only be a callback because of temperature falling below
+			* hysteresis, if the threshold has been exceeded before. And there will
+			* be no callback because of temperature exceeding threshold until
+			* temperature has fallen below hysteresis before (except at startup).
+			*  
 			*  \return Return true if the setting was successfull, else false
 			*/
 		bool setThreshold( int8 threshold, int8 hysteresis)
