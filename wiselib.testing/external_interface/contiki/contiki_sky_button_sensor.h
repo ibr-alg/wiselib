@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_BUTTON_SENSOR__
-#define __CONTIKI_BUTTON_SENSOR__
+#ifndef __CONTIKI_SKY_BUTTON_SENSOR__
+#define __CONTIKI_SKY_BUTTON_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
@@ -37,12 +37,12 @@ namespace wiselib
 	 * Sensor Concept" ...
 	 */
 	template<typename OsModel_P>
-	class ContikiButtonSensor
+	class ContikiSkyButtonSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
 		
-		typedef ContikiButtonSensor<OsModel> self_type;
+		typedef ContikiSkyButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
 		typedef int value_t;
@@ -71,13 +71,13 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiButtonSensor( )
+		ContikiSkyButtonSensor( )
 		{
 			state_ = READY;
 			SENSORS_ACTIVATE( button_sensor );
 		}
 		
-		~ContikiButtonSensor()
+		~ContikiSkyButtonSensor()
 		{
 			state_ = INACTIVE;
 		}
@@ -124,4 +124,4 @@ namespace wiselib
    };
 };
 
-#endif // __CONTIKI_BUTTON_SENSOR__
+#endif // __CONTIKI_SKY_BUTTON_SENSOR__
