@@ -70,7 +70,7 @@ namespace wiselib {
 
         }
 
-        void set_head() {
+        void became_head() {
             hops_ = 0;
             cluster_id_ = radio().id();
         }
