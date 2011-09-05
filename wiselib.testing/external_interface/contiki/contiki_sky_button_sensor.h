@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_BATTERY_SENSOR__
-#define __CONTIKI_BATTERY_SENSOR__
+#ifndef __CONTIKI_SKY_BUTTON_SENSOR__
+#define __CONTIKI_SKY_BUTTON_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
@@ -25,10 +25,8 @@
 extern "C"
 {
 	#include "contiki.h" 
-	#include "dev/battery-sensor.h"
-	
+	#include "dev/button-sensor.h"
 }
-#include <stdio.h>
 
 namespace wiselib
 {
@@ -39,12 +37,12 @@ namespace wiselib
 	 * Sensor Concept" ...
 	 */
 	template<typename OsModel_P>
-	class ContikiBatterySensor
+	class ContikiSkyButtonSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
 		
-		typedef ContikiBatterySensor<OsModel> self_type;
+		typedef ContikiSkyButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
 		typedef int value_t;
@@ -73,13 +71,13 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiBatterySensor( )
+		ContikiSkyButtonSensor( )
 		{
 			state_ = READY;
-			SENSORS_ACTIVATE( battery_sensor );
+			SENSORS_ACTIVATE( button_sensor );
 		}
 		
-		~ContikiBatterySensor()
+		~ContikiSkyButtonSensor()
 		{
 			state_ = INACTIVE;
 		}
@@ -100,16 +98,15 @@ namespace wiselib
 		
 		//------------------------------------------------------------------------
 		
-		/** Returns actual battery voltage in mV
+		/** Returns current button status
 		 *
-		 *  \returns Battery voltage in mV
+		 *  \returns 0, if button is pressed or 1 if it is currently
+		 *  released.
 		 */
 		value_t operator()( void )
 		{	
-			int battery_value = battery_sensor.value( 0 );
-			battery_value = ( int ) ( ( ( ( double ) battery_value ) / 4096.0 ) 
-				* 1.5 * 1000 );
-			return battery_value;
+			int button_pressed = button_sensor.value( 0 );
+			return button_pressed;
 		}
 		
 		/** Disables the Sensor
@@ -117,7 +114,7 @@ namespace wiselib
 		 */
 		void disable()
 		{
-				SENSORS_DEACTIVATE( battery_sensor );
+				SENSORS_DEACTIVATE( button_sensor );
 		}
 		///
 		
@@ -127,4 +124,4 @@ namespace wiselib
    };
 };
 
-#endif // __CONTIKI_BATTERY_SENSOR__
+#endif // __CONTIKI_SKY_BUTTON_SENSOR__

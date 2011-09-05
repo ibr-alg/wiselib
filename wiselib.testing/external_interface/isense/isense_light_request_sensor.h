@@ -31,7 +31,10 @@ namespace wiselib
 	 *
 	 *  This is the implementation of an iSense light sensor. As it implements
 	 *  \ref request_sensor_concept "Request Sensor Concept", access to the 
-	 *  measured value is simply given by requesting the values from the sensor 
+	 *  measured value is simply given by requesting the values from the sensor
+	 *
+	 *  \attention For this class to work properly the iSense Environmental 
+	 *  Sensor Module must be connected. 
 	 */
 	template <typename OsModel_P>
 	class iSenseLightRequestSensor

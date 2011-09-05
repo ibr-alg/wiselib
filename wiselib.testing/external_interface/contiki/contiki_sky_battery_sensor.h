@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_HUMIDITY_SENSOR__
-#define __CONTIKI_HUMIDITY_SESNOR__
+#ifndef __CONTIKI_SKY_BATTERY_SENSOR__
+#define __CONTIKI_SKY_BATTERY_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
@@ -25,31 +25,31 @@
 extern "C"
 {
 	#include "contiki.h" 
-	#include "sht11-sensor.h"
-	#include "lib/sensors.h"
+	#include "dev/battery-sensor.h"
+	
 }
+#include <stdio.h>
 
 namespace wiselib
 {
-	/** \brief Contiki implementation of humidity sensor 
+	/** \brief Contiki Implementation of \ref request_sensor_concept "Request 
+	 *  Sensor Concept"
 	 *
-	 * Contiki implementation of humidity sensor sht11 (on TMoteSky res. TelosB).
-	 * This class implements the \ref request_sensor_concept "Request Sensor
-	 * Concept". So access to the value is possible by simply using the 
-	 * operator(). The sensor returns the relative humidity in percent. 
+	 * Contiki implementation of the \ref request_sensor_concept "Request
+	 * Sensor Concept" ...
 	 */
 	template<typename OsModel_P>
-	class ContikiHumiditySensor
+	class ContikiSkyBatterySensor
 	{
 	public:
 		typedef OsModel_P OsModel;
 		
-		typedef ContikiHumiditySensor<OsModel> self_type;
+		typedef ContikiSkyBatterySensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
 		typedef int value_t;
 		
-		// -----------------------------------------------------------------------
+		//------------------------------------------------------------------------
 		
 		enum ErrorCodes
 		{
@@ -57,7 +57,7 @@ namespace wiselib
 			ERR_UNSPEC = OsModel::ERR_UNSPEC
 		};
 		
-		// -----------------------------------------------------------------------
+		//------------------------------------------------------------------------
 		
 		enum StateData
 		{
@@ -66,19 +66,20 @@ namespace wiselib
 			INACTIVE = OsModel::INACTIVE
 		};
 		
-		// -----------------------------------------------------------------------
+		//------------------------------------------------------------------------
 		
 		///@name Constructor/Destructor
 		///
 		/** Default constructor
 		 *
 		 */
-		ContikiHumiditySensor( )
+		ContikiSkyBatterySensor( )
 		{
 			state_ = READY;
+			SENSORS_ACTIVATE( battery_sensor );
 		}
 		
-		~ContikiHumiditySensor( )
+		~ContikiSkyBatterySensor()
 		{
 			state_ = INACTIVE;
 		}
@@ -94,41 +95,36 @@ namespace wiselib
 		 */
 		int state()
 		{
-		   return state_;
+			return state_;
 		}
 		
 		//------------------------------------------------------------------------
 		
-		/** Returns the current sensor value
-		 * 
-		 * \return (Temperature compensated) relative Humidity in %
+		/** Returns actual battery voltage in mV
+		 *
+		 *  \returns Battery voltage in mV
 		 */
 		value_t operator()( void )
+		{	
+			int battery_value = battery_sensor.value( 0 );
+			battery_value = ( uint32_t ) ( ( ( ( double ) battery_value ) / 4096.0 ) 
+				* 2.5 );
+			return battery_value;
+		}
+		
+		/** Disables the Sensor
+		 * 
+		 */
+		void disable()
 		{
-			SENSORS_ACTIVATE( sht11_sensor );
-			
-			int hum = sht11_sensor.value(SHT11_SENSOR_HUMIDITY);
-			double humD = ( double ) hum;
-			humD = -4.0 + 0.0405 * humD + ( -2.8 * 0.000001 ) * ( humD * humD );
-			
-			double tempD = -39.60 + ( 0.01 * ( 
-				( double ) sht11_sensor.value(SHT11_SENSOR_TEMP) ) );
-			
-			double trueHumD =  ( tempD - 25.0 ) * (0.01 + 0.00008 * ( double ) hum)
-				+ humD;
-			
-			SENSORS_DEACTIVATE( sht11_sensor );
-			
-			return ( int ) trueHumD;
+				SENSORS_DEACTIVATE( battery_sensor );
 		}
 		///
-		
-		//------------------------------------------------------------------------
 		
 	private:
 		/// The current state
 		StateData state_;
-	};
+   };
 };
-		
-#endif // __CONTIKI_HUMIDITY_SENSOR__
+
+#endif // __CONTIKI_SKY_BATTERY_SENSOR__

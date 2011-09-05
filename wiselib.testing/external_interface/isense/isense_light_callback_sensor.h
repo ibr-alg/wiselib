@@ -33,7 +33,10 @@ namespace wiselib
 	 *  This is the implementation of an iSense light sensor. As it implements
 	 *  \ref callback_sensor_concept "Callback Sensor Concept", access to the 
 	 *  measured value is simply given by registering a callback function which 
-	 *  the sensor will call everytime a specified threshold is exceeded. 
+	 *  the sensor will call everytime a specified threshold is exceeded.
+	 *
+	 *  \attention For this class to work properly the iSense Environmental 
+	 *  Sensor Module must be connected. 
 	 */
 	template <typename OsModel_P>
 	class iSenseLightCallbackSensor 

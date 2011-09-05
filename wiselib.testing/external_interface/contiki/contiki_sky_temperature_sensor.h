@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_TEMPERATURE_SENSOR__
-#define __CONTIKI_TEMPERATURE_SENSOR__
+#ifndef __CONTIKI_SKY_TEMPERATURE_SENSOR__
+#define __CONTIKI_SKY_TEMPERATURE_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
@@ -36,14 +36,18 @@ namespace wiselib
 	 *
 	 * Contiki implementation of the \ref request_sensor_concept "Request
 	 * Sensor Concept" ...
+	 * 
+	 * 
+	 * \attention For this class to work properly the TmoteSky/TelosB must be
+	 * equipped with the optional SHT11 Sensor. 
 	 */
 	template<typename OsModel_P>
-	class ContikiTemperatureSensor
+	class ContikiSkyTemperatureSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
 		
-		typedef ContikiTemperatureSensor<OsModel> self_type;
+		typedef ContikiSkyTemperatureSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
 		typedef int value_t;
@@ -72,12 +76,12 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiTemperatureSensor( )
+		ContikiSkyTemperatureSensor( )
 		{
 			state_ = READY;
 		}
 		
-		~ContikiTemperatureSensor()
+		~ContikiSkyTemperatureSensor()
 		{
 			state_ = INACTIVE;
 		}
@@ -117,4 +121,4 @@ namespace wiselib
    };
 };
 
-#endif // __CONTIKI_TEMPERATURE_SENSOR__
+#endif // __CONTIKI_SKY_TEMPERATURE_SENSOR__
