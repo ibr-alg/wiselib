@@ -485,7 +485,7 @@ namespace wiselib {
         }
 
         void became_head(int a) {
-            jd().set_head();
+            jd().became_head();
             it().add_my_sems();
         }
 
@@ -522,6 +522,7 @@ namespace wiselib {
 
                 chd().receive(from, len, data);
             } else if (type == JOINM) {
+//                debug().debug("Got a join message form %x", from);
 
                 if (jd().join(data, len)) {
                     JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
