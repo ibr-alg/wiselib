@@ -1,5 +1,11 @@
+/* 
+ * File:   semantics.h
+ * Author: amaxilat
+ *
+ */
 
-#include "util//pstl/vector_static.h"
+
+#include "util/pstl/vector_static.h"
 
 namespace wiselib {
 
@@ -27,6 +33,7 @@ namespace wiselib {
             FLOOR = 2,
             SECTOR = 3,
             ROOM = 4,
+            SIDE = 5,
             SCREEN = 10,
             LIGHT = 210,
             TEMP = 211,
