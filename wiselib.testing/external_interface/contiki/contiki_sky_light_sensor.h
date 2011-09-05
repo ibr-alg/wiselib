@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_LIGHT_SENSOR__
-#define __CONTIKI_LIGHT_SENSOR__
+#ifndef __CONTIKI_SKY_LIGHT_SENSOR__
+#define __CONTIKI_SKY_LIGHT_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
@@ -41,14 +41,19 @@ namespace wiselib
 	 * This class implements the \ref request_sensor_concept "Request Sensor
 	 * Concept". So access to the value is possible by simply using the 
 	 * operator(). The sensor returns luminance in lux. 
+	 * 
+	 * 
+	 * \attention For this class to work properly the TmoteSky/TelosB must be
+	 * equipped with the optional S1087 and S1087-1 sensors from Hamamtsu
+	 * Corporation. 
 	 */
 	template<typename OsModel_P>
-	class ContikiLightSensor
+	class ContikiSkyLightSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
 		
-		typedef ContikiLightSensor<OsModel> self_type;
+		typedef ContikiSkyLightSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
 		typedef int value_t;
@@ -85,7 +90,7 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiLightSensor( )
+		ContikiSkyLightSensor( )
 		{
 			SENSORS_ACTIVATE( light_sensor );
 			state_ = READY;
@@ -93,7 +98,7 @@ namespace wiselib
 		
 		//------------------------------------------------------------------------
 		
-		~ContikiLightSensor( )
+		~ContikiSkyLightSensor( )
 		{
 			SENSORS_DEACTIVATE( light_sensor );
 			state_ = INACTIVE;
@@ -211,4 +216,4 @@ namespace wiselib
 	};
 };
 
-#endif // __CONTIKI_LIGHT_SENSOR__
+#endif // __CONTIKI_SKY_LIGHT_SENSOR__
