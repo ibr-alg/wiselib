@@ -114,6 +114,24 @@ namespace wiselib {
 				return a;
 			}
 			
+			void set_semantic_value(predicate_t predicate, value_t value) {
+				SelfTuple q;
+				q.predicate = predicate;
+				store_.create_index(PREDICATE);
+				typename TupleStore::query_iterator iter = store_.query_begin(q, PREDICATE);
+				
+				// Erase all tuples with that predicate
+				while(true) {
+					iter = store_.query_begin(q, PREDICATE);
+					if(iter == store_.query_end()) { break; }
+					store_.erase(iter);
+				}
+				
+				// Insert new tuple
+				q.object = value;
+				store_.insert(q);
+			}
+			
 		private:
 			struct SelfTuple {
 				SelfTuple() { }
