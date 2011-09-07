@@ -175,6 +175,16 @@ namespace wiselib {
                 //                debug().debug("participating in (%d|%d) ", id, value);
             }
 
+            //change existing demand
+            if (!demands_vector_.empty()) {
+                for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                    if (dvit->first == id) {
+                        dvit->second = value;
+                        return;
+                    }
+                }
+            }
+
             demands_entry_t newdemand;
             newdemand.first = id;
             newdemand.second = value;
@@ -315,9 +325,7 @@ namespace wiselib {
 #endif
 #endif
 
-            chd().reset();
-            jd().reset();
-            it().reset();
+
 
 #ifndef FIXED_ROLES
 
@@ -348,114 +356,13 @@ namespace wiselib {
             }
         }
 
-
-    protected:
-
-
-        // Call with a timer to start a reform procedure from the cluster head
-
-        inline void reform_cluster(void * parameter) {
-            if (!enabled_) return;
-            //reform_ = true;
-        }
-
-        void form_cluster(void * parameter) {
-            if (!enabled_) return;
-            status_ = FORMING;
-            //enabling
-            chd().reset();
-            jd().reset();
-            it().reset();
-
-            // start the procedure to find new head
-            timer().template set_timer<self_type, &self_type::find_head > (
-                    rand()() % 300 + time_slice_, this, (void *) 0);
-        }
-
-        /**
-         * FIND_HEAD
-         * starts clustering
-         * decides a head and then start clustering
-         * from the head of each cluster
-         */
-        void find_head(void * value) {
-            long round = (long) value;
-
-            if (round < 3) {
-                if (!participating_) return;
-#ifdef DEBUG_EXTRA
-                debug().debug("CL;stage1;ExchangeSemantics");
-#endif
-
-                SemaAttributeMsg_t mess = chd().get_attribute_payload();
-                radio().send(0xffff, mess.length(), (uint8_t*) & mess);
-                // start the procedure to find new head
-                round++;
-                timer().template set_timer<self_type, &self_type::find_head > (
-                        time_slice_, this, (void *) round);
-            } else {
-#ifdef DEBUG_EXTRA
-                debug().debug("CL;stage1;Clusterheaddecision");
-#endif
-                // if Cluster Head
-                if (chd().calculate_head() == true) {
-                    // Node is head now
-                    // set values for iterator and join_decision
-                    it().set_node_type(HEAD);
-                    this->state_changed(ELECTED_CLUSTER_HEAD, 2, radio().id());
-
-#ifdef DEBUG_EXTRA
-                    debug().debug("CL;stage2;Join");
-#endif
-
-                    JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
-
-                    // send JOIN
-                    radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t *) & join_msg);
-#ifdef DEBUG_PAYLOADS
-                    debug().debug("payload(%x|%x|%d|%d)%d", join_msg.msg_id(), join_msg.sender(), join_msg.cluster_id(), join_msg.hops(), join_msg.length());
-#ifdef SHAWN
-                    debug().debug("\n");
-#endif
-#endif
-                    this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
-
-                }
-                timer().template set_timer<self_type,
-                        &self_type::reply_to_head > (time_slice_, this, (void*) 0);
-            }
-        }
-
-        void reply_to_head(void *) {
-
-            if (chd().is_cluster_head()) {
-#ifdef DEBUG_EXTRA
-                debug().debug("CL;stage3;wait4answer");
-#endif
-
-                timer().template set_timer<self_type,
-                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
-            } else {
-#ifdef DEBUG_EXTRA
-                debug().debug("CL;stage3;Reply");
-#endif
-
-                if (it().parent() != 0xffff) {
-                    SemaResumeMsg_t msg = it().get_resume_payload();
-
-                    radio().send(it().parent(), msg.length(), (uint8_t *) & msg);
-                    this->state_changed(MESSAGE_SENT, msg.msg_id(), it().parent());
-                }
-            }
-        }
-
         void answer(void *) {
             bool result = true;
             for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
                 if (dvit->first > 200) {
                     int agg_sema_value = it().get_agg_semantic(dvit->first);
                     //lower than condition ( accept only if the agg value is lower than the given demand)
-                    if ((dvit->second < agg_sema_value) || (agg_sema_value == 4294967295) || (agg_sema_value == -1)) {
+                    if ((dvit->second < agg_sema_value) || (agg_sema_value == -1)) {
                         result = false;
                     }
                 }
@@ -475,6 +382,121 @@ namespace wiselib {
                 }
                 str[bytes_written] = '\0';
                 debug().debug("%s", str);
+            }
+        }
+
+    protected:
+
+
+        // Call with a timer to start a reform procedure from the cluster head
+
+        inline void reform_cluster(void * parameter) {
+            if (!enabled_) return;
+            //reform_ = true;
+        }
+
+        void form_cluster(void * parameter) {
+            if (!enabled_) return;
+            status_ = FORMING;
+            //enabling
+            chd().reset();
+            //            jd().reset();
+            //            it().reset();
+
+
+
+            //            find_head(0);
+            //            // start the procedure to find new head
+            timer().template set_timer<self_type, &self_type::find_head > (
+                    rand()() % 300 + time_slice_, this, (void *) 0);
+        }
+
+        /**
+         * FIND_HEAD
+         * starts clustering
+         * decides a head and then start clustering
+         * from the head of each cluster
+         */
+        void find_head(void * value) {
+            long round = (long) value;
+
+            if (round < 1) {
+                //                if (!participating_) return;
+#ifdef DEBUG
+                debug().debug("CL;stage1;ExchangeSemantics");
+#endif
+
+                SemaAttributeMsg_t mess = chd().get_attribute_payload();
+                radio().send(0xffff, mess.length(), (uint8_t*) & mess);
+                this->state_changed(MESSAGE_SENT, mess.msg_id(), 0xffff);
+                // start the procedure to find new head
+                round++;
+                timer().template set_timer<self_type, &self_type::find_head > (
+                        4*time_slice_, this, (void *) round);
+            } else {
+#ifdef DEBUG
+                debug().debug("CL;stage1;Clusterheaddecision");
+#endif
+                // if Cluster Head
+                if (chd().calculate_head() == true) {
+
+                    // Node is head now
+
+                    this->state_changed(ELECTED_CLUSTER_HEAD, 2, radio().id());
+
+                    // set values for iterator and join_decision
+                    it().set_node_type(HEAD);
+
+#ifdef DEBUG_EXTRA
+                    debug().debug("CL;stage2;Join");
+#endif
+
+                    JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
+
+                    // send JOIN
+                    radio().send(Radio::BROADCAST_ADDRESS, join_msg.length(), (uint8_t *) & join_msg);
+#ifdef DEBUG_PAYLOADS
+                    debug().debug("payload(%x|%x|%d|%d)%d", join_msg.msg_id(), join_msg.sender(), join_msg.cluster_id(), join_msg.hops(), join_msg.length());
+#ifdef SHAWN
+                    debug().debug("\n");
+#endif
+#endif
+                    this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
+
+                }
+                return;
+                timer().template set_timer<self_type,
+                        &self_type::reply_to_head > (time_slice_, this, (void*) 0);
+            }
+        }
+
+        void reply_to_head(void *) {
+
+
+            if (chd().is_cluster_head()) {
+#ifdef DEBUG_EXTRA
+                debug().debug("CL;stage3;wait4answer");
+#endif
+
+                timer().template set_timer<self_type,
+                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
+
+            } else {
+#ifdef DEBUG_EXTRA
+                debug().debug("CL;stage3;Reply");
+#endif
+
+                if (it().parent() != 0xffff) {
+                    SemaResumeMsg_t msg = it().get_resume_payload();
+
+                    radio().send(it().parent(), msg.length(), (uint8_t *) & msg);
+                    this->state_changed(MESSAGE_SENT, msg.msg_id(), it().parent());
+                }
+
+
+
+                //                 timer().template set_timer<self_type,
+                //                        &self_type::reply_to_head > (10 * time_slice_, this, (void*) 0);
             }
         }
 
@@ -519,11 +541,10 @@ namespace wiselib {
             int type = data[0];
 
             if (type == ATTRIBUTE) {
-
                 chd().receive(from, len, data);
             } else if (type == JOINM) {
-//                debug().debug("Got a join message form %x", from);
-
+                //                debug().debug("Got a join message form %x", from);
+                debug().debug("received");
                 if (jd().join(data, len)) {
                     JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
 
