@@ -13,21 +13,19 @@ namespace wiselib {
     /**
      * Semantic cluster head decision module
      */
-    template<typename OsModel_P, typename Radio_P>
+    template<typename OsModel_P>
     class Semantics {
     public:
 
         typedef OsModel_P OsModel;
-        typedef Radio_P Radio;
-
 
         typedef int value_t;
         typedef int semantic_id_t;
-        typedef typename Radio::node_id_t node_id_t;
-        typedef typename Radio::block_data_t block_data_t;
+
+        typedef typename OsModel::block_data_t block_data_t;
 
         struct semantics {
-            node_id_t node_id_;
+
             semantic_id_t semantic_id_;
             value_t semantic_value_;
         };
@@ -79,11 +77,6 @@ namespace wiselib {
         ~Semantics() {
         };
 
-        void init(Radio& radio) {
-            radio_ = &radio;
-            semantics_vector_.clear();
-        }
-
         void set_semantic_value(int sema, int value) {
             if (!semantics_vector_.empty()) {
                 for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
@@ -99,7 +92,6 @@ namespace wiselib {
             if (!semantics_vector_.empty()) {
                 for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                     if (si->semantic_id_ == sema) {
-                        si->node_id_ = radio_->id();
                         si->semantic_value_ = value;
                         return;
                     }
@@ -107,7 +99,6 @@ namespace wiselib {
             }
             semantics_t newse;
             newse.semantic_id_ = sema;
-            newse.node_id_ = radio_->id();
             newse.semantic_value_ = value;
             semantics_vector_.push_back(newse);
 
@@ -216,11 +207,9 @@ namespace wiselib {
             }
         }
 
+    private:
 
         semantics_vector_t semantics_vector_;
-
-    private:
-        Radio* radio_;
 
 
     };

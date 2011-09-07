@@ -207,7 +207,7 @@ namespace wiselib {
             return true;
         }
 
-        /*
+        /**
          * Add node to cluster
          * neighbors list
          */
@@ -222,7 +222,7 @@ namespace wiselib {
             tree_childs.push_back(wiselib::pair<node_id_t, node_id_t > (from, originator));
         }
 
-        /*
+        /**
          * Add node to cluster
          * neighbors list
          */
@@ -236,7 +236,7 @@ namespace wiselib {
             return radio().NULL_NODE_ID;
         }
 
-        /*
+        /**
          * Add node to non_cluster
          * neighbors list
          */

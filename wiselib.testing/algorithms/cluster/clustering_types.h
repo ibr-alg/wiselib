@@ -61,7 +61,7 @@ namespace wiselib {
 
 
 #include "algorithms/cluster/semantics.h" 
-typedef wiselib::Semantics<wiselib::OSMODEL, wiselib::OSMODEL::Radio> semantics_model_t;
+typedef wiselib::Semantics<wiselib::OSMODEL> semantics_model_t;
 
 #include "algorithms/cluster/messages/join_message.h"
 typedef wiselib::JoinClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinClusterMsg_t;
