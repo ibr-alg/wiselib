@@ -432,7 +432,7 @@ namespace wiselib {
                 // start the procedure to find new head
                 round++;
                 timer().template set_timer<self_type, &self_type::find_head > (
-                        4*time_slice_, this, (void *) round);
+                        4 * time_slice_, this, (void *) round);
             } else {
 #ifdef DEBUG
                 debug().debug("CL;stage1;Clusterheaddecision");
@@ -544,7 +544,7 @@ namespace wiselib {
                 chd().receive(from, len, data);
             } else if (type == JOINM) {
                 //                debug().debug("Got a join message form %x", from);
-                debug().debug("received");
+
                 if (jd().join(data, len)) {
                     JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
 

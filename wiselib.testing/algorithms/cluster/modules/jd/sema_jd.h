@@ -134,18 +134,9 @@ namespace wiselib {
          * respond to an JOIN message received
          * either join to a cluster or not
          */
-        bool join(uint8_t * mess, uint8_t len) {
+        bool join(uint8_t * mess, size_t len) {
 
-
-            //                                     char str[100];
-            //                                    int bytes_written = 0;
-            //                                    bytes_written += sprintf(str + bytes_written, "pl[");
-            //                                    for (int i = 0; i<len; i++) {
-            //                                        bytes_written += sprintf(str + bytes_written, "%x|", mess[i]);
-            //                                    }
-            //                                    str[bytes_written] = '\0';
-            //                                    debug_->debug("%s", str);
-
+            //            debug().debug_payload(mess,len);
 
             //            bool joined_any = false;
             //            debug().debug("got a join");
@@ -160,17 +151,26 @@ namespace wiselib {
                 size_t size_a = msg.get_statement_size(i);
                 block_data_t * data_a = msg.get_statement_data(i);
                 //                debug().debug("cond %d , size %d ,data1 %d", count, size_a, *data_a);
-                if (!semantics_->has_group(data_a, size_a)) return false;
+                if (!semantics_->has_group(data_a, size_a)) {
+                    return false;
+                }
 
             }
 
-            if ((hops_ > msg.hops()) && (msg.cluster_id() < radio().id()) && (msg.cluster_id() < cluster_id_)) {
-                hops_ = msg.hops();
-                cluster_id_ = msg.cluster_id();
-                joined_cluster(msg.cluster_id(), msg.hops(), msg.sender());
-                return true;
+
+
+            
+            if ((msg.cluster_id() >= radio().id()) || (msg.cluster_id() >= cluster_id_)) {
+                return false;
             }
-            return false;
+            
+           
+            hops_ = msg.hops();
+            cluster_id_ = msg.cluster_id();
+            joined_cluster(msg.cluster_id(), msg.hops(), msg.sender());
+            return true;
+
+
 
         }
 
