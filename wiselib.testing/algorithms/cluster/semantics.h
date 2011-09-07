@@ -30,7 +30,6 @@ namespace wiselib {
             node_id_t node_id_;
             semantic_id_t semantic_id_;
             value_t semantic_value_;
-            bool enabled_;
         };
 
         enum semantics_types {
@@ -53,9 +52,19 @@ namespace wiselib {
         typedef typename semantics_vector_t::iterator semantics_vector_iterator_t;
 
         struct group_entry {
-            block_data_t * data;
-            size_t size;
+            block_data_t * data_a;
+
+            block_data_t * data() {
+                return data_a;
+            };
+
+            size_t size_a;
+
+            size_t size() {
+                return size_a;
+            }
         };
+
         typedef struct group_entry group_entry_t;
         typedef wiselib::vector_static<OsModel, group_entry_t, MAX_SEMANTICS> group_container_t;
 
@@ -92,7 +101,6 @@ namespace wiselib {
                     if (si->semantic_id_ == sema) {
                         si->node_id_ = radio_->id();
                         si->semantic_value_ = value;
-                        si->enabled_ = false;
                         return;
                     }
                 }
@@ -101,55 +109,42 @@ namespace wiselib {
             newse.semantic_id_ = sema;
             newse.node_id_ = radio_->id();
             newse.semantic_value_ = value;
-            newse.enabled_ = false;
             semantics_vector_.push_back(newse);
 
         }
 
-        size_t enabled_semantics() {
-            size_t count = 0;
-            if (!semantics_vector_.empty()) {
-                for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                    if (si->enabled_ == true) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
+        //        bool check_condition(int semantic) {
+        //            //            debug_->debug("checking semantic %d", semantic);
+        //            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
+        //                if (si->semantic_id_ == semantic) {
+        //                    si->enabled_ = true;
+        //                    return true;
+        //                }
+        //            }
+        //            if (semantic > 200) return true;
+        //            return false;
+        //        }
+        //
+        //        bool check_condition(int semantic, int value) {
+        //            if (semantic > 200) return check_condition(semantic);
+        //            //            debug_->debug("checking semantic value %d|%d", semantic, value);
+        //            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
+        //                if ((si->semantic_id_ == semantic) && (si->semantic_value_ == value)) {
+        //                    si->enabled_ = true;
+        //                    return true;
+        //                }
+        //            }
+        //            return false;
+        //        }
 
-        bool check_condition(int semantic) {
-            //            debug_->debug("checking semantic %d", semantic);
-            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == semantic) {
-                    si->enabled_ = true;
-                    return true;
-                }
-            }
-            if (semantic > 200) return true;
-            return false;
-        }
-
-        bool check_condition(int semantic, int value) {
-            if (semantic > 200) return check_condition(semantic);
-            //            debug_->debug("checking semantic value %d|%d", semantic, value);
-            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if ((si->semantic_id_ == semantic) && (si->semantic_value_ == value)) {
-                    si->enabled_ = true;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        int semantic_value(int semantic) {
-            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == semantic) {
-                    return si->semantic_value_;
-                }
-            }
-            return -1;
-        }
+        //        int semantic_value(int semantic) {
+        //            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
+        //                if (si->semantic_id_ == semantic) {
+        //                    return si->semantic_value_;
+        //                }
+        //            }
+        //            return -1;
+        //        }
 
         group_container_t get_groups() {
             group_container_t my_group_container;
@@ -158,8 +153,8 @@ namespace wiselib {
 
                 if (si->semantic_id_ < 200) {
                     group_entry_t ge;
-                    ge.data = (block_data_t *) & si->semantic_id_;
-                    ge.size = 2 * sizeof (semantic_id_t);
+                    ge.data_a = (block_data_t *) & si->semantic_id_;
+                    ge.size_a = 2 * sizeof (semantic_id_t);
                     my_group_container.push_back(ge);
                 }
             }
@@ -182,13 +177,8 @@ namespace wiselib {
             return false;
         }
 
-        value_t get_group_value(semantic_id_t group) {
-            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == group) {
-                    return si->semantic_value_;
-                }
-            }
-            return -1;
+        void get_predicates() {
+
         }
 
         value_container_t get_values(semantic_id_t predicate) {

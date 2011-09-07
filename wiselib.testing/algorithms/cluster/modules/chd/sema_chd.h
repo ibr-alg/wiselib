@@ -132,7 +132,7 @@ namespace wiselib {
 
             for (typename group_container_t::iterator gi = mygroups.begin(); gi != mygroups.end(); ++gi) {
                 //                debug_->debug("adding semantic size - %d : to add size %d", msg.length(), sizeof (size_t) + gi->size);
-                msg.add_statement(gi->data, gi->size);
+                msg.add_statement(gi->data(), gi->size());
             }
             msg.set_node_id(min_head_id_);
 
