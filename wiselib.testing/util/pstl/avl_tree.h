@@ -4,12 +4,16 @@
 #ifndef AVL_TREE_H
 #define AVL_TREE_H
 
-#pragma warning("AVL tree is not usable yet!")
+#pragma warning("AVL tree is not fully usable yet!")
 
-#undef NDEBUG
-#include <cassert>
+//#undef NDEBUG
+//#include <cassert>
+#ifndef assert
+	#define assert(X) 
+#endif
 
 #include "util/allocators/utils.h"
+#include "util/pstl/list_dynamic.h" // TODO: Implement & use vector_dynamic instead!
 
 namespace wiselib {
 	
@@ -178,7 +182,6 @@ namespace wiselib {
 			
 			friend class AVLTree;
 		private:
-			// TODO: implement vector_dynamic and use that one here instead!
 			list_dynamic<OsModel, node_ptr_t, Allocator> path_;
 		};
 		typedef inorder_iterator iterator;
@@ -335,9 +338,11 @@ namespace wiselib {
 			check_balance(root_);
 			check_avl(root_);
 			
-			size_t counted = count_nodes(root_);
-			assert(counted == size());
-			assert((!root_) == (size_ == 0));
+			#if DEBUG
+				size_t counted = count_nodes(root_);
+				assert(counted == size());
+				assert((!root_) == (size_ == 0));
+			#endif
 		}
 		
 	#else
@@ -475,7 +480,7 @@ namespace wiselib {
 			iter.path_.pop_back();
 			
 			node_ptr_t parent;
-			typename Node::Side side;
+			typename Node::Side side = Node::LEFT;
 			if(!iter.path_.empty() && (node != base)) {
 				parent = iter.path_.back();
 				iter.path_.pop_back();
@@ -517,7 +522,7 @@ namespace wiselib {
 					node = parent;
 					parent = iter.path_.back();
 					iter.path_.pop_back();
-					typename Node::Side side;
+					typename Node::Side side = Node::LEFT;
 					while(node != base && height_change != 0) {
 						node->balance_ += (side == Node::LEFT) ? -height_change : height_change;
 						
