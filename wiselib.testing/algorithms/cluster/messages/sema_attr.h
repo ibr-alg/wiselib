@@ -9,7 +9,7 @@
 
 namespace wiselib {
 
-    template<typename OsModel_P, typename Radio_P, typename Semantics_P >
+    template<typename OsModel_P, typename Radio_P >
     class SemaAttrClusterMsg {
     public:
         typedef OsModel_P OsModel;
@@ -21,9 +21,9 @@ namespace wiselib {
         typedef typename Radio::message_id_t message_id_t;
         typedef int cluster_id_t;
 
-        typedef Semantics_P Semantics;
-        typedef typename Semantics::semantic_id_t semantic_id_t;
-        typedef typename Semantics::group_entry_t group_entry_t;
+        
+        
+        
 
         enum data_positions {
             MSG_ID_POS = 0, // message id position inside the message [uint8]
@@ -112,15 +112,6 @@ namespace wiselib {
                 pos += buffer[pos] + 1;
             }
             return 0;
-        }
-
-        inline void payload(uint8_t * payload) {
-            memcpy(payload, buffer + ATTRIBUTE_LIST_POS + 1, buffer[ATTRIBUTE_LIST_POS]);
-        }
-
-        inline void set_payload(uint8_t * payload, size_t len) {
-            buffer[ATTRIBUTE_LIST_POS] = len;
-            memcpy(buffer + ATTRIBUTE_LIST_POS + 1, (void *) payload, len);
         }
 
         inline size_t length() {

@@ -61,9 +61,11 @@ namespace wiselib {
         typedef JoinDecision_P JoinDecision_t;
         typedef Iterator_P Iterator_t;
         typedef Semantics_P Semantics_t;
-        typedef typename Semantics_t::semantics_t semantics_t;
-        typedef typename Semantics_t::semantics_vector_t semantics_vector_t;
-        typedef typename Semantics_t::semantics_vector_iterator_t semantics_vector_iterator_t;
+        typedef typename Semantics_t::semantic_id_t semantic_id_t;
+        typedef typename Semantics_t::value_t value_t;
+        typedef typename Semantics_t::group_container_t group_container_t;
+        typedef typename Semantics_t::value_container_t value_container_t;
+        typedef typename Semantics_t::group_entry_t group_entry_t;
         // self_type
         typedef SpitCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, NB_P, Semantics_P> self_type;
         // data types
@@ -162,19 +164,6 @@ namespace wiselib {
         }
 
         inline void set_demands(int id, int value) {
-            bool response = false;
-            if (value == 0xff) {
-                //                debug_->debug("Set demands:%d", id);
-                response = check_condition(id);
-            } else {
-                //                debug_->debug("Set demands:%d|%d", id, value);
-                response = check_condition(id, value);
-            }
-            participating_ = participating_ && response;
-            if (participating_) {
-                //                debug().debug("participating in (%d|%d) ", id, value);
-            }
-
             //change existing demand
             if (!demands_vector_.empty()) {
                 for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
@@ -359,12 +348,10 @@ namespace wiselib {
         void answer(void *) {
             bool result = true;
             for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                if (dvit->first > 200) {
-                    int agg_sema_value = it().get_agg_semantic(dvit->first);
-                    //lower than condition ( accept only if the agg value is lower than the given demand)
-                    if ((dvit->second < agg_sema_value) || (agg_sema_value == -1)) {
-                        result = false;
-                    }
+                value_t sema_value = it().get_value_for_predicate(dvit->first);
+                //lower than condition ( accept only if the agg value is lower than the given demand)
+                if ((dvit->second < sema_value) || (sema_value == -1)) {
+                    result = false;
                 }
             }
             if (result) {
@@ -372,13 +359,7 @@ namespace wiselib {
                 int bytes_written = 0;
                 bytes_written += sprintf(str + bytes_written, "Yes it is!");
                 for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                    if (dvit->first > 200) {
-                        bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, it().get_agg_semantic(dvit->first));
-                        //                        debug().debug("has a %d|%d", dvit->first, it().get_agg_semantic(dvit->first));
-                    } else {
-                        bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, semantics_->semantic_value(dvit->first));
-                        //                        debug().debug("has a %d|%d", dvit->first, dvit->second);
-                    }
+                    bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, it().get_value_for_predicate(dvit->first));
                 }
                 str[bytes_written] = '\0';
                 debug().debug("%s", str);
@@ -400,8 +381,8 @@ namespace wiselib {
             status_ = FORMING;
             //enabling
             chd().reset();
-            //            jd().reset();
-            //            it().reset();
+            jd().reset();
+            it().reset();
 
 
 
@@ -464,7 +445,6 @@ namespace wiselib {
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
                 }
-                return;
                 timer().template set_timer<self_type,
                         &self_type::reply_to_head > (time_slice_, this, (void*) 0);
             }
@@ -478,8 +458,9 @@ namespace wiselib {
                 debug().debug("CL;stage3;wait4answer");
 #endif
 
-                timer().template set_timer<self_type,
-                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
+                //                return;
+                //                timer().template set_timer<self_type,
+                //                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
 
             } else {
 #ifdef DEBUG_EXTRA
@@ -488,7 +469,6 @@ namespace wiselib {
 
                 if (it().parent() != 0xffff) {
                     SemaResumeMsg_t msg = it().get_resume_payload();
-
                     radio().send(it().parent(), msg.length(), (uint8_t *) & msg);
                     this->state_changed(MESSAGE_SENT, msg.msg_id(), it().parent());
                 }
@@ -502,6 +482,8 @@ namespace wiselib {
 
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
             if (it().add_cluster(cluster, hops, parent)) {
+                chd().reset();
+                reply_to_head(0);
                 this->state_changed(NODE_JOINED, SIMPLE, cluster);
             }
         }
@@ -541,10 +523,11 @@ namespace wiselib {
             int type = data[0];
 
             if (type == ATTRIBUTE) {
+                debug().debug("ATTR%x", from);
                 chd().receive(from, len, data);
             } else if (type == JOINM) {
                 //                debug().debug("Got a join message form %x", from);
-
+                debug().debug("JOIN%x", from);
                 if (jd().join(data, len)) {
                     JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
 
@@ -559,6 +542,7 @@ namespace wiselib {
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
                 }
             } else if (type == RESUME) {
+
                 if (is_cluster_head()) {
 
                     it().eat_resume(len, data);

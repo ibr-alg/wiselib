@@ -40,7 +40,7 @@ namespace wiselib {
         JoinSemanticClusterMsg() {
             set_msg_id(JOIN);
             set_hops(0);
-            buffer[PAYLOAD_POS]=0;
+            buffer[PAYLOAD_POS] = 0;
         }
         // --------------------------------------------------------------------
 
@@ -69,16 +69,6 @@ namespace wiselib {
             write<OsModel, block_data_t, node_id_t > (buffer + NODE_ID_POS,
                     sender);
         }
-
-        //        inline cluster_id_t cluster_id() {
-        //            return read<OsModel, block_data_t, cluster_id_t > (buffer
-        //                    + CLUSTER_ID_POS);
-        //        }
-        //
-        //        inline void set_cluster_id(cluster_id_t cluster_id) {
-        //            write<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS,
-        //                    cluster_id);
-        //        }
 
         size_t contained() {
             if (buffer[PAYLOAD_POS] == 0) return 0;
@@ -139,20 +129,6 @@ namespace wiselib {
             memcpy(buffer + PAYLOAD_POS + buffer[PAYLOAD_POS] + 1 + 1, data, size);
             buffer[PAYLOAD_POS] += 2;
             buffer[PAYLOAD_POS] += size - 1;
-        }
-
-        inline void payload(uint8_t * payload) {
-            memcpy(payload, buffer + PAYLOAD_POS + 1, buffer[PAYLOAD_POS]);
-        }
-
-        inline void set_payload(uint8_t * payload, size_t len) {
-            buffer[PAYLOAD_POS] = len;
-            memcpy(buffer + PAYLOAD_POS + 1, (void *) payload, len);
-        }
-
-        inline void add_statements(semantics_t* entry, size_t count) {
-            memcpy(buffer + PAYLOAD_POS + 1, entry, count * sizeof (semantics_t));
-            buffer[PAYLOAD_POS] = count * sizeof (semantics_t);
         }
 
         inline size_t length() {
