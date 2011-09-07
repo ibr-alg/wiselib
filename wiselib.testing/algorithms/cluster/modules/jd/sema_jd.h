@@ -25,9 +25,13 @@ namespace wiselib {
         typedef Radio_P Radio;
         typedef typename OsModel::Debug Debug;
         typedef Semantics_P Semantics_t;
-        typedef typename Semantics_t::semantics_t semantics_t;
-        typedef typename Semantics_t::semantics_vector_t semantics_vector_t;
-        typedef typename Semantics_t::semantics_vector_iterator_t semantics_vector_iterator_t;
+        typedef typename Semantics_t::semantic_id_t semantic_id_t;
+        typedef typename Semantics_t::value_t value_t;
+        typedef typename Semantics_t::group_container_t group_container_t;
+        typedef typename Semantics_t::value_container_t value_container_t;
+
+        typedef JoinSemanticClusterMsg_t::semantics_t semantics_t;
+
 
         // data types
         typedef typename Radio::node_id_t node_id_t;
@@ -77,19 +81,35 @@ namespace wiselib {
 
         JoinSemanticClusterMsg_t get_join_request_payload() {
             JoinSemanticClusterMsg_t msg;
-            size_t count = 0;
-            size_t total = semantics_->enabled_semantics();
-            semantics_t a[total];
+            group_container_t mygroups = semantics_->get_groups();
+
             msg.set_sender(radio().id());
             msg.set_cluster_id(cluster_id_);
             msg.set_hops(hops_ + 1);
-            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                if (si->enabled_) {
-                    a[count].semantic_id_ = si->semantic_id_;
-                    a[count++].semantic_value_ = si->semantic_value_;
-                }
+
+            for (typename group_container_t::iterator gi = mygroups.begin(); gi != mygroups.end(); ++gi) {
+                //                debug_->debug("adding semantic size - %d : to add size %d", msg.length(), sizeof (size_t) + gi->size);
+                msg.add_statement(gi->data, gi->size);
             }
-            msg.set_payload((uint8_t *) a, total * sizeof (semantics_t));
+            //                //            for (size_t count=0;count<total;count++){
+            //                semantic_id_t * predicate = *gi;
+            //                a[count].semantic_id_ = predicate;
+            //                a[count++].value_ = semantics_->get_group_value(predicate);
+            //
+            //            }
+            //            msg.add_statements(a, count);
+
+
+
+            //                        char str[100];
+            //                        int bytes_written = 0;
+            //                        bytes_written += sprintf(str + bytes_written, "pl[");
+            //                        for (int i = 0; i<msg.length(); i++) {
+            //                            bytes_written += sprintf(str + bytes_written, "%x|", msg.buffer[i]);
+            //                        }
+            //                        str[bytes_written] = '\0';
+            //                        debug_->debug("%s", str);
+
             return msg;
         }
 
@@ -105,13 +125,8 @@ namespace wiselib {
             if (id > 200) {
                 return true;
             }
-            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                if (((*si).semantic_id_ == id) && ((*si).semantic_value_ == value)) {
-                    //                    debug().debug("joining semantic cluster %d|%d", id, value);
-                    return true;
-                }
-            }
             return false;
+            //            return semantics_->has_group(id, value);
         }
 
         /**
@@ -119,54 +134,43 @@ namespace wiselib {
          * respond to an JOIN message received
          * either join to a cluster or not
          */
-        bool join(uint8_t *payload, uint8_t length) {
+        bool join(uint8_t * mess, uint8_t len) {
+
+
+            //                                     char str[100];
+            //                                    int bytes_written = 0;
+            //                                    bytes_written += sprintf(str + bytes_written, "pl[");
+            //                                    for (int i = 0; i<len; i++) {
+            //                                        bytes_written += sprintf(str + bytes_written, "%x|", mess[i]);
+            //                                    }
+            //                                    str[bytes_written] = '\0';
+            //                                    debug_->debug("%s", str);
+
 
             //            bool joined_any = false;
-            JoinSemanticClusterMsg_t *mess = (JoinSemanticClusterMsg_t*) payload;
-            size_t count = mess->contained() / sizeof (semantics_t);
-            semantics_t a[count];
-            mess->payload((uint8_t *) a);
+            //            debug().debug("got a join");
+            JoinSemanticClusterMsg_t msg;
+            memcpy(&msg, mess, len);
+            size_t count = msg.contained();
+            //            debug().debug("Join on %d conditions from %x|%x ", count, msg.cluster_id(), msg.sender());
             //            debug().debug("Got a semantic cluster from %x|%d of %d semantics", mess->sender(), mess->hops(), count);
-            bool join = true;
+
             for (size_t i = 0; i < count; i++) {
                 //                debug().debug("checking from %d|%d ", a[i].semantic_id_, a[i].semantic_value_);
-                join = join && has_semantic(a[i].semantic_id_, a[i].semantic_value_);
+                size_t size_a = msg.get_statement_size(i);
+                block_data_t * data_a = msg.get_statement_data(i);
+                //                debug().debug("cond %d , size %d ,data1 %d", count, size_a, *data_a);
+                if (!semantics_->has_group(data_a, size_a)) return false;
+
             }
-            if ((join) && (hops_ > mess->hops())) {
-                hops_ = mess->hops();
-                cluster_id_ = mess->cluster_id();
-                joined_cluster(mess->cluster_id(), mess->hops(), mess->sender());
+
+            if ((hops_ > msg.hops()) && (msg.cluster_id() < radio().id()) && (msg.cluster_id() < cluster_id_)) {
+                hops_ = msg.hops();
+                cluster_id_ = msg.cluster_id();
+                joined_cluster(msg.cluster_id(), msg.hops(), msg.sender());
                 return true;
             }
             return false;
-
-            //
-            //            typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[10];
-            //            size_t count = mess->clusters(cl_list);
-            //#ifdef DEBUG_EXTRA
-            //            debug().debug("got a message with %d cluster ids", mess.clusters(cl_list));
-            //#endif
-            //            if (count > 0) {
-            //                for (size_t i = 0; i < count; i++) {
-            //#ifdef DEBUG_EXTRA
-            //                    debug().debug("Contains %x | %d ", cl_list[i].first, cl_list[i].second);
-            //#endif
-            //                    if (!clusters_joined_.contains(cl_list[i].first)) {
-            //                        if (cl_list[i].second <= maxhops_) {
-            //                            clusters_joined_entry_t cl_joined;
-            //                            cl_joined.first = cl_list[i].first;
-            //                            cl_joined.second = cl_list[i].second + 1;
-            //
-            //                            clusters_joined_.insert(cl_joined);
-            //
-            //                            //join the cluster
-            //                            //return true
-            //                            joined_any = true;
-            //                            joined_cluster(cl_joined.first, cl_joined.second, mess->sender_id());
-            //                        }
-            //                    }
-            //                }
-            //            }
 
         }
 

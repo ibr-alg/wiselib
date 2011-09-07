@@ -36,8 +36,7 @@ namespace wiselib {
 
         struct semantic_head {
             int semantic_id_;
-            int semantic_total_value_;
-            int semantic_count_;
+            int semantic_value_;
         };
 
         typedef struct semantic_head semantic_head_entry_t;
@@ -340,7 +339,7 @@ namespace wiselib {
                     a[count++].semantic_value_ = si->semantic_value_;
                 }
             }
-            debug().debug("adding %d semantics totally", count);
+//            debug().debug("adding %d semantics totally", count);
             msg.set_payload((uint8_t *) a, count * sizeof (semantics_t));
             //            debug().debug("adding %d semantics totally", msg.contained());
             return msg;
@@ -357,20 +356,18 @@ namespace wiselib {
                 msg->payload((uint8_t *) a);
                 for (size_t i = 0; i < total; i++) {
                     add_semantic_value(sender, a[i].semantic_id_, a[i].semantic_value_);
-                    debug().debug("received  from %x %d|%d mean_value is %d ", msg->node_id(), a[i].semantic_id_, a[i].semantic_value_, (semantics_->semantic_value(a[i].semantic_id_) + a[i].semantic_value_) / 2);
+                    //                    debug().debug("received  from %x %d|%d mean_value is %d ", msg->node_id(), a[i].semantic_id_, a[i].semantic_value_, (semantics_->semantic_value(a[i].semantic_id_) + a[i].semantic_value_) / 2);
                 }
             }
             node_joined(sender);
         }
 
         void add_semantic_value(node_id_t from, int semantic_id, int semantic_value) {
-            debug().debug("updating value %d from %x ", semantic_value, from);
+            //            debug().debug("updating value %d from %x ", semantic_value, from);
             if (!semantic_head_vector_.empty()) {
                 for (typename semantic_head_vector_t::iterator shvit = semantic_head_vector_.begin(); shvit != semantic_head_vector_.end(); ++shvit) {
                     if (shvit->semantic_id_ == semantic_id) {
-                        shvit->semantic_total_value_ += semantic_value;
-                        shvit->semantic_count_++;
-
+                        shvit->semantic_value_ = semantic_value;
                         return;
                     }
                 }
@@ -379,18 +376,8 @@ namespace wiselib {
 
             semantic_head_entry_t newentry;
             newentry.semantic_id_ = semantic_id;
-            newentry.semantic_total_value_ = semantic_value;
-            newentry.semantic_count_ = 1;
-            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == semantic_id) {
-                    semantic_head_entry_t newentry;
-                    //                    debug().debug("my sema value is %d ", si->semantic_value_);                    
-                    newentry.semantic_total_value_ += si->semantic_value_;
-                    newentry.semantic_count_++;
-                    break;
-                }
-            }
-            debug().debug("setting the value %d|%d", newentry.semantic_id_, newentry.semantic_total_value_);
+            newentry.semantic_value_ = semantic_value;
+            //            debug().debug("setting the value %d|%d", newentry.semantic_id_, newentry.semantic_value_);
             semantic_head_vector_.push_back(newentry);
             //            debug().debug("setting the value");
         }
@@ -403,8 +390,7 @@ namespace wiselib {
                     semantic_head_entry_t newentry;
                     //                    debug().debug("my sema value is %d ", si->semantic_value_);
                     newentry.semantic_id_ = si->semantic_id_;
-                    newentry.semantic_total_value_ = si->semantic_value_;
-                    newentry.semantic_count_ = 1;
+                    newentry.semantic_value_ = si->semantic_value_;
                     semantic_head_vector_.push_back(newentry);
                 }
             }
@@ -423,11 +409,7 @@ namespace wiselib {
         int get_agg_semantic(int id) {
             for (typename semantic_head_vector_t::iterator shvit = semantic_head_vector_.begin(); shvit != semantic_head_vector_.end(); ++shvit) {
                 if (shvit->semantic_id_ == id) {
-                    if (id == 212) {
-                        return shvit->semantic_total_value_;
-                    } else {
-                        return shvit->semantic_total_value_ / shvit->semantic_count_;
-                    }
+                    return shvit->semantic_value_;
                 }
             }
             return -1;
