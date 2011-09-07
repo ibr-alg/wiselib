@@ -346,6 +346,7 @@ namespace wiselib {
         }
 
         void answer(void *) {
+			/*
             bool result = true;
             for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
                 value_t sema_value = it().get_value_for_predicate(dvit->first);
@@ -364,6 +365,7 @@ namespace wiselib {
                 str[bytes_written] = '\0';
                 debug().debug("%s", str);
             }
+			*/
         }
 
     protected:

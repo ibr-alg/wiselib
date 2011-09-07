@@ -5,6 +5,13 @@
 
 #include "util/pstl/avl_tree.h"
 #include "util/pstl/list_dynamic.h"
+#include "util/pstl/string_dynamic.h"
+
+//#undef NDEBUG
+//#include <cassert>
+#ifndef assert
+	#define assert(X) 
+#endif
 
 namespace wiselib {
 	/**
@@ -224,6 +231,10 @@ namespace wiselib {
 		
 		/**
 		 */
+		Allocator& get_allocator() { return *allocator_; }
+		
+		/**
+		 */
 		iterator begin() { return tuple_tree_.begin(); }
 		
 		/**
@@ -292,7 +303,7 @@ namespace wiselib {
 			//  tuple in the tuple tree that contains this data.
 			for(int i=0; i<N; i++) {
 				if(query.size(i) && query.data(i)) {
-					query_tuple.nodes_[i] = data_tree_.find(string_dynamic<OsModel, Allocator, block_data_t>(query.data(i), query.size(i), allocator_)).node();
+					query_tuple.nodes_[i] = data_tree_.find(data_t(query.data(i), query.size(i), allocator_)).node();
 					if(!query_tuple.nodes_[i]) {
 						return query_end();
 					}
@@ -302,7 +313,30 @@ namespace wiselib {
 			
 			assert(indices_[index].used());
 			typename index_tree_t::node_ptr_t index_node = indices_[index].tree_->find(query_tuple).node();
-
+			
+			if(!index_node) { return query_end(); }
+			else { return query_iterator(index_node->data().begin(), query_tuple); }
+		}
+		
+		/**
+		 * Simplified query method that relies on some assumptions:
+		 * - The given string is the binary representation of the column value
+		 *   you are looking for
+		 * - You only want to empose a condition on a single column (which
+		 *   already has an index)
+		 */
+		template<typename T>
+		query_iterator query_begin(data_t value, int index) {
+			typedef typename data_tree_t::node_ptr_t node_ptr_t;
+			Tuple query_tuple;
+			for(int i=0; i<N; i++) {
+				query_tuple.nodes_[i] = node_ptr_t(0);
+			}
+			query_tuple.nodes_[index] = data_tree_.find(value).node();
+			
+			assert(indices_[index].used());
+			typename index_tree_t::node_ptr_t index_node = indices_[index].tree_->find(query_tuple).node();
+			
 			if(!index_node) { return query_end(); }
 			else { return query_iterator(index_node->data().begin(), query_tuple); }
 		}
