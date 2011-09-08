@@ -49,7 +49,8 @@ namespace wiselib {
         typedef wiselib::vector_static<OsModel, semantics_t, 2 * MAX_SEMANTICS > semantics_vector_t;
         typedef typename semantics_vector_t::iterator semantics_vector_iterator_t;
 
-        struct group_entry {
+        class group_entry_t {
+        public:
             block_data_t * data_a;
 
             block_data_t * data() {
@@ -67,14 +68,14 @@ namespace wiselib {
 
                 int bytes_written = 0;
                 int mint;
-                memcpy((void *)&mint, (void *)data_a, sizeof (int));
+                memcpy((void *) &mint, (void *) data_a, sizeof (int));
                 bytes_written += sprintf(buffer + bytes_written, "%d", mint);
                 buffer[bytes_written] = '\0';
                 return buffer;
             }
         };
 
-        typedef struct group_entry group_entry_t;
+        //        typedef struct group_entry group_entry_t;
         typedef wiselib::vector_static<OsModel, group_entry_t, MAX_SEMANTICS> group_container_t;
         typedef wiselib::vector_static<OsModel, group_entry_t, MAX_SEMANTICS> value_container_t;
 
@@ -84,8 +85,6 @@ namespace wiselib {
 
         ~Semantics() {
         };
-
-        
 
         void set_semantic_value(semantic_id_t sema, value_t value) {
             if (!semantics_vector_.empty()) {
@@ -102,7 +101,7 @@ namespace wiselib {
             semantics_vector_.push_back(newse);
 
         }
-        
+
         group_container_t get_groups() {
             group_container_t my_group_container;
             my_group_container.clear();
@@ -149,10 +148,10 @@ namespace wiselib {
         }
 
         int cmp(group_entry_t a, group_entry_t b, semantic_id_t predicate) {
-            int ia ;
-            int ib ;
-            memcpy(&ia,a.data_a,sizeof(int));
-            memcpy(&ib,b.data_a,sizeof(int));
+            int ia;
+            int ib;
+            memcpy(&ia, a.data_a, sizeof (int));
+            memcpy(&ib, b.data_a, sizeof (int));
             switch (predicate) {
                 default:
                     if (ia - ib > 0) {
@@ -166,20 +165,20 @@ namespace wiselib {
         value_t aggregate(value_t a, value_t b, semantic_id_t predicate) {
             switch (predicate) {
                 case PIR:
-                    return (a + b) > 0?1:0;
+                    return (a + b) > 0 ? 1 : 0;
                 case LIGHT:
                 case TEMP:
-                    return (a + b)/2;
+                    return (a + b) / 2;
                 default:
                     return a + b;
             }
         }
-        
-        
+
+
         //TODO : register_callback for when semantics change
 
     private:
-        semantics_vector_t semantics_vector_;       
+        semantics_vector_t semantics_vector_;
     };
 
 }
