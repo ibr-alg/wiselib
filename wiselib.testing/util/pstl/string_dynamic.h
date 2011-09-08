@@ -91,6 +91,9 @@ namespace wiselib {
 			const Char* c_str() const { return buffer_.raw(); }
 			Char* c_str() { return buffer_.raw(); }
 			
+			const Char* data() const { return buffer_.raw(); }
+			Char* data() { return buffer_.raw(); }
+			
 			int cmp(const string_dynamic& other) const {
 				if(size_ != other.size_) { return size_ < other.size_ ? -1 : size_ > other.size_; }
 				for(size_t i=0; i<size_; i++) {
