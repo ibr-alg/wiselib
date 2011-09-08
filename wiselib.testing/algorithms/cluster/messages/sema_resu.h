@@ -24,14 +24,15 @@ namespace wiselib {
         enum data_positions {
             MSG_ID_POS = 0, // message id position inside the message [uint8]
             NODE_ID_POS = sizeof (message_id_t),
-            ATTRIBUTE_POS = sizeof (message_id_t) + sizeof (node_id_t)
+            CLUSTER_ID_POS = NODE_ID_POS + sizeof (node_id_t),
+            ATTRIBUTE_LIST_POS = CLUSTER_ID_POS + sizeof (cluster_id_t)
         };
 
         // --------------------------------------------------------------------
 
         SemaResuClusterMsg() {
             set_msg_id(RESUME);
-            buffer[ATTRIBUTE_POS] = 0;
+            buffer[ATTRIBUTE_LIST_POS] = 0;
         }
         // --------------------------------------------------------------------
 
@@ -59,21 +60,97 @@ namespace wiselib {
             write<OsModel, block_data_t, node_id_t > (buffer + NODE_ID_POS, node_id);
         }
 
+        inline cluster_id_t cluster_id() {
+            return read<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS);
+        }
+
+        inline void set_cluster_id(cluster_id_t cluster) {
+            write<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS, cluster);
+        }
+
         size_t contained() {
-            return buffer[ATTRIBUTE_POS];
+            if (buffer[ATTRIBUTE_LIST_POS] == 0) return 0;
+            size_t count = 0;
+            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return count / 2;
         }
 
-        inline void payload(uint8_t * payload) {
-            memcpy(payload, buffer + ATTRIBUTE_POS + 1, buffer[ATTRIBUTE_POS]);
+        inline void add_predicate(block_data_t * predicate_data, size_t predicate_size
+                , block_data_t * value_data, size_t value_size) {
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &predicate_size, sizeof (size_t));
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, predicate_data, predicate_size);
+            buffer[ATTRIBUTE_LIST_POS] += 2;
+            buffer[ATTRIBUTE_LIST_POS] += predicate_size - 1;
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &value_size, sizeof (size_t));
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, value_data, value_size);
+            buffer[ATTRIBUTE_LIST_POS] += 2;
+            buffer[ATTRIBUTE_LIST_POS] += value_size - 1;
         }
 
-        inline void set_payload(uint8_t * payload, size_t len) {
-            buffer[ATTRIBUTE_POS] = len;
-            memcpy(buffer + ATTRIBUTE_POS + 1, (void *) payload, len);
+        inline size_t get_value_size(size_t zcount) {
+            size_t count = 0;
+            size_t z2count = 2 * zcount+1;
+            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                if (count == z2count) {
+
+                    return buffer[pos];
+                }
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return 0;
+        }
+
+        inline block_data_t * get_value_data(size_t zcount) {
+            size_t count = 0;
+            size_t z2count = 2 * zcount+1;
+            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                if (count == z2count) {
+                    return &buffer[pos] + 1;
+                }
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return 0;
+        }
+
+        inline size_t get_predicate_size(size_t zcount) {
+            size_t count = 0;
+            size_t z2count = 2 * zcount;
+            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                if (count == z2count) {
+
+                    return buffer[pos];
+                }
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return 0;
+        }
+
+        inline block_data_t * get_predicate_data(size_t zcount) {
+            size_t count = 0;
+            size_t z2count = 2 * zcount;
+            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                if (count == z2count) {
+                    return &buffer[pos] + 1;
+                }
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return 0;
         }
 
         inline size_t length() {
-            return sizeof (message_id_t) + sizeof (node_id_t) + 1 + buffer[ATTRIBUTE_POS];
+            return ATTRIBUTE_LIST_POS + 1 + buffer[ATTRIBUTE_LIST_POS];
         }
 
     private:

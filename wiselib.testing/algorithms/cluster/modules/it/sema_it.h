@@ -36,13 +36,13 @@ namespace wiselib {
         typedef typename Semantics_t::value_container_t value_container_t;
         typedef typename Semantics_t::group_entry_t group_entry_t;
 
-        struct semantic_head {
-            semantic_id_t semantic_id_;
-            value_t semantic_value_;
-        };
-
-        typedef struct semantic_head semantic_head_entry_t;
-        typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 5 > semantic_head_vector_t;
+        //        struct semantic_head {
+        //            semantic_id_t semantic_id_;
+        //            value_t semantic_value_;
+        //        };
+        //
+        typedef wiselib::pair<int, int> semantic_head_entry_t;
+        typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 10 > semantic_head_vector_t;
 
         typedef FrontsIterator<OsModel_P, Radio_P, Semantics_P> self_t;
 
@@ -329,7 +329,19 @@ namespace wiselib {
             SemaResumeMsg_t msg;
             msg.set_node_id(radio().id());
 
-            //            predicate_container_t mypredicates = semantics_->get_predicates();
+            int predicate = 210;
+            value_container_t myvalues = semantics_->get_values(predicate);
+            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                msg.add_predicate((block_data_t*) & predicate, sizeof (int), gi->data(), gi->size());
+            }
+
+            predicate = 211;
+            myvalues = semantics_->get_values(predicate);
+            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                msg.add_predicate((block_data_t*) & predicate, sizeof (int), gi->data(), gi->size());
+            }
+
+            msg.set_cluster_id(cluster_id());
             //
             //            for (typename predicate_container_t::iterator pi = mypredicates.begin(); pi != mypredicates.end(); ++pi) {
             //                //                debug_->debug("adding semantic size - %d : to add size %d", msg.length(), sizeof (size_t) + gi->size);
@@ -343,7 +355,39 @@ namespace wiselib {
         void eat_resume(size_t len, uint8_t * data) {
             SemaResumeMsg_t * msg = (SemaResumeMsg_t *) data;
 
+            if (cluster_id() != msg->cluster_id()) return;
             node_id_t sender = msg->node_id();
+
+            size_t count = msg->contained();
+
+
+            for (size_t i = 0; i < count; i++) {
+
+                int predicate;
+                memcpy(&predicate, msg->get_predicate_data(i), msg->get_predicate_size(i));
+                int value;
+                memcpy(&value, msg->get_value_data(i), msg->get_value_size(i));
+
+
+
+                if (!semantic_head_vector_.empty()) {
+                    for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
+                            it != semantic_head_vector_.end(); ++it) {
+                        if (it->first == predicate) {
+
+                            it->second = value;
+                        }
+
+                    }
+                }
+                semantic_head_entry_t newentry;
+                newentry.first = predicate;
+                newentry.second = value;
+                semantic_head_vector_.push_back(newentry);
+
+                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
+
+            }
 
             node_joined(sender);
         }
@@ -360,33 +404,49 @@ namespace wiselib {
             }
 
 
-            semantic_head_entry_t newentry;
-            newentry.semantic_id_ = semantic_id;
-            newentry.semantic_value_ = semantic_value;
+            group_entry_t newentry;
+            //            newentry.semantic_id_ = semantic_id;
+            //            newentry.semantic_value_ = semantic_value;
             //            debug().debug("setting the value %d|%d", newentry.semantic_id_, newentry.semantic_value_);
             semantic_head_vector_.push_back(newentry);
             //            debug().debug("setting the value");
         }
 
-        void add_my_sems() {
+        void became_head() {
+            cluster_id_ = radio().id();
 
         }
 
-        int get_value_for_predicate(int id) {
-            return -1;
+        group_entry_t get_value_for_predicate(semantic_id_t id) {
+            int val = -1;
+            group_entry_t a;
+            a.size_a = 0;
+            a.data_a = (block_data_t*) & val;
+
+            for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
+                    it != semantic_head_vector_.end(); ++it) {
+                if (it->first == id) {
+                    a.data_a = (block_data_t *) & it->second;
+                    debug().debug("got a value %s", a.c_str());
+                    return a;
+                }
+            }
+
+
+            return a;
         }
 
         /* SHOW all the known nodes */
         void present_neighbors() {
 
-            char buffer[1024];
-            int bytes_written = 0;
-            bytes_written += sprintf(buffer + bytes_written, "Neighbors(%x)", radio().id());
-            for (typename vector_t::iterator cni = cluster_neighbors_.begin(); cni != cluster_neighbors_.end(); ++cni) {
-                bytes_written += sprintf(buffer + bytes_written, "%x|", *cni);
-            }
-            buffer[bytes_written] = '\0';
-            debug("%s", buffer);
+            //            char buffer[1024];
+            //            int bytes_written = 0;
+            //            bytes_written += sprintf(buffer + bytes_written, "Neighbors(%x)", radio().id());
+            //            for (typename vector_t::iterator cni = cluster_neighbors_.begin(); cni != cluster_neighbors_.end(); ++cni) {
+            //                bytes_written += sprintf(buffer + bytes_written, "%x|", *cni);
+            //            }
+            //            buffer[bytes_written] = '\0';
+            //            debug("%s", buffer);
 
         }
 
