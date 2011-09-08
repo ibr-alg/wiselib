@@ -2,8 +2,7 @@
 #ifndef __WISELIB_UTIL_ALLOCATORS_MALLOC_FREE_ALLOCATOR_H
 #define __WISELIB_UTIL_ALLOCATORS_MALLOC_FREE_ALLOCATOR_H
 
-#define KEEP_STATS 1
-#define ALLOCATOR_LOG 1
+#define KEEP_STATS 0
 
 template<typename pointer_t>
 void* operator new(size_t size, pointer_t ptr) {
