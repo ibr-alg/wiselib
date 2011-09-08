@@ -60,8 +60,6 @@ namespace wiselib {
 }
 
 
-#include "algorithms/cluster/semantics.h" 
-//
 #include "algorithms/cluster/messages/join_message.h"
 typedef wiselib::JoinClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinClusterMsg_t;
 #include "algorithms/cluster/messages/head_lost.h"
