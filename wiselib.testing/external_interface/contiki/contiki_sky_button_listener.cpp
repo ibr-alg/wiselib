@@ -29,6 +29,8 @@ extern "C"
 
 namespace wiselib
 {
+	static contiki_sky_button_delegate_t receiver;
+	
 	PROCESS( button_event_process, "Button Event Listener" );
 
 	PROCESS_THREAD(button_event_process, ev, data)
@@ -46,7 +48,7 @@ namespace wiselib
 			{
 				if(data == &button_sensor)
 				{
-					printf("Button pressed");
+					receiver();
 				}
 			}
 		}
@@ -56,12 +58,24 @@ namespace wiselib
 	
 	void initContikiSkyButtonListening()
 	{
+		receiver = contiki_sky_button_delegate_t();
 		process_start( &button_event_process, 0);
 	}
 	
 	int stopContikiSkyButtonListening()
 	{
 		SENSORS_DEACTIVATE(button_sensor);
+		contiki_sky_button_delete_receiver();
 		return 0;
+	}
+	
+	void contiki_sky_button_set_receiver( contiki_sky_button_delegate_t& d )
+	{
+		receiver = d;
+	}
+	
+	void contiki_sky_button_delete_receiver()
+	{
+		receiver = contiki_sky_button_delegate_t();
 	}
 }
