@@ -202,10 +202,10 @@ namespace wiselib {
         value_t aggregate(value_t a, value_t b, semantic_id_t predicate) {
             switch (predicate) {
                 case PIR:
-                    return (a + b) > 0;
+                    return (a + b) > 0?1:0;
                 case LIGHT:
                 case TEMP:
-                    return a + b;
+                    return (a + b)/2;
                 default:
                     return a + b;
             }

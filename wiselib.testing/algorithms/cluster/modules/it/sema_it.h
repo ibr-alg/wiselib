@@ -368,22 +368,8 @@ namespace wiselib {
                 int value;
                 memcpy(&value, msg->get_value_data(i), msg->get_value_size(i));
 
+                add_semantic_value(predicate, value);
 
-
-                if (!semantic_head_vector_.empty()) {
-                    for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
-                            it != semantic_head_vector_.end(); ++it) {
-                        if (it->first == predicate) {
-
-                            it->second = value;
-                        }
-
-                    }
-                }
-                semantic_head_entry_t newentry;
-                newentry.first = predicate;
-                newentry.second = value;
-                semantic_head_vector_.push_back(newentry);
 
                 debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
 
@@ -392,28 +378,44 @@ namespace wiselib {
             node_joined(sender);
         }
 
-        void add_semantic_value(node_id_t from, int semantic_id, int semantic_value) {
-            //            debug().debug("updating value %d from %x ", semantic_value, from);
+        void add_semantic_value(int predicate, int value) {
+
             if (!semantic_head_vector_.empty()) {
-                for (typename semantic_head_vector_t::iterator shvit = semantic_head_vector_.begin(); shvit != semantic_head_vector_.end(); ++shvit) {
-                    if (shvit->semantic_id_ == semantic_id) {
-                        shvit->semantic_value_ = semantic_value;
-                        return;
+                for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
+                        it != semantic_head_vector_.end(); ++it) {
+                    if (it->first == predicate) {
+                        it->second = semantics_->aggregate(value, it->second, predicate);
+
                     }
+
                 }
             }
-
-
-            group_entry_t newentry;
-            //            newentry.semantic_id_ = semantic_id;
-            //            newentry.semantic_value_ = semantic_value;
-            //            debug().debug("setting the value %d|%d", newentry.semantic_id_, newentry.semantic_value_);
+            semantic_head_entry_t newentry;
+            newentry.first = predicate;
+            newentry.second = value;
             semantic_head_vector_.push_back(newentry);
-            //            debug().debug("setting the value");
         }
 
         void became_head() {
             cluster_id_ = radio().id();
+
+            int predicate = 210;
+            value_container_t myvalues = semantics_->get_values(predicate);
+            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                int value;
+                memcpy(&value, gi->data(), gi->size());
+                add_semantic_value(predicate, value);
+            }
+
+            predicate = 211;
+            myvalues = semantics_->get_values(predicate);
+            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                int value;
+                memcpy(&value, gi->data(), gi->size());
+                add_semantic_value(predicate, value);
+            }
+
+
 
         }
 
@@ -427,7 +429,6 @@ namespace wiselib {
                     it != semantic_head_vector_.end(); ++it) {
                 if (it->first == id) {
                     a.data_a = (block_data_t *) & it->second;
-                    debug().debug("got a value %s", a.c_str());
                     return a;
                 }
             }
