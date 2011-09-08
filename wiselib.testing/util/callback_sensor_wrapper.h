@@ -38,7 +38,8 @@ namespace wiselib
 	template <typename OsModel_P, 
 				 typename RequestSensor_P, 
 				 typename Timer_P = typename OsModel_P::Timer,
-				 typename Debug_P = typename OsModel_P::Debug>
+				 typename Debug_P = typename OsModel_P::Debug,
+				 typename Value_Type_P = typename RequestSensor_P::value_t>
 	class CallbackSensorWrapper : public SensorCallbackBase<OsModel_P, 
 				 typename RequestSensor_P::value_t, 5>
 	{
@@ -68,7 +69,8 @@ namespace wiselib
 		typedef CallbackSensorWrapper<OsModel_P, 
 												RequestSensor_P,
 												Timer_P, 
-												Debug_P> self_t;
+												Debug_P,
+												Value_Type_P> self_t;
 		typedef self_t* self_pointer_t;
 		
 		//------------------------------------------------------------------------
@@ -339,5 +341,7 @@ namespace wiselib
 		uint8_t checkAbsoluteThreshold_;
 	};
 };
+
+#include "callback_sensor_wrapper_bool.h"
 
 #endif // __CALLBACK_SENSOR_WRAPPER__

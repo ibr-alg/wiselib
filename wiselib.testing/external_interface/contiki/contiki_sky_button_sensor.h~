@@ -45,7 +45,7 @@ namespace wiselib
 		typedef ContikiSkyButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 		
-		typedef bool value_t;
+		typedef int value_t;
 		
 		//------------------------------------------------------------------------
 		
