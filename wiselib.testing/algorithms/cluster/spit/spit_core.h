@@ -349,24 +349,47 @@ namespace wiselib {
             demands_vector_.clear();
         }
 
-        void answer(void *) {
+        void answer(void *da) {
+            long a = (long) da;
             if (is_cluster_head()) {
-                bool yes = true;
+                if (a == 0) {
+                    bool yes = true;
 
-                for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
 
-                    int min = (dvit->second);
-                    group_entry_t demand_value;
-                    demand_value.size_a = sizeof (dvit->second);
-                    demand_value.data_a = (block_data_t *) & min;
-                    debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
-                    group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
-                    debug().debug("Value %s", sema_value.c_str());
-                    bool this_one = semantics_->cmp(sema_value, demand_value, dvit->first) == 0 ? true : false;
-                    yes = yes && this_one;
+                        int min = (dvit->second);
+                        group_entry_t demand_value;
+                        demand_value.size_a = sizeof (dvit->second);
+                        demand_value.data_a = (block_data_t *) & min;
+                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
+                        group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
+                        //                        debug().debug("Value %s", sema_value.c_str());
+                        bool this_one = semantics_->cmp(sema_value, demand_value, dvit->first) == 0 ? true : false;
+                        yes = yes && this_one;
+                    }
+
+                    debug().debug("SA;%x;%s", cluster_id(), yes ? "yes" : "no");
+                } else if (a == 1) {
+                    char buffer [1000];
+                    int bytes_written = 0;
+                    bytes_written += sprintf(buffer + bytes_written, "SA;%x;", cluster_id());
+
+                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {                        
+                        //                        group_entry_t demand_value;
+                        //                        demand_value.size_a = sizeof (dvit->second);
+                        //                        demand_value.data_a = (block_data_t *) & min;
+                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
+                        group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
+                        bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str() );
+                        //                        debug().debug("Value %s", sema_value.c_str());                                                
+
+                    }
+                    
+                    buffer[bytes_written] = '\0';
+                    debug().debug("%s",buffer);
+
+
                 }
-
-                debug().debug("SA;%x;%s", cluster_id(), yes ? "yes" : "no");
 
             }
             //            timer().template set_timer<self_type,
@@ -487,8 +510,8 @@ namespace wiselib {
 #endif
 
                 //                return;
-                timer().template set_timer<self_type,
-                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
+                //                timer().template set_timer<self_type,
+                //                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
 
             } else {
 #ifdef DEBUG_EXTRA
@@ -503,8 +526,8 @@ namespace wiselib {
 
 
 
-                //                 timer().template set_timer<self_type,
-                //                        &self_type::reply_to_head > (10 * time_slice_, this, (void*) 0);
+                                 timer().template set_timer<self_type,
+                                        &self_type::reply_to_head > (10000, this, (void*) 0);
             }
         }
 

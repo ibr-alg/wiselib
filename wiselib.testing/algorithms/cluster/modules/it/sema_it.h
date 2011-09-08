@@ -371,7 +371,7 @@ namespace wiselib {
                 add_semantic_value(predicate, value);
 
 
-                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
+//                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
 
             }
 

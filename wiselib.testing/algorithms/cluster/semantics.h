@@ -13,12 +13,11 @@ namespace wiselib {
     /**
      * Semantic cluster head decision module
      */
-    template<typename OsModel_P, typename Debug_P>
+    template<typename OsModel_P>
     class Semantics {
     public:
 
         typedef OsModel_P OsModel;
-        typedef Debug_P Debug;
 
         typedef int value_t;
         typedef int semantic_id_t;
@@ -86,9 +85,7 @@ namespace wiselib {
         ~Semantics() {
         };
 
-        void init(Debug& d) {
-            debug_ = &d;
-        }
+        
 
         void set_semantic_value(semantic_id_t sema, value_t value) {
             if (!semantics_vector_.empty()) {
@@ -105,40 +102,7 @@ namespace wiselib {
             semantics_vector_.push_back(newse);
 
         }
-
-        //        bool check_condition(int semantic) {
-        //            //            debug_->debug("checking semantic %d", semantic);
-        //            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-        //                if (si->semantic_id_ == semantic) {
-        //                    si->enabled_ = true;
-        //                    return true;
-        //                }
-        //            }
-        //            if (semantic > 200) return true;
-        //            return false;
-        //        }
-        //
-        //        bool check_condition(int semantic, int value) {
-        //            if (semantic > 200) return check_condition(semantic);
-        //            //            debug_->debug("checking semantic value %d|%d", semantic, value);
-        //            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-        //                if ((si->semantic_id_ == semantic) && (si->semantic_value_ == value)) {
-        //                    si->enabled_ = true;
-        //                    return true;
-        //                }
-        //            }
-        //            return false;
-        //        }
-
-        //        int semantic_value(int semantic) {
-        //            for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-        //                if (si->semantic_id_ == semantic) {
-        //                    return si->semantic_value_;
-        //                }
-        //            }
-        //            return -1;
-        //        }
-
+        
         group_container_t get_groups() {
             group_container_t my_group_container;
             my_group_container.clear();
@@ -210,12 +174,12 @@ namespace wiselib {
                     return a + b;
             }
         }
+        
+        
+        //TODO : register_callback for when semantics change
 
     private:
-
-        semantics_vector_t semantics_vector_;
-        Debug* debug_;
-
+        semantics_vector_t semantics_vector_;       
     };
 
 }
