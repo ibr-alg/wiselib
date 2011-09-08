@@ -1,10 +1,10 @@
 /*
- * File:   fronts_it.h
+ * File:   sema_it.h
  * Author: amaxilat
  */
 
-#ifndef __FRONTS_IT_H_
-#define __FRONTS_IT_H_
+#ifndef __SEMA_IT_H_
+#define __SEMA_IT_H_
 
 #include "util/pstl/vector_static.h"
 #include "util/pstl/map_static_vector.h"
@@ -20,7 +20,7 @@ namespace wiselib {
      * Fronts iterator module.
      */
     template<typename OsModel_P, typename Radio_P, typename Semantics_P>
-    class FrontsIterator {
+    class SemaIterator {
     public:
         //TYPEDEFS
         typedef OsModel_P OsModel;
@@ -44,7 +44,7 @@ namespace wiselib {
         typedef wiselib::pair<int, int> semantic_head_entry_t;
         typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 10 > semantic_head_vector_t;
 
-        typedef FrontsIterator<OsModel_P, Radio_P, Semantics_P> self_t;
+        typedef SemaIterator<OsModel_P, Radio_P, Semantics_P> self_t;
 
         // data types
         typedef int cluster_id_t;
@@ -59,7 +59,7 @@ namespace wiselib {
         /*
          * Constructor
          */
-        FrontsIterator() :
+        SemaIterator() :
         //flag_(false),
         parent_(-1),
         cluster_id_(-1),
@@ -76,7 +76,7 @@ namespace wiselib {
         /*
          * Destructor
          * */
-        ~FrontsIterator() {
+        ~SemaIterator() {
         }
 
         /*
