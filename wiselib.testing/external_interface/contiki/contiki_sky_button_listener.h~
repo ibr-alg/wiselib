@@ -40,7 +40,7 @@ namespace wiselib
 	//---------------------------------------------------------------------------
 	template<typename OsModel_P>
 	class ContikiSkyButtonListener : 
-		public SensorCallbackBase<OsModel_P, bool, 5>
+		public SensorCallbackBase<OsModel_P, void, 5>
 	{
 	public:
 		typedef OsModel_P OsModel;
@@ -63,7 +63,7 @@ namespace wiselib
 		
 		void notify()
 		{
-			this->notify_receivers( true );
+			this->notify_receivers();
 		}
 	};
 };
