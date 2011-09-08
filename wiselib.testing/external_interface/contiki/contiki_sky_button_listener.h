@@ -62,6 +62,9 @@ namespace wiselib
 		
 		typedef bool value_t;
 		
+		typedef ContikiSkyButtonListener<OsModel_P> self_type;
+		typedef self_type* self_pointer_t;
+		
 		// Inherited from BasicReturnValues_concept
 		enum { SUCCESS,
 					ERR_UNSPEC,
