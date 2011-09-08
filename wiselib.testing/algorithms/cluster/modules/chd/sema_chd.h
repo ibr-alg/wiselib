@@ -22,10 +22,7 @@ namespace wiselib {
         typedef Radio_P Radio;
         //typedef typename OsModel::Radio Radio;
         typedef typename OsModel::Debug Debug;
-        typedef Semantics_P Semantics_t;
-        typedef typename Semantics_t::semantics_t semantics_t;
-        typedef typename Semantics_t::semantics_vector_t semantics_vector_t;
-        typedef typename Semantics_t::semantics_vector_iterator_t semantics_vector_iterator_t;
+
         // data types
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::size_t size_t;
@@ -33,7 +30,13 @@ namespace wiselib {
         typedef node_id_t cluster_id_t;
         typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
 
-        //        typedef wiselib::vector_static<OsModel, semantics_t, 10 > semantics_vector_t;
+
+        typedef Semantics_P Semantics_t;
+        typedef typename Semantics_t::semantic_id_t semantic_id_t;
+        typedef typename Semantics_t::value_t value_t;
+        typedef typename Semantics_t::group_container_t group_container_t;
+        typedef typename Semantics_t::value_container_t value_container_t;
+        typedef typename Semantics_t::group_entry_t group_entry_t;
 
         // delegate
         typedef delegate1<int, int*> chd_delegate_t;
@@ -48,13 +51,13 @@ namespace wiselib {
             head_delegate_ = head_delegate_t();
         }
 
-        /*
+        /**
          * Destructor
-         * */
+         */
         ~SemanticClusterHeadDecision() {
         }
 
-        /*
+        /**
          * INIT
          * initializes the values of radio and debug
          */
@@ -62,14 +65,9 @@ namespace wiselib {
             radio_ = &radio;
             debug_ = &debug;
             semantics_ = &semantics;
+            min_head_id_ = radio_->id();
         }
 
-        /* SET functions */
-
-        void set_attribute(int theta) {
-            theta_ = theta;
-            min_theta_ = theta;
-        }
 
         /* GET functions */
 
@@ -79,14 +77,13 @@ namespace wiselib {
             return cluster_head_;
         }
 
-        /*
+        /**
          * Reset
          * resets the module
          * initializes values
-         * */
+         */
         inline void reset() {
             cluster_head_ = false;
-            min_theta_ = theta_;
         }
 
         /*
@@ -96,73 +93,51 @@ namespace wiselib {
          * */
         inline bool calculate_head() {
 
-            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                //                debug_->debug("semantic is %d|%d  %x", si->semantic_id_, si->semantic_value_, si->node_id_);
-                if ((si->node_id_ == radio_->id()) && (si->enabled_)) {
-                    //                    debug_->debug("semantic chead of c %x|%x", si->semantic_id_, si->semantic_value_);
-                    cluster_head_ = true;
-                } else {
-                    //                    debug_->debug("NOT semantic chead of c %x|%x", si->semantic_id_, si->semantic_value_);
-                }
-            }
-            if (cluster_head_) {
+            if ((min_head_id_ == radio_->id())) {
+                cluster_head_ = true;
                 became_head(1);
+            } else {
+                //                debug_->debug("CLPwaiting for head %x", min_head_id_);
             }
-
             return cluster_head_;
         }
 
         void receive(node_id_t from, size_t len, block_data_t * mess) {
             SemaAttributeMsg_t msg;
+            //            debug_->debug("got the mess");
             memcpy(&msg, mess, len);
-            size_t count = msg.contained() / sizeof (semantics_t);
-            semantics_t a[count];
-            msg.payload((uint8_t *) a);
-            //debug_->debug("received a mess with %d semantics from %d", count, radio_->id());
-            bool fits = true;
+            //            debug_->debug("copied");
+            size_t count = msg.contained();
+            //            debug_->debug("contains %d", msg.contained());
+
             for (size_t i = 0; i < count; i++) {
-                //  debug_->debug("semantic is %x  |from %x", a[i].cluster_id_, a[i].node_id_);                
-                for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                    if (si->semantic_id_ <= 200) {
-                        if ((si->semantic_id_ == a[i].semantic_id_) && (si->semantic_value_ != a[i].semantic_value_)) {
-                            //        debug_->debug("seting %x as my sh %x", si->node_id_, si->cluster_id_);
-//                            debug_->debug("dropping from %x", from);
-                            fits = false;
-                        }
-                    }
+                size_t size_a = msg.get_statement_size(i);
+                block_data_t * data_a = msg.get_statement_data(i);
+                if (!semantics_-> has_group(data_a, size_a)) {
+
+                    return;
                 }
             }
-            if (fits) {
-                for (size_t i = 0; i < count; i++) {
-                    //  debug_->debug("semantic is %x  |from %x", a[i].cluster_id_, a[i].node_id_);                
-                    for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                        if ((si->node_id_ > a[i].node_id_) && (si->semantic_id_ == a[i].semantic_id_)) {
-//                            debug_->debug("setting from %x", from);
-                            si->node_id_ = a[i].node_id_;
-                        }
-                    }
-                }
+
+            if (min_head_id_ > msg.node_id()) {
+                min_head_id_ = msg.node_id();
             }
         }
 
         SemaAttributeMsg_t get_attribute_payload() {
-            //debug_->debug("adding %d semantics", semantics.size());
+            //            debug_->debug("payload");
             SemaAttributeMsg_t msg;
-            size_t count = 0;
-            semantics_t a[semantics_->enabled_semantics()];
-            //            debug_->debug("total semantics %d", semantics_vector_.size());
-            for (semantics_vector_iterator_t si = semantics_->semantics_vector_.begin(); si != semantics_->semantics_vector_.end(); ++si) {
-                if (si->enabled_) {
-                    a[count].semantic_id_ = si->semantic_id_;
-                    a[count].semantic_value_ = si->semantic_value_;
-                    a[count++].node_id_ = si->node_id_;
-                }
-            }
+            //            semantics_vector_.clear();
+            group_container_t mygroups = semantics_->get_groups();
 
-            msg.set_payload((uint8_t *) a, count * sizeof (typename Semantics_t::semantics_t));
-#ifdef DEBUG_PAYLOADS
-            //debug_->debug("Payload::%x::[%d|%x]::", radio_->id(), type, theta_);
-#endif
+            for (typename group_container_t::iterator gi = mygroups.begin(); gi != mygroups.end(); ++gi) {
+                //                debug_->debug("adding semantic size - %d : to add size %d", msg.length(), sizeof (size_t) + gi->size);
+                msg.add_statement(gi->data(), gi->size());
+            }
+            msg.set_node_id(min_head_id_);
+
+            //            debug_->debug("created array msgsize is %d contains %d", msg.length(), msg.contained());
+
             return msg;
         }
 
@@ -189,9 +164,9 @@ namespace wiselib {
     private:
 
         bool cluster_head_; // if a cluster head        
-        node_id_t theta_; // clustering parameter
+        node_id_t min_head_id_;
         head_delegate_t head_delegate_;
-        int min_theta_;
+
         Semantics_t * semantics_;
 
         Radio * radio_;

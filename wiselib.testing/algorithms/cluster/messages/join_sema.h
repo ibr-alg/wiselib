@@ -21,6 +21,12 @@ namespace wiselib {
         typedef typename Radio::message_id_t message_id_t;
         typedef node_id_t cluster_id_t;
 
+        struct semantics {
+            int semantic_id_;
+            int value_;
+        };
+        typedef struct semantics semantics_t;
+
         enum data_positions {
             MSG_ID_POS = 0, // message id position inside the message [uint8]
             NODE_ID_POS = sizeof (message_id_t),
@@ -34,6 +40,7 @@ namespace wiselib {
         JoinSemanticClusterMsg() {
             set_msg_id(JOIN);
             set_hops(0);
+            buffer[PAYLOAD_POS] = 0;
         }
         // --------------------------------------------------------------------
 
@@ -63,18 +70,42 @@ namespace wiselib {
                     sender);
         }
 
-        //        inline cluster_id_t cluster_id() {
-        //            return read<OsModel, block_data_t, cluster_id_t > (buffer
-        //                    + CLUSTER_ID_POS);
-        //        }
-        //
-        //        inline void set_cluster_id(cluster_id_t cluster_id) {
-        //            write<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS,
-        //                    cluster_id);
-        //        }
-
         size_t contained() {
-            return buffer[PAYLOAD_POS];
+            if (buffer[PAYLOAD_POS] == 0) return 0;
+            size_t count = 0;
+            size_t pos = PAYLOAD_POS + 1;
+            while (pos < length()) {
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return count;
+        }
+
+        inline size_t get_statement_size(size_t zcount) {
+            size_t count = 0;
+            size_t pos = PAYLOAD_POS + 1;
+            while (pos < length()) {
+                if (count == zcount) {
+
+                    return buffer[pos];
+                }
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return 0;
+        }
+
+        inline block_data_t * get_statement_data(size_t zcount) {
+            size_t count = 0;
+            size_t pos = PAYLOAD_POS + 1;
+            while (pos < length()) {
+                if (count == zcount) {
+                    return &buffer[pos] + 1;
+                }
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return 0;
         }
 
         inline int hops() {
@@ -86,28 +117,26 @@ namespace wiselib {
         }
 
         inline cluster_id_t cluster_id() {
-            return read<OsModel, block_data_t, cluster_id_t> (buffer + CLUSTER_ID_POS);
+            return read<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS);
         }
 
         inline void set_cluster_id(cluster_id_t cluster_id) {
-            write<OsModel, block_data_t, cluster_id_t> (buffer + CLUSTER_ID_POS, cluster_id);
+            write<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS, cluster_id);
         }
 
-        inline void payload(uint8_t * payload) {
-            memcpy(payload, buffer + PAYLOAD_POS + 1, buffer[PAYLOAD_POS]);
-        }
-
-        inline void set_payload(uint8_t * payload, size_t len) {
-            buffer[PAYLOAD_POS] = len;
-            memcpy(buffer + PAYLOAD_POS + 1, (void *) payload, len);
+        inline void add_statement(block_data_t * data, size_t size) {
+            memcpy(buffer + PAYLOAD_POS + buffer[PAYLOAD_POS] + 1, &size, sizeof (size_t));
+            memcpy(buffer + PAYLOAD_POS + buffer[PAYLOAD_POS] + 1 + 1, data, size);
+            buffer[PAYLOAD_POS] += 2;
+            buffer[PAYLOAD_POS] += size - 1;
         }
 
         inline size_t length() {
-            return sizeof (message_id_t) + sizeof (node_id_t) + sizeof (int) + sizeof (cluster_id_t) + 1 + buffer[PAYLOAD_POS];
+            return PAYLOAD_POS + 1 + buffer[PAYLOAD_POS];
         }
 
     private:
-        block_data_t buffer[Radio::MAX_MESSAGE_LENGTH]; // buffer for the message data
+        block_data_t buffer[Radio::MAX_MESSAGE_LENGTH]; // buffer for the message data  
     };
 }
 #endif	/* JOIN_SEMA_H */

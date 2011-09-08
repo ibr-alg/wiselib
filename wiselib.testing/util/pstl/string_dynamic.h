@@ -25,6 +25,7 @@ namespace wiselib {
 			typedef string_dynamic<OsModel_P, Allocator_P> self_type;
 			typedef self_type* self_pointer_t;
 			typedef typename Allocator::template pointer_t<Char> char_pointer_t;
+			typedef typename Allocator::template array_pointer_t<Char> char_arr_pointer_t;
 			
 			string_dynamic() : buffer_(0), size_(0), allocator_(0) {
 			}
@@ -40,8 +41,8 @@ namespace wiselib {
 			
 			string_dynamic(const Char* c, typename Allocator::self_pointer_t alloc)
 				: buffer_(0), size_(0), allocator_(alloc) {
-				resize(strlen(c));
-				to_buffer_(c, strlen(c));
+				resize(strlen((const char*)c));
+				to_buffer_(c, strlen((const char*)c));
 			}
 			
 			string_dynamic(const Char* c, size_t size, typename Allocator::self_pointer_t alloc)
@@ -60,7 +61,7 @@ namespace wiselib {
 			}
 			
 			string_dynamic& operator=(const Char* other) {
-				resize(strlen(other));
+				resize(strlen((const char*)other));
 				to_buffer_(other, size_);
 				return *this;
 			}
@@ -87,9 +88,8 @@ namespace wiselib {
 				buffer_[size_] = '\0';
 			}
 			
-			const Char* c_str() const {
-				return buffer_.raw();
-			}
+			const Char* c_str() const { return buffer_.raw(); }
+			Char* c_str() { return buffer_.raw(); }
 			
 			int cmp(const string_dynamic& other) const {
 				if(size_ != other.size_) { return size_ < other.size_ ? -1 : size_ > other.size_; }
@@ -111,7 +111,7 @@ namespace wiselib {
 			}
 			
 			string_dynamic& append(const string_dynamic& other) {
-				char_pointer_t old_buffer = buffer_;
+				char_arr_pointer_t old_buffer = buffer_;
 				buffer_ = allocator_->template allocate_array<Char>(size_ + other.size_ + 1);
 				
 				if(old_buffer) {
@@ -128,6 +128,18 @@ namespace wiselib {
 				return *this;
 			}
 			
+			int first_index_of(Char c) const {
+				for(int i=0; i<size_; i++) {
+					if(buffer_[i] == c) { return i; }
+				}
+				return -1;
+			}
+			
+			string_dynamic substr(int from, int length=-1) const {
+				if(length == 0) length == size_ - from;
+				return string_dynamic(buffer_.raw() + from, length);
+			}
+			
 		private:
 			template<typename T>
 			void to_buffer_(T src, size_t n, size_t offset = 0) {
@@ -138,7 +150,7 @@ namespace wiselib {
 				}
 			}
 			
-			char_pointer_t buffer_;
+			char_arr_pointer_t buffer_;
 			size_t size_;
 			typename Allocator::self_pointer_t allocator_;
 	};
