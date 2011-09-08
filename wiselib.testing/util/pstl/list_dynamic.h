@@ -4,7 +4,7 @@
 
 namespace wiselib {
 	
-	namespace {
+	namespace list_dynamic_impl {
 		template<
 			typename Value_P,
 			typename Allocator_P
@@ -77,7 +77,7 @@ namespace wiselib {
 	>
 	class list_dynamic {
 		public:
-			typedef DoublyConnectedListNode<Value_P, Allocator_P> Node_P;
+			typedef list_dynamic_impl::DoublyConnectedListNode<Value_P, Allocator_P> Node_P;
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_t;
@@ -88,8 +88,8 @@ namespace wiselib {
 			typedef Node_P node_type;
 			typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
 			typedef list_dynamic<OsModel_P, Value_P, Allocator_P> self_type;
-			typedef list_dynamic_iterator<self_type> iterator;
-			typedef list_dynamic_iterator<const self_type> const_iterator;
+			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
+			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
 			list_dynamic() : allocator_(0) { };
 			list_dynamic(Allocator& alloc) : allocator_(&alloc) { };
@@ -103,7 +103,7 @@ namespace wiselib {
 				// TODO: Implement copy-on-write
 				allocator_ = other.allocator_;
 				clear();
-				for(self_type::const_iterator iter = other.begin(); iter != other.end(); ++iter) {
+				for(typename self_type::const_iterator iter = other.begin(); iter != other.end(); ++iter) {
 					push_back(*iter);
 				}
 				return *this;

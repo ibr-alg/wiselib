@@ -10,6 +10,7 @@
 #include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
 #include "util/base_classes/clustering_base2.h"
+#include "util/pstl/vector_static.h"
 
 #include "algorithms/cluster/modules/chd/sema_chd.h"
 #include "algorithms/cluster/modules/jd/sema_jd.h"
@@ -27,7 +28,7 @@
 // Uncomment to enable Debug
 #define DEBUG
 #ifdef DEBUG
-#define DEBUG_EXTRA
+//#define DEBUG_EXTRA
 //#define DEBUG_RECEIVED
 //#define DEBUG_PAYLOADS
 #define DEBUG_CLUSTERING
@@ -43,7 +44,7 @@ namespace wiselib {
      * 
      */
     template<typename OsModel_P, typename Radio_P, typename HeadDecision_P,
-    typename JoinDecision_P, typename Iterator_P, typename NB_P, typename Semantics_P >
+    typename JoinDecision_P, typename Iterator_P, /*typename NB_P,*/ typename Semantics_P >
 
     class SpitCore : public ClusteringBase <OsModel_P> {
     public:
@@ -54,23 +55,29 @@ namespace wiselib {
         typedef typename OsModel::Timer Timer;
         typedef typename OsModel::Debug Debug;
         typedef typename OsModel::Rand Rand;
-        typedef NB_P nb_t;
+        //        typedef NB_P nb_t;
         //algorithm modules
         typedef HeadDecision_P HeadDecision_t;
         typedef JoinDecision_P JoinDecision_t;
         typedef Iterator_P Iterator_t;
         typedef Semantics_P Semantics_t;
-        typedef typename Semantics_t::semantics_t semantics_t;
-        typedef typename Semantics_t::semantics_vector_t semantics_vector_t;
-        typedef typename Semantics_t::semantics_vector_iterator_t semantics_vector_iterator_t;
+        typedef typename Semantics_t::semantic_id_t semantic_id_t;
+        typedef typename Semantics_t::value_t value_t;
+        typedef typename Semantics_t::group_container_t group_container_t;
+        typedef typename Semantics_t::value_container_t value_container_t;
+        typedef typename Semantics_t::group_entry_t group_entry_t;
         // self_type
-        typedef SpitCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, NB_P, Semantics_P> self_type;
+        typedef SpitCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, Semantics_P> self_type;
         // data types
         typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
         typedef typename Radio::node_id_t node_id_t;
         typedef node_id_t cluster_id_t;
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
+
+        typedef wiselib::pair<semantic_id_t, value_t> demands_entry_t;
+        typedef wiselib::vector_static<OsModel, demands_entry_t, 10 > demands_vector_t;
+        typedef typename demands_vector_t::iterator demands_vector_iterator_t;
 
 
         // delegate
@@ -85,8 +92,7 @@ namespace wiselib {
         status_(0),
         head_lost_(false),
         do_cleanup(false) {
-            temp_ = -1;
-            light_ = -1;
+            demands_vector_.clear();
         }
 
         /**
@@ -98,20 +104,20 @@ namespace wiselib {
         /**
          * initializes the values of radio timer and debug
          */
-        void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery, Semantics_t& semantics) {
+        void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, /*nb_t& neighbor_discovery,*/ Semantics_t& semantics) {
             radio_ = &radiot;
             timer_ = &timert;
             debug_ = &debugt;
             rand_ = &randt;
 
-            neighbor_discovery_ = &neighbor_discovery;
+            //            neighbor_discovery_ = &neighbor_discovery;
             semantics_ = &semantics;
 
-            uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI | nb_t::NEW_PAYLOAD_BIDI;
+            //            uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI | nb_t::NEW_PAYLOAD_BIDI;
 
-            neighbor_discovery_->template reg_event_callback<self_type,
-                    &self_type::ND_callback > (CLUSTERING, flags, this);
-            neighbor_discovery_->register_payload_space((uint8_t) CLUSTERING);
+            //            neighbor_discovery_->template reg_event_callback<self_type,
+            //                    &self_type::ND_callback > (CLUSTERING, flags, this);
+            //            neighbor_discovery_->register_payload_space((uint8_t) CLUSTERING);
 
             jd().template reg_cluster_joined_callback<self_type, &self_type::joined_cluster > (this);
             chd().template reg_became_head_callback<self_type, &self_type::became_head > (this);
@@ -158,18 +164,20 @@ namespace wiselib {
         }
 
         inline void set_demands(int id, int value) {
-            bool response = false;
-            if (value == 0xff) {
-                debug_->debug("Set demands:%d", id);
-                response = check_condition(id);
-            } else {
-                debug_->debug("Set demands:%d|%d", id, value);
-                response = check_condition(id, value);
+            //change existing demand
+            if (!demands_vector_.empty()) {
+                for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                    if (dvit->first == id) {
+                        dvit->second = value;
+                        return;
+                    }
+                }
             }
-            participating_ = participating_ && response;
-            if (participating_) {
-                debug().debug("participating in (%d|%d) ", id, value);
-            }
+
+            demands_entry_t newdemand;
+            newdemand.first = id;
+            newdemand.second = value;
+            demands_vector_.push_back(newdemand);
         }
 
         /**
@@ -306,9 +314,6 @@ namespace wiselib {
 #endif
 #endif
 
-            chd().reset();
-            jd().reset();
-            it().reset();
 
 
 #ifndef FIXED_ROLES
@@ -336,10 +341,58 @@ namespace wiselib {
             //reset my beacon according to the new status
             if (clusters_joined() > 0) {
                 JoinSemanticClusterMsg_t msg = jd().get_join_request_payload();
-                neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (uint8_t*) & msg, msg.length());
+                //                neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (uint8_t*) & msg, msg.length());
             }
         }
 
+        void reset_demands() {
+            demands_vector_.clear();
+        }
+
+        void answer(void *) {
+            if (is_cluster_head()) {
+                bool yes = true;
+
+                for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+
+                    int min = (dvit->second);
+                    group_entry_t demand_value;
+                    demand_value.size_a = sizeof (dvit->second);
+                    demand_value.data_a = (block_data_t *) & min;
+                    debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
+                    group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
+                    debug().debug("Value %s", sema_value.c_str());
+                    bool this_one = semantics_->cmp(sema_value, demand_value, dvit->first) == 0 ? true : false;
+                    yes = yes && this_one;
+                }
+
+                debug().debug("SA;%x;%s", cluster_id(), yes ? "yes" : "no");
+
+            }
+            //            timer().template set_timer<self_type,
+            //                    &self_type::answer > (10 * time_slice_, this, (void*) 0);
+
+            /*            bool result = true;
+
+                        for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                            value_t sema_value = it().get_value_for_predicate(dvit->first);
+                            //lower than condition ( accept only if the agg value is lower than the given demand)
+                            if ((dvit->second < sema_value) || (sema_value == -1)) {
+                                result = false;
+                            }
+                        }
+                        if (result) {
+                            char str[100];
+                            int bytes_written = 0;
+                            bytes_written += sprintf(str + bytes_written, "Yes it is!");
+                            for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                                bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, it().get_value_for_predicate(dvit->first));
+                            }
+                            str[bytes_written] = '\0';
+                            debug().debug("%s", str);
+                        }
+             */
+        }
 
     protected:
 
@@ -361,12 +414,10 @@ namespace wiselib {
 
 
 
-
-            // start the procedure to find new head
+            //            find_head(0);
+            //            // start the procedure to find new head
             timer().template set_timer<self_type, &self_type::find_head > (
                     rand()() % 300 + time_slice_, this, (void *) 0);
-
-
         }
 
         /**
@@ -378,28 +429,32 @@ namespace wiselib {
         void find_head(void * value) {
             long round = (long) value;
 
-            if (round == 0) {
-                if (!participating_) return;
+            if (round < 1) {
+                //                if (!participating_) return;
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage1;ExchangeSemantics");
 #endif
 
-
                 SemaAttributeMsg_t mess = chd().get_attribute_payload();
                 radio().send(0xffff, mess.length(), (uint8_t*) & mess);
+                this->state_changed(MESSAGE_SENT, mess.msg_id(), 0xffff);
                 // start the procedure to find new head
+                round++;
                 timer().template set_timer<self_type, &self_type::find_head > (
-                        10 * time_slice_, this, (void *) 1);
+                        4 * time_slice_, this, (void *) round);
             } else {
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage1;Clusterheaddecision");
 #endif
                 // if Cluster Head
                 if (chd().calculate_head() == true) {
+
                     // Node is head now
+
+                    this->state_changed(ELECTED_CLUSTER_HEAD, 2, radio().id());
+
                     // set values for iterator and join_decision
                     it().set_node_type(HEAD);
-                    this->state_changed(ELECTED_CLUSTER_HEAD, 2, radio().id());
 
 #ifdef DEBUG_EXTRA
                     debug().debug("CL;stage2;Join");
@@ -417,55 +472,53 @@ namespace wiselib {
 #endif
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
-                } else {
-                    debug().debug("is not a cluster_head");
                 }
                 timer().template set_timer<self_type,
-                        &self_type::reply_to_head > (2 * time_slice_, this, (void*) 0);
+                        &self_type::reply_to_head > (time_slice_, this, (void*) 0);
             }
         }
 
-
-        //TODO:REPORT TO HEADS
-
         void reply_to_head(void *) {
+
 
             if (chd().is_cluster_head()) {
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage3;wait4answer");
 #endif
 
+                //                return;
                 timer().template set_timer<self_type,
-                        &self_type::answer > (time_slice_, this, (void*) 0);
+                        &self_type::answer > (3 * time_slice_, this, (void*) 0);
+
             } else {
 #ifdef DEBUG_EXTRA
                 debug().debug("CL;stage3;Reply");
 #endif
 
                 if (it().parent() != 0xffff) {
-                    //                debug().debug("will add %d semantics", semantics_->semantics_vector_.size());
-                    //                debug().debug("will add %d enabled semantics", semantics_->enabled_semantics());
                     SemaResumeMsg_t msg = it().get_resume_payload();
-
                     radio().send(it().parent(), msg.length(), (uint8_t *) & msg);
                     this->state_changed(MESSAGE_SENT, msg.msg_id(), it().parent());
                 }
-            }
-        }
 
-        void answer(void *) {
-            debug().debug("answering....");
-            it().present_neighbors();
+
+
+                //                 timer().template set_timer<self_type,
+                //                        &self_type::reply_to_head > (10 * time_slice_, this, (void*) 0);
+            }
         }
 
         void joined_cluster(cluster_id_t cluster, int hops, node_id_t parent) {
             if (it().add_cluster(cluster, hops, parent)) {
+                chd().reset();
+                reply_to_head(0);
                 this->state_changed(NODE_JOINED, SIMPLE, cluster);
             }
         }
 
         void became_head(int a) {
-            jd().set_head();
+            jd().became_head();
+            it().became_head();
         }
 
         /**
@@ -492,16 +545,17 @@ namespace wiselib {
             if (from == radio().id()) return;
             if (!participating_) return;
 
-            //if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
+            //            if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
 
             // get Type of Message
             int type = data[0];
 
             if (type == ATTRIBUTE) {
-
+                //                debug().debug("ATTR%x", from);
                 chd().receive(from, len, data);
             } else if (type == JOINM) {
-
+                //                debug().debug("Got a join message form %x", from);
+                //                debug().debug("JOIN%x", from);
                 if (jd().join(data, len)) {
                     JoinSemanticClusterMsg_t join_msg = jd().get_join_request_payload();
 
@@ -516,12 +570,13 @@ namespace wiselib {
                     this->state_changed(MESSAGE_SENT, join_msg.msg_id(), Radio::BROADCAST_ADDRESS);
                 }
             } else if (type == RESUME) {
+
                 if (is_cluster_head()) {
 
                     it().eat_resume(len, data);
                     //it().node_joined(from);
                 } else {
-                    radio().send(it().parent(), len, data);
+                    //radio().send(it().parent(), len, data);
                 }
             }
         }
@@ -554,19 +609,19 @@ namespace wiselib {
         }
 
     private:
-        nb_t * neighbor_discovery_;
+        //        nb_t * neighbor_discovery_;
         bool enabled_;
         bool participating_;
         uint8_t status_; // the status of the clustering algorithm
         int callback_id_; // receive message callback
-        static const uint32_t time_slice_ = 2000; // time to wait for cluster accept replies
+        static const uint32_t time_slice_ = 500; // time to wait for cluster accept replies
         bool head_lost_; // flag when the head was lost
         bool do_cleanup;
-        int light_;
-        int temp_;
 
         int count;
         int myvalues;
+
+        demands_vector_t demands_vector_;
 
         Semantics_t * semantics_;
 
