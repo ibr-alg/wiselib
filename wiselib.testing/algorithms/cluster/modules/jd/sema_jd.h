@@ -30,7 +30,7 @@ namespace wiselib {
         typedef typename Semantics_t::group_container_t group_container_t;
         typedef typename Semantics_t::value_container_t value_container_t;
 
-        typedef JoinSemanticClusterMsg_t::semantics_t semantics_t;
+//        typedef JoinSemanticClusterMsg_t::semantics_t semantics_t;
 
 
         // data types
@@ -81,6 +81,7 @@ namespace wiselib {
 
         JoinSemanticClusterMsg_t get_join_request_payload() {
             JoinSemanticClusterMsg_t msg;
+            msg.set_hops(JOIN);
             group_container_t mygroups = semantics_->get_groups();
 
             msg.set_sender(radio().id());

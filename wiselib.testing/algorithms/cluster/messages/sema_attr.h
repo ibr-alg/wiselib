@@ -19,7 +19,7 @@ namespace wiselib {
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
         typedef typename Radio::message_id_t message_id_t;
-        typedef int cluster_id_t;
+        typedef node_id_t cluster_id_t;
 
         
         

@@ -51,21 +51,16 @@ namespace wiselib {
 
         class group_entry_t {
         public:
-            block_data_t * data_a;
 
             block_data_t * data() {
                 return data_a;
             };
 
-            size_t size_a;
-
             size_t size() {
                 return size_a;
             }
-            char buffer[30];
 
             char * c_str() {
-
                 int bytes_written = 0;
                 int mint;
                 memcpy((void *) &mint, (void *) data_a, sizeof (int));
@@ -73,6 +68,11 @@ namespace wiselib {
                 buffer[bytes_written] = '\0';
                 return buffer;
             }
+        
+            block_data_t * data_a;
+            size_t size_a;
+            char buffer[30];
+
         };
 
         //        typedef struct group_entry group_entry_t;
