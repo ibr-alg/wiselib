@@ -431,6 +431,7 @@ namespace wiselib {
                     it != semantic_head_vector_.end(); ++it) {
                 if (it->first == id) {
                     a.data_a = (block_data_t *) & it->second;
+                    a.size_a = sizeof(int);
                     return a;
                 }
             }
