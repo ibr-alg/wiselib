@@ -375,7 +375,7 @@ namespace wiselib {
                         group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
                         int a;
                         memcpy(&a, sema_value.data(), sizeof (int));
-                        if (a == -1) continue;
+                        if (a == -1|| a>5000) continue;
                         bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str());
                         //                        debug().debug("Value %s", sema_value.c_str());                                                
 

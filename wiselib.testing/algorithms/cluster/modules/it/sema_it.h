@@ -380,6 +380,8 @@ namespace wiselib {
 
         void add_semantic_value(int predicate, int value) {
 
+            if (value <0 || value > 5000) return;
+            
             if (!semantic_head_vector_.empty()) {
                 for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
                         it != semantic_head_vector_.end(); ++it) {
