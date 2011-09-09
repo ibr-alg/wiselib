@@ -64,21 +64,24 @@ namespace wiselib {
 typedef wiselib::JoinClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinClusterMsg_t;
 #include "algorithms/cluster/messages/head_lost.h"
 typedef wiselib::LostClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> LostClusterMsg_t;
-#include "algorithms/cluster/messages/join_sema.h"
-typedef wiselib::JoinSemanticClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinSemanticClusterMsg_t;
 #include "algorithms/cluster/messages/join_multiple_message.h"
 typedef wiselib::JoinMultipleClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinMultipleClusterMsg_t;
 #include "algorithms/cluster/messages/convergecast_message.h"
 typedef wiselib::ConvergecastMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> ConvergecastMsg_t;
 #include "algorithms/cluster/messages/join_accept_message.h"
+typedef wiselib::JoinAccClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinAccClusterMsg_t;
 #include "algorithms/cluster/messages/resume_message.h"
 typedef wiselib::ResumeClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> ResumeMsg_t;
 #include "algorithms/cluster/messages/reform_message.h"
+typedef wiselib::ResumeClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> ReformClusterMsg_t;
 #include "algorithms/cluster/messages/attribute_message.h"
-//
+typedef wiselib::AttributeClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> AttributeClusterMsg_t;
 
 #include "algorithms/cluster/messages/sema_attr.h"
 typedef wiselib::SemaAttrClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaAttributeMsg_t;
+#include "algorithms/cluster/messages/join_sema.h"
+typedef wiselib::JoinSemanticClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinSemanticClusterMsg_t;
+
 #include "algorithms/cluster/messages/sema_resu.h"
 typedef wiselib::SemaResuClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaResumeMsg_t;
 

@@ -20,12 +20,7 @@ namespace wiselib {
         typedef typename Radio::block_data_t block_data_t;
         typedef typename Radio::message_id_t message_id_t;
         typedef node_id_t cluster_id_t;
-
-        struct semantics {
-            int semantic_id_;
-            int value_;
-        };
-        typedef struct semantics semantics_t;
+                
 
         enum data_positions {
             MSG_ID_POS = 0, // message id position inside the message [uint8]

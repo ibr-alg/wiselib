@@ -212,8 +212,6 @@ namespace wiselib {
             return it().clusters_joined();
         }
 
-
-
         //TODO: CHILDS_COUNT
         //TODO: CHILDS
         //TODO: NODE_COUNT
@@ -315,13 +313,8 @@ namespace wiselib {
 #endif
 
 
-
-#ifndef FIXED_ROLES
-
             timer().template set_timer<self_type, &self_type::form_cluster > (
                     start_in * 1000, this, 0);
-
-#endif
         }
 
         /**
@@ -374,47 +367,27 @@ namespace wiselib {
                     int bytes_written = 0;
                     bytes_written += sprintf(buffer + bytes_written, "SA;%x;", cluster_id());
 
-                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {                        
+                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
                         //                        group_entry_t demand_value;
                         //                        demand_value.size_a = sizeof (dvit->second);
                         //                        demand_value.data_a = (block_data_t *) & min;
                         //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
                         group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
-                        bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str() );
+                        int a;
+                        memcpy(&a, sema_value.data(), sizeof (int));
+                        if (a == -1) continue;
+                        bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str());
                         //                        debug().debug("Value %s", sema_value.c_str());                                                
 
                     }
-                    
+
                     buffer[bytes_written] = '\0';
-                    debug().debug("%s",buffer);
+                    debug().debug("%s", buffer);
 
 
                 }
 
             }
-            //            timer().template set_timer<self_type,
-            //                    &self_type::answer > (10 * time_slice_, this, (void*) 0);
-
-            /*            bool result = true;
-
-                        for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                            value_t sema_value = it().get_value_for_predicate(dvit->first);
-                            //lower than condition ( accept only if the agg value is lower than the given demand)
-                            if ((dvit->second < sema_value) || (sema_value == -1)) {
-                                result = false;
-                            }
-                        }
-                        if (result) {
-                            char str[100];
-                            int bytes_written = 0;
-                            bytes_written += sprintf(str + bytes_written, "Yes it is!");
-                            for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                                bytes_written += sprintf(str + bytes_written, " %d|%d", dvit->first, it().get_value_for_predicate(dvit->first));
-                            }
-                            str[bytes_written] = '\0';
-                            debug().debug("%s", str);
-                        }
-             */
         }
 
     protected:
@@ -526,8 +499,8 @@ namespace wiselib {
 
 
 
-                                 timer().template set_timer<self_type,
-                                        &self_type::reply_to_head > (10000, this, (void*) 0);
+                timer().template set_timer<self_type,
+                        &self_type::reply_to_head > (10000, this, (void*) 0);
             }
         }
 
