@@ -373,9 +373,8 @@ namespace wiselib {
                         //                        demand_value.data_a = (block_data_t *) & min;
                         //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
                         group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
-                        int a;
-                        memcpy(&a, sema_value.data(), sizeof (int));
-                        if (a == -1|| a>5000) continue;
+                        
+                        if (sema_value.size()==0) continue;
                         bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str());
                         //                        debug().debug("Value %s", sema_value.c_str());                                                
 
