@@ -30,10 +30,14 @@ namespace wiselib {
         typedef typename OsModel::Timer Timer;
         typedef typename OsModel::Debug Debug;
         typedef Semantics_P Semantics_t;
-        typedef typename Semantics_t::semantic_id_t semantic_id_t;
+        typedef typename Semantics_t::predicate_t semantic_id_t; //need to remove it
+        typedef typename Semantics_t::predicate_t predicate_t;
         typedef typename Semantics_t::value_t value_t;
         typedef typename Semantics_t::group_container_t group_container_t;
         typedef typename Semantics_t::value_container_t value_container_t;
+#ifdef ANSWERING
+        typedef typename Semantics_t::predicate_container_t predicate_container_t;
+#endif
         typedef typename Semantics_t::group_entry_t group_entry_t;
 
         //        struct semantic_head {
@@ -41,7 +45,14 @@ namespace wiselib {
         //            value_t semantic_value_;
         //        };
         //
-        typedef wiselib::pair<int, int> semantic_head_entry_t;
+
+        struct semantic_head_item {
+            block_data_t data[20];
+            predicate_t predicate;
+            value_t value;
+        };
+        typedef semantic_head_item semantic_head_item_t;
+        typedef wiselib::pair<semantic_head_item_t, semantic_head_item_t> semantic_head_entry_t;
         typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 10 > semantic_head_vector_t;
 
         typedef SemaIterator<OsModel_P, Radio_P, Semantics_P> self_t;
@@ -328,18 +339,29 @@ namespace wiselib {
         SemaResumeMsg_t get_resume_payload() {
             SemaResumeMsg_t msg;
             msg.set_node_id(radio().id());
+#ifdef ANSWERING
+            predicate_container_t my_predicates = semantics_->get_predicates();
 
-            int predicate = 210;
-            value_container_t myvalues = semantics_->get_values(predicate);
-            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-                msg.add_predicate((block_data_t*) & predicate, sizeof (int), gi->data(), gi->size());
+            for (typename predicate_container_t::iterator it = my_predicates.begin(); it != my_predicates.end(); ++it) {
+                value_container_t myvalues = semantics_->get_values(*it);
+                for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                    msg.add_predicate(it->data(), it->size(), gi->data(), gi->size());
+                }
             }
+#endif
 
-            predicate = 211;
-            myvalues = semantics_->get_values(predicate);
-            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-                msg.add_predicate((block_data_t*) & predicate, sizeof (int), gi->data(), gi->size());
-            }
+
+            //            int predicate = 210;
+            //            predicate_t pred = predicate_t(&predicate);
+            //            value_container_t myvalues = semantics_->get_values(pred);
+            //            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+            //            }
+            //
+            //            predicate = 211;
+            //            myvalues = semantics_->get_values(pred);
+            //            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+            //                msg.add_predicate((block_data_t*) & predicate, sizeof (int), gi->data(), gi->size());
+            //            }
 
             msg.set_cluster_id(cluster_id());
             //
@@ -359,69 +381,79 @@ namespace wiselib {
             node_id_t sender = msg->node_id();
 
             size_t count = msg->contained();
-
-
             for (size_t i = 0; i < count; i++) {
+#ifdef ANSWERING
 
-                int predicate;
-                memcpy(&predicate, msg->get_predicate_data(i), msg->get_predicate_size(i));
-                int value;
-                memcpy(&value, msg->get_value_data(i), msg->get_value_size(i));
-
+                predicate_t predicate = predicate_t(msg->get_predicate_data(i), msg->get_predicate_size(i), semantics_->get_allocator());
+                value_t value = value_t(msg->get_value_data(i), msg->get_value_size(i), semantics_->get_allocator());
                 add_semantic_value(predicate, value);
+                //                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
 
-
-//                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
-
+#endif
             }
-
             node_joined(sender);
         }
 
-        void add_semantic_value(int predicate, int value) {
-
-            if (value <0 || value > 5000) return;
-            
+        void add_semantic_value(predicate_t predicate, value_t value) {//NEDDDSS TOO RREEE TTHHIIINNKKK
             if (!semantic_head_vector_.empty()) {
                 for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
                         it != semantic_head_vector_.end(); ++it) {
-                    if (it->first == predicate) {
-                        it->second = semantics_->aggregate(value, it->second, predicate);
-
+                    if (semantics_->cmp(predicate, it->first.predicate, predicate) == 0) {
+                        semantics_->aggregate(it->second.value, value, predicate);
                     }
-
                 }
             }
             semantic_head_entry_t newentry;
-            newentry.first = predicate;
-            newentry.second = value;
+            newentry.first.predicate = predicate;
+            newentry.second.value = value;
             semantic_head_vector_.push_back(newentry);
         }
 
         void became_head() {
             cluster_id_ = radio().id();
 
-            int predicate = 210;
-            value_container_t myvalues = semantics_->get_values(predicate);
-            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-                int value;
-                memcpy(&value, gi->data(), gi->size());
-                add_semantic_value(predicate, value);
-            }
+#ifdef ANSWERING
+            predicate_container_t my_predicates = semantics_->get_predicates();
 
-            predicate = 211;
-            myvalues = semantics_->get_values(predicate);
-            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-                int value;
-                memcpy(&value, gi->data(), gi->size());
-                add_semantic_value(predicate, value);
+            for (typename predicate_container_t::iterator it = my_predicates.begin(); it != my_predicates.end(); ++it) {
+                //                debug().debug("Predicate %s", it->c_str());
+                value_container_t myvalues = semantics_->get_values(*it);
+                for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                    add_semantic_value(*it, *gi);
+                }
             }
-
+#endif
+            //#ifdef INTEGER
+            //            int predicate = 210;
+            //            predicate_t pred = predicate_t(&predicate);
+            //#else
+            //            ///    predicate_t pred = predicate_t("temp");
+            //#endif
+            //
+            //
+            //
+            //            //            value_container_t myvalues = semantics_->get_values(pred);
+            //            //            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+            //            //
+            //            //                add_semantic_value(pred, *gi);
+            //            //            }
+            //
+            //#ifdef INTEGER
+            //            predicate = 211;
+            //
+            //#else 
+            //#endif
+            //
+            //            //            myvalues = semantics_->get_values(pred);
+            //            //            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+            //            //                add_semantic_value(pred, *gi);
+            //            //            }
+            //
 
 
         }
 
-        group_entry_t get_value_for_predicate(semantic_id_t id) {
+        group_entry_t get_value_for_predicate(predicate_t id) {
             int val = -1;
             group_entry_t a;
             a.size_a = 0;
@@ -429,10 +461,9 @@ namespace wiselib {
 
             for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
                     it != semantic_head_vector_.end(); ++it) {
-                if (it->first == id) {
-                    a.data_a = (block_data_t *) & it->second;
-                    a.size_a = sizeof(int);
-                    return a;
+
+                if (semantics_->cmp(it->first.predicate, id, it->first.predicate) == 0) {//not completely correct
+                    return it->second.value;
                 }
             }
 
