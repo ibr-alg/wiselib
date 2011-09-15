@@ -61,10 +61,14 @@ namespace wiselib {
         typedef JoinDecision_P JoinDecision_t;
         typedef Iterator_P Iterator_t;
         typedef Semantics_P Semantics_t;
-        typedef typename Semantics_t::semantic_id_t semantic_id_t;
+        typedef typename Semantics_t::semantic_id_t semantic_id_t; //need to remove tis
+        typedef typename Semantics_t::predicate_t predicate_t;
         typedef typename Semantics_t::value_t value_t;
         typedef typename Semantics_t::group_container_t group_container_t;
         typedef typename Semantics_t::value_container_t value_container_t;
+#ifdef ANSWERING
+        typedef typename Semantics_t::predicate_container_t predicate_container_t;
+#endif
         typedef typename Semantics_t::group_entry_t group_entry_t;
         // self_type
         typedef SpitCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, Semantics_P> self_type;
@@ -75,7 +79,7 @@ namespace wiselib {
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
 
-        typedef wiselib::pair<semantic_id_t, value_t> demands_entry_t;
+        typedef wiselib::pair<int, int> demands_entry_t;
         typedef wiselib::vector_static<OsModel, demands_entry_t, 10 > demands_vector_t;
         typedef typename demands_vector_t::iterator demands_vector_iterator_t;
 
@@ -342,44 +346,43 @@ namespace wiselib {
             demands_vector_.clear();
         }
 
-        void answer(void *da) {
-            long a = (long) da;
+        void answer(int a) {
+
             if (is_cluster_head()) {
                 if (a == 0) {
                     bool yes = true;
 
-                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-
-                        int min = (dvit->second);
-                        group_entry_t demand_value;
-                        demand_value.size_a = sizeof (dvit->second);
-                        demand_value.data_a = (block_data_t *) & min;
-                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
-                        group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
-                        //                        debug().debug("Value %s", sema_value.c_str());
-                        bool this_one = semantics_->cmp(sema_value, demand_value, dvit->first) == 0 ? true : false;
-                        yes = yes && this_one;
-                    }
+                    //                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                    //
+                    //                        predicate_t pred = predicate_t(&dvit->first);
+                    //
+                    //                        int min = (dvit->second);
+                    //                        value_t demand_value;
+                    //                        demand_value.size_a = sizeof (dvit->second);
+                    //                        demand_value.data_a = (block_data_t *) & min;
+                    //                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
+                    //                        value_t sema_value = it().get_value_for_predicate(pred);
+                    //                        //                        debug().debug("Value %s", sema_value.c_str());
+                    //                        bool this_one = semantics_->cmp(sema_value, demand_value, pred) == 0 ? true : false;
+                    //                        yes = yes && this_one;
+                    //                    }
 
                     debug().debug("SA;%x;%s", cluster_id(), yes ? "yes" : "no");
                 } else if (a == 1) {
                     char buffer [1000];
                     int bytes_written = 0;
                     bytes_written += sprintf(buffer + bytes_written, "SA;%x;", cluster_id());
+#ifdef ANSWERING                    
+                    predicate_container_t my_predicates = semantics_->get_predicates();
 
-                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                        //                        group_entry_t demand_value;
-                        //                        demand_value.size_a = sizeof (dvit->second);
-                        //                        demand_value.data_a = (block_data_t *) & min;
-                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
-                        group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
-                        
-                        if (sema_value.size()==0) continue;
-                        bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str());
-                        //                        debug().debug("Value %s", sema_value.c_str());                                                
-
+                    for (typename predicate_container_t::iterator it = my_predicates.begin(); it != my_predicates.end(); ++it) {
+                        value_container_t values = semantics_->get_values(*it);
+                        for (typename value_container_t::iterator vit = values.begin(); vit != values.end(); ++vit) {
+                            value_t sema_value = *vit;
+                            bytes_written += sprintf(buffer + bytes_written, "%s:%s ", it->c_str(), sema_value.c_str());
+                        }
                     }
-
+#endif
                     buffer[bytes_written] = '\0';
                     debug().debug("%s", buffer);
 
@@ -609,7 +612,7 @@ namespace wiselib {
         bool participating_;
         uint8_t status_; // the status of the clustering algorithm
         int callback_id_; // receive message callback
-        static const uint32_t time_slice_ = 500; // time to wait for cluster accept replies
+        static const uint32_t time_slice_ = 200; // time to wait for cluster accept replies
         bool head_lost_; // flag when the head was lost
         bool do_cleanup;
 
