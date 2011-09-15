@@ -129,6 +129,8 @@ namespace wiselib {
 			
 			const value_type& front() const { return first_node_->value; }
 			const value_type& back() const { return last_node_->value; }
+			value_type& front() { return first_node_->value; }
+			value_type& back() { return last_node_->value; }
 			iterator back_iterator() { return iterator(*this, last_node_); }
 			
 			iterator insert(iterator iter, const_reference v) {
