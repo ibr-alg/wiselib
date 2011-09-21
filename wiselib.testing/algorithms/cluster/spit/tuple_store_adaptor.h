@@ -37,12 +37,22 @@ namespace wiselib {
 			
 			typedef DataAVLTree<OsModel, Allocator, typename OsModel::block_data_t> AVLContainer;
 			typedef list_dynamic<OsModel, string_dynamic<OsModel, Allocator, block_data_t>, Allocator> ListContainer;
+			
+			// Small version (3rd container doesn't matter when
+			// TUPLE_STORE_ENABLE_INDICES is 0)
 			typedef TupleStore<
 				OsModel, 3, Allocator,
-				ListContainer,
-				ListContainer,
-				AVLContainer
+				ListContainer, ListContainer, AVLContainer
 			> tuple_store_t;
+			
+			/*
+			// Efficient version
+			typedef TupleStore<
+				OsModel, 3, Allocator,
+				AVLContainer, AVLContainer, AVLContainer
+			> tuple_store_t;
+			*/
+			
 			
 			//typedef typename tuple_store_t::block_data_t block_data_t;
 			typedef typename tuple_store_t::data_t data_t;
