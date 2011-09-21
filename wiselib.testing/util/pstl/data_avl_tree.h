@@ -35,19 +35,27 @@ namespace wiselib {
 		typename OsModel_P,
 		typename Allocator_P,
 		//typename Compare_P = CompareLess<Key_P>,
+		typename BlockData_P , //= char,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class DataAVLTree {
 	public:
 		typedef OsModel_P OsModel;
 		typedef Allocator_P Allocator;
-		//typedef Compare_P Compare;
 		typedef Debug_P Debug;
+		
 		typedef DataAVLTree<OsModel_P, Allocator_P, Debug_P> self_type;
 		typedef self_type* self_pointer_t;
+		
 		typedef typename OsModel::size_t size_type;
-		typedef typename OsModel::block_data_t block_data_t;
+		//typedef typename OsModel::block_data_t block_data_t;
+		typedef BlockData_P block_data_t;
+		
 		typedef string_dynamic<OsModel, Allocator, block_data_t> data_t;
+		typedef data_t key_type;
+		typedef data_t value_type;
+		typedef data_t mapped_type;
+		
 		typedef int (*comparator_t)(const data_t&, const data_t&);
 		
 		struct Node;
@@ -120,6 +128,7 @@ namespace wiselib {
 		 * to the pointed-to value in memory.
 		 */
 		class inorder_iterator {
+			// {{{
 		public:
 			inorder_iterator() { }
 			inorder_iterator(typename Allocator::self_pointer_t allocator) : path_(*allocator) { }
@@ -137,6 +146,7 @@ namespace wiselib {
 			}
 			inorder_iterator& operator=(const inorder_iterator& other) {
 				path_ = other.path_;
+				return *this;
 			}
 			bool operator==(const inorder_iterator& other) const {
 				// if one has empty path (end iterator) and the other hasn't -> unequal
@@ -191,6 +201,7 @@ namespace wiselib {
 			friend class DataAVLTree;
 		private:
 			list_dynamic<OsModel, node_ptr_t, Allocator> path_;
+			// }}}
 		};
 		typedef inorder_iterator iterator;
 		
@@ -248,6 +259,8 @@ namespace wiselib {
 		 * \return the number of elements stored in the tree.
 		 */
 		size_type size() const { return size_; }
+		bool empty() const { return size_ == 0; }
+		size_type max_size() const { return 0; }
 		
 		/**
 		 * \tparam T Type of prototype element.
@@ -256,10 +269,13 @@ namespace wiselib {
 		 * 
 		 * Using \ref Compare, find an element in the tree that equals data.
 		 */
-		template<typename T>
-		inorder_iterator find(const T& data1) {
+		/*template<typename T>
+		inorder_iterator find(const T& data1) const {
 			data_t data(reinterpret_cast<const block_data_t*>(&data1), sizeof(T), allocator_);
-			
+			return find(data);
+		}*/
+		
+		inorder_iterator find(const data_t& data) {
 			inorder_iterator iter(allocator_);
 			find(data, root(), iter);
 			if(iter.path_.size() && compare_(iter.path_.back()->data(), data) == 0) {
@@ -268,10 +284,12 @@ namespace wiselib {
 			return end();
 		}
 		
-		template<typename T>
+		size_type count(const data_t& data) { return find(data) != end(); }
+		
+		/*template<typename T>
 		const node_ptr_t insert(const T& t) {
 			return insert(data_t(reinterpret_cast<const block_data_t*>(&t), sizeof(T), allocator_));
-		}
+		}*/
 		
 		/**
 		 * Insert data block into the tree. If the data is already in the tree,
@@ -302,8 +320,8 @@ namespace wiselib {
 		 * Erase the node pointed to by iter from the tree and free its used
 		 * memory.
 		 */
-		template<typename Iterator>
-		void erase(Iterator& iter) {
+		//template<typename Iterator>
+		void erase(const iterator& iter) {
 			int h = 0;
 			node_ptr_t d = unlink(iter, root_, h);
 			assert(d);
@@ -312,8 +330,8 @@ namespace wiselib {
 			
 			check();
 		}
-		
-	#if AVLTREE_CHECK
+	
+#if AVLTREE_CHECK
 		/**
 		 * Check if AVL condition (balance in {-1,0,1}) is met for all nodes.
 		 */
@@ -353,66 +371,65 @@ namespace wiselib {
 		void check() const {
 			check_balance(root_);
 			check_avl(root_);
-			
-			#if DEBUG
+	
+	#if DEBUG
 				size_t counted = count_nodes(root_);
 				assert(counted == size());
 				assert((!root_) == (size_ == 0));
-			#endif
+	#endif
 		}
-		
-	#else
+#else
 		void check_avl(node_ptr_t) const { }
 		void check_balance(node_ptr_t) const { }
 		void check() const { }
-	#endif // AVLTREE_CHECK
+#endif // AVLTREE_CHECK
 		
 		
-		#ifdef AVLTREE_DEBUG
-		// {{{
-			void print() {
-				if(debug_) {
-					debug_->debug("AVLTree< ");
-					printSubtree(root_);
-					debug_->debug(" size=%d>", size());
-				}
+#ifdef AVLTREE_DEBUG
+	// {{{
+		void print() {
+			if(debug_) {
+				debug_->debug("AVLTree< ");
+				printSubtree(root_);
+				debug_->debug(" size=%d>", size());
 			}
-			
-			void printNode(node_ptr_t node) {
-				if(node) {
-					debug_->debug("['");
-					for(size_t i=0; i < (node->data().size()); i++) {
-						char c = (reinterpret_cast<const char*>((node->data().c_str())))[i];
-						debug_->debug("%c", c >= 32 ? c : '.');
-					}
-					debug_->debug("' %d]", node->balance());
+		}
+		
+		void printNode(node_ptr_t node) {
+			if(node) {
+				debug_->debug("['");
+				for(size_t i=0; i < (node->data().size()); i++) {
+					char c = (reinterpret_cast<const char*>((node->data().c_str())))[i];
+					debug_->debug("%c", c >= 32 ? c : '.');
 				}
-				else {
-					debug_->debug("[null]");
-				}
+				debug_->debug("' %d]", node->balance());
 			}
-			
-			void printSubtree(node_ptr_t node) {
-				if(node && debug_) {
-					printNode(node);
-					debug_->debug("< ");
-					printSubtree(node->left());
-					debug_->debug(" | ");
-					printSubtree(node->right());
-					debug_->debug(" >");
-				}
+			else {
+				debug_->debug("[null]");
 			}
-		// }}}
-		#endif // AVLTREE_DEBUG
+		}
+		
+		void printSubtree(node_ptr_t node) {
+			if(node && debug_) {
+				printNode(node);
+				debug_->debug("< ");
+				printSubtree(node->left());
+				debug_->debug(" | ");
+				printSubtree(node->right());
+				debug_->debug(" >");
+			}
+		}
+	// }}}
+#endif // AVLTREE_DEBUG
 		
 			
 	private:
 		size_type size_;
 		node_ptr_t root_;
 		typename Allocator::self_pointer_t allocator_;
-		#ifdef AVLTREE_DEBUG
+#ifdef AVLTREE_DEBUG
 		typename Debug::self_pointer_t debug_;
-		#endif
+#endif
 		comparator_t compare_;
 		
 		// Return the root node

@@ -3,20 +3,50 @@
 #define _TUPLE_STORE_ADAPTOR_H
 
 #include "util/pstl/list_dynamic.h"
+#include "util/pstl/data_avl_tree.h"
+
+// clustering_sema_app
+// 
+// AVL / AVL / AVL
+// 	without indices: 82116
+// 	with indices: 86952
+// 	
+// List / List / AVL
+// 	without indices: 80360
+// 	with indices: 86044
+
+#define TUPLE_STORE_ENABLE_INDICES 0
+#include "util/tuple_store/tuple_store2.h"
 
 namespace wiselib {
 	
+	#define SortedStringSet DataAVLTree
+	
+	
 	template<
-		typename TupleStore_P
+		typename OsModel_P,
+		typename Allocator_P
 	>
 	class TupleStoreAdaptor {
 		public:
-			typedef TupleStore_P TupleStore;
-			typedef typename TupleStore::block_data_t block_data_t;
-			typedef typename TupleStore::OsModel OsModel;
-			typedef typename TupleStore::Allocator Allocator;
-			typedef typename TupleStore::data_t data_t;
-			typedef TupleStoreAdaptor<TupleStore> self_type;
+			typedef OsModel_P OsModel;
+			typedef Allocator_P Allocator;
+			typedef typename OsModel::block_data_t block_data_t;
+			
+			struct Empty {};
+			
+			typedef DataAVLTree<OsModel, Allocator, typename OsModel::block_data_t> AVLContainer;
+			typedef list_dynamic<OsModel, string_dynamic<OsModel, Allocator, block_data_t>, Allocator> ListContainer;
+			typedef TupleStore<
+				OsModel, 3, Allocator,
+				ListContainer,
+				ListContainer,
+				AVLContainer
+			> tuple_store_t;
+			
+			//typedef typename tuple_store_t::block_data_t block_data_t;
+			typedef typename tuple_store_t::data_t data_t;
+			typedef TupleStoreAdaptor<OsModel, Allocator> self_type;
 			
 			typedef data_t value_t;
 			typedef data_t predicate_t;
@@ -58,19 +88,20 @@ namespace wiselib {
 			
 			enum Column { SUBJECT=0, PREDICATE=1, OBJECT=2, COLUMNS };
 			
-			TupleStoreAdaptor(TupleStore& store) : store_(store) {
-			}
+			/*TupleStoreAdaptor(tuple_store_t& store) : store_(store) {
+			}*/
 			
-			group_container_t get_groups() const {
+			group_container_t get_groups() {
 				group_container_t r(store_.get_allocator());
 				SelfTuple q;
-				store_.create_index(PREDICATE);
+#if TUPLE_STORE_ENABLE_INDICES
 				
+				store_.create_index(PREDICATE);
 				for(size_t i = 0; i < sizeof(grouping_predicates_) / sizeof(char*); i++) {
 					data_t predicate = data_t((const block_data_t*)grouping_predicates_[i], &store_.get_allocator());
 					q.predicate = predicate;
 					
-					typename TupleStore::query_iterator iter = store_.query_begin(q, PREDICATE);
+					typename tuple_store_t::query_iterator iter = store_.query_begin(q, PREDICATE);
 					for( ; iter != store_.query_end(); ++iter) {
 						group_entry_t g(
 							predicate,
@@ -79,6 +110,26 @@ namespace wiselib {
 						r.push_back(g);
 					}
 				}
+#else
+				
+				data_t me = data_t((const block_data_t*)self_subject_, strlen(self_subject_), &store_.get_allocator());
+				for(typename tuple_store_t::iterator it = store_.begin(); it != store_.end(); ++it) {
+					for(size_t i = 0; i < sizeof(grouping_predicates_) / sizeof(char*); i++) {
+						data_t predicate = data_t((const block_data_t*)grouping_predicates_[i], &store_.get_allocator());
+						
+						typename tuple_store_t::Tuple t = tuple_store_t::template from_data<typename tuple_store_t::Tuple>(*it);
+						
+						if((data_t(t.data((int)SUBJECT), t.size((int)SUBJECT), &store_.get_allocator()) == me) &&
+							(data_t(t.data((int)PREDICATE), t.size((int)PREDICATE), &store_.get_allocator()) == predicate)) {
+							group_entry_t g(
+								predicate,
+								data_t(t.data((int)OBJECT), t.size((int)OBJECT), &store_.get_allocator())
+							);
+							r.push_back(g);
+						}
+					}
+				}
+#endif
 				return r;
 			}
 			
@@ -99,7 +150,7 @@ namespace wiselib {
 				store_.create_index(PREDICATE);
 				
 				q.predicate = predicate;
-				typename TupleStore::query_iterator iter = store_.query_begin(q, PREDICATE);
+				typename tuple_store_t::query_iterator iter = store_.query_begin(q, PREDICATE);
 				for( ; iter != store_.query_end(); ++iter) {
 					r.push_back(data_t((*iter).data(OBJECT), (*iter).size(OBJECT), &store_.get_allocator()));
 				}
@@ -118,7 +169,7 @@ namespace wiselib {
 				SelfTuple q;
 				q.predicate = predicate;
 				store_.create_index(PREDICATE);
-				typename TupleStore::query_iterator iter = store_.query_begin(q, PREDICATE);
+				typename tuple_store_t::query_iterator iter = store_.query_begin(q, PREDICATE);
 				
 				// Erase all tuples with that predicate
 				while(true) {
@@ -155,21 +206,23 @@ namespace wiselib {
 			};
 			
 			
-			TupleStore& store_;
+			tuple_store_t store_;
 			
 			static const char *self_subject_; // = ":me";
 			static const char *grouping_predicates_[];
 	};
 	
 	template<
-		typename TupleStore_P
+		typename OsModel_P,
+		typename Allocator_P
 	>
-	const char* TupleStoreAdaptor<TupleStore_P>::self_subject_ = ":me";
+	const char* TupleStoreAdaptor<OsModel_P, Allocator_P>::self_subject_ = ":me";
 	
 	template<
-		typename TupleStore_P
+		typename OsModel_P,
+		typename Allocator_P
 	>
-	const char* TupleStoreAdaptor<TupleStore_P>::grouping_predicates_[] = {
+	const char* TupleStoreAdaptor<OsModel_P, Allocator_P>::grouping_predicates_[] = {
 		":attachedTo", ":inRoom"
 	};
 	
