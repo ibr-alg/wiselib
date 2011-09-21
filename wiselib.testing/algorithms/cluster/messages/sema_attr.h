@@ -21,13 +21,9 @@ namespace wiselib {
         typedef typename Radio::message_id_t message_id_t;
         typedef node_id_t cluster_id_t;
 
-        
-        
-        
-
         enum data_positions {
             MSG_ID_POS = 0, // message id position inside the message [uint8]
-            NODE_ID_POS = MSG_ID_POS + sizeof (message_id_t),
+            NODE_ID_POS = MSG_ID_POS+sizeof (message_id_t),
             ATTRIBUTE_LIST_POS = NODE_ID_POS + sizeof (node_id_t)
         };
 
