@@ -41,6 +41,8 @@ namespace wiselib {
 				
 				reference operator*() { return node_->value; }
 				pointer operator->() { return &node_->value; }
+				const reference operator*() const { return node_->value; }
+				const pointer operator->() const { return &node_->value; }
 				
 				node_pointer_t node() { return node_; }
 				List& list() { return *list_; }
@@ -150,6 +152,13 @@ namespace wiselib {
 				
 				iterator new_iter(*this, n);
 				return new_iter;
+			}
+			
+			iterator find(value_type v) {
+				for(iterator i = begin(); i != end(); ++i) {
+					if(*i == v) { return i; }
+				}
+				return end();
 			}
 			
 			iterator push_back(value_type v) {

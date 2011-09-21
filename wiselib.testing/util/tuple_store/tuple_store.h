@@ -15,11 +15,23 @@
 
 namespace wiselib {
 	/**
+	 * \tparam N number of elements per tuple
+	 * 
+	 * \tparam TupleContainer_P container type used internally for tuples. Its
+	 * 	data type should be string_dynamic<OsModel, Allocator, OsModel::block_data_t>.
+	 * 
+	 * \tparam USE_INDICES if true, compile in support for indices
+	 * \tparam Index_P container type used for indices. Its data type should
+	 * 	be string_dynamic<OsModel, Allocator, OsModel::block_data_t>. If
+	 * 	USE_INDICES is false, anything is allowed
 	 */
 	template<
 		typename OsModel_P,
 		int N,
 		typename Allocator_P,
+		typename TupleContainer_P,
+		bool USE_INDICES,
+		typename Index_P,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class TupleStore {
@@ -27,7 +39,11 @@ namespace wiselib {
 		typedef OsModel_P OsModel;
 		typedef Allocator_P Allocator;
 		typedef Debug_P Debug;
+		typedef TupleContainer_P TupleContainer;
+		typedef Index_P Index;
+		
 		typedef TupleStore<OsModel, N, Allocator, Debug> self_type;
+		
 		typedef typename OsModel::size_t size_type;
 		typedef typename OsModel::size_t size_t;
 		typedef typename OsModel::block_data_t block_data_t;
