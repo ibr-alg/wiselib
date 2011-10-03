@@ -13,7 +13,7 @@
 
 #include "algorithms/cluster/modules/chd/attr_chd.h"
 #include "algorithms/cluster/modules/it/fronts_it.h"
-#include "algorithms/cluster/modules/jd/bfs_jd.h"
+#include "algorithms/cluster/modules/jd/fronts_jd.h"
 
 
 //ECHO PROTOCOL
