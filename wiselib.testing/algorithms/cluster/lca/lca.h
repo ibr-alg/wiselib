@@ -6,10 +6,12 @@
 #include "util/base_classes/clustering_base.h"
 #include "algorithms/neighbor_discovery/echo.h"
 #include "algorithms/neighbor_discovery/pgb_payloads_ids.h"
-#include "algorithms/cluster/join_message.h"
-#include "algorithms/cluster/join_accept_message.h"
-#include "algorithms/cluster/resume_message.h"
-#include "algorithms/cluster/reform_message.h"
+
+
+#include "algorithms/cluster/modules/chd/prob_chd.h"
+#include "algorithms/cluster/modules/jd/bfs_jd.h"
+#include "algorithms/cluster/modules/it/fronts_it.h"
+
 
 #undef DEBUG
 // Uncomment to enable Debug
@@ -58,7 +60,7 @@ public:
 	 * */
 	LcaCore() :
 		probability_(30), maxhops_(4), enabled_(false), status_(0), round_(0),
-				auto_reform_(0), reform_(false), head_lost_(false) {
+				auto_reform_(0), reform_(false), head_lost_(false),count(0) {
 	}
 
 	/*
@@ -128,6 +130,27 @@ public:
 		return it().hops();
 	}
 
+        /**
+         * for legacy
+         */
+        void register_debug_callback() {
+            this-> template reg_state_changed_callback<self_type, &self_type::debug_callback > (this);
+        }
+
+        void debug_callback(int event) {
+            switch (event) {
+                case ELECTED_CLUSTER_HEAD:
+                case NODE_JOINED:
+                case CLUSTER_FORMED:
+                    debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
+                    return;
+                case MESSAGE_SENT:
+                    debug().debug("CLS;%x;45;%x", radio().id(), 0xffff);
+                    return;
+
+            }
+        }
+
 	/*
 	 * The status Of the Clustering Algorithm
 	 * 1 means a cluster is being formed
@@ -171,7 +194,17 @@ public:
 	 * registers callbacks
 	 * calls find head to start clustering
 	 * */
-	void enable() {
+        inline void enable() {
+#ifdef SHAWN
+            //typical time for shawn to form stable links
+            enable(6);
+#else
+            //typical time for isense test to form stable links
+            enable(40);
+#endif
+        }
+
+        void enable(int start_in) {
 		if (enabled_)
 			return;
 		enabled_ = true;
@@ -184,9 +217,11 @@ public:
 		jd().init(radio(), debug());
 		it().init(radio(), timer(), debug());
 
-#ifdef DEBUG        
-		debug().debug("Enable::%x::%d::%d::", radio().id(), probability_,
-				maxhops_);
+#ifdef DEBUG_CLUSTERING
+            debug().debug("CL;%x;enable", radio().id());
+#ifdef SHAWN
+            debug().debug("\n");
+#endif
 #endif
 
 		// receive receive callback
@@ -197,7 +232,7 @@ public:
 		jd().set_maxhops(maxhops_);
 
 		timer().template set_timer<self_type, &self_type::form_cluster> (
-				time_slice_, this, (void *) maxhops_);
+				start_in*time_slice_, this, (void *) maxhops_);
 	}
 
 	/*
@@ -251,8 +286,9 @@ public:
 			jd().set_cluster_id(radio().id());
 			chd().set_probability(probability_);
 
+
 			// inform for state change
-			this->state_changed(CLUSTER_HEAD_CHANGED);
+			this->state_changed(ELECTED_CLUSTER_HEAD);
 
 			if (auto_reform_ > 0) {
 				timer().template set_timer<self_type,
@@ -277,24 +313,33 @@ public:
 					* maxhops_ * time_slice_, this, 0);
 		} else {
 			timer().template set_timer<self_type, &self_type::wait_for_joins> (
-					maxhops_ * time_slice_, this, 0);
+					time_slice_, this, 0);
 		}
 	}
 
 	void wait_for_joins(void * data) {
 		head_lost_ = false;
+                long times = (long)data;
 
 		// if noone aroung as cluster head
 		// become a cluster head and search for nodes
 		if (it().node_type() == UNCLUSTERED) {
+                    if (times<(maxhops_+2)){
+                        times++;
+                        timer().template set_timer<self_type, &self_type::wait_for_joins> (
+					time_slice_, this, (void *)times);
+
+                    }else {
 #ifdef DEBUG
-			debug().debug("Not clustered yet, Start own Cluster %x",
-					radio().id());
+			debug().debug("Not clustered yet, Start own Cluster %x - %d",
+					radio().id(),count++);
 #endif
 			//become a cluster head - set probability to 100%
-			//chd().set_probability(100);
+			chd().set_probability(100);
 			// start clustering
 			find_head(0);
+                    }                    
+                    
 		} else {
 			if (jd().hops() < maxhops_) {
 				JoinClusterMsg<OsModel, Radio> msg =
@@ -341,278 +386,280 @@ public:
 						it().parent());
 #endif
 			}// if a cluster head end the clustering under this branch
-			else {
-				this->state_changed(CLUSTER_FORMED);
-			}
-			status_ = 0;
-		}
-	}
+                else {
+                    this->state_changed(CLUSTER_FORMED);
+                }
+                status_ = 0;
+            }
+        }
 
-protected:
+    protected:
 
-	void neighbor_discovery_callback(uint8_t event, node_id_t from,
-			uint8_t len, uint8_t* data) {
-		if (nb_t::NEW_PAYLOAD_BIDI == event) {
-			receive_beacon(from, len, data);
-			//reset my beacon according to the new status
-			uint8_t buf[beacon_size()];
-			get_beacon(buf);
-			if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
-					beacon_size()) != 0) {
+        void neighbor_discovery_callback(uint8_t event, node_id_t from,
+                uint8_t len, uint8_t* data) {
+            if (nb_t::NEW_PAYLOAD_BIDI == event) {
+                receive_beacon(from, len, data);
+                //reset my beacon according to the new status
+                uint8_t buf[beacon_size()];
+                get_beacon(buf);
+                if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
+                        beacon_size()) != 0) {
 #ifdef DEBUG
-				debug_->debug("Error::%x::", radio_->id());
+                    debug_->debug("Error::%x::", radio_->id());
 #endif
-			}
-		} else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
-			node_lost(from);
+                }
+            } else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
+                node_lost(from);
 #ifdef DEBUG
-			debug().debug("Drop::%x::%x::", radio().id(), from);
+                debug().debug("Drop::%x::%x::", radio().id(), from);
 #endif
-		} else if (nb_t::NB_READY == event) {
-			// when neighborhood is ready start clustering
-			enable();
-			uint8_t buf[beacon_size()];
-			get_beacon(buf);
-			if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
-					beacon_size()) != 0) {
+            }
+            //            else if (nb_t::NB_READY == event) {
+            //                // when neighborhood is ready start clustering
+            //                enable();
+            //                uint8_t buf[beacon_size()];
+            //                get_beacon(buf);
+            //                if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, buf,
+            //                        beacon_size()) != 0) {
+            //#ifdef DEBUG
+            //                    debug_->debug("Error::%x::", radio_->id());
+            //#endif
+            //                }
+            //            }
+        }
+
+        /*
+         * Size of the payload to the ND module beacon
+         */
+        size_t beacon_size() {
+            JoinClusterMsg<OsModel, Radio> msg;
+            //send a new join message using the beacon
+            return msg.length();
+        }
+
+        /*
+         * Receive a beacon payload
+         * check for new head if needed
+         * check if in need to reform
+         */
+        void receive_beacon(node_id_t node_from, size_t len, uint8_t * data) {
+            //receive the beacon data
+            JoinClusterMsg<OsModel, Radio> msg;
+            memcpy(&msg, data, len);
+            node_id_t cluster = msg.cluster_id();
+            int hops = msg.hops();
+
+            //if the connection to the cluster head was lost
+            if (head_lost_) {
+
+                //if the beacon came from a cluster head
+                if (node_from == cluster) {
+
+                    // join him
+                    // inform iterator about the new cluster
+                    it().set_parent(node_from);
+                    it().set_cluster_id(cluster);
+                    jd().set_cluster_id(cluster);
+                    it().set_hops(hops);
+                    jd().set_hops(hops);
+                    it().set_node_type(SIMPLE);
+                    it().node_joined(node_from);
+
+                    // if joined , node state changed
+                    this->state_changed(NODE_JOINED);
+
+                    //mark that the head_lost_ situation was resolved
+                    head_lost_ = false;
+                    timer_expired(0);
+                }
+            }
+
+            //SET the node lists accordingly
+            if (cluster == radio().id()) {
+                it().node_joined(node_from);
+            } else {
+                //                it().node_not_joined(node_from);
+            }
+
+            //if message was sent from a cluster head
+            if (node_from == cluster) {
+
+                //debug().debug("Got A Beacon node :%x from :%x status:%x",radio().id(),node_from,status_);
+
+                /*			// if the messages says reform and it was sent by my
+                 // cluster head , and i am not already reforming
+                 if ((reform) && (status() == 0)) {
+                 //if ((reform)&&(node_from == cluster_id())&&(!status_)){
+                 status_ = 1;
+                 #ifdef DEBUG
+                 debug().debug("Reform::%x", radio().id());
+                 #endif
+                 //timer().template set_timer<self_type, &self_type::form_cluster > (time_slice_*0.9, this, (void *) maxhops_ );
+                 form_cluster((void*) maxhops_);
+
+                 } else*/
+                if (is_cluster_head()) {
+                    if (it().node_count(1) == 0) {
+                        if (cluster < cluster_id()) {
+                            debug().debug("Orphan::%x", radio().id());
+                            // join him
+                            // inform iterator about the new cluster
+                            it().set_parent(node_from);
+                            it().set_cluster_id(cluster);
+                            jd().set_cluster_id(cluster);
+                            it().set_hops(hops);
+                            jd().set_hops(hops);
+                            it().set_node_type(SIMPLE);
+                            it().node_joined(node_from);
+
+                            // if joined , node state changed
+                            this->state_changed(NODE_JOINED);
+
+                            //create the resyme message
+                            ResumeClusterMsg<OsModel, Radio> msg =
+                                    it().get_resume_payload();
+                            //do send the message
+                            radio().send(it().parent(), msg.length(),
+                                    (block_data_t *) & msg);
 #ifdef DEBUG
-				debug_->debug("Error::%x::", radio_->id());
+                            debug().debug("Send::%x::%d::%x::%d::", radio().id(),
+                                    msg.msg_id(), it().parent(), msg.length());
 #endif
-			}
-		}
-	}
+                        }
+                    }
+                }
+            } else {
+                //if the sender was my cluster head and is no more a CH
+                if (node_from == cluster_id()) {
+                    node_lost(cluster_id());
+                }
+            }
+        }
 
-	/*
-	 * Size of the payload to the ND module beacon
-	 */
-	size_t beacon_size() {
-		JoinClusterMsg<OsModel, Radio> msg;
-		//send a new join message using the beacon
-		return msg.length();
-	}
+        /*
+         * Get a payload
+         * to save on a beacon message
+         */
+        void get_beacon(uint8_t * mess) {
+            JoinClusterMsg<OsModel, Radio> msg = jd().get_join_request_payload();
+            memcpy(mess, &msg, msg.length());
+        }
 
-	/*
-	 * Receive a beacon payload
-	 * check for new head if needed
-	 * check if in need to reform
-	 */
-	void receive_beacon(node_id_t node_from, size_t len, uint8_t * data) {
-		//receive the beacon data
-		JoinClusterMsg<OsModel, Radio> msg;
-		memcpy(&msg, data, len);
-		node_id_t cluster = msg.cluster_id();
-		int hops = msg.hops();
+        /*
+         * RECEIVE
+         * respond to the new messages received
+         * callback from the radio
+         * */
+        void receive(node_id_t from, size_t len, block_data_t *data) {
 
-		//if the connection to the cluster head was lost
-		if (head_lost_) {
+            // drop own messages
+            if (radio().id() == from)
+                return;
+            if (!neighbor_discovery_->is_neighbor_bidi(from))
+                return;
 
-			//if the beacon came from a cluster head
-			if (node_from == cluster) {
+            // get Type of Message
+            uint8_t type = *data;
 
-				// join him
-				// inform iterator about the new cluster
-				it().set_parent(node_from);
-				it().set_cluster_id(cluster);
-				jd().set_cluster_id(cluster);
-				it().set_hops(hops);
-				jd().set_hops(hops);
-				it().set_node_type(SIMPLE);
-				it().node_joined(node_from);
-
-				// if joined , node state changed
-				this->state_changed(NODE_JOINED);
-
-				//mark that the head_lost_ situation was resolved
-				head_lost_ = false;
-				timer_expired(0);
-			}
-		}
-
-		//SET the node lists accordingly
-		if (cluster == radio().id()) {
-			it().node_joined(node_from);
-		} else {
-			it().node_not_joined(node_from);
-		}
-
-		//if message was sent from a cluster head
-		if (node_from == cluster) {
-
-			//debug().debug("Got A Beacon node :%x from :%x status:%x\n",radio().id(),node_from,status_);
-
-			/*			// if the messages says reform and it was sent by my
-			 // cluster head , and i am not already reforming
-			 if ((reform) && (status() == 0)) {
-			 //if ((reform)&&(node_from == cluster_id())&&(!status_)){
-			 status_ = 1;
-			 #ifdef DEBUG
-			 debug().debug("Reform::%x", radio().id());
-			 #endif
-			 //timer().template set_timer<self_type, &self_type::form_cluster > (time_slice_*0.9, this, (void *) maxhops_ );
-			 form_cluster((void*) maxhops_);
-
-			 } else*/
-			if (is_cluster_head()) {
-				if (it().node_count(1) == 0) {
-					if (cluster < cluster_id()) {
-						debug().debug("Orphan::%x", radio().id());
-						// join him
-						// inform iterator about the new cluster
-						it().set_parent(node_from);
-						it().set_cluster_id(cluster);
-						jd().set_cluster_id(cluster);
-						it().set_hops(hops);
-						jd().set_hops(hops);
-						it().set_node_type(SIMPLE);
-						it().node_joined(node_from);
-
-						// if joined , node state changed
-						this->state_changed(NODE_JOINED);
-
-						//create the resyme message
-						ResumeClusterMsg<OsModel, Radio> msg =
-								it().get_resume_payload();
-						//do send the message
-						radio().send(it().parent(), msg.length(),
-								(block_data_t *) &msg);
-#ifdef DEBUG
-						debug().debug("Send::%x::%d::%x::%d::", radio().id(),
-								msg.msg_id(), it().parent(), msg.length());
-#endif
-					}
-				}
-			}
-		} else {
-			//if the sender was my cluster head and is no more a CH
-			if (node_from == cluster_id()) {
-				node_lost(cluster_id());
-			}
-		}
-	}
-
-	/*
-	 * Get a payload
-	 * to save on a beacon message
-	 */
-	void get_beacon(uint8_t * mess) {
-		JoinClusterMsg<OsModel, Radio> msg = jd().get_join_request_payload();
-		memcpy(mess, &msg, msg.length());
-	}
-
-	/*
-	 * RECEIVE
-	 * respond to the new messages received
-	 * callback from the radio
-	 * */
-	void receive(node_id_t from, size_t len, block_data_t *data) {
-
-		// drop own messages
-		if (radio().id() == from)
-			return;
-		if (!neighbor_discovery_->is_neighbor_bidi(from))
-			return;
-
-		// get Type of Message
-		uint8_t type = *data;
-
-		// type=JOIN
-		if (type == JOIN) {
+            // type=JOIN
+            if (type == JOIN) {
+                #ifdef RECEIVE_DEBUG
+                debug().debug("RECEIVED JOIN Node %x <- %x", radio().id(), from);
+                #endif
+                if (node_type() == HEAD) return;
+                // try to join
+                if (jd().join(data, len)) {
+                    // set values for iterator and join_decision
+                    it().set_parent(from);
+                    it().set_cluster_id(jd().cluster_id());
+                    it().set_hops(jd().hops());
+                    it().set_node_type(SIMPLE);
+                    it().node_joined(from);
+                    this->state_changed(NODE_JOINED);
+                }
+            } else if (type == RESUME) {
 #ifdef RECEIVE_DEBUG
-			debug().debug("RECEIVED JOIN Node %x <- %x\n", radio().id(), from);
+                debug().debug("RECEIVED RESUME Node %x <- %x", radio().id(), from);
 #endif
-			if (node_type() == HEAD)
-				return;
-			// try to join
-			if (jd().join(data, len)) {
-				// set values for iterator and join_decision
-				it().set_parent(from);
-				it().set_cluster_id(jd().cluster_id());
-				it().set_hops(jd().hops());
-				it().set_node_type(SIMPLE);
-				it().node_joined(from);
-				this->state_changed(NODE_JOINED);
-			}
-		} else if (type == RESUME) {
-#ifdef RECEIVE_DEBUG
-			debug().debug("RECEIVED RESUME Node %x <- %x\n", radio().id(), from);
-#endif
-		}
-	}
+            }
+        }
 
-	/*
-	 * Called when ND lost contact with a node
-	 * If the node was cluster head
-	 *  - start searching for new head
-	 * else
-	 *  - remove node from known nodes
-	 */
-	inline void node_lost(node_id_t node) {
-		//If the node was my CH
-		if (node == cluster_id()) {
-			//Reset Iterator
-			it().reset();
-			//Mark as headless
-			head_lost_ = true;
-			//Timeout for new CH beacons
-			timer().template set_timer<self_type, &self_type::wait_for_joins> (
-					maxhops_ * time_slice_, this, 0);
-		} else {
-			//if not my CH
-			//Remove from Iterator
-			it().drop_node(node);
-		}
-	}
+        /*
+         * Called when ND lost contact with a node
+         * If the node was cluster head
+         *  - start searching for new head
+         * else
+         *  - remove node from known nodes
+         */
+        inline void node_lost(node_id_t node) {
+            //If the node was my CH
+            if (node == cluster_id()) {
+                //Reset Iterator
+                it().reset();
+                //Mark as headless
+                head_lost_ = true;
+                //Timeout for new CH beacons
+                //                timer().template set_timer<self_type, &self_type::wait_for_joins > (
+                //                        maxhops_ * time_slice_, this, 0);
+            } else {
+                //if not my CH
+                //Remove from Iterator
+                it().drop_node(node);
+            }
+        }
 
-private:
-	int receive_callback_id_; // receive message callback
-	int probability_; // clustering parameter
-	int maxhops_;
-	nb_t * neighbor_discovery_;
-	bool enabled_;
-	uint8_t status_; // the status of the clustering algorithm
-	static const uint32_t time_slice_ = 2000; // time to wait for cluster accept replies
-	int round_;
-	int auto_reform_; //time to autoreform the clusters
-	bool reform_; // flag to start reforming
-	bool head_lost_; // flag when the head was lost
+    private:
+        int receive_callback_id_; // receive message callback
+        int probability_; // clustering parameter
+        int maxhops_;
+        nb_t * neighbor_discovery_;
+        bool enabled_;
+        uint8_t status_; // the status of the clustering algorithm
+        static const uint32_t time_slice_ = 500; // time to wait for cluster accept replies
+        int round_;
+        int auto_reform_; //time to autoreform the clusters
+        bool reform_; // flag to start reforming
+        bool head_lost_; // flag when the head was lost
 
-	/* CLustering algorithm modules */
-	HeadDecision_t * chd_;
-	JoinDecision_t * jd_;
-	Iterator_t * it_;
+        int count;
 
-	Iterator_t& it() {
-		return *it_;
-	}
+        /* CLustering algorithm modules */
+        HeadDecision_t * chd_;
+        JoinDecision_t * jd_;
+        Iterator_t * it_;
 
-	JoinDecision_t& jd() {
-		return *jd_;
-	}
+        Iterator_t& it() {
+            return *it_;
+        }
 
-	HeadDecision_t& chd() {
-		return *chd_;
-	}
+        JoinDecision_t& jd() {
+            return *jd_;
+        }
 
-	Radio * radio_; // radio module
-	Timer * timer_; // timer module
-	Debug * debug_; // debug module
-	Rand * rand_;
+        HeadDecision_t& chd() {
+            return *chd_;
+        }
 
-	Radio& radio() {
-		return *radio_;
-	}
+        Radio * radio_; // radio module
+        Timer * timer_; // timer module
+        Debug * debug_; // debug module
+        Rand * rand_;
 
-	Timer& timer() {
-		return *timer_;
-	}
+        Radio& radio() {
+            return *radio_;
+        }
 
-	Debug& debug() {
-		return *debug_;
-	}
+        Timer& timer() {
+            return *timer_;
+        }
 
-	Rand& rand() {
-		return *rand_;
-	}
-};
+        Debug& debug() {
+            return *debug_;
+        }
+
+        Rand& rand() {
+            return *rand_;
+        }
+    };
 }
 #endif
