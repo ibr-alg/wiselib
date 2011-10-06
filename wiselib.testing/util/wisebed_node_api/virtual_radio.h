@@ -126,19 +126,19 @@ namespace wiselib
          }
 
          // send message over physical radio
-//          if ((nodeactive_ == true) && (node_in_deadlink_vector(to) == false))
-//          {
-//             radio().send( to, len, buf );
-// #ifdef VIRTUAL_RADIO_DEBUG
-//             debug().debug("Send to %d (len %d)", to, len);
-// #endif
-//          }
-//          else
-//          {
-// #ifdef VIRTUAL_RADIO_DEBUG
-//             debug().debug( "NOT sent to radio, node in deadlink vector!" );
-// #endif
-//          }
+         if ((nodeactive_ == true) && (node_in_deadlink_vector(to) == false))
+         {
+            radio().send( to, len, buf );
+#ifdef VIRTUAL_RADIO_DEBUG
+            debug().debug("Send to %d (len %d)", to, len);
+#endif
+         }
+         else
+         {
+#ifdef VIRTUAL_RADIO_DEBUG
+            debug().debug( "NOT sent to radio, node in deadlink vector!" );
+#endif
+         }
       };
       // --------------------------------------------------------------------
       void
