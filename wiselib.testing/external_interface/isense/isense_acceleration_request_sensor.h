@@ -185,7 +185,7 @@ namespace wiselib
 		
 		//------------------------------------------------------------------------
 		
-		uint16 get_value( AxisSpecifier axis )
+		int16_t get_value( AxisSpecifier axis )
 		{
 			switch( axis )
 			{
