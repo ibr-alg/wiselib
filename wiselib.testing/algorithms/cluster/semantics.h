@@ -50,23 +50,38 @@ namespace wiselib {
                 return size_a;
             }
 
-            void set_data(int* data_p) {
-                size_a = sizeof (int);
-                data_a = (block_data_t*) data_p;
-            }
+            //            void set_data(int* data_p) {
+            //                size_a = sizeof (int);
+            //                data_a = (block_data_t*) data_p;
+            //            }
 
             char * c_str() {
-                int bytes_written = 0;
-                int mint;
-                memcpy((void *) &mint, (void *) data_a, sizeof (int));
-                bytes_written += sprintf(buffer + bytes_written, "%d", mint);
-                buffer[bytes_written] = '\0';
+                if (size_a == sizeof (int)) {
+                    int bytes_written = 0;
+                    int mint;
+                    memcpy((void *) &mint, (void *) data_a, sizeof (int));
+                    bytes_written += sprintf(buffer + bytes_written, "%d", mint);
+                    buffer[bytes_written] = '\0';
+                } else if (size_a == sizeof (int) *2) {
+                    int bytes_written = 0;
+                    int mint;
+                    memcpy((void *) &mint, (void *) data_a, sizeof (int));
+                    bytes_written += sprintf(buffer + bytes_written, "%d", mint);
+                    memcpy((void *) &mint, (void *) (data_a + sizeof (int)), sizeof (int));
+                    bytes_written += sprintf(buffer + bytes_written, "|%d", mint);
+                    buffer[bytes_written] = '\0';
+                }
                 return buffer;
             }
 
+            bool operator==(data_t other) const {
+                int *a = (int *) data_a;
+                int *b = (int *) other.data();
+                return *a == *b;
+            }
             block_data_t * data_a;
             size_t size_a;
-            char buffer[30];
+            char buffer[5];
 
         };
 
@@ -75,10 +90,10 @@ namespace wiselib {
         typedef data_t semantic_id_t;
         typedef semantic_id_t predicate_t;
 
-        struct semantics {
-            int semantic_id_;
-            int semantic_value_;
-        };
+        //        struct semantics {
+        //            int first;
+        //            int second;
+        //        };
 
         enum semantics_types {
             BUILDING = 1,
@@ -90,11 +105,11 @@ namespace wiselib {
             LIGHT = 210,
             TEMP = 211,
             PIR = 212,
-            MAX_SEMANTICS = 5
+            MAX_SEMANTICS = 10
         };
 
-        typedef struct semantics semantics_t;
-        typedef wiselib::vector_static<OsModel, semantics_t, 2 * MAX_SEMANTICS > semantics_vector_t;
+        typedef wiselib::pair<int, int> semantics_t;
+        typedef wiselib::vector_static<OsModel, semantics_t, MAX_SEMANTICS > semantics_vector_t;
         typedef typename semantics_vector_t::iterator semantics_vector_iterator_t;
 
         typedef data_t group_entry_t;
@@ -112,21 +127,20 @@ namespace wiselib {
         };
 
         void set_semantic_value(predicate_t sema, value_t value) {
-            int sema_i, value_i;
-            memcpy(&sema_i, sema.data(), sizeof (int));
-            memcpy(&value_i, value.data(), sizeof (int));
+            int * sema_i = (int*) sema.data();
+            int * value_i = (int*) value.data();
 
             if (!semantics_vector_.empty()) {
                 for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                    if (si->semantic_id_ == sema_i) {
-                        si->semantic_value_ = value_i;
+                    if (si->first == *sema_i) {
+                        si->second = *value_i;
                         return;
                     }
                 }
             }
             semantics_t newse;
-            newse.semantic_id_ = sema_i;
-            newse.semantic_value_ = value_i;
+            newse.first = *sema_i;
+            newse.second = *value_i;
             semantics_vector_.push_back(newse);
 
         }
@@ -136,8 +150,8 @@ namespace wiselib {
             my_predicate_container.clear();
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
 
-                if (si->semantic_id_ > 200) {
-                    predicate_t pred = predicate_t((block_data_t *) & si->semantic_id_);
+                if (si->first > 200) {
+                    predicate_t pred = predicate_t((block_data_t *) & si->first);
                     my_predicate_container.push_back(pred);
                 }
             }
@@ -149,26 +163,24 @@ namespace wiselib {
             my_group_container.clear();
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
 
-                if (si->semantic_id_ < 200) {
+                if (si->first < 200) {
                     group_entry_t ge;
-                    ge.data_a = (block_data_t *) & si->semantic_id_;
-                    ge.size_a = 2 * sizeof (semantic_id_t);
+                    ge.data_a = (block_data_t *) & si->first;
+                    ge.size_a = 2 * sizeof (int);
                     my_group_container.push_back(ge);
                 }
             }
             return my_group_container;
-
         }
 
-        bool has_group(block_data_t * group, size_t size) {
-            int id;
-            memcpy(&id, group, sizeof (int));
+        bool has_group(group_entry_t gi) {
             int value;
-            memcpy(&value, group + sizeof (int), sizeof (int));
-
-
+            int id;
+            memcpy(&id,gi.data(),sizeof(int));
+            memcpy(&value,gi.data()+sizeof(int),sizeof(int));
+            
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if ((si->semantic_id_ == id) && (si->semantic_value_ == value)) {
+                if ((si->first == id) && (si->second == value)) {
                     return true;
                 }
             }
@@ -178,12 +190,11 @@ namespace wiselib {
         value_container_t get_values(semantic_id_t predicate) {
             value_container_t my_value_container;
             my_value_container.clear();
-            int predicate_i;
-            memcpy(&predicate_i, predicate.data(), sizeof (int));
+            int * predicate_i = (int*) predicate.data();
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
-                if (si->semantic_id_ == predicate_i) {
+                if (si->first == *predicate_i) {
                     group_entry_t ge;
-                    ge.data_a = (block_data_t *) & si->semantic_value_;
+                    ge.data_a = (block_data_t *) & si->second;
                     ge.size_a = sizeof (int);
                     my_value_container.push_back(ge);
                 }
@@ -192,16 +203,10 @@ namespace wiselib {
         }
 
         int cmp(value_t a, value_t b, predicate_t predicate) {
-            int ia;
-            int ib;
-            memcpy(&ia, a.data_a, sizeof (int));
-            memcpy(&ib, b.data_a, sizeof (int));
+            int * ia = (int *) a.data_a;
+            int * ib = (int *) b.data_a;
 
-            if (ia - ib > 0) {
-                return 1;
-            } else if (ia - ib < 0) {
-                return -1;
-            } else return 0;
+            return (*ia - *ib);
 
         }
 
@@ -209,28 +214,25 @@ namespace wiselib {
          * Add value a and value b and store data in value a
          */
         void aggregate(value_t a, value_t b, predicate_t predicate) {
-            int predicate_i;
-            memcpy(&predicate_i, predicate.data(), sizeof (int));
-            int valuea;
-            memcpy(&valuea, a.data(), sizeof (int));
-            int valueb;
-            memcpy(&valueb, b.data(), sizeof (int));
+            int * predicate_i = (int *) predicate.data();
+            int * valuea = (int *) a.data();
+            int * valueb = (int *) b.data();
 
             int ans;
-            switch (predicate_i) {
+            switch (*predicate_i) {
                 case PIR:
-                    ans = (valuea + valueb) > 0 ? 1 : 0;
+                    ans = (*valuea + *valueb) > 0 ? 1 : 0;
                     break;
                 case LIGHT:
                 case TEMP:
-                    ans = (valuea + valueb) / 2;
+                    ans = (*valuea + *valueb) / 2;
                     break;
                 default:
-                    ans = valuea + valueb;
+                    ans = *valuea + *valueb;
                     break;
             }
-            if (predicate_i < 200) {
-                ans = valuea;
+            if (*predicate_i < 200) {
+                ans = *valuea;
             }
             memcpy(a.data(), &ans, sizeof (int));
         }

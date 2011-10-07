@@ -79,7 +79,13 @@ namespace wiselib {
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
 
-        typedef wiselib::pair<int, int> demands_entry_t;
+        struct demands_entry {
+            block_data_t predicate_data[30];
+            block_data_t value_data[30];
+            predicate_t predicate_;
+            value_t value_;
+        };
+        typedef struct demands_entry demands_entry_t;
         typedef wiselib::vector_static<OsModel, demands_entry_t, 10 > demands_vector_t;
         typedef typename demands_vector_t::iterator demands_vector_iterator_t;
 
@@ -167,20 +173,26 @@ namespace wiselib {
             return semantics_->check_condition(id);
         }
 
-        inline void set_demands(int id, int value) {
+        inline void set_demands(block_data_t * id, size_t id_size, block_data_t * value, size_t value_size) {
             //change existing demand
             if (!demands_vector_.empty()) {
                 for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                    if (dvit->first == id) {
-                        dvit->second = value;
-                        return;
+                    if (dvit->predicate_.size() != id_size) continue;
+                    for (int i = 0; i < id_size; i++) {
+                        if (dvit->predicate_data[i] != id[i]) {
+                            break;
+                        }
+                        memcpy(dvit->value_data, value, value_size);
+                        dvit->value_ = value_t(dvit->value_data, (size_t) value_size, semantics_->get_allocator());
                     }
                 }
             }
 
             demands_entry_t newdemand;
-            newdemand.first = id;
-            newdemand.second = value;
+            memcpy(newdemand.predicate_data, &id, id_size);
+            memcpy(newdemand.value_data, &value, value_size);
+            newdemand.predicate_ = predicate_t(newdemand.predicate_data, id_size, semantics_->get_allocator());
+            newdemand.value_ = value_t(newdemand.value_data, value_size, semantics_->get_allocator());
             demands_vector_.push_back(newdemand);
         }
 
@@ -352,20 +364,20 @@ namespace wiselib {
                 if (a == 0) {
                     bool yes = true;
 
-                    //                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
-                    //
-                    //                        predicate_t pred = predicate_t(&dvit->first);
-                    //
-                    //                        int min = (dvit->second);
-                    //                        value_t demand_value;
-                    //                        demand_value.size_a = sizeof (dvit->second);
-                    //                        demand_value.data_a = (block_data_t *) & min;
-                    //                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
-                    //                        value_t sema_value = it().get_value_for_predicate(pred);
-                    //                        //                        debug().debug("Value %s", sema_value.c_str());
-                    //                        bool this_one = semantics_->cmp(sema_value, demand_value, pred) == 0 ? true : false;
-                    //                        yes = yes && this_one;
-                    //                    }
+                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+
+
+
+                        //                        int min = (dvit->second);
+                        //                                                value_t demand_value;
+                        //                        demand_value.size_a = sizeof (dvit->second);
+                        //                        demand_value.data_a = (block_data_t *) & min;
+                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
+                        value_t sema_value = it().get_value_for_predicate(dvit->predicate_);
+                        //                        debug().debug("Value %s", sema_value.c_str());
+                        bool this_one = semantics_->cmp(sema_value, dvit->value_, dvit->predicate_) == 0 ? true : false;
+                        yes = yes && this_one;
+                    }
 
                     debug().debug("SA;%x;%s", cluster_id(), yes ? "yes" : "no");
                 } else if (a == 1) {
@@ -386,9 +398,7 @@ namespace wiselib {
                     buffer[bytes_written] = '\0';
                     debug().debug("%s", buffer);
 
-
                 }
-
             }
         }
 
@@ -410,10 +420,8 @@ namespace wiselib {
             jd().reset();
             it().reset();
 
-
-
             //            find_head(0);
-            //            // start the procedure to find new head
+            // start the procedure to find new head
             timer().template set_timer<self_type, &self_type::find_head > (
                     rand()() % 300 + time_slice_, this, (void *) 0);
         }

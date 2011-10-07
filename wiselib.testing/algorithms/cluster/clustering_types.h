@@ -79,6 +79,8 @@ typedef wiselib::AttributeClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> 
 
 #include "algorithms/cluster/messages/sema_attr.h"
 typedef wiselib::SemaAttrClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaAttributeMsg_t;
+#include "algorithms/cluster/messages/sema_groups.h"
+typedef wiselib::SemaGroupsClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaGroupsMsg_t;
 #include "algorithms/cluster/messages/join_sema.h"
 typedef wiselib::JoinSemanticClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> JoinSemanticClusterMsg_t;
 
