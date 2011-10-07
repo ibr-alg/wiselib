@@ -453,11 +453,8 @@ namespace wiselib {
 
         }
 
-        group_entry_t get_value_for_predicate(predicate_t id) {
-            int val = -1;
-            group_entry_t a;
-            a.size_a = 0;
-            a.data_a = (block_data_t*) & val;
+        value_t get_value_for_predicate(predicate_t id) {
+            value_t a;
 
             for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
                     it != semantic_head_vector_.end(); ++it) {
@@ -466,7 +463,6 @@ namespace wiselib {
                     return it->second.value;
                 }
             }
-
 
             return a;
         }
