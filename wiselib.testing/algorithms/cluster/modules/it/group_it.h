@@ -53,7 +53,7 @@ namespace wiselib {
         };
         typedef semantic_head_item semantic_head_item_t;
         typedef wiselib::pair<semantic_head_item_t, semantic_head_item_t> semantic_head_entry_t;
-        typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 10 > semantic_head_vector_t;
+        typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 10 > semanticHeadVector_t;
 
         typedef GroupIterator<OsModel_P, Radio_P, Semantics_P> self_t;
 
@@ -67,14 +67,15 @@ namespace wiselib {
         //        //        typedef wiselib::MapStaticVector<OsModel, node_id_t, cluster_id_t, 20 > gateway_vector_t;
         //        typedef wiselib::vector_static<OsModel, wiselib::pair<node_id_t, node_id_t>, 20 > tree_childs_t;
 
-        struct groups_joined_entry {
-            int group_id_;
+        struct groupsJoinedEntry {
+            int groupId_;
             block_data_t data[30];
             size_t size_;
             node_id_t parent_;
         };
-        typedef struct groups_joined_entry groups_joined_entry_t;
-        typedef wiselib::vector_static<OsModel, groups_joined_entry_t, 10 > groups_vector_t;
+        typedef struct groupsJoinedEntry groupsJoinedEntry_t;
+        typedef wiselib::vector_static<OsModel, groupsJoinedEntry_t, 10 > groupsVector_t;
+        typedef typename groupsVector_t::iterator groupsVectorIterator_t;
 
         /*
          * Constructor
@@ -82,8 +83,8 @@ namespace wiselib {
         GroupIterator() :
         node_type_(UNCLUSTERED),
         lastid_(2),
-        is_gateway_(false) {
-            groups_vector_.clear();
+        isGateway_(false) {
+            groupsVector_.clear();
         }
 
         /*
@@ -100,21 +101,39 @@ namespace wiselib {
             radio_ = &radio;
             timer_ = &timer;
             debug_ = &debug;
-            is_gateway_ = false;
+            isGateway_ = false;
             semantics_ = &semantics;
         }
 
         /**
          * SET functions : node_type_
          */
-        inline void set_node_type(int node_type) {
-            node_type_ = node_type;
+        inline void set_node_type(int nodeType) {
+            node_type_ = nodeType;
         }
 
         /**
          * GET functions : parent_
          */
-        inline node_id_t parent(int parent_id) {
+        inline node_id_t parent(group_entry_t gi) {
+            if (!groupsVector_.empty()) {
+                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
+                    //if of the same size maybe the same
+                    if (gi.size() == it->size_) {
+                        bool same = true;
+                        //byte to byte comparisson
+                        for (size_t i = 0; i < it->size_; i++) {
+                            if (it->data[i] != *(gi.data() + i)) {
+                                same = false;
+                                break;
+                            }
+                        }
+                        if (same) {
+                            return it->parent_;
+                        }
+                    }
+                }
+            }
             return 0xffff;
         }
 
@@ -130,28 +149,17 @@ namespace wiselib {
          */
         void reset(void) {
             node_type_ = UNCLUSTERED;
-            is_gateway_ = false;
-            groups_vector_.clear();
+            isGateway_ = false;
+            groupsVector_.clear();
             group_container_t mygroups = semantics_->get_groups();
 
             for (typename group_container_t::iterator gi = mygroups.begin(); gi != mygroups.end(); ++gi) {
-                //                debug_->debug("adding semantic size - %d : to add size %d", msg.length(), sizeof (size_t) + gi->size());
                 add_group(*gi, radio().id());
             }
         }
 
         bool is_gateway() {
-            return is_gateway_;
-        }
-
-        /*
-         * Drops the node_id from
-         * both lists of cluster
-         * and non_cluster neighbors
-         */
-        inline void drop_node(node_id_t node) {
-            //            cluster_neighbors_.erase(node);
-            //            non_cluster_neighbors_.erase(node);
+            return isGateway_;
         }
 
         //return the number of nodes known
@@ -167,34 +175,7 @@ namespace wiselib {
             }
             return 0;
         }
-
-
-        //TODO: IMPLEMENT CLEAN-UP
-        //TODO: TEST CLEAN-UP for stability
-
-        void cleanup() {
-            //                for (typename vector_t::iterator it = cluster_neighbors_.begin(); it
-            //                                != cluster_neighbors_.end(); ++it) {
-            //                            if ((*it).second == false) {
-            //                                cluster_neighbors_.erase(it);
-            //                            } else {
-            //                                (*it).second = false;
-            //                            }
-            //                        }
-        }
-
-        void childs(node_id_t *list) {
-            //            for (size_t i = 0; i < cluster_neighbors_.size(); i++) {
-            //                list[i] = cluster_neighbors_.at(i).first;
-            //            }
-
-        }
-
-        //get the non cluster neighbors in a list
-
-        //        inline int get_outer_nodes(node_id_t* position) {
-        //                        return non_cluster_neighbors_.size();
-        //        }
+        
 
         SemaResumeMsg_t get_resume_payload() {
             SemaResumeMsg_t msg;
@@ -212,86 +193,43 @@ namespace wiselib {
             return msg;
         }
 
-        void eat_resume(size_t len, uint8_t * data) {
-            SemaResumeMsg_t * msg = (SemaResumeMsg_t *) data;
+        //        void eat_resume(size_t len, uint8_t * data) {
+        //            //            SemaResumeMsg_t * msg = (SemaResumeMsg_t *) data;
+        //            //
+        //            //            node_id_t sender = msg->node_id();
+        //            //
+        //            //            size_t count = msg->contained();
+        //            //            for (size_t i = 0; i < count; i++) {
+        //            //#ifdef ANSWERING
+        //            //
+        //            //                predicate_t predicate = predicate_t(msg->get_predicate_data(i), msg->get_predicate_size(i), semantics_->get_allocator());
+        //            //                value_t value = value_t(msg->get_value_data(i), msg->get_value_size(i), semantics_->get_allocator());
+        //            //                add_semantic_value(predicate, value);
+        //            //                //                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
+        //            //
+        //            //#endif
+        //            //            }
+        //            //            node_joined(sender);
+        //        }
 
-            node_id_t sender = msg->node_id();
-
-            size_t count = msg->contained();
-            for (size_t i = 0; i < count; i++) {
-#ifdef ANSWERING
-
-                predicate_t predicate = predicate_t(msg->get_predicate_data(i), msg->get_predicate_size(i), semantics_->get_allocator());
-                value_t value = value_t(msg->get_value_data(i), msg->get_value_size(i), semantics_->get_allocator());
-                add_semantic_value(predicate, value);
-                //                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
-
-#endif
-            }
-            node_joined(sender);
-        }
-
-        void add_semantic_value(predicate_t predicate, value_t value) {//NEDDDSS TOO RREEE TTHHIIINNKKK
-            if (!semantic_head_vector_.empty()) {
-                for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
-                        it != semantic_head_vector_.end(); ++it) {
-                    if (semantics_->cmp(predicate, it->first.predicate, predicate) == 0) {
-                        semantics_->aggregate(it->second.value, value, predicate);
-                    }
-                }
-            }
-            semantic_head_entry_t newentry;
-            newentry.first.predicate = predicate;
-            newentry.second.value = value;
-            semantic_head_vector_.push_back(newentry);
-        }
-
-        void became_head() {
-
-#ifdef ANSWERING
-            predicate_container_t my_predicates = semantics_->get_predicates();
-
-            for (typename predicate_container_t::iterator it = my_predicates.begin(); it != my_predicates.end(); ++it) {
-                //                debug().debug("Predicate %s", it->c_str());
-                value_container_t myvalues = semantics_->get_values(*it);
-                for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-                    add_semantic_value(*it, *gi);
-                }
-            }
-#endif
-            //#ifdef INTEGER
-            //            int predicate = 210;
-            //            predicate_t pred = predicate_t(&predicate);
-            //#else
-            //            ///    predicate_t pred = predicate_t("temp");
-            //#endif
-            //
-            //
-            //
-            //            //            value_container_t myvalues = semantics_->get_values(pred);
-            //            //            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-            //            //
-            //            //                add_semantic_value(pred, *gi);
-            //            //            }
-            //
-            //#ifdef INTEGER
-            //            predicate = 211;
-            //
-            //#else
-            //#endif
-            //
-            //            //            myvalues = semantics_->get_values(pred);
-            //            //            for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
-            //            //                add_semantic_value(pred, *gi);
-            //            //            }
-            //
-
-
-        }
+        //        void add_semantic_value(predicate_t predicate, value_t value) {//NEDDDSS TOO RREEE TTHHIIINNKKK
+        //            if (!semanticHeadVector_.empty()) {
+        //                for (typename semanticHeadVector_t::iterator it = semanticHeadVector_.begin();
+        //                        it != semanticHeadVector_.end(); ++it) {
+        //                    if (semantics_->cmp(predicate, it->first.predicate, predicate) == 0) {
+        //                        semantics_->aggregate(it->second.value, value, predicate);
+        //                    }
+        //                }
+        //            }
+        //            semantic_head_entry_t newentry;
+        //            newentry.first.predicate = predicate;
+        //            newentry.second.value = value;
+        //            semanticHeadVector_.push_back(newentry);
+        //        }
 
         int add_group(group_entry_t gi, node_id_t parent) {
-            if (!groups_vector_.empty()) {
-                for (typename groups_vector_t::iterator it = groups_vector_.begin(); it != groups_vector_.end(); ++it) {
+            if (!groupsVector_.empty()) {
+                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
                     //if of the same size maybe the same
                     if (gi.size() == it->size_) {
                         bool same = true;
@@ -306,55 +244,51 @@ namespace wiselib {
                         if (same) {
                             if (it->parent_ < parent) {
                                 it->parent_ = parent;
-                                return it->group_id_;
+                                return it->groupId_;
                             }
                             return -1;
                         }
                     }
                 }
             }
-            groups_joined_entry_t newgroup;
+            groupsJoinedEntry_t newgroup;
             memcpy(newgroup.data, gi.data(), gi.size());
             newgroup.size_ = gi.size();
-            newgroup.group_id_ = lastid_;
+            newgroup.groupId_ = lastid_;
             newgroup.parent_ = parent;
             lastid_ = lastid_ % 100;
-            groups_vector_.push_back(newgroup);
+            groupsVector_.push_back(newgroup);
             return lastid_++;
         }
 
         size_t get_group_count() {
-            return groups_vector_.size();
+            return groupsVector_.size();
         }
 
-        group_entry_t get_value_for_predicate(predicate_t id) {
-            int val = -1;
-            group_entry_t a;
-            a.size_a = 0;
-            a.data_a = (block_data_t*) & val;
-
-            for (typename semantic_head_vector_t::iterator it = semantic_head_vector_.begin();
-                    it != semantic_head_vector_.end(); ++it) {
-
-                if (semantics_->cmp(it->first.predicate, id, it->first.predicate) == 0) {//not completely correct
-                    return it->second.value;
+        bool node_lost(node_id_t from) {
+            bool changed = false;
+            if (!groupsVector_.empty()) {
+                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
+                    //if in this group the lost node is my parent
+                    if (it->parent_ == from) {
+                        changed = true;
+                        it->parent_ = radio().id();
+                    }
                 }
             }
-
-
-            return a;
+            return changed;
         }
 
         /* SHOW all the known nodes */
         void present_neighbors() {
-            //            if (!groups_vector_.empty()) {
+            //            if (!groupsVector_.empty()) {
             //                char buffer[1024];
             //                int bytes_written = 0;
             //                bytes_written += sprintf(buffer + bytes_written, "Groups(%x)", radio().id());
             //
-            //                for (typename groups_vector_t::iterator it = groups_vector_.begin(); it != groups_vector_.end(); ++it) {
+            //                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
             //                    predicate_t pred = predicate_t(it->data, it->size_);
-            //                    bytes_written += sprintf(buffer + bytes_written, "%d-%x-%s|", it->group_id_, it->parent_, pred.c_str());
+            //                    bytes_written += sprintf(buffer + bytes_written, "%d-%x-%s|", it->groupId_, it->parent_, pred.c_str());
             //                }
             //
             //                //            for (typename vector_t::iterator cni = cluster_neighbors_.begin(); cni != cluster_neighbors_.end(); ++cni) {
@@ -365,12 +299,12 @@ namespace wiselib {
             //            }
         }
 
-        semantic_head_vector_t semantic_head_vector_;
+        semanticHeadVector_t semanticHeadVector_;
 
     private:
-        groups_vector_t groups_vector_;
+        groupsVector_t groupsVector_;
         int node_type_, lastid_;
-        bool is_gateway_;
+        bool isGateway_;
         Semantics_t * semantics_;
 
         Radio * radio_;

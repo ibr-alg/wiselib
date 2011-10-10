@@ -71,17 +71,19 @@ namespace wiselib {
             size_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 count++;
-                pos += buffer[pos] + 1 + sizeof (node_id_t);
+                pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
             }
             return count;
         }
 
-        inline void add_statement(block_data_t * data, size_t size, node_id_t group_id) {
+        inline void add_statement(block_data_t * data, size_t size, node_id_t group_id, node_id_t parent) {
             memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &size, sizeof (size_t));
             memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t), &group_id, sizeof (node_id_t));
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t) + sizeof (node_id_t), data, size);
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t) + sizeof (node_id_t), &parent, sizeof (node_id_t));
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t) + sizeof (node_id_t) + sizeof (node_id_t), data, size);
 
             buffer[ATTRIBUTE_LIST_POS] += 2;
+            buffer[ATTRIBUTE_LIST_POS] += sizeof (node_id_t);
             buffer[ATTRIBUTE_LIST_POS] += sizeof (node_id_t);
             buffer[ATTRIBUTE_LIST_POS] += size - 1;
 
@@ -96,7 +98,7 @@ namespace wiselib {
                     return buffer[pos];
                 }
                 count++;
-                pos += buffer[pos] + 1 + sizeof (node_id_t);
+                pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
             }
             return 0;
         }
@@ -106,10 +108,10 @@ namespace wiselib {
             size_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 if (count == zcount) {
-                    return &buffer[pos] + 1 + sizeof (node_id_t);
+                    return &buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
                 }
                 count++;
-                pos += buffer[pos] + 1 + sizeof (node_id_t);
+                pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
             }
             return 0;
         }
@@ -122,7 +124,20 @@ namespace wiselib {
                     return read<OsModel, block_data_t, node_id_t > (buffer + pos + 1);
                 }
                 count++;
-                pos += buffer[pos] + 1 + sizeof (node_id_t);
+                pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
+            }
+            return 4;
+        }
+
+        inline node_id_t get_statement_parent(size_t zcount) {
+            size_t count = 0;
+            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                if (count == zcount) {
+                    return read<OsModel, block_data_t, node_id_t > (buffer + pos + 1 + sizeof (node_id_t));
+                }
+                count++;
+                pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
             }
             return 4;
         }

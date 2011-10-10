@@ -97,14 +97,15 @@ namespace wiselib {
             neighbor_discovery_ = &neighbor_discovery;
             semantics_ = &semantics;
 
-            uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI | nb_t::NEW_PAYLOAD_BIDI;
+            uint8_t flags = nb_t::DROPPED_NB | nb_t::LOST_NB_BIDI;
 
             neighbor_discovery_->template reg_event_callback<self_type,
                     &self_type::ND_callback > (CLUSTERING, flags, this);
-            neighbor_discovery_->register_payload_space((uint8_t) CLUSTERING);
+
 
             jd().template reg_group_joined_callback<self_type, &self_type::joined_group > (this);
-            chd().template reg_became_head_callback<self_type, &self_type::became_head > (this);
+            jd().template reg_notifyAboutGroup_callback<self_type, &self_type::notifyAboutGroup > (this);
+
 
             //cradio_delegate_ = cradio_delegate_t();
 
@@ -285,7 +286,7 @@ namespace wiselib {
 
             // start the grouping procedure
             timer().template set_timer<self_type, &self_type::reply_to_head > (
-                    rand()(1000), this, (void *) 0);
+                    rand()(1000), this, (void *) 1);
             this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
         }
 
@@ -295,11 +296,12 @@ namespace wiselib {
          *      head for new sensor value 
          *      neighbors for current state
          */
-        void reply_to_head(void *) {
+        void reply_to_head(void * reset) {
+
 
             SemaGroupsMsg_t msg = jd().get_join_payload();
             radio().send(0xffff, msg.length(), (block_data_t*) & msg);
-            this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
+//            this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
             /*
                         SemaResumeMsg_t msg = it().get_resume_payload();
                         radio().send(0xffff, msg.length(), (uint8_t *) & msg);
@@ -308,12 +310,23 @@ namespace wiselib {
                         timer().template set_timer<self_type,
                                 &self_type::reply_to_head > (10000, this, (void*) 0);
              */
-            timer().template set_timer<self_type, &self_type::reply_to_head > (
-                    rand()(60000), this, (void *) 0);
+            if ((long) reset == 1) {
+                timer().template set_timer<self_type, &self_type::reply_to_head > (
+                        rand()(10000), this, (void *) 1);
+            }
         }
 
 
     protected:
+
+        void node_lost(node_id_t from) {
+            bool lost1 = it().node_lost(from);
+            bool lost2 = jd().node_lost(from);
+            if (lost1 || lost2) {
+                reply_to_head(0);
+                //                debug().debug("LOST %x", from);
+            }
+        }
 
         /**
          * RECEIVE
@@ -321,60 +334,28 @@ namespace wiselib {
          * callback from the radio
          */
         void receive(node_id_t from, size_t len, block_data_t * data) {
-
-            if (!enabled_ || (from == radio().id())) return;
-
-
-            //            if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
+            if (!enabled_) return;
+            if (from == radio().id()) return;
+            if (!neighbor_discovery_->is_neighbor_bidi(from)) return;
 
             // get Type of Message
             int type = data[0];
 
             if (type == ATTRIBUTE) {
                 if (jd().join(data, len)) {
-                    //update the beacon
-                    //                    SemaGroupsMsg_t msg = jd().get_join_payload();
-                    //                    radio().send(0xffff, msg.length(), (block_data_t*) & msg);
+                    //resend the beacon
+                    SemaGroupsMsg_t msg = jd().get_join_payload();
+                    radio().send(0xffff, msg.length(), (block_data_t*) & msg);
+                    this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
 
-                    //                        if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (block_data_t*) & msg,
-                    //                                msg.length()) != 0) {
-                    //#ifdef DEBUG_CLUSTERING
-                    //                            debug_->debug("CL;nb_t;Error;payload");
-                    //#ifdef SHAWN
-                    //                            debug().debug("\n");
-                    //#endif
-                    //#endif
-                    //                            debug_->debug("payload set, len:%d",msg.length());
                 }
             }
         }
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
-            if (nb_t::NEW_PAYLOAD_BIDI == event) {
-                if (data[0] == ATTRIBUTE) {
-                    if (jd().join(data, len)) {
-
-                        SemaGroupsMsg_t msg = jd().get_join_payload();
-                        radio().send(0xffff, msg.length(), (block_data_t*) & msg);
-                        this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
-                        //update the beacon
-                        //                        SemaGroupsMsg_t msg = jd().get_join_payload();
-
-                        //                        if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (block_data_t*) & msg,
-                        //                                msg.length()) != 0) {
-                        //#ifdef DEBUG_CLUSTERING
-                        //                            debug_->debug("CL;nb_t;Error;payload");
-                        //#ifdef SHAWN
-                        //                            debug().debug("\n");
-                        //#endif
-                        //#endif
-                        //                            debug_->debug("payload set, len:%d",msg.length());
-                        //}
-                    }
-                }
-            } else if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
-
+            if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
+                node_lost(from);
             }
         }
 
@@ -387,9 +368,17 @@ namespace wiselib {
         }
 
         void joined_group(group_entry_t group, node_id_t parent) {
-            it().add_group(group, parent);
-            debug().debug("joining group %s", group.c_str());
-            this->state_changed(NODE_JOINED, 1, parent);
+            //it().add_group(group, parent);
+            debug().debug("CLL;%x;%s-%x;%x", radio().id(), group.c_str(), jd().group_id(group), parent);
+            //            this->state_changed(NODE_JOINED, 1, parent);
+        }
+
+        void notifyAboutGroup(group_entry_t group, node_id_t parent) {
+            debug().debug("notified about %s using %x ||mine %x", group.c_str(), parent, jd().parent(group));
+            if (jd().parent(group) == parent) {
+                debug().debug("lossing parent %x", parent);
+                node_lost(parent);
+            }
         }
 
         void debug_callback(uint8_t event, uint8_t type, node_id_t node) {
