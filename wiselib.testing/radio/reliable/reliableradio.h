@@ -133,11 +133,11 @@ public:
 
     void enable_radio() {
 #ifdef DEBUG_RELIABLERADIO
-       debug().debug("ReliableRadio::enable\n");
+       debug().debug("ReliableRadio::enable");
 #endif
 
 #ifdef ISENSE_APP
-        debug().debug("Hello isense world\n");
+        debug().debug("Hello isense world");
 #else
         debug().debug("running in shawn\n");
 #endif
