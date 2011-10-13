@@ -27,26 +27,26 @@ namespace wiselib {
 			typedef typename Allocator::template pointer_t<Char> char_pointer_t;
 			typedef typename Allocator::template array_pointer_t<Char> char_arr_pointer_t;
 			
-			string_dynamic() : buffer_(0), size_(0), allocator_(0) {
+			string_dynamic() : buffer_(0), size_(0), allocator_(0), weak_(false) {
 			}
 			
-			string_dynamic(Allocator& alloc) : buffer_(0), size_(0), allocator_(&alloc) {
+			string_dynamic(Allocator& alloc) : buffer_(0), size_(0), allocator_(&alloc), weak_(false) {
 			}
 			
-			string_dynamic(const string_dynamic& other) : buffer_(0), size_(0), allocator_(other.allocator_) {
+			string_dynamic(const string_dynamic& other) : buffer_(0), size_(0), allocator_(other.allocator_), weak_(false) {
 				// TODO: Implement buffer sharing with copy-on-write
 				resize(other.size_);
 				to_buffer_(other.buffer_, size_);
 			}
 			
 			string_dynamic(const Char* c, typename Allocator::self_pointer_t alloc)
-				: buffer_(0), size_(0), allocator_(alloc) {
+				: buffer_(0), size_(0), allocator_(alloc), weak_(false) {
 				resize(strlen((const char*)c));
 				to_buffer_(c, strlen((const char*)c));
 			}
 			
 			string_dynamic(const Char* c, size_t size, typename Allocator::self_pointer_t alloc)
-				: buffer_(0), size_(0), allocator_(alloc) {
+				: buffer_(0), size_(0), allocator_(alloc), weak_(false) {
 				resize(size);
 				to_buffer_(c, size);
 			}
@@ -67,12 +67,31 @@ namespace wiselib {
 			}
 			
 			~string_dynamic() {
-				if(buffer_) {
-					allocator_->template free_array<Char>(buffer_);
+				if(buffer_ && !weak_) {
+					allocator_->template free_array<Char>(buffer_.raw());
 					buffer_ = 0;
 					size_ = 0;
 				}
 			}
+			
+			/**
+			 * If true, don't delete the internal buffer upon destruction.
+			 * Useful if you (shallow) "serialize" the string instance into some other
+			 * format and call its destructor but actually plan to cast it
+			 * back later. Normally that wouldnt be possible because the
+			 * internally buffer would get lost, if you set the object to be
+			 * "weak" in the meantime, the buffer will persist and the
+			 * reconstructed object can be used.
+			 * Only use if you know what you are doing! These methods are
+			 * basically a recipe for memory leaks!
+			 */
+			bool weak() const { return weak_; }
+			
+			/**
+			 * Set/unset "weak" property.
+			 * See weak() for explanation on weakness.
+			 */
+			void set_weak(bool s) const { weak_ = s; }
 			
 			
 			size_t size() const {
@@ -156,6 +175,7 @@ namespace wiselib {
 			char_arr_pointer_t buffer_;
 			size_t size_;
 			typename Allocator::self_pointer_t allocator_;
+			mutable bool weak_;
 	};
 	
 	/**

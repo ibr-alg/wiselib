@@ -160,13 +160,13 @@ namespace wiselib {
 			bool operator!=(const inorder_iterator& other) const { return !(*this == other); }
 			
 			///
-			const data_t& operator*() const { return path_.back()->data(); }
+			const data_t& operator*() const { assert(!path_.empty()); return path_.back()->data(); }
 			
 			///
-			const data_t* operator->() const { return &(path_.back()->data()); }
+			const data_t* operator->() const { assert(!path_.empty()); return &(path_.back()->data()); }
 			
 			//template<typename T> T& as() { return *reinterpret_cast<T*>(path_.back()->data().c_str()); }
-			template<typename T> const T& as() const { return *reinterpret_cast<const T*>(path_.back()->data().c_str()); }
+			//template<typename T> const T& as() const { return *reinterpret_cast<const T*>(path_.back()->data().c_str()); }
 			
 			/**
 			 * Return the tree node holding the currently pointed-to value.
@@ -175,6 +175,8 @@ namespace wiselib {
 			
 			///
 			inorder_iterator& operator++() {
+				if(path_.empty()) { return *this; }
+				
 				node_ptr_t pos = path_.back();
 				if(pos->right()) {
 					path_.push_back(pos->right());
@@ -284,6 +286,12 @@ namespace wiselib {
 			return end();
 		}
 		
+		node_ptr_t find_n(const data_t& data) {
+			inorder_iterator iter = find(data);
+			if(iter == end()) { return node_ptr_t(0); }
+			return iter.node();
+		}
+		
 		size_type count(const data_t& data) { return find(data) != end(); }
 		
 		/*template<typename T>
@@ -294,10 +302,13 @@ namespace wiselib {
 		/**
 		 * Insert data block into the tree. If the data is already in the tree,
 		 * do nothing.
+		 * In contrast to the "usual" insert() method this does not return an
+		 * iterator to the inserted element but a pointer to the node holding
+		 * it.
 		 * 
 		 * \return A pointer to the inserted or found node that contains \ref data.
 		 */
-		const node_ptr_t insert(const data_t& data) {
+		const node_ptr_t insert_n(const data_t& data) {
 			int height_change = 0;
 			node_ptr_t r;
 			if(!root_) {
@@ -421,6 +432,8 @@ namespace wiselib {
 		}
 	// }}}
 #endif // AVLTREE_DEBUG
+		
+		comparator_t compare() { return compare_; }
 		
 			
 	private:
