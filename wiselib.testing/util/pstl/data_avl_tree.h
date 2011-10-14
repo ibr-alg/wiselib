@@ -436,7 +436,10 @@ namespace wiselib {
 		comparator_t compare() { return compare_; }
 		
 			
+#ifndef AVLTREE_DEBUG
 	private:
+#endif
+		
 		size_type size_;
 		node_ptr_t root_;
 		typename Allocator::self_pointer_t allocator_;

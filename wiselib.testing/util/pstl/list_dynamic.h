@@ -23,6 +23,7 @@ namespace wiselib {
 			typename List_P
 		>
 		class list_dynamic_iterator {
+			// {{{
 			public:
 				typedef List_P List;
 				typedef typename List::Allocator Allocator;
@@ -65,6 +66,7 @@ namespace wiselib {
 				List* list_;
 				node_pointer_t node_;
 		};
+		// }}}
 	} // ns
 	
 	

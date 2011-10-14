@@ -51,6 +51,8 @@ namespace wiselib {
 		typedef typename OsModel::size_t size_t;
 		typedef typename OsModel::block_data_t block_data_t;
 		typedef string_dynamic<OsModel, Allocator, block_data_t> data_t;
+		typedef typename Allocator::template pointer_t<data_t> data_ptr_t;
+		typedef typename Allocator::template pointer_t<const data_t> const_data_ptr_t;
 		
 		enum ErrorCodes {
 			SUCCESS = OsModel::SUCCESS
@@ -158,15 +160,9 @@ namespace wiselib {
 			// }}}
 		}; // class Tuple
 		
-		// cast to data_t (ie. binary string)
-		/*template<typename T>
-		data_t as_data(const T& t) {
-			return data_t(reinterpret_cast<const block_data_t*>(&t), sizeof(T), allocator_);
-		}*/
-		
-		// Internal tuple tree
-//		typedef DataAVLTree<OsModel, Allocator, /* Tuple, */ /*CompareLess<Tuple>,*/ Debug> tuple_tree_t;
+		typedef typename Allocator::template pointer_t<Tuple> tuple_ptr_t;
 		typedef typename TupleContainer::iterator iterator;
+		typedef list_dynamic<OsModel, const_data_ptr_t, Allocator> tuple_list_t;
 		
 		/**
 		 * 
@@ -174,8 +170,8 @@ namespace wiselib {
 		class query_iterator {
 			// {{{
 			public:
-				typedef typename list_dynamic<OsModel, typename TupleContainer::node_ptr_t, Allocator>::iterator list_iter_t;
-				typedef typename list_dynamic<OsModel, typename TupleContainer::node_ptr_t, Allocator>::const_iterator const_list_iter_t;
+				typedef typename tuple_list_t::iterator list_iter_t;
+				typedef typename tuple_list_t::const_iterator const_list_iter_t;
 				
 				query_iterator() { }
 				
@@ -200,13 +196,13 @@ namespace wiselib {
 				} // operator++
 				bool operator==(const query_iterator& other) const { return list_iter_ == other.list_iter_; }
 				bool operator!=(const query_iterator& other) const { return list_iter_ != other.list_iter_; }
-				const Tuple& operator*() { return *(reinterpret_cast<const Tuple*>((*list_iter_)->data().c_str())); }
+				const Tuple& operator*() { return from_data<Tuple>(**list_iter_); }
 				
 			private:
 				bool matches() {
 					for(size_t i=0; i<tuple_.elements(); i++) {
 						if(tuple_.nodes_[i]) {
-							if(tuple_.nodes_[i] != from_data<Tuple>((*list_iter_)->data()).nodes_[i]) {
+							if(tuple_.nodes_[i] != from_data<Tuple>(**list_iter_).nodes_[i]) {
 								return false;
 							}
 						} // if
@@ -219,6 +215,9 @@ namespace wiselib {
 				typename DataContainer::iterator end_;
 			// }}}
 		}; // class query_iterator
+		
+		
+		
 		
 		/**
 		 */
@@ -237,14 +236,6 @@ namespace wiselib {
 		static int tuple_compare(const data_t& a, const data_t& b) {
 			return from_data<const Tuple>(a).cmp(from_data<const Tuple>(b));
 		}
-		
-		/**
-		 */
-		/*int init(typename Allocator::self_pointer_t a, typename Debug::self_pointer_t debug = 0) {
-			allocator_ = a;
-			debug_ = debug;
-			return SUCCESS;
-		}*/
 		
 		int init(
 			typename Allocator::self_pointer_t allocator,
@@ -307,23 +298,27 @@ namespace wiselib {
 			
 			for(size_t i=0; i<t.elements(); i++) {
 				refcounted_data_t d = refcounted_data_t(t.data(i), t.size(i), allocator_);
-				//debug_->debug("Inserting data: %x %x %s %s\n", (void*)d.data_.c_str(), (void*)t.data(i), d.data_.c_str(), t.data(i));
-				//d.inc_refcount();
 				d.data().set_weak(true);
 				data_t dat = to_data(d);
 				store_tuple.nodes_[i] = data_container_.insert_n(dat); //refcounted_data_t(t.data(i), t.size(i), allocator_));
-				//store_tuple.nodes_[i]->template as<refcounted_data_t>().inc_refcount();
 				from_data<refcounted_data_t>(store_tuple.nodes_[i]->data()).inc_refcount();
-				//assert(store_tuple.nodes_[i]->cmp(d) == 0); //refcounted_data_t(t.data(i), t.size(i), allocator_)) == 0);
-				/*debug_->debug("after insertion: %x %s\n", 
-					(void*)from_data<refcounted_data_t>(store_tuple.nodes_[i]->data()).data().c_str(),
-					from_data<refcounted_data_t>(store_tuple.nodes_[i]->data()).data().c_str()
-					);*/
 			}
+			
+			debug_->debug("Constructed tuple for insertion: (%x %x %x)\n",
+					(void*)store_tuple.nodes_[0].raw(),
+					(void*)store_tuple.nodes_[1].raw(),
+					(void*)store_tuple.nodes_[2].raw()
+			);
 			
 			tuple_container_.insert_n(to_data(store_tuple));
 			iterator iter = tuple_container_.find(to_data(store_tuple));
 			assert(iter != end() && "just insterted tuple not found?!");
+			
+			debug_->debug("Constructed tuple for insertion: (%x %x %x)\n",
+					(void*)from_data<Tuple>(*iter).nodes_[0].raw(),
+					(void*)from_data<Tuple>(*iter).nodes_[1].raw(),
+					(void*)from_data<Tuple>(*iter).nodes_[2].raw()
+			);
 			
 #if TUPLE_STORE_ENABLE_INDICES
 			for(size_t i=0; i<N; i++) {
@@ -342,13 +337,8 @@ namespace wiselib {
 		template<typename T>
 		iterator find(const T& t) {
 			Tuple store_tuple;
-			if(!to_internal(t, store_tuple)) {
-				//debug_->debug("couldnt convert to internal\n");
-				return end();
-			}
+			if(!to_internal(t, store_tuple)) { return end(); }
 			iterator r = tuple_container_.find(to_data(store_tuple));
-			//debug_->debug("r==end(): %d", r == end());
-			//assert(from_data<Tuple>(r.node()->data()).cmp(store_tuple) == 0);
 			return r;
 		}
 		
@@ -373,18 +363,36 @@ namespace wiselib {
 			//  tuple in the tuple tree that contains this data.
 			for(int i=0; i<N; i++) {
 				if(query.size(i) && query.data(i)) {
-					// TODO: to_data() data_t(...) to refcounted data!
-					query_tuple.nodes_[i] = data_container_.find_n(data_t(query.data(i), query.size(i), allocator_));
-					if(query_tuple.nodes_[i] != typename Tuple::node_ptr_t(0)) {
-						return query_end();
-					}
+					refcounted_data_t r = refcounted_data_t(query.data(i), query.size(i), allocator_);
+					query_tuple.nodes_[i] = data_container_.find_n(
+						to_data_c(r)
+					);
+					if(!query_tuple.nodes_[i]) { return query_end(); }
 				}
-				else { query_tuple.nodes_[i] = typename Tuple::node_ptr_t(0); }
+				else { query_tuple.nodes_[i] = 0; }
 			}
 			
 			assert(indices_[index].used());
-			//typename Index::iterator index_iter = indices_[index].index_container_->find(to_data(query_tuple));
-			typename Index::iterator index_iter = indices_[index].index_container_->find(to_data(query_tuple));
+			
+			printf("query tuple: (%p %p %p)\n",
+					(void*)query_tuple.nodes_[0].raw(),
+					(void*)query_tuple.nodes_[1].raw(),
+					(void*)query_tuple.nodes_[2].raw()
+			);
+			
+			data_t query_tuple_d = to_data(query_tuple);
+			column_data_t c((size_t)index, query_tuple_d, allocator_);
+			// TODO: construct a column_data_t and query for that!
+			data_t c_d = to_data(c);
+			
+			//Tuple * dbg_p = from_data<column_data_t>(c_d).tuple_list_
+			printf("query tuple from c_d: (%p %p %p)\n",
+					(void*)query_tuple.nodes_[0].raw(),
+					(void*)query_tuple.nodes_[1].raw(),
+					(void*)query_tuple.nodes_[2].raw()
+			);
+			
+			typename Index::iterator index_iter = indices_[index].index_container_->find(c_d);
 			
 			if(index_iter != indices_[index].index_container_->end()) { return query_end(); }
 			else { return query_iterator(from_data<const column_data_t>(*index_iter).begin(), query_tuple, data_container_.end()); }
@@ -400,6 +408,7 @@ namespace wiselib {
 		 * - You only want to empose a condition on a single column (which
 		 *   already has an index)
 		 */
+		/*
 		template<typename T>
 		query_iterator query_begin(data_t value, int index) const {
 			typedef typename DataContainer::iterator iterator;
@@ -416,6 +425,7 @@ namespace wiselib {
 			if(index_iter == data_container_.end()) { return query_end(); }
 			else { return query_iterator(index_iter->data().begin(), query_tuple, data_container_.end()); }
 		}
+		*/
 #endif // TUPLE_STORE_ENABLE_INDICES
 		
 		/**
@@ -456,13 +466,14 @@ namespace wiselib {
 		} // erase
 		
 		// Conversion functions from/to data_t
-		//{{{
+		// {{{
 		template<typename T> static T& from_data(data_t& d) { return *reinterpret_cast<T*>(d.c_str()); }
 		template<typename T> static const T& from_data(const data_t& d) { return *reinterpret_cast<const T*>(d.c_str()); }
 		template<typename T> data_t to_data(T& t) { return data_t(reinterpret_cast<block_data_t*>(&t), sizeof(T), allocator_); }
 		template<typename T> const data_t to_data_c(const T& t) const { return data_t(reinterpret_cast<const block_data_t*>(&t), sizeof(T), allocator_); }
 		template<typename T> static data_t to_data(T& t, typename Allocator::self_pointer_t allocator_) { return data_t(reinterpret_cast<block_data_t*>(&t), sizeof(T), allocator_); }
-		//}}}
+		template<typename T> static const data_t to_data_c(T& t, typename Allocator::self_pointer_t allocator_) { return data_t(reinterpret_cast<const block_data_t*>(&t), sizeof(T), allocator_); }
+		// }}}
 		
 	
 #ifndef TUPLE_STORE_DEBUG
@@ -492,7 +503,6 @@ namespace wiselib {
 		class column_data_t {
 			// {{{
 			public:
-				typedef list_dynamic<OsModel, typename TupleContainer::node_ptr_t, Allocator> tuple_list_t;
 				typedef typename tuple_list_t::iterator tuple_iterator_t;
 				typedef typename tuple_list_t::const_iterator const_tuple_iterator_t;
 				
@@ -500,7 +510,18 @@ namespace wiselib {
 				column_data_t(size_t column, typename Allocator::self_pointer_t allocator) : i(column) {
 					tuple_list_.set_allocator(*allocator);
 				}
+				column_data_t(size_t column, const data_t& tuple, typename Allocator::self_pointer_t allocator) : i(column) {
+					tuple_list_.set_allocator(*allocator);
+					tuple_list_.push_back(&tuple);
+					
+			printf("calumn_data_t.first: (%p %p %p)\n",
+					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[0].raw(),
+					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[1].raw(),
+					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[2].raw()
+			);
+				}
 				column_data_t(const column_data_t& other) : i(other.i), tuple_list_(other.tuple_list_) { }
+				
 				
 				column_data_t& operator=(const column_data_t& other) {
 					i = other.i;
@@ -509,13 +530,14 @@ namespace wiselib {
 				}
 				
 				int cmp(const column_data_t& other) const {
+			printf("tuple_list_.front: (%p %p %p)\n",
+					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[0].raw(),
+					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[1].raw(),
+					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[2].raw()
+			);
 					return
-						from_data<Tuple>(
-							(tuple_list_.front()->data())
-						)[i].cmp(
-							from_data<Tuple>(
-								(other.tuple_list_.front()->data())
-							)[i]
+						from_data<Tuple>(*tuple_list_.front())[i].cmp(
+							from_data<Tuple>(*other.tuple_list_.front())[i]
 						);
 				}
 				
@@ -552,14 +574,33 @@ namespace wiselib {
 			//void insert(typename tuple_tree_t::node_ptr_t node, size_t column, typename Allocator::self_pointer_t allocator_) {
 			void insert(typename TupleContainer::iterator iter, size_t column, typename Allocator::self_pointer_t allocator_) {
 				column_data_t c(column, allocator_);
-				c.tuple_list_.push_back(iter.node());
+				//c.tuple_list_.push_back(data_ptr_t(&(iter.node()->data())));
+			printf("Inserting into index: (%p %p %p)\n",
+					(void*)from_data<Tuple>(*iter).nodes_[0].raw(),
+					(void*)from_data<Tuple>(*iter).nodes_[1].raw(),
+					(void*)from_data<Tuple>(*iter).nodes_[2].raw()
+			);
+				data_t t_d = *iter;
+			printf("&t_d: %p\n", (void*)&t_d);
+				c.tuple_list_.push_back(&t_d);
 				/*typename index_tree_t::node_ptr_t idx_node = tree_->find(c).node();
 				if(!idx_node) { tree_->insert(c); }
 				else { idx_node->template as<column_data_t>().tuple_list_.push_back(node); }
 				*/
 				typename Index::iterator idx_iter = index_container_->find(to_data(c, allocator_));
-				if(idx_iter == index_container_->end()) { index_container_->insert_n(to_data(c, allocator_)); }
-				else { from_data<column_data_t>(*idx_iter).tuple_list_.push_back(iter.node()); }
+				if(idx_iter == index_container_->end()) {
+					data_t d = to_data(c, allocator_);
+					d.set_weak(true);
+					index_container_->insert_n(d);
+					
+					printf("index root data sz: %d dat: %p\n",
+						index_container_->root()->data().size(),
+						index_container_->root()->data().c_str()
+					);
+				}
+				else {
+					from_data<column_data_t>(*idx_iter).tuple_list_.push_back(&*iter);
+				}
 			}
 		}; // struct index_t
 		mutable index_t indices_[N];
