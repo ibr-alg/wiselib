@@ -15,8 +15,8 @@ typedef wiselib::ReliableRadio<Os, Os::Radio, Os::Timer, Os::Debug> reliable_rad
 typedef Os::Radio::node_id_t node_id_t;
 typedef Os::Radio::block_data_t block_data_t;
 
-#define INTERVAL 15
-#define TOTAL 30000
+#define INTERVAL 1000
+#define TOTAL 3
 
 class ReliableRadioExample {
     typedef reliable_radio_t::size_t size_t;
