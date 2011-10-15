@@ -20,7 +20,7 @@ namespace wiselib {
         typedef typename Radio::message_id_t message_id_t;
 
     public:
-
+        typedef uint16_t seqNo_t;
         // message ids
 
         enum message_types {
@@ -88,7 +88,7 @@ namespace wiselib {
 
         inline void set_payload(uint8_t len, uint8_t *buf) {
             uint8_t loc[len];
-            memcpy(loc,buf,len);
+            memcpy(loc, buf, len);
             write<OsModel, block_data_t, uint8_t > (buffer + PAYLOAD_POS, len);
             memcpy(buffer + PAYLOAD_POS + 1, loc, len);
         }
