@@ -7,15 +7,15 @@
 #include "util/pstl/list_dynamic.h"
 #include "util/pstl/string_dynamic.h"
 
-//#undef NDEBUG
-//#include <cassert>
-#ifndef assert
-	#pragma warning("Assertions disabled!")
-	#define assert(X) 
-#endif
+//#ifndef ISENSE
+	#ifndef assert
+		#pragma warning("Assertions disabled!")
+		#define assert(X) 
+	#endif
+//#endif
 
 #ifndef TUPLE_STORE_ENABLE_INDICES
-#define TUPLE_STORE_ENABLE_INDICES 1
+	#define TUPLE_STORE_ENABLE_INDICES 1
 #endif
 
 namespace wiselib {
@@ -304,21 +304,9 @@ namespace wiselib {
 				from_data<refcounted_data_t>(store_tuple.nodes_[i]->data()).inc_refcount();
 			}
 			
-			debug_->debug("Constructed tuple for insertion: (%x %x %x)\n",
-					(void*)store_tuple.nodes_[0].raw(),
-					(void*)store_tuple.nodes_[1].raw(),
-					(void*)store_tuple.nodes_[2].raw()
-			);
-			
 			tuple_container_.insert_n(to_data(store_tuple));
 			iterator iter = tuple_container_.find(to_data(store_tuple));
 			assert(iter != end() && "just insterted tuple not found?!");
-			
-			debug_->debug("Constructed tuple for insertion: (%x %x %x)\n",
-					(void*)from_data<Tuple>(*iter).nodes_[0].raw(),
-					(void*)from_data<Tuple>(*iter).nodes_[1].raw(),
-					(void*)from_data<Tuple>(*iter).nodes_[2].raw()
-			);
 			
 #if TUPLE_STORE_ENABLE_INDICES
 			for(size_t i=0; i<N; i++) {
@@ -374,27 +362,14 @@ namespace wiselib {
 			
 			assert(indices_[index].used());
 			
-			printf("query tuple: (%p %p %p)\n",
-					(void*)query_tuple.nodes_[0].raw(),
-					(void*)query_tuple.nodes_[1].raw(),
-					(void*)query_tuple.nodes_[2].raw()
-			);
-			
 			data_t query_tuple_d = to_data(query_tuple);
 			column_data_t c((size_t)index, query_tuple_d, allocator_);
 			// TODO: construct a column_data_t and query for that!
 			data_t c_d = to_data(c);
 			
-			//Tuple * dbg_p = from_data<column_data_t>(c_d).tuple_list_
-			printf("query tuple from c_d: (%p %p %p)\n",
-					(void*)query_tuple.nodes_[0].raw(),
-					(void*)query_tuple.nodes_[1].raw(),
-					(void*)query_tuple.nodes_[2].raw()
-			);
-			
 			typename Index::iterator index_iter = indices_[index].index_container_->find(c_d);
 			
-			if(index_iter != indices_[index].index_container_->end()) { return query_end(); }
+			if(index_iter == indices_[index].index_container_->end()) { return query_end(); }
 			else { return query_iterator(from_data<const column_data_t>(*index_iter).begin(), query_tuple, data_container_.end()); }
 		}
 #endif // TUPLE_STORE_ENABLE_INDICES
@@ -509,18 +484,16 @@ namespace wiselib {
 				column_data_t() : i(-1) { }
 				column_data_t(size_t column, typename Allocator::self_pointer_t allocator) : i(column) {
 					tuple_list_.set_allocator(*allocator);
+					assert(i >= 0);
 				}
 				column_data_t(size_t column, const data_t& tuple, typename Allocator::self_pointer_t allocator) : i(column) {
 					tuple_list_.set_allocator(*allocator);
 					tuple_list_.push_back(&tuple);
-					
-			printf("calumn_data_t.first: (%p %p %p)\n",
-					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[0].raw(),
-					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[1].raw(),
-					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[2].raw()
-			);
+					assert(i >= 0);
 				}
-				column_data_t(const column_data_t& other) : i(other.i), tuple_list_(other.tuple_list_) { }
+				column_data_t(const column_data_t& other) : i(other.i), tuple_list_(other.tuple_list_) {
+					assert(i >= 0);
+				}
 				
 				
 				column_data_t& operator=(const column_data_t& other) {
@@ -530,11 +503,9 @@ namespace wiselib {
 				}
 				
 				int cmp(const column_data_t& other) const {
-			printf("tuple_list_.front: (%p %p %p)\n",
-					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[0].raw(),
-					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[1].raw(),
-					(void*)from_data<Tuple>(*tuple_list_.front()).nodes_[2].raw()
-			);
+					assert(i >= 0);
+					assert(!tuple_list_.empty());
+			
 					return
 						from_data<Tuple>(*tuple_list_.front())[i].cmp(
 							from_data<Tuple>(*other.tuple_list_.front())[i]
@@ -573,30 +544,19 @@ namespace wiselib {
 			index_container_ptr_t index_container_;
 			//void insert(typename tuple_tree_t::node_ptr_t node, size_t column, typename Allocator::self_pointer_t allocator_) {
 			void insert(typename TupleContainer::iterator iter, size_t column, typename Allocator::self_pointer_t allocator_) {
+				assert(used());
+				
+				const data_t* t_d = &*iter;
 				column_data_t c(column, allocator_);
-				//c.tuple_list_.push_back(data_ptr_t(&(iter.node()->data())));
-			printf("Inserting into index: (%p %p %p)\n",
-					(void*)from_data<Tuple>(*iter).nodes_[0].raw(),
-					(void*)from_data<Tuple>(*iter).nodes_[1].raw(),
-					(void*)from_data<Tuple>(*iter).nodes_[2].raw()
-			);
-				data_t t_d = *iter;
-			printf("&t_d: %p\n", (void*)&t_d);
-				c.tuple_list_.push_back(&t_d);
-				/*typename index_tree_t::node_ptr_t idx_node = tree_->find(c).node();
-				if(!idx_node) { tree_->insert(c); }
-				else { idx_node->template as<column_data_t>().tuple_list_.push_back(node); }
-				*/
-				typename Index::iterator idx_iter = index_container_->find(to_data(c, allocator_));
+				c.tuple_list_.push_back(t_d);
+				
+				data_t index_entry = to_data(c, allocator_);
+				typename Index::iterator idx_iter = index_container_->find(index_entry);
 				if(idx_iter == index_container_->end()) {
+					c.tuple_list_.set_weak(true);
 					data_t d = to_data(c, allocator_);
 					d.set_weak(true);
 					index_container_->insert_n(d);
-					
-					printf("index root data sz: %d dat: %p\n",
-						index_container_->root()->data().size(),
-						index_container_->root()->data().c_str()
-					);
 				}
 				else {
 					from_data<column_data_t>(*idx_iter).tuple_list_.push_back(&*iter);
