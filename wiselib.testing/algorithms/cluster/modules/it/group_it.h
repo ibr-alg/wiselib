@@ -67,11 +67,13 @@ namespace wiselib {
         //        //        typedef wiselib::MapStaticVector<OsModel, node_id_t, cluster_id_t, 20 > gateway_vector_t;
         //        typedef wiselib::vector_static<OsModel, wiselib::pair<node_id_t, node_id_t>, 20 > tree_childs_t;
 
+
+        typedef wiselib::vector_static<OsModel, node_id_t, 10 > groupMembers_t;
+
         struct groupsJoinedEntry {
-            int groupId_;
-            block_data_t data[30];
-            size_t size_;
-            node_id_t parent_;
+            group_entry_t group;
+            node_id_t parent;
+            groupMembers_t groupMembers;
         };
         typedef struct groupsJoinedEntry groupsJoinedEntry_t;
         typedef wiselib::vector_static<OsModel, groupsJoinedEntry_t, 10 > groupsVector_t;
@@ -82,9 +84,9 @@ namespace wiselib {
          */
         GroupIterator() :
         node_type_(UNCLUSTERED),
-        lastid_(2),
         isGateway_(false) {
             groupsVector_.clear();
+            lastNotified_ = groupsVector_.begin();
         }
 
         /*
@@ -119,22 +121,12 @@ namespace wiselib {
             if (!groupsVector_.empty()) {
                 for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
                     //if of the same size maybe the same
-                    if (gi.size() == it->size_) {
-                        bool same = true;
-                        //byte to byte comparisson
-                        for (size_t i = 0; i < it->size_; i++) {
-                            if (it->data[i] != *(gi.data() + i)) {
-                                same = false;
-                                break;
-                            }
-                        }
-                        if (same) {
-                            return it->parent_;
-                        }
+                    if (gi == it->group) {
+                        return it->parent;
                     }
                 }
             }
-            return 0xffff;
+            return Radio::NULL_NODE_ID;
         }
 
         /**
@@ -162,6 +154,33 @@ namespace wiselib {
             return isGateway_;
         }
 
+        void parse_join(block_data_t * data, size_t len) {
+            SemaGroupsMsg_t * msg = (SemaGroupsMsg_t *) data;
+            uint8_t group_count = msg->contained();
+            //            debug_->debug("contains %d ,len : %d", group_count, len);
+
+            for (uint8_t i = 0; i < group_count; i++) {
+                group_entry_t gi = group_entry_t(msg->get_statement_data(i), msg->get_statement_size(i));
+                if (semantics_-> has_group(gi)) {
+                    addNode2Members(gi, msg->node_id());
+                }
+            }
+        }
+
+        void addNode2Members(group_entry_t gi, node_id_t node) {
+            for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
+                if (it->group == gi) {
+                    //                    debug().debug("Node %x for group %s has %d members", radio().id(), it->group.c_str(), it->groupMembers.size());
+                    for (typename groupMembers_t::iterator gmit = it->groupMembers.begin(); gmit != it->groupMembers.end(); ++gmit) {
+                        if (node == *gmit) {
+                            return;
+                        }
+                    }
+                    it->groupMembers.push_back(node);
+                }
+            }
+        }
+
         //return the number of nodes known
 
         inline size_t node_count(int type) {
@@ -175,11 +194,13 @@ namespace wiselib {
             }
             return 0;
         }
-        
 
         SemaResumeMsg_t get_resume_payload() {
             SemaResumeMsg_t msg;
             msg.set_node_id(radio().id());
+
+            msg.set_group((block_data_t*) (lastNotified_->group.data()), lastNotified_->group.size());
+
 #ifdef ANSWERING
             predicate_container_t my_predicates = semantics_->get_predicates();
 
@@ -190,27 +211,32 @@ namespace wiselib {
                 }
             }
 #endif
+
+            lastNotified_++;
             return msg;
         }
 
-        //        void eat_resume(size_t len, uint8_t * data) {
-        //            //            SemaResumeMsg_t * msg = (SemaResumeMsg_t *) data;
-        //            //
-        //            //            node_id_t sender = msg->node_id();
-        //            //
-        //            //            size_t count = msg->contained();
-        //            //            for (size_t i = 0; i < count; i++) {
-        //            //#ifdef ANSWERING
-        //            //
-        //            //                predicate_t predicate = predicate_t(msg->get_predicate_data(i), msg->get_predicate_size(i), semantics_->get_allocator());
-        //            //                value_t value = value_t(msg->get_value_data(i), msg->get_value_size(i), semantics_->get_allocator());
-        //            //                add_semantic_value(predicate, value);
-        //            //                //                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
-        //            //
-        //            //#endif
-        //            //            }
-        //            //            node_joined(sender);
-        //        }
+        void eat_resume(SemaResumeMsg_t * msg) {
+
+
+            node_id_t sender = msg->node_id();
+            group_entry_t gi = group_entry_t(msg->group_data(), msg->group_size());
+
+            debug().debug("received resume for %s from %x", gi.c_str(), sender);
+
+            //            //            size_t count = msg->contained();
+            //            //            for (size_t i = 0; i < count; i++) {
+            //            //#ifdef ANSWERING
+            //            //
+            //            //                predicate_t predicate = predicate_t(msg->get_predicate_data(i), msg->get_predicate_size(i), semantics_->get_allocator());
+            //            //                value_t value = value_t(msg->get_value_data(i), msg->get_value_size(i), semantics_->get_allocator());
+            //            //                add_semantic_value(predicate, value);
+            //            //                //                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
+            //            //
+            //            //#endif
+            //            //            }
+            //            //            node_joined(sender);
+        }
 
         //        void add_semantic_value(predicate_t predicate, value_t value) {//NEDDDSS TOO RREEE TTHHIIINNKKK
         //            if (!semanticHeadVector_.empty()) {
@@ -227,38 +253,26 @@ namespace wiselib {
         //            semanticHeadVector_.push_back(newentry);
         //        }
 
-        int add_group(group_entry_t gi, node_id_t parent) {
+        bool add_group(group_entry_t gi, node_id_t parent) {
+            bool same = false;
             if (!groupsVector_.empty()) {
                 for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
                     //if of the same size maybe the same
-                    if (gi.size() == it->size_) {
-                        bool same = true;
-                        //byte to byte comparisson
-                        for (size_t i = 0; i < it->size_; i++) {
-                            if (it->data[i] != *(gi.data() + i)) {
-                                same = false;
-                                break;
-                            }
-                        }
-
-                        if (same) {
-                            if (it->parent_ < parent) {
-                                it->parent_ = parent;
-                                return it->groupId_;
-                            }
-                            return -1;
-                        }
+                    if (gi == it->group) {
+                        same = true;
+                        return !same;
                     }
                 }
             }
             groupsJoinedEntry_t newgroup;
-            memcpy(newgroup.data, gi.data(), gi.size());
-            newgroup.size_ = gi.size();
-            newgroup.groupId_ = lastid_;
-            newgroup.parent_ = parent;
-            lastid_ = lastid_ % 100;
+            newgroup.group = gi;
+            newgroup.parent = parent;
+            newgroup.groupMembers.clear();
+            if (parent != radio().id()) {
+                newgroup.groupMembers.push_back(parent);
+            }
             groupsVector_.push_back(newgroup);
-            return lastid_++;
+            return !same;
         }
 
         size_t get_group_count() {
@@ -270,9 +284,9 @@ namespace wiselib {
             if (!groupsVector_.empty()) {
                 for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
                     //if in this group the lost node is my parent
-                    if (it->parent_ == from) {
+                    if (it->parent == from) {
                         changed = true;
-                        it->parent_ = radio().id();
+                        it->parent = radio().id();
                     }
                 }
             }
@@ -307,19 +321,21 @@ namespace wiselib {
         bool isGateway_;
         Semantics_t * semantics_;
 
+        groupsVectorIterator_t lastNotified_;
+
         Radio * radio_;
 
-        inline Radio& radio() {
+        inline Radio & radio() {
             return *radio_;
         }
         Timer * timer_;
 
-        inline Timer& timer() {
+        inline Timer & timer() {
             return *timer_;
         }
         Debug * debug_;
 
-        inline Debug& debug() {
+        inline Debug & debug() {
             return *debug_;
         }
 
