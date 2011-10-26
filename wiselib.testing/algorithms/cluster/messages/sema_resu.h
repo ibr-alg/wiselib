@@ -24,15 +24,14 @@ namespace wiselib {
         enum data_positions {
             MSG_ID_POS = 0, // message id position inside the message [uint8]
             NODE_ID_POS = sizeof (message_id_t),
-            CLUSTER_ID_POS = NODE_ID_POS + sizeof (node_id_t),
-            ATTRIBUTE_LIST_POS = CLUSTER_ID_POS + sizeof (cluster_id_t)
+            GROUP_ID_POS = NODE_ID_POS + sizeof (node_id_t),
         };
 
         // --------------------------------------------------------------------
 
         SemaResuClusterMsg() {
             set_msg_id(RESUME);
-            buffer[ATTRIBUTE_LIST_POS] = 0;
+            //            buffer[ATTRIBUTE_LIST_POS] = 0;
         }
         // --------------------------------------------------------------------
 
@@ -60,97 +59,102 @@ namespace wiselib {
             write<OsModel, block_data_t, node_id_t > (buffer + NODE_ID_POS, node_id);
         }
 
-        inline cluster_id_t cluster_id() {
-            return read<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS);
+        inline block_data_t * group_data() {
+            return buffer + GROUP_ID_POS + sizeof (uint8_t);
         }
 
-        inline void set_cluster_id(cluster_id_t cluster) {
-            write<OsModel, block_data_t, cluster_id_t > (buffer + CLUSTER_ID_POS, cluster);
+        inline uint8_t group_size() {
+            return read<OsModel, block_data_t, uint8_t > (buffer + GROUP_ID_POS);
         }
 
-        size_t contained() {
-            if (buffer[ATTRIBUTE_LIST_POS] == 0) return 0;
-            size_t count = 0;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
-            while (pos < length()) {
-                count++;
-                pos += buffer[pos] + 1;
-            }
-            return count / 2;
+        inline void set_group(block_data_t * data, uint8_t size) {
+            write<OsModel, block_data_t, uint8_t > (buffer + GROUP_ID_POS, size);
+            memcpy(buffer + GROUP_ID_POS + sizeof (uint8_t), data, size);
         }
 
-        inline void add_predicate(block_data_t * predicate_data, size_t predicate_size
-                , block_data_t * value_data, size_t value_size) {
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &predicate_size, sizeof (size_t));
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, predicate_data, predicate_size);
-            buffer[ATTRIBUTE_LIST_POS] += 2;
-            buffer[ATTRIBUTE_LIST_POS] += predicate_size - 1;
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &value_size, sizeof (size_t));
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, value_data, value_size);
-            buffer[ATTRIBUTE_LIST_POS] += 2;
-            buffer[ATTRIBUTE_LIST_POS] += value_size - 1;
-        }
-
-        inline size_t get_value_size(size_t zcount) {
-            size_t count = 0;
-            size_t z2count = 2 * zcount+1;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
-            while (pos < length()) {
-                if (count == z2count) {
-
-                    return buffer[pos];
-                }
-                count++;
-                pos += buffer[pos] + 1;
-            }
-            return 0;
-        }
-
-        inline block_data_t * get_value_data(size_t zcount) {
-            size_t count = 0;
-            size_t z2count = 2 * zcount+1;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
-            while (pos < length()) {
-                if (count == z2count) {
-                    return &buffer[pos] + 1;
-                }
-                count++;
-                pos += buffer[pos] + 1;
-            }
-            return 0;
-        }
-
-        inline size_t get_predicate_size(size_t zcount) {
-            size_t count = 0;
-            size_t z2count = 2 * zcount;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
-            while (pos < length()) {
-                if (count == z2count) {
-
-                    return buffer[pos];
-                }
-                count++;
-                pos += buffer[pos] + 1;
-            }
-            return 0;
-        }
-
-        inline block_data_t * get_predicate_data(size_t zcount) {
-            size_t count = 0;
-            size_t z2count = 2 * zcount;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
-            while (pos < length()) {
-                if (count == z2count) {
-                    return &buffer[pos] + 1;
-                }
-                count++;
-                pos += buffer[pos] + 1;
-            }
-            return 0;
-        }
+        //        size_t contained() {
+        //            if (buffer[ATTRIBUTE_LIST_POS] == 0) return 0;
+        //            size_t count = 0;
+        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        //            while (pos < length()) {
+        //                count++;
+        //                pos += buffer[pos] + 1;
+        //            }
+        //            return count / 2;
+        //        }
+        //
+        //        inline void add_predicate(block_data_t * predicate_data, size_t predicate_size
+        //                , block_data_t * value_data, size_t value_size) {
+        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &predicate_size, sizeof (size_t));
+        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, predicate_data, predicate_size);
+        //            buffer[ATTRIBUTE_LIST_POS] += 2;
+        //            buffer[ATTRIBUTE_LIST_POS] += predicate_size - 1;
+        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &value_size, sizeof (size_t));
+        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, value_data, value_size);
+        //            buffer[ATTRIBUTE_LIST_POS] += 2;
+        //            buffer[ATTRIBUTE_LIST_POS] += value_size - 1;
+        //        }
+        //
+        //        inline size_t get_value_size(size_t zcount) {
+        //            size_t count = 0;
+        //            size_t z2count = 2 * zcount + 1;
+        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        //            while (pos < length()) {
+        //                if (count == z2count) {
+        //
+        //                    return buffer[pos];
+        //                }
+        //                count++;
+        //                pos += buffer[pos] + 1;
+        //            }
+        //            return 0;
+        //        }
+        //
+        //        inline block_data_t * get_value_data(size_t zcount) {
+        //            size_t count = 0;
+        //            size_t z2count = 2 * zcount + 1;
+        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        //            while (pos < length()) {
+        //                if (count == z2count) {
+        //                    return &buffer[pos] + 1;
+        //                }
+        //                count++;
+        //                pos += buffer[pos] + 1;
+        //            }
+        //            return 0;
+        //        }
+        //
+        //        inline size_t get_predicate_size(size_t zcount) {
+        //            size_t count = 0;
+        //            size_t z2count = 2 * zcount;
+        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        //            while (pos < length()) {
+        //                if (count == z2count) {
+        //
+        //                    return buffer[pos];
+        //                }
+        //                count++;
+        //                pos += buffer[pos] + 1;
+        //            }
+        //            return 0;
+        //        }
+        //
+        //        inline block_data_t * get_predicate_data(size_t zcount) {
+        //            size_t count = 0;
+        //            size_t z2count = 2 * zcount;
+        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        //            while (pos < length()) {
+        //                if (count == z2count) {
+        //                    return &buffer[pos] + 1;
+        //                }
+        //                count++;
+        //                pos += buffer[pos] + 1;
+        //            }
+        //            return 0;
+        //        }
 
         inline size_t length() {
-            return ATTRIBUTE_LIST_POS + 1 + buffer[ATTRIBUTE_LIST_POS];
+            return GROUP_ID_POS + sizeof (uint8_t) + group_size();
         }
 
     private:

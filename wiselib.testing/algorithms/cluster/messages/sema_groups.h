@@ -9,7 +9,7 @@
 
 namespace wiselib {
 
-    template<typename OsModel_P, typename Radio_P >
+    template<typename OsModel_P, typename Radio_P>
     class SemaGroupsClusterMsg {
     public:
         typedef OsModel_P OsModel;
@@ -65,10 +65,10 @@ namespace wiselib {
             write<OsModel, block_data_t, node_id_t > (buffer + NODE_ID_POS, id);
         }
 
-        size_t contained() {
+        uint8_t contained() {
             if (buffer[ATTRIBUTE_LIST_POS] == 0) return 0;
-            size_t count = 0;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
+            uint8_t count = 0;
+            uint8_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 count++;
                 pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
@@ -76,11 +76,11 @@ namespace wiselib {
             return count;
         }
 
-        inline void add_statement(block_data_t * data, size_t size, node_id_t group_id, node_id_t parent) {
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &size, sizeof (size_t));
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t), &group_id, sizeof (node_id_t));
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t) + sizeof (node_id_t), &parent, sizeof (node_id_t));
-            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (size_t) + sizeof (node_id_t) + sizeof (node_id_t), data, size);
+        inline void add_statement(block_data_t * data, uint8_t size, node_id_t group_id, node_id_t parent) {
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &size, sizeof (uint8_t));
+            write<OsModel, block_data_t, node_id_t > (buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (uint8_t), group_id);
+            write<OsModel, block_data_t, node_id_t > (buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (uint8_t) + sizeof (node_id_t), parent);
+            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + sizeof (uint8_t) + sizeof (node_id_t) + sizeof (node_id_t), data, size);
 
             buffer[ATTRIBUTE_LIST_POS] += 2;
             buffer[ATTRIBUTE_LIST_POS] += sizeof (node_id_t);
@@ -89,9 +89,9 @@ namespace wiselib {
 
         }
 
-        inline size_t get_statement_size(size_t zcount) {
-            size_t count = 0;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        inline uint8_t get_statement_size(uint8_t zcount) {
+            uint8_t count = 0;
+            uint8_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 if (count == zcount) {
 
@@ -103,9 +103,9 @@ namespace wiselib {
             return 0;
         }
 
-        inline block_data_t * get_statement_data(size_t zcount) {
-            size_t count = 0;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        inline block_data_t * get_statement_data(uint8_t zcount) {
+            uint8_t count = 0;
+            uint8_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 if (count == zcount) {
                     return &buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
@@ -116,9 +116,9 @@ namespace wiselib {
             return 0;
         }
 
-        inline node_id_t get_statement_nodeid(size_t zcount) {
-            size_t count = 0;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        inline node_id_t get_statement_nodeid(uint8_t zcount) {
+            uint8_t count = 0;
+            uint8_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 if (count == zcount) {
                     return read<OsModel, block_data_t, node_id_t > (buffer + pos + 1);
@@ -126,12 +126,12 @@ namespace wiselib {
                 count++;
                 pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
             }
-            return 4;
+            return sizeof (node_id_t);
         }
 
-        inline node_id_t get_statement_parent(size_t zcount) {
-            size_t count = 0;
-            size_t pos = ATTRIBUTE_LIST_POS + 1;
+        inline node_id_t get_statement_parent(uint8_t zcount) {
+            uint8_t count = 0;
+            uint8_t pos = ATTRIBUTE_LIST_POS + 1;
             while (pos < length()) {
                 if (count == zcount) {
                     return read<OsModel, block_data_t, node_id_t > (buffer + pos + 1 + sizeof (node_id_t));
@@ -139,10 +139,10 @@ namespace wiselib {
                 count++;
                 pos += buffer[pos] + 1 + sizeof (node_id_t) + sizeof (node_id_t);
             }
-            return 4;
+            return sizeof (node_id_t);
         }
 
-        inline size_t length() {
+        inline uint8_t length() {
             return ATTRIBUTE_LIST_POS + 1 + buffer[ATTRIBUTE_LIST_POS];
         }
 

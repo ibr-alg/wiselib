@@ -75,9 +75,17 @@ namespace wiselib {
             }
 
             bool operator==(data_t other) const {
-                int *a = (int *) data_a;
-                int *b = (int *) other.data();
-                return *a == *b;
+                if (size_a != other.size()) {
+                    return false;
+                } else {
+                    block_data_t * odata = other.data();
+                    for (uint8_t i = 0; i < size_a; i++) {
+                        if (data_a[i] != odata[i]) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
             }
             block_data_t * data_a;
             size_t size_a;
@@ -120,6 +128,7 @@ namespace wiselib {
         typedef wiselib::vector_static<OsModel, predicate_t, MAX_SEMANTICS> predicate_container_t;
 
         Semantics() {
+
             semantics_vector_.clear();
         };
 
@@ -134,6 +143,7 @@ namespace wiselib {
                 for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                     if (si->first == *sema_i) {
                         si->second = *value_i;
+
                         return;
                     }
                 }
@@ -151,6 +161,7 @@ namespace wiselib {
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
 
                 if (si->first > 200) {
+
                     predicate_t pred = predicate_t((block_data_t *) & si->first);
                     my_predicate_container.push_back(pred);
                 }
@@ -164,6 +175,7 @@ namespace wiselib {
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
 
                 if (si->first < 200) {
+
                     group_entry_t ge;
                     ge.data_a = (block_data_t *) & si->first;
                     ge.size_a = 2 * sizeof (int);
@@ -176,11 +188,12 @@ namespace wiselib {
         bool has_group(group_entry_t gi) {
             int value;
             int id;
-            memcpy(&id,gi.data(),sizeof(int));
-            memcpy(&value,gi.data()+sizeof(int),sizeof(int));
-            
+            memcpy(&id, gi.data(), sizeof (int));
+            memcpy(&value, gi.data() + sizeof (int), sizeof (int));
+
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if ((si->first == id) && (si->second == value)) {
+
                     return true;
                 }
             }
@@ -193,6 +206,7 @@ namespace wiselib {
             int * predicate_i = (int*) predicate.data();
             for (semantics_vector_iterator_t si = semantics_vector_.begin(); si != semantics_vector_.end(); ++si) {
                 if (si->first == *predicate_i) {
+
                     group_entry_t ge;
                     ge.data_a = (block_data_t *) & si->second;
                     ge.size_a = sizeof (int);
@@ -232,6 +246,7 @@ namespace wiselib {
                     break;
             }
             if (*predicate_i < 200) {
+
                 ans = *valuea;
             }
             memcpy(a.data(), &ans, sizeof (int));
