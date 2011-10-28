@@ -27,4 +27,5 @@ pc:
 	@echo "linking..."
 	$(CXX) $(OUTPUT)/main.o \
 		$(OUTPUT)/$(BIN_OUT).o \
-		-o $(OUTBIN)/$(BIN_OUT) $(LDFLAGS)
+		-o $(OUTPUT)/$(BIN_OUT) $(LDFLAGS)
+	size $(OUTPUT)/$(BIN_OUT)

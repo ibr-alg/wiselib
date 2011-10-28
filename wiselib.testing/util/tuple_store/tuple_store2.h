@@ -162,7 +162,8 @@ namespace wiselib {
 		
 		typedef typename Allocator::template pointer_t<Tuple> tuple_ptr_t;
 		typedef typename TupleContainer::iterator iterator;
-		typedef list_dynamic<OsModel, const_data_ptr_t, Allocator> tuple_list_t;
+		//typedef list_dynamic<OsModel, const_data_ptr_t, Allocator> tuple_list_t;
+		typedef list_dynamic<OsModel, const data_t*, Allocator> tuple_list_t;
 		
 		/**
 		 * 
