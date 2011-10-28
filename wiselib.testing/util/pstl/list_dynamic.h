@@ -14,6 +14,7 @@ namespace wiselib {
 			typename Allocator_P::template pointer_t<self_type> next;
 			typename Allocator_P::template pointer_t<self_type> prev;
 			Value_P value;
+			Value_P& data() { return value; }
 			
 			DoublyConnectedListNode() { }
 		};
@@ -91,6 +92,7 @@ namespace wiselib {
 			typedef Allocator_P Allocator;
 			typedef Node_P node_type;
 			typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
+			typedef typename Allocator::template pointer_t<node_type> node_ptr_t;
 			typedef list_dynamic<OsModel_P, Value_P, Allocator_P> self_type;
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
@@ -177,11 +179,35 @@ namespace wiselib {
 				return new_iter;
 			}
 			
+			node_pointer_t insert_n(const_reference v) {
+				iterator iter = end();
+				
+				node_pointer_t n = allocator_-> template allocate<node_type>();
+				n->value = v;
+				
+				iterator before(iter), after(iter);
+				--before;
+				if(before.node()) { before.node()->next = n; }
+				else { first_node_ = n; }
+				
+				if(after.node()) { after.node()->prev = n; }
+				else { last_node_ = n; }
+				
+				n->prev = before.node();
+				n->next = after.node();
+				
+				return n;
+			}
+			
 			iterator find(value_type v) {
 				for(iterator i = begin(); i != end(); ++i) {
 					if(*i == v) { return i; }
 				}
 				return end();
+			}
+			
+			node_pointer_t find_n(value_type v) {
+				return find(v).node();
 			}
 			
 			iterator push_back(value_type v) {
