@@ -21,7 +21,7 @@
 namespace wiselib {
 	
 	/**
-	 * \tparam N number of elements per tuple
+	 * \tparam N_ number of elements per tuple
 	 * 
 	 * \tparam TupleContainer_P container type used internally for tuples. Its
 	 * 	data type should be string_dynamic<OsModel, Allocator, OsModel::block_data_t>.
@@ -31,7 +31,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		int N,
+		int N_,
 		typename Allocator_P,
 		typename TupleContainer_P,
 		typename DataContainer_P,
@@ -46,7 +46,7 @@ namespace wiselib {
 		typedef TupleContainer_P TupleContainer;
 		typedef DataContainer_P DataContainer;
 		typedef Index_P Index;
-		typedef TupleStore<OsModel, N, Allocator, TupleContainer, DataContainer, Index, Debug> self_type;
+		typedef TupleStore<OsModel, N_, Allocator, TupleContainer, DataContainer, Index, Debug> self_type;
 		typedef typename OsModel::size_t size_type;
 		typedef typename OsModel::size_t size_t;
 		typedef typename OsModel::block_data_t block_data_t;
@@ -108,19 +108,19 @@ namespace wiselib {
 				Tuple() { }
 				
 				Tuple(const Tuple& other) {
-					for(size_t i=0; i<N; i++) {
+					for(size_t i=0; i<N_; i++) {
 						nodes_[i] = other.nodes_[i];
 					}
 				}
 				
 				Tuple& operator=(const Tuple& other) {
-					for(size_t i=0; i<N; i++) {
+					for(size_t i=0; i<N_; i++) {
 						nodes_[i] = other.nodes_[i];
 					}
 					return *this;
 				}
 			
-				size_t elements() const { return N; }
+				size_t elements() const { return N_; }
 				size_t size() const { return sizeof(*this); }
 				size_t size(size_t i) const {
 					return from_data<const refcounted_data_t>(nodes_[i]->data()).size();
@@ -156,7 +156,7 @@ namespace wiselib {
 				friend class TupleStore;
 			private:
 				typedef typename DataContainer::node_ptr_t node_ptr_t;
-				typename DataContainer::node_ptr_t nodes_[N];
+				typename DataContainer::node_ptr_t nodes_[N_];
 			// }}}
 		}; // class Tuple
 		
@@ -253,7 +253,7 @@ namespace wiselib {
 		 */
 		int destruct() {
 #if TUPLE_STORE_ENABLE_INDICES
-			for(size_t i=0; i<N; i++) { destruct_index(i); }
+			for(size_t i=0; i<N_; i++) { destruct_index(i); }
 #endif
 			return SUCCESS;
 		}
@@ -265,7 +265,7 @@ namespace wiselib {
 			data_container_.clear();
 			
 #if TUPLE_STORE_ENABLE_INDICES
-			for(size_t i=0; i<N; i++) {
+			for(size_t i=0; i<N_; i++) {
 				if(indices_[i].used()) {
 					indices_[i].index_container_->clear();
 				}
@@ -309,7 +309,7 @@ namespace wiselib {
 			assert(iter != end() && "just insterted tuple not found?!");
 			
 #if TUPLE_STORE_ENABLE_INDICES
-			for(size_t i=0; i<N; i++) {
+			for(size_t i=0; i<N_; i++) {
 				if(indices_[i].used()) {
 					indices_[i].insert(iter /*.node()*/, i, allocator_);
 				}
@@ -349,7 +349,7 @@ namespace wiselib {
 			// check if all non-zero-length elements of query are in the data
 			//  tree. If not, result set is empty as there can be no
 			//  tuple in the tuple tree that contains this data.
-			for(int i=0; i<N; i++) {
+			for(int i=0; i<N_; i++) {
 				if(query.size(i) && query.data(i)) {
 					refcounted_data_t r = refcounted_data_t(query.data(i), query.size(i), allocator_);
 					query_tuple.nodes_[i] = data_container_.find_n(
@@ -388,7 +388,7 @@ namespace wiselib {
 		query_iterator query_begin(data_t value, int index) const {
 			typedef typename DataContainer::iterator iterator;
 			Tuple query_tuple;
-			for(int i=0; i<N; i++) {
+			for(int i=0; i<N_; i++) {
 				query_tuple.nodes_[i] = data_container_.end();
 			}
 			// TODO: to_data() value to refcounted data!
@@ -426,7 +426,7 @@ namespace wiselib {
 		/**
 		 */
 		int erase(iterator iter) {
-			for(int i=0; i<N; i++) {
+			for(int i=0; i<N_; i++) {
 				typename DataContainer::iterator diter = data_container_.find(iter.template as<Tuple>().nodes_[i]->data());
 				assert(diter != data_container_.end());
 				assert(diter.node());
@@ -462,7 +462,7 @@ namespace wiselib {
 		 */
 		template<typename T>
 		bool to_internal(const T& query, Tuple& tuple) {
-			for(size_t i=0; i<N; i++) {
+			for(size_t i=0; i<N_; i++) {
 				
 				typename DataContainer::iterator iter = data_container_.find(to_data_c(refcounted_data_t(query.data(i), query.size(i), allocator_)));
 				if(iter == data_container_.end()) {
@@ -563,7 +563,7 @@ namespace wiselib {
 				}
 			}
 		}; // struct index_t
-		mutable index_t indices_[N];
+		mutable index_t indices_[N_];
 		
 		/*
 		 * Initialize index slot

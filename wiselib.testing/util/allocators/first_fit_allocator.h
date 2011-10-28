@@ -19,12 +19,12 @@ void* operator new(size_t size, T* place) {
 namespace wiselib {
 
 
-template<uint64_t N>
+template<uint64_t N_>
 struct small_uint {
 	typedef typename small_uint<
-		(N > 0xffffffff) ? 0x100000000LL :
-		(N > 0x0000ffff) ? 0x000010000L :
-		(N > 0x000000ff) ? 0x000000100 :
+		(N_ > 0xffffffff) ? 0x100000000LL :
+		(N_ > 0x0000ffff) ? 0x000010000L :
+		(N_ > 0x000000ff) ? 0x000000100 :
 		                   0x000000000
 		>::t t;
 };
