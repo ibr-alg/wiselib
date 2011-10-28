@@ -70,91 +70,105 @@ namespace wiselib {
         inline void set_group(block_data_t * data, uint8_t size) {
             write<OsModel, block_data_t, uint8_t > (buffer + GROUP_ID_POS, size);
             memcpy(buffer + GROUP_ID_POS + sizeof (uint8_t), data, size);
+            uint8_t attribute_size = 0;
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+            write<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS, attribute_size);
         }
 
-        //        size_t contained() {
-        //            if (buffer[ATTRIBUTE_LIST_POS] == 0) return 0;
-        //            size_t count = 0;
-        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
-        //            while (pos < length()) {
-        //                count++;
-        //                pos += buffer[pos] + 1;
-        //            }
-        //            return count / 2;
-        //        }
-        //
-        //        inline void add_predicate(block_data_t * predicate_data, size_t predicate_size
-        //                , block_data_t * value_data, size_t value_size) {
-        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &predicate_size, sizeof (size_t));
-        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, predicate_data, predicate_size);
-        //            buffer[ATTRIBUTE_LIST_POS] += 2;
-        //            buffer[ATTRIBUTE_LIST_POS] += predicate_size - 1;
-        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &value_size, sizeof (size_t));
-        //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1 + 1, value_data, value_size);
-        //            buffer[ATTRIBUTE_LIST_POS] += 2;
-        //            buffer[ATTRIBUTE_LIST_POS] += value_size - 1;
-        //        }
-        //
-        //        inline size_t get_value_size(size_t zcount) {
-        //            size_t count = 0;
-        //            size_t z2count = 2 * zcount + 1;
-        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
-        //            while (pos < length()) {
-        //                if (count == z2count) {
-        //
-        //                    return buffer[pos];
-        //                }
-        //                count++;
-        //                pos += buffer[pos] + 1;
-        //            }
-        //            return 0;
-        //        }
-        //
-        //        inline block_data_t * get_value_data(size_t zcount) {
-        //            size_t count = 0;
-        //            size_t z2count = 2 * zcount + 1;
-        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
-        //            while (pos < length()) {
-        //                if (count == z2count) {
-        //                    return &buffer[pos] + 1;
-        //                }
-        //                count++;
-        //                pos += buffer[pos] + 1;
-        //            }
-        //            return 0;
-        //        }
-        //
-        //        inline size_t get_predicate_size(size_t zcount) {
-        //            size_t count = 0;
-        //            size_t z2count = 2 * zcount;
-        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
-        //            while (pos < length()) {
-        //                if (count == z2count) {
-        //
-        //                    return buffer[pos];
-        //                }
-        //                count++;
-        //                pos += buffer[pos] + 1;
-        //            }
-        //            return 0;
-        //        }
-        //
-        //        inline block_data_t * get_predicate_data(size_t zcount) {
-        //            size_t count = 0;
-        //            size_t z2count = 2 * zcount;
-        //            size_t pos = ATTRIBUTE_LIST_POS + 1;
-        //            while (pos < length()) {
-        //                if (count == z2count) {
-        //                    return &buffer[pos] + 1;
-        //                }
-        //                count++;
-        //                pos += buffer[pos] + 1;
-        //            }
-        //            return 0;
-        //        }
+        uint8_t contained() {
+
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+
+            if (read<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS) == 0) return 0;
+
+            uint8_t count = 0;
+            uint8_t pos = ATTRIBUTE_LIST_POS + 1;
+            while (pos < length()) {
+                count++;
+                pos += buffer[pos] + 1;
+            }
+            return count / 2;
+        }
+
+        inline void add_predicate(block_data_t * predicate_data, uint8_t predicate_size
+                , block_data_t * value_data, uint8_t value_size) {
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+            uint8_t offset = read<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS);
+            write<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS + offset + sizeof (uint8_t), predicate_size);
+            //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &predicate_size, sizeof (size_t));
+            memcpy(buffer + ATTRIBUTE_LIST_POS + offset + sizeof (uint8_t) + sizeof (uint8_t), predicate_data, predicate_size);
+            offset = offset + sizeof (uint8_t) + predicate_size;
+            write<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS + offset + sizeof (uint8_t), value_size);
+            //            memcpy(buffer + ATTRIBUTE_LIST_POS + buffer[ATTRIBUTE_LIST_POS] + 1, &value_size, sizeof (size_t));
+            memcpy(buffer + ATTRIBUTE_LIST_POS + offset + sizeof (uint8_t) + sizeof (uint8_t), value_data, value_size);
+            offset = offset + sizeof (uint8_t) + value_size;
+            write<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS, offset);
+        }
+
+        inline uint8_t get_value_size(uint8_t zcount) {
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+
+            uint8_t count = 0;
+            uint8_t z2count = 2 * zcount + 1;
+            uint8_t pos = ATTRIBUTE_LIST_POS + sizeof (uint8_t);
+            while (pos < length()) {
+                if (count++ == z2count) {
+                    return read<OsModel, block_data_t, uint8_t > (buffer + pos);
+                }
+                pos += read<OsModel, block_data_t, uint8_t > (buffer + pos) + sizeof (uint8_t);
+            }
+            return 0;
+        }
+
+        inline block_data_t * get_value_data(uint8_t zcount) {
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+
+            uint8_t count = 0;
+            uint8_t z2count = 2 * zcount + 1;
+            uint8_t pos = ATTRIBUTE_LIST_POS + sizeof (uint8_t);
+            while (pos < length()) {
+                if (count++ == z2count) {
+                    return buffer + pos + sizeof (uint8_t);
+                }
+                pos += read<OsModel, block_data_t, uint8_t > (buffer + pos) + sizeof (uint8_t);
+            }
+            return 0;
+        }
+
+        inline uint8_t get_predicate_size(uint8_t zcount) {
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+
+            uint8_t count = 0;
+            uint8_t z2count = 2 * zcount;
+            uint8_t pos = ATTRIBUTE_LIST_POS + sizeof (uint8_t);
+            while (pos < length()) {
+                if (count++ == z2count) {
+                    return read<OsModel, block_data_t, uint8_t > (buffer + pos);
+                }
+                pos += read<OsModel, block_data_t, uint8_t > (buffer + pos) + sizeof (uint8_t);
+            }
+            return 0;
+        }
+
+        inline block_data_t * get_predicate_data(uint8_t zcount) {
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+
+            uint8_t count = 0;
+            uint8_t z2count = 2 * zcount;
+            uint8_t pos = ATTRIBUTE_LIST_POS + sizeof (uint8_t);
+            while (pos < length()) {
+                if (count++ == z2count) {
+                    return buffer + pos + sizeof (uint8_t);
+                }
+                pos += read<OsModel, block_data_t, uint8_t > (buffer + pos) + sizeof (uint8_t);
+            }
+            return 0;
+        }
 
         inline size_t length() {
-            return GROUP_ID_POS + sizeof (uint8_t) + group_size();
+            uint8_t ATTRIBUTE_LIST_POS = GROUP_ID_POS + sizeof (uint8_t) + group_size();
+            uint8_t offset = read<OsModel, block_data_t, uint8_t > (buffer + ATTRIBUTE_LIST_POS) + sizeof (uint8_t);
+            return GROUP_ID_POS + sizeof (uint8_t) + group_size() + offset; //size up to group id
         }
 
     private:
