@@ -15,6 +15,7 @@ namespace wiselib {
 			typename Allocator_P::template pointer_t<self_type> prev;
 			Value_P value;
 			Value_P& data() { return value; }
+			const Value_P& data() const { return value; }
 			
 			DoublyConnectedListNode() { }
 		};
