@@ -49,7 +49,7 @@ namespace wiselib {
             uint8_t size_;
         };
         typedef struct groups_joined_entry groups_joined_entry_t;
-        typedef wiselib::vector_static<OsModel, groups_joined_entry_t, 10 > groupsVector_t;
+        typedef wiselib::vector_static<OsModel, groups_joined_entry_t, 6 > groupsVector_t;
         typedef typename groupsVector_t::iterator groupsVectorIterator_t;
 
 

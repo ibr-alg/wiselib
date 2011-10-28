@@ -227,10 +227,10 @@ namespace wiselib {
         /**
          * Add value a and value b and store data in value a
          */
-        void aggregate(value_t a, value_t b, predicate_t predicate) {
+        void aggregate(value_t * a, value_t * b, predicate_t predicate) {
             int * predicate_i = (int *) predicate.data();
-            int * valuea = (int *) a.data();
-            int * valueb = (int *) b.data();
+            int * valuea = (int *) a->data();
+            int * valueb = (int *) b->data();
 
             int ans;
             switch (*predicate_i) {
@@ -249,7 +249,8 @@ namespace wiselib {
 
                 ans = *valuea;
             }
-            memcpy(a.data(), &ans, sizeof (int));
+
+
         }
 
         int get_allocator() {
