@@ -35,25 +35,13 @@ namespace wiselib {
         typedef typename Semantics_t::value_t value_t;
         typedef typename Semantics_t::group_container_t group_container_t;
         typedef typename Semantics_t::value_container_t value_container_t;
+        typedef typename Semantics_t::predicate_container_t predicate_container_t;
 #ifdef ANSWERING
         typedef typename Semantics_t::predicate_container_t predicate_container_t;
 #endif
         typedef typename Semantics_t::group_entry_t group_entry_t;
 
-        //        struct semantic_head {
-        //            semantic_id_t semantic_id_;
-        //            value_t semantic_value_;
-        //        };
-        //
 
-        struct semantic_head_item {
-            block_data_t data[20];
-            predicate_t predicate;
-            value_t value;
-        };
-        typedef semantic_head_item semantic_head_item_t;
-        typedef wiselib::pair<semantic_head_item_t, semantic_head_item_t> semantic_head_entry_t;
-        typedef wiselib::vector_static<OsModel, semantic_head_entry_t, 10 > semanticHeadVector_t;
 
         typedef GroupIterator<OsModel_P, Radio_P, Semantics_P> self_t;
 
@@ -61,22 +49,25 @@ namespace wiselib {
         typedef int cluster_id_t;
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::block_data_t block_data_t;
-        //
+
         //        typedef wiselib::vector_static<OsModel, node_id_t, 20 > vector_t;
         //        typedef wiselib::pair<node_id_t, cluster_id_t> gateway_entry_t;
         //        //        typedef wiselib::MapStaticVector<OsModel, node_id_t, cluster_id_t, 20 > gateway_vector_t;
         //        typedef wiselib::vector_static<OsModel, wiselib::pair<node_id_t, node_id_t>, 20 > tree_childs_t;
 
 
-        typedef wiselib::vector_static<OsModel, node_id_t, 10 > groupMembers_t;
+        typedef wiselib::vector_static<OsModel, node_id_t, 6 > groupMembers_t;
+        typedef wiselib::pair<predicate_t, value_t> groupValuesEntry_t;
+        typedef wiselib::vector_static<OsModel, groupValuesEntry_t, 6 > groupValues_t;
 
         struct groupsJoinedEntry {
             group_entry_t group;
             node_id_t parent;
             groupMembers_t groupMembers;
+            groupValues_t groupValues;
         };
         typedef struct groupsJoinedEntry groupsJoinedEntry_t;
-        typedef wiselib::vector_static<OsModel, groupsJoinedEntry_t, 10 > groupsVector_t;
+        typedef wiselib::vector_static<OsModel, groupsJoinedEntry_t, 6 > groupsVector_t;
         typedef typename groupsVector_t::iterator groupsVectorIterator_t;
 
         /*
@@ -201,41 +192,94 @@ namespace wiselib {
 
             msg.set_group((block_data_t*) (lastNotified_->group.data()), lastNotified_->group.size());
 
-#ifdef ANSWERING
             predicate_container_t my_predicates = semantics_->get_predicates();
 
             for (typename predicate_container_t::iterator it = my_predicates.begin(); it != my_predicates.end(); ++it) {
                 value_container_t myvalues = semantics_->get_values(*it);
-                for (typename value_container_t::iterator gi = myvalues.begin(); gi != myvalues.end(); ++gi) {
+                if (myvalues.size() > 0) {
+                    typename value_container_t::iterator gi = myvalues.begin();
                     msg.add_predicate(it->data(), it->size(), gi->data(), gi->size());
                 }
             }
-#endif
 
             lastNotified_++;
+            if (lastNotified_ == groupsVector_.end()) {
+                lastNotified_ = groupsVector_.begin();
+            }
             return msg;
         }
 
         void eat_resume(SemaResumeMsg_t * msg) {
-
-
             node_id_t sender = msg->node_id();
             group_entry_t gi = group_entry_t(msg->group_data(), msg->group_size());
 
-            debug().debug("received resume for %s from %x", gi.c_str(), sender);
+            if (!semantics_->has_group(gi)) return;
 
-            //            //            size_t count = msg->contained();
-            //            //            for (size_t i = 0; i < count; i++) {
-            //            //#ifdef ANSWERING
-            //            //
-            //            //                predicate_t predicate = predicate_t(msg->get_predicate_data(i), msg->get_predicate_size(i), semantics_->get_allocator());
-            //            //                value_t value = value_t(msg->get_value_data(i), msg->get_value_size(i), semantics_->get_allocator());
-            //            //                add_semantic_value(predicate, value);
-            //            //                //                debug().debug("Received a resume with %d|%d statement from %x", predicate, value, sender);
-            //            //
-            //            //#endif
-            //            //            }
+            debug().debug("received resume for %s from %x contains %d - size %d", gi.c_str(), sender, msg->contained(), msg->length());
+
+            size_t count = msg->contained();
+            for (size_t i = 0; i < count; i++) {
+                block_data_t * pdata = msg->get_predicate_data(i);
+                uint8_t psize = msg->get_predicate_size(i);
+                predicate_t predicate = predicate_t(pdata, psize, semantics_->get_allocator());
+                block_data_t * vdata = msg->get_value_data(i);
+                uint8_t vsize = msg->get_value_size(i);
+                value_t value = value_t(vdata, vsize, semantics_->get_allocator());
+                aggregate_data(gi, predicate, value);
+                debug().debug("Received a resume with %s|%s statement from %x", predicate.c_str(), value.c_str(), sender);
+
+                //                debug().debug("Aggregating%d|%s data %s=%s", radio().id(), gi.c_str(), predicate.c_str(), value.c_str());
+                //                debug().debug("Aggregated%d|%s data %s=%s", radio().id(), gi.c_str(), predicate.c_str(), get_aggregate_data(gi, predicate).c_str());
+
+            }
             //            //            node_joined(sender);
+        }
+
+        void aggregate_data(group_entry_t group, predicate_t predicate, value_t value) {
+            if (groupsVector_.empty()) {
+                debug().debug("is empty!");
+            }
+            for (groupsVectorIterator_t gvit = groupsVector_.begin(); gvit != groupsVector_.end(); ++gvit) {
+
+                //if of the same size maybe the same
+                if (group == gvit->group) {
+                    for (typename groupValues_t::iterator gvalit = gvit->groupValues.begin(); gvalit != gvit->groupValues.end(); ++gvalit) {
+                        if (gvalit->first == predicate) {
+                            debug().debug("Aggregation %s|%s =", gvalit->second.c_str(), value.c_str());
+                            return;
+                        }
+                    }
+                    groupValuesEntry_t newgoupValueEntry;
+                    newgoupValueEntry.first = predicate;
+                    newgoupValueEntry.second = value;
+                    gvit->groupValues.push_back(newgoupValueEntry);
+                }
+            }
+        }
+
+        value_t get_aggregate_data(group_entry_t group, predicate_t predicate) {
+            for (groupsVectorIterator_t gvit = groupsVector_.begin(); gvit != groupsVector_.end(); ++gvit) {
+                //if of the same size maybe the same
+                if (group == gvit->group) {
+                    for (typename groupValues_t::iterator gvalit = gvit->groupValues.begin(); gvalit != gvit->groupValues.end(); ++gvalit) {
+                        if (gvalit->first == predicate) {
+                            return gvalit->second;
+                        }
+                    }
+                }
+            }
+        }
+
+        void debug_payload(const uint8_t * payload, size_t length, node_id_t src) {
+            char buffer[1024];
+            int bytes_written = 0;
+            bytes_written += sprintf(buffer + bytes_written, "pl(%x)(", src);
+            for (size_t i = 0; i < length; i++) {
+                bytes_written += sprintf(buffer + bytes_written, "%x|", payload[i]);
+            }
+            bytes_written += sprintf(buffer + bytes_written, ")");
+            buffer[bytes_written] = '\0';
+            debug().debug("%s", buffer);
         }
 
         //        void add_semantic_value(predicate_t predicate, value_t value) {//NEDDDSS TOO RREEE TTHHIIINNKKK
@@ -268,9 +312,24 @@ namespace wiselib {
             newgroup.group = gi;
             newgroup.parent = parent;
             newgroup.groupMembers.clear();
+            newgroup.groupValues.clear();
             if (parent != radio().id()) {
                 newgroup.groupMembers.push_back(parent);
             }
+
+            predicate_container_t my_predicates = semantics_->get_predicates();
+
+            for (typename predicate_container_t::iterator it = my_predicates.begin(); it != my_predicates.end(); ++it) {
+                value_container_t myvalues = semantics_->get_values(*it);
+                if (myvalues.size() > 0) {
+                    typename value_container_t::iterator vi = myvalues.begin();
+                    groupValuesEntry_t newGroupValuesEntry;
+                    newGroupValuesEntry.first = *it;
+                    newGroupValuesEntry.second = *vi;
+                    newgroup.groupValues.push_back(newGroupValuesEntry);
+                }
+            }
+
             groupsVector_.push_back(newgroup);
             return !same;
         }
@@ -312,8 +371,6 @@ namespace wiselib {
             //                debug_->debug("%s", buffer);
             //            }
         }
-
-        semanticHeadVector_t semanticHeadVector_;
 
     private:
         groupsVector_t groupsVector_;
