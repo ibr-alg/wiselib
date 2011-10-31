@@ -14,6 +14,8 @@ namespace wiselib {
 			typename Allocator_P::template pointer_t<self_type> next;
 			typename Allocator_P::template pointer_t<self_type> prev;
 			Value_P value;
+			Value_P& data() { return value; }
+			const Value_P& data() const { return value; }
 			
 			DoublyConnectedListNode() { }
 		};
@@ -91,16 +93,19 @@ namespace wiselib {
 			typedef Allocator_P Allocator;
 			typedef Node_P node_type;
 			typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
+			typedef typename Allocator::template pointer_t<node_type> node_ptr_t;
 			typedef list_dynamic<OsModel_P, Value_P, Allocator_P> self_type;
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
-			list_dynamic() : allocator_(0) { };
-			list_dynamic(Allocator& alloc) : allocator_(&alloc) { };
-			list_dynamic(const list_dynamic& other) { *this = other; }
+			list_dynamic() : allocator_(0), first_node_(0), last_node_(0), weak_(false) { };
+			list_dynamic(Allocator& alloc) : allocator_(&alloc), first_node_(0), last_node_(0), weak_(false) { };
+			list_dynamic(const list_dynamic& other) : weak_(false) { *this = other; }
 			
 			~list_dynamic() {
-				clear();
+				if(!weak_) {
+					clear();
+				}
 			}
 			
 			list_dynamic& operator=(const self_type& other) {
@@ -112,6 +117,25 @@ namespace wiselib {
 				}
 				return *this;
 			}
+			
+			/**
+			 * If true, don't delete the internal buffer upon destruction.
+			 * Useful if you (shallow) "serialize" the string instance into some other
+			 * format and call its destructor but actually plan to cast it
+			 * back later. Normally that wouldnt be possible because the
+			 * internally buffer would get lost, if you set the object to be
+			 * "weak" in the meantime, the buffer will persist and the
+			 * reconstructed object can be used.
+			 * Only use if you know what you are doing! These methods are
+			 * basically a recipe for memory leaks!
+			 */
+			bool weak() const { return weak_; }
+			
+			/**
+			 * Set/unset "weak" property.
+			 * See weak() for explanation on weakness.
+			 */
+			void set_weak(bool s) const { weak_ = s; }
 			
 			void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
 			
@@ -156,11 +180,35 @@ namespace wiselib {
 				return new_iter;
 			}
 			
+			node_pointer_t insert_n(const_reference v) {
+				iterator iter = end();
+				
+				node_pointer_t n = allocator_-> template allocate<node_type>();
+				n->value = v;
+				
+				iterator before(iter), after(iter);
+				--before;
+				if(before.node()) { before.node()->next = n; }
+				else { first_node_ = n; }
+				
+				if(after.node()) { after.node()->prev = n; }
+				else { last_node_ = n; }
+				
+				n->prev = before.node();
+				n->next = after.node();
+				
+				return n;
+			}
+			
 			iterator find(value_type v) {
 				for(iterator i = begin(); i != end(); ++i) {
 					if(*i == v) { return i; }
 				}
 				return end();
+			}
+			
+			node_pointer_t find_n(value_type v) {
+				return find(v).node();
 			}
 			
 			iterator push_back(value_type v) {
@@ -209,6 +257,7 @@ namespace wiselib {
 		private:
 			typename Allocator::self_pointer_t allocator_;
 			node_pointer_t first_node_, last_node_;
+			mutable bool weak_;
 	};
 	
 	

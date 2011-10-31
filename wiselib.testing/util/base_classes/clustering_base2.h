@@ -37,7 +37,7 @@ namespace wiselib {
     public:
 
         typedef OsModel_P OsModel;
-        typedef delegate3<void, uint8_t, uint8_t, uint16> cluster_delegate_t;
+        typedef delegate3<void, uint8_t, uint8_t, node_id_t> cluster_delegate_t;
 
         // --------------------------------------------------------------------
         typedef vector_static<OsModel, cluster_delegate_t, MAX_RECEIVERS> CallbackVector;
@@ -49,7 +49,7 @@ namespace wiselib {
         };
         // --------------------------------------------------------------------
 
-        template<class T, void (T::*TMethod)(uint8_t, uint8_t, uint16) >
+        template<class T, void (T::*TMethod)(uint8_t, uint8_t, node_id_t) >
         int reg_state_changed_callback(T *obj_pnt) {
             if (callbacks_.empty())
                 callbacks_.assign(MAX_RECEIVERS, cluster_delegate_t());
@@ -71,7 +71,7 @@ namespace wiselib {
         }
         // --------------------------------------------------------------------
 
-        void state_changed(uint8_t event, uint8_t type, uint16 node) {
+        void state_changed(uint8_t event, uint8_t type, node_id_t node) {
             for (CallbackVectorIterator
                 it = callbacks_.begin();
                     it != callbacks_.end();

@@ -4,17 +4,15 @@
 #ifndef AVL_TREE_H
 #define AVL_TREE_H
 
-//#pragma warning("AVL tree is not fully usable yet!")
-
-//#undef NDEBUG
-//#include <cassert>
-#ifndef assert
-	#define assert(X) 
-#endif
-
 #include "util/allocators/utils.h"
 #include "util/pstl/list_dynamic.h" // TODO: Implement & use vector_dynamic instead!
 #include "util/pstl/string_dynamic.h"
+
+//#ifndef ISENSE
+	#ifndef assert
+		#define assert(X) 
+	#endif
+//#endif
 
 namespace wiselib {
 	
@@ -313,6 +311,7 @@ namespace wiselib {
 			node_ptr_t r;
 			if(!root_) {
 				root_ = allocator_->template allocate<Node>();
+				root_->init();
 				root_->data_ = data;
 				size_++;
 				r = root_;
