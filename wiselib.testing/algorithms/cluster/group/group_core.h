@@ -114,6 +114,8 @@ namespace wiselib {
             jd().init(radio(), debug(), semantics);
             it().init(radio(), timer(), debug(), semantics);
 
+
+
         }
 
         /**
@@ -368,6 +370,10 @@ namespace wiselib {
                     break;
             }
         }
+
+//        void updated_semantic(predicate_t predicate, value_t value) {
+//            it().updated_semantic(predicate, value);
+//        }
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
