@@ -62,7 +62,7 @@ namespace wiselib
 		iSenseTemperatureRequestSensor( isense::Os& os )
 			:  module_( os ), curState_( INACTIVE )
 		{
-			if( module_.temp_sensor() != 0 || !module_.enable( true ) ) 
+			if( module_.temp_sensor() == 0 || !module_.enable( true ) ) 
 				curState_ = INACTIVE;
 			else 
 				curState_ = NO_VALUE;
@@ -114,9 +114,9 @@ namespace wiselib
 			* 
 			* \return True if sensor was already or is now enabled, else false.
 			*/
-		void enable()
+		bool enable()
 		{
-			module_.temp_sensor()->enable();
+			return module_.temp_sensor()->enable();
 		}
 		
 		/** Disables the sensor and replaces the DataHandler
