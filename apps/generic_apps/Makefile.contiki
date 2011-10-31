@@ -6,7 +6,7 @@ CXXFLAGS += -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH)
 CXXFLAGS += -fno-defer-pop -fno-exceptions -fno-rtti -fomit-frame-pointer \
 		-fno-strength-reduce -fno-use-cxa-atexit 
 # -pedantic
-CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel
+CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel $(ADD_CXXFLAGS)
 
 LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
