@@ -77,35 +77,26 @@ namespace wiselib
 		*
 		*/
 		iSenseAccelerationRequestSensor( isense::Os& os )
-			: os_( os ), curState_( INACTIVE )
-		{
-			device_ = new isense::LisAccelerometer( os );
-
-			if( device_ != 0 )
-			{	
-				// Set this as the Accelerometer's Data Handler
-				device_->set_handler( this );
-				
-				// Switch Sensor on
-				device_->enable();
-				
-				// Set sensor mode: All axes are read
-				device_->set_axes( true, true, true );
-				
-				// Set Threshold = 0 so every measurement is propagated
-				device_->set_threshold( 0 );
-				
-				// Set divider to one (every measurement is taken)
-				device_->set_divider( 1 );
-				
-				curState_ = NO_VALUE;
-			}
-			else 
-			{
-				os.fatal( "Could not allocate Accelerometer" );
-				curState_ = INACTIVE;
-			}
+			: device_( os ), curState_( INACTIVE )
+		{	
+			// Set this as the Accelerometer's Data Handler
+			device_.set_handler( this );
 			
+			device_.enable();
+			
+			// Set sensor mode: All axes are read
+			device_.set_axes( true, true, true );
+			
+			
+			
+			// Set Threshold = 0 so every measurement is propagated
+			device_.set_threshold( 0 );
+			
+			// Set divider to one (every measurement is taken)
+			device_.set_divider( 1 );
+			
+			curState_ = NO_VALUE;
+		
 			value_.x = 0;
 			value_.y = 0;
 			value_.z = 0;
@@ -135,8 +126,7 @@ namespace wiselib
 			*/
 		void set_extended_range( bool extRange )
 		{
-			if(device_ != 0)
-				device_->set_extended_range( extRange );
+			device_.set_extended_range( extRange );
 		}
 		
 		//------------------------------------------------------------------------
@@ -147,8 +137,7 @@ namespace wiselib
 			*/
 		void set_divider( uint8 divider )
 		{
-			if(device_ != 0)
-				device_->set_divider( divider );
+			device_.set_divider( divider );
 		}
 		
 		//------------------------------------------------------------------------
@@ -221,7 +210,7 @@ namespace wiselib
 			*/
 		bool enable()
 		{
-			return device_->enable();
+			return device_.enable();
 		}
 		
 		//------------------------------------------------------------------------
@@ -231,10 +220,7 @@ namespace wiselib
 			*/
 		void disable() 
 		{
-			device_->set_handler( NULL );
-			device_->disable();		// Already done by set_handler(NULL) but 
-											//	just to be absolutly sure!
-			
+			device_.disable();		
 			curState_ = INACTIVE;
 		}
 		
@@ -246,10 +232,7 @@ namespace wiselib
 		value_t value_;
 
 		/// Pointer to the actual device
-		isense::LisAccelerometer* device_;
-
-		/// Pointer to the OS
-		isense::Os& os_;
+		isense::LisAccelerometer device_;
 
 		/// Current State
 		StateData curState_;
