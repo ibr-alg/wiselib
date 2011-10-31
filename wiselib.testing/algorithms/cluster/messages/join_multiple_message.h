@@ -7,6 +7,8 @@
 #ifndef JOINMULTIPLECLUSTERMSG_H
 #define	JOINMULTIPLECLUSTERMSG_H
 
+#include "util/pstl/pair.h"
+
 namespace wiselib {
 
     template<typename OsModel_P, typename Radio_P>

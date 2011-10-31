@@ -65,7 +65,7 @@ LOCAL_CFLAGS = -Wstrict-prototypes -Werror-implicit-function-declaration
 LOCAL_CPPFLAGS = -g -DCHIP_RELEASE_3 -fno-exceptions -fconserve-space -fno-implicit-inline-templates -fno-rtti
 
 CFLAGS   += $(LOCAL_COMMON_FLAGS) $(LOCAL_CFLAGS)
-CPPFLAGS += $(LOCAL_COMMON_FLAGS) $(LOCAL_CPPFLAGS)
+CPPFLAGS += $(LOCAL_COMMON_FLAGS) $(LOCAL_CPPFLAGS) $(ADD_CXXFLAGS)
 
 ifeq ($(JENNIC_CHIP),JN5139R1)
 	  LDFLAGS += -T$(CHIP_BASE)/Build/$(LINKER_FILE) -Map $(OUTPUT)/Map.txt --gc-sections -z muldefs -u _AppWarmStart -u _AppColdStart

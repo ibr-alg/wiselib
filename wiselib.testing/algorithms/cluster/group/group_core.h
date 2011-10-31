@@ -114,6 +114,8 @@ namespace wiselib {
             jd().init(radio(), debug(), semantics);
             it().init(radio(), timer(), debug(), semantics);
 
+
+
         }
 
         /**
@@ -210,7 +212,7 @@ namespace wiselib {
          * Self Register a debug callback
          */
         void register_debug_callback() {
-            this-> template reg_state_changed_callback<self_type, &self_type::debug_callback > (this);
+            this->template reg_state_changed_callback<self_type, &self_type::debug_callback > (this);
         }
 
         /**
@@ -225,7 +227,7 @@ namespace wiselib {
             enable(6);
 #else
             //typical time for isense test to form stable links
-            enable(40);
+            enable(120);
 #endif
         }
 
@@ -271,7 +273,7 @@ namespace wiselib {
             it().reset();
 
             SemaGroupsMsg_t msg = jd().get_join_payload();
-            radio().send(0xffff, msg.length(), (block_data_t*) & msg);
+            radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t*) & msg);
             //            if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (block_data_t*) & msg,
             //                    msg.length()) != 0) {
             //#ifdef DEBUG_CLUSTERING
@@ -287,7 +289,7 @@ namespace wiselib {
             // start the grouping procedure
             timer().template set_timer<self_type, &self_type::reply_to_head > (
                     rand()(1000), this, (void *) 1);
-            this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
+
         }
 
         /**
@@ -300,19 +302,30 @@ namespace wiselib {
 
 
             SemaGroupsMsg_t msg = jd().get_join_payload();
-            radio().send(0xffff, msg.length(), (block_data_t*) & msg);
-//            this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
+            radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t*) & msg);
+
+            SemaResumeMsg_t resume_msg = it().get_resume_payload();
+            radio().send(Radio::BROADCAST_ADDRESS, resume_msg.length(), (uint8_t *) & resume_msg);
+            debug().debug("sizeof %d", resume_msg.length());
+            this->state_changed(MESSAGE_SENT, resume_msg.msg_id(), Radio::BROADCAST_ADDRESS);
+
+            debug().debug("Currently member of %d groups", it().get_group_count());
+
+
             /*
                         SemaResumeMsg_t msg = it().get_resume_payload();
-                        radio().send(0xffff, msg.length(), (uint8_t *) & msg);
-                        this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
+                        radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (uint8_t *) & msg);
+                        this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
                         timer().template set_timer<self_type,
                                 &self_type::reply_to_head > (10000, this, (void*) 0);
              */
             if ((long) reset == 1) {
+                this->state_changed(MESSAGE_SENT, msg.msg_id() + 1, Radio::BROADCAST_ADDRESS);
                 timer().template set_timer<self_type, &self_type::reply_to_head > (
                         rand()(10000), this, (void *) 1);
+            } else {
+                this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
             }
         }
 
@@ -341,16 +354,26 @@ namespace wiselib {
             // get Type of Message
             int type = data[0];
 
-            if (type == ATTRIBUTE) {
-                if (jd().join(data, len)) {
-                    //resend the beacon
-                    SemaGroupsMsg_t msg = jd().get_join_payload();
-                    radio().send(0xffff, msg.length(), (block_data_t*) & msg);
-                    this->state_changed(MESSAGE_SENT, msg.msg_id(), 0xffff);
+            switch (type) {
+                case ATTRIBUTE:
+                    if (jd().join(data, len)) {
+                        //resend the beacon
+                        SemaGroupsMsg_t msg = jd().get_join_payload();
+                        radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t*) & msg);
+                        this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
-                }
+                    }
+                    it().parse_join(data, len);
+                    break;
+                case RESUME:
+                    it().eat_resume((SemaResumeMsg_t *) data);
+                    break;
             }
         }
+
+//        void updated_semantic(predicate_t predicate, value_t value) {
+//            it().updated_semantic(predicate, value);
+//        }
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
@@ -368,7 +391,7 @@ namespace wiselib {
         }
 
         void joined_group(group_entry_t group, node_id_t parent) {
-            //it().add_group(group, parent);
+            it().add_group(group, parent);
             debug().debug("CLL;%x;%s-%x;%x", radio().id(), group.c_str(), jd().group_id(group), parent);
             //            this->state_changed(NODE_JOINED, 1, parent);
         }
@@ -376,7 +399,7 @@ namespace wiselib {
         void notifyAboutGroup(group_entry_t group, node_id_t parent) {
             debug().debug("notified about %s using %x ||mine %x", group.c_str(), parent, jd().parent(group));
             if (jd().parent(group) == parent) {
-                debug().debug("lossing parent %x", parent);
+                debug().debug("losing parent %x", parent);
                 node_lost(parent);
             }
         }

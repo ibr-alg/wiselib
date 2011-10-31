@@ -1,6 +1,6 @@
 CXXFLAGS    = -Os  -Wall -mmcu=atmega128 \
 				-fno-defer-pop -fno-exceptions -fno-rtti \
-				-fomit-frame-pointer -fno-strength-reduce -fno-use-cxa-atexit
+				-fomit-frame-pointer -fno-strength-reduce -fno-use-cxa-atexit $(ADD_CXXFLAGS)
 INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)
 DEFINITIONS = -DTINYOS -DOSMODEL=TinyOsModel
 # --------------------------------------------------------
