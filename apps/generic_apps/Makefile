@@ -32,52 +32,52 @@ endif
 ## Compile Application for specific OSs
 #####
 contiki_msb:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=msb430
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=msb430 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 contiki_sky:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=sky
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=sky ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 contiki_native:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki TARGET=native
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki TARGET=native ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 contiki_micaz:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_atmel TARGET=micaz
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_atmel TARGET=micaz ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 feuerware:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.feuerware
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.feuerware ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 isense:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5139R1
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5139R1 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 isense.5148:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5148
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5148 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 lorien_sky:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.lorien
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.lorien ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 pc:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.pc WISELIB_EXIT_MAIN=$(WISELIB_EXIT_MAIN) ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 scw_msb:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.scw scw_msb
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.scw scw_msb ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 shawn:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.shawn
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.shawn ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 trisos:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.trisos
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.trisos ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 tinyos-telosb:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.telosb telosb tinyos-telosb
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.telosb telosb tinyos-telosb ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 tinyos-micaz:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.micaz micaz tinyos-micaz
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.micaz micaz tinyos-micaz ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 tinyos-tossim:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.tossim micaz sim tinyos-tossim
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.tossim micaz sim tinyos-tossim ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 tinyos-gnode:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.gnode gnode tinyos-gnode
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.gnode gnode tinyos-gnode ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 
 ###############################################################

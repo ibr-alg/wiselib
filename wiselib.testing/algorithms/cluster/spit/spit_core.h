@@ -384,6 +384,7 @@ namespace wiselib {
                     char buffer [1000];
                     int bytes_written = 0;
                     bytes_written += sprintf(buffer + bytes_written, "SA;%x;", cluster_id());
+<<<<<<< Updated upstream
 #ifdef ANSWERING                    
                     predicate_container_t my_predicates = semantics_->get_predicates();
 
@@ -393,6 +394,22 @@ namespace wiselib {
                             value_t sema_value = *vit;
                             bytes_written += sprintf(buffer + bytes_written, "%s:%s ", it->c_str(), sema_value.c_str());
                         }
+=======
+
+                    for (demands_vector_iterator_t dvit = demands_vector_.begin(); dvit != demands_vector_.end(); ++dvit) {
+                        //                        group_entry_t demand_value;
+                        //                        demand_value.size_a = sizeof (dvit->second);
+                        //                        demand_value.data_a = (block_data_t *) & min;
+                        //                        debug().debug("condition %d|%s", dvit->first, demand_value.c_str());
+                        group_entry_t sema_value = it().get_value_for_predicate(dvit->first);
+                        int a;
+                        memcpy(&a, sema_value.data(), sizeof (int));
+                        //if (a == -1|| a>5000) continue;
+                        if (a  < 0|| a>5000) continue;
+                        bytes_written += sprintf(buffer + bytes_written, "%s ", sema_value.c_str());
+                        //                        debug().debug("Value %s", sema_value.c_str());                                                
+
+>>>>>>> Stashed changes
                     }
 #endif
                     buffer[bytes_written] = '\0';
