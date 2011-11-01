@@ -123,6 +123,9 @@ namespace wiselib {
         }
         // --------------------------------------------------------------------
 
+        /**
+         * enables the radio
+         */
         void enable_radio() {
 #ifdef DEBUG_RELIABLERADIO
             debug().debug("RR;enable");
@@ -143,10 +146,24 @@ namespace wiselib {
 
         // --------------------------------------------------------------------
 
+        /**
+         * disables the radio
+         */
         void disable_radio() {
             radio().unreg_recv_callback(recv_callback_id_);
         };
-
+        // --------------------------------------------------------------------
+        /**
+         *
+         * @param id
+         * the destination id
+         * @param len
+         * length of the message
+         * @param data
+         * pointer to the message payload
+         * @return
+         * message sent status
+         */
         int send(node_id_t id, size_t len, block_data_t *data) {
             
             if (id == BROADCAST_ADDRESS) {
@@ -209,10 +226,47 @@ namespace wiselib {
             return 1;
         }
 
+
+
         // --------------------------------------------------------------------
 
-        // Increment time by 1
+        /**
+         * sets the maximum nuber of retries when sending a message
+         * @param max_retries
+         * the maximum number of retries
+         */
+        void set_max_retries(int max_retries) {
+            max_retries_ = max_retries;
+            //            debug().debug("RR;set max_retries= %d\n", max_retries);
+        };
+        // --------------------------------------------------------------------
 
+        /**
+         * the maximum nuber of retries when sending a message
+         * @return
+         * the maximum nuber of retries when sending a message
+         */
+        int max_retries() {
+            return max_retries_;
+        };
+        // --------------------------------------------------------------------
+
+        /**
+         * returns the node's id
+         * @return
+         * the node's id
+         */
+        node_id_t id() {
+            return radio().id();
+        };
+
+    protected:
+
+        /**
+         * increase the time counter
+         * @param
+         * not used
+         */
         void time_passes(void *) {
             current_time_++;
             //Debug::debug(os(),"Time is now %d\n",current_time_);
@@ -233,6 +287,8 @@ namespace wiselib {
          *          if maximum retries reached abort
          *
          * Reset timer for daemon
+         * @param
+         * not used
          */
 
         void reliable_daemon(void *) {
@@ -300,21 +356,6 @@ namespace wiselib {
                     sleep_time_, this, (void*) 0);
         }
 
-        // find a free entry inside the pending messages vector
-
-        //        int find_postition() {
-        //            for (int i = 0; i < MAX_PENDING; i++) {
-        //                if (pending_messages_[i].first.seq_no == 0) { // seq_no : 0 means no message
-        //                    return i;
-        //                } else {
-        //                }
-        //            }
-        //            return -1;
-        //        }
-        //        ;
-
-        // --------------------------------------------------------------------
-
         /*
          * Callback from the Radio module
          *
@@ -323,7 +364,12 @@ namespace wiselib {
          * - Broadcast message : send to the application
          * - ReliableMessage : send ack , and forward message to the application
          *
-         *
+         * @param from
+         * sender of the message
+         * @param len
+         * message length
+         * @param data
+         * pointer to the message payload
          */
         void receive(node_id_t from, size_t len, block_data_t * data) {
 
@@ -364,6 +410,15 @@ namespace wiselib {
             }
         }
 
+    private:
+
+        /**
+         * Handler for newly received ack message
+         * @param ackmess
+         * pointer to the received ack message
+         * @param from
+         * sender of the ack message
+         */
         void handle_ack_message(ReliableMessage_t * ackmess, node_id_t from) {
 #ifdef DEBUG_RELIABLERADIO
             debug().debug("RR;receive;ACK_MESSAGE;%d;%d", from, ackmess->payload_size());
@@ -399,6 +454,13 @@ namespace wiselib {
             }
         }
 
+        /**
+         * Handler for newly received reliable message
+         * @param relmess
+         * pointer to the received reliable message
+         * @param from
+         * sender of the reliable message
+         */
         void handle_reliable_message(ReliableMessage_t * relmess, node_id_t from) {
             // get sequence number from the message
             uint16_t curr_seq_no = relmess->seq_number();
@@ -458,6 +520,13 @@ namespace wiselib {
             }
         }
 
+        /**
+         * add the latest acks received from the node
+         * @param m
+         * pointer to the message
+         * @param sender
+         * sender of the message
+         */
         void set_ack_list(ReliableMessage_t * m, node_id_t sender) {
 
             uint8_t seq_nos[open_connections[sender].received_seqs_.size()];
@@ -473,9 +542,16 @@ namespace wiselib {
 
         // --------------------------------------------------------------------
 
-        //        // Check if a connection with the sender was established before
+
         //
 
+        /**
+         * Check if a connection with the sender was established before
+         * @param sender
+         * sender node id
+         * @return
+         * checks if there is an open connection
+         */
         bool check_connection(node_id_t sender) {
             bool exists = (open_connections.contains(sender));
             if (!exists) {
@@ -501,6 +577,13 @@ namespace wiselib {
 
         // --------------------------------------------------------------------
 
+        /**
+         * adds a new connection to the connections list
+         * @param node
+         * the other end of the connection
+         * @return
+         * true on success
+         */
         bool add_connection(node_id_t node) {
             if (open_connections.contains(node)) {
                 return false;
@@ -514,11 +597,17 @@ namespace wiselib {
             return true;
         }
 
-
-        // check sequence numbers cache to see if the message with this sequence number was previously received
-
+        /**
+         * Check sequence numbers cache to see if the message with this sequence number was previously received
+         * @param sd
+         * sender the message
+         * @param seq_no
+         * Seq number of the message
+         * @return
+         *  true if the first time received
+         */
         bool was_received(node_id_t sd, seqNo_t seq_no) {
-            bool first_time = true; // true if the first time received
+            bool first_time = true;
             if (open_connections.contains(sd)) {
                 for (received_seqs_iterator_t it = open_connections[sd].received_seqs_.begin(); it != open_connections[sd].received_seqs_.end(); ++it) {
                     if (*it == seq_no) {
@@ -540,23 +629,6 @@ namespace wiselib {
             return first_time;
         }
 
-        void set_max_retries(int max_retries) {
-            max_retries_ = max_retries;
-            //            debug().debug("RR;set max_retries= %d\n", max_retries);
-        };
-
-        int max_retries() {
-            return max_retries_;
-        };
-        // --------------------------------------------------------------------
-        // returns the node's id
-
-        node_id_t id() {
-            return radio().id();
-        };
-        // --------------------------------------------------------------------
-
-    private:
         int recv_callback_id_;
         uint16_t current_time_; //
         pending_messages_vector_t pending_messages_;
