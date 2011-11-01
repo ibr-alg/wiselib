@@ -47,7 +47,7 @@ namespace wiselib
 	template <typename OsModel_P>
 	class iSenseTemperatureCallbackSensor 
 		:  public SensorCallbackBase<OsModel_P, int8, 5>,
-			public isense::Int8DataHandler
+ 			public isense::Int8DataHandler
 	{			
 	public:								
 		// Inherited from BasicReturnValues_concept
@@ -87,38 +87,14 @@ namespace wiselib
 		*
 		*/
 		iSenseTemperatureCallbackSensor( isense::Os& os ) 
-			: os_( os ), curState_( INACTIVE )
+			: module_(os), curState_( INACTIVE )
 		{
-			module_ = new isense::EnvironmentModule( os );
-
-			if( module_ != 0 )
-			{	
-				if( module_->temp_sensor() != 0) 
-				{
-					module_->temp_sensor()->set_data_handler( this );
-					
-					if(!module_->enable( true ))
-					{
-						os.fatal( "Can't enable environment module and/or temperature sensor" );
-						curState_ = INACTIVE;
-					}
-					else
-					{
-						setThreshold( 0 , 0 );
-						curState_ = NO_VALUE;
-					}
-					//module_->temp_sensor()->enable();
-				}
-				else
-				{
-					os.fatal( "Could not allocate light sensor" );
-					curState_ = INACTIVE;
-				}
-			}
+			if( module_.temp_sensor() == 0 || !module_.enable( true ) ) 
+				curState_ = INACTIVE;
 			else 
 			{
-				os.fatal( "Could not allocate Environment Module" );
-				curState_ = INACTIVE;
+				module_.temp_sensor()->set_data_handler( this );
+				curState_ = NO_VALUE;
 			}
 			
 			value_ = 0;
@@ -147,7 +123,7 @@ namespace wiselib
 			*/
 		value_t get_value( void ) 
 		{ 
-			return module_->temp_sensor()->temperature();
+			return module_.temp_sensor()->temperature();
 		}
 		
 		//------------------------------------------------------------------------
@@ -168,7 +144,7 @@ namespace wiselib
 			*/
 		bool setThreshold( int8 threshold, int8 hysteresis)
 		{
-			return module_->temp_sensor()->set_threshold( threshold, hysteresis );
+			return module_.temp_sensor()->set_threshold( threshold, hysteresis );
 		}
 		
 		//------------------------------------------------------------------------
@@ -179,7 +155,7 @@ namespace wiselib
 			*/
 		int8 getThreshold( void )
 		{ 
-			return module_->temp_sensor()->threshold();
+			return module_.temp_sensor()->threshold();
 		}
 		
 		/** Gets the currently specified hysteresis
@@ -188,12 +164,12 @@ namespace wiselib
 			*/
 		int8 getHysteresis( void )
 		{ 
-			return module_->temp_sensor()->hysteresis();
+			return module_.temp_sensor()->hysteresis();
 		}
 		
 		bool enabled( void )
 		{
-			return module_->temp_sensor()->enabled();
+			return module_.temp_sensor()->enabled();
 		}
 		///
 		
@@ -217,7 +193,7 @@ namespace wiselib
 			*/
 		bool enable()
 		{
-			return module_->temp_sensor()->enable();
+			return module_.temp_sensor()->enable();
 		}
 		
 		//------------------------------------------------------------------------
@@ -229,10 +205,7 @@ namespace wiselib
 		{
 			if( curState_ != INACTIVE )
 			{
-				module_->light_sensor()->set_data_handler( NULL );
-				module_->light_sensor()->disable();		// Already done by
-												// set_data_handler(NULL) but 
-												//	just to be absolutly sure!
+				module_.temp_sensor()->disable();
 			
 				curState_ = INACTIVE;
 			}
@@ -244,11 +217,8 @@ namespace wiselib
 		/// Current value of accelerometer
 		value_t value_;
 		
-		/// Pointer to the module this sensor is located on
-		isense::EnvironmentModule* module_;
-		
-		/// Pointer to the OS
-		isense::Os& os_;
+		/// The module this sensor is located on
+		isense::EnvironmentModule module_;
 		
 		/// Current State
 		StateData curState_;

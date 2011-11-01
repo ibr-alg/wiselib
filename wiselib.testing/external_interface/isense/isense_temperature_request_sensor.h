@@ -23,6 +23,7 @@
 #include <isense/os.h>
 #include <isense/data_handlers.h>
 #include <isense/modules/environment_module/environment_module.h>
+#include <isense/modules/environment_module/temp_sensor.h>
 
 namespace wiselib
 {
@@ -59,35 +60,12 @@ namespace wiselib
 		*
 		*/
 		iSenseTemperatureRequestSensor( isense::Os& os )
-			: os_( os ), curState_( INACTIVE )
+			:  module_( os ), curState_( INACTIVE )
 		{
-			module_ = new isense::EnvironmentModule( os );
-		
-			if( module_ != 0 )
-			{	
-				if( module_->temp_sensor() != 0) 
-				{	
-					if(!module_->enable( true ))
-					{
-						os.fatal( "Can't enable environment module and/or temperature sensor" );
-						curState_ = INACTIVE;
-					}
-					else
-						curState_ = NO_VALUE;
-				}
-				else
-				{
-					os.fatal( "Could not allocate light sensor" );
-					curState_ = INACTIVE;
-				}
-			}
-			else 
-			{
-				os.fatal( "Could not allocate Environment Module" );
+			if( module_.temp_sensor() == 0 || !module_.enable( true ) ) 
 				curState_ = INACTIVE;
-			}
-			
-			value_ = 0;
+			else 
+				curState_ = NO_VALUE;
 		}
 		///
 		
@@ -124,7 +102,7 @@ namespace wiselib
 		value_t get_value( void )
 		{
 			if( curState_ != INACTIVE )
-				return value_ = module_->temp_sensor()->temperature();
+				return module_.temp_sensor()->temperature();
 			else
 				return 0;
 		} 
@@ -138,7 +116,7 @@ namespace wiselib
 			*/
 		bool enable()
 		{
-			return module_->temp_sensor()->enable();
+			return module_.temp_sensor()->enable();
 		}
 		
 		/** Disables the sensor and replaces the DataHandler
@@ -148,11 +126,7 @@ namespace wiselib
 		{
 			if( curState_ != INACTIVE )
 			{
-				module_->temp_sensor()->set_data_handler( NULL );
-				module_->temp_sensor()->disable();		// Already done by
-												// set_data_handler(NULL) but 
-												//	just to be absolutly sure!
-			
+				module_.temp_sensor()->disable();
 				curState_ = INACTIVE;
 			}
 		}
@@ -160,15 +134,9 @@ namespace wiselib
 		//------------------------------------------------------------------------
 		
 	
-	private:	 
-		/// Current value of accelerometer
-		value_t value_;
-		
-		/// Pointer to the module on which the sensor is located
-		isense::EnvironmentModule* module_;
-		
-		/// Pointer to the OS
-		isense::Os& os_;
+	private:	
+		/// Module on which the sensor is located
+		isense::EnvironmentModule module_;
 		
 		/// Current State
 		StateData curState_;
