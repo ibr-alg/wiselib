@@ -49,6 +49,13 @@ namespace wiselib {
         };
         // --------------------------------------------------------------------
 
+        /**
+         * used to register a callback to the clustering algorithm's notifications
+         * @param obj_pnt
+         * Object of the class registering the callback
+         * @return
+         * integer pointing to the callback vector entry
+         */
         template<class T, void (T::*TMethod)(uint8_t, uint8_t, node_id_t) >
         int reg_state_changed_callback(T *obj_pnt) {
             if (callbacks_.empty())
@@ -65,12 +72,28 @@ namespace wiselib {
         }
         // --------------------------------------------------------------------
 
+        /**
+         * used to unregister a callback to the clustering algorithm's notifications
+         * @param idx
+         * integer pointing to the callback vector entry
+         * @return
+         * SUCCESS
+         */
         int unreg_state_changed_callback(int idx) {
             callbacks_.at(idx) = cluster_delegate_t();
             return SUCCESS;
         }
         // --------------------------------------------------------------------
 
+        /**
+         * 
+         * @param event
+         * the event type described in clustering_types.h EventIds
+         * @param type
+         * type of the message 
+         * @param node
+         * the destination of the message
+         */
         void state_changed(uint8_t event, uint8_t type, node_id_t node) {
             for (CallbackVectorIterator
                 it = callbacks_.begin();
