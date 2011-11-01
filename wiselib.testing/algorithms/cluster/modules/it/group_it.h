@@ -1,5 +1,5 @@
 /*
- * File:   sema_it.h
+ * File:   group_it.h
  * Author: amaxilat
  */
 
@@ -49,17 +49,10 @@ namespace wiselib {
         typedef int cluster_id_t;
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::block_data_t block_data_t;
-
-        //        typedef wiselib::vector_static<OsModel, node_id_t, 20 > vector_t;
-        //        typedef wiselib::pair<node_id_t, cluster_id_t> gateway_entry_t;
-        //        //        typedef wiselib::MapStaticVector<OsModel, node_id_t, cluster_id_t, 20 > gateway_vector_t;
-        //        typedef wiselib::vector_static<OsModel, wiselib::pair<node_id_t, node_id_t>, 20 > tree_childs_t;
-
-
         typedef wiselib::vector_static<OsModel, node_id_t, 6 > groupMembers_t;
         typedef wiselib::pair<predicate_t, value_t> groupValuesEntry_t;
         typedef wiselib::vector_static<OsModel, groupValuesEntry_t, 6 > groupValues_t;
-
+        
         struct groupsJoinedEntry {
             group_entry_t group;
             node_id_t parent;
@@ -234,12 +227,12 @@ namespace wiselib {
          * @param msg
          */
         void eat_resume(SemaResumeMsg_t * msg) {
-            node_id_t sender = msg->node_id();
+
             group_entry_t gi = group_entry_t(msg->group_data(), msg->group_size());
 
             if (!semantics_->has_group(gi)) return;
 
-            debug().debug("received resume for %s from %x contains %d - size %d", gi.c_str(), sender, msg->contained(), msg->length());
+//            debug().debug("received resume for %s from %x contains %d - size %d", gi.c_str(), sender, msg->contained(), msg->length());
 
             size_t count = msg->contained();
             for (size_t i = 0; i < count; i++) {
@@ -251,8 +244,6 @@ namespace wiselib {
                 value_t value = value_t(vdata, vsize, semantics_->get_allocator());
 
                 aggregate_data(gi, predicate, value);
-
-
             }
             //            node_joined(sender);
         }
@@ -367,8 +358,9 @@ namespace wiselib {
         /**
          *
          * @return
+         * the number of groups joined so far
          */
-        size_t get_group_count() {
+        size_t clusters_joined() {
             return groupsVector_.size();
         }
 
@@ -448,4 +440,4 @@ namespace wiselib {
 
     };
 }
-#endif //__FRONTS_IT_H_
+#endif //__GROUP_IT_H_
