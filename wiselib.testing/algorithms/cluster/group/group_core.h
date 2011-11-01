@@ -7,28 +7,18 @@
 #ifndef _GROUP_CORE_H
 #define	_GROUP_CORE_H
 
-#include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
 #include "util/base_classes/clustering_base2.h"
-#include "util/pstl/vector_static.h"
-
 #include "algorithms/cluster/modules/chd/group_chd.h"
 #include "algorithms/cluster/modules/jd/group_jd.h"
 #include "algorithms/cluster/modules/it/group_it.h"
-//ECHO PROTOCOL
-//#include "algorithms/neighbor_discovery/echo.h"
 #include "algorithms/neighbor_discovery/pgb_payloads_ids.h"
 
 
 #undef DEBUG
 // Uncomment to enable Debug
 #define DEBUG
-#ifdef DEBUG
 //#define DEBUG_EXTRA
-//#define DEBUG_RECEIVED
-//#define DEBUG_PAYLOADS
-#define DEBUG_CLUSTERING
-#endif
 
 
 
@@ -86,7 +76,19 @@ namespace wiselib {
         }
 
         /**
-         * initializes the values of radio timer and debug
+         * 
+         * @param radiot
+         * wiselib radio
+         * @param timert
+         * wiselib timer
+         * @param debugt
+         * wiselib debug
+         * @param randt
+         * wiselib rand
+         * @param neighbor_discovery
+         * wiselib echo algorithm
+         * @param semantics
+         * wiselib semantic storage
          */
         void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery, Semantics_t& semantics) {
             radio_ = &radiot;
@@ -106,59 +108,52 @@ namespace wiselib {
             jd().template reg_group_joined_callback<self_type, &self_type::joined_group > (this);
             jd().template reg_notifyAboutGroup_callback<self_type, &self_type::notifyAboutGroup > (this);
 
-
-            //cradio_delegate_ = cradio_delegate_t();
-
             //initialize the clustering modules
             chd().init(radio(), debug(), semantics);
             jd().init(radio(), debug(), semantics);
             it().init(radio(), timer(), debug(), semantics);
 
-
-
         }
 
         /**
-         * Set Clustering modules
-         * it
+         * 
+         * @param it
+         * an iterator module for the cluster formation
          */
         inline void set_iterator(Iterator_t &it) {
             it_ = &it;
         }
 
         /**
-         * Set Clustering modules
-         * jd
+         * 
+         * @param jd
+         * a join decision module for the cluster formation
          */
         inline void set_join_decision(JoinDecision_t &jd) {
             jd_ = &jd;
         }
 
         /**
-         * Set Clustering modules
-         * chd
+         * 
+         * @param chd
+         * a cluster head decision module for the cluster formation
          */
         inline void set_cluster_head_decision(HeadDecision_t &chd) {
             chd_ = &chd;
         }
 
-        /**
-         * Get Clustering Values
-         * cluster_id
-         * parent
-         * hops (from parent)
-         * node_type
-         * childs_count
-         * childs
-         * node_count (like childs)
-         * is_gateway
-         * is_cluster_head
-         */
         inline cluster_id_t cluster_id() {
             return it().cluster_id();
         }
 
-        inline node_id_t parent(cluster_id_t cluster_id = 0) {
+        /**
+         * 
+         * @param group
+         * the group to check for the parent
+         * @return 
+         * the node id of the parent in the cluster
+         */
+        inline node_id_t parent(group_entry_t group) {
             return it().parent(cluster_id);
         }
 
@@ -166,10 +161,20 @@ namespace wiselib {
             return it().hops(cluster_id);
         }
 
+        /**
+         * 
+         * @return 
+         * UNCLUSTERED , SIMPLE , HEAD , GATEWAY
+         */
         inline int node_type() {
             return it().node_type();
         }
 
+        /**
+         * 
+         * @return 
+         * the number of clusters joined so far
+         */
         inline size_t clusters_joined() {
             return it().clusters_joined();
         }
@@ -179,6 +184,12 @@ namespace wiselib {
         //TODO: NODE_COUNT
         //TODO: IS_GATEWAY
 
+        /**
+         * is cluster head?
+         * 
+         * @return 
+         * true if a cluster head
+         */
         inline bool is_cluster_head() {
             if (!enabled_) return false;
             return chd().is_cluster_head();
@@ -196,8 +207,9 @@ namespace wiselib {
 
         /**
          * The status Of the Clustering Algorithm
-         * 1 means a cluster is being formed
-         * 0 means cluster is formed
+         * 
+         * @return 
+         * FORMED : when the cluster is formed, UNFORMED else 
          */
         inline uint8_t status() {
             //1 - forming , 0 - formed
@@ -216,21 +228,27 @@ namespace wiselib {
         }
 
         /**
-         * Enable
-         * enables the clustering module
-         * enable chd it and jd modules
-         * calls find head to start clustering
+         * Enables the algorithm with the default time settings
          */
         inline void enable() {
 #ifdef SHAWN
             //typical time for shawn to form stable links
             enable(6);
 #else
-            //typical time for isense test to form stable links
+            //typical time for iSense test to form stable links
             enable(120);
 #endif
         }
 
+        /**
+         * Enable
+         * enables the clustering algorithm
+         * enable CHD it and JD modules
+         * calls find head to start clustering         
+         * 
+         * @param start_in
+         * second to start the algorithm
+         */
         inline void enable(int start_in) {
             if (enabled_) return;
 
@@ -255,7 +273,8 @@ namespace wiselib {
         }
 
         /**
-         * Disable
+         * Disables the algorithm
+         * unregisters radio callback
          */
         void disable() {
             if (!enabled_) return;
@@ -264,6 +283,11 @@ namespace wiselib {
             enabled_ = false;
         }
 
+        /**
+         * Starts cluster formation
+         * @param parameter
+         * unused - timer needed
+         */
         void form_cluster(void * parameter) {
             if (!enabled_) return;
             status_ = FORMING;
@@ -272,61 +296,57 @@ namespace wiselib {
             jd().reset();
             it().reset();
 
+            //first message of cluster formation
             SemaGroupsMsg_t msg = jd().get_join_payload();
             radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t*) & msg);
-            //            if (neighbor_discovery_->set_payload((uint8_t) CLUSTERING, (block_data_t*) & msg,
-            //                    msg.length()) != 0) {
-            //#ifdef DEBUG_CLUSTERING
-            //                debug_->debug("CL;nb_t;Error;payload");
-            //#ifdef SHAWN
-            //                debug().debug("\n");
-            //#endif
-            //#endif
-            //            }
-            //
-            debug().debug("payload set, len:%d", msg.length());
+            this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
             // start the grouping procedure
             timer().template set_timer<self_type, &self_type::reply_to_head > (
                     rand()(1000), this, (void *) 1);
 
+            // start the grouping procedure
+            timer().template set_timer<self_type, &self_type::updated_values > (
+                    2000, this, (void *) 0);
+
         }
 
         /**
-         * reply_to_head
-         * preriodicaly notify:
-         *      head for new sensor value 
-         *      neighbors for current state
+         * periodically notify nearby nodes of 
+         * current grouping semantics
+         * 
+         * @param reset
          */
         void reply_to_head(void * reset) {
 
-
+            // Beacon with my semantics
             SemaGroupsMsg_t msg = jd().get_join_payload();
             radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t*) & msg);
 
-            SemaResumeMsg_t resume_msg = it().get_resume_payload();
-            radio().send(Radio::BROADCAST_ADDRESS, resume_msg.length(), (uint8_t *) & resume_msg);
-            debug().debug("sizeof %d", resume_msg.length());
-            this->state_changed(MESSAGE_SENT, resume_msg.msg_id(), Radio::BROADCAST_ADDRESS);
-
-            debug().debug("Currently member of %d groups", it().get_group_count());
-
-
-            /*
-                        SemaResumeMsg_t msg = it().get_resume_payload();
-                        radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (uint8_t *) & msg);
-                        this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
-
-                        timer().template set_timer<self_type,
-                                &self_type::reply_to_head > (10000, this, (void*) 0);
-             */
             if ((long) reset == 1) {
                 this->state_changed(MESSAGE_SENT, msg.msg_id() + 1, Radio::BROADCAST_ADDRESS);
                 timer().template set_timer<self_type, &self_type::reply_to_head > (
-                        rand()(10000), this, (void *) 1);
+                        rand()(15000), this, (void *) 1);
             } else {
                 this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
             }
+        }
+
+        /**
+         * Send a beacon message for each group with updated values for the readings of the group
+         * 
+         * @param 
+         * not used
+         */
+        void updated_values(void *) {
+            //Semantic Values update for a selected Group
+            SemaResumeMsg_t resume_msg = it().get_resume_payload();
+            radio().send(Radio::BROADCAST_ADDRESS, resume_msg.length(), (uint8_t *) & resume_msg);
+            this->state_changed(MESSAGE_SENT, resume_msg.msg_id(), Radio::BROADCAST_ADDRESS);
+
+            //reset timer
+            timer().template set_timer<self_type, &self_type::updated_values > (
+                    rand()(2000), this, (void *) 0);
         }
 
 
@@ -342,9 +362,15 @@ namespace wiselib {
         }
 
         /**
-         * RECEIVE
          * respond to the new messages received
-         * callback from the radio
+         * Radio callback function
+         *
+         * @param from
+         * sender of the message
+         * @param len
+         * message length in bytes
+         * @param data
+         * pointer to the payload
          */
         void receive(node_id_t from, size_t len, block_data_t * data) {
             if (!enabled_) return;
@@ -370,10 +396,6 @@ namespace wiselib {
                     break;
             }
         }
-
-//        void updated_semantic(predicate_t predicate, value_t value) {
-//            it().updated_semantic(predicate, value);
-//        }
 
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
