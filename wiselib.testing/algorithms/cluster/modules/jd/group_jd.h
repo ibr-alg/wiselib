@@ -13,7 +13,7 @@ namespace wiselib {
     /**
      * \ingroup jd_concept
      *
-     * Group join decision module.
+     * GroupJoinDecision
      */
     template<typename OsModel_P, typename Radio_P, typename Semantics_P >
 
@@ -70,8 +70,13 @@ namespace wiselib {
         };
 
         /**
-         * INIT
-         * initializes the values of radio and debug
+         *
+         * @param radiot
+         * wiselib radio
+         * @param debugt
+         * wiselib debug
+         * @param semantics
+         * wiselib semantic storage
          */
         void init(Radio& radio, Debug& debug, Semantics_t &semantics) {
             radio_ = &radio;
@@ -80,19 +85,15 @@ namespace wiselib {
             groupsVector_.clear();
         };
 
-        /**
-         * SET functions
-         */
-
         void reset() {
             groupsVector_.clear();
         }
 
-        void became_head() {
-            hops_ = 0;
-            cluster_id_ = radio().id();
-        }
-
+        /**
+         *
+         * @return
+         * a SemaGroupMsg_t message ready to be sent using the radio
+         */
         SemaGroupsMsg_t get_join_payload() {
             //            debug_->debug("payload");
             SemaGroupsMsg_t msg;
@@ -110,6 +111,13 @@ namespace wiselib {
             return msg;
         }
 
+        /**
+         * 
+         * @param gi
+         * the group 
+         * @return
+         * the maximum id of the given group
+         */
         node_id_t group_id(group_entry_t gi) {
             if (!groupsVector_.empty()) {
                 for (typename groupsVector_t::iterator it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
@@ -139,6 +147,13 @@ namespace wiselib {
             return radio().id();
         }
 
+        /**
+         * 
+         * @param gi
+         * the group
+         * @return
+         * the parent id of the given group
+         */
         node_id_t group_parent(group_entry_t gi) {
             if (!groupsVector_.empty()) {
                 for (typename groupsVector_t::iterator it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
@@ -162,6 +177,15 @@ namespace wiselib {
             return Radio::NULL_NODE_ID;
         }
 
+        /**
+         * 
+         * @param gi
+         * the group entry
+         * @param group_id
+         * the groups max known id
+         * @param parent
+         * the parent of the node in the group
+         */
         void set_my_group_id(group_entry_t gi, node_id_t group_id, node_id_t parent) {
             if (!groupsVector_.empty()) {
                 for (typename groupsVector_t::iterator it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
@@ -185,6 +209,13 @@ namespace wiselib {
             }
         }
 
+        /**
+         *
+         * @param node
+         * the dropped node
+         * @return
+         * true if the event resulted in cluster changes
+         */
         bool node_lost(node_id_t node) {
             bool changed = false;
             if (!groupsVector_.empty()) {
@@ -202,18 +233,14 @@ namespace wiselib {
             return changed;
         }
 
-        bool has_semantic(int id, int value) {
-            if (id > 200) {
-                return true;
-            }
-            return false;
-            //            return semantics_->has_group(id, value);
-        }
-
         /**
-         * JOIN
          * respond to an JOIN message received
-         * either join to a cluster or not
+         * @param mess
+         * pointer to the message payload
+         * @param len
+         * size of the message payload
+         * @return
+         * true when joined any cluster else false
          */
         bool join(uint8_t * mess, size_t len) {
             bool joined_any = false;
@@ -264,18 +291,14 @@ namespace wiselib {
         }
 
         /**
-         * ENABLE
-         * enables the module
-         * initializes values
+         * enables the module initializes values
          */
         void enable() {
 
         };
 
-        /**
-         * DISABLE
-         * disables this bfsclustering module
-         * unregisters callbacks
+        /**         
+         * disables this module unregisters callbacks
          */
         void disable() {
         };
@@ -320,6 +343,13 @@ namespace wiselib {
             }
         }
 
+        /**
+         *
+         * @param gi
+         * the group to check for its parent
+         * @return
+         * the parent of the group
+         */
         inline node_id_t parent(group_entry_t gi) {
             if (!groupsVector_.empty()) {
                 for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {

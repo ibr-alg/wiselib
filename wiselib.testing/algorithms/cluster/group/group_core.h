@@ -352,6 +352,10 @@ namespace wiselib {
 
     protected:
 
+        /**         
+         * @param from
+         * the dropped node
+         */
         void node_lost(node_id_t from) {
             bool lost1 = it().node_lost(from);
             bool lost2 = jd().node_lost(from);
@@ -397,6 +401,19 @@ namespace wiselib {
             }
         }
 
+        /**
+         *
+         * Callback registered to the Echo
+         *
+         * @param event
+         * event type
+         * @param from
+         * the originator node
+         * @param len
+         * size of the payload
+         * @param data
+         * pointer to the payload
+         */
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
             if ((nb_t::LOST_NB_BIDI == event) || (nb_t::DROPPED_NB == event)) {
@@ -406,12 +423,15 @@ namespace wiselib {
 
     private:
 
-        void became_head(int a) {
-
-            jd().became_head();
-            it().became_head();
-        }
-
+        /**
+         *
+         * Callback registered to the join decision
+         *
+         * @param group
+         * the group joined
+         * @param parent
+         * the group's parent
+         */
         void joined_group(group_entry_t group, node_id_t parent) {
             it().add_group(group, parent);
             debug().debug("CLL;%x;%s-%x;%x", radio().id(), group.c_str(), jd().group_id(group), parent);
@@ -426,6 +446,15 @@ namespace wiselib {
             }
         }
 
+        /**
+         * 
+         * @param event
+         * event type
+         * @param type
+         * message type
+         * @param node
+         * destination node
+         */
         void debug_callback(uint8_t event, uint8_t type, node_id_t node) {
             switch (event) {
                 case ELECTED_CLUSTER_HEAD:
@@ -452,43 +481,78 @@ namespace wiselib {
 
         HeadDecision_t * chd_;
 
+        /**
+         *
+         * @return
+         * an instance of the cluster head decision
+         */
         HeadDecision_t & chd() {
 
             return *chd_;
         }
         JoinDecision_t * jd_;
 
+        /**
+         *
+         * @return
+         * an instance of the join decision
+         */
         JoinDecision_t & jd() {
 
             return *jd_;
         }
         Iterator_t * it_;
 
+        /**
+         *
+         * @return
+         * an instance of the iterator
+         */
         Iterator_t & it() {
 
             return *it_;
         }
 
-        Radio * radio_; // radio module
-        Timer * timer_; // timer module
-        Debug * debug_; // debug module
+        Radio * radio_;
+        Timer * timer_;
+        Debug * debug_;
         Rand * rand_;
 
+        /**
+         *
+         * @return
+         * an instance of the radio
+         */
         Radio & radio() {
 
             return *radio_;
         }
 
+        /**
+         *
+         * @return
+         * an instance of the timer
+         */
         Timer & timer() {
 
             return *timer_;
         }
 
+        /**
+         *
+         * @return
+         * an instance of the debugger
+         */
         Debug & debug() {
 
             return *debug_;
         }
 
+        /**
+         *
+         * @return
+         * an instance of the random number generator
+         */
         Rand & rand() {
             return *rand_;
         }

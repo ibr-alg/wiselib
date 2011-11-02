@@ -52,7 +52,7 @@ namespace wiselib {
         typedef wiselib::vector_static<OsModel, node_id_t, 6 > groupMembers_t;
         typedef wiselib::pair<predicate_t, value_t> groupValuesEntry_t;
         typedef wiselib::vector_static<OsModel, groupValuesEntry_t, 6 > groupValues_t;
-        
+
         struct groupsJoinedEntry {
             group_entry_t group;
             node_id_t parent;
@@ -81,11 +81,15 @@ namespace wiselib {
         }
 
         /**
-         * initializes the values of radio timer and debug
-         * @param radio
-         * @param timer
-         * @param debug
+         *
+         * @param radiot
+         * wiselib radio
+         * @param timert
+         * wiselib timer
+         * @param debugt
+         * wiselib debug
          * @param semantics
+         * wiselib semantic storage
          */
         void init(Radio& radio, Timer& timer, Debug& debug, Semantics_t &semantics) {
             radio_ = &radio;
@@ -128,9 +132,6 @@ namespace wiselib {
             return node_type_;
         }
 
-        /**
-         *
-         */
         void reset() {
             node_type_ = UNCLUSTERED;
             isGateway_ = false;
@@ -146,6 +147,7 @@ namespace wiselib {
         /**
          *
          * @return
+         * true if a gateway node
          */
         bool is_gateway() {
             return isGateway_;
@@ -154,7 +156,9 @@ namespace wiselib {
         /**
          *
          * @param data
+         * pointer to the Join message
          * @param len
+         * size of the join message
          */
         void parse_join(block_data_t * data, size_t len) {
             SemaGroupsMsg_t * msg = (SemaGroupsMsg_t *) data;
@@ -232,7 +236,7 @@ namespace wiselib {
 
             if (!semantics_->has_group(gi)) return;
 
-//            debug().debug("received resume for %s from %x contains %d - size %d", gi.c_str(), sender, msg->contained(), msg->length());
+            //            debug().debug("received resume for %s from %x contains %d - size %d", gi.c_str(), sender, msg->contained(), msg->length());
 
             size_t count = msg->contained();
             for (size_t i = 0; i < count; i++) {
@@ -295,23 +299,40 @@ namespace wiselib {
         }
 
         /**
-         * 
-         * @param payload
-         * @param length
-         * @param src
+         *
+         * @return
+         * the number of groups joined so far
          */
-        void debug_payload(const uint8_t * payload, size_t length, node_id_t src) {
-            char buffer[1024];
-            int bytes_written = 0;
-            bytes_written += sprintf(buffer + bytes_written, "pl(%x)(", src);
-            for (size_t i = 0; i < length; i++) {
-                bytes_written += sprintf(buffer + bytes_written, "%x|", payload[i]);
-            }
-            bytes_written += sprintf(buffer + bytes_written, ")");
-            buffer[bytes_written] = '\0';
-            debug().debug("%s", buffer);
+        size_t clusters_joined() {
+            return groupsVector_.size();
         }
 
+        /**
+         *
+         * @param from
+         * @return
+         */
+        bool node_lost(node_id_t from) {
+            bool changed = false;
+            if (!groupsVector_.empty()) {
+                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
+                    //if in this group the lost node is my parent
+                    if (it->parent == from) {
+                        changed = true;
+                        it->parent = radio().id();
+                    }
+                }
+            }
+            return changed;
+        }
+
+        /**
+         * 
+         */
+        void present_neighbors() {
+
+        }
+   
         /**
          *
          * @param gi
@@ -355,40 +376,7 @@ namespace wiselib {
             return !same;
         }
 
-        /**
-         *
-         * @return
-         * the number of groups joined so far
-         */
-        size_t clusters_joined() {
-            return groupsVector_.size();
-        }
-
-        /**
-         *
-         * @param from
-         * @return
-         */
-        bool node_lost(node_id_t from) {
-            bool changed = false;
-            if (!groupsVector_.empty()) {
-                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
-                    //if in this group the lost node is my parent
-                    if (it->parent == from) {
-                        changed = true;
-                        it->parent = radio().id();
-                    }
-                }
-            }
-            return changed;
-        }
-
-        /**
-         * 
-         */
-        void present_neighbors() {
-
-        }
+    private:
 
         /**
          *
@@ -419,7 +407,6 @@ namespace wiselib {
             }
         }
 
-    private:
         groupsVector_t groupsVector_;
         int node_type_, lastid_;
         bool isGateway_;
