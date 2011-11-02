@@ -206,10 +206,6 @@ namespace wiselib
 		}
 		///
 		
-		
-	public:
-		char* msg;
-		
 	private:
 		/// The current state
 		StateData state_;
