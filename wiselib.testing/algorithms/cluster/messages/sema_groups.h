@@ -1,11 +1,11 @@
 /*
- * File:   sema_attr.h
+ * File:   sema_groups.h
  * Author: amaxilat
  *
  */
 
-#ifndef SEMANTICGROUPSCLUSTERMSG_H
-#define	SEMANTICGROUPSCLUSTERMSG_H
+#ifndef __SEMA_GROUPS_H_
+#define	__SEMA_GROUPS_H_
 
 namespace wiselib {
 
@@ -142,6 +142,11 @@ namespace wiselib {
             return sizeof (node_id_t);
         }
 
+        /**
+         *
+         * @return
+         * the length of the message in bytes
+         */
         inline uint8_t length() {
             return ATTRIBUTE_LIST_POS + 1 + buffer[ATTRIBUTE_LIST_POS];
         }
@@ -150,4 +155,4 @@ namespace wiselib {
         block_data_t buffer[Radio::MAX_MESSAGE_LENGTH]; // buffer for the message data
     };
 }
-#endif	/* ATTRIBUTECLUSTERMSG_H */
+#endif	//__SEMA_GROUPS_H_
