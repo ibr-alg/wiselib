@@ -15,7 +15,7 @@ namespace wiselib {
 	}
 	
 	
-};
+}
 
 #endif // __UTIL_ALLOCATORS_UTIL_H__
 

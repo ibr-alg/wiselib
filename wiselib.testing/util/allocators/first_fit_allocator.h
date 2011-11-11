@@ -22,22 +22,22 @@ namespace wiselib {
 template<uint64_t N_>
 struct small_uint {
 	typedef typename small_uint<
-		(N_ > 0xffffffff) ? 0x100000000LL :
-		(N_ > 0x0000ffff) ? 0x000010000L :
-		(N_ > 0x000000ff) ? 0x000000100 :
-		                   0x000000000
+		(N_ >= 0x100000001) ? 0x100000001LL :
+		(N_ >= 0x000010001) ? 0x000010001L :
+		(N_ >= 0x000000101) ? 0x000000101 :
+			0x000000000
 		>::t t;
 };
 
 template<> struct small_uint<0x000000000> { typedef uint8_t t; };
-template<> struct small_uint<0x000000100> { typedef uint16_t t; };
-template<> struct small_uint<0x000010000> { typedef uint32_t t; };
+template<> struct small_uint<0x000000101> { typedef uint16_t t; };
+template<> struct small_uint<0x000010001L> { typedef uint32_t t; };
 
 //#if __WORDSIZE == 64
-template<> struct small_uint<0x100000000LL> { typedef uint64_t t; };
+template<> struct small_uint<0x100000001LL> { typedef uint64_t t; };
 //#endif
 
-	
+
 /**
  * Simple first fit allocator.
  * 
@@ -46,12 +46,12 @@ template<> struct small_uint<0x100000000LL> { typedef uint64_t t; };
 template<
 	typename OsModel_P,
 	size_t BUFFER_SIZE,
-	size_t MAX_CHUNKS = 100
+	size_t MAX_CHUNKS
 >
 class FirstFitAllocator {
-		class Chunk;
 	
 	public:
+		class Chunk;
 		typedef OsModel_P OsModel;
 		typedef FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS> self_type;
 		typedef self_type* self_pointer_t;
@@ -189,7 +189,7 @@ class FirstFitAllocator {
 		
 		size_t capacity() { return BUFFER_SIZE; }
 			
-	private:
+	//private:
 		
 		class Chunk {
 			public:
@@ -283,7 +283,7 @@ class FirstFitAllocator {
 			reserved_[idx].set_size(0);
 		} // free_chunk
 		
-		block_data_t memory_[BUFFER_SIZE];
+		unsigned char memory_[BUFFER_SIZE];
 		Chunk reserved_[MAX_CHUNKS];
 		
 		chunk_index_t chunks_used_;

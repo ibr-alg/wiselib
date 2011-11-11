@@ -23,9 +23,9 @@
 extern "C"
 {
    #include "contiki.h"
-// #ifdef CONTIKI_TARGET_sky
+ #ifdef CONTIKI_TARGET_sky
    #include "dev/uart1.h"
-// #endif
+ #endif
 }
 
 namespace wiselib
@@ -41,11 +41,11 @@ namespace wiselib
    PROCESS_THREAD(contiki_byte_uart_process, ev, data)
    {
       PROCESS_BEGIN();
-// #ifdef CONTIKI_TARGET_sky
+ #ifdef CONTIKI_TARGET_sky
       uart1_set_input( contiki_byte_uart_notify_receivers );
-// #else
-//    #warning FIX THIS FOR CONTIKI MICAZ/MSB COMPILATION!
-// #endif
+ #else
+    #warning FIX THIS FOR CONTIKI MICAZ/MSB COMPILATION!
+ #endif
       for(;;) {
          PROCESS_YIELD();
       }
