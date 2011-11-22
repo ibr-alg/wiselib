@@ -19,79 +19,10 @@
 #ifndef __UTIL_METRICS_ENERGY_CONSUMPTION_RADIO_H
 #define __UTIL_METRICS_ENERGY_CONSUMPTION_RADIO_H
 
-#include "util/delegates/delegate.hpp"
-#include <util/pstl/vector_static.h>
-#include <util/pstl/pair.h>
-
-//TODO: REMOVE!!!!!!!
-#include "sys/processor.h"
-#include "sys/event_scheduler.h"
-#include "sys/misc/random/random_variable.h"
-#include "sys/misc/random/random_variable_keeper.h"
-#include "sys/node.h"
-#include "sys/simulation/simulation_controller.h"
-#include "sys/simulation/simulation_environment.h"
-#include "sys/taggings/basic_tags.h"
-#include "sys/tag.h"
+#include "util/base_classes/radio_base.h"
+#include "util/metrics/energy_consumption_traits_jn5139.h"
 
 namespace wiselib {
-
-   template<typename OsModel_P,
-            typename Radio_P = typename OsModel_P::Radio>
-   class EnergyConsumptionRadioCallback
-   {
-   public:
-      typedef OsModel_P OsModel;
-      typedef typename OsModel::Os Os;
-      typedef Radio_P Radio;
-
-      typedef EnergyConsumptionRadioCallback <OsModel, Radio> self_type;
-
-      typedef typename Radio::node_id_t node_id_t;
-      typedef typename Radio::size_t size_t;
-      typedef typename Radio::block_data_t block_data_t;
-      typedef typename Radio::radio_delegate_t energy_consumption_delegate_t;
-      // -----------------------------------------------------------------
-      EnergyConsumptionRadioCallback( Os *os, energy_consumption_delegate_t del )
-         : os_  ( os ),
-            del_( del )
-      {}
-      // -----------------------------------------------------------------
-      ~EnergyConsumptionRadioCallback()
-      {}
-      // -----------------------------------------------------------------
-      void receive( node_id_t id, size_t len, block_data_t* data )
-      {
-         double e = os_->proc->owner().template read_simple_tag<double>( "energy" );
-         double rx = ((((15. + len) * 8.) / 250.) * 44.) / (3600. * 1000.);
-         e += rx;
-         os_->proc->owner_w().template write_simple_tag<double>( "energy", e );
-
-         double consumed = os_->proc->owner().template read_simple_tag<double>( "consumed-rx" );
-         consumed += e;
-
-         bool app_active = os_->proc->owner().template read_simple_tag<bool>( "app_active" );
-         if ( app_active )
-            os_->proc->owner_w().template write_simple_tag<double>( "consumed-rx", consumed );
-//          std::cout << "consumed rx .... " << rx << "; all " << e << std::endl;
-
-         if ( del_ )
-            del_( id, len, data );
-      }
-      // -----------------------------------------------------------------
-      bool is_empty()
-      { return !del_; };
-      // -----------------------------------------------------------------
-      void clear()
-      { del_ = energy_consumption_delegate_t(); };
-      // -----------------------------------------------------------------
-      energy_consumption_delegate_t delegate()
-      { return del_; };
-
-   private:
-      Os *os_;
-      energy_consumption_delegate_t del_;
-   };
 
 
    /** \brief Implementation of \ref radio_concept "Radio Concept" that
@@ -101,13 +32,23 @@ namespace wiselib {
    */
    template<typename OsModel_P,
             typename Radio_P,
-            typename Clock_P>
-   class EneryConsumptionRadioModel {
+            typename Clock_P,
+            typename Debug_P,
+            typename EneryConsumptionTraits_P = EnergyConsumptionTraitsJennic5139,
+            int BATTERY_MAX = 2600>
+   class EneryConsumptionRadioModel
+      : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t, 10>
+   {
    public:
       typedef OsModel_P OsModel;
       typedef Radio_P Radio;
       typedef Clock_P Clock;
-      typedef EneryConsumptionRadioModel <OsModel, Radio, Clock> self_type;
+      typedef Debug_P Debug;
+      typedef EneryConsumptionTraits_P ConsumptionTraits;
+      typedef EneryConsumptionRadioModel <OsModel, Radio, Clock, Debug, ConsumptionTraits, BATTERY_MAX> self_type;
+      typedef RadioBase<OsModel_P, Radio_P, typename OsModel_P::size_t, typename OsModel_P::block_data_t, 10> radio_base_t;
+      
+      typedef self_type* self_pointer_t;
 
       typedef typename Radio::node_id_t node_id_t;
       typedef typename Radio::size_t size_t;
@@ -115,9 +56,6 @@ namespace wiselib {
       typedef typename Radio::message_id_t message_id_t;
 
       typedef typename Clock::time_t time_t;
-
-      typedef typename Radio::radio_delegate_t energy_consumption_delegate_t;
-      typedef EnergyConsumptionRadioCallback<OsModel> RadioCallback;
       // --------------------------------------------------------------------
       enum SpecialNodeIds {
          BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS, ///< All nodes in communication range
@@ -128,26 +66,37 @@ namespace wiselib {
          MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
       };
       // --------------------------------------------------------------------
-      void
-      send(node_id_t id, size_t len, block_data_t *data)
+      EneryConsumptionRadioModel()
+         : energy_      ( 0.0 ),
+            consumed_rx_ ( 0.0 ),
+            consumed_tx_ ( 0.0 ),
+            consumed_active_ ( 0.0 ),
+            consumed_idle_   ( 0.0 ),
+            active_ ( false )
+      {}
+      // --------------------------------------------------------------------
+      void send(node_id_t id, size_t len, block_data_t *data)
       {
-         // TODO
-//          double tx = ((((15. + len) * 8.) / 250.) * 44.) / (3600. * 1000.);
-//          double e = energy( os ) + tx;
-//          set_energy( os, e );
-//          double consumed = os->proc->owner().template read_simple_tag<double>( "consumed-tx" );
-//          consumed += e;
-//          if ( app_active(os) )
-//             os->proc->owner_w().template write_simple_tag<double>( "consumed-tx", consumed );
-//          std::cout << "consumed tx .... " << tx << "; all " << e << std::endl;
+//          debug_->debug("ec-traits hs=%d, tx-m=%f\n",
+//                          ConsumptionTraits::MESSAGE_HEADER_SIZE,
+//                          ConsumptionTraits::TX_MULTIPLIER );
+//          double tx = ((((13 + len) * 8.) / 250.) * 38.) / (3600. * 1000.);
+         double tx = (ConsumptionTraits::MESSAGE_HEADER_SIZE + len) * ConsumptionTraits::TX_MULTIPLIER;
+         energy_ += tx;
+         consumed_tx_ += tx;
 
          radio().send( id, len, data );
       }
       // --------------------------------------------------------------------
-      void init( Radio& radio, Clock& clock )
+      void init( Radio& radio, Clock& clock, Debug& debug )
       {
          radio_ = &radio;
          clock_ = &clock;
+         debug_ = &debug;
+         
+         last_changed_ = clock_->time();
+         
+         radio_->template reg_recv_callback<self_type, &self_type::receive>( this );
       }
       // --------------------------------------------------------------------
       void destruct()
@@ -155,16 +104,16 @@ namespace wiselib {
       // --------------------------------------------------------------------
       void enable_radio()
       {
-//          consume_period( os );
-//          set_activity( os, true );
+         consume_period();
+         active_ = true;
 
          radio().enable_radio();
       }
       // --------------------------------------------------------------------
       void disable_radio()
       {
-//          consume_period( os );
-//          set_activity( os, false );
+         consume_period();
+         active_ = false;
 
          radio().disable_radio();
       }
@@ -174,118 +123,89 @@ namespace wiselib {
          return radio().id();
       }
       // --------------------------------------------------------------------
-      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
-      int reg_recv_callback( T *obj_pnt )
-      {
-         energy_consumption_delegate_t del =
-            energy_consumption_delegate_t::template from_method<T, TMethod>( obj_pnt );
-
-         RadioCallback *cb = new RadioCallback( del );
-         return radio().template reg_recv_callback<RadioCallback, &RadioCallback::receive>( cb );
+      double battery_level()
+      { 
+         if ( energy_ > BATTERY_MAX )
+            return 0.0;
+         
+         return (((double)BATTERY_MAX - energy_) / (double)BATTERY_MAX) * 100.;
       }
       // --------------------------------------------------------------------
-      void unreg_recv_callback( int idx )
+      int operator()( void )
       {
-         radio().unreg_recv_callback( idx );
+         return (int)battery_level();
       }
+      // --------------------------------------------------------------------
+      double energy() { return energy_; }
+      // --------------------------------------------------------------------
+      double consumed_rx() { return consumed_rx_; }
+      // --------------------------------------------------------------------
+      double consumed_tx() { return consumed_tx_; }
+      // --------------------------------------------------------------------
+      double consumed_active() { return consumed_active_; }
+      // --------------------------------------------------------------------
+      double consumed_idle() { return consumed_idle_; }
 
    private:
+      
+      // --------------------------------------------------------------------
+      void receive( node_id_t id, size_t len, block_data_t* data )
+      {
+         // double rx = ((((15. + len) * 8.) / 250.) * 44.) / (3600. * 1000.);
+         double rx = (ConsumptionTraits::MESSAGE_HEADER_SIZE + len) * ConsumptionTraits::RX_MULTIPLIER;
+         energy_ += rx;
+         consumed_rx_ += rx;
+         
+         self_type::notify_receivers( id, len, data );
+      }
+      // --------------------------------------------------------------------
+      void consume_period()
+      {
+         double consumed = 0.0;
+         if ( active_ )
+         {
+            // consumed = (clock().time() - last_changed_) * 12.8 / (3600. * 1000.);
+            typename Clock::time_t period = clock().time() - last_changed_;
+            uint32_t millis = clock().milliseconds(period) + clock().seconds(period)*1000;
+            consumed = millis * ConsumptionTraits::ACTIVE_MULTIPLIER;
+            consumed_active_ += consumed;
+         }
+         else
+         {
+            // consumed = (clock().time() - last_changed_) * 0.025 / (3600. * 1000.);
+            typename Clock::time_t period = clock().time() - last_changed_;
+            uint32_t millis = clock().milliseconds(period) + clock().seconds(period)*1000;
+            consumed = millis * ConsumptionTraits::IDLE_MULTIPLIER;
+            consumed_idle_ += consumed;
+         }
+         energy_ += consumed;
 
-//       static void consume_period( Os *os )
-//       {
-//          // TODO: Replace with local storage!
-//          if ( data_available(os) )
-//          {
-//             set_energy( os, 0.0 );
-//             set_last_changed( os, Clock::time(os) );
-//             set_activity( os, true );
-//          }
-//          else
-//          {
-//             double consumed = 0.0;
-//             if ( activity(os) )
-//             {
-//                consumed = (Clock::time(os) - last_changed(os)) * 12.8 / (3600. * 1000.);
-//                double tmp = os->proc->owner().template read_simple_tag<double>( "consumed-active" );
-//                tmp += consumed;
-//                if ( app_active(os) )
-//                   os->proc->owner_w().template write_simple_tag<double>( "consumed-active", tmp );
-//             }
-//             else
-//             {
-//                consumed = (Clock::time(os) - last_changed(os)) * 0.025 / (3600. * 1000.);
-//                double tmp = os->proc->owner().template read_simple_tag<double>( "consumed-idle" );
-//                tmp += consumed;
-//                if ( app_active(os) )
-//                   os->proc->owner_w().template write_simple_tag<double>( "consumed-idle", tmp );
-//             }
-//             double e = energy( os ) + consumed;
-// //             std::cout << "consumed t ....  " << activity(os) << "; " << consumed << "; all " << e << std::endl;
-// 
-//             set_energy( os, e );
-//             set_last_changed( os, Clock::time(os) );
-//          }
-//       }
-//       // --------------------------------------------------------------------
-//       static bool data_available( Os *os )
-//       {
-//          return os->proc->owner().find_tag( "energy" ) == 0 ||
-//                os->proc->owner().find_tag( "changed" ) == 0 ||
-//                os->proc->owner().find_tag( "activity" ) == 0;
-//       }
-//       // --------------------------------------------------------------------
-//       static void set_activity( Os *os, bool active )
-//       {
-//          os->proc->owner_w().template write_simple_tag<bool>( "activity", active );
-//       }
-//       // --------------------------------------------------------------------
-//       static void set_last_changed( Os *os, time_t time )
-//       {
-//          os->proc->owner_w().template write_simple_tag<double>( "changed", time );
-//       }
-//       // --------------------------------------------------------------------
-//       static void set_energy( Os *os, double e )
-//       {
-//          os->proc->owner_w().template write_simple_tag<double>( "energy", e );
-//       }
-//       // --------------------------------------------------------------------
-//       static bool activity( Os *os )
-//       {
-//          return os->proc->owner().template read_simple_tag<bool>( "activity" );
-//       }
-//       // --------------------------------------------------------------------
-//       static time_t last_changed( Os *os )
-//       {
-//          return os->proc->owner().template read_simple_tag<double>( "changed" );
-//       }
-//       // --------------------------------------------------------------------
-//       static double energy( Os *os )
-//       {
-//          return os->proc->owner().template read_simple_tag<double>( "energy" );
-//       }
-//       // --------------------------------------------------------------------
-
-//    public:
-//       static void set_app_active( Os *os, bool active )
-//       {
-//          os->proc->owner_w().template write_simple_tag<bool>( "app_active", active );
-//       }
-//       // --------------------------------------------------------------------
-//       static bool app_active( Os *os )
-//       {
-//          return os->proc->owner().template read_simple_tag<bool>( "app_active" );
-//       }
+         last_changed_ = clock().time();
+      }
 
    private:
       Radio& radio()
-      { return radio_; }
+      { return *radio_; }
 
       Clock& clock()
-      { return clock_; }
+      { return *clock_; }
+      
+      Debug& debug()
+      { return *debug_; }
 
-      Radio *radio_;
-      Clock *clock_;
+      typename Radio::self_pointer_t radio_;
+      typename Clock::self_pointer_t clock_;
+      typename Debug::self_pointer_t debug_;
 
+      double energy_;
+      double consumed_rx_;
+      double consumed_tx_;
+      double consumed_active_;
+      double consumed_idle_;
+      
+      bool active_;
+         
+      typename Clock::time_t last_changed_;
    };
 
 }
