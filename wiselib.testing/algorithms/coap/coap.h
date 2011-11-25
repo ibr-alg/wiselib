@@ -83,12 +83,7 @@ public:
         msg.init();
 
         coap_error_code = msg.buffer_to_packet(*len, buf);
-        //debug().debug("Version: %d",msg.version_w());
-        //debug().debug("Type: %d",msg.type_w());
-        //debug().debug("Code: %d",msg.code_w());
-        //debug().debug("MID: %d",msg.mid_w());
-        //debug().debug("Host: %d",msg.uri_host_w());
-        //return;
+
         if (msg.version_w() != COAP_VERSION)
         {
             coap_error_code = BAD_REQUEST;
@@ -118,7 +113,7 @@ public:
             case CON:
                 debug().debug("RECEIVED CON MSG");
                 response.init();
-                //coap_init_message(response, data, buf, &data_len);
+
                 if (CONF_PIGGY_BACKED == 0)
                 {
                     debug().debug("ACTION: Sent ACK\n");
@@ -129,7 +124,6 @@ public:
 
                     response.init();
                     memset(buf, 0, CONF_MAX_MSG_LEN);
-                    //coap_init_message(response, data, buf, &data_len);
                     response.set_type(CON);
                     response.set_mid(mid_++);
                 }
@@ -142,7 +136,6 @@ public:
             case NON:
                 debug().debug("RECEIVED NON MSG");
                 response.init();
-                //coap_init_message(response, data, buf, &data_len);
                 response.set_type(NON);
                 response.set_mid(0);
                 break;
@@ -298,7 +291,6 @@ public:
                 debug().debug("SENSOR LENGTH: %d", resources_[i].resource_len());
 
                 return_value = resources_[i].value(resources_[i].sensor_index());
-                //debug_->debug( "sensor %d: %d %d %d", resources_[i].sensor_index(), return_value[0], return_value[1], return_value[2] );
                 *data_len = resources_[i].resource_len();
                 strncpy((char *)data, return_value, *data_len);
                 return CONTENT;
@@ -311,8 +303,8 @@ public:
     void coap_resource_discovery(char *data, uint8_t *data_len)
     {
         uint8_t index = 0;
-        strcpy(data + index, "<.well-known/core>");
-        index = sizeof ("<.well-known/core>") - 1;
+        strcpy(data + index, "<.well-known/core>;ct=40");
+        index = sizeof ("<.well-known/core>;ct=40") - 1;
 
         uint8_t i;
         for (i=0; i<CONF_MAX_RESOURCES; i++)
@@ -323,8 +315,17 @@ public:
                 index += 2;
                 strcpy(data + index, resources_[i].name());
                 index += resources_[i].name_length();
-                strcpy(data + index, ">");
-                index++;
+                strcpy(data + index, ">;ct=");
+                index += 5;
+                strcpy(data + index, resources_[i].content_type_string());
+                if (resources_[i].content_type() > 9)
+                {
+                    index += 2;
+                }
+                else
+                {
+                    index++;
+                }
             }
         }
         *data_len = index;
@@ -349,7 +350,7 @@ public:
         bytes_written += sprintf(buffer + bytes_written, "DATA: (");
         for (size_t i = 0; i < length; i++)
         {
-            bytes_written += sprintf(buffer + bytes_written, "%d", payload[i]);
+            bytes_written += sprintf(buffer + bytes_written, "%c", payload[i]);
         }
         bytes_written += sprintf(buffer + bytes_written, ")");
         buffer[bytes_written] = '\0';
