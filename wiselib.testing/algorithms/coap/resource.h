@@ -67,6 +67,12 @@ public:
     {
         return content_type_;
     }
+    char * content_type_string()
+    {
+        char buf[3];
+        sprintf(buf, "%d",content_type_);
+        return buf;
+    }
 private:
     my_delegate_t del_;
     String name_;
