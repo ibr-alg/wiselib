@@ -1,8 +1,6 @@
 #ifndef _GROUP_JD_H
 #define	_GROUP_JD_H
 
-
-
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/vector_static.h"
 #include "util/pstl/map_static_vector.h"
@@ -173,6 +171,18 @@ namespace wiselib {
                         }
                     }
                 }
+            }
+            return Radio::NULL_NODE_ID;
+        }
+
+        /**
+         *          
+         * @return
+         * the parent id of the given group
+         */
+        node_id_t group_parent() {
+            if (!groupsVector_.empty()) {
+                return groupsVector_.begin()->parent_;                     
             }
             return Radio::NULL_NODE_ID;
         }

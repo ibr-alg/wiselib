@@ -77,18 +77,12 @@ namespace wiselib {
 
         /**
          * 
-         * @param radiot
-         * wiselib radio
-         * @param timert
-         * wiselib timer
-         * @param debugt
-         * wiselib debug
-         * @param randt
-         * wiselib rand
-         * @param neighbor_discovery
-         * wiselib echo algorithm
-         * @param semantics
-         * wiselib semantic storage
+         * @param radiot wiselib radio
+         * @param timert wiselib timer
+         * @param debugt wiselib debug
+         * @param randt wiselib rand
+         * @param neighbor_discovery wiselib echo algorithm
+         * @param semantics wiselib semantic storage
          */
         void init(Radio& radiot, Timer& timert, Debug& debugt, Rand& randt, nb_t& neighbor_discovery, Semantics_t& semantics) {
             radio_ = &radiot;
@@ -117,8 +111,7 @@ namespace wiselib {
 
         /**
          * 
-         * @param it
-         * an iterator module for the cluster formation
+         * @param it an iterator module for the cluster formation
          */
         inline void set_iterator(Iterator_t &it) {
             it_ = &it;
@@ -126,8 +119,7 @@ namespace wiselib {
 
         /**
          * 
-         * @param jd
-         * a join decision module for the cluster formation
+         * @param jd a join decision module for the cluster formation
          */
         inline void set_join_decision(JoinDecision_t &jd) {
             jd_ = &jd;
@@ -135,8 +127,7 @@ namespace wiselib {
 
         /**
          * 
-         * @param chd
-         * a cluster head decision module for the cluster formation
+         * @param chd a cluster head decision module for the cluster formation
          */
         inline void set_cluster_head_decision(HeadDecision_t &chd) {
             chd_ = &chd;
@@ -148,13 +139,19 @@ namespace wiselib {
 
         /**
          * 
-         * @param group
-         * the group to check for the parent
-         * @return 
-         * the node id of the parent in the cluster
+         * @param group the group to check for the parent
+         * @return the node id of the parent in the cluster
          */
         inline node_id_t parent(group_entry_t group) {
-            return it().parent(cluster_id);
+            return jd().group_parent(group);
+        }
+
+        /**
+         * 
+         * @return the node id of the parent in the cluster
+         */
+        inline node_id_t parent() {
+            return jd().group_parent();
         }
 
         inline size_t hops(cluster_id_t cluster_id = 0) {
@@ -163,8 +160,7 @@ namespace wiselib {
 
         /**
          * 
-         * @return 
-         * UNCLUSTERED , SIMPLE , HEAD , GATEWAY
+         * @return UNCLUSTERED , SIMPLE , HEAD , GATEWAY
          */
         inline int node_type() {
             return it().node_type();
@@ -172,8 +168,7 @@ namespace wiselib {
 
         /**
          * 
-         * @return 
-         * the number of clusters joined so far
+         * @return the number of clusters joined so far
          */
         inline size_t clusters_joined() {
             return it().clusters_joined();
@@ -185,10 +180,8 @@ namespace wiselib {
         //TODO: IS_GATEWAY
 
         /**
-         * is cluster head?
-         * 
-         * @return 
-         * true if a cluster head
+         * is cluster head?          
+         * @return true if a cluster head
          */
         inline bool is_cluster_head() {
             if (!enabled_) return false;
@@ -208,8 +201,7 @@ namespace wiselib {
         /**
          * The status Of the Clustering Algorithm
          * 
-         * @return 
-         * FORMED : when the cluster is formed, UNFORMED else 
+         * @return FORMED : when the cluster is formed, UNFORMED else 
          */
         inline uint8_t status() {
             //1 - forming , 0 - formed
@@ -218,7 +210,7 @@ namespace wiselib {
             } else {
                 return UNFORMED;
             }
-        }
+        }        
 
         /**
          * Self Register a debug callback
@@ -236,7 +228,7 @@ namespace wiselib {
             enable(6);
 #else
             //typical time for iSense test to form stable links
-            enable(120);
+            enable(60);
 #endif
         }
 
@@ -244,10 +236,8 @@ namespace wiselib {
          * Enable
          * enables the clustering algorithm
          * enable CHD it and JD modules
-         * calls find head to start clustering         
-         * 
-         * @param start_in
-         * second to start the algorithm
+         * calls find head to start clustering                  
+         * @param start_in second to start the algorithm
          */
         inline void enable(int start_in) {
             if (enabled_) return;
@@ -273,8 +263,7 @@ namespace wiselib {
         }
 
         /**
-         * Disables the algorithm
-         * unregisters radio callback
+         * Disables the algorithm, unregisters radio callback
          */
         void disable() {
             if (!enabled_) return;
@@ -285,8 +274,7 @@ namespace wiselib {
 
         /**
          * Starts cluster formation
-         * @param parameter
-         * unused - timer needed
+         * @param parameter unused - timer needed
          */
         void form_cluster(void * parameter) {
             if (!enabled_) return;
@@ -314,7 +302,6 @@ namespace wiselib {
         /**
          * periodically notify nearby nodes of 
          * current grouping semantics
-         * 
          * @param reset
          */
         void reply_to_head(void * reset) {
@@ -324,7 +311,7 @@ namespace wiselib {
             radio().send(Radio::BROADCAST_ADDRESS, msg.length(), (block_data_t*) & msg);
 
             if ((long) reset == 1) {
-                this->state_changed(MESSAGE_SENT, msg.msg_id() + 1, Radio::BROADCAST_ADDRESS);
+                //                this->state_changed(MESSAGE_SENT, msg.msg_id() + 1, Radio::BROADCAST_ADDRESS);
                 timer().template set_timer<self_type, &self_type::reply_to_head > (
                         rand()(15000), this, (void *) 1);
             } else {
@@ -333,16 +320,14 @@ namespace wiselib {
         }
 
         /**
-         * Send a beacon message for each group with updated values for the readings of the group
-         * 
-         * @param 
-         * not used
+         * Send a beacon message for each group with updated values for the readings of the group         
+         * @param udata not used
          */
-        void updated_values(void *) {
+        void updated_values(void * udata) {
             //Semantic Values update for a selected Group
             SemaResumeMsg_t resume_msg = it().get_resume_payload();
             radio().send(Radio::BROADCAST_ADDRESS, resume_msg.length(), (uint8_t *) & resume_msg);
-            this->state_changed(MESSAGE_SENT, resume_msg.msg_id(), Radio::BROADCAST_ADDRESS);
+            //            this->state_changed(MESSAGE_SENT, resume_msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
             //reset timer
             timer().template set_timer<self_type, &self_type::updated_values > (
@@ -353,8 +338,7 @@ namespace wiselib {
     protected:
 
         /**         
-         * @param from
-         * the dropped node
+         * @param from the dropped node
          */
         void node_lost(node_id_t from) {
             bool lost1 = it().node_lost(from);
@@ -367,14 +351,10 @@ namespace wiselib {
 
         /**
          * respond to the new messages received
-         * Radio callback function
-         *
-         * @param from
-         * sender of the message
-         * @param len
-         * message length in bytes
-         * @param data
-         * pointer to the payload
+         * Radio callback function         
+         * @param from sender of the message
+         * @param len message length in bytes
+         * @param data pointer to the payload
          */
         void receive(node_id_t from, size_t len, block_data_t * data) {
             if (!enabled_) return;
@@ -402,17 +382,11 @@ namespace wiselib {
         }
 
         /**
-         *
          * Callback registered to the Echo
-         *
-         * @param event
-         * event type
-         * @param from
-         * the originator node
-         * @param len
-         * size of the payload
-         * @param data
-         * pointer to the payload
+         * @param event event type
+         * @param from the originator node
+         * @param len size of the payload
+         * @param data pointer to the payload
          */
         void ND_callback(uint8_t event, node_id_t from, uint8_t len, uint8_t * data) {
             if (!enabled_) return;
@@ -424,13 +398,9 @@ namespace wiselib {
     private:
 
         /**
-         *
          * Callback registered to the join decision
-         *
-         * @param group
-         * the group joined
-         * @param parent
-         * the group's parent
+         * @param group the group joined
+         * @param parent the group's parent
          */
         void joined_group(group_entry_t group, node_id_t parent) {
             it().add_group(group, parent);
@@ -439,21 +409,18 @@ namespace wiselib {
         }
 
         void notifyAboutGroup(group_entry_t group, node_id_t parent) {
-            debug().debug("notified about %s using %x ||mine %x", group.c_str(), parent, jd().parent(group));
+            //            debug().debug("notified about %s using %x ||mine %x", group.c_str(), parent, jd().parent(group));
             if (jd().parent(group) == parent) {
-                debug().debug("losing parent %x", parent);
+                //                debug().debug("losing parent %x", parent);
                 node_lost(parent);
             }
         }
 
         /**
          * 
-         * @param event
-         * event type
-         * @param type
-         * message type
-         * @param node
-         * destination node
+         * @param event event type
+         * @param type message type
+         * @param node destination node
          */
         void debug_callback(uint8_t event, uint8_t type, node_id_t node) {
             switch (event) {
@@ -463,7 +430,7 @@ namespace wiselib {
                     debug().debug("CLP;%x;%d;%x", radio().id(), type, node);
                     return;
                 case MESSAGE_SENT:
-                    debug().debug("CLS;%x;%d;%x", radio().id(), type, node);
+                    debug().debug("RS;%x;%d;%x", radio().id(), type, node);
 
                     return;
             }
@@ -483,8 +450,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the cluster head decision
+         * @return an instance of the cluster head decision
          */
         HeadDecision_t & chd() {
 
@@ -494,8 +460,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the join decision
+         * @return an instance of the join decision
          */
         JoinDecision_t & jd() {
 
@@ -505,8 +470,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the iterator
+         * @return an instance of the iterator
          */
         Iterator_t & it() {
 
@@ -520,8 +484,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the radio
+         * @return an instance of the radio
          */
         Radio & radio() {
 
@@ -530,8 +493,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the timer
+         * @return an instance of the timer
          */
         Timer & timer() {
 
@@ -540,8 +502,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the debugger
+         * @return an instance of the debugger
          */
         Debug & debug() {
 
@@ -550,8 +511,7 @@ namespace wiselib {
 
         /**
          *
-         * @return
-         * an instance of the random number generator
+         * @return an instance of the random number generator
          */
         Rand & rand() {
             return *rand_;
