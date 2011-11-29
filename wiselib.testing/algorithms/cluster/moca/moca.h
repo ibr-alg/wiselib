@@ -450,15 +450,14 @@ namespace wiselib {
 
 
             ConvergecastMsg_t mess = it().get_resume_payload();
-
+            debug().debug("checking for %d,%d", count, count < it().clusters_joined());
             if (count < it().clusters_joined()) {
-                cluster_id_t cluster_id_n = it().cluster_id(count);
-
-                if ((cluster_id_n != radio().id()) || (cluster_id_n == 0x0)) {
-                    mess.set_cluster_id(cluster_id_n);
-                    radio().send(it().parent(cluster_id_n), mess.length(), (uint8_t *) & mess);
+                cluster_id_t destination_cluster = it().cluster_id(count);
+                if ((destination_cluster != radio().id()) && (destination_cluster != 0x0) && (destination_cluster != 0xffff)) {
+                    mess.set_cluster_id(destination_cluster);
+                    radio().send(it().parent(destination_cluster), mess.length(), (uint8_t *) & mess);
 #ifdef DEBUG_CLUSTERING
-                    debug().debug("CLS;%x;%d;%x; for %x|%d|%d", radio().id(), mess.msg_id(), it().parent(cluster_id_n), cluster_id_n, count, it().clusters_joined());
+                    debug().debug("CLS;%x;%d;%x; for %x|%d|%d", radio().id(), mess.msg_id(), it().parent(destination_cluster), destination_cluster, count, it().clusters_joined());
 #endif
                     //this->state_changed(MESSAGE_SENT);
 
