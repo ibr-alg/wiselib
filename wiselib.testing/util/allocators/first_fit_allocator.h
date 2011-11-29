@@ -6,9 +6,22 @@
 	#define ALLOCATOR_KEEP_STATS 0
 #endif // ALLOCATOR_KEEP_STATS
 
+#ifdef PC
+	#undef NDEBUG
+	#include <cassert>
+#endif
+
+
 #ifndef assert
 	#define assert(X)
 #endif // assert
+
+#define DEBUG_PC 0
+#if DEBUG_PC
+	#include <iostream>
+	#include <iomanip>
+#endif
+
 
 template<typename T>
 void* operator new(size_t size, T* place) {
@@ -145,6 +158,11 @@ class FirstFitAllocator {
 				prev = c;
 			} // for c
 			
+			if(reserved_[prev].next() == Chunk::NONE && to_allocate > (memory_ + BUFFER_SIZE - reserved_[prev].end())) { // insert at end of memory
+				assert(false && "Reached end of memory");
+				return 0;
+			}
+			
 			size_t r = insert_chunk(prev, end, to_allocate);
 			if(r == Chunk::NONE) {
 				assert(false && "Allocator reached MAX_CHUNKS!");
@@ -195,7 +213,7 @@ class FirstFitAllocator {
 			public:
 				enum { NONE = static_cast<chunk_index_t>(-1) };
 				
-				Chunk() : size_(0) { }
+				Chunk() : size_(0), next_(NONE) { }
 				bool occupied() { return size_ != 0; }
 				block_data_t* start() { return start_; }
 				void set_start(block_data_t* s) { start_ = s; }
@@ -214,6 +232,18 @@ class FirstFitAllocator {
 				
 		} __attribute__((__packed__));
 		
+		
+		#if DEBUG_PC
+		void print_reserved() {
+			std::cout << "first chunk: " << (int)first_chunk_id_ << std::endl;
+			for(size_t i=0; i<MAX_CHUNKS; i++) {
+				if(reserved_[i].size() != 0) {
+					std::cout << i << ": start=" << (void*)reserved_[i].start() << " size=" << reserved_[i].size() << " next=" << (int)reserved_[i].next() << std::endl;
+				}
+			}
+		}
+		#endif
+		
 		/**
 		 * Insert chunk after the chunk at position idx
 		 * Does not check if there is actually enough space for the
@@ -221,6 +251,11 @@ class FirstFitAllocator {
 		 * chunks.
 		 */
 		size_t insert_chunk(size_t idx, block_data_t* start, size_t size) {
+			#if DEBUG_PC
+			std::cout << "insert_chunk(" << (int)idx << ", " << start << ", " << size << ")" << std::endl;
+			print_reserved();
+			#endif
+			
 			// First, find a free slot in the reserved table
 			size_t c = 0;
 			for(; c < MAX_CHUNKS && reserved_[c].occupied(); c++) {
@@ -231,15 +266,19 @@ class FirstFitAllocator {
 				return Chunk::NONE;
 			}
 			
-			if(idx == Chunk::NONE) { // insert as first chunk
+			/*if(idx == Chunk::NONE) { // insert as first chunk
 				first_chunk_id_ = c;
-			}
+			}*/
 			
 			size_t old_next = Chunk::NONE;
 			
 			if(idx != Chunk::NONE) {
 				old_next = reserved_[idx].next();
 				reserved_[idx].set_next(c);
+			}
+			else /*if(first_chunk_id_ != Chunk::NONE)*/ {
+				old_next = first_chunk_id_;
+				first_chunk_id_ = c;
 			}
 			
 			reserved_[c].set_start(start);
@@ -251,12 +290,22 @@ class FirstFitAllocator {
 			bytes_used_ += size;
 		#endif
 			
+			#if DEBUG_PC
+			std::cout << "inserted into " << c << std::endl;
+			print_reserved();
+			#endif
+			
 			return c;
 		} // allocate_chunk
 
 		/**
 		 */
 		void free_chunk(size_t idx) {
+			#if DEBUG_PC
+			std::cout << "free_chunk(" << idx << ")" << std::endl;
+			print_reserved();
+			#endif
+			
 			if(first_chunk_id_ == Chunk::NONE) { return; } // free enough for us
 			
 			if(idx == first_chunk_id_) {
@@ -266,9 +315,18 @@ class FirstFitAllocator {
 				size_t prev;
 				for(
 					prev = first_chunk_id_;
-					prev != Chunk::NONE && reserved_[prev].next() != idx;
+					(prev != Chunk::NONE) && (reserved_[prev].next() != idx);
 					prev = reserved_[prev].next()
-				) {}
+				) {
+				#if DEBUG_PC
+					std::cout << "  prev=" << prev << std::endl;
+					std::cout << "    start=" << (void*)reserved_[prev].start() << " size=" << reserved_[prev].size() << " next=" << (int)reserved_[prev].next() << std::endl;
+				#endif
+				}
+				#if DEBUG_PC
+					std::cout << "  prev=" << prev << std::endl;
+					std::cout << "    start=" << (void*)reserved_[prev].start() << " size=" << reserved_[prev].size() << " next=" << (int)reserved_[prev].next() << std::endl;
+				#endif
 				
 				if(prev != Chunk::NONE) {
 					// found a predecessor
@@ -281,6 +339,10 @@ class FirstFitAllocator {
 			bytes_used_ -= reserved_[idx].size();
 		#endif
 			reserved_[idx].set_size(0);
+			
+			#if DEBUG_PC
+			print_reserved();
+			#endif
 		} // free_chunk
 		
 		unsigned char memory_[BUFFER_SIZE];
