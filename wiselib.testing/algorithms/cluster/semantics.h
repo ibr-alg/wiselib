@@ -169,9 +169,9 @@ namespace wiselib {
              * @return
              */
             bool operator==(group_entry_t other) const {
-                if (size_a != other.size()) {
-                    return false;
-                } else {
+//                if (size_a != other.size()) {
+//                    return false;
+//                } else {
                     block_data_t * fdata = (block_data_t*) data_a;
                     block_data_t * odata = other.data();
                     for (uint8_t i = 0; i < size_a; i++) {
@@ -180,7 +180,7 @@ namespace wiselib {
                         }
                     }
                     return true;
-                }
+//                }
             }
             int data_a[2];
             size_t size_a;

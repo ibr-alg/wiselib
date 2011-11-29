@@ -3,7 +3,7 @@
 
 #include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
-#include "util/base_classes/clustering_base.h"
+#include "util/base_classes/clustering_base2.h"
 #include "algorithms/neighbor_discovery/echo.h"
 #include "algorithms/neighbor_discovery/pgb_payloads_ids.h"
 
@@ -137,17 +137,16 @@ public:
             this-> template reg_state_changed_callback<self_type, &self_type::debug_callback > (this);
         }
 
-        void debug_callback(int event) {
+             void debug_callback(uint8_t event, uint8_t type, node_id_t node) {
             switch (event) {
                 case ELECTED_CLUSTER_HEAD:
-                case NODE_JOINED:
                 case CLUSTER_FORMED:
-                    debug().debug("CLP;%x;%d;%x", radio().id(), it().node_type(), it().cluster_id());
+                case NODE_JOINED:
+                    debug().debug("CLP;%x;%d;%x", radio().id(), type, node);
                     return;
                 case MESSAGE_SENT:
-                    debug().debug("CLS;%x;45;%x", radio().id(), 0xffff);
+                    debug().debug("CLS;%x;%d;%x", radio().id(), type, node);
                     return;
-
             }
         }
 
@@ -288,7 +287,7 @@ public:
 
 
 			// inform for state change
-			this->state_changed(ELECTED_CLUSTER_HEAD);
+			this->state_changed(ELECTED_CLUSTER_HEAD,HEAD,radio().id());
 
 			if (auto_reform_ > 0) {
 				timer().template set_timer<self_type,
@@ -302,10 +301,8 @@ public:
 			// send JOIN
 			radio().send(Radio::BROADCAST_ADDRESS, msg.length(),
 					(block_data_t *) &msg);
-#ifdef DEBUG
-			debug().debug("Send::%x::%d::%x", radio().id(), msg.msg_id(),
-					Radio::BROADCAST_ADDRESS);
-#endif
+
+			this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
 			//Check after some time if Any accept messages were received
 			//2*time_slice for messages to be sent and received
@@ -331,7 +328,7 @@ public:
 
                     }else {
 #ifdef DEBUG
-			debug().debug("Not clustered yet, Start own Cluster %x - %d",
+			debug().debug("CL;Not clustered yet;Start own Cluster %x - %d",
 					radio().id(),count++);
 #endif
 			//become a cluster head - set probability to 100%
@@ -347,10 +344,8 @@ public:
 				// Forward message from previous node
 				radio().send(Radio::BROADCAST_ADDRESS, msg.length(),
 						(block_data_t *) &msg);
-#ifdef DEBUG
-				debug().debug("Send::%x::%d::%x::%d::", radio().id(),
-						msg.msg_id(), Radio::BROADCAST_ADDRESS, msg.length());
-#endif
+
+                    this->state_changed(MESSAGE_SENT, msg.msg_id(), Radio::BROADCAST_ADDRESS);
 
 				//set the timer to check for clustering end
 				timer().template set_timer<self_type, &self_type::timer_expired> (
@@ -360,7 +355,7 @@ public:
 				timer_expired(0);
 			}
 			//notify for join
-			this->state_changed(NODE_JOINED);
+			this->state_changed(NODE_JOINED,SIMPLE,it().cluster_id());
 		}
 	}
 
@@ -381,13 +376,12 @@ public:
 				//do send the message
 				radio().send(it().parent(), msg.length(), (block_data_t *) &msg);
 
-#ifdef DEBUG
-				debug().debug("Send::%x::%d::%x::", radio().id(), msg.msg_id(),
-						it().parent());
-#endif
+this->state_changed(MESSAGE_SENT, msg.msg_id(),						it().parent());
+
+                                
 			}// if a cluster head end the clustering under this branch
                 else {
-                    this->state_changed(CLUSTER_FORMED);
+                    this->state_changed(CLUSTER_FORMED, HEAD, radio().id());
                 }
                 status_ = 0;
             }
@@ -466,7 +460,7 @@ public:
                     it().node_joined(node_from);
 
                     // if joined , node state changed
-                    this->state_changed(NODE_JOINED);
+                    this->state_changed(NODE_JOINED, SIMPLE, cluster);
 
                     //mark that the head_lost_ situation was resolved
                     head_lost_ = false;
@@ -501,7 +495,7 @@ public:
                 if (is_cluster_head()) {
                     if (it().node_count(1) == 0) {
                         if (cluster < cluster_id()) {
-                            debug().debug("Orphan::%x", radio().id());
+                            debug().debug("CL;Orphan;%x", radio().id());
                             // join him
                             // inform iterator about the new cluster
                             it().set_parent(node_from);
@@ -513,7 +507,7 @@ public:
                             it().node_joined(node_from);
 
                             // if joined , node state changed
-                            this->state_changed(NODE_JOINED);
+                            this->state_changed(NODE_JOINED, SIMPLE, cluster);
 
                             //create the resyme message
                             ResumeClusterMsg<OsModel, Radio> msg =
@@ -521,10 +515,8 @@ public:
                             //do send the message
                             radio().send(it().parent(), msg.length(),
                                     (block_data_t *) & msg);
-#ifdef DEBUG
-                            debug().debug("Send::%x::%d::%x::%d::", radio().id(),
-                                    msg.msg_id(), it().parent(), msg.length());
-#endif
+                            this->state_changed(MESSAGE_SENT, msg.msg_id(), it().parent());
+
                         }
                     }
                 }
@@ -563,9 +555,9 @@ public:
 
             // type=JOIN
             if (type == JOIN) {
-                #ifdef RECEIVE_DEBUG
+#ifdef RECEIVE_DEBUG
                 debug().debug("RECEIVED JOIN Node %x <- %x", radio().id(), from);
-                #endif
+#endif
                 if (node_type() == HEAD) return;
                 // try to join
                 if (jd().join(data, len)) {
@@ -575,7 +567,7 @@ public:
                     it().set_hops(jd().hops());
                     it().set_node_type(SIMPLE);
                     it().node_joined(from);
-                    this->state_changed(NODE_JOINED);
+                    this->state_changed(NODE_JOINED, SIMPLE, it().cluster_id());
                 }
             } else if (type == RESUME) {
 #ifdef RECEIVE_DEBUG

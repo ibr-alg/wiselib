@@ -142,10 +142,10 @@ namespace wiselib {
             typedef typename JoinMultipleClusterMsg_t::cluster_entry_t cluster_entry_t;
 
             size_t count = clusters_joined();
+            size_t total = count;
             cluster_entry_t cl_list[count];
 
             mess.set_sender_id(radio().id());
-            mess.set_cluster_count(count);
 
             if (!clusters_vector_.empty()) {
                 for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
@@ -153,7 +153,7 @@ namespace wiselib {
                     cl_list[count].second = (*chit).hops_;
                 }
             }
-            mess.set_clusters(cl_list);
+            mess.set_clusters((uint8_t *) cl_list, total * sizeof (cluster_entry_t));
             return mess;
         };
 
@@ -164,18 +164,19 @@ namespace wiselib {
 #ifdef DEBUG_EXTRA
             debug().debug("Added %d clusters to conv message", count);
 #endif
-            cluster_entry_t cl_list[15];
-            size_t count = 0;
+            size_t count = clusters_vector_.size();
+            cluster_entry_t cl_list[count];
+            size_t total = count;
             mess.set_sender_id(radio().id());
 
             if (!clusters_vector_.empty()) {
                 for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
-                    cl_list[count].first = (*chit).cluster_id_;
-                    cl_list[count++].second = (*chit).hops_;
+                    cl_list[--count].first = (*chit).cluster_id_;
+                    cl_list[count].second = (*chit).hops_;
                 }
             }
-            mess.set_cluster_count(count);
-            mess.set_clusters(cl_list, count);
+
+            mess.set_clusters((uint8_t*) cl_list, total);
             return mess;
         };
 
@@ -183,20 +184,21 @@ namespace wiselib {
             return 0;
         };
 
-//        bool drop_cluster(node_id_t from, cluster_id_t cluster) {
-//            for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
-//                if ((from == (*chit).parent_) && (cluster == (*chit).cluster_id_)) {
-//                    clusters_vector_.erase(chit);
-//                    break;
-//                }
-//            }
-//        }
+        //        bool drop_cluster(node_id_t from, cluster_id_t cluster) {
+        //            for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
+        //                if ((from == (*chit).parent_) && (cluster == (*chit).cluster_id_)) {
+        //                    clusters_vector_.erase(chit);
+        //                    break;
+        //                }
+        //            }
+        //        }
 
         bool drop_node(node_id_t node) {
             bool found = false;
             for (typename clusters_vector_t::iterator chit = clusters_vector_.begin(); chit != clusters_vector_.end(); ++chit) {
 
                 if ((*chit).parent_ == node) {
+                    debug().debug("drop node %x", node);
                     clusters_vector_.erase(chit);
 #ifdef DEBUG_EXTRA
                     debug().debug("removing from CH-parent");
@@ -256,13 +258,14 @@ namespace wiselib {
 
         bool eat_request(ConvergecastMsg_t * mess) {
             node_id_t node = mess->sender_id();
-            ConvergecastMsg_t::cluster_entry_t clusts[10];
-            uint8_t count = mess->clusters(clusts);
+            size_t total = mess->cluster_count() / sizeof (ConvergecastMsg_t::cluster_entry_t);
+            ConvergecastMsg_t::cluster_entry_t clusts[total];
+            mess->clusters((uint8_t*) clusts);
             if (!AC_table_.empty()) {
                 for (typename AC_table_t::iterator acit = AC_table_.begin(); acit != AC_table_.end(); ++acit) {
                     if ((*acit).first == node) {
                         (*acit).second.clear();
-                        for (size_t i = 0; i < count; i++) {
+                        for (size_t i = 0; i < total; i++) {
                             (*acit).second.push_back(clusts[i].first);
                         }
                         return false;
@@ -272,7 +275,7 @@ namespace wiselib {
             AC_table_entry newent;
             newent.first = node;
             newent.second.clear();
-            for (size_t i = 0; i < count; i++) {
+            for (size_t i = 0; i < total; i++) {
                 newent.second.push_back(clusts[i].first);
             }
             AC_table_.push_back(newent);

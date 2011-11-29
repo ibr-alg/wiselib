@@ -78,15 +78,16 @@ namespace wiselib {
         bool join(uint8_t *payload, uint8_t length) {
 
             bool joined_any = false;
-            JoinMultipleClusterMsg<OsModel, Radio> *mess = (JoinMultipleClusterMsg<OsModel, Radio> *) payload;
+            JoinMultipleClusterMsg_t *mess = (JoinMultipleClusterMsg_t *) payload;
+            size_t total = mess->cluster_count() / sizeof (typename JoinMultipleClusterMsg_t::cluster_entry_t);
 
-            typename JoinMultipleClusterMsg<OsModel, Radio>::cluster_entry_t cl_list[10];
-            size_t count = mess->clusters(cl_list);
+            typename JoinMultipleClusterMsg_t::cluster_entry_t cl_list[total];
+            mess->clusters(cl_list);
 #ifdef DEBUG_EXTRA
             debug().debug("got a message with %d cluster ids", mess.clusters(cl_list));
 #endif
-            if (count > 0) {
-                for (size_t i = 0; i < count; i++) {
+            if (total > 0) {
+                for (size_t i = 0; i < total; i++) {
 #ifdef DEBUG_EXTRA
                     debug().debug("Contains %x | %d ", cl_list[i].first, cl_list[i].second);
 #endif

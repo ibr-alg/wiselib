@@ -80,6 +80,7 @@ namespace wiselib {
         typedef wiselib::vector_static<OsModel, pending_messages_entry_t, MAX_PENDING> pending_messages_vector_t;
 
         typedef ReliableRadio<OsModel_P, Radio_P, Timer_P, Debug_P> self_t;
+typedef self_t* self_pointer_t;
 
         typedef uint16_t seqNo_t;
 
