@@ -37,6 +37,7 @@ namespace wiselib {
     public:
 
         typedef OsModel_P OsModel;
+        typedef typename OsModel::Radio::node_id_t node_id_t;
         typedef delegate3<void, uint8_t, uint8_t, node_id_t> cluster_delegate_t;
 
         // --------------------------------------------------------------------

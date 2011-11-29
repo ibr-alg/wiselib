@@ -62,6 +62,12 @@ namespace wiselib {
         typedef struct groupsJoinedEntry groupsJoinedEntry_t;
         typedef wiselib::vector_static<OsModel, groupsJoinedEntry_t, 6 > groupsVector_t;
         typedef typename groupsVector_t::iterator groupsVectorIterator_t;
+
+        typedef wiselib::pair<group_entry_t, node_id_t> neighborsVectorEntry_t;
+        typedef wiselib::vector_static<OsModel, neighborsVectorEntry_t, 6 > neighborsVector_t;
+        typedef typename neighborsVector_t::iterator neighborsVectorIterator_t;
+
+
         typedef GroupIterator<OsModel_P, Radio_P, Semantics_P> self_type;
 
         /*
@@ -115,11 +121,23 @@ namespace wiselib {
         inline node_id_t parent(group_entry_t gi) {
             if (!groupsVector_.empty()) {
                 for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
-                    //if of the same size maybe the same
+                    //if of the same size maybe the same                    
                     if (gi == it->group) {
+                        //                        debug().debug("found parent %x", it->parent);
                         return it->parent;
                     }
                 }
+            }
+            return Radio::NULL_NODE_ID;
+        }
+
+        /**
+         *       
+         * @return
+         */
+        inline node_id_t parent() {
+            if (!groupsVector_.empty()) {
+                return groupsVector_.begin()->parent;
             }
             return Radio::NULL_NODE_ID;
         }
@@ -132,6 +150,9 @@ namespace wiselib {
             return node_type_;
         }
 
+        /**
+         * 
+         */
         void reset() {
             node_type_ = UNCLUSTERED;
             isGateway_ = false;
@@ -168,6 +189,8 @@ namespace wiselib {
                 group_entry_t gi = group_entry_t(msg->get_statement_data(i), msg->get_statement_size(i));
                 if (semantics_-> has_group(gi)) {
                     addNode2Members(gi, msg->node_id());
+                } else {
+                    addNode2Neighbors(gi, msg->node_id());
                 }
             }
         }
@@ -188,6 +211,25 @@ namespace wiselib {
                     it->groupMembers.push_back(node);
                 }
             }
+        }
+
+        /**
+         * Adds an entry to the Neighbors vector for routing over semantics
+         * @param gi    the group of the node
+         * @param node  the id of the node
+         */
+        void addNode2Neighbors(group_entry_t gi, node_id_t node) {
+            for (neighborsVectorIterator_t it = neighborsVector_.begin(); it != neighborsVector_.end(); ++it) {
+                if (it->first == gi) {
+                    it->second = node;
+                    return;
+                }
+            }
+            //TODO: add new entry
+            neighborsVectorEntry_t newEntry;
+            newEntry.first = gi;
+            newEntry.second = node;
+            neighborsVector_.push_back(newEntry);
         }
 
         /**
@@ -267,7 +309,7 @@ namespace wiselib {
                         if (gvalit->first == predicate) {
 
                             semantics_->aggregate(&gvalit->second, &value, predicate);
-                            debug().debug("Sval:%s-%s:%s", gvit->group.c_str(), predicate.c_str(), gvalit->second.c_str());
+                            //                            debug().debug("Sval:%s-%s:%s", gvit->group.c_str(), predicate.c_str(), gvalit->second.c_str());
                             return;
                         }
                     }
@@ -314,12 +356,27 @@ namespace wiselib {
          */
         bool node_lost(node_id_t from) {
             bool changed = false;
-            if (!groupsVector_.empty()) {
-                for (groupsVectorIterator_t it = groupsVector_.begin(); it != groupsVector_.end(); ++it) {
+            {
+                groupsVectorIterator_t it = groupsVector_.begin();
+                while (it != groupsVector_.end()) {
                     //if in this group the lost node is my parent
                     if (it->parent == from) {
                         changed = true;
                         it->parent = radio().id();
+                    }
+                    it++;
+                }
+            }
+            {
+                neighborsVectorIterator_t it = neighborsVector_.begin();
+                while (it != neighborsVector_.end()) {
+                    //if in this group the lost node is my parent
+                    if (it->second == from) {
+                        changed = true;
+                        neighborsVector_.erase(it);
+
+                    } else {
+                        it++;
                     }
                 }
             }
@@ -332,7 +389,7 @@ namespace wiselib {
         void present_neighbors() {
 
         }
-   
+
         /**
          *
          * @param gi
@@ -391,7 +448,7 @@ namespace wiselib {
                 for (typename groupValues_t::iterator gvalit = gvit->groupValues.begin(); gvalit != gvit->groupValues.end(); ++gvalit) {
                     if (gvalit->first == predicate) {
                         semantics_->aggregate(&gvalit->second, &value, predicate);
-                        debug().debug("Sval:%s-%s:%s", gvit->group.c_str(), predicate.c_str(), gvalit->second.c_str());
+                        //                        debug().debug("Sval:%s-%s:%s", gvit->group.c_str(), predicate.c_str(), gvalit->second.c_str());
                         updated = true;
                         break;
                     }
@@ -408,6 +465,7 @@ namespace wiselib {
         }
 
         groupsVector_t groupsVector_;
+        neighborsVector_t neighborsVector_;
         int node_type_, lastid_;
         bool isGateway_;
         Semantics_t * semantics_;
