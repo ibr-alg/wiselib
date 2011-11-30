@@ -50,9 +50,9 @@ class ExampleApplication
          rand_->srand(radio_->id());
 
          uint8_t flags = nb_t::NEW_NB | nb_t::NEW_NB_BIDI | nb_t::DROPPED_NB | nb_t::NEW_PAYLOAD_BIDI | nb_t::LOST_NB_BIDI;
-         neighbor_discovery.register_debug_callback(0);
+         //neighbor_discovery.register_debug_callback(0);
 
-//         neighbor_discovery.reg_event_callback<ExampleApplication,&ExampleApplication::callback>( 6, flags, this );
+         neighbor_discovery.reg_event_callback<ExampleApplication,&ExampleApplication::callback>( 6, flags, this );
 
            //        print periodically the neighborhood list
 
@@ -124,7 +124,7 @@ neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_d
 //              debug_->debug( "NODE %d: event LOST_NB_BIDI!! neighbor bidi com lost %d \n",radio_->id(), from);
           }
 
-      }      
+      }
 
       void stop ( void* ) {
     	  neighbor_discovery.disable();
