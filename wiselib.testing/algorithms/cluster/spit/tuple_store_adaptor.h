@@ -3,7 +3,7 @@
 #define _TUPLE_STORE_ADAPTOR_H
 
 #include "util/pstl/list_dynamic.h"
-#include "util/pstl/data_avl_tree.h"
+//#include "util/pstl/data_avl_tree.h"
 
 // clustering_sema_app
 // 
@@ -15,8 +15,11 @@
 // 	without indices: 80360
 // 	with indices: 86044
 
-#define TUPLE_STORE_ENABLE_INDICES 0
-#include "util/tuple_store/tuple_store2.h"
+//#define TUPLE_STORE_ENABLE_INDICES 0
+//#include "util/tuple_store/tuple_store2.h"
+
+#include "/home/henning/repos/tuplestore/wiselib.testing/util/tuple_store/tuple_store.h"
+#include "/home/henning/repos/tuplestore/wiselib.testing/util/pstl/fixed_size_avl_tree.h"
 
 namespace wiselib {
 	

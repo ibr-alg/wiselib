@@ -35,7 +35,9 @@ namespace wiselib {
 template<uint64_t N_>
 struct small_uint {
 	typedef typename small_uint<
+		#ifdef PC
 		(N_ >= 0x100000001) ? 0x100000001LL :
+		#endif
 		(N_ >= 0x000010001) ? 0x000010001L :
 		(N_ >= 0x000000101) ? 0x000000101 :
 			0x000000000
@@ -47,7 +49,9 @@ template<> struct small_uint<0x000000101> { typedef uint16_t t; };
 template<> struct small_uint<0x000010001L> { typedef uint32_t t; };
 
 //#if __WORDSIZE == 64
+#ifdef PC
 template<> struct small_uint<0x100000001LL> { typedef uint64_t t; };
+#endif
 //#endif
 
 
@@ -149,16 +153,16 @@ class FirstFitAllocator {
 			}
 			
 			block_data_t *end = memory_;
-			int to_allocate = sizeof(T) * n;
+			size_t to_allocate = sizeof(T) * n;
 			
 			size_t prev = Chunk::NONE;
 			for(size_t c = first_chunk_id_; c != Chunk::NONE; c = reserved_[c].next()) {
-				if((reserved_[c].start() - end) >= to_allocate) { break; }
+				if( ((size_t)(reserved_[c].start() - end)) >= to_allocate) { break; }
 				end = reserved_[c].end();
 				prev = c;
 			} // for c
 			
-			if(reserved_[prev].next() == Chunk::NONE && to_allocate > (memory_ + BUFFER_SIZE - reserved_[prev].end())) { // insert at end of memory
+			if(reserved_[prev].next() == Chunk::NONE && to_allocate > (size_t)(memory_ + BUFFER_SIZE - reserved_[prev].end())) { // insert at end of memory
 				assert(false && "Reached end of memory");
 				return 0;
 			}

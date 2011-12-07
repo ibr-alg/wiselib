@@ -36,6 +36,7 @@ namespace wiselib {
 				typedef list_dynamic_iterator<List> iterator_type;
 				typedef list_dynamic_iterator<List> self_type;
 				typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
+				typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
 				
 				list_dynamic_iterator() : list_(0) { }
 				list_dynamic_iterator(List& l) : list_(&l) { }
@@ -95,6 +96,7 @@ namespace wiselib {
 			typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
 			typedef typename Allocator::template pointer_t<node_type> node_ptr_t;
 			typedef list_dynamic<OsModel_P, Value_P, Allocator_P> self_type;
+			typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
