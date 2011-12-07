@@ -225,10 +225,18 @@ namespace wiselib
       }
       ///@}
       
-      void grow() { resize(capacity_ * 2); }
+      void grow() {
+         if(capacity_ == 0) {
+            resize(VECTOR_DYNAMIC_MIN_SIZE);
+         }
+         else {
+            resize(capacity_ * 2);
+         }
+      }
       void shrink() { resize(capacity_ / 2); }
       
       void resize(size_t n) {
+         assert(allocator_);
          assert(n >= size_);
          pointer new_buffer = allocator_->template allocate_array<value_type>(n);
          
