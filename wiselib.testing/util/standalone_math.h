@@ -41,6 +41,17 @@ class StandaloneMath {
 			return 0;
 		}
 		
+		template<typename T>
+		static T abs(T x) {
+			if(x >= 0) { return x; }
+			return -x;
+		}
+		
+		template<typename T>
+		static T max(T a, T b) {
+			return (a > b) ? a : b;
+		}
+		
 		/// chop off everything after the decimal dot
 		static integer_t trunc(real_t);
 		/// round to nearest integer that is <= value
