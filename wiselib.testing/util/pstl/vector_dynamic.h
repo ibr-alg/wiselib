@@ -35,10 +35,10 @@ namespace wiselib
    {
    public:
       typedef Value_P value_type;
+      typedef Allocator_P Allocator;
       typedef value_type* pointer;
       typedef value_type& reference;
 
-      typedef Allocator_P Allocator;
       typedef vector_dynamic<OsModel_P, value_type, Allocator_P> vector_type;
       typedef vector_dynamic<OsModel_P, value_type, Allocator_P> self_type;
       typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
@@ -47,11 +47,11 @@ namespace wiselib
 
       typedef typename OsModel_P::size_t size_type;
       // --------------------------------------------------------------------
-      vector_dynamic() : allocator_(0), size_(0), buffer_(0)
+      vector_dynamic() : allocator_(0), size_(0), capacity_(0), buffer_(0)
       {
       }
       // --------------------------------------------------------------------
-      vector_dynamic(Allocator& alloc) : allocator_(&alloc), size_(0), buffer_(0)
+      vector_dynamic(Allocator& alloc) : allocator_(&alloc), size_(0), capacity_(0), buffer_(0)
       {
       }
       // --------------------------------------------------------------------
@@ -74,10 +74,10 @@ namespace wiselib
       ///@name Iterators
       ///@{
       iterator begin()
-      { return iterator( buffer_ ); }
+      { return iterator( buffer_.raw() ); }
       // --------------------------------------------------------------------
       iterator end()
-      { return iterator( buffer_ + size_ ); }
+      { return iterator( buffer_.raw() + size_ ); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Capacity
@@ -152,7 +152,7 @@ namespace wiselib
          if ( size_ > 0 )
             --size_;
          
-         if(size_ < capacity_ / 4) {
+         if(size_ < (capacity_ / 4)) {
             shrink();
          }
       }
@@ -226,7 +226,7 @@ namespace wiselib
       ///@}
       
       void grow() {
-         if(capacity_ == 0) {
+         if(capacity_ < VECTOR_DYNAMIC_MIN_SIZE) {
             resize(VECTOR_DYNAMIC_MIN_SIZE);
          }
          else {
@@ -238,7 +238,7 @@ namespace wiselib
       void resize(size_t n) {
          assert(allocator_);
          assert(n >= size_);
-         pointer new_buffer = allocator_->template allocate_array<value_type>(n);
+         buffer_pointer_t new_buffer = allocator_->template allocate_array<value_type>(n);
          
          if(buffer_) {
             for(size_type i=0; i<size_; i++) {
@@ -254,9 +254,10 @@ namespace wiselib
    protected:
      // value_type vec_[VECTOR_SIZE];
 
-      pointer buffer_;
+      typename Allocator::self_pointer_t allocator_;
       size_type size_, capacity_;
-      Allocator::self_pointer_t allocator_;
+      typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
+      buffer_pointer_t buffer_;
    };
 
 }

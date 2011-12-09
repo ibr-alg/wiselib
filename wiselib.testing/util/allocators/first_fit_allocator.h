@@ -94,6 +94,7 @@ class FirstFitAllocator {
 				T* operator->() { return raw(); }
 				//T& operator[](size_t idx) { return raw()[idx]; }
 				const T& operator[](size_t idx) const { return chunk_[idx]; }
+				T& operator[](size_t idx) { return chunk_[idx]; }
 				bool operator==(const pointer_t& other) const { return chunk_ == other.chunk_; }
 				bool operator!=(const pointer_t& other) const { return chunk_ != other.chunk_; }
 				operator bool() const { return chunk_ != 0; }
@@ -109,7 +110,7 @@ class FirstFitAllocator {
 		struct array_pointer_t {
 			public:
 				array_pointer_t() : chunk_(0), offset_(0) { }
-				array_pointer_t(Chunk* c) : chunk_(c), offset_(0) { }
+				array_pointer_t(Chunk* c, size_t offset=0) : chunk_(c), offset_(offset) { }
 				array_pointer_t(const array_pointer_t& other) : chunk_(other.chunk_), offset_(other.offset_) { }
 				array_pointer_t& operator=(const array_pointer_t& other) {
 					chunk_ = other.chunk_;
@@ -126,6 +127,7 @@ class FirstFitAllocator {
 				bool operator!=(const array_pointer_t& other) const { return chunk_ != other.chunk_; }
 				operator bool() const { return chunk_ != 0; }
 				array_pointer_t& operator++() { ++offset_; return *this; }
+				array_pointer_t operator+(size_t n) { return array_pointer_t(chunk_, offset_ + n); }
 			//	array_pointer_t& operator--() { --offset_; return *this; }
 				T* raw() { return reinterpret_cast<T*>(chunk_->start()) + offset_; }
 				const T* raw() const { return reinterpret_cast<const T*>(chunk_->start()) + offset_; }
