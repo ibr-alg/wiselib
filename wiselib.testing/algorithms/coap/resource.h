@@ -20,17 +20,17 @@ namespace wiselib
          typedef String_P String;
          typedef delegate1<char *, uint8_t> my_delegate_t;
 
-         template<class T, char* ( T::*TMethod ) (uint8_t)>
+         template<class T, char* ( T::*TMethod ) ( uint8_t )>
          void reg_callback( T *obj_pnt )
          {
             del_ = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
          }
-         void value(uint8_t par )
+         void value( uint8_t par )
          {
             payload_ = NULL;
             if( del_ )
             {
-               payload_ = del_(par);
+               payload_ = del_( par );
                put_data_ = NULL;
             }
          }
@@ -53,13 +53,17 @@ namespace wiselib
          {
             interrupt_flag_ = flag;
          }
-         void set_put_data( uint8_t * put_data)
+         void set_put_data( uint8_t * put_data )
          {
             put_data_ = put_data;
          }
-         void set_method(uint8_t method)
+         void set_method( uint8_t method )
          {
             methods_ |= 1L << method;
+         }
+         void set_put_data_len( uint8_t put_data_len )
+         {
+            put_data_len_ = put_data_len;
          }
          char* name()
          {
@@ -81,7 +85,7 @@ namespace wiselib
          {
             return fast_resource_;
          }
-         uint8_t method_allowed(uint8_t method)
+         uint8_t method_allowed( uint8_t method )
          {
             return methods_ & 1L << method;
          }
@@ -105,6 +109,10 @@ namespace wiselib
          {
             return put_data_;
          }
+         uint8_t put_data_len()
+         {
+            return put_data_len_;
+         }
       private:
          //my_delegate_t del_;
          my_delegate_t del_;
@@ -118,6 +126,7 @@ namespace wiselib
          bool interrupt_flag_;
          char *payload_;
          uint8_t *put_data_;
+         uint8_t put_data_len_;
    };
 }
 #endif
