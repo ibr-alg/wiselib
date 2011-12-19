@@ -243,19 +243,19 @@ namespace wiselib
          {
             memcpy( token_, token, token_len_ );
          }
-         void set_block2_num(uint32_t block2_num)
+         void set_block2_num( uint32_t block2_num )
          {
             block2_num_ = block2_num;
          }
-         void set_block2_more(uint8_t block2_more)
+         void set_block2_more( uint8_t block2_more )
          {
             block2_more_ = block2_more;
          }
-         void set_block2_size(uint16_t block2_size)
+         void set_block2_size( uint16_t block2_size )
          {
             block2_size_ = block2_size;
          }
-         void set_block2_offset(uint32_t block2_offset)
+         void set_block2_offset( uint32_t block2_offset )
          {
             block2_offset_ = block2_offset;
          }
@@ -433,22 +433,27 @@ namespace wiselib
             }
             if ( is_option( BLOCK2 ) )
             {
-               buf_index += add_fence_opt(BLOCK2, &current_delta, buf + buf_index);
+               if ( add_fence_opt( BLOCK2, &current_delta, buf + buf_index ) == 1 )
+               {
+                  buf_index++;
+                  opt_count_++;
+               }
+               //buf_index += add_fence_opt( BLOCK2, &current_delta, buf + buf_index );
                uint32_t block = block2_num_ << 4;
                if ( block2_more_ )
                   block |= 0x8;
-               block |= 0xF & (block2_size_ >> 4);
+               block |= 0xF & ( power_of_two( block2_size_ ) - 4 );
                if ( block2_num_ > 4095 )
                {
                   buf[buf_index++] = ( BLOCK2 - current_delta ) << 4 | 0x03;
-                  buf[buf_index++] = 0xFF & (block >> 16);
-                  buf[buf_index++] = 0xFF & (block >> 8);
+                  buf[buf_index++] = 0xFF & ( block >> 16 );
+                  buf[buf_index++] = 0xFF & ( block >> 8 );
                   buf[buf_index++] = 0xFF & block;
                }
                else if ( block2_num_ > 7 )
                {
                   buf[buf_index++] = ( BLOCK2 - current_delta ) << 4 | 0x02;
-                  buf[buf_index++] = 0xFF & (block >> 8);
+                  buf[buf_index++] = 0xFF & ( block >> 8 );
                   buf[buf_index++] = 0xFF & block;
                }
                else
@@ -467,16 +472,16 @@ namespace wiselib
             buf[3] = 0xFF & ( mid_ >> 8 );
             buf[4] = 0xFF & mid_;
             //payload
-            memmove( &buf[buf_index], payload_, payload_len_ );
+            memcpy( &buf[buf_index], payload_, payload_len_ );
             return buf_index + payload_len_;
          }
       protected:
-         uint8_t add_fence_opt(uint8_t opt, uint8_t *delta, uint8_t *buf)
+         uint8_t add_fence_opt( uint8_t opt, uint8_t *delta, uint8_t *buf )
          {
             if ( opt - *delta > 15 )
             {
                buf[0] = 14 << 4;
-               *delta = 14;
+               *delta = *delta + 14;
                return 1;
             }
             return 0;
@@ -534,6 +539,16 @@ namespace wiselib
                opt_count_ += 1;
             }
             return buf_last;
+         }
+         uint8_t power_of_two( uint16_t num )
+         {
+            uint8_t i = 0;
+            while( num != 1 )
+            {
+               num >>= 1;
+               i++;
+            }
+            return i;
          }
       private:
          uint8_t version_;
