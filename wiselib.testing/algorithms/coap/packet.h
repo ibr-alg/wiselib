@@ -112,6 +112,7 @@ namespace wiselib
             mid_ = 0;
             options_ = 0x00;
             uri_path_len_ = 0;
+            uri_query_len_ = 0;
             payload_len_ = 0;
          }
          uint8_t version_w()
