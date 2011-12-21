@@ -330,11 +330,6 @@ namespace wiselib
                {
 
                   current_delta += current_opt[0] >> 4;
-                  if ( ( ( current_opt[0] >> 4 ) == 14 ) ) // fence option
-                  {
-                     current_opt += 1; //point to next option
-                     current_delta += current_opt[0];
-                  }
                   //get option length
                   if ( ( 0x0F & current_opt[0] ) < 15 )
                   {
@@ -345,6 +340,10 @@ namespace wiselib
                   {
                      opt_len = current_opt[1] + 15;
                      current_opt += 2; //point to option value
+                  }
+                  if ( current_delta == 14 && opt_len == 0 ) // fence post
+                  {
+                     continue;
                   }
 
                   switch ( current_delta )

@@ -181,7 +181,7 @@ namespace wiselib
                               coap_blockwise_response( &msg, &response, &data, &data_len );
                               response.set_payload( data );
                               response.set_payload_len( data_len );
-                              if ( msg.is_option( OBSERVE ) && resources_[resource_id].notify_time() > 0 && msg.is_option( TOKEN ) )
+                              if ( msg.is_option( OBSERVE ) && resources_[resource_id].notify_time_w() > 0 && msg.is_option( TOKEN ) )
                               {
                                  if ( coap_add_observer( &msg, from, resource_id ) == 1 )
                                  {
@@ -310,7 +310,11 @@ namespace wiselib
                   resp->set_block2_size( req->block2_size_w() );
                   resp->set_block2_num( req->block2_num_w() );
                }
-               if ( ( *data_len - req->block2_offset_w() ) > resp->block2_size_w() )
+               if ( *data_len < resp->block2_size_w() )
+               {
+                  resp->set_block2_more( 0 );
+               }
+               else if ( ( *data_len - req->block2_offset_w() ) > resp->block2_size_w() )
                {
                   resp->set_block2_more( 1 );
                   *data_len = resp->block2_size_w();
@@ -450,7 +454,7 @@ namespace wiselib
                memcpy( observe_token_[free_slot-1], msg->token_w(), msg->token_len_w() );
                observe_resource_[free_slot-1] = resource_id;
                observe_last_mid_[free_slot-1] = msg->mid_w();
-               timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[resource_id].notify_time(), this, ( void * ) resource_id );
+               timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[resource_id].notify_time_w(), this, ( void * ) resource_id );
                return 1;
             }
             return 0;
@@ -475,7 +479,7 @@ namespace wiselib
 
          void coap_notify_from_timer( void *resource_id )
          {
-            if ( resources_[( int )resource_id].interrupt_flag() == true )
+            if ( resources_[( int )resource_id].interrupt_flag_w() == true )
             {
                resources_[( int )resource_id].set_interrupt_flag( false );
                return;
@@ -532,7 +536,7 @@ namespace wiselib
                   coap_register_con_msg( observe_id_[i], notification.mid_w(), buf_, notification_size, coap_unregister_con_msg( observe_last_mid_[i], 0 ) );
                   observe_last_mid_[i] = notification.mid_w();
                   radio().send( observe_id_[i], notification_size, buf_ );
-                  timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[( int )resource_id].notify_time(), this, ( void * )resource_id );
+                  timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[( int )resource_id].notify_time_w(), this, ( void * )resource_id );
                }
             }
             increase_observe_counter();
