@@ -68,7 +68,7 @@ namespace wiselib
             uint8_t i;
             for( i = 1; i < CONF_MAX_RESOURCE_QUERIES; i++ )
             {
-               if ( (uint16_t) len == q_name_[i].length() && !strncmp( query, q_name_[i].c_str(), len ) )
+               if ( ( uint16_t ) len == q_name_[i].length() && !strncmp( query, q_name_[i].c_str(), len ) )
                {
                   return i;
                }
@@ -80,7 +80,10 @@ namespace wiselib
          {
             methods_[qid] |= 1L << method;
          }
-
+         void set_notify_time( uint16_t notify_time )
+         {
+            notify_time_ = notify_time;
+         }
          void set_interrupt_flag( bool flag )
          {
             interrupt_flag_ = flag;
@@ -115,7 +118,7 @@ namespace wiselib
             return methods_[qid] & 1L << method;
          }
 
-         uint16_t notify_time()
+         uint16_t notify_time_w()
          {
             return notify_time_;
          }
@@ -135,7 +138,7 @@ namespace wiselib
             return content_type_;
          }
 
-         bool interrupt_flag()
+         bool interrupt_flag_w()
          {
             return interrupt_flag_;
          }
@@ -144,11 +147,11 @@ namespace wiselib
          {
             return payload_;
          }
-         uint8_t * put_data()
+         uint8_t * put_data_w()
          {
             return put_data_;
          }
-         uint8_t put_data_len()
+         uint8_t put_data_len_w()
          {
             return put_data_len_;
          }
