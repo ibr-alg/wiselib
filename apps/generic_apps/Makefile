@@ -43,6 +43,9 @@ contiki_native:
 contiki_micaz:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_atmel TARGET=micaz ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
+contiki_inga:
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_atmel TARGET=inga ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
 feuerware:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.feuerware ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
