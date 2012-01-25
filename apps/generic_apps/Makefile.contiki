@@ -10,27 +10,45 @@ CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel $(ADD_CXXFLAGS
 
 LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
-   contiki-$(TARGET).a
+	contiki-$(TARGET).a
 
 ADD_LDFLAGS :=
 ifeq ($(TARGET), sky)
-	  ADD_LDFLAGS  += $(OBJECTDIR)/sky-sensors.o \
-			  $(OBJECTDIR)/light-sensor.o \
-			  $(OBJECTDIR)/sht11-sensor.o \
-			  $(OBJECTDIR)/sht11.o \
-			  $(OBJECTDIR)/battery-sensor.o
+	ADD_LDFLAGS  += $(OBJECTDIR)/sky-sensors.o \
+			$(OBJECTDIR)/light-sensor.o \
+			$(OBJECTDIR)/sht11-sensor.o \
+			$(OBJECTDIR)/sht11.o \
+			$(OBJECTDIR)/battery-sensor.o
 endif
 
 
 OUTPUT = out/contiki-$(TARGET)
 OUTHEX = out
 
-contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
+WISELIB_SRCS  = $(WISELIB_PATH)/external_interface/contiki/contiki_os.cpp \
+		$(WISELIB_PATH)/external_interface/contiki/contiki_timer.cpp \
+		$(WISELIB_PATH)/external_interface/contiki/contiki_radio.cpp \
+		$(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_extended_radio.cpp \
+		$(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_com_uart.cpp \
+		$(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_byte_com_uart.cpp \
+		$(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_sky_button_listener.cpp
+
+WISELIB_OBJS  = $(WISELIB_SRCS:.cpp=.o)
+
+$(WISELIB_OBJS): %.o : %.cpp
+	@echo
+	$(CC) $(CXXFLAGS) -o $@ -c $<
+
+$(OUTPUT)/$(BIN_OUT).o: ./$(APP_SRC)
+	@mkdir -p $(OUTPUT)
+	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
+
+contiki_msp: contiki-$(TARGET).a $(WISELIB_OBJS)
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_os.o \
 		-c $(WISELIB_PATH)/external_interface/contiki/contiki_os.cpp
-	msp430-g++ -DCONTIKI_TARGET__$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_timer.o \
+	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_timer.o \
 		-c $(WISELIB_PATH)/external_interface/contiki/contiki_timer.cpp
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_radio.o \
 		-c $(WISELIB_PATH)/external_interface/contiki/contiki_radio.cpp
@@ -56,26 +74,10 @@ contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
 	@echo "show sizes..."
 	msp430-size $(OUTPUT)/$(BIN_OUT).elf
 
-contiki_atmel: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
-	@mkdir -p $(OUTPUT)
+contiki_atmel: contiki-$(TARGET).a $(WISELIB_OBJS) $(OUTPUT)/$(BIN_OUT).o
 	@echo "compiling..."
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_os.o \
-		-c $(WISELIB_PATH)/external_interface/contiki/contiki_os.cpp
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_timer.o \
-		-c $(WISELIB_PATH)/external_interface/contiki/contiki_timer.cpp
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_radio.o \
-		-c $(WISELIB_PATH)/external_interface/contiki/contiki_radio.cpp
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_ext_radio.o \
-		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_extended_radio.cpp
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_uart.o \
-		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_com_uart.cpp
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/contiki_byte_uart.o \
-		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_byte_com_uart.cpp
-	avr-g++ $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
 	@echo "linking..."
-	avr-g++ $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).o \
-		$(OUTPUT)/contiki_os.o $(OUTPUT)/contiki_timer.o $(OUTPUT)/contiki_radio.o \
-		$(OUTPUT)/contiki_ext_radio.o $(OUTPUT)/contiki_uart.o $(OUTPUT)/contiki_byte_uart.o
+	avr-g++ $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).o $(WISELIB_OBJS)
 	@echo "make hex..."
 	avr-objcopy -O srec $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).srec
 	avr-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
