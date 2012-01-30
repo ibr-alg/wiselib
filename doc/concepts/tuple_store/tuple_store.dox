@@ -5,13 +5,7 @@ namespace concepts {
  */
 class TupleStore_concept : public Algorithm_concept {
 	public:
-		///
 		typedef ... iterator;
-		
-		///
-		typedef ... query_iterator;
-
-		///
 		typedef ... size_type;
 		
 		/**
@@ -21,31 +15,32 @@ class TupleStore_concept : public Algorithm_concept {
 		 * return an iterator to that tuple and don't insert anything.
 		 * Else, insert t and return an iterator to the inserted copy.
 		 */
-		template<typename T>
-		iterator insert(const T& t);
+		template<typename Tuple>
+		iterator insert(const Tuple& t);
 		
 		/**
 		 * Delete the tuple pointed to by iter from the store.
 		 */
-		int erase(iterator iter);
+		iterator erase(iterator iter);
 		
 		/**
 		 * Delete all tuples from the store.
 		 */
-		int clear();
+		void clear();
 
 		/**
 		 * \return Iterator pointing to a tuple that equals t if such a tuple
 		 * is in the store.
 		 * Return end() if no such tuple was found.
 		 */
+		template<typename Tuple>
 		iterator find(const Tuple& t);
 		
 		/**
 		 * \return Number of tuples in the store that equal \ref t (0 or 1)
 		 */
-		template<typename T>
-		size_t count(const T& t);
+		template<typename Tuple>
+		size_type count(const Tuple& t);
 
 		/**
 		 */
@@ -60,6 +55,7 @@ class TupleStore_concept : public Algorithm_concept {
 		size_type size();
 
 		/**
+		 * Return true iff there is no tuple in the store
 		 */
 		bool empty();
 		
@@ -71,22 +67,24 @@ class TupleStore_concept : public Algorithm_concept {
 		 * 
 		 * Return a query_iterator iterating over the results.
 		 */
-		template<typename Tuple>
-		query_iterator query_begin(const Tuple& t, int index = -1);
+//		template<typename Tuple>
+//		query_iterator query_begin(const Tuple& t, int index = -1);
 		
 		/**
 		 */
-		template<typename Tuple>
-		query_iterator query_end(const Tuple& t, int index = -1);
+//		template<typename Tuple>
+//		query_iterator query_end(const Tuple& t, int index = -1);
 
 		/**
 		 */
-		int create_index(size_t column);
+//		int create_index(size_t column);
 
 		/**
 		 */
-		int drop_index(size_t column);
+//		int drop_index(size_t column);
 };
 
 } // namespace
+
+// vim: set ft=cpp:
 

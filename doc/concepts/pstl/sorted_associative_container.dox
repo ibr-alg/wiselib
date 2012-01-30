@@ -39,3 +39,4 @@ class SortedAssociativeContainer_concept
     }
 };
 }
+// vim: set ft=cpp:
