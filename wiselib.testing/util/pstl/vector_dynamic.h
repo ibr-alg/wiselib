@@ -236,8 +236,8 @@ namespace wiselib
       void shrink() { resize(capacity_ / 2); }
       
       void resize(size_t n) {
-         assert(allocator_);
-         assert(n >= size_);
+         //assert(allocator_!=0);
+         //assert(n >= size_);
          buffer_pointer_t new_buffer = allocator_->template allocate_array<value_type>(n);
          
          if(buffer_) {

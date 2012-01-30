@@ -135,6 +135,7 @@ namespace wiselib {
 			bool operator>=(const string_dynamic& other) const { return cmp(other) >= 0; }
 			bool operator==(const string_dynamic& other) const { return cmp(other) == 0; }
 			bool operator!=(const string_dynamic& other) const { return cmp(other) != 0; }
+                        char operator[] (const size_t pos) const {return (pos >= size_) ? 0 : buffer_[pos]; }
 			
 			string_dynamic& append(const Char* other) {
 				return append(string_dynamic(other, allocator_));

@@ -59,7 +59,7 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef Timer_P Timer;
 			typedef typename OsModel::size_t size_t;
-			typedef typename OsModel::block_data_t block_data_t;
+			typedef char block_data_t;
 			typedef PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P> self_type;
 			typedef self_type* self_pointer_t;
 			
@@ -174,7 +174,7 @@ namespace wiselib {
 	
 	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
 	int PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::
-	write(size_t len, char* buf) {
+	write(size_t len, block_data_t* buf) {
 		// Block SIGALRM to avoid interrupting call of timer_handler.
 		sigset_t signal_set, old_signal_set;
 		if ( ( sigemptyset( &signal_set ) == -1 ) ||
