@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_SKY_BUTTON_SENSOR__
-#define __CONTIKI_SKY_BUTTON_SENSOR__
+#ifndef __CONTIKI_BUTTON_SENSOR__
+#define __CONTIKI_BUTTON_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
@@ -124,4 +124,4 @@ namespace wiselib
    };
 };
 
-#endif // __CONTIKI_SKY_BUTTON_SENSOR__
+#endif // __CONTIKI_BUTTON_SENSOR__
