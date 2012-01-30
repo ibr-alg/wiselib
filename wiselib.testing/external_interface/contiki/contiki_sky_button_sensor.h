@@ -24,13 +24,13 @@
 
 extern "C"
 {
-	#include "contiki.h" 
+	#include "contiki.h"
 	#include "dev/button-sensor.h"
 }
 
 namespace wiselib
 {
-	/** \brief Contiki Implementation of \ref request_sensor_concept "Request 
+	/** \brief Contiki Implementation of \ref request_sensor_concept "Request
 	 *  Sensor Concept"
 	 *
 	 * Contiki implementation of the \ref request_sensor_concept "Request
@@ -41,31 +41,31 @@ namespace wiselib
 	{
 	public:
 		typedef OsModel_P OsModel;
-		
+
 		typedef ContikiSkyButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
-		
+
 		typedef bool value_t;
-		
+
 		//------------------------------------------------------------------------
-		
+
 		enum ErrorCodes
 		{
 			SUCCESS = OsModel::SUCCESS,
 			ERR_UNSPEC = OsModel::ERR_UNSPEC
 		};
-		
+
 		//------------------------------------------------------------------------
-		
+
 		enum StateData
 		{
 			READY = OsModel::READY,
 			NO_VALUE = OsModel::NO_VALUE,
 			INACTIVE = OsModel::INACTIVE
 		};
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Constructor/Destructor
 		///
 		/** Default constructor
@@ -76,15 +76,15 @@ namespace wiselib
 			state_ = READY;
 			SENSORS_ACTIVATE( button_sensor );
 		}
-		
+
 		~ContikiSkyButtonSensor()
 		{
 			state_ = INACTIVE;
 		}
 		///
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the sensor
@@ -95,29 +95,29 @@ namespace wiselib
 		{
 			return state_;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
+
 		/** Returns current button status
 		 *
 		 *  \returns true, if button is pressed or false if it is currently
 		 *  released.
 		 */
 		value_t operator()( void )
-		{	
+		{
 			int button_pressed = button_sensor.value( 0 );
 			return button_pressed == 0;
 		}
-		
+
 		/** Disables the Sensor
-		 * 
+		 *
 		 */
 		void disable()
 		{
 				SENSORS_DEACTIVATE( button_sensor );
 		}
 		///
-		
+
 	private:
 		/// The current state
 		StateData state_;
