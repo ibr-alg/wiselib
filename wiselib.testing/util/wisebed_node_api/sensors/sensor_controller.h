@@ -75,7 +75,7 @@ namespace wiselib
             return 0;
 
          return (it->second.second)();
-      };
+      };        
       // --------------------------------------------------------------------
       bool has_sensor( uint8_t id )
       {
