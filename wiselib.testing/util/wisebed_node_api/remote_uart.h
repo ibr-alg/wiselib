@@ -202,22 +202,23 @@ public:
 
 		Message *msg = (Message*) data;
 
-#ifdef UTIL_REMOTE_UART_DEBUG
-		debug().debug("%x received REMOTE_UART_MESSAGE over UART with command type %d.", radio().id(), msg->command_type());
-#endif
+
 
 		if (msg->command_type() == REMOTE_UART_MESSAGE) {
+#ifdef UTIL_REMOTE_UART_DEBUG
+        		debug().debug("%ld received REMOTE_UART_MESSAGE over UART with command type %d.", radio().id(), msg->command_type());
+#endif
 
 			if (msg->destination() != radio().id()) {
 #ifdef UTIL_REMOTE_UART_DEBUG
-				debug().debug("%x forwarding REMOTE_UART_MESSAGE from node %x to node %x.", radio().id(), msg->source(), msg->destination());
+				debug().debug("%ld forwarding REMOTE_UART_MESSAGE from node %x to node %x.", radio().id(), msg->source(), msg->destination());
 #endif
 				radio().send(msg->destination(), len, data);
 
 			} else {
 
 #ifdef UTIL_REMOTE_UART_DEBUG
-				debug().debug("%x received REMOTE_UART_MESSAGE for himself. Unwrapping payload [size=%d] and notifying receivers.", radio().id(), msg->payload_length());
+				debug().debug("%ld received REMOTE_UART_MESSAGE for himself. Unwrapping payload [size=%d] and notifying receivers.", radio().id(), msg->payload_length());
 #endif
 				notify_receivers(msg->payload_length(), msg->payload());
 			}
@@ -252,7 +253,7 @@ public:
 			if (has_uart_ || connection_state_ == CONNECTED) {
 
 #ifdef UTIL_REMOTE_UART_DEBUG
-				debug().debug("%x received REMOTE_UART_SINK_REQUEST. Sending sink ID (%x) to requesting node %x.", radio().id(), sink_id_, msg->source());
+				debug().debug("%ld received REMOTE_UART_SINK_REQUEST. Sending sink ID (%x) to requesting node %ld.", radio().id(), sink_id_, msg->source());
 #endif
 
 				// even if we are not the sink but know the sink address, we send a REMOTE_UART_SINK_RESPONSE on behalf of the sink
@@ -273,7 +274,7 @@ public:
 		case REMOTE_UART_MESSAGE:
 
 #ifdef UTIL_REMOTE_UART_DEBUG
-			debug().debug("%x [has_uart=%i] received REMOTE_UART_MESSAGE [seq_id=%d, size=%d, source=%d].", radio().id(), has_uart_, msg->sequence_number(), msg->payload_length(), msg->source());
+			debug().debug("%ld [has_uart=%i] received REMOTE_UART_MESSAGE [seq_id=%d, size=%d, source=%ld].", radio().id(), has_uart_, msg->sequence_number(), msg->payload_length(), msg->source());
 #endif
 
 			if (has_uart_) {
@@ -283,7 +284,7 @@ public:
 			} else {
 
 #ifdef UTIL_REMOTE_UART_DEBUG
-				debug().debug("%x unwraps payload [size=%d] and delivers it to receivers.", radio().id(), msg->payload_length());
+				debug().debug("%ld unwraps payload [size=%d] and delivers it to receivers.", radio().id(), msg->payload_length());
 #endif
 				notify_receivers(msg->payload_length(), msg->payload());
 			}
@@ -295,7 +296,7 @@ public:
 			if (has_uart_ && sink_id_ == radio().id()) {
 
 #ifdef UTIL_REMOTE_UART_DEBUG
-				debug().debug("%x received REMOTE_UART_KEEP_ALIVE, sending response to node %x.", radio().id(), msg->source());
+				debug().debug("%ld received REMOTE_UART_KEEP_ALIVE, sending response to node %ld", radio().id(), msg->source());
 #endif
 
 				// build keep alive response message
@@ -314,7 +315,7 @@ public:
 			else if (sink_id_ == msg->source()) {
 
 #ifdef UTIL_REMOTE_UART_DEBUG
-				debug().debug("%x received REMOTE_UART_KEEP_ALIVE response from sink (%x).", radio().id(), msg->source());
+				debug().debug("%ld received REMOTE_UART_KEEP_ALIVE response from sink (%ld).", radio().id(), msg->source());
 #endif
 				connection_state_ = CONNECTED;
 			}

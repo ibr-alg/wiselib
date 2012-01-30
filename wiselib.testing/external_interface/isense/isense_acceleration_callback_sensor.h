@@ -36,9 +36,13 @@ namespace wiselib
 		 *  This struct is used to return the value of all three
 		 *  axes of an accelerometer.
 		 */
-		struct AccelerationData { 	int16 x;
-											int16 y;
-											int16 z; };
+	struct AccelerationData
+        {
+            int16 x;
+            int16 y;
+            int16 z;
+            uint32 timestamp;
+        };
 	};
 	#endif // __ACCEL_DATA__
 	
@@ -57,7 +61,7 @@ namespace wiselib
 	template <typename OsModel_P>
 	class iSenseAccelerationCallbackSensor 
 		:  public SensorCallbackBase<OsModel_P, 
-					 wiselib::sensorData::AccelerationData, 5>,
+					 wiselib::sensorData::AccelerationData*, 5>,
 			public isense::BufferDataHandler
 	{			
 	public:								
@@ -100,7 +104,7 @@ namespace wiselib
 		*
 		*/
 		iSenseAccelerationCallbackSensor( isense::Os& os ) 
-			: device_( os ), curState_( INACTIVE )
+			: device_( os ), curState_( INACTIVE ),divider_(1)
 		{
 			// Set this as the accelerometer's data handler
 			device_.set_handler( this );
@@ -113,6 +117,10 @@ namespace wiselib
 			
 			// Set Threshold = 0 so every measurement is propagated
 			device_.set_threshold( 0 );
+
+                        device_.set_handler_threshold(40);
+
+                        device_.set_narrow_band(true);
 			
 			curState_ = NO_VALUE;
 			
@@ -160,6 +168,7 @@ namespace wiselib
 		void set_divider( uint8 divider )
 		{
 			device_.set_divider( divider );
+                        divider_ = divider;
 		}
 		
 		//------------------------------------------------------------------------
@@ -251,13 +260,18 @@ namespace wiselib
 		{
 			if( data->count >= 1 )
 			{
-				value_.x = data->buf[ 0 + 3 * ( data->count - 1 ) ];
-				value_.y = data->buf[ 1 + 3 * ( data->count - 1 ) ];
-				value_.z = data->buf[ 2 + 3 * ( data->count - 1 ) ];
-				curState_ = READY;
+                            for(int i=0;i<data->count;++i){
+                                
+                                value_.timestamp = data->sec * 1000 + data->ms + i * divider_ * 25;
+                                
+                                value_.x = data->buf[ 0 + data->dim * i ];
+				value_.y = data->buf[ 1 + data->dim * i ];
+				value_.z = data->buf[ 2 + data->dim * i ];//3 * ( data->count - 1 )
 				
 				if( value_.x >= thrX_ || value_.y >= thrY_ || value_.z >= thrZ_ )
-					this->notify_receivers( value_ );
+					this->notify_receivers( &value_ );
+                            }
+                            curState_ = READY;
 			}
 		}
 		
@@ -298,6 +312,7 @@ namespace wiselib
 		
 		/// Thresholds for all axes
 		uint16 thrX_, thrY_, thrZ_;
+                uint8 divider_;
 	};
 };
 #endif
