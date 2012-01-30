@@ -119,4 +119,6 @@ namespace wiselib
 	};
 };
 
+// vim: noexpandtab:ts=3:sw=3
+
 #endif // __CONTIKI_BUTTON_SENSOR__

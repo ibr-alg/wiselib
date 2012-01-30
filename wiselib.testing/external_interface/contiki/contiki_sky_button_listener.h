@@ -30,66 +30,66 @@ extern "C"
 namespace wiselib
 {
 	typedef delegate0<void> contiki_sky_button_delegate_t;
-	
+
 	//---------------------------------------------------------------------------
-	
+
 	void initContikiSkyButtonListening();
 	int stopContikiSkyButtonListening();
-	
+
 	//---------------------------------------------------------------------------
-	
-	void contiki_sky_button_set_receiver( 
-									contiki_sky_button_delegate_t& delegate );
+
+	void contiki_sky_button_set_receiver(
+												contiki_sky_button_delegate_t& delegate );
 	void contiki_sky_button_delete_receiver();
-	
+
 	//---------------------------------------------------------------------------
-	
-	/** \brief Contiki Implementation of \ref callback_sensor_concept "Callback 
-	 *  sensor concept". 
-    *
-    * Contiki implementation of the \ref callback_sensor_concept "Callback 
-	 * sensor concept" This implementation let's you register for a callback 
+
+	/** \brief Contiki Implementation of \ref callback_sensor_concept "Callback
+	 *  sensor concept".
+	 *
+	 * Contiki implementation of the \ref callback_sensor_concept "Callback
+	 * sensor concept" This implementation let's you register for a callback
 	 * on an button event of contiki.
-    *
-    * @tparam OsModel_P Has to implement @ref os_concept "Os concept".
-    */ 
+	 *
+	 * @tparam OsModel_P Has to implement @ref os_concept "Os concept".
+	 */
 	template<typename OsModel_P>
-	class ContikiSkyButtonListener : 
+	class ContikiSkyButtonListener :
 		public SensorCallbackBase<OsModel_P, bool, 5>
 	{
 	public:
 		typedef OsModel_P OsModel;
-		
+
 		typedef bool value_t;
-		
+
 		typedef ContikiSkyButtonListener<OsModel_P> self_type;
 		typedef self_type* self_pointer_t;
-		
+
 		// Inherited from BasicReturnValues_concept
 		enum { SUCCESS,
-					ERR_UNSPEC,
-					ERR_NOMEM,
-					ERR_BUSY,
-					ERR_NOTIMPL,
-					ERR_NETDOWN,
-					ERR_HOSTUNREACH };
-					
+				 ERR_UNSPEC,
+				 ERR_NOMEM,
+				 ERR_BUSY,
+				 ERR_NOTIMPL,
+				 ERR_NETDOWN,
+				 ERR_HOSTUNREACH };
+
 		// Inherited from BasicSensor_concept
-		enum StateData { READY = OsModel_P::READY,
-								NO_VALUE = OsModel_P::NO_VALUE,
-								INACTIVE = OsModel_P::INACTIVE };
-								
+		enum StateData { READY = OsModel::READY,
+							  NO_VALUE = OsModel::NO_VALUE,
+							  INACTIVE = OsModel::INACTIVE };
+
 		// Inherited from BasicReturnValues_concept
 		/*enum StateValues { READY = READY,
 									NO_VALUE = NO_VALUE,
 									INACTIVE = INACTIVE };
-									
+
 		enum BasicReturnValues { OK = true,
 											FAILED = false };
 		*/
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Constructor/Destructor
 		///
 		/** Constructor
@@ -100,9 +100,9 @@ namespace wiselib
 			currentState_ = INACTIVE;
 		}
 		///
-		
+
 		//------------------------------------------------------------------------
-		
+
 		void init()
 		{
 			initContikiSkyButtonListening();
@@ -111,27 +111,27 @@ namespace wiselib
 					ContikiSkyButtonListener,
 					&ContikiSkyButtonListener::notify>( this );
 			contiki_sky_button_set_receiver( delegate );
-			
+
 			currentState_ = NO_VALUE;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the listener
-		*
-		*  \return The current state
-		*/
+		 *
+		 *  \return The current state
+		 */
 		int state()
 		{
 			return currentState_;
 		}
 		///
-		
+
 		//------------------------------------------------------------------------
-		
-		/** When calling this method all following button events will be ignored. 
+
+		/** When calling this method all following button events will be ignored.
 		 * Call init to start listening again.
 		 */
 		void disable()
@@ -139,12 +139,12 @@ namespace wiselib
 			stopContikiSkyButtonListening();
 			currentState_ = INACTIVE;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
+
 	private:
 		/** Method invoked when contiki button event occures
-		 * 
+		 *
 		 * This method will notify all receivers that a button event occured
 		 * through a callback
 		 */
@@ -153,10 +153,12 @@ namespace wiselib
 			currentState_ = READY;
 			this->notify_receivers( true );
 		}
-		
+
 		//------------------------------------------------------------------------
 		StateData currentState_;
 	};
 };
+
+// vim: noexpandtab:ts=3:sw=3
 
 #endif // _CONTIKI_SKY_BUTTON_LISTENER_

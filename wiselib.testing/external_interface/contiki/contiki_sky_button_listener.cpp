@@ -30,20 +30,20 @@ extern "C"
 namespace wiselib
 {
 	static contiki_sky_button_delegate_t receiver;
-	
+
 	PROCESS( button_event_process, "Button Event Listener" );
 
 	PROCESS_THREAD(button_event_process, ev, data)
-	{	
+	{
 		PROCESS_EXITHANDLER( return stopContikiSkyButtonListening() );
 		PROCESS_BEGIN();
-		
+
 		SENSORS_ACTIVATE(button_sensor);
-		
+
 		while (1)
 		{
 			PROCESS_WAIT_EVENT();
-			
+
 			if( ev == sensors_event )
 			{
 				if(data == &button_sensor)
@@ -52,30 +52,32 @@ namespace wiselib
 				}
 			}
 		}
-		
+
 		PROCESS_END();
 	}
-	
+
 	void initContikiSkyButtonListening()
 	{
 		receiver = contiki_sky_button_delegate_t();
 		process_start( &button_event_process, 0);
 	}
-	
+
 	int stopContikiSkyButtonListening()
 	{
 		SENSORS_DEACTIVATE(button_sensor);
 		contiki_sky_button_delete_receiver();
 		return 0;
 	}
-	
+
 	void contiki_sky_button_set_receiver( contiki_sky_button_delegate_t& d )
 	{
 		receiver = d;
 	}
-	
+
 	void contiki_sky_button_delete_receiver()
 	{
 		receiver = contiki_sky_button_delegate_t();
 	}
 }
+
+// vim: noexpandtab:ts=3:sw=3
