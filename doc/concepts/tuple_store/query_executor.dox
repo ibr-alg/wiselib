@@ -1,0 +1,14 @@
+
+namespace concepts {
+
+	/**
+	 */
+	class QueryXXX {
+		public:
+			typedef ... TupleStore;
+			typedef ... size_type;
+
+}
+
+// vim: set ft=cpp:
+
