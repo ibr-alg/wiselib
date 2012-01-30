@@ -10,6 +10,7 @@
 // end of wiselib defines
 // CONFIGURATION
 #define CONF_MAX_RESOURCES                  20
+#define CONF_MAX_RESOURCE_QUERIES           5
 #define CONF_MAX_OBSERVERS                  5
 #define CONF_MAX_MSG_LEN                    112
 #define CONF_MAX_PAYLOAD_LEN                64
@@ -109,6 +110,7 @@ namespace wiselib
             coap_packet_t msg;
             coap_packet_t response;
             uint8_t resource_id = 0;
+            uint8_t query_id = 0;
             uint8_t *data = NULL;
             uint8_t data_len;
             msg.init();
@@ -134,18 +136,19 @@ namespace wiselib
                }
                if ( msg.code_w() >= 1 && msg.code_w() <= 4 )
                {
-                  //debug().debug( "REC::REQUEST" );
+                  debug().debug( "REC::REQUEST" );
                   if ( find_resource( &resource_id, msg.uri_path_w(), msg.uri_path_len_w() ) == true )
                   {
-                     //debug().debug( "REC::RESOURCE FOUND" );
-                     if ( resources_[resource_id].method_allowed( msg.code_w() ) )
+                     debug().debug( "REC::RESOURCE FOUND" );
+                     query_id = resources_[resource_id].has_query( msg.uri_query_w(), msg.uri_query_len_w() );
+                     if ( resources_[resource_id].method_allowed( query_id, msg.code_w() ) )
                      {
-                        //debug().debug( "REC::METHOD_ALLOWED" );
+                        debug().debug( "REC::METHOD_ALLOWED" );
                         if( msg.type_w() == CON )
                         {
                            if ( resources_[resource_id].fast_resource() == false )
                            {
-                              //debug().debug( "REC::SLOW_RESPONSE" );
+                              debug().debug( "REC::SLOW_RESPONSE" );
                               response.set_type( ACK );
                               response.set_mid( msg.mid_w() );
                               coap_send( &response, from );
@@ -158,7 +161,7 @@ namespace wiselib
                            } // end of slow reply
                            else
                            {
-                              //debug().debug( "REC::FAST_RESPONSE" );
+                              debug().debug( "REC::FAST_RESPONSE" );
                               response.set_type( ACK );
                               response.set_mid( msg.mid_w() );
                            } // end of fast reply
@@ -170,14 +173,15 @@ namespace wiselib
                         switch ( msg.code_w() )
                         {
                            case GET:
-                              //debug().debug( "REC::GET_REQUEST" );
-                              response.set_code( coap_get_resource( msg.code_w(), resource_id, &data_len ) );
+                              debug().debug( "REC::GET_REQUEST" );
+                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len ) );
+                              response.set_option( CONTENT_TYPE );
                               response.set_content_type( resources_[resource_id].content_type() );
                               data = ( uint8_t * ) resources_[resource_id].payload();
-                              coap_blockwise_response( &msg, &response, data, &data_len );
+                              coap_blockwise_response( &msg, &response, &data, &data_len );
                               response.set_payload( data );
                               response.set_payload_len( data_len );
-                              if ( msg.is_option( OBSERVE ) && resources_[resource_id].notify_time() > 0 && msg.is_option( TOKEN ) )
+                              if ( msg.is_option( OBSERVE ) && resources_[resource_id].notify_time_w() > 0 && msg.is_option( TOKEN ) )
                               {
                                  if ( coap_add_observer( &msg, from, resource_id ) == 1 )
                                  {
@@ -187,12 +191,14 @@ namespace wiselib
                               } // end of add observer
                               break;
                            case PUT:
-                              //debug().debug("put: payload: %x", *(msg.payload_w()) );
+                              debug().debug( "REC::PUT_REQUEST" );
                               resources_[resource_id].set_put_data( msg.payload_w() );
-                              response.set_code( coap_get_resource( msg.code_w(), resource_id, &data_len ) );
+                              resources_[resource_id].set_put_data_len( msg.payload_len_w() );
+                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len ) );
+                              response.set_option( CONTENT_TYPE );
                               response.set_content_type( resources_[resource_id].content_type() );
                               data = ( uint8_t * ) resources_[resource_id].payload();
-                              coap_blockwise_response( &msg, &response, data, &data_len );
+                              coap_blockwise_response( &msg, &response, &data, &data_len );
                               response.set_payload( data );
                               response.set_payload_len( data_len );
                               break;
@@ -200,18 +206,18 @@ namespace wiselib
                      } // end of method is allowed
                      else
                      {
-                        //debug().debug( "REC::METHOD_NOT_ALLOWED" );
+                        debug().debug( "REC::METHOD_NOT_ALLOWED" );
                         response.set_code( METHOD_NOT_ALLOWED );
                      } // if( method_allowed )
                   } // end of resource found
                   else
                   {
-                     //debug().debug( "REC::NOT_FOUND" );
+                     debug().debug( "REC::NOT_FOUND" );
                      response.set_code( NOT_FOUND );
                   }
                   if ( msg.is_option( TOKEN ) )
                   {
-                     //debug().debug( "REC::IS_SET_TOKEN" );
+                     debug().debug( "REC::IS_SET_TOKEN" );
                      response.set_option( TOKEN );
                      response.set_token_len( msg.token_len_w() );
                      response.set_token( msg.token_w() );
@@ -222,7 +228,7 @@ namespace wiselib
                if ( msg.code_w() >= 64 && msg.code_w() <= 191 )
                {
                   debug().debug( "REC: %s", msg.payload_w() );
-                  //debug().debug( "REC::RESPONSE" );
+                  debug().debug( "REC::RESPONSE" );
                   switch ( msg.type_w() )
                   {
                      case CON:
@@ -245,7 +251,7 @@ namespace wiselib
                }
                if ( msg.code_w() == 0 )
                {
-                  //debug().debug( "REC::EMPTY" );
+                  debug().debug( "REC::EMPTY" );
                   //empty msg, ack, or rst
                   coap_unregister_con_msg( msg.mid_w(), 0 );
                   if ( msg.type_w() == RST )
@@ -279,18 +285,18 @@ namespace wiselib
             return false;
          } // end of find_resource
 
-         coap_status_t coap_get_resource( uint8_t method, uint8_t i, uint8_t* data_len )
+         coap_status_t coap_get_resource( uint8_t method, uint8_t id, uint8_t qid, uint8_t* data_len )
          {
-            resources_[i].value( method );
-            if ( resources_[i].payload() == NULL )
+            resources_[id].execute( qid, method );
+            if ( resources_[id].payload() == NULL )
             {
                return INTERNAL_SERVER_ERROR;
             }
-            *data_len = strlen( resources_[i].payload() );
+            *data_len = strlen( resources_[id].payload() );
             return CONTENT;
          }
 
-         void coap_blockwise_response( coap_packet_t *req, coap_packet_t *resp, uint8_t *data, uint8_t *data_len )
+         void coap_blockwise_response( coap_packet_t *req, coap_packet_t *resp, uint8_t **data, uint8_t *data_len )
          {
             if ( req->is_option( BLOCK2 ) )
             {
@@ -304,7 +310,11 @@ namespace wiselib
                   resp->set_block2_size( req->block2_size_w() );
                   resp->set_block2_num( req->block2_num_w() );
                }
-               if ( ( *data_len - req->block2_offset_w() ) > resp->block2_size_w() )
+               if ( *data_len < resp->block2_size_w() )
+               {
+                  resp->set_block2_more( 0 );
+               }
+               else if ( ( *data_len - req->block2_offset_w() ) > resp->block2_size_w() )
                {
                   resp->set_block2_more( 1 );
                   *data_len = resp->block2_size_w();
@@ -315,7 +325,7 @@ namespace wiselib
                   *data_len -= req->block2_offset_w();
                }
                resp->set_option( BLOCK2 );
-               data = data + req->block2_offset_w();
+               *data = *data + req->block2_offset_w();
                return;
             }
             if ( *data_len > CONF_MAX_PAYLOAD_LEN )
@@ -384,7 +394,7 @@ namespace wiselib
                retransmit_timeout_and_tries_[( int ) i] += 1;
                timeout_factor = timeout_factor << ( 0x0F & retransmit_timeout_and_tries_[( int ) i] );
 
-               //debug().debug( "RETRANSMIT!! %d, tries: %d", ( int ) i, 0x0F & retransmit_timeout_and_tries_[( int ) i] );
+               debug().debug( "RETRANSMIT!! %d, tries: %d", ( int ) i, 0x0F & retransmit_timeout_and_tries_[( int ) i] );
                radio().send( retransmit_id_[( int )i], retransmit_size_[( int ) i], retransmit_packet_[( int ) i] );
 
                if ( ( 0x0F & retransmit_timeout_and_tries_[( int ) i] ) == CONF_COAP_MAX_RETRANSMIT_TRIES )
@@ -444,7 +454,7 @@ namespace wiselib
                memcpy( observe_token_[free_slot-1], msg->token_w(), msg->token_len_w() );
                observe_resource_[free_slot-1] = resource_id;
                observe_last_mid_[free_slot-1] = msg->mid_w();
-               timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[resource_id].notify_time(), this, ( void * ) resource_id );
+               timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[resource_id].notify_time_w(), this, ( void * ) resource_id );
                return 1;
             }
             return 0;
@@ -469,7 +479,7 @@ namespace wiselib
 
          void coap_notify_from_timer( void *resource_id )
          {
-            if ( resources_[( int )resource_id].interrupt_flag() == true )
+            if ( resources_[( int )resource_id].interrupt_flag_w() == true )
             {
                resources_[( int )resource_id].set_interrupt_flag( false );
                return;
@@ -502,13 +512,7 @@ namespace wiselib
                   notification.set_type( CON );
                   notification.set_mid( coap_new_mid() );
 
-                  notification.set_option( TOKEN );
-                  notification.set_token_len( observe_token_len_[i] );
-                  notification.set_token( observe_token_[i] );
-                  //notification.set_option( URI_HOST );
-                  //notification.set_uri_host( observe_id_[i] );
-
-                  resources_[resource_id].value( GET );
+                  resources_[resource_id].execute( 0, GET );
                   data_value = resources_[resource_id].payload( );
                   if( data_value == NULL )
                   {
@@ -516,8 +520,13 @@ namespace wiselib
                   }
                   else
                   {
-                     debug().debug( "NOTIFY: Sensor value: %s", data_value );
+                     //debug().debug( "NOTIFY: Sensor value: %s", data_value );
                      notification.set_code( CONTENT );
+                     notification.set_option( CONTENT_TYPE );
+                     notification.set_content_type( resources_[resource_id].content_type() );
+                     notification.set_option( TOKEN );
+                     notification.set_token_len( observe_token_len_[i] );
+                     notification.set_token( observe_token_[i] );
                      notification.set_option( OBSERVE );
                      notification.set_observe( observe_counter() );
                   }
@@ -526,9 +535,8 @@ namespace wiselib
                   notification_size = notification.packet_to_buffer( buf_ );
                   coap_register_con_msg( observe_id_[i], notification.mid_w(), buf_, notification_size, coap_unregister_con_msg( observe_last_mid_[i], 0 ) );
                   observe_last_mid_[i] = notification.mid_w();
-
                   radio().send( observe_id_[i], notification_size, buf_ );
-                  timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[( int )resource_id].notify_time(), this, ( void * )resource_id );
+                  timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[( int )resource_id].notify_time_w(), this, ( void * )resource_id );
                }
             }
             increase_observe_counter();

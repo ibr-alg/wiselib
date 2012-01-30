@@ -34,3 +34,4 @@ class AssociativeContainer_concept
     value_type& operator[](const key_type& k);
 };
 }
+// vim: set ft=cpp:
