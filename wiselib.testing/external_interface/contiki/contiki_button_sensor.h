@@ -71,23 +71,19 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiSkyButtonSensor( )
+		ContikiSkyButtonSensor()
+			: state_( READY )
 		{
-			state_ = READY;
 			SENSORS_ACTIVATE( button_sensor );
 		}
-
-		~ContikiSkyButtonSensor()
-		{
-			state_ = INACTIVE;
-		}
-		///
 
 		//------------------------------------------------------------------------
 
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the sensor
+		 *
+		 * Is currently always Osmodel::READY!
 		 *
 		 *  \return The current state
 		 */
@@ -114,14 +110,14 @@ namespace wiselib
 		 */
 		void disable()
 		{
-				SENSORS_DEACTIVATE( button_sensor );
+			SENSORS_DEACTIVATE( button_sensor );
 		}
 		///
 
 	private:
 		/// The current state
 		StateData state_;
-   };
+	};
 };
 
 #endif // __CONTIKI_BUTTON_SENSOR__
