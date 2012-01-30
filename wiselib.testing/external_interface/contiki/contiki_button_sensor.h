@@ -101,8 +101,7 @@ namespace wiselib
 		 */
 		value_t operator()( void )
 		{
-			int button_pressed = button_sensor.value( 0 );
-			return button_pressed == 0;
+			return button_sensor.value( 0 );
 		}
 
 		/** Disables the Sensor
