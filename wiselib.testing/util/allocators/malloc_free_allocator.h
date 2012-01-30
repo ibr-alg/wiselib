@@ -46,6 +46,7 @@ class MallocFreeAllocator {
 				operator bool() const { return p_ != 0; }
 				pointer_t& operator++() { ++p_; return *this; }
 				pointer_t& operator--() { --p_; return *this; }
+                                pointer_t operator + (size_t i){return pointer_t(p_+i);}
 				
 				// Only for allocator-internal use! (we need to make this
 				// public for operator new to work)
