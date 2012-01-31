@@ -105,7 +105,7 @@ namespace wiselib
       /** \brief Initialization/Start Routing
       *
       *  This methods does the initilaization that requires access to the OS
-      *  (and thus can not be done in the constructor). E.g., callbacks in 
+      *  (and thus can not be done in the constructor). E.g., callbacks in
       *  task manager and radio are registered, and state variables regarding
       *  acting as gateway or ordinary node are set.
       *
@@ -117,7 +117,7 @@ namespace wiselib
       *
       *  Flooding messages in this context does not mean <i>flooding the
       *  whole network</i>. Instead, they are just local broadcast messages,
-      *  but since every node with a parent broadcasts such messages, the 
+      *  but since every node with a parent broadcasts such messages, the
       *  whole network is covere
       *
       *  \param os Reference to operating system
@@ -158,7 +158,7 @@ namespace wiselib
        *
        *  This method is called periodically with intervals defined by
        *  ::work_period_. Each connected node (the gateway and nodes that have
-       *  a parent) broadcast a message with their current hopcount, so that 
+       *  a parent) broadcast a message with their current hopcount, so that
        *  newly installed nodes can connect to the tree. If a node is not yet
        *  connected, it prints out an appropriate debug message.
        */

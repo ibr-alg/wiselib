@@ -7,7 +7,7 @@
  *    @{
  *       @defgroup basic_algorithm_concept Basic Algorithm
  *       @defgroup basic_return_values_concept Basic Return Values
- * 	 @defgroup request_concept Request
+ *       @defgroup request_concept Request
  *       @defgroup state_concept State
  *       @defgroup state_callback_concept StateCallback
  *    @}
