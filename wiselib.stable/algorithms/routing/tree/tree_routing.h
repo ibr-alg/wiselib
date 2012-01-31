@@ -98,7 +98,7 @@ namespace wiselib
       }
 
       inline int init();
-      inline int destruct();
+      inline int destroy();
 
       ///@name Routing Control
       ///@{
@@ -260,7 +260,7 @@ namespace wiselib
             typename Debug_P>
    int
    TreeRouting<OsModel_P, Radio_P, Timer_P, Debug_P>::
-   destruct( void )
+   destroy( void )
    {
       return disable_radio();
    }
