@@ -1,0 +1,62 @@
+#include "basic_algorithm.h"
+
+namespace concepts
+{
+   /**
+    * Group nodes into possibly overlapping groups.
+    * 
+    * The user can define any number of properties for nodes. Groups will be
+    * created such that for each property P, the nodes for which
+    * add_property(P) has been called are split into connected components,
+    * each of which gets a group_id that is unique within that property (so
+    * the combination of property and group_id uniquely identifies a group).
+    */
+   class MultiGrouping_concept
+      : public BasicAlgorithm_concept
+   {
+      public:
+         typedef ... OsModel;
+         typedef ... self_pointer_t;
+         typedef ... Radio;
+         typedef Radio::node_id_t node_id_t;
+         
+         /**
+          * Property type. Each instance describes a category the node belongs
+          * to that will be further refined using groups.
+          */
+         typedef ... property_t;
+         
+         /// Type of group ids.
+         typedef ... group_id_t;
+         
+         enum SpecialGroupIds
+         {
+            /// Denotes that the node is not (yet) in a group.
+            NULL_GROUP_ID
+         };
+         
+         /**
+          * Add a property to this node.
+          */
+         void add_property(property_t property);
+         
+         /**
+          * Remove a property from this node.
+          */
+         void remove_property(property_t property);
+         
+         /**
+          * Return the (current) group id for the given property.
+          * Note that during executing of the algorithm, the group id of a
+          * given node/property combination might change (due to merging of
+          * groups etc...).
+          * In case a property is given that has not been added to the node or
+          * a group has not yet been enstablished, this method will return
+          * NULL_GROUP_ID.
+          */
+         group_id_t get_group_id(property_t property);
+   }
+   
+}
+
+// vim: set ts=3 sw=3 expandtab ft=cpp:
