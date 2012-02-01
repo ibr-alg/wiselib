@@ -428,7 +428,7 @@ namespace wiselib
          if ( state_ == TrGateway )
          {
             RoutingMessage *message = reinterpret_cast<RoutingMessage*>(data);
-            notify_receivers( message->source(), message->payload_size(), message->payload() );
+            this->notify_receivers( message->source(), message->payload_size(), message->payload() );
 #ifdef ROUTING_TREE_DEBUG
             debug().debug( "TreeRouting: Routing message at Gate from %i\n", message->source() );
 #endif
