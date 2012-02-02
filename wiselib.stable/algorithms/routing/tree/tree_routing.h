@@ -25,6 +25,12 @@
 #include "algorithms/routing/tree/tree_routing_message.h"
 #include "config.h"
 
+#ifdef CHECK_CONCEPTS
+#include <boost/concept_check.hpp>
+#include "concepts/extiface/os.h"
+#include "concepts/extiface/radio.h"
+#endif
+
 namespace wiselib
 {
 
@@ -45,6 +51,10 @@ namespace wiselib
    class TreeRouting
       : public RoutingBase<OsModel_P, Radio_P>
    {
+#ifdef CHECK_CONCEPTS
+      BOOST_CONCEPT_ASSERT((concept_check::Os<OsModel_P>));
+      BOOST_CONCEPT_ASSERT((concept_check::Radio<Radio_P>));
+#endif
    public:
       typedef OsModel_P OsModel;
       typedef Radio_P Radio;

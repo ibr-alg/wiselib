@@ -21,13 +21,18 @@
 
 #include "util/base_classes/radio_base.h"
 
+#ifdef CHECK_CONCEPTS
+#include <boost/concept_check.hpp>
+#include "concepts/extiface/radio.h"
+#endif
+
 namespace wiselib
 {
 
    /** \brief Base routing class
     *
     *  \ingroup routing_concept
-    * 
+    *
     *  Basic routing class that provides helpful classes like registration of
     *  callbacks.
     */
@@ -40,7 +45,11 @@ namespace wiselib
                          typename Radio_P::size_t,
                          typename Radio_P::block_data_t,
                          MAX_RECEIVERS>
-   {};
+   {
+#ifdef CHECK_CONCEPTS
+      BOOST_CONCEPT_ASSERT((concept_check::Radio<Radio_P>));
+#endif
+   };
 
 }
 #endif
