@@ -140,3 +140,4 @@ clean:
 		obj_* symbols.* contiki-* \
 		_TOSSIMmodule.so TOSSIM.* build/ simbuild/ app.xml
 	rm -f out/*
+	find . -executable -type f -delete

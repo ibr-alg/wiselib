@@ -1,5 +1,3 @@
-all: shawn
-
 CXX = g++
 CXXFLAGS = -g -I. -I$(SHAWN_INCLUDE_DIR)/src -I$(SHAWN_INCLUDE_DIR)/buildfiles \
 	-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) \
@@ -11,20 +9,25 @@ LDFLAGS = -L$(SHAWN_LIB_DIR) $(SHAWN_LINK_LIBS)
 OUTPUT = out/shawn
 OUTBIN = .
 
-shawn:
+shawn: $(OUTBIN)/$(BIN_OUT)
+
+vpath %.cpp $(WISELIB_PATH)/external_interface/shawn/standalone
+
+SHAWN_SRCS = shawn_standalone_init.cpp \
+		shawn_standalone_processor.cpp \
+		shawn_standalone_processor_factory.cpp \
+
+SHAWN_OBJS = $(patsubst %.cpp,$(OUTPUT)/%.o,$(SHAWN_SRCS))
+
+$(SHAWN_OBJS): $(OUTPUT)/%.o : %.cpp
 	@mkdir -p $(OUTPUT)
-	@echo "compiling..."
-	$(CXX) $(CXXFLAGS) -c \
-	  $(WISELIB_PATH)/external_interface/shawn/standalone/shawn_standalone_init.cpp \
-	  -o $(OUTPUT)/shawn_standalone_init.o
-	$(CXX) $(CXXFLAGS) -c \
-	  $(WISELIB_PATH)/external_interface/shawn/standalone/shawn_standalone_processor.cpp \
-	  -o $(OUTPUT)/shawn_standalone_processor.o
-	$(CXX) $(CXXFLAGS) -c \
-	  $(WISELIB_PATH)/external_interface/shawn/standalone/shawn_standalone_processor_factory.cpp \
-	  -o $(OUTPUT)/shawn_standalone_processor_factory.o
-	$(CXX) $(CXXFLAGS) -c ./$(APP_SRC) -o $(OUTPUT)/$(BIN_OUT).o
+	$(CXX) $(CXXFLAGS) -o $@ -c $<
+
+$(OUTPUT)/$(BIN_OUT).o: ./$(APP_SRC)
+	$(CXX) $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
+
+$(OUTBIN)/$(BIN_OUT): $(SHAWN_OBJS) $(OUTPUT)/$(BIN_OUT).o
+	@echo "$(SHAWN_OBJS)"
 	@echo "linking..."
-	$(CXX) $(OUTPUT)/shawn_standalone_init.o  $(OUTPUT)/shawn_standalone_processor.o \
-		$(OUTPUT)/shawn_standalone_processor_factory.o $(OUTPUT)/$(BIN_OUT).o \
+	$(CXX) $(SHAWN_OBJS) $(OUTPUT)/$(BIN_OUT).o \
 		-o $(OUTBIN)/$(BIN_OUT) $(LDFLAGS)
