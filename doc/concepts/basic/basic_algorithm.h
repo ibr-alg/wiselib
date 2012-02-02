@@ -1,10 +1,10 @@
 // vim: ts=3:sw=3
 
 template <class X>
-struct BasicAlgorithm
+struct BasicAlgorithmConcept
 {
    public:
-      BOOST_CONCEPT_USAGE(BasicAlgorithm)
+      BOOST_CONCEPT_USAGE(BasicAlgorithmConcept)
       {
          same_type(val_int, basic_algorithm.init());
          same_type(val_int, basic_algorithm.destroy());

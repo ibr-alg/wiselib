@@ -3,7 +3,7 @@
 // vim: ts=3:sw=3
 
 template <class X>
-struct Radio
+struct RadioConcept
 {
    public:
       typedef typename X::OsModel         OsModel;
@@ -16,7 +16,7 @@ struct Radio
       typedef typename X::SpecialNodeIds  SpecialNodeIds;
       typedef typename X::Restrictions    Restrictions;
 
-      BOOST_CONCEPT_USAGE(Radio)
+      BOOST_CONCEPT_USAGE(RadioConcept)
       {
          same_type(sni, X::BROADCAST_ADDRESS);
          same_type(sni, X::NULL_NODE_ID);
