@@ -1,13 +1,20 @@
+#ifndef BASIC_RETURN_VALUES_H
+#define BASIC_RETURN_VALUES_H
 // vim: ts=3:sw=3
 
+namespace wiselib
+{
+namespace concept_check
+{
+
 template <class X>
-struct BasicReturnValuesConcept
+struct BasicReturnValues
 {
    public:
       typedef typename X::ErrorCodes   ErrorCodes;
       typedef typename X::StateValues  StateValues;
 
-      BOOST_CONCEPT_USAGE(BasicReturnValuesConcept)
+      BOOST_CONCEPT_USAGE(BasicReturnValues)
       {
          same_type(ec, X::SUCCESS);
          same_type(ec, X::ERR_UNSPEC);
@@ -31,3 +38,8 @@ struct BasicReturnValuesConcept
       template <typename T>
       void same_type(const T&, const T&);
 };
+
+}
+}
+
+#endif /* end of include guard: BASIC_RETURN_VALUES_H */

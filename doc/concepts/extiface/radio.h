@@ -2,8 +2,13 @@
 #define WISELIB_CONCEPT_CHECK_RADIO
 // vim: ts=3:sw=3
 
+namespace wiselib
+{
+namespace concept_check
+{
+
 template <class X>
-struct RadioConcept
+struct Radio
 {
    public:
       typedef typename X::OsModel         OsModel;
@@ -16,7 +21,7 @@ struct RadioConcept
       typedef typename X::SpecialNodeIds  SpecialNodeIds;
       typedef typename X::Restrictions    Restrictions;
 
-      BOOST_CONCEPT_USAGE(RadioConcept)
+      BOOST_CONCEPT_USAGE(Radio)
       {
          same_type(sni, X::BROADCAST_ADDRESS);
          same_type(sni, X::NULL_NODE_ID);
@@ -55,5 +60,8 @@ struct RadioConcept
       template <typename T>
       void same_type(const T&, const T&);
 };
+
+}
+}
 
 #endif  // WISELIB_CONCEPT_CHECK_RADIO
