@@ -1,3 +1,5 @@
+#ifndef WISELIB_CONCEPT_CHECK_RADIO
+#define WISELIB_CONCEPT_CHECK_RADIO
 // vim: ts=3:sw=3
 
 template <class X>
@@ -53,3 +55,5 @@ struct Radio
       template <typename T>
       void same_type(const T&, const T&);
 };
+
+#endif  // WISELIB_CONCEPT_CHECK_RADIO
