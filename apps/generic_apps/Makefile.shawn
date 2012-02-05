@@ -10,6 +10,12 @@ LDFLAGS = -L$(SHAWN_LIB_DIR) $(SHAWN_LINK_LIBS)
 OUTPUT = out/shawn
 OUTBIN = .
 
+%.d: %.cpp
+	$(SHELL) -ec '$(CXX) -MM $(CXXFLAGS) $< \
+		| sed -e '\''1s|^|$$(OUTPUT)/|'\'' -e '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
+		[ -s $@ ] || rm -f $@'
+
+
 shawn: $(OUTBIN)/$(BIN_OUT)
 
 vpath %.cpp $(WISELIB_PATH)/external_interface/shawn/standalone
@@ -17,18 +23,16 @@ vpath %.cpp $(WISELIB_PATH)/external_interface/shawn/standalone
 SHAWN_SRCS = shawn_standalone_init.cpp \
 		shawn_standalone_processor.cpp \
 		shawn_standalone_processor_factory.cpp \
+		$(APP_SRC)
 
 SHAWN_OBJS = $(patsubst %.cpp,$(OUTPUT)/%.o,$(SHAWN_SRCS))
+include $(SHAWN_SRCS:.cpp=.d)
 
 $(SHAWN_OBJS): $(OUTPUT)/%.o : %.cpp
 	@mkdir -p $(OUTPUT)
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-$(OUTPUT)/$(BIN_OUT).o: ./$(APP_SRC)
-	$(CXX) $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
-
-$(OUTBIN)/$(BIN_OUT): $(SHAWN_OBJS) $(OUTPUT)/$(BIN_OUT).o
-	@echo "$(SHAWN_OBJS)"
+$(OUTBIN)/$(BIN_OUT): $(SHAWN_OBJS)
 	@echo "linking..."
-	$(CXX) $(SHAWN_OBJS) $(OUTPUT)/$(BIN_OUT).o \
+	$(CXX) $(SHAWN_OBJS) \
 		-o $(OUTBIN)/$(BIN_OUT) $(LDFLAGS)
