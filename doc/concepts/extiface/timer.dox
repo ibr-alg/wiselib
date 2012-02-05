@@ -30,7 +30,7 @@ class Timer_concept {
       typedef ... millis_t;
 
       /** Register timer event in millis ms. When timer event fires, userdata
-       *  is passed as parameter. TMethod shall only be called repeadetly if
+       *  is passed as parameter. TMethod shall only be called repeatedly if
        *  set_timer is called from TMethod, i.e. no automatic repetition.
        */
       template<typename T, void (T::*TMethod)(void*)>

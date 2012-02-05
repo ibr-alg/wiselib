@@ -37,6 +37,8 @@ struct Radio
          same_type(val_int, radio.unreg_recv_callback(val_int));
       }
 
+      // BOOST_CONCEPT_ASSERT((concept_check::Os<OsModel>));
+
    private:
       X radio;
 

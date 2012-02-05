@@ -14,6 +14,8 @@ struct StateCallback : public BasicReturnValues<X>
       typedef typename X::OsModel OsModel;
       typedef typename X::value_t value_t;
 
+      BOOST_CONCEPT_ASSERT((concept_check::Os<OsModel>));
+
       BOOST_CONCEPT_USAGE(StateCallback)
       {
          same_type(st, X::READY);
