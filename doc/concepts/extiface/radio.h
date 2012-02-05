@@ -51,9 +51,8 @@ struct Radio
       size_t size;
       message_id_t message_id;
 
-      class callback {
-         public:
-            void method(node_id_t node_id, size_t size, block_data_t *block_data) {}
+      struct callback {
+         void method(node_id_t node_id, size_t size, block_data_t *block_data) {}
       };
       callback callback_obj;
 
