@@ -8,9 +8,6 @@ namespace concept_check
 {
 
 template <class X>
-class Os;
-
-template <class X>
 struct Debug
 {
    public:
