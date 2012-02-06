@@ -29,6 +29,9 @@
 #include <boost/concept_check.hpp>
 #include "concepts/extiface/os.h"
 #include "concepts/extiface/radio.h"
+#include "concepts/extiface/timer.h"
+#include "concepts/extiface/debug.h"
+#include "concepts/algorithm/routing.h"
 #endif
 
 namespace wiselib
@@ -54,6 +57,8 @@ namespace wiselib
 #ifdef CHECK_CONCEPTS
       BOOST_CONCEPT_ASSERT((concept_check::Os<OsModel_P>));
       BOOST_CONCEPT_ASSERT((concept_check::Radio<Radio_P>));
+      BOOST_CONCEPT_ASSERT((concept_check::Timer<Timer_P>));
+      BOOST_CONCEPT_ASSERT((concept_check::Debug<Debug_P>));
 #endif
    public:
       typedef OsModel_P OsModel;
@@ -78,8 +83,18 @@ namespace wiselib
       {
          SUCCESS = OsModel::SUCCESS,
          ERR_UNSPEC = OsModel::ERR_UNSPEC,
+         ERR_NOMEM = OsModel::ERR_NOMEM,
+         ERR_BUSY = OsModel::ERR_BUSY,
          ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-         ERR_NETDOWN = OsModel::ERR_NETDOWN
+         ERR_NETDOWN = OsModel::ERR_NETDOWN,
+         ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
+      };
+      // --------------------------------------------------------------------
+      enum StateValues
+      {
+         READY = OsModel::READY,
+         NO_VALUE = OsModel::NO_VALUE,
+         INACTIVE = OsModel::INACTIVE
       };
       // --------------------------------------------------------------------
       enum SpecialNodeIds
@@ -218,6 +233,7 @@ namespace wiselib
       node_id_t parent_;
       uint8_t hops_;
    };
+
    // -----------------------------------------------------------------------
    // -----------------------------------------------------------------------
    // -----------------------------------------------------------------------

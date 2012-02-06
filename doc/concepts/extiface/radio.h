@@ -35,12 +35,17 @@ struct Radio
 
          same_type(val_int, radio.template reg_recv_callback<callback, &callback::method>(&callback_obj));
          same_type(val_int, radio.unreg_recv_callback(val_int));
+
+         same_type(radio_p, self_pointer);
       }
 
+      // Disable circular check for now
       // BOOST_CONCEPT_ASSERT((concept_check::Os<OsModel>));
 
    private:
       X radio;
+
+      X* radio_p;
 
       SpecialNodeIds sni;
       Restrictions res;
