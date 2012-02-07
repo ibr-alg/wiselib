@@ -53,7 +53,7 @@ namespace wiselib {
 		typename Timer_P = typename OsModel_P::Timer
 	>
 	class PCComUartModel
-		: public UartBase<OsModel_P, typename OsModel_P::size_t, typename OsModel_P::block_data_t>
+		: public UartBase<OsModel_P, typename OsModel_P::size_t, char>
 	{
 		public:
 			typedef OsModel_P OsModel;
@@ -87,7 +87,7 @@ namespace wiselib {
 			int enable_serial_comm();
 			int disable_serial_comm();
 			
-			int write(size_t len, char* buf);
+			int write(size_t len, block_data_t* buf);
 			void try_read(void* userdata);
 			
 			const char* address() { return address_; }
@@ -237,7 +237,7 @@ namespace wiselib {
 			perror( "Failed to block SIGALRM" );
 		}
 
-		uint8_t buffer[BUFFER_SIZE];
+		block_data_t buffer[BUFFER_SIZE];
 		int bytes = ::read(port_fd_, static_cast<void*>(buffer), BUFFER_SIZE);
 		
 		if(bytes == -1) {
