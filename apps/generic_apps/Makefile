@@ -141,4 +141,4 @@ clean:
 		_TOSSIMmodule.so TOSSIM.* build/ simbuild/ app.xml
 	rm -f out/*
 	find . -executable -type f -delete
-	rm *.d
+	rm *.d *.hex
