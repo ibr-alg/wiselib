@@ -41,7 +41,7 @@ namespace wiselib
     // -----------------------------------------------------------------------
     template<typename Category_P,
              typename Iterator_P,
-             typename Distance_P  = uint16_t,
+             typename Distance_P  = int16_t,
              typename Pointer_P   = Iterator_P*,
              typename Reference_P = Iterator_P&>
     struct iterator
@@ -72,7 +72,7 @@ namespace wiselib
    {
       typedef random_access_iterator_tag iterator_category;
       typedef Iterator_P  value_type;
-      typedef uint16_t    difference_type;
+      typedef int16_t     difference_type;
       typedef Iterator_P* pointer;
       typedef Iterator_P& reference;
    };
