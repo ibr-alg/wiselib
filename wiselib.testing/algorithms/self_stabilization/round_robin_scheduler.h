@@ -53,6 +53,11 @@ namespace wiselib {
 				}
 			}
 			
+			int init() {
+				// TODO!
+				return 0;
+			}
+			
 			void init(Timer& timer, Debug& debug, Allocator& allocator,NeighborDiscovery& nd) {
 				timer_ = &timer;
 				debug_ = &debug;
@@ -63,8 +68,9 @@ namespace wiselib {
 				neighborhood_.set_allocator(allocator);
 			}
 			
-			void destruct() {
+			int destruct() {
 				nd_->destruct();
+				return 0; // TODO!
 			}
 			
 			void enable() {
