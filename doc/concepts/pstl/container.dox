@@ -46,3 +46,4 @@ class Container_concept
 };
 
 }
+// vim: set ft=cpp:
