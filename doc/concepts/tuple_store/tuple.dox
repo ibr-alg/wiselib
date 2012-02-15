@@ -14,7 +14,7 @@ class Tuple_concept {
 		 * Provide read-only or read/write access to the idx'th element
 		 * of the tuple.
 		 */
-		data_t at(size_t idx);
+		data_t operator[](size_t idx);
 		
 		/**
 		 * Return number of elements of the tuple.

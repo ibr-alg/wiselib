@@ -1,4 +1,4 @@
-#include "basic_algorithm.h"
+#include "../basic/basic_algorithm.dox"
 
 namespace concepts
 {
