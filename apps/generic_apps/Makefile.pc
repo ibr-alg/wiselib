@@ -4,7 +4,7 @@ CXX = g++
 CXX_BASE_FLAGS = -I. \
 	-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) \
 	-Wall -Wno-unknown-pragmas -O0 -g -DNDEBUG \
-	-DOSMODEL=PCOsModel -DPC
+	-DOSMODEL=PCOsModel -DPC $(ARCH)
 
 ifeq ($(WISELIB_EXIT_MAIN), 1)
 	CXXFLAGS = $(CXX_BASE_FLAGS) -DWISELIB_EXIT_MAIN=1
@@ -25,7 +25,7 @@ pc:
 	  -o $(OUTPUT)/main.o
 	$(CXX) $(CXXFLAGS) $(ADD_CXXFLAGS) -c ./$(APP_SRC) -o $(OUTPUT)/$(BIN_OUT).o
 	@echo "linking..."
-	$(CXX) $(OUTPUT)/main.o \
+	$(CXX) $(ARCH) $(OUTPUT)/main.o \
 		$(OUTPUT)/$(BIN_OUT).o \
 		-o $(OUTPUT)/$(BIN_OUT) $(LDFLAGS)
 	size $(OUTPUT)/$(BIN_OUT)
