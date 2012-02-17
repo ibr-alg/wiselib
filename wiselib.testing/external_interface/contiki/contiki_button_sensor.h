@@ -37,12 +37,12 @@ namespace wiselib
 	 * Sensor Concept" ...
 	 */
 	template<typename OsModel_P>
-	class ContikiSkyButtonSensor
+	class ContikiButtonSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
 
-		typedef ContikiSkyButtonSensor<OsModel> self_type;
+		typedef ContikiButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
 
 		typedef bool value_t;
@@ -71,7 +71,7 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiSkyButtonSensor()
+		ContikiButtonSensor()
 			: state_( READY )
 		{
 			SENSORS_ACTIVATE( button_sensor );
