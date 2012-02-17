@@ -67,9 +67,7 @@ $(OUTPUT)/$(BIN_OUT).elf: $(WISELIB_OBJS)
 
 $(OUTBIN)/$(BIN_OUT).hex: contiki-$(TARGET).a $(OUTPUT)/$(BIN_OUT).elf
 	@echo "make hex..."
-	avr-objcopy -O srec $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).srec
-	avr-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
-	avr-objcopy -O binary $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).bin
+	avr-objcopy -j .text -j .data -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
 	@cp $(OUTPUT)/$(BIN_OUT).hex $(OUTBIN)/
 	@echo "show sizes..."
 	avr-size $(OUTPUT)/$(BIN_OUT).elf
