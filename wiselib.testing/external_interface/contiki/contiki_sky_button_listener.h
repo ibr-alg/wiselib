@@ -29,7 +29,7 @@ extern "C"
 
 namespace wiselib
 {
-	typedef delegate0<void> contiki_sky_button_delegate_t;
+	typedef delegate1<void, bool> contiki_sky_button_delegate_t;
 
 	//---------------------------------------------------------------------------
 
@@ -148,10 +148,10 @@ namespace wiselib
 		 * This method will notify all receivers that a button event occured
 		 * through a callback
 		 */
-		void notify()
+		void notify( bool value )
 		{
 			currentState_ = READY;
-			this->notify_receivers( true );
+			this->notify_receivers( value );
 		}
 
 		//------------------------------------------------------------------------

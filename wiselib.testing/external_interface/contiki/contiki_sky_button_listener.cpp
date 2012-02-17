@@ -40,15 +40,15 @@ namespace wiselib
 
 		SENSORS_ACTIVATE(button_sensor);
 
-		while (1)
+		for ( ; ; )
 		{
 			PROCESS_WAIT_EVENT();
 
 			if( ev == sensors_event )
 			{
-				if(data == &button_sensor)
+				if( data == &button_sensor )
 				{
-					receiver();
+					receiver( button_sensor.value( 0 ) );
 				}
 			}
 		}
