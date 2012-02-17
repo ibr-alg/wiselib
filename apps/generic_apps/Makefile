@@ -104,6 +104,15 @@ flash-tinyos-sky:
 flash-gnode:
 	lnode-bsl -c $(PORT) -r -e -I -p out/$(BIN_OUT).hex
 
+flash-inga:
+	inga_tool -d $(PORT)
+	# delete last 5 lines of hex file to work around error when uploading
+	$(eval HEX_LINES := $(shell wc -l < out/contiki-inga/$(BIN_OUT).hex))
+	$(eval LOWER := $(shell echo "$(HEX_LINES)-5" | bc))
+	$(eval UPPER := $(shell echo "$(HEX_LINES)-1" | bc))
+	sed '$(LOWER),$(UPPER)d' out/contiki-inga/$(BIN_OUT).hex > tmp.hex
+	avrdude -v -b 230400 -P $(PORT) -c avr109 -p atmega1284p -U flash:w:tmp.hex
+	rm tmp.hex
 
 ###############################################################
 ##
