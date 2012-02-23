@@ -81,6 +81,7 @@ namespace wiselib {
 			
 			Allocator& allocator() { return *allocator_; }
 			void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
+			void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
 			
 			/**
 			 * If true, don't delete the internal buffer upon destruction.
@@ -103,6 +104,10 @@ namespace wiselib {
 			
 			
 			size_t size() const {
+				return size_;
+			}
+			
+			size_t length() const {
 				return size_;
 			}
 			
@@ -191,8 +196,8 @@ namespace wiselib {
 			}
 			
 			string_dynamic substr(int from, int length=-1) const {
-				if(length == 0) length == size_ - from;
-				return string_dynamic(buffer_.raw() + from, length);
+				if(length == 0) length = size_ - from;
+				return string_dynamic(buffer_.raw() + from, length, allocator_);
 			}
 			
 		private:

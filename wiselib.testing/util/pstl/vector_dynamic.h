@@ -227,7 +227,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       void clear()
       {
-         size_ = 0;
+         resize(0);
       }
       ///@}
       
@@ -264,7 +264,7 @@ namespace wiselib
       size_type size_, capacity_;
       typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       buffer_pointer_t buffer_;
-   };
+   } __attribute__((__packed__));
 
 }
 
