@@ -15,13 +15,15 @@ LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
 
 ADD_LDFLAGS :=
 ifeq ($(TARGET), sky)
-	ADD_LDFLAGS  += $(OBJECTDIR)/sky-sensors.o \
+	ADD_LDFLAGS += $(OBJECTDIR)/sky-sensors.o \
 			$(OBJECTDIR)/light-sensor.o \
 			$(OBJECTDIR)/sht11-sensor.o \
 			$(OBJECTDIR)/sht11.o \
 			$(OBJECTDIR)/battery-sensor.o
 endif
-
+ifeq ($(TARGET), inga)
+	ADD_LDFLAGS += $(OBJECTDIR)/acc-adxl345.o
+endif
 
 OUTPUT = out/contiki-$(TARGET)
 OUTBIN = .
@@ -54,7 +56,7 @@ $(WISELIB_OBJS): $(OUTPUT)/%.o : %.cpp
 
 $(OUTPUT)/$(BIN_OUT).elf: $(WISELIB_OBJS)
 	@echo "linking..."
-	$(CXX) $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(WISELIB_OBJS)
+	$(CXX) $(LDFLAGS) $(ADD_LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(WISELIB_OBJS)
 
 #contiki_msp: contiki-$(TARGET).a $(WISELIB_OBJS)
 #	@echo "make hex..."
