@@ -74,7 +74,12 @@ namespace wiselib
           for(size_t i = 0;i < vec.size_;++i){
               buffer_[size_++] = vec[i];
           }
-         return *this;
+          /*
+          for(int i=0; i<vec.size(); i++) {
+             assert(buffer_[i] == vec[i]);
+          }
+          */
+          return *this;
       }
       /*
       vector_dynamic& operator=( vector_dynamic& vec )
@@ -119,10 +124,12 @@ namespace wiselib
       ///@{
       const reference operator[](size_type n) const
       {
+     //    assert(n < size_);
          return *(this->buffer_ + n);
       }
       reference operator[](size_type n)
       {
+       //  assert(n < size_);
          return *(this->buffer_ + n);
       }
       // --------------------------------------------------------------------
@@ -169,6 +176,9 @@ namespace wiselib
          }
             
          buffer_[size_++] = x;
+         
+         //printf("v: %d %d\n", buffer_[0], buffer_[1]);
+         assert(buffer_[size_ - 1] == x);
       }
       // --------------------------------------------------------------------
       void pop_back()
@@ -277,6 +287,7 @@ namespace wiselib
          }
          buffer_ = new_buffer;
          capacity_ = n;
+         
       }
 
    protected:
