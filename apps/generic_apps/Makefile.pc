@@ -2,9 +2,10 @@ all: pc
 
 CXX = g++
 CXX_BASE_FLAGS = -I. \
-	-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) \
+	-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH)  -I/opt/local/include/ \
 	-Wall -Wno-unknown-pragmas -O0 -g -DNDEBUG \
-	-DOSMODEL=PCOsModel -DPC $(ARCH)
+	-DOSMODEL=PCOsModel -DPC -arch x86_64
+
 
 ifeq ($(WISELIB_EXIT_MAIN), 1)
 	CXXFLAGS = $(CXX_BASE_FLAGS) -DWISELIB_EXIT_MAIN=1
@@ -12,7 +13,7 @@ else
 	CXXFLAGS = $(CXX_BASE_FLAGS)
 endif
 
-LDFLAGS = -lrt -lpthread
+LDFLAGS = -lpthread
 
 OUTPUT = out/pc
 OUTBIN = .
@@ -20,12 +21,7 @@ OUTBIN = .
 pc:
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
-	$(CXX) $(CXXFLAGS) $(ADD_CXXFLAGS) -c \
+	$(CXX) $(CXXFLAGS) $(ADD_CXXFLAGS) \
 	  $(WISELIB_PATH_TESTING)/external_interface/pc/standalone/main.cc \
-	  -o $(OUTPUT)/main.o
-	$(CXX) $(CXXFLAGS) $(ADD_CXXFLAGS) -c ./$(APP_SRC) -o $(OUTPUT)/$(BIN_OUT).o
-	@echo "linking..."
-	$(CXX) $(ARCH) $(OUTPUT)/main.o \
-		$(OUTPUT)/$(BIN_OUT).o \
-		-o $(OUTPUT)/$(BIN_OUT) $(LDFLAGS)
+	  ./$(APP_SRC) -o $(OUTPUT)/$(BIN_OUT) $(LDFLAGS)
 	size $(OUTPUT)/$(BIN_OUT)

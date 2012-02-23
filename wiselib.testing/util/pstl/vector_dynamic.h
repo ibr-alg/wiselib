@@ -64,9 +64,15 @@ namespace wiselib
          }
       }
       // --------------------------------------------------------------------
-      vector_dynamic& operator=( const vector_dynamic& vec )
+      vector_dynamic& operator=( vector_dynamic& vec )
       {
-         // TODO
+          if(buffer_!= buffer_pointer_t()){
+              resize(0);
+              resize(vec.size_);
+          }
+          for(size_t i = 0;i < vec.size_;++i){
+              buffer_[size_++] = vec[i];
+          }
          return *this;
       }
       // --------------------------------------------------------------------

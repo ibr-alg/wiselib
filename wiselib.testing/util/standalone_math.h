@@ -60,6 +60,8 @@ class StandaloneMath {
 		static integer_t ceil(real_t);
 		/// round to nearest integer
 		static integer_t round(real_t);
+
+                static real_t pow(real_t,integer_t);
 		
 	private:
 		static real_t sin_degrees(integer_t);
@@ -342,6 +344,18 @@ typename StandaloneMath<OsModel_P>::integer_t
 StandaloneMath<OsModel_P>::
 ceil(typename StandaloneMath<OsModel_P>::real_t x) {
 	return -floor(-x);
+}
+
+template<typename OsModel_P>
+typename StandaloneMath<OsModel_P>::real_t
+StandaloneMath<OsModel_P>::
+pow(typename StandaloneMath<OsModel_P>::real_t x, typename StandaloneMath<OsModel_P>::integer_t exp) {
+    if(exp==0)
+        return 1;
+    for(int e = 1; e < exp; ++e){
+        x*=x;
+    }
+    return x;
 }
 
 template<typename OsModel_P>

@@ -34,7 +34,7 @@ namespace wiselib {
 			string_dynamic() : buffer_(0), size_(0), allocator_(0) { //, weak_(false) {
 			}
 			
-			string_dynamic(Allocator& alloc) : buffer_(0), size_(0), allocator_(&alloc) { //, weak_(false) {
+			string_dynamic(typename Allocator::self_pointer_t alloc) : buffer_(0), size_(0), allocator_(alloc) { //, weak_(false) {
 			}
 			
 			string_dynamic(const string_dynamic& other) : buffer_(0), size_(0), allocator_(other.allocator_) { //, weak_(false) {
