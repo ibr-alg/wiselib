@@ -64,6 +64,19 @@ namespace wiselib
          }
       }
       // --------------------------------------------------------------------
+      vector_dynamic& operator=( const vector_dynamic& vec )
+      {
+         allocator_ = vec.allocator_;
+          //if(buffer_!= buffer_pointer_t()){
+              clear();
+              resize(vec.capacity_);
+          //}
+          for(size_t i = 0;i < vec.size_;++i){
+              buffer_[size_++] = vec[i];
+          }
+         return *this;
+      }
+      /*
       vector_dynamic& operator=( vector_dynamic& vec )
       {
           if(buffer_!= buffer_pointer_t()){
@@ -75,6 +88,7 @@ namespace wiselib
           }
          return *this;
       }
+      */
       // --------------------------------------------------------------------
       void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
       ///@name Iterators
@@ -103,6 +117,10 @@ namespace wiselib
       // --------------------------------------------------------------------
       ///@name Element Access
       ///@{
+      const reference operator[](size_type n) const
+      {
+         return *(this->buffer_ + n);
+      }
       reference operator[](size_type n)
       {
          return *(this->buffer_ + n);
@@ -227,6 +245,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       void clear()
       {
+         size_ = 0;
          resize(0);
       }
       ///@}
@@ -244,7 +263,10 @@ namespace wiselib
       void resize(size_t n) {
          //assert(allocator_!=0);
          //assert(n >= size_);
-         buffer_pointer_t new_buffer = allocator_->template allocate_array<value_type>(n);
+         buffer_pointer_t new_buffer(0);
+         if(n != 0) {
+            new_buffer = allocator_->template allocate_array<value_type>(n);
+         }
          
          if(buffer_) {
             for(size_type i=0; i<size_; i++) {

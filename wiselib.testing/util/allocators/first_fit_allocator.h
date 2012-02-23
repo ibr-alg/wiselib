@@ -127,7 +127,8 @@ class FirstFitAllocator {
 				bool operator!=(const array_pointer_t& other) const { return chunk_ != other.chunk_; }
 				operator bool() const { return chunk_ != 0; }
 				array_pointer_t& operator++() { ++offset_; return *this; }
-				array_pointer_t operator+(size_t n) { return array_pointer_t(chunk_, offset_ + n); }
+				array_pointer_t operator+(size_t n) const { return array_pointer_t(chunk_, offset_ + n); }
+				//const array_pointer_t operator+(size_t n) const { return array_pointer_t(chunk_, offset_ + n); }
 			//	array_pointer_t& operator--() { --offset_; return *this; }
 				T* raw() { return reinterpret_cast<T*>(chunk_->start()) + offset_; }
 				const T* raw() const { return reinterpret_cast<const T*>(chunk_->start()) + offset_; }
