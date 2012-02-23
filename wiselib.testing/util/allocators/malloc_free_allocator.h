@@ -46,7 +46,7 @@ class MallocFreeAllocator {
 				operator bool() const { return p_ != 0; }
 				pointer_t& operator++() { ++p_; return *this; }
 				pointer_t& operator--() { --p_; return *this; }
-                                pointer_t operator + (size_t i){return pointer_t(p_+i);}
+                pointer_t operator + (size_t i){return pointer_t(p_+i);}
 				
 				// Only for allocator-internal use! (we need to make this
 				// public for operator new to work)
@@ -56,7 +56,7 @@ class MallocFreeAllocator {
 				T* p_;
 				
 			friend class MallocFreeAllocator<OsModel_P>;
-		};
+		} __attribute__((__packed__));
 		
 		template<typename T>
 		struct array_pointer_t : public pointer_t<T> {
@@ -74,10 +74,11 @@ class MallocFreeAllocator {
 				}
 				array_pointer_t& operator++() { ++this->p_; --elements_; return *this; }
 				array_pointer_t& operator--() { --this->p_; ++elements_; return *this; }
+				array_pointer_t operator+(size_t n) const { return array_pointer_t(this->p_, elements_); }
 				
 			private:
 				size_t elements_;
-		};
+		} __attribute__((__packed__));
 		
 		MallocFreeAllocator()
 			#if KEEP_STATS
@@ -167,7 +168,7 @@ class MallocFreeAllocator {
 		#if KEEP_STATS
 		unsigned long news_, deletes_;
 		#endif
-};
+} __attribute__((__packed__));
 
 
 } // namespace wiselib
