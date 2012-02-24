@@ -120,7 +120,8 @@ namespace wiselib
 
                         device_.set_handler_threshold(40);
 
-                        device_.set_narrow_band(true);
+			device_.set_extended_range( true );
+//                        device_.set_narrow_band(true);
 			
 			curState_ = NO_VALUE;
 			
