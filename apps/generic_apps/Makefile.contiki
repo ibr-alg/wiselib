@@ -44,6 +44,7 @@ WISELIB_SRCS = contiki_os.cpp \
 		contiki_com_uart.cpp \
 		contiki_byte_com_uart.cpp \
 		contiki_sky_button_listener.cpp \
+		contiki_gyro_listener.cpp \
 		$(APP_SRC)
 
 WISELIB_OBJS = $(patsubst %.cpp,$(OUTPUT)/%.o,$(WISELIB_SRCS))
