@@ -145,3 +145,4 @@ clean:
 	rm -f out/*
 	find . -executable -type f -delete
 	rm *.d *.hex
+	rmdir out
