@@ -65,7 +65,11 @@ namespace wiselib
 
 		///@name Constructor/Destructor
 		///
-		ContikiGyroSensor( )
+		ContikiGyroSensor( ) : state_( INACTIVE ) { }
+
+		//------------------------------------------------------------------------
+
+		int init()
 		{
 			adxl345_init( );
 			state_ = READY;

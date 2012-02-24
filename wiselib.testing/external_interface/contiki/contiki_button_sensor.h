@@ -71,12 +71,14 @@ namespace wiselib
 		/** Default constructor
 		 *
 		 */
-		ContikiButtonSensor()
-			: state_( READY )
+		ContikiButtonSensor() : state_( INACTIVE ) { }
+
+		//------------------------------------------------------------------------
+		int init()
 		{
 			SENSORS_ACTIVATE( button_sensor );
+			state_ = READY;
 		}
-
 		//------------------------------------------------------------------------
 
 		///@name Getters and Setters
