@@ -31,22 +31,24 @@ class VarInt {
       typedef typename Os::block_data_t block_data_t;
       typedef Integer_P int_t;
       
-      static void write(buffer_t& buffer, int_t v, bool continuation_bit = false) {
-         if((v >> 7) != 0) {
-            write(buffer, v >> 7, true);
+      static void write(buffer_t& buffer, int_t v) {
+         bool continuation = (v >> 7) != 0;
+         
+         byte_t::write(buffer, (v & DATA) | (continuation << 7));
+         if(continuation) {
+            write(buffer, v >> 7);
          }
-         byte_t::write(buffer, (v & DATA) | (continuation_bit << 7));
       }
       
-      static int_t read(buffer_t& buffer, int_t carry = 0) {
+      static int_t read(buffer_t& buffer) {
          bool continuation_bit = ((*buffer & CONTINUATION) != 0);
          int_t v = (*buffer & DATA);
          buffer++;
          
          if(continuation_bit) {
-            return read(buffer, (carry << 7) | v);
+            return v | (read(buffer) << 7);
          }
-         return (carry << 7) | v;
+         return v;
       }
          
    private:

@@ -1,8 +1,26 @@
 
 namespace concepts {
-
-
+	
+	/**
+	 */
+	class Dictionary_concept {
+		public:
+			typedef ... key_type;
+			typedef ... mapped_type;
+			
+			enum { NULL_KEY };
+			
+			key_type insert(mapped_type v);
+			size_type count(key_type k);
+			
+			key_type find(mapped_type v);
+			mapped_type& operator[](key_type k);
+			
+			/**
+			 * Return number of erased elements (should usually be 1).
+			 */
+			size_type erase(key_type k);
+	};
 }
 
 // vim: set ft=cpp:
-
