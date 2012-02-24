@@ -10,7 +10,6 @@
 #include "com_isense_radio.h"
 #include "pc_clock.h"
 #include "pc_debug.h"
-#include "pc_os.h"
 #include "pc_rand.h"
 #include "pc_timer.h"
 #include "pc_com_uart.h"
@@ -21,8 +20,10 @@ namespace wiselib {
 		: public DefaultReturnValues<PCOsModel>
 	{
 		public:
-			typedef PCOs AppMainParameter;
-			typedef PCOs Os;
+	      int argc;
+			const char** argv;
+
+			typedef PCOsModel AppMainParameter;
 			
 			typedef uint32_t size_t;
 			typedef uint8_t block_data_t;

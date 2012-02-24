@@ -71,7 +71,6 @@ namespace wiselib {
 			};
 			
 			PCComUartModel();
-			PCComUartModel(PCOs& os);
 			
 			void set_baudrate(uint32_t baudrate) {
 				switch(baudrate) {
@@ -106,11 +105,6 @@ namespace wiselib {
 			
 			void try_read();
 	}; // class PCComUartModel
-	
-	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
-	PCComUartModel<OsModel_P, isense_reset_, Timer_P>::
-	PCComUartModel(PCOs& os) : timer_(os), baudrate_(B9600), address_("/dev/ttyUSB0") {
-	}
 	
 	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
 	PCComUartModel<OsModel_P, isense_reset_, Timer_P>::

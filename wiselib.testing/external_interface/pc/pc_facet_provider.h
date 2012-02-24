@@ -4,7 +4,6 @@
 #define PC_FACET_PROVIDER_H
 
 #include "external_interface/facet_provider.h"
-#include "external_interface/pc/pc_os.h"
 #include "external_interface/pc/pc_os_model.h"
 
 namespace wiselib {
@@ -14,9 +13,9 @@ namespace wiselib {
 			typedef PCOsModel OsModel;
 			typedef Facet_P Facet;
 			
-			static Facet& get_facet(typename OsModel::Os& os) {
+			static Facet& get_facet(OsModel& os) {
 				if(!facet_) {
-					facet_ = new Facet(os);
+					facet_ = new Facet();
 				}
 				return *facet_;
 			}

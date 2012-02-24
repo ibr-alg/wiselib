@@ -18,10 +18,7 @@ namespace wiselib {
 			
 			PCDebug() {
 			}
-			
-			PCDebug(PCOs& os) {
-			}
-			
+						
 			void debug(const char* msg, ...) {
 				va_list fmtargs;
 				char buffer[1024];
