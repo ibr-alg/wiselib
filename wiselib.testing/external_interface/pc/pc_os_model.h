@@ -17,13 +17,9 @@
 #include "util/serialization/endian.h"
 
 namespace wiselib {
-	
-	char __uart_usb0[] = "/dev/ttyUSB0";
-	char __uart_usb1[] = "/dev/ttyUSB1";
-	
 	class PCOsModel
 		: public DefaultReturnValues<PCOsModel>
-		{
+	{
 		public:
 			typedef PCOs AppMainParameter;
 			typedef PCOs Os;
@@ -40,8 +36,8 @@ namespace wiselib {
 			typedef PCRandModel<PCOsModel> Rand;
 			typedef PCTimerModel<PCOsModel, 100> Timer;
 			
-			typedef PCComUartModel<PCOsModel, __uart_usb0, true> ISenseUart;
-			typedef PCComUartModel<PCOsModel, __uart_usb1, false> Uart;
+			typedef PCComUartModel<PCOsModel, true> ISenseUart;
+			typedef PCComUartModel<PCOsModel, false> Uart;
 			typedef ComISenseRadioModel<PCOsModel, ISenseUart> Radio;
 			
 			static const Endianness endianness = WISELIB_ENDIANNESS;
