@@ -71,8 +71,10 @@ namespace wiselib
 
 		int init()
 		{
+			// TODO check return code
 			adxl345_init( );
 			state_ = READY;
+			return SUCCESS;
 		}
 
 		//------------------------------------------------------------------------

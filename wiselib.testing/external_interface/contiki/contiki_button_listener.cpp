@@ -25,17 +25,17 @@ extern "C"
 	#include <stdio.h>
 }
 
-#include "contiki_sky_button_listener.h"
+#include "contiki_button_listener.h"
 
 namespace wiselib
 {
-	static contiki_sky_button_delegate_t receiver;
+	static contiki_button_delegate_t receiver;
 
 	PROCESS( button_event_process, "Button Event Listener" );
 
 	PROCESS_THREAD(button_event_process, ev, data)
 	{
-		PROCESS_EXITHANDLER( return stopContikiSkyButtonListening() );
+		PROCESS_EXITHANDLER( return stopContikiButtonListening() );
 		PROCESS_BEGIN();
 
 		SENSORS_ACTIVATE(button_sensor);
@@ -56,27 +56,27 @@ namespace wiselib
 		PROCESS_END();
 	}
 
-	void initContikiSkyButtonListening()
+	void initContikiButtonListening()
 	{
-		receiver = contiki_sky_button_delegate_t();
+		receiver = contiki_button_delegate_t();
 		process_start( &button_event_process, 0);
 	}
 
-	int stopContikiSkyButtonListening()
+	int stopContikiButtonListening()
 	{
 		SENSORS_DEACTIVATE(button_sensor);
-		contiki_sky_button_delete_receiver();
+		contiki_button_delete_receiver();
 		return 0;
 	}
 
-	void contiki_sky_button_set_receiver( contiki_sky_button_delegate_t& d )
+	void contiki_button_set_receiver( contiki_button_delegate_t& d )
 	{
 		receiver = d;
 	}
 
-	void contiki_sky_button_delete_receiver()
+	void contiki_button_delete_receiver()
 	{
-		receiver = contiki_sky_button_delegate_t();
+		receiver = contiki_button_delegate_t();
 	}
 }
 

@@ -17,8 +17,8 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef _CONTIKI_SKY_BUTTON_LISTENER_
-#define _CONTIKI_SKY_BUTTON_LISTENER_
+#ifndef _CONTIKI_BUTTON_LISTENER_
+#define _CONTIKI_BUTTON_LISTENER_
 
 extern "C"
 {
@@ -29,18 +29,18 @@ extern "C"
 
 namespace wiselib
 {
-	typedef delegate1<void, bool> contiki_sky_button_delegate_t;
+	typedef delegate1<void, bool> contiki_button_delegate_t;
 
 	//---------------------------------------------------------------------------
 
-	void initContikiSkyButtonListening();
-	int stopContikiSkyButtonListening();
+	void initContikiButtonListening();
+	int stopContikiButtonListening();
 
 	//---------------------------------------------------------------------------
 
-	void contiki_sky_button_set_receiver(
-												contiki_sky_button_delegate_t& delegate );
-	void contiki_sky_button_delete_receiver();
+	void contiki_button_set_receiver(
+												contiki_button_delegate_t& delegate );
+	void contiki_button_delete_receiver();
 
 	//---------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ namespace wiselib
 	 * @tparam OsModel_P Has to implement @ref os_concept "Os concept".
 	 */
 	template<typename OsModel_P>
-	class ContikiSkyButtonListener :
+	class ContikiButtonListener :
 		public SensorCallbackBase<OsModel_P, bool, 5>
 	{
 	public:
@@ -62,7 +62,7 @@ namespace wiselib
 
 		typedef bool value_t;
 
-		typedef ContikiSkyButtonListener<OsModel_P> self_type;
+		typedef ContikiButtonListener<OsModel_P> self_type;
 		typedef self_type* self_pointer_t;
 
 		// Inherited from BasicReturnValues_concept
@@ -95,7 +95,7 @@ namespace wiselib
 		/** Constructor
 		*
 		*/
-		ContikiSkyButtonListener()
+		ContikiButtonListener()
 		{
 			currentState_ = INACTIVE;
 		}
@@ -105,12 +105,12 @@ namespace wiselib
 
 		void init()
 		{
-			initContikiSkyButtonListening();
-			contiki_sky_button_delegate_t delegate =
-				contiki_sky_button_delegate_t::from_method<
-					ContikiSkyButtonListener,
-					&ContikiSkyButtonListener::notify>( this );
-			contiki_sky_button_set_receiver( delegate );
+			initContikiButtonListening();
+			contiki_button_delegate_t delegate =
+				contiki_button_delegate_t::from_method<
+					ContikiButtonListener,
+					&ContikiButtonListener::notify>( this );
+			contiki_button_set_receiver( delegate );
 
 			currentState_ = NO_VALUE;
 		}
@@ -136,7 +136,7 @@ namespace wiselib
 		 */
 		void disable()
 		{
-			stopContikiSkyButtonListening();
+			stopContikiButtonListening();
 			currentState_ = INACTIVE;
 		}
 
@@ -161,4 +161,4 @@ namespace wiselib
 
 // vim: noexpandtab:ts=3:sw=3
 
-#endif // _CONTIKI_SKY_BUTTON_LISTENER_
+#endif // _CONTIKI_BUTTON_LISTENER_

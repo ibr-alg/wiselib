@@ -78,6 +78,7 @@ namespace wiselib
 		{
 			SENSORS_ACTIVATE( button_sensor );
 			state_ = READY;
+			return SUCCESS;
 		}
 		//------------------------------------------------------------------------
 
