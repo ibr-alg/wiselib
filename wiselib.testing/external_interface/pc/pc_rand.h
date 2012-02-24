@@ -4,7 +4,7 @@
 #define PC_RAND_H
 
 #include <cstdlib>
-#include "external_interface/pc/pc_os.h"
+#include "external_interface/pc/pc_os_model.h"
 
 namespace wiselib {
 	
@@ -27,8 +27,7 @@ namespace wiselib {
 			};
 			
 			PCRandModel();
-			PCRandModel(PCOs& os);
-			PCRandModel(PCOs& os, value_t seed);
+			PCRandModel(value_t seed);
 			void srand(value_t seed);
 			value_t operator()();
 			int state();
@@ -43,12 +42,7 @@ namespace wiselib {
 	
 	template<typename OsModel_P>
 	PCRandModel<OsModel_P>::
-	PCRandModel(PCOs& os) {
-	}
-	
-	template<typename OsModel_P>
-	PCRandModel<OsModel_P>::
-	PCRandModel(PCOs& os, value_t seed) {
+	PCRandModel(value_t seed) {
 		::srand(seed);
 	}
 	
