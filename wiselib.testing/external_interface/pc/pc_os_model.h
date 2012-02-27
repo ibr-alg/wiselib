@@ -24,6 +24,7 @@ namespace wiselib {
 			const char** argv;
 
 			typedef PCOsModel AppMainParameter;
+			typedef PCOsModel Os;
 			
 			typedef uint32_t size_t;
 			typedef uint8_t block_data_t;
