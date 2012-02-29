@@ -46,6 +46,7 @@ namespace wiselib
       typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
 
       typedef typename OsModel_P::size_t size_type;
+      typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       // --------------------------------------------------------------------
       vector_dynamic() : allocator_(0), size_(0), capacity_(0), buffer_(0)
       {
@@ -149,7 +150,7 @@ namespace wiselib
       }
       // --------------------------------------------------------------------
       pointer data()
-      { return pointer(this->buffer_); }
+      { return pointer(&*buffer_); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Modifiers
@@ -289,13 +290,12 @@ namespace wiselib
          capacity_ = n;
          
       }
-
+      
    protected:
      // value_type vec_[VECTOR_SIZE];
 
       typename Allocator::self_pointer_t allocator_;
       size_type size_, capacity_;
-      typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       buffer_pointer_t buffer_;
    } __attribute__((__packed__));
 
