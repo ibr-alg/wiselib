@@ -22,6 +22,8 @@
 	#include <iomanip>
 #endif
 
+#include <util/global_pointer.h>
+
 
 template<typename T>
 void* operator new(size_t size, T* place) {
@@ -71,7 +73,9 @@ class FirstFitAllocator {
 		class Chunk;
 		typedef OsModel_P OsModel;
 		typedef FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS> self_type;
-		typedef self_type* self_pointer_t;
+		//typedef self_type* self_pointer_t;
+		typedef GlobalPointer<self_type> self_pointer_t;
+
 		typedef typename OsModel::size_t size_t;
 		typedef typename OsModel::block_data_t block_data_t;
 		
@@ -146,6 +150,7 @@ class FirstFitAllocator {
 		#endif
 			first_chunk_id_(Chunk::NONE)
 		{
+			printf("allocator init at %p\n", this);
 		}
 		
 		template<typename T>
@@ -187,6 +192,8 @@ class FirstFitAllocator {
 		
 		template<typename T>
 		pointer_t<T> allocate() {
+			//printf("%p -> allocate %d\n", this, sizeof(T));
+			assert(sizeof(T) != 0);
 			return pointer_t<T>(allocate_chunk<T>());
 		}
 		

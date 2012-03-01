@@ -96,7 +96,6 @@
 #include "external_interface/pc/pc_com_uart_file.h"
 #include "external_interface/pc/pc_debug.h"
 #include "external_interface/pc/pc_facet_provider.h"
-#include "external_interface/pc/pc_os.h"
 #include "external_interface/pc/pc_os_model.h"
 #include "external_interface/pc/pc_rand.h"
 #include "external_interface/pc/pc_timer.h"

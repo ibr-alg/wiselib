@@ -10,23 +10,21 @@
 #include "com_isense_radio.h"
 #include "pc_clock.h"
 #include "pc_debug.h"
-#include "pc_os.h"
 #include "pc_rand.h"
 #include "pc_timer.h"
 #include "pc_com_uart.h"
 #include "util/serialization/endian.h"
 
 namespace wiselib {
-	
-	char __uart_usb0[] = "/dev/ttyUSB0";
-	char __uart_usb1[] = "/dev/ttyUSB1";
-	
 	class PCOsModel
 		: public DefaultReturnValues<PCOsModel>
-		{
+	{
 		public:
-			typedef PCOs AppMainParameter;
-			typedef PCOs Os;
+	      int argc;
+			const char** argv;
+
+			typedef PCOsModel AppMainParameter;
+			typedef PCOsModel Os;
 			
 			typedef uint32_t size_t;
 			typedef uint8_t block_data_t;
@@ -40,8 +38,8 @@ namespace wiselib {
 			typedef PCRandModel<PCOsModel> Rand;
 			typedef PCTimerModel<PCOsModel, 100> Timer;
 			
-			typedef PCComUartModel<PCOsModel, __uart_usb0, true> ISenseUart;
-			typedef PCComUartModel<PCOsModel, __uart_usb1, false> Uart;
+			typedef PCComUartModel<PCOsModel, true> ISenseUart;
+			typedef PCComUartModel<PCOsModel, false> Uart;
 			typedef ComISenseRadioModel<PCOsModel, ISenseUart> Radio;
 			
 			static const Endianness endianness = WISELIB_ENDIANNESS;

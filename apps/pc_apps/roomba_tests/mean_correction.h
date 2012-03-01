@@ -1,1 +1,0 @@
-/* this file is only needed for matching the pattern rule in Makefile */
