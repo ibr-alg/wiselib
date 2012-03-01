@@ -178,7 +178,7 @@ namespace wiselib
          buffer_[size_++] = x;
          
          //printf("v: %d %d\n", buffer_[0], buffer_[1]);
-         assert(buffer_[size_ - 1] == x);
+//         assert(buffer_[size_ - 1] == x);
       }
       // --------------------------------------------------------------------
       void pop_back()
