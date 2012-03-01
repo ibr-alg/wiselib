@@ -48,16 +48,19 @@ namespace wiselib
       typedef typename OsModel_P::size_t size_type;
       typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       // --------------------------------------------------------------------
-      vector_dynamic() : allocator_(0), size_(0), capacity_(0), buffer_(0)
+      vector_dynamic() :  size_(0), capacity_(0), buffer_(0), allocator_(0)
       {
       }
       // --------------------------------------------------------------------
-      vector_dynamic(Allocator& alloc) : allocator_(&alloc), size_(0), capacity_(0), buffer_(0)
+      vector_dynamic(typename Allocator::self_pointer_t alloc) :  size_(0), capacity_(0), buffer_(0),allocator_(alloc)
       {
       }
       // --------------------------------------------------------------------
       vector_dynamic( const vector_dynamic& vec )
-      { *this = vec; }
+      {
+         printf("vec.cctor");
+         *this = vec;
+      }
       // --------------------------------------------------------------------
       ~vector_dynamic() {
          if(buffer_) {
@@ -67,6 +70,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
+         printf("vec=");
          allocator_ = vec.allocator_;
           //if(buffer_!= buffer_pointer_t()){
               clear();
@@ -96,7 +100,7 @@ namespace wiselib
       }
       */
       // --------------------------------------------------------------------
-      void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
+      void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
       ///@name Iterators
       ///@{
       iterator begin()
@@ -294,9 +298,9 @@ namespace wiselib
    protected:
      // value_type vec_[VECTOR_SIZE];
 
-      typename Allocator::self_pointer_t allocator_;
       size_type size_, capacity_;
       buffer_pointer_t buffer_;
+      typename Allocator::self_pointer_t allocator_;
    } __attribute__((__packed__));
 
 }
