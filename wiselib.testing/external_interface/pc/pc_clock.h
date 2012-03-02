@@ -6,7 +6,6 @@
 // TODO: De-Boostification
 
 #include "boost/date_time/posix_time/posix_time.hpp"
-#include "external_interface/pc/pc_os.h"
 
 namespace wiselib {
 	template<typename OsModel_P>
@@ -31,7 +30,6 @@ namespace wiselib {
 			};
 			
 			PCClockModel();
-			PCClockModel(PCOs& os);
 			
 			int state();
 			time_t time();
@@ -45,12 +43,7 @@ namespace wiselib {
 	PCClockModel<OsModel_P>::
 	PCClockModel() {
 	}
-	
-	template<typename OsModel_P>
-	PCClockModel<OsModel_P>::
-	PCClockModel(PCOs& os) {
-	}
-	
+		
 	template<typename OsModel_P>
 	int PCClockModel<OsModel_P>::
 	state() {

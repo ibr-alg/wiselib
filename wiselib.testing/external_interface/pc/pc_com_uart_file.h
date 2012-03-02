@@ -36,31 +36,32 @@ namespace wiselib {
 		enum { BUFFER_SIZE = 256 }; // should be enough for 19200 Baud (technically 20 should suffice)
 	}
 	
-	/**
-	 * Parameters
-	 * address_     -> UART Device address e.g. "/dev/ttyUSB0" (hint: allocate
-	 *                 char[] in order to be able to pass string template
-	 *                 parameter)
-	 * isense_reset -> If true, toggle RTS/DTR lines at beginning of communication so
+	/** \brief Uart model for PC
+	 *  \ingroup uart_concept
+	 *  \ingroup serial_communication_concept
+	 *
+         *  \note First use set_address() and set_baudrate() to configure
+         *    for your needs, then call enable_serial_comm() to get it working.
+         *
+	 *  \tparam isense_reset If true, toggle RTS/DTR lines at beginning of communication so
 	 *                 an attached iSense node will reboot.
 	 *                 Might confuse other UART devices so only use for
 	 *                 iSense.
 	 */
 	template<
 		typename OsModel_P,
-		const char* address_,
 		const bool isense_reset_ = false,
 		typename Timer_P = typename OsModel_P::Timer
 	>
 	class PCComUartModel
-		: public UartBase<OsModel_P, typename OsModel_P::size_t, typename OsModel_P::block_data_t>
+		: public UartBase<OsModel_P, typename OsModel_P::size_t, char>
 	{
 		public:
 			typedef OsModel_P OsModel;
 			typedef Timer_P Timer;
 			typedef typename OsModel::size_t size_t;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P> self_type;
+			typedef char block_data_t;
+			typedef PCComUartModel<OsModel_P, isense_reset_, Timer_P> self_type;
 			typedef self_type* self_pointer_t;
 			
 			enum ErrorCodes
@@ -70,7 +71,6 @@ namespace wiselib {
 			};
 			
 			PCComUartModel();
-			PCComUartModel(PCOs& os);
 			
 			void set_baudrate(uint32_t baudrate) {
 				switch(baudrate) {
@@ -83,11 +83,15 @@ namespace wiselib {
 						assert(false);
 				}
 			}
+
+			void set_address(const char* port) {
+				address_ = port;
+			}
 			
 			int enable_serial_comm();
 			int disable_serial_comm();
 			
-			int write(size_t len, char* buf);
+			int write(size_t len, block_data_t* buf);
 			void try_read(void* userdata);
 			
 			const char* address() { return address_; }
@@ -95,24 +99,20 @@ namespace wiselib {
 		private:
 			Timer timer_;
 			::speed_t baudrate_;
+                        const char* address_;
 			
 			int port_fd_;
 			
 			void try_read();
 	}; // class PCComUartModel
 	
-	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
-	PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::
-	PCComUartModel(PCOs& os) : timer_(os), baudrate_(B9600) {
-	}
-	
-	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
-	PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::
-	PCComUartModel() : baudrate_(B9600) {
+	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
+	PCComUartModel<OsModel_P, isense_reset_, Timer_P>::
+	PCComUartModel() : baudrate_(B9600), address_("/dev/ttyUSB0") {
 	}
 
-	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
-	int PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::enable_serial_comm() {
+	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
+	int PCComUartModel<OsModel_P, isense_reset_, Timer_P>::enable_serial_comm() {
 		// source: http://en.wikibooks.org/wiki/Serial_Programming/Serial_Linux
 		
 		struct termios attr;
@@ -165,16 +165,16 @@ namespace wiselib {
 		return SUCCESS;
 	}
 	
-	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
-	int PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::disable_serial_comm() {
+	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
+	int PCComUartModel<OsModel_P, isense_reset_, Timer_P>::disable_serial_comm() {
 		//close(port_fd_);
 		//port_fd_ = -1;
 		return SUCCESS;
 	}
 	
-	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
-	int PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::
-	write(size_t len, char* buf) {
+	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
+	int PCComUartModel<OsModel_P, isense_reset_, Timer_P>::
+	write(size_t len, block_data_t* buf) {
 		// Block SIGALRM to avoid interrupting call of timer_handler.
 		sigset_t signal_set, old_signal_set;
 		if ( ( sigemptyset( &signal_set ) == -1 ) ||
@@ -224,8 +224,8 @@ namespace wiselib {
 		return SUCCESS;
 	} // write
 
-	template<typename OsModel_P, const char* address_, const bool isense_reset_, typename Timer_P>
-	void PCComUartModel<OsModel_P, address_, isense_reset_, Timer_P>::
+	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
+	void PCComUartModel<OsModel_P, isense_reset_, Timer_P>::
 	try_read(void* userdata) {
 		
 		// Block SIGALRM to avoid interrupting call of timer_handler.
@@ -237,7 +237,7 @@ namespace wiselib {
 			perror( "Failed to block SIGALRM" );
 		}
 
-		uint8_t buffer[BUFFER_SIZE];
+		block_data_t buffer[BUFFER_SIZE];
 		int bytes = ::read(port_fd_, static_cast<void*>(buffer), BUFFER_SIZE);
 		
 		if(bytes == -1) {

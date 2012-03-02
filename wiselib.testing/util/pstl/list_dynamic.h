@@ -102,6 +102,7 @@ namespace wiselib {
 			
 			list_dynamic() : allocator_(0), first_node_(0), last_node_(0), weak_(false) { };
 			list_dynamic(Allocator& alloc) : allocator_(&alloc), first_node_(0), last_node_(0), weak_(false) { };
+			list_dynamic(typename Allocator::self_pointer_t alloc) : allocator_(alloc), first_node_(0), last_node_(0), weak_(false) { };
 			list_dynamic(const list_dynamic& other) : weak_(false) { *this = other; }
 			
 			~list_dynamic() {

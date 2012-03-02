@@ -4,7 +4,7 @@
 #define PC_WISELIB_APPLICATION_H
 
 #include "external_interface/wiselib_application.h"
-#include "external_interface/pc/pc_os.h"
+#include "external_interface/pc/pc_os_model.h"
 
 namespace wiselib {
 	template<typename Application_P>
@@ -13,7 +13,7 @@ namespace wiselib {
 			typedef PCOsModel OsModel;
 			typedef Application_P Application;
 			
-			void init(PCOs& os) {
+			void init(PCOsModel& os) {
 				app.init(os);
 			}
 		private:

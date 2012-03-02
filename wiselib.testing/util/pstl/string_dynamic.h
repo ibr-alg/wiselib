@@ -31,26 +31,26 @@ namespace wiselib {
 			typedef typename Allocator::template pointer_t<Char> char_pointer_t;
 			typedef typename Allocator::template array_pointer_t<Char> char_arr_pointer_t;
 			
-			string_dynamic() : buffer_(0), size_(0), allocator_(0), weak_(false) {
+			string_dynamic() : buffer_(0), size_(0), allocator_(0) { //, weak_(false) {
 			}
 			
-			string_dynamic(Allocator& alloc) : buffer_(0), size_(0), allocator_(&alloc), weak_(false) {
+			string_dynamic(typename Allocator::self_pointer_t alloc) : buffer_(0), size_(0), allocator_(alloc) { //, weak_(false) {
 			}
 			
-			string_dynamic(const string_dynamic& other) : buffer_(0), size_(0), allocator_(other.allocator_), weak_(false) {
+			string_dynamic(const string_dynamic& other) : buffer_(0), size_(0), allocator_(other.allocator_) { //, weak_(false) {
 				// TODO: Implement buffer sharing with copy-on-write
 				resize(other.size_);
 				to_buffer_(other.buffer_, size_);
 			}
 			
 			string_dynamic(const Char* c, typename Allocator::self_pointer_t alloc)
-				: buffer_(0), size_(0), allocator_(alloc), weak_(false) {
+				: buffer_(0), size_(0), allocator_(alloc) { //, weak_(false) {
 				resize(strlen((const char*)c));
 				to_buffer_(c, strlen((const char*)c));
 			}
 			
 			string_dynamic(const Char* c, size_t size, typename Allocator::self_pointer_t alloc)
-				: buffer_(0), size_(0), allocator_(alloc), weak_(false) {
+				: buffer_(0), size_(0), allocator_(alloc) { //, weak_(false) {
 				resize(size);
 				to_buffer_(c, size);
 			}
@@ -71,13 +71,17 @@ namespace wiselib {
 			}
 			
 			~string_dynamic() {
-				if(buffer_ && !weak_) {
+				if(buffer_) { // && !weak_) {
 					//allocator_->template free_array<Char>(buffer_.raw());
 					allocator_->template free_array<Char>(buffer_);
 					buffer_ = 0;
 					size_ = 0;
 				}
 			}
+			
+			Allocator& allocator() { return *allocator_; }
+			//void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
+			void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
 			
 			/**
 			 * If true, don't delete the internal buffer upon destruction.
@@ -90,16 +94,20 @@ namespace wiselib {
 			 * Only use if you know what you are doing! These methods are
 			 * basically a recipe for memory leaks!
 			 */
-			bool weak() const { return weak_; }
+			//bool weak() const { return weak_; }
 			
 			/**
 			 * Set/unset "weak" property.
 			 * See weak() for explanation on weakness.
 			 */
-			void set_weak(bool s) const { weak_ = s; }
+			//void set_weak(bool s) const { weak_ = s; }
 			
 			
 			size_t size() const {
+				return size_;
+			}
+			
+			size_t length() const {
 				return size_;
 			}
 			
@@ -122,12 +130,15 @@ namespace wiselib {
 			Char* data() { return buffer_.raw(); }
 			
 			int cmp(const string_dynamic& other) const {
-				if(size_ != other.size_) { return size_ < other.size_ ? -1 : size_ > other.size_; }
-				for(size_t i=0; i<size_; i++) {
-					if(buffer_[i] < other.buffer_[i]) { return -1; }
-					if(buffer_[i] > other.buffer_[i]) { return  1; }
+				int r = 0;
+				if(size_ != other.size_) { r = (size_ < other.size_) ? -1 : (size_ > other.size_); }
+				else {
+					for(size_t i=0; i<size_; i++) {
+						if(buffer_[i] < other.buffer_[i]) { r = -1; break; }
+						if(buffer_[i] > other.buffer_[i]) { r =  1; break; }
+					}
 				}
-				return 0;
+				return r;
 			}
 			bool operator<(const string_dynamic& other) const { return cmp(other) < 0; }
 			bool operator<=(const string_dynamic& other) const { return cmp(other) <= 0; }
@@ -135,6 +146,8 @@ namespace wiselib {
 			bool operator>=(const string_dynamic& other) const { return cmp(other) >= 0; }
 			bool operator==(const string_dynamic& other) const { return cmp(other) == 0; }
 			bool operator!=(const string_dynamic& other) const { return cmp(other) != 0; }
+			char operator[] (const size_t pos) const {return (pos >= size_) ? 0 : buffer_[pos]; }
+			//char operator[] (const size_t pos) {return (pos >= size_) ? 0 : buffer_[pos]; }
 			
 			string_dynamic& append(const Char* other) {
 				return append(string_dynamic(other, allocator_));
@@ -158,6 +171,24 @@ namespace wiselib {
 				return *this;
 			}
 			
+			string_dynamic& push_back(Char c) {
+				char_arr_pointer_t old_buffer = buffer_;
+				buffer_ = allocator_->template allocate_array<Char>(size_ + 2);
+				
+				if(old_buffer) {
+					to_buffer_(old_buffer, size_);
+				}
+				to_buffer_(&c, 1, size_);
+				
+				size_ = size_ + 1;
+				if(old_buffer) {
+					allocator_->template free_array<Char>(old_buffer);
+				}
+				buffer_[size_] = '\0';
+				
+				return *this;
+			}
+			
 			int first_index_of(Char c) const {
 				for(int i=0; i<size_; i++) {
 					if(buffer_[i] == c) { return i; }
@@ -166,13 +197,15 @@ namespace wiselib {
 			}
 			
 			string_dynamic substr(int from, int length=-1) const {
-				if(length == 0) length == size_ - from;
-				return string_dynamic(buffer_.raw() + from, length);
+				if(length == 0) length = size_ - from;
+				return string_dynamic(buffer_.raw() + from, length, allocator_);
 			}
 			
 		private:
 			template<typename T>
 			void to_buffer_(T src, size_t n, size_t offset = 0) {
+				if(n == 0) { return; }
+				
 				Char* ptr = buffer_.raw() + offset;
 				for(size_t i=0; i<n; i++) {
 					*ptr = *src;
@@ -183,8 +216,8 @@ namespace wiselib {
 			char_arr_pointer_t buffer_;
 			size_t size_;
 			typename Allocator::self_pointer_t allocator_;
-			mutable bool weak_;
-	};
+			//mutable bool weak_;
+	} __attribute__((__packed__));
 	
 	/**
 	 */

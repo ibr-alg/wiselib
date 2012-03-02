@@ -43,6 +43,12 @@ namespace wiselib
 		enum StateData { READY = OsModel_P::READY,
 								NO_VALUE = OsModel_P::NO_VALUE,
 								INACTIVE = OsModel_P::INACTIVE };
+                                                                
+                 enum ErrorCodes
+                  {
+                     SUCCESS = OsModel_P::SUCCESS,
+                     ERR_UNSPEC = OsModel_P::ERR_UNSPEC
+                  };
 						
 		typedef OsModel_P OsModel;
 		
