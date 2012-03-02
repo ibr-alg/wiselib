@@ -58,7 +58,6 @@ namespace wiselib
       // --------------------------------------------------------------------
       vector_dynamic( const vector_dynamic& vec )
       {
-         printf("vec.cctor");
          *this = vec;
       }
       // --------------------------------------------------------------------
@@ -70,7 +69,6 @@ namespace wiselib
       // --------------------------------------------------------------------
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
-         printf("vec=");
          allocator_ = vec.allocator_;
           //if(buffer_!= buffer_pointer_t()){
               clear();
@@ -274,6 +272,10 @@ namespace wiselib
          }
       }
       void shrink() { resize(capacity_ / 2); }
+      
+      void pack() {
+         resize(size_);
+      }
       
       void resize(size_t n) {
          //assert(allocator_!=0);
