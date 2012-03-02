@@ -15,6 +15,8 @@ class ExampleApplication
          timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
          debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
+         radio_->enable_radio();
+
          debug_->debug( "Hello World from Example Application!\n" );
 
          radio_->reg_recv_callback<ExampleApplication,
