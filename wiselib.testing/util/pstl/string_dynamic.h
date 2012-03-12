@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 
 #ifndef STRING_DYNAMIC_H
 #define STRING_DYNAMIC_H
@@ -80,7 +99,7 @@ namespace wiselib {
 			}
 			
 			Allocator& allocator() { return *allocator_; }
-			void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
+			//void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
 			void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
 			
 			/**
@@ -147,6 +166,7 @@ namespace wiselib {
 			bool operator==(const string_dynamic& other) const { return cmp(other) == 0; }
 			bool operator!=(const string_dynamic& other) const { return cmp(other) != 0; }
 			char operator[] (const size_t pos) const {return (pos >= size_) ? 0 : buffer_[pos]; }
+			//char operator[] (const size_t pos) {return (pos >= size_) ? 0 : buffer_[pos]; }
 			
 			string_dynamic& append(const Char* other) {
 				return append(string_dynamic(other, allocator_));
