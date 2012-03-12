@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 
 #ifndef __WISELIB_UTIL_ALLOCATORS_FIRST_FIT_ALLOCATOR_H
 #define __WISELIB_UTIL_ALLOCATORS_FIRST_FIT_ALLOCATOR_H
@@ -21,6 +40,8 @@
 	#include <iostream>
 	#include <iomanip>
 #endif
+
+#include <util/global_pointer.h>
 
 
 template<typename T>
@@ -71,7 +92,9 @@ class FirstFitAllocator {
 		class Chunk;
 		typedef OsModel_P OsModel;
 		typedef FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS> self_type;
-		typedef self_type* self_pointer_t;
+		//typedef self_type* self_pointer_t;
+		typedef GlobalPointer<self_type> self_pointer_t;
+
 		typedef typename OsModel::size_t size_t;
 		typedef typename OsModel::block_data_t block_data_t;
 		
@@ -146,6 +169,7 @@ class FirstFitAllocator {
 		#endif
 			first_chunk_id_(Chunk::NONE)
 		{
+			printf("allocator init at %p\n", this);
 		}
 		
 		template<typename T>
@@ -187,6 +211,8 @@ class FirstFitAllocator {
 		
 		template<typename T>
 		pointer_t<T> allocate() {
+			//printf("%p -> allocate %d\n", this, sizeof(T));
+			assert(sizeof(T) != 0);
 			return pointer_t<T>(allocate_chunk<T>());
 		}
 		
