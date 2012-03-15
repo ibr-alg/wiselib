@@ -342,6 +342,7 @@ namespace wiselib
          hops_ = 0;
 #ifdef ROUTING_TREE_DEBUG
          debug().debug( "TreeRouting: Start as sink/gateway, parent = %i\n", parent_ );
+			debug().debug( "TreeTester: NewRoot = %i\n", parent_ );
 #endif
       }
       else
@@ -352,6 +353,7 @@ namespace wiselib
          hops_   = 0xff;
 #ifdef ROUTING_TREE_DEBUG
          debug().debug( "TreeRouting: Start as ordinary node\n" );
+			debug().debug( "TreeTester: NewNode = %i\n", radio().id() ); 
 #endif
       }
       
@@ -390,10 +392,14 @@ namespace wiselib
    TreeRoutingNdis<OsModel_P, Radio_P, Clock_P, Timer_P, NeighborhoodDiscovery_P, Debug_P>::
    set_sink( bool sink )
    {
-      if ( sink )
-         state_ = TrGateway; 
-      else
+      if ( sink ) {
+         state_ = TrGateway;
+			debug().debug("TreeTester: SetToRoot = %i\n", radio().id());
+		}
+      else {
          state_ = TrUnconnected;
+			debug().debug("TreeTester: SetToNormalNode = %i\n", radio().id());
+		}
    }
    // -----------------------------------------------------------------------
     template<typename OsModel_P,
@@ -410,6 +416,7 @@ namespace wiselib
       { 
 #ifdef ROUTING_TREE_DEBUG
          debug().debug( "TreeRouting: Send to Gate over parent %i from node %i ...\n", parent_, radio().id() );
+			debug().debug( "TreeTester: SendsOverParent = %i parent = %i\n", radio().id(), parent_ );
 #endif
          RoutingMessage message( TrMsgIdRouting, radio().id() );
          message.set_payload( len, data );
@@ -422,6 +429,7 @@ namespace wiselib
       {
 #ifdef ROUTING_TREE_DEBUG
          debug().debug( "TreeRouting: Not Connected. Cannot send.\n" );
+			debug().debug( "TreeTester: CannotSendUncon = %i\n", radio().id());
 #endif
          return ERR_NETDOWN;
       }
@@ -439,6 +447,7 @@ namespace wiselib
    {
 #ifdef ROUTING_TREE_DEBUG
       debug().debug( "TreeRouting: Execute Task 'TreeRouting' at %i\n", radio().id() );
+		debug().debug( "TreeTester: CheckingNeighbors = %i\n", radio().id());
 #endif
 
       switch ( state_ )
@@ -453,10 +462,17 @@ namespace wiselib
             */
             parent_set = ndis_->is_neighbor(parent_);
             parent_set = parent_set && ndis_->is_neighbor_bidi(parent_);
-            //debug().debug("Parent set of node %i is : %d and the parent is : %i\n",radio().id(),parent_set,parent_);
+#ifdef ROUTING_TREE_DEBUG
+				debug().debug("Parent set of node %i is : %d and the parent is : %i\n",radio().id(),parent_set,parent_);
+				if(parent_set)
+				  debug().debug("TreeTester: InfoParentConnAlive = %i parent = %i\n", radio().id(), parent_);
+				else
+				  debug().debug("TreeTester: InfoLostParent = %i exparent = %i\n", radio().id(), parent_);
+#endif
             if((parent_set == true)&&(initial_parent_set==false))
             initial_parent_set=true;
             
+				
             //Initial_parent_set flag is used to determine when the node first joins a connected network. 
             
             if((parent_set == false)&&(initial_parent_set==true))
@@ -466,6 +482,9 @@ namespace wiselib
             state_=TrUnconnected;
             hops_   = 0xff;
             initial_parent_set=false;
+#ifdef ROUTING_TREE_DEBUG
+				debug().debug("TreeTester: LostParent = %i exparent = %i\n", radio().id(), parent_);
+#endif
             }
             
             BroadcastMessage message( TrMsgIdBroadcast, hops_, parent_ );          
@@ -477,6 +496,7 @@ namespace wiselib
          case TrUnconnected:
 #ifdef ROUTING_TREE_DEBUG
             debug().debug( "TreeRouting: Not connected. Waiting for Neighbour to connect to network.\n" );
+				debug().debug( "TreeTester: StaysUncon = %i\n", radio().id());
 #endif
             break;
 #ifdef ROUTING_TREE_DEBUG
@@ -506,7 +526,7 @@ namespace wiselib
 	
 
 #ifdef ROUTING_TREE_DEBUG
-     debug().debug( "TreeRouting: Received data %i length %i from %i at %i\n", (block_data_t)*data, len, from, radio_->id() );
+     //debug().debug( "TreeRouting: Received data %i length %i from %i at %i\n", (block_data_t)*data, len, from, radio_->id() );
 #endif
 
 
@@ -521,10 +541,10 @@ namespace wiselib
             parent_ = from;
             parent_set = true;
             state_ = TrConnected;
-             debug().debug( "TreeRouting:   -> Updated hop count to %i (at node %i with parent %i)\n",hops_, radio().id(), parent_ );
+             
 #ifdef ROUTING_TREE_DEBUG
-           
-               
+           debug().debug( "TreeRouting:   -> Updated hop count to %i (at node %i with parent %i)\n",hops_, radio().id(), parent_ );
+			  debug().debug( "TreeTester: NewParentShorterHop = %i newparent = %i\n", radio().id(), parent_ );
 #endif
          }
       }
@@ -536,6 +556,7 @@ namespace wiselib
             notify_receivers( message->source(), message->payload_size(), message->payload() );
 #ifdef ROUTING_TREE_DEBUG
             debug().debug( "TreeRouting: Routing message at Gate from %i\n", message->source() );
+				debug().debug( "TreeTester: MsgReachedRoot = %i from = %i\n", radio().id(), message->source() );
 #endif
          }
          else if ( parent_ != radio().NULL_NODE_ID )
@@ -543,6 +564,7 @@ namespace wiselib
             radio().send( parent_, len, data );
 #ifdef ROUTING_TREE_DEBUG
             debug().debug( "TreeRouting: Forward routing message at %i to %i\n", radio().id(), parent_ );
+				debug().debug( "TreeTester: ForwardOverParent = %i parent = %i\n", radio().id(), parent_);
 #endif
          }
       }
