@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 // vim: set noexpandtab ts=4 sw=4:
 
 #ifndef PC_TIMER_H
@@ -15,8 +34,8 @@
 #include <vector>
 #include <iostream>
 
+#include "external_interface/pc/pc_os_model.h"
 #include "util/delegates/delegate.hpp"
-#include "pc_os.h"
 #include "util/pstl/list_static.h"
 
 namespace wiselib {
@@ -80,7 +99,6 @@ namespace wiselib {
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
 			PCTimerModel();
-			PCTimerModel(PCOs& os);
 			
 			template<typename T, void (T::*TMethod)(void*)>
 			int set_timer(millis_t millis, T* obj, void* userdata);
@@ -256,22 +274,7 @@ namespace wiselib {
 		}
 		itimer_active_ = false;
 	}
-	
-	template<typename OsModel_P, size_t MaxTimers_P>
-	PCTimerModel<OsModel_P, MaxTimers_P>::PCTimerModel(PCOs& os) {
-		struct sigaction alarm_action;
-		alarm_action.sa_handler = &PCTimerModel::timer_handler_;
-		alarm_action.sa_flags = 0;
-
-		if((sigemptyset(&alarm_action.sa_mask) == -1) ||
-				(sigaddset(&alarm_action.sa_mask, SIGALRM) == -1) ||
-				(sigaction(SIGALRM, &alarm_action, 0) == -1)
-		) {
-			perror("Failed to install SIGALRM-handler");
-		}
-		itimer_active_ = false;
-	}
-	
+		
 	template<typename OsModel_P, size_t MaxTimers_P>
 	template<typename T, void (T::*TMethod)(void*)>
 	int PCTimerModel<OsModel_P, MaxTimers_P>::

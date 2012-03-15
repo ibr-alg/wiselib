@@ -5,14 +5,9 @@ namespace concepts {
  */
 class TupleStore_concept : public Algorithm_concept {
 	public:
-		///
 		typedef ... iterator;
-		
-		///
-		typedef ... query_iterator;
-
-		///
 		typedef ... size_type;
+		typedef ... Tuple;
 		
 		/**
 		 * Insert the given tuple into the store.
@@ -27,25 +22,26 @@ class TupleStore_concept : public Algorithm_concept {
 		/**
 		 * Delete the tuple pointed to by iter from the store.
 		 */
-		int erase(iterator iter);
+		iterator erase(iterator iter);
 		
 		/**
 		 * Delete all tuples from the store.
 		 */
-		int clear();
+		void clear();
 
 		/**
 		 * \return Iterator pointing to a tuple that equals t if such a tuple
 		 * is in the store.
 		 * Return end() if no such tuple was found.
 		 */
-		iterator find(const Tuple& t);
+		template<typename T>
+		iterator find(const T& t);
 		
 		/**
 		 * \return Number of tuples in the store that equal \ref t (0 or 1)
 		 */
 		template<typename T>
-		size_t count(const T& t);
+		size_type count(const T& t);
 
 		/**
 		 */
@@ -60,33 +56,13 @@ class TupleStore_concept : public Algorithm_concept {
 		size_type size();
 
 		/**
+		 * Return true iff there is no tuple in the store
 		 */
 		bool empty();
 		
-		/**
-		 * Query for tuple t. Fields in t which are NULL are ignored for the
-		 * query (i.e. they are considered equal to all possible values).
-		 * If index is specified, use the index'th search index in order to
-		 * find matching tuples, if not, automatically choose an index.
-		 * 
-		 * Return a query_iterator iterating over the results.
-		 */
-		template<typename Tuple>
-		query_iterator query_begin(const Tuple& t, int index = -1);
-		
-		/**
-		 */
-		template<typename Tuple>
-		query_iterator query_end(const Tuple& t, int index = -1);
-
-		/**
-		 */
-		int create_index(size_t column);
-
-		/**
-		 */
-		int drop_index(size_t column);
 };
 
 } // namespace
+
+// vim: set ft=cpp:
 

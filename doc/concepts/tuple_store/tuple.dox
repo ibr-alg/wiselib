@@ -7,36 +7,23 @@ namespace concepts {
  */
 class Tuple_concept {
 	public:
-		/// Type of sizes of data, usually an unsigned integer type
-		typedef ... size_t;
-		
-		/// Type of raw data blocks, usually an unsigned byte-sized type
-		typedef ... block_data_t;
+		typedef ... data_t;
+		typedef ... size_type;
 		
 		/**
 		 * Provide read-only or read/write access to the idx'th element
 		 * of the tuple.
 		 */
-		const block_data_t* data(size_t idx);
-		
-		/**
-		 * Return size of the idx'th element of the tuple.
-		 */
-		size_t size(size_t idx);
-		
-		/**
-		 * Return total size of the tuple in memory.
-		 * (For static types this is equal to sizeof(self_type)).
-		 */
-		size_t size();
+		data_t operator[](size_type idx);
 		
 		/**
 		 * Return number of elements of the tuple.
 		 */
-		size_t elements();
+		size_type size();
 	
-	// Message-serialization interface
+	// Message-serialization interface??
 };
 
 } // namespace
 
+// vim: set ft=cpp:

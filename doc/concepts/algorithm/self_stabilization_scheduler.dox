@@ -1,0 +1,59 @@
+
+#include "../basic/basic_algorithm.dox"
+
+namespace concepts
+{
+   class SelfStabilizationScheduler_concept : public BasicAlgorithm_concept {
+      public:
+         typedef ... OsModel;
+         typedef ... State;
+         typedef ... self_t;
+         typedef ... self_pointer_t;
+         
+         typedef ... State;
+         
+         /**
+          * This should be a container of State's
+          */
+         typedef ... neighborhood_t;
+         
+         /**
+          * Type of guard delegates. Guards receive the state of all
+          * neighboring nodes and the state of the executing node.
+          * Guards return true iff the according command should be executed.
+          * Guards should not change any of the parameters they receive!
+          */
+         typedef delegate2<bool, neighborhood_t&, State&> guard_delegate_t;
+         
+         /**
+          * Command to execute. Commands receive the state of all
+          * neighboring nodes and the state of the executing node.
+          * Commands may change the state parameter (but not the
+          * neighborhood).
+          */
+         typedef delegate2<void, neighborhood_t&, State&> command_delegate_t;
+         
+         void enable();
+         void disable();
+         
+         /**
+          * Provides read/write access to the state of this node.
+          */
+         State& state();
+         
+         /**
+          * Call this after you made changes to state() in order to inform the
+          * scheduler that it might need communicate those changes
+          */
+         void state_updated();
+         
+         /**
+          * Add a guarded command for execution.
+          * When the scheduler decides to check commands, command will be
+          * called if guard returns true.
+          */
+         void add_gc(guard_delegate_t guard, command_delegate_t command);
+   };
+}
+
+// vim: set ft=cpp ts=3 sw=3 expandtab: 

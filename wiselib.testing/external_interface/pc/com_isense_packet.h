@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 // vim: set noexpandtab ts=4 sw=4:
 
 #ifndef COM_UART_PACKET_H
@@ -7,18 +26,19 @@
 #include <cassert>
 #include "util/pstl/vector_static.h"
 
-//#include "external_interface/pc/pc_os_model.h"
-
 namespace wiselib {
 	
 	template<
 		typename OsModel_P,
+	   typename Size_P = typename OsModel_P::size_t,
+	   typename Blockdata_P = typename OsModel_P::block_data_t,
 		int MaxPacketSize = 255
 	>
 	class ComISensePacket {
 		public:
 			typedef OsModel_P OsModel;
-			typedef typename OsModel::size_t size_t;
+			typedef Size_P size_t;
+		   typedef Blockdata_P block_data_t;
 			
 			enum MessageType {
 				MESSAGE_TYPE_RESET = 1, MESSAGE_TYPE_SERAERIAL, MESSAGE_TYPE_TIME,
@@ -45,17 +65,17 @@ namespace wiselib {
 			};
 			
 			ComISensePacket(SubType st, MessageType t = MESSAGE_TYPE_CUSTOM_IN_1);
-			ComISensePacket(size_t, uint8_t*);
+			ComISensePacket(size_t, block_data_t*);
 			
-			uint8_t* header();
+			block_data_t* header();
 			size_t header_size();
-			uint8_t* data();
+			block_data_t* data();
 			size_t data_size();
 			
-			void push_header(uint8_t);
+			void push_header(block_data_t);
 			void push_header16(uint16_t);
 			
-			void set_data(size_t, uint8_t*);
+			void set_data(size_t, block_data_t*);
 			
 			MessageType type();
 			SubType subtype();
@@ -64,15 +84,16 @@ namespace wiselib {
 			MessageType type_;
 			SubType subtype_;
 			
-			vector_static<OsModel, uint8_t, MaxPacketSize> header_;
-			uint8_t* data_;
+			vector_static<OsModel, block_data_t, MaxPacketSize> header_;
+			block_data_t* data_;
 			size_t data_size_;
 			
 			static size_t header_size(SubType);
 	}; // ComISensePacket
-	
-	template<typename OsModel_P, int MaxPacketSize>
-	ComISensePacket<OsModel_P, MaxPacketSize>::
+// <OsModel_P, MaxPacketSize>
+// <OsModel_P, Size_P, Blockdata_P, MaxPacketSize>
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	ComISensePacket(SubType st, MessageType t) {
 		push_header(t);
 		if(st != SUB_NONE) {
@@ -84,9 +105,9 @@ namespace wiselib {
 		data_ = 0;
 	}
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	ComISensePacket<OsModel_P, MaxPacketSize>::
-	ComISensePacket(size_t size, uint8_t* data) {
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
+	ComISensePacket(size_t size, block_data_t* data) {
 		assert(size >= 1);
 		header_.push_back(data[0]);
 		if(type() == MESSAGE_TYPE_CUSTOM_IN_1) {
@@ -98,50 +119,50 @@ namespace wiselib {
 		}
 	}
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	typename ComISensePacket<OsModel_P, MaxPacketSize>::size_t ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::size_t ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	data_size() { return data_size_; }
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	uint8_t* ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::block_data_t* ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	data() { return data_; }
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	typename ComISensePacket<OsModel_P, MaxPacketSize>::size_t ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::size_t ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	header_size() { return header_.size(); }
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	uint8_t* ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::block_data_t* ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	header() { return header_.data(); }
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	void ComISensePacket<OsModel_P, MaxPacketSize>::
-	push_header(uint8_t byte) {
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	void ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
+	push_header(block_data_t byte) {
 		header_.push_back(byte);
 	}
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	void ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	void ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	push_header16(uint16_t word) {
 		header_.push_back(word >> 8);
 		header_.push_back(word & 0xff);
 	}
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	void ComISensePacket<OsModel_P, MaxPacketSize>::
-	set_data(size_t size, uint8_t* data) {
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	void ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
+	set_data(size_t size, block_data_t* data) {
 		data_size_ = size;
 		data_ = data;
 	}
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	typename ComISensePacket<OsModel_P, MaxPacketSize>::MessageType ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::MessageType ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	type() {
 		return static_cast<MessageType>(header_[0]);
 	}
 	
-	template<typename OsModel_P, int MaxPacketSize>
-	typename ComISensePacket<OsModel_P, MaxPacketSize>::SubType ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::SubType ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	subtype() {
 		return static_cast<SubType>(header_[1]);
 	}
@@ -150,8 +171,8 @@ namespace wiselib {
 	 * Return expected header size by subtype in bytes.
 	 * Header includes subtype but not isense packet type.
 	 */
-	template<typename OsModel_P, int MaxPacketSize>
-	typename ComISensePacket<OsModel_P, MaxPacketSize>::size_t ComISensePacket<OsModel_P, MaxPacketSize>::
+	template<typename OsModel_P, typename Size_P, typename Blockdata_P, int MaxPacketSize>
+	typename ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::size_t ComISensePacket<OsModel_P, Size_P, Blockdata_P, MaxPacketSize>::
 	header_size(SubType s) {
 		switch(s) {
 			case SUB_NONE:
