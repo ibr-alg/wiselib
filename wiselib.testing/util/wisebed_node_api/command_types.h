@@ -49,7 +49,11 @@
          REMOTE_UART_KEEP_ALIVE = 64,
          SSD_REST_REQUEST = 70,
          SSD_REST_RESPONSE = 71,
-         IOS_LINK_MESSAGE = 105
+         IOS_LINK_MESSAGE = 105,
+         BEACON_SYNC_MESSAGE = 110,
+         SENSORDATAMESSAGE = 115
+                 
+
       };
 
 #endif /* COMMAND_TYPES_H_ */

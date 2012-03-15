@@ -46,31 +46,79 @@ namespace wiselib
       typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
 
       typedef typename OsModel_P::size_t size_type;
+      typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       // --------------------------------------------------------------------
-      vector_dynamic() : allocator_(0), size_(0), capacity_(0), buffer_(0)
+      vector_dynamic() :  size_(0), capacity_(0), buffer_(0), allocator_(0)
       {
       }
       // --------------------------------------------------------------------
-      vector_dynamic(Allocator& alloc) : allocator_(&alloc), size_(0), capacity_(0), buffer_(0)
+      vector_dynamic(typename Allocator::self_pointer_t alloc) :  size_(0), capacity_(0), buffer_(0),allocator_(alloc)
       {
       }
       // --------------------------------------------------------------------
       vector_dynamic( const vector_dynamic& vec )
-      { *this = vec; }
+      {
+         *this = vec;
+      }
       // --------------------------------------------------------------------
       ~vector_dynamic() {
          if(buffer_) {
             allocator_->free_array(buffer_);
          }
       }
-      // --------------------------------------------------------------------
+      
+		/**
+		 * Detach from internal buffer.
+		 * This will detach from the internal data structures such that
+		 * destroying this object wont free them anymore. This is useful, when
+		 * you have a bitstring_static_view on the same structure and want to
+		 * only use that
+		 */
+		void detach() {
+         size_ = 0;
+         buffer_ = 0;
+		}
+      
+      void attach(buffer_pointer_t buffer, size_type size) {
+         if(buffer_) {
+            allocator_->free_array(buffer_);
+         }
+         buffer_ = buffer;
+         size_ = size;
+      }
+      
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
-         // TODO
+         allocator_ = vec.allocator_;
+          //if(buffer_!= buffer_pointer_t()){
+              clear();
+              resize(vec.capacity_);
+          //}
+          for(size_t i = 0;i < vec.size_;++i){
+              buffer_[size_++] = vec[i];
+          }
+          /*
+          for(int i=0; i<vec.size(); i++) {
+             assert(buffer_[i] == vec[i]);
+          }
+          */
+          return *this;
+      }
+      /*
+      vector_dynamic& operator=( vector_dynamic& vec )
+      {
+          if(buffer_!= buffer_pointer_t()){
+              resize(0);
+              resize(vec.size_);
+          }
+          for(size_t i = 0;i < vec.size_;++i){
+              buffer_[size_++] = vec[i];
+          }
          return *this;
       }
+      */
       // --------------------------------------------------------------------
-      void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
+      void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
       ///@name Iterators
       ///@{
       iterator begin()
@@ -97,8 +145,14 @@ namespace wiselib
       // --------------------------------------------------------------------
       ///@name Element Access
       ///@{
+      const reference operator[](size_type n) const
+      {
+     //    assert(n < size_);
+         return *(this->buffer_ + n);
+      }
       reference operator[](size_type n)
       {
+       //  assert(n < size_);
          return *(this->buffer_ + n);
       }
       // --------------------------------------------------------------------
@@ -118,7 +172,7 @@ namespace wiselib
       }
       // --------------------------------------------------------------------
       pointer data()
-      { return pointer(this->buffer_); }
+      { return pointer(&*buffer_); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Modifiers
@@ -145,6 +199,9 @@ namespace wiselib
          }
             
          buffer_[size_++] = x;
+         
+         //printf("v: %d %d\n", buffer_[0], buffer_[1]);
+//         assert(buffer_[size_ - 1] == x);
       }
       // --------------------------------------------------------------------
       void pop_back()
@@ -222,6 +279,7 @@ namespace wiselib
       void clear()
       {
          size_ = 0;
+         resize(0);
       }
       ///@}
       
@@ -235,10 +293,15 @@ namespace wiselib
       }
       void shrink() { resize(capacity_ / 2); }
       
+      void pack() { resize(size_); }
+      
       void resize(size_t n) {
-         assert(allocator_);
-         assert(n >= size_);
-         buffer_pointer_t new_buffer = allocator_->template allocate_array<value_type>(n);
+         //assert(allocator_!=0);
+         //assert(n >= size_);
+         buffer_pointer_t new_buffer(0);
+         if(n != 0) {
+            new_buffer = allocator_->template allocate_array<value_type>(n);
+         }
          
          if(buffer_) {
             for(size_type i=0; i<size_; i++) {
@@ -249,16 +312,19 @@ namespace wiselib
          }
          buffer_ = new_buffer;
          capacity_ = n;
+         
       }
-
-   protected:
+      
+  // protected:
      // value_type vec_[VECTOR_SIZE];
 
-      typename Allocator::self_pointer_t allocator_;
       size_type size_, capacity_;
-      typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       buffer_pointer_t buffer_;
-   };
+      typename Allocator::self_pointer_t allocator_;
+      
+      //friend class bitstring_static_view<OsModel;
+
+   } __attribute__((__packed__));
 
 }
 

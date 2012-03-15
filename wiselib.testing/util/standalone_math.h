@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 // vim: set noexpandtab ts=4 sw=4:
 
 #ifndef STANDALONE_MATH_H
@@ -60,6 +79,8 @@ class StandaloneMath {
 		static integer_t ceil(real_t);
 		/// round to nearest integer
 		static integer_t round(real_t);
+
+                static real_t pow(real_t,integer_t);
 		
 	private:
 		static real_t sin_degrees(integer_t);
@@ -342,6 +363,18 @@ typename StandaloneMath<OsModel_P>::integer_t
 StandaloneMath<OsModel_P>::
 ceil(typename StandaloneMath<OsModel_P>::real_t x) {
 	return -floor(-x);
+}
+
+template<typename OsModel_P>
+typename StandaloneMath<OsModel_P>::real_t
+StandaloneMath<OsModel_P>::
+pow(typename StandaloneMath<OsModel_P>::real_t x, typename StandaloneMath<OsModel_P>::integer_t exp) {
+    if(exp==0)
+        return 1;
+    for(int e = 1; e < exp; ++e){
+        x*=x;
+    }
+    return x;
 }
 
 template<typename OsModel_P>

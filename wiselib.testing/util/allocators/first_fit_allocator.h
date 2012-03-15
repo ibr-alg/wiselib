@@ -1,16 +1,30 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 
 #ifndef __WISELIB_UTIL_ALLOCATORS_FIRST_FIT_ALLOCATOR_H
 #define __WISELIB_UTIL_ALLOCATORS_FIRST_FIT_ALLOCATOR_H
-
-#ifndef ALLOCATOR_KEEP_STATS
-	#define ALLOCATOR_KEEP_STATS 0
-#endif // ALLOCATOR_KEEP_STATS
 
 #ifdef PC
 	#undef NDEBUG
 	#include <cassert>
 #endif
-
 
 #ifndef assert
 	#define assert(X)
@@ -21,6 +35,8 @@
 	#include <iostream>
 	#include <iomanip>
 #endif
+
+#include <util/global_pointer.h>
 
 
 template<typename T>
@@ -71,7 +87,9 @@ class FirstFitAllocator {
 		class Chunk;
 		typedef OsModel_P OsModel;
 		typedef FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS> self_type;
-		typedef self_type* self_pointer_t;
+		//typedef self_type* self_pointer_t;
+		typedef GlobalPointer<self_type> self_pointer_t;
+
 		typedef typename OsModel::size_t size_t;
 		typedef typename OsModel::block_data_t block_data_t;
 		
@@ -104,7 +122,7 @@ class FirstFitAllocator {
 				Chunk* chunk_;
 				
 			friend class FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS>;
-		};
+		} __attribute__((__packed__));
 		
 		template<typename T>
 		struct array_pointer_t {
@@ -127,7 +145,8 @@ class FirstFitAllocator {
 				bool operator!=(const array_pointer_t& other) const { return chunk_ != other.chunk_; }
 				operator bool() const { return chunk_ != 0; }
 				array_pointer_t& operator++() { ++offset_; return *this; }
-				array_pointer_t operator+(size_t n) { return array_pointer_t(chunk_, offset_ + n); }
+				array_pointer_t operator+(size_t n) const { return array_pointer_t(chunk_, offset_ + n); }
+				//const array_pointer_t operator+(size_t n) const { return array_pointer_t(chunk_, offset_ + n); }
 			//	array_pointer_t& operator--() { --offset_; return *this; }
 				T* raw() { return reinterpret_cast<T*>(chunk_->start()) + offset_; }
 				const T* raw() const { return reinterpret_cast<const T*>(chunk_->start()) + offset_; }
@@ -136,7 +155,7 @@ class FirstFitAllocator {
 				size_t offset_;
 				
 			friend class FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS>;
-		};
+		} __attribute__((__packed__));
 		
 		FirstFitAllocator() :
 			chunks_used_(0),
@@ -145,6 +164,7 @@ class FirstFitAllocator {
 		#endif
 			first_chunk_id_(Chunk::NONE)
 		{
+			printf("allocator init at %p\n", this);
 		}
 		
 		template<typename T>
@@ -164,7 +184,7 @@ class FirstFitAllocator {
 				prev = c;
 			} // for c
 			
-			if(reserved_[prev].next() == Chunk::NONE && to_allocate > (size_t)(memory_ + BUFFER_SIZE - reserved_[prev].end())) { // insert at end of memory
+			if((prev != Chunk::NONE) && reserved_[prev].next() == Chunk::NONE && to_allocate > (size_t)(memory_ + BUFFER_SIZE - reserved_[prev].end())) { // insert at end of memory
 				assert(false && "Reached end of memory");
 				return 0;
 			}
@@ -186,16 +206,21 @@ class FirstFitAllocator {
 		
 		template<typename T>
 		pointer_t<T> allocate() {
+			//printf("%p -> allocate %d\n", this, sizeof(T));
+			assert(sizeof(T) != 0);
 			return pointer_t<T>(allocate_chunk<T>());
 		}
 		
 		template<typename T>
 		array_pointer_t<T> allocate_array(typename OsModel::size_t n) {
+			assert(sizeof(T) != 0);
+			assert(n != 0);
 			return array_pointer_t<T>(allocate_chunk<T>(n));
 		}
 		
 		template<typename T>
 		int free(pointer_t<T> p) {
+			p->~T();
 			free_chunk(p.chunk_ - reserved_);
 			return SUCCESS;
 		}
@@ -209,6 +234,26 @@ class FirstFitAllocator {
 	#if ALLOCATOR_KEEP_STATS
 		size_t chunks_used() { return chunks_used_; }
 		size_t size() { return bytes_used_; }
+		
+		#ifdef PC
+		void print_detailed_stats() {
+			std::map<size_t, size_t> sizes;
+			//std::cout << "first chunk: " << (int)first_chunk_id_ << std::endl;
+			for(size_t i=0; i<MAX_CHUNKS; i++) {
+				size_t sz = reserved_[i].size();
+				if(sz != 0) {
+					if(sizes.count(sz) == 0) {
+						sizes[sz] = 0;
+					}
+					sizes[sz] += 1;
+					//std::cout << i << ": start=" << (void*)reserved_[i].start() << " size=" << reserved_[i].size() << " next=" << (int)reserved_[i].next() << std::endl;
+				}
+			}
+			for(typename std::map<size_t,size_t>::iterator iter=sizes.begin(); iter!=sizes.end(); ++iter) {
+				std::cout << iter->second << "x " << iter->first << " = " << (iter->first * iter->second) << " bytes" << std::endl;
+			}
+		}
+		#endif
 	#endif
 		
 		size_t capacity() { return BUFFER_SIZE; }
@@ -244,7 +289,7 @@ class FirstFitAllocator {
 			std::cout << "first chunk: " << (int)first_chunk_id_ << std::endl;
 			for(size_t i=0; i<MAX_CHUNKS; i++) {
 				if(reserved_[i].size() != 0) {
-					std::cout << i << ": start=" << (void*)reserved_[i].start() << " size=" << reserved_[i].size() << " next=" << (int)reserved_[i].next() << std::endl;
+					//std::cout << i << ": start=" << (void*)reserved_[i].start() << " size=" << reserved_[i].size() << " next=" << (int)reserved_[i].next() << std::endl;
 				}
 			}
 		}

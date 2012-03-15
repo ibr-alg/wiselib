@@ -1,4 +1,5 @@
-#include "container.h"
+
+#include "container.dox"
 
 namespace concepts
 {
@@ -12,25 +13,32 @@ namespace concepts
 class AssociativeContainer_concept 
     : public Container_concept
 {
-  public:
-    /** Type of keys of this container
-    */
-    typedef ... key_type;
-    /** Type of values indexed by keys
-    */
-    typedef ... mapped_type
+   public:
+      /** Type of keys of this container
+       */
+      typedef ... key_type;
 
-    /** Erase value associated to the given key
-    */
-    size_type erase(const key_type& k);
-    /** Return an iterator to the element associated to the given key
-    */
-    iterator find(const key_type& k);
-    /** Return number of elements associated with the given key
-    */
-    size_type count(const key_type&);
-    /** Access the element identified by the given key
-    */
-    value_type& operator[](const key_type& k);
+      /** Type of values indexed by keys
+       */
+      typedef ... mapped_type;
+
+      /**
+       * Erase value associated to the given key.
+       * \return Number of elements that have been erased.
+       */
+      size_type erase(const key_type& k);
+
+      /** Return an iterator to the element associated to the given key
+       */
+      iterator find(const key_type& k);
+
+      /** Return number of elements associated with the given key
+       */
+      size_type count(const key_type&);
+
+      /** Access the element identified by the given key
+       */
+      value_type& operator[](const key_type& k);
 };
 }
+// vim: set ft=cpp ts=3 sw=3 expandtab:

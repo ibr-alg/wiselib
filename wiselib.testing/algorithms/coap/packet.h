@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 /*
  * File:   coap.h
  * Author: Dimitrios Giannakopoulos
@@ -112,6 +131,7 @@ namespace wiselib
             mid_ = 0;
             options_ = 0x00;
             uri_path_len_ = 0;
+            uri_query_len_ = 0;
             payload_len_ = 0;
          }
          uint8_t version_w()
@@ -142,9 +162,17 @@ namespace wiselib
          {
             return content_type_;
          }
+         uint32_t max_age_w()
+         {
+            return max_age_;
+         }
          uint16_t uri_host_w()
          {
             return uri_host_;
+         }
+         uint16_t uri_port_w()
+         {
+            return uri_port_;
          }
          uint8_t uri_path_len_w()
          {
@@ -165,6 +193,18 @@ namespace wiselib
          uint8_t* token_w()
          {
             return token_;
+         }
+         uint16_t accept_w()
+         {
+            return accept_;
+         }
+         size_t uri_query_len_w()
+         {
+            return uri_query_len_;
+         }
+         char* uri_query_w()
+         {
+            return uri_query_;
          }
          uint32_t block2_num_w()
          {
@@ -219,9 +259,17 @@ namespace wiselib
          {
             content_type_ = content_type;
          }
+         void set_max_age( uint32_t max_age )
+         {
+            max_age_ = max_age;
+         }
          void set_uri_host( uint16_t uri_host )
          {
             uri_host_ = uri_host;
+         }
+         void set_uri_port( uint16_t uri_port )
+         {
+            uri_port_ = uri_port;
          }
          void set_uri_path_len( uint8_t uri_path_len )
          {
@@ -243,19 +291,31 @@ namespace wiselib
          {
             memcpy( token_, token, token_len_ );
          }
-         void set_block2_num(uint32_t block2_num)
+         void set_accept( uint16_t accept )
+         {
+            accept_ = accept;
+         }
+         void set_uri_query_len( size_t uri_query_len )
+         {
+            uri_query_len_ = uri_query_len;
+         }
+         void set_uri_query( char* uri_query )
+         {
+            uri_query_ = uri_query;
+         }
+         void set_block2_num( uint32_t block2_num )
          {
             block2_num_ = block2_num;
          }
-         void set_block2_more(uint8_t block2_more)
+         void set_block2_more( uint8_t block2_more )
          {
             block2_more_ = block2_more;
          }
-         void set_block2_size(uint16_t block2_size)
+         void set_block2_size( uint16_t block2_size )
          {
             block2_size_ = block2_size;
          }
-         void set_block2_offset(uint32_t block2_offset)
+         void set_block2_offset( uint32_t block2_offset )
          {
             block2_offset_ = block2_offset;
          }
@@ -289,11 +349,6 @@ namespace wiselib
                {
 
                   current_delta += current_opt[0] >> 4;
-                  if ( ( current_delta == 14 ) || ( current_delta == 28 ) || ( current_delta == 42 ) )
-                  {
-                     current_opt += 1; //point to next option
-                     continue;
-                  }
                   //get option length
                   if ( ( 0x0F & current_opt[0] ) < 15 )
                   {
@@ -305,6 +360,10 @@ namespace wiselib
                      opt_len = current_opt[1] + 15;
                      current_opt += 2; //point to option value
                   }
+                  if ( current_delta == 14 && opt_len == 0 ) // fence post
+                  {
+                     continue;
+                  }
 
                   switch ( current_delta )
                   {
@@ -314,7 +373,7 @@ namespace wiselib
                         break;
                      case MAX_AGE:
                         set_option( MAX_AGE );
-                        //max_age_ = get_int_opt_value(current_opt, opt_len);
+                        max_age_ = get_int_opt_value( current_opt, opt_len );
                         break;
                      case PROXY_URI:
                         set_option( PROXY_URI );
@@ -325,13 +384,14 @@ namespace wiselib
                      case URI_HOST:
                         // based on id, not ip-literal
                         set_option( URI_HOST );
-                        uri_host_ = *current_opt << 8 | *( current_opt + 1 );
+                        uri_host_ = get_int_opt_value( current_opt, opt_len );
                         break;
                      case LOCATION_PATH:
                         set_option( LOCATION_PATH );
                         break;
                      case URI_PORT:
                         set_option( URI_PORT );
+                        uri_port_ = get_int_opt_value( current_opt, opt_len );
                         break;
                      case LOCATION_QUERY:
                         set_option( LOCATION_QUERY );
@@ -351,6 +411,7 @@ namespace wiselib
                         break;
                      case ACCEPT:
                         set_option( ACCEPT );
+                        accept_ = get_int_opt_value( current_opt, opt_len );
                         break;
                      case IF_MATCH:
                         set_option( IF_MATCH );
@@ -360,6 +421,7 @@ namespace wiselib
                         break;
                      case URI_QUERY:
                         set_option( URI_QUERY );
+                        merge_options( &uri_query_, &uri_query_len_, current_opt, opt_len, '&' );
                         break;
                      case BLOCK2:
                         set_option( BLOCK2 );
@@ -396,18 +458,27 @@ namespace wiselib
             uint8_t buf_index = COAP_HEADER_LEN + 1;
             if ( is_option( CONTENT_TYPE ) )
             {
-               buf[buf_index++] = 0x01 << 4 | 0x01; // always
-               buf[buf_index++] = content_type_;
+               buf_index += set_int_opt_value( CONTENT_TYPE, current_delta, &buf[buf_index], content_type_ );
                current_delta = CONTENT_TYPE;
                opt_count_ += 1;
             }
+            if ( is_option( MAX_AGE ) )
+            {
+               buf_index += set_int_opt_value( MAX_AGE, current_delta, &buf[buf_index], max_age_ );
+               current_delta = MAX_AGE;
+               opt_count_++;
+            }
             if ( is_option( URI_HOST ) )
             {
-               buf[buf_index++] = ( URI_HOST - current_delta ) << 4 | 0x02;
-               buf[buf_index++] = 0xFF & ( uri_host_ >> 8 );
-               buf[buf_index++] = 0xFF & uri_host_;
+               buf_index += set_int_opt_value( URI_HOST, current_delta, &buf[buf_index], uri_host_ );
                current_delta = URI_HOST;
-               opt_count_ += 1;
+               opt_count_++;
+            }
+            if ( is_option( URI_PORT ) )
+            {
+               buf_index += set_int_opt_value( URI_PORT, current_delta, &buf[buf_index], uri_port_ );
+               current_delta = URI_PORT;
+               opt_count_++;
             }
             if ( is_option( URI_PATH ) )
             {
@@ -417,9 +488,7 @@ namespace wiselib
             }
             if ( is_option( OBSERVE ) )
             {
-               buf[buf_index++] = ( OBSERVE - current_delta ) << 4 | 0x02;
-               buf[buf_index++] = 0xFF & observe_ >> 8;
-               buf[buf_index++] = 0xFF & observe_;
+               buf_index += set_int_opt_value( OBSERVE, current_delta, &buf[buf_index], observe_ );
                current_delta = OBSERVE;
                opt_count_ += 1;
             }
@@ -431,31 +500,20 @@ namespace wiselib
                buf_index += token_len_;
                opt_count_ += 1;
             }
+            if ( is_option( ACCEPT ) )
+            {
+               buf_index += set_int_opt_value( ACCEPT, current_delta, &buf[buf_index], accept_ );
+               current_delta = ACCEPT;
+               opt_count_ += 1;
+            }
             if ( is_option( BLOCK2 ) )
             {
-               buf_index += add_fence_opt(BLOCK2, &current_delta, buf + buf_index);
                uint32_t block = block2_num_ << 4;
                if ( block2_more_ )
                   block |= 0x8;
-               block |= 0xF & (block2_size_ >> 4);
-               if ( block2_num_ > 4095 )
-               {
-                  buf[buf_index++] = ( BLOCK2 - current_delta ) << 4 | 0x03;
-                  buf[buf_index++] = 0xFF & (block >> 16);
-                  buf[buf_index++] = 0xFF & (block >> 8);
-                  buf[buf_index++] = 0xFF & block;
-               }
-               else if ( block2_num_ > 7 )
-               {
-                  buf[buf_index++] = ( BLOCK2 - current_delta ) << 4 | 0x02;
-                  buf[buf_index++] = 0xFF & (block >> 8);
-                  buf[buf_index++] = 0xFF & block;
-               }
-               else
-               {
-                  buf[buf_index++] = ( BLOCK2 - current_delta ) << 4 | 0x01;
-                  buf[buf_index++] = 0xFF & block;
-               }
+               block |= 0xF & ( power_of_two( block2_size_ ) - 4 );
+               buf_index += set_int_opt_value( BLOCK2, current_delta, &buf[buf_index], block );
+               current_delta = BLOCK2;
                opt_count_ += 1;
             }
             //header
@@ -467,21 +525,52 @@ namespace wiselib
             buf[3] = 0xFF & ( mid_ >> 8 );
             buf[4] = 0xFF & mid_;
             //payload
-            memmove( &buf[buf_index], payload_, payload_len_ );
+            memcpy( &buf[buf_index], payload_, payload_len_ );
             return buf_index + payload_len_;
          }
       protected:
-         uint8_t add_fence_opt(uint8_t opt, uint8_t *delta, uint8_t *buf)
+         uint8_t add_fence_opt( uint8_t opt, uint8_t *current_delta, uint8_t *buf )
          {
-            if ( opt - *delta > 15 )
+            uint8_t i = 0;
+            while ( opt - *current_delta > 15 )
             {
-               buf[0] = 14 << 4;
-               *delta = 14;
+               uint8_t delta = 14 - ( *current_delta % 14 );
+               set_opt_header( delta, 0, &buf[i++] );
+               *current_delta += delta;
+               opt_count_++;
+            }
+            return i;
+         }
+         uint8_t set_opt_header( uint8_t delta, size_t len, uint8_t *buf )
+         {
+            if ( len < 15 )
+            {
+               buf[0] = delta << 4 | len;
                return 1;
             }
-            return 0;
+            else
+            {
+               buf[0] = delta << 4 | 0x0F;
+               buf[1] = len - 15;
+               return 2;
+            }
          }
-         uint8_t get_int_opt_value( uint8_t *value, uint16_t length )
+         uint8_t set_int_opt_value( uint8_t opt, uint8_t current_delta, uint8_t *buf, uint32_t value )
+         {
+            uint8_t i = add_fence_opt( opt, &current_delta, buf );
+            uint8_t start_i = i;
+
+            //uint8_t *option = &buf[i];
+
+            if ( 0xFF000000 & value ) buf[++i] = ( uint8_t ) ( 0xFF & value >> 24 );
+            if ( 0xFFFF0000 & value ) buf[++i] = ( uint8_t ) ( 0xFF & value >> 16 );
+            if ( 0xFFFFFF00 & value ) buf[++i] = ( uint8_t ) ( 0xFF & value >> 8 );
+            if ( 0xFFFFFFFF & value ) buf[++i] = ( uint8_t ) ( 0xFF & value );
+
+            i += set_opt_header( opt - current_delta, i - start_i, &buf[start_i] );
+            return i;
+         }
+         uint32_t get_int_opt_value( uint8_t *value, uint16_t length )
          {
             uint32_t var = 0;
             int i = 0;
@@ -492,7 +581,7 @@ namespace wiselib
             }
             return var;
          }
-         static void merge_options( char **dst, uint8_t *dst_len, uint8_t *value, uint16_t length, char seperator )
+         static void merge_options( char **dst, size_t *dst_len, uint8_t *value, uint16_t length, char seperator )
          {
             if ( *dst_len > 0 )
             {
@@ -535,6 +624,16 @@ namespace wiselib
             }
             return buf_last;
          }
+         uint8_t power_of_two( uint16_t num )
+         {
+            uint8_t i = 0;
+            while( num != 1 )
+            {
+               num >>= 1;
+               i++;
+            }
+            return i;
+         }
       private:
          uint8_t version_;
          uint8_t type_;
@@ -545,23 +644,36 @@ namespace wiselib
          uint32_t options_;
 
          uint8_t content_type_; // 1
-         //uint8_t max_age; // 2
+         uint32_t max_age_; // 2
          //TODO...
-         //size_t uri_host_len; // 5
+         //size_t proxy_uri_len_; // 3
+         //char *proxy_uri_; // 3
+         //uint8_t etag_len_; // 4
+         //uint8_t etag[8]_; // 4
+         //size_t uri_host_len_; // 5
          uint16_t uri_host_; // 5
+         uint16_t uri_port_; // 7
          //TODO...
-         uint8_t uri_path_len_; // 9
+         size_t uri_path_len_; // 9
          char *uri_path_; // 9
          uint16_t observe_; // 10
          uint8_t token_len_; // 11
          uint8_t token_[8]; // 11
+         uint16_t accept_; // 12
          //TODO...
-         //size_t uri_query_len_; // 15
-         //char *uri_query_; // 15
-         uint32_t block2_num_;
-         uint8_t block2_more_;
-         uint16_t block2_size_;
-         uint32_t block2_offset_;
+         //uint8_t if_match_len_; // 13
+         //uint8_t if_match_[8]; // 13
+         size_t uri_query_len_; // 15
+         char *uri_query_; // 15
+         // block2 17
+         uint32_t block2_num_; // 17
+         uint8_t block2_more_; // 17
+         uint16_t block2_size_; // 17
+         uint32_t block2_offset_; // 17
+         //uint32_t block1_num_; // 19
+         //uint8_t block1_more_; // 19
+         //uint16_t block1_size_; // 19
+         //uint32_t block1_offset_; // 19
          //uint8_t if_none_match; // 21
 
          uint8_t payload_len_;

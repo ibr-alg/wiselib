@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 // vim: set noexpandtab ts=4 sw=4:
 
 #ifndef PC_CLOCK_H
@@ -6,7 +25,6 @@
 // TODO: De-Boostification
 
 #include "boost/date_time/posix_time/posix_time.hpp"
-#include "external_interface/pc/pc_os.h"
 
 namespace wiselib {
 	template<typename OsModel_P>
@@ -31,7 +49,6 @@ namespace wiselib {
 			};
 			
 			PCClockModel();
-			PCClockModel(PCOs& os);
 			
 			int state();
 			time_t time();
@@ -45,12 +62,7 @@ namespace wiselib {
 	PCClockModel<OsModel_P>::
 	PCClockModel() {
 	}
-	
-	template<typename OsModel_P>
-	PCClockModel<OsModel_P>::
-	PCClockModel(PCOs& os) {
-	}
-	
+		
 	template<typename OsModel_P>
 	int PCClockModel<OsModel_P>::
 	state() {

@@ -40,7 +40,12 @@ namespace wiselib
 	template <typename OsModel_P>
 	class iSenseTemperatureRequestSensor
 	{
-	public:						
+	public:	
+            enum ErrorCodes
+      {
+         SUCCESS = OsModel_P::SUCCESS,
+         ERR_UNSPEC = OsModel_P::ERR_UNSPEC
+      };
 		enum StateData { READY = OsModel_P::READY,
 								NO_VALUE = OsModel_P::NO_VALUE,
 								INACTIVE = OsModel_P::INACTIVE };
@@ -66,6 +71,7 @@ namespace wiselib
 				curState_ = INACTIVE;
 			else 
 				curState_ = NO_VALUE;
+                        module_.temp_sensor()->enable();
 		}
 		///
 		
