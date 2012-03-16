@@ -164,7 +164,6 @@ class FirstFitAllocator {
 		#endif
 			first_chunk_id_(Chunk::NONE)
 		{
-			printf("allocator init at %p\n", this);
 		}
 		
 		template<typename T>

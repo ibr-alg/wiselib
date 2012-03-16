@@ -20,6 +20,8 @@ class Tuple_concept {
 		 * Return number of elements of the tuple.
 		 */
 		size_type size();
+		
+		bool is_wildcard(size_type idx);
 	
 	// Message-serialization interface??
 };
