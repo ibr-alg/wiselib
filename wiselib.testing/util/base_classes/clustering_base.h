@@ -80,7 +80,7 @@ namespace wiselib {
             }
         }
 
-    private:
+    protected:
         CallbackVector callbacks_;
 
 

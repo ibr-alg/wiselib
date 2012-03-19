@@ -21,15 +21,10 @@
 #ifndef __WISELIB_UTIL_ALLOCATORS_FIRST_FIT_ALLOCATOR_H
 #define __WISELIB_UTIL_ALLOCATORS_FIRST_FIT_ALLOCATOR_H
 
-#ifndef ALLOCATOR_KEEP_STATS
-	#define ALLOCATOR_KEEP_STATS 0
-#endif // ALLOCATOR_KEEP_STATS
-
 #ifdef PC
 	#undef NDEBUG
 	#include <cassert>
 #endif
-
 
 #ifndef assert
 	#define assert(X)
@@ -169,7 +164,6 @@ class FirstFitAllocator {
 		#endif
 			first_chunk_id_(Chunk::NONE)
 		{
-			printf("allocator init at %p\n", this);
 		}
 		
 		template<typename T>
@@ -218,6 +212,8 @@ class FirstFitAllocator {
 		
 		template<typename T>
 		array_pointer_t<T> allocate_array(typename OsModel::size_t n) {
+			assert(sizeof(T) != 0);
+			assert(n != 0);
 			return array_pointer_t<T>(allocate_chunk<T>(n));
 		}
 		
