@@ -66,7 +66,27 @@ namespace wiselib
             allocator_->free_array(buffer_);
          }
       }
-      // --------------------------------------------------------------------
+      
+		/**
+		 * Detach from internal buffer.
+		 * This will detach from the internal data structures such that
+		 * destroying this object wont free them anymore. This is useful, when
+		 * you have a bitstring_static_view on the same structure and want to
+		 * only use that
+		 */
+		void detach() {
+         size_ = 0;
+         buffer_ = 0;
+		}
+      
+      void attach(buffer_pointer_t buffer, size_type size) {
+         if(buffer_) {
+            allocator_->free_array(buffer_);
+         }
+         buffer_ = buffer;
+         size_ = size;
+      }
+      
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
          allocator_ = vec.allocator_;
@@ -181,7 +201,7 @@ namespace wiselib
          buffer_[size_++] = x;
          
          //printf("v: %d %d\n", buffer_[0], buffer_[1]);
-         assert(buffer_[size_ - 1] == x);
+//         assert(buffer_[size_ - 1] == x);
       }
       // --------------------------------------------------------------------
       void pop_back()
@@ -273,9 +293,7 @@ namespace wiselib
       }
       void shrink() { resize(capacity_ / 2); }
       
-      void pack() {
-         resize(size_);
-      }
+      void pack() { resize(size_); }
       
       void resize(size_t n) {
          //assert(allocator_!=0);
@@ -297,12 +315,15 @@ namespace wiselib
          
       }
       
-   protected:
+  // protected:
      // value_type vec_[VECTOR_SIZE];
 
       size_type size_, capacity_;
       buffer_pointer_t buffer_;
       typename Allocator::self_pointer_t allocator_;
+      
+      //friend class bitstring_static_view<OsModel;
+
    } __attribute__((__packed__));
 
 }
