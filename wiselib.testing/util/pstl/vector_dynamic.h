@@ -21,7 +21,6 @@
 #define __WISELIB_INTERNAL_INTERFACE_STL_VECTOR_DYNAMIC_H
 
 #include "util/pstl/iterator.h"
-#include <string.h>
 
 #define VECTOR_DYNAMIC_MIN_SIZE 4
 
@@ -318,7 +317,8 @@ namespace wiselib
   // protected:
      // value_type vec_[VECTOR_SIZE];
 
-      size_type size_, capacity_;
+      //size_type size_, capacity_;
+      uint16_t size_, capacity_;
       buffer_pointer_t buffer_;
       typename Allocator::self_pointer_t allocator_;
       
