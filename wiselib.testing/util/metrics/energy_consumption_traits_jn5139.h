@@ -19,7 +19,7 @@
 #ifndef __UTIL_METRICS_ENERGY_CONSUMPTION_JN5139_TRAITS_H
 #define __UTIL_METRICS_ENERGY_CONSUMPTION_JN5139_TRAITS_H
 
-/** Energy Consumption Traits for Jennic JN5139
+   /** Energy Consumption Traits for Jennic JN5139
     * 
     *  Data is based on Jennic Appication Note "JN-AN-1001 Calculating
     *  JN5139/JN5148 Power Consumption". See
@@ -62,8 +62,8 @@
        *  </br>
        *  The time is multiplied with the CPU active value as given on page 4
        *  from JN-AN-1001.</br>
-       *  CPU active = 2.85 + 0.285 per MHz = 2.85 + 32*0.285 = 11.97mA
-       *  (CPU active with Wireless Receiver active would be 27.3mA)
+       *  CPU active = 2.85 + 0.285 per MHz = 2.85 + 32*0.285 = 11.97mA</br>
+       *  (CPU active with Wireless Receiver active would be 27.3mA)</br>
        *  </br>
        *  Finally, the result is divided by (3600. * 1000.) to get mAh
        *  (instead of mAms).
@@ -74,7 +74,7 @@
        *  </br>
        *  The time is multiplied with the CPU idle value as given on page 4
        *  from JN-AN-1001.</br>
-       *  CPU idle with RAM held = 0.0024mA
+       *  CPU idle with RAM held = 0.0024mA</br>
        *  </br>
        *  Finally, the result is divided by (3600. * 1000.) to get mAh
        *  (instead of mAms).

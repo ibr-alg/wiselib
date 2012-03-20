@@ -199,7 +199,7 @@ namespace wiselib
       debug().debug( "FloodingAlgorithm: Disable\n" );
 #endif
       radio().unreg_recv_callback( callback_id_ );
-      radio().disable();
+      radio().disable_radio();
       return SUCCESS;
    }
    // -----------------------------------------------------------------------
