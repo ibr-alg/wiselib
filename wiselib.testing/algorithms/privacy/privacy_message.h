@@ -31,6 +31,7 @@ namespace wiselib
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::message_id_t message_id_t;
+		typedef PrivacyMessageType<Os, Radio> self_type;
 		// --------------------------------------------------------------------
 		inline PrivacyMessageType()
 		{
@@ -86,6 +87,15 @@ namespace wiselib
 		inline block_data_t* buffer()
 		{
 			return buff;
+		}
+		// --------------------------------------------------------------------
+		inline self_type& operator=( const self_type& _p )
+		{
+			for ( size_t i = 0; i < Radio::MAX_MESSAGE_LENGTH; i++ )
+			{
+				buff[i] = _p.buff[i];
+			}
+			return *this;
 		}
 		// --------------------------------------------------------------------
 	private:
