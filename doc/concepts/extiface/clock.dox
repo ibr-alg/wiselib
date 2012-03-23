@@ -33,15 +33,16 @@ class Clock_concept {
        */
       time_t time();
 
-      /** Return microseconds
+      /** Return microseconds since last millisecond
        */
       uint16_t microseconds( time_t time );
 
-      /** Return milliseconds
+      /** Return milliseconds since last second
         */
       uint16_t milliseconds( time_t time );
 
-      /** Return seconds
+      /** Return seconds since some arbitrary fixed point in time
+        * (e.g. boot-time or epoch)
         */
       uint32_t seconds( time_t time );
 };
