@@ -78,13 +78,13 @@ namespace wiselib {
 	template<typename OsModel_P>
 	typename PCClockModel<OsModel_P>::micros_t PCClockModel<OsModel_P>::
 	microseconds(time_t t) {
-		return t.time_of_day().total_microseconds();
+		return t.time_of_day().total_microseconds() % 1000;
 	}
 	
 	template<typename OsModel_P>
 	typename PCClockModel<OsModel_P>::millis_t PCClockModel<OsModel_P>::
 	milliseconds(time_t t) {
-		return t.time_of_day().total_milliseconds();
+		return t.time_of_day().total_milliseconds() % 1000;
 	}
 	
 	template<typename OsModel_P>

@@ -1,0 +1,9 @@
+There is a Android port available at another project---cbox:
+  * https://github.com/CEID-DS/cbox/tree/master/android_wiselib
+
+Documentation is also available:
+  * https://github.com/CEID-DS/cbox/wiki/Android-wiselib
+
+The code is---as the Wiselib---under LGPL. We plan to integrate it
+directly soon. Until then, however, the code can be taken from the
+given source.
