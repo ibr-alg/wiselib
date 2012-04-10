@@ -222,14 +222,14 @@ namespace wiselib {
 				return n;
 			}
 			
-			iterator find(value_type v) {
+			iterator find(value_type v, void* d = 0) {
 				for(iterator i = begin(); i != end(); ++i) {
 					if(*i == v) { return i; }
 				}
 				return end();
 			}
 			
-			node_pointer_t find_n(value_type v) {
+			node_pointer_t find_n(value_type v, void* d = 0) {
 				return find(v).node();
 			}
 			
