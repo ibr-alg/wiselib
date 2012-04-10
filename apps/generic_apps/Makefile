@@ -50,7 +50,8 @@ isense:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5139R1 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 isense.5148:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5148 ADD_CXXFLAGS="$(ADD_CXXFLAGS)"
+	#make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5148 ADD_CXXFLAGS="$(ADD_CXXFLAGS)"
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.isense JENNIC_CHIP=JN5148 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 lorien_sky:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.lorien ADD_CXXFLAGS=$(ADD_CXXFLAGS)
