@@ -18,10 +18,12 @@
  ***************************************************************************/
 
 
-#ifndef VARINT_H
-#define VARINT_H
+#ifndef STRING_H
+#define STRING_H
 
-#include "util/protobuf/byte.h"
+#include "byte.h"
+#include "varint.h"
+#include <util/pstl/string_dynamic.h>
 
 namespace wiselib {
    namespace protobuf {
@@ -43,7 +45,7 @@ template<
    typename Buffer_P,
    typename Integer_P
 >
-class VarInt {
+class String {
    public:
       typedef OsModel_P Os;
       typedef Buffer_P buffer_t;
@@ -51,33 +53,34 @@ class VarInt {
       typedef Integer_P int_t;
       
       typedef Byte<Os, buffer_t> byterw_t;
+      typedef VarInt<Os, buffer_t, int_t> intrw_t;
       
-      enum { WIRE_TYPE = 0 };
+      enum { WIRE_TYPE = 2 };
       
-      static void write(buffer_t& buffer, int_t v) {
-         bool continuation = (v >> 7) != 0;
+      static void write(buffer_t& buffer, const char* v) {
+         write(buffer, v, strlen(v));
+      }
+      
+      template<typename string_t>
+      static void write(buffer_t& buffer, string_t v) {
+         write(buffer, v, v.size());
+      }
          
-         byterw_t::write(buffer, (int_t)((v & DATA) | (continuation << 7)));
-         if(continuation) {
-            write(buffer, v >> 7);
+      static void write(buffer_t& buffer, const char* v, int_t l) {
+         intrw_t::write(buffer, l);
+         for(int_t i=0; i<l; i++) {
+            byterw_t::write(buffer, v[i]);
          }
       }
       
-      static void read(buffer_t& buffer, int_t& out) {
-         int_t v;
-         block_data_t b;
-         byterw_t::read(buffer, b);
-         v = b;
-         bool continuation = (v >> 7) != 0;
-         v &= DATA;
-         
-         if(continuation) {
-            int_t v2;
-            read(buffer, v2);
-            out = v | (v2 << 7);
-         }
-         else {
-            out = v;
+      template<typename string_t>
+      static void read(buffer_t& buffer, string_t& out) {
+         int_t l;
+         intrw_t::read(buffer, l);
+         int_t p = out.size();
+         out.resize(out.size() + l);
+         for(int_t i=0; i<l; i++) {
+            byterw_t::read(buffer, out[i]);
          }
       }
          

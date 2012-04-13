@@ -18,10 +18,11 @@
  ***************************************************************************/
 
 
-#ifndef VARINT_H
-#define VARINT_H
+#ifndef MESSAGE_H
+#define MESSAGE_H
 
-#include "util/protobuf/byte.h"
+#include "varint.h"
+#include "rwselect.h"
 
 namespace wiselib {
    namespace protobuf {
@@ -36,59 +37,57 @@ namespace wiselib {
  * \tparam Integer_P Unsigned integer type that is used on the application
  * side to represent varints. Note that this *must* be an unsigned type, else
  * you will get unexpected results.
- * (negative values are not supported yet)
  */
 template<
    typename OsModel_P,
    typename Buffer_P,
    typename Integer_P
 >
-class VarInt {
+class Message {
    public:
       typedef OsModel_P Os;
       typedef Buffer_P buffer_t;
+      typedef Byte<Os, buffer_t> byte_t;
       typedef typename Os::block_data_t block_data_t;
       typedef Integer_P int_t;
       
-      typedef Byte<Os, buffer_t> byterw_t;
+      typedef VarInt<Os, buffer_t, int_t> varint_t;
       
-      enum { WIRE_TYPE = 0 };
+      enum { WIRE_TYPE = 2 };
       
-      static void write(buffer_t& buffer, int_t v) {
-         bool continuation = (v >> 7) != 0;
-         
-         byterw_t::write(buffer, (int_t)((v & DATA) | (continuation << 7)));
-         if(continuation) {
-            write(buffer, v >> 7);
-         }
+      template<typename T>
+      static void write(buffer_t& buffer, int_t field, T v) {
+         typedef typename RWSelect<Os, buffer_t, int_t, T>::rw_t rw_t;
+         varint_t::write(buffer, field << 3 | rw_t::WIRE_TYPE);
+         rw_t::write(buffer, v);
       }
       
-      static void read(buffer_t& buffer, int_t& out) {
-         int_t v;
-         block_data_t b;
-         byterw_t::read(buffer, b);
-         v = b;
-         bool continuation = (v >> 7) != 0;
-         v &= DATA;
-         
-         if(continuation) {
-            int_t v2;
-            read(buffer, v2);
-            out = v | (v2 << 7);
-         }
-         else {
-            out = v;
-         }
+      template<typename T>
+      static void read(buffer_t& buffer, int_t& field, T& out) {
+         int_t r, wiretype;
+         varint_t::read(buffer, r);
+         field = r >> 3;
+         wiretype = r & 0x7;
+         // assert(wiretype == rw_t::WIRE_TYPE);
+         RWSelect<Os, buffer_t, int_t, T>::rw_t::read(buffer, out);
       }
-         
-   private:
-      static const uint8_t DATA = 0x7f, CONTINUATION = 0x80;
-   
+      
+      int_t field_number(buffer_t buffer) {
+         int_t r;
+         varint_t::read(buffer, r);
+         return r >> 3;
+      }
+
+      int_t wire_type(buffer_t buffer) {
+         int_t r;
+         varint_t::read(buffer, r);
+         return r & 0x7;
+      }
 };
 
-   }
 
-}
+   } // ns protobuf
+} // ns wiselib
 
 #endif // VARINT_H
 // vim: set ts=3 sw=3 expandtab:
