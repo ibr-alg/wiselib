@@ -39,8 +39,9 @@ class Byte {
          buffer++;
       }
       
-      static block_data_t read(buffer_t& buffer) {
-         block_data_t r = *buffer;
+      template<typename T>
+      static void read(buffer_t& buffer, T& out) {
+         out = *buffer;
          buffer++;
       }
 };
