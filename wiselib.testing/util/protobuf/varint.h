@@ -36,6 +36,7 @@ namespace wiselib {
  * \tparam Integer_P Unsigned integer type that is used on the application
  * side to represent varints. Note that this *must* be an unsigned type, else
  * you will get unexpected results.
+ * (negative values are not supported yet)
  */
 template<
    typename OsModel_P,
@@ -46,28 +47,36 @@ class VarInt {
    public:
       typedef OsModel_P Os;
       typedef Buffer_P buffer_t;
-      typedef Byte<Os, buffer_t> byte_t;
       typedef typename Os::block_data_t block_data_t;
       typedef Integer_P int_t;
+      
+      typedef Byte<Os, buffer_t> byterw_t;
       
       static void write(buffer_t& buffer, int_t v) {
          bool continuation = (v >> 7) != 0;
          
-         byte_t::write(buffer, (v & DATA) | (continuation << 7));
+         byterw_t::write(buffer, (int_t)((v & DATA) | (continuation << 7)));
          if(continuation) {
             write(buffer, v >> 7);
          }
       }
       
-      static int_t read(buffer_t& buffer) {
-         bool continuation_bit = ((*buffer & CONTINUATION) != 0);
-         int_t v = (*buffer & DATA);
-         buffer++;
+      static void read(buffer_t& buffer, int_t& out) {
+         int_t v;
+         block_data_t b;
+         byterw_t::read(buffer, b);
+         v = b;
+         bool continuation = (v >> 7) != 0;
+         v &= DATA;
          
-         if(continuation_bit) {
-            return v | (read(buffer) << 7);
+         if(continuation) {
+            int_t v2;
+            read(buffer, v2);
+            out = v | (v2 << 7);
          }
-         return v;
+         else {
+            out = v;
+         }
       }
          
    private:
