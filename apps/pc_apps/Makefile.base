@@ -1,4 +1,4 @@
-WISELIB_PATH=../..
+WISELIB_PATH=../../..
 
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
