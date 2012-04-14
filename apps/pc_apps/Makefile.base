@@ -1,4 +1,3 @@
-
 WISELIB_PATH=../..
 
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
@@ -6,8 +5,8 @@ WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
 CXX=g++
 LD=ld
-CXXFLAGS+=-I$(WISELIB_STABLE) -I$(WISELIB_TESTING) -lpthread
-LDFLAGS+=
+CXXFLAGS+=-I$(WISELIB_STABLE) -I$(WISELIB_TESTING) 
+LDFLAGS+=-lpthread
 
 $(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) $< -o $@
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
