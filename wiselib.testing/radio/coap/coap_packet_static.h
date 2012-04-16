@@ -1,5 +1,24 @@
-#ifndef COAP_PACKET_H
-#define COAP_PACKET_H
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
+#ifndef COAP_PACKET_STATIC_H
+#define COAP_PACKET_STATIC_H
 
 #include "coap.h"
 
@@ -11,7 +30,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_ = COAP_DEFAULT_STORAGE_SIZE >
-	class CoapPacket
+	class CoapPacketStatic
 	{
 	public:
 		typedef OsModel_P OsModel;
@@ -20,15 +39,15 @@ namespace wiselib
 		typedef typename Radio::block_data_t block_data_t;
 		typedef String_T string_t;
 
-		typedef CoapPacket<OsModel_P, Radio_P, String_T, storage_size_> self_type;
+		typedef CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_> self_type;
 		typedef self_type* self_pointer_t;
 		typedef self_type coap_packet_t;
 
 		///@name Construction / Destruction
 		///@{
-		CoapPacket( );
-		CoapPacket( const coap_packet_t &rhs );
-		~CoapPacket();
+		CoapPacketStatic( );
+		CoapPacketStatic( const coap_packet_t &rhs );
+		~CoapPacketStatic();
 		///@}
 
 		coap_packet_t& operator=(const coap_packet_t &rhs);
@@ -253,7 +272,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>& CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::operator=(const coap_packet_t &rhs)
+	CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>& CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::operator=(const coap_packet_t &rhs)
 	{
 		if( &rhs != this )
 		{
@@ -283,7 +302,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::CoapPacket()
+	CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::CoapPacketStatic()
 	{
 		init();
 	}
@@ -292,7 +311,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::CoapPacket( const coap_packet_t &rhs)
+	CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::CoapPacketStatic( const coap_packet_t &rhs)
 	{
 		init();
 		*this = rhs;
@@ -302,7 +321,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::~CoapPacket()
+	CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::~CoapPacketStatic()
 	{
 	}
 
@@ -310,7 +329,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::init()
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::init()
 	{
 		version_ = COAP_VERSION;
 		// TODO: sinnvollen Default festlegen und dann ein COAP_MSG_DEFAULT_TYPE Makro anlegen oder so
@@ -332,7 +351,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::parse_message( block_data_t *datastream, size_t length )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::parse_message( block_data_t *datastream, size_t length )
 	{
 		// clear everything
 		init();
@@ -366,7 +385,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	uint8_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::version() const
+	uint8_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::version() const
 	{
 		return version_;
 	}
@@ -375,7 +394,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_version( uint8_t version )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_version( uint8_t version )
 	{
 		version_ = version & 0x03;
 	}
@@ -384,7 +403,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	CoapType CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::type() const
+	CoapType CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::type() const
 	{
 		return (CoapType) type_;
 	}
@@ -393,7 +412,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_type( CoapType type )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_type( CoapType type )
 	{
 		type_ = type;
 	}
@@ -402,7 +421,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	CoapCode CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::code() const
+	CoapCode CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::code() const
 	{
 		return (CoapCode) code_;
 	}
@@ -411,7 +430,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_code( CoapCode code )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_code( CoapCode code )
 	{
 		code_ = code;
 	}
@@ -420,7 +439,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	bool CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::is_request() const
+	bool CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::is_request() const
 	{
 		return( code_ >= COAP_REQUEST_CODE_RANGE_MIN && code_ <= COAP_REQUEST_CODE_RANGE_MAX );
 	}
@@ -429,7 +448,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	bool CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::is_response() const
+	bool CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::is_response() const
 	{
 		return( code_ >= COAP_RESPONSE_CODE_RANGE_MIN && code_ <= COAP_RESPONSE_CODE_RANGE_MAX );
 	}
@@ -438,7 +457,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	uint16_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::msg_id() const
+	uint16_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::msg_id() const
 	{
 		return msg_id_;
 	}
@@ -447,7 +466,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_msg_id( uint16_t msg_id )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_msg_id( uint16_t msg_id )
 	{
 		msg_id_ = msg_id;
 	}
@@ -456,7 +475,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_data( block_data_t* data , size_t length)
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_data( block_data_t* data , size_t length)
 	{
 		// we put data at the very end
 		block_data_t *payload = storage_ + ( (storage_size_) - length );
@@ -472,7 +491,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	typename Radio_P::block_data_t * CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::data()
+	typename Radio_P::block_data_t * CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::data()
 	{
 		return payload_;
 	}
@@ -481,7 +500,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	const typename Radio_P::block_data_t * CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::data() const
+	const typename Radio_P::block_data_t * CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::data() const
 	{
 		return payload_;
 	}
@@ -490,7 +509,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	size_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::data_length() const
+	size_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::data_length() const
 	{
 		return data_length_;
 	}
@@ -499,7 +518,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	uint32_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::what_options_are_set() const
+	uint32_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::what_options_are_set() const
 	{
 		uint32_t result = 0;
 		for( size_t i = 0; i < COAP_OPTION_ARRAY_SIZE; ++i )
@@ -514,7 +533,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::token( OpaqueData &token )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::token( OpaqueData &token )
 	{
 		if( get_option( COAP_OPT_TOKEN, token ) != SUCCESS )
 		{
@@ -526,7 +545,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_token( const OpaqueData &token )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_token( const OpaqueData &token )
 	{
 		remove_option( COAP_OPT_TOKEN );
 		if( token != OpaqueData() )
@@ -539,7 +558,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	String_T CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::uri_path()
+	String_T CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::uri_path()
 	{
 		string_t path = string_t();
 		get_option( COAP_OPT_URI_PATH, path );
@@ -550,7 +569,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_path( string_t &path )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_path( string_t &path )
 	{
 		return set_option( COAP_OPT_URI_PATH, path );
 	}
@@ -559,7 +578,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_query( string_t &query )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_query( string_t &query )
 	{
 		return set_option( COAP_OPT_URI_QUERY, query );
 	}
@@ -569,7 +588,7 @@ namespace wiselib
 	typename String_T,
 	size_t storage_size_>
 	template<typename list_t>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>
 	::get_query_list( CoapOptionNum optnum, list_t &result )
 	{
 		if ( optnum != COAP_OPT_LOCATION_QUERY
@@ -612,7 +631,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_port( uint32_t port )
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_port( uint32_t port )
 	{
 		remove_option( COAP_OPT_URI_PORT );
 		if( port != COAP_STD_PORT )
@@ -625,7 +644,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	uint32_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::uri_port()
+	uint32_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::uri_port()
 	{
 		uint32_t port = COAP_STD_PORT;
 		get_option( COAP_OPT_URI_PORT, port );
@@ -636,7 +655,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_option( CoapOptionNum option_number, uint32_t value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_option( CoapOptionNum option_number, uint32_t value )
 	{
 		remove_option(option_number);
 		return add_option( option_number, value );
@@ -646,7 +665,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_option( CoapOptionNum option_number, const string_t &value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_option( CoapOptionNum option_number, const string_t &value )
 	{
 		remove_option(option_number);
 		return add_option( option_number, value );
@@ -656,7 +675,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_option( CoapOptionNum option_number, const OpaqueData &value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_option( CoapOptionNum option_number, const OpaqueData &value )
 	{
 		remove_option(option_number);
 		return add_option( option_number, value );
@@ -666,7 +685,7 @@ namespace wiselib
 		typename Radio_P,
 		typename String_T,
 		size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::add_option( CoapOptionNum option_number, uint32_t value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::add_option( CoapOptionNum option_number, uint32_t value )
 	{
 		if( option_number > COAP_LARGEST_OPTION_NUMBER )
 		{
@@ -700,7 +719,7 @@ namespace wiselib
 		typename Radio_P,
 		typename String_T,
 		size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::add_option( CoapOptionNum option_number, const string_t &value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::add_option( CoapOptionNum option_number, const string_t &value )
 	{
 		if( option_number > COAP_LARGEST_OPTION_NUMBER )
 		{
@@ -787,7 +806,7 @@ namespace wiselib
 		typename Radio_P,
 		typename String_T,
 		size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::add_option( CoapOptionNum option_number, const OpaqueData &value)
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::add_option( CoapOptionNum option_number, const OpaqueData &value)
 	{
 		if( option_number > COAP_LARGEST_OPTION_NUMBER )
 		{
@@ -805,7 +824,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::get_option( CoapOptionNum option_number, uint32_t &value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::get_option( CoapOptionNum option_number, uint32_t &value )
 	{
 		if( options_[option_number] != NULL )
 		{
@@ -844,7 +863,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::get_option( CoapOptionNum option_number, string_t &value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::get_option( CoapOptionNum option_number, string_t &value )
 	{
 		if( options_[option_number] == NULL )
 			return ERR_OPT_NOT_SET;
@@ -871,7 +890,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::get_option( CoapOptionNum option_number, OpaqueData &value )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::get_option( CoapOptionNum option_number, OpaqueData &value )
 	{
 		if( options_[option_number] == NULL )
 			return ERR_OPT_NOT_SET;
@@ -888,7 +907,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::remove_option( CoapOptionNum option_number )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::remove_option( CoapOptionNum option_number )
 	{
 		block_data_t *removal_start = options_[option_number];
 		size_t removal_len = 0;
@@ -985,7 +1004,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	bool CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::opt_if_none_match() const
+	bool CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::opt_if_none_match() const
 	{
 		return options_[COAP_OPT_IF_NONE_MATCH] != NULL;
 	}
@@ -994,7 +1013,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::set_opt_if_none_match( bool opt_if_none_match )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_opt_if_none_match( bool opt_if_none_match )
 	{
 		if( opt_if_none_match )
 		{
@@ -1010,7 +1029,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	size_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>
+	size_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>
 	::option_count() const
 	{
 //		size_t count = 0;
@@ -1034,7 +1053,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	size_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::serialize_length() const
+	size_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::serialize_length() const
 	{
 		// header (4 bytes) + options + payload
 		return (size_t) ( 4 +
@@ -1046,7 +1065,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	size_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>
+	size_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>
 	::serialize( block_data_t *datastream ) const
 	{
 		if( option_count_ >= COAP_UNLIMITED_OPTIONS )
@@ -1075,7 +1094,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::get_error_context( CoapCode &error_code, CoapOptionNum &error_option)
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::get_error_context( CoapCode &error_code, CoapOptionNum &error_option)
 	{
 		error_code = (CoapCode) error_code_;
 		error_option = (CoapOptionNum) error_option_;
@@ -1088,7 +1107,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::add_option(CoapOptionNum num, const block_data_t *serial_opt, size_t len, size_t num_of_opts)
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::add_option(CoapOptionNum num, const block_data_t *serial_opt, size_t len, size_t num_of_opts)
 	{
 		CoapOptionNum prev = (CoapOptionNum) 0;
 		CoapOptionNum next = (CoapOptionNum) 0;
@@ -1265,7 +1284,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::add_end_of_opts_marker()
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::add_end_of_opts_marker()
 	{
 		uint8_t prev = 0;
 		block_data_t *move_back_start;
@@ -1306,7 +1325,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::remove_end_of_opts_marker()
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::remove_end_of_opts_marker()
 	{
 		// look for fenceposts that were inserted because the delta was
 		// equal to COAP_END_OF_OPTIONS_MARKER and remove them, as they are
@@ -1346,7 +1365,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	bool CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::is_end_of_opts_marker(block_data_t *opthead)
+	bool CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::is_end_of_opts_marker(block_data_t *opthead)
 	{
 		if( option_count_ >= COAP_UNLIMITED_OPTIONS && *opthead == COAP_END_OF_OPTIONS_MARKER )
 			return true;
@@ -1357,7 +1376,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::scan_opts( block_data_t *start, uint8_t prev)
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::scan_opts( block_data_t *start, uint8_t prev)
 	{
 		uint8_t delta = 0;
 		while( start < end_of_options_ )
@@ -1385,7 +1404,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::initial_scan_opts( size_t num_of_opts, size_t message_length )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::initial_scan_opts( size_t num_of_opts, size_t message_length )
 	{
 		block_data_t *curr_position = storage_;
 		option_count_ = 0;
@@ -1495,7 +1514,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	uint8_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::next_fencepost_delta(uint8_t previous_opt_number) const
+	uint8_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::next_fencepost_delta(uint8_t previous_opt_number) const
 	{
 		return ( COAP_OPT_FENCEPOST - ( (previous_opt_number) % COAP_OPT_FENCEPOST ) );
 	}
@@ -1504,7 +1523,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	bool CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::is_fencepost(uint8_t optnum) const
+	bool CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::is_fencepost(uint8_t optnum) const
 	{
 		return (optnum > 0 && optnum % 14 == 0);
 	}
@@ -1513,7 +1532,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	bool CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::is_critical( uint8_t option_number ) const
+	bool CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::is_critical( uint8_t option_number ) const
 	{
 		// odd option numbers are critical
 		return( option_number & 0x01 );
@@ -1523,7 +1542,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	size_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>::optlen(block_data_t * optheader) const
+	size_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::optlen(block_data_t * optheader) const
 	{
 		size_t len = *optheader & 0x0f;
 		if( len == COAP_LONG_OPTION )
@@ -1537,7 +1556,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	size_t CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>
+	size_t CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>
 	::make_segments_from_string( const char *cstr, char delimiter, CoapOptionNum optnum, block_data_t *result, size_t &num_segments ) const
 	{
 		size_t result_pos = 0;
@@ -1584,7 +1603,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	void CoapPacket<OsModel_P, Radio_P, String_T, storage_size_>
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>
 	::make_string_from_segments( char delimiter, CoapOptionNum optnum, string_t &result )
 	{
 		result = "";
@@ -1626,4 +1645,4 @@ namespace wiselib
 
 
 
-#endif // COAP_PACKET_H
+#endif // COAP_PACKET_STATIC_H

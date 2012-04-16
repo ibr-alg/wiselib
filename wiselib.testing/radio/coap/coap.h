@@ -1,10 +1,27 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 #ifndef COAP_H
 #define COAP_H
 
 #include "external_interface/external_interface.h"
 #include "util/serialization/simple_types.h"
-#include "util/pstl/static_string.h"
-#include "util/pstl/list_static.h"
 using namespace std;
 
 // Config Tweaks
@@ -20,14 +37,12 @@ using namespace std;
 #define COAP_PREFACE_MSG_ID		0
 
 // size of the storage blob of a coap packet. contains options and payload
-#define COAP_DEFAULT_STORAGE_SIZE		127
+static const size_t COAP_DEFAULT_STORAGE_SIZE = 127;
 
 // Size of message buffer that saves sent and received messages for a while
-#define COAPRADIO_SENT_LIST_SIZE		10
-#define COAPRADIO_RECEIVED_LIST_SIZE		10
-#define COAPRADIO_RESOURCES_SIZE		5
-#define COAPRADIO_TIMER_ACTION_SIZE		10
-
+static const size_t COAPRADIO_SENT_LIST_SIZE = 10;
+static const size_t COAPRADIO_RECEIVED_LIST_SIZE = 10;
+static const size_t COAPRADIO_RESOURCES_SIZE = 5;
 
 enum CoapMsgIds
 {
