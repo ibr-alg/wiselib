@@ -72,13 +72,13 @@ class Message {
          RWSelect<Os, buffer_t, int_t, T>::rw_t::read(buffer, out);
       }
       
-      int_t field_number(buffer_t buffer) {
+      static int_t field_number(buffer_t buffer) {
          int_t r;
          varint_t::read(buffer, r);
          return r >> 3;
       }
 
-      int_t wire_type(buffer_t buffer) {
+      static int_t wire_type(buffer_t buffer) {
          int_t r;
          varint_t::read(buffer, r);
          return r & 0x7;
