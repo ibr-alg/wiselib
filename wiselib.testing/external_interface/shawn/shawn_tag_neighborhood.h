@@ -20,6 +20,8 @@ class ShawnTagNeighborhood {
       typedef typename Radio::node_id_t node_id_t;
       typedef typename OsModel::size_t size_t;
       typedef typename OsModel::block_data_t block_data_t;
+      typedef ShawnTagNeighborhood<OsModel, Radio> self_type;
+      typedef self_type* self_pointer_t;
       
       enum { MAX_NODES = 16 };
       
