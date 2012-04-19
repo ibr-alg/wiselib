@@ -118,6 +118,7 @@ namespace wiselib
       */
       // --------------------------------------------------------------------
       void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
+      typename Allocator::self_pointer_t allocator() { return allocator_; }
       ///@name Iterators
       ///@{
       iterator begin()
