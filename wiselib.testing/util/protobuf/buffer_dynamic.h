@@ -20,35 +20,31 @@ namespace wiselib {
 			typedef buffer_dynamic<OsModel, Allocator> self_type;
 			typedef vector_dynamic<OsModel, block_data_t, Allocator> vector_t;
 			
-			buffer_dynamic() : virgin_(true), pos_(0) {
+			buffer_dynamic() : /*virgin_(true),*/ pos_(0) {
 			}
 			
-			buffer_dynamic(typename Allocator::self_pointer_t alloc) : virgin_(true), pos_(0) {
+			buffer_dynamic(typename Allocator::self_pointer_t alloc) : /*virgin_(true),*/ pos_(0) {
 				data_.set_allocator(alloc);
-				data_.push_back(0);
 			}
 			
 			void set_allocator(typename Allocator::self_pointer_t alloc) {
 				data_.set_allocator(alloc);
-				if(data_.size() == 0) {
-				data_.push_back(0);
-				}
 			}
 			
 			self_type& operator++() {
 				pos_++;
-				while(data_.size() < pos_) {
-					virgin_ = false;
-					data_.push_back(0);
-				}
 				return *this;
 			}
 			
 			block_data_t& operator*() {
+				while(pos_ >= data_.size()) {
+					//virgin_ = false;
+					data_.push_back(0);
+				}
 				return data_[pos_];
 			}
 			
-			bool virgin() { return virgin_; }
+			//bool virgin() { return virgin_; }
 			
 			/**
 			 * return false iff the next call to operator*() would change the
@@ -70,7 +66,7 @@ namespace wiselib {
 			
 		private:
 			vector_t data_;
-			bool virgin_;
+			//bool virgin_;
 			size_t pos_;
 	};
 	
