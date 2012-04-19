@@ -51,7 +51,7 @@ namespace wiselib
       typedef ExtIfaceProcessor::block_data_t block_data_t;
       typedef ExtIfaceProcessor::size_t size_t;
       typedef ExtIfaceProcessor::message_id_t message_id_t;
-
+      
       typedef delegate3<void, int, long, unsigned char*> radio_delegate_t;
       // --------------------------------------------------------------------
       enum ErrorCodes
@@ -77,7 +77,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       int send( node_id_t id, size_t len, block_data_t *data )
       {
-         typename shawn::World::node_iterator iter;
+         typedef typename shawn::World::node_iterator iter_t;
          typename shawn::World& world = os().proc->owner_w().world_w();
          
          if(id == BROADCAST_ADDRESS) {
@@ -85,9 +85,10 @@ namespace wiselib
             return SUCCESS;
          }
          
-         for(iter = world.begin_nodes_w(); iter != world.end_nodes_w(); ++iter) {
+         for(iter_t iter = world.begin_nodes_w(); iter != world.end_nodes_w(); ++iter) {
             shawn::TagHandle th = iter->find_tag_w("radio_id");
             if(th.get() && (dynamic_cast<shawn::IntegerTag*>( th.get() ))->value() == id) {
+               printf("sending to %d len=%d\n", iter->id(), len);
                os().proc->send_wiselib_message( iter->id(), len, data );
                return SUCCESS;
             }
