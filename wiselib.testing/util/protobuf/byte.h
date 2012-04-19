@@ -36,13 +36,13 @@ class Byte {
       
       static void write(buffer_t& buffer, block_data_t v) {
          *buffer = v;
-         buffer++;
+         ++buffer;
       }
       
       template<typename T>
       static void read(buffer_t& buffer, T& out) {
          out = *buffer;
-         buffer++;
+         ++buffer;
       }
 };
 
