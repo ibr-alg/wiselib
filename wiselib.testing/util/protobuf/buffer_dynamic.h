@@ -25,10 +25,14 @@ namespace wiselib {
 			
 			buffer_dynamic(typename Allocator::self_pointer_t alloc) : virgin_(true), pos_(0) {
 				data_.set_allocator(alloc);
+				data_.push_back(0);
 			}
 			
 			void set_allocator(typename Allocator::self_pointer_t alloc) {
 				data_.set_allocator(alloc);
+				if(data_.size() == 0) {
+				data_.push_back(0);
+				}
 			}
 			
 			self_type& operator++() {
