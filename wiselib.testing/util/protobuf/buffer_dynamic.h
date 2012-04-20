@@ -51,7 +51,7 @@ namespace wiselib {
 			 * buffers size
 			 */
 			bool readonly() {
-				return (position() < (size()-1));
+				return ((position()+1) < (size()));
 			}
 			
 			size_t position() { return pos_; }
