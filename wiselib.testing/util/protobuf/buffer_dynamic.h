@@ -20,8 +20,8 @@ namespace wiselib {
 			typedef buffer_dynamic<OsModel, Allocator> self_type;
 			typedef vector_dynamic<OsModel, block_data_t, Allocator> vector_t;
 			
-			buffer_dynamic() : /*virgin_(true),*/ pos_(0) {
-			}
+			//buffer_dynamic() : /*virgin_(true),*/ pos_(0) {
+			//}
 			
 			buffer_dynamic(typename Allocator::self_pointer_t alloc) : /*virgin_(true),*/ pos_(0) {
 				data_.set_allocator(alloc);
@@ -41,6 +41,7 @@ namespace wiselib {
 					//virgin_ = false;
 					data_.push_back(0);
 				}
+				assert(pos_ < data_.size());
 				return data_[pos_];
 			}
 			
@@ -65,6 +66,9 @@ namespace wiselib {
 			}
 			
 		private:
+			void operator=(buffer_dynamic& b) {
+			}
+			
 			vector_t data_;
 			//bool virgin_;
 			size_t pos_;
