@@ -40,6 +40,7 @@ namespace wiselib
     */
    template<typename OsModel_P>
    class ShawnTagIdRadio
+      : public RadioBase<OsModel_P, typename ExtIfaceProcessor::node_id_t, typename ExtIfaceProcessor::size_t, typename ExtIfaceProcessor::block_data_t, 10>
    {
    public:
       typedef OsModel_P OsModel;
@@ -88,7 +89,7 @@ namespace wiselib
          for(iter_t iter = world.begin_nodes_w(); iter != world.end_nodes_w(); ++iter) {
             shawn::TagHandle th = iter->find_tag_w("radio_id");
             if(th.get() && (dynamic_cast<shawn::IntegerTag*>( th.get() ))->value() == id) {
-               printf("sending to %d len=%d\n", iter->id(), len);
+               //printf("sending to %d len=%d\n", iter->id(), len);
                os().proc->send_wiselib_message( iter->id(), len, data );
                return SUCCESS;
             }
@@ -119,6 +120,10 @@ namespace wiselib
 
          return ERR_UNSPEC;
       }
+      void on_receive(node_id_t from, size_t len, block_data_t* data) {
+         notify_receivers
+      
+      
       // --------------------------------------------------------------------
       int unreg_recv_callback( int idx )
       { return ERR_NOTIMPL; }
