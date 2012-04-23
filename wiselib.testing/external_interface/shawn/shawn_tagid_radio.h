@@ -22,6 +22,7 @@
 #include "external_interface/shawn/shawn_types.h"
 
 #include "sys/taggings/basic_tags.h"
+#include "util/base_classes/radio_base.h"
 
 namespace wiselib
 {
@@ -94,14 +95,19 @@ namespace wiselib
                return SUCCESS;
             }
          }
-         return ERR_HOSTUNREACH;
+         os().proc->send_wiselib_message( id, len, data );
+         //return ERR_HOSTUNREACH;
+         return SUCCESS;
       };
       // --------------------------------------------------------------------
       int enable_radio()
-      { return SUCCESS; }
+      {
+         os().proc->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+         return SUCCESS;
+      }
       // --------------------------------------------------------------------
       int disable_radio()
-      { return SUCCESS; }
+      { return ERR_NOTIMPL; }
       // --------------------------------------------------------------------
       node_id_t id()
       {
@@ -112,16 +118,32 @@ namespace wiselib
          //return os().proc->id();
       }
       // --------------------------------------------------------------------
+      /*
       template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
       int reg_recv_callback( T *obj_pnt )
       {
-         if (os().proc->template reg_recv_callback<T, TMethod>( obj_pnt ))
+         if (os().proc->template reg_recv_callback<self_, TMethod>( obj_pnt ))
             return SUCCESS;
 
          return ERR_UNSPEC;
-      }
+      }*/
       void on_receive(node_id_t from, size_t len, block_data_t* data) {
-         notify_receivers
+         node_id_t tag_from = from;
+         typedef typename shawn::World::node_iterator iter_t;
+         typename shawn::World& world = os().proc->owner_w().world_w();
+         for(iter_t iter = world.begin_nodes_w(); iter != world.end_nodes_w(); ++iter) {
+            if(iter->id() == from) {
+               shawn::TagHandle th = iter->find_tag_w("radio_id");
+               if(th.get()) {
+                  this->notify_receivers(dynamic_cast<shawn::IntegerTag*>(th.get())->value(), len, data);
+               }
+               else {
+                  this->notify_receivers(from, len, data);
+               }
+               return;
+            }
+         }
+      }
       
       
       // --------------------------------------------------------------------
