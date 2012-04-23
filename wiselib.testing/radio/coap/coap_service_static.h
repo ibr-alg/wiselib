@@ -30,6 +30,16 @@
 
 namespace wiselib {
 
+/**
+ * \brief This class provides an interface to sending CoAP requests and exposing resources via CoAP.
+ * For requesting remote resources have a look at get(), put(), post(), del() and request()<br>
+ * For sharing resources via CoAP have a look at reg_resource_callback() and reply()<br>
+ * Don't forget to call enable_radio() before you do anything else!<br>
+ * This implementation implements many basic features of version 9 of the <a href="https://datatracker.ietf.org/doc/draft-ietf-core-coap/"> CoAP draft</a><br>
+ * Known Bugs:
+ * - Does not work on iSense JN5148 nodes
+ * - Does not work on iSense JN5139R1 nodes when compiled with size optimization (-Os). Optimization levels -O1 and -O2 work.
+ */
 template<typename OsModel_P,
 	typename Radio_P = typename OsModel_P::Radio,
 	typename Timer_P = typename OsModel_P::Timer,
@@ -67,6 +77,22 @@ template<typename OsModel_P,
 
 		typedef typename CoapPacketStatic<OsModel, Radio, string_t>::coap_packet_t coap_packet_t;
 
+		enum error_codes
+		{
+			// inherited from concepts::BasicReturnValues_concept
+			SUCCESS = OsModel::SUCCESS,
+			ERR_UNSPEC = OsModel::ERR_UNSPEC,
+			ERR_NOTIMPL = OsModel::ERR_NOTIMPL
+		};
+
+		enum path_compare
+		{
+			EQUAL,
+			LHS_IS_SUBRESOURCE,
+			RHS_IS_SUBRESOURCE,
+			NOT_EQUAL
+		};
+
 		class ReceivedMessage
 		{
 		public:
@@ -88,7 +114,7 @@ template<typename OsModel_P,
 			{
 				message_ = coap_packet_t();
 				ack_ = NULL;
-				response_ = false;
+				response_ = NULL;
 			}
 
 			ReceivedMessage( const ReceivedMessage &rhs )
@@ -101,29 +127,50 @@ template<typename OsModel_P,
 				message_ = packet;
 				correspondent_ = from;
 				ack_ = NULL;
-				response_ = false;
+				response_ = NULL;
 			}
 
+			/**
+			 * Gets the CoapPacketStatic Object the was received
+			 * @return received message
+			 */
 			coap_packet_t & message() const
 			{
 				return message_;
 			}
 
+			/**
+			 * Gets the CoapPacketStatic Object the was received
+			 * @return received message
+			 */
 			coap_packet_t & message()
 			{
 				return message_;
 			}
 
+			/**
+			 * Gets sender of the message
+			 * @return sender of the CoAP message
+			 */
 			node_id_t correspondent() const
 			{
 				return correspondent_;
 			}
 
+			/**
+			 * Gets pointer to the ACK message, if one was sent
+			 * @return Pointer to ACK message, NULL if no ACK was sent (yet)
+			 */
 			coap_packet_t * ack_sent() const
 			{
 				return ack_;
 			}
 
+			/**
+			 * Gets pointer to a message sent in response to this received
+			 * message (via CoapServiceStatic::reply() )
+			 * @return Pointer to response, NULL if no response was sent
+			 */
 			coap_packet_t * response_sent() const
 			{
 				return response_;
@@ -173,32 +220,77 @@ template<typename OsModel_P,
 		int send (node_id_t receiver, size_t len, block_data_t *data );
 		void receive(node_id_t from, size_t len, block_data_t * data);
 
-		// TODO: comment!!
 		/**
-		 * Sends the Message passed AS IT IS. That means: no sanity checks, no message ID or token generation.
-		 * Most likely this is NOT what you want, use TODO instead
+		 * Sends the %Message passed AS IT IS. That means: no sanity checks, no message ID or token generation.
+		 * Most likely this is NOT what you want, use get(), put(), post(), del(), request() or reply() instead
 		 * @param receiver node ID of the receiver
-		 * @param message Coap Packet to send
+		 * @param message Packet to send
 		 * @param callback delegate for responses from the receiver
+		 * @return packet sent
 		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* send_coap_as_is(node_id_t receiver, const coap_packet_t & message, T *callback);
 
+		/**
+		 * Generates a MessageID and sends the %Message.
+		 * Most likely this is NOT what you want, use get(), put(), post(), del(), request() or reply() instead
+		 * @param receiver node ID of the receiver
+		 * @param message packet to send
+		 * @param callback delegate for responses from the receiver
+		 * @return packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* send_coap_gen_msg_id(node_id_t receiver, coap_packet_t & message, T *callback);
 
+		/**
+		 * Generates a MessageID and Token and sends the %Message.
+		 * Most likely this is NOT what you want, use get(), put(), post(), del(), request() or reply() instead
+		 * @param receiver node ID of the receiver
+		 * @param message packet to send
+		 * @param callback delegate for responses from the receiver
+		 * @return packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* send_coap_gen_msg_id_token(node_id_t receiver, coap_packet_t & message, T *callback);
 		
+		/**
+		 * Sends an RST in response to the MessageID passed
+		 * @param receiver node ID of the receiver
+		 * @param id Message ID to reset
+		 * @return RST message sent
+		 */
 		coap_packet_t* rst( node_id_t receiver, coap_msg_id_t id );
 
+		/**
+		 * Registers a resource. Whenever a request contains an Uri-Path that
+		 * equals the resource_path or is a subresource of it, it will be passed
+		 * to the callback
+		 * @param resource_path path of the resource
+		 * @param callback Delegate to call when a request for the resource is received
+		 * @return index for unregistering a resource
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		int reg_resource_callback( string_t resource_path, T *callback );
 
+		/**
+		 * Unregisters a resource
+		 * @param idx index of the resource to unregister. This index is what
+		 * reg_resource_callback() returns
+		 * @return always returns CoapServiceStatic::SUCCESS
+		 */
 		int unreg_resource_callback( int idx );
 
-		void receive_coap(ReceivedMessage& message);
-
+		/**
+		 * Sends a GET request
+		 * @param receiver server to send the request to
+		 * @param uri_path Uri-Path to be requested, use "" for empty path
+		 * @param uri_query Uri-Query to be requested, use "" for empty path
+		 * @param callback Delegate that is called when a response is received
+		 * @param confirmable set to true if a CON message should be send
+		 * @param uri_host use if server hosts several virtual hosts
+		 * @param uri_port use if a port other than COAP_STD_PORT is to be used
+		 * @return the packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* get(node_id_t receiver,
 					string_t uri_path,
@@ -208,6 +300,19 @@ template<typename OsModel_P,
 					string_t uri_host = string_t(),
 					uint16_t uri_port = COAP_STD_PORT);
 
+		/**
+		 * Sends a PUT request
+		 * @param receiver server to send the request to
+		 * @param uri_path Uri-Path to be requested, use "" for empty path
+		 * @param uri_query Uri-Query to be requested, use "" for empty path
+		 * @param callback Delegate that is called when a response is received
+		 * @param payload body of the request
+		 * @param payload_length length of body
+		 * @param confirmable set to true if a CON message should be send
+		 * @param uri_host use if server hosts several virtual hosts
+		 * @param uri_port use if a port other than COAP_STD_PORT is to be used
+		 * @return the packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* put(node_id_t receiver,
 					string_t uri_path,
@@ -219,6 +324,19 @@ template<typename OsModel_P,
 					string_t uri_host = string_t(),
 					uint16_t uri_port = COAP_STD_PORT);
 
+		/**
+		 * Sends a POST request
+		 * @param receiver server to send the request to
+		 * @param uri_path Uri-Path to be requested, use "" for empty path
+		 * @param uri_query Uri-Query to be requested, use "" for empty path
+		 * @param callback Delegate that is called when a response is received
+		 * @param payload body of the request
+		 * @param payload_length length of body
+		 * @param confirmable set to true if a CON message should be send
+		 * @param uri_host use if server hosts several virtual hosts
+		 * @param uri_port use if a port other than COAP_STD_PORT is to be used
+		 * @return the packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* post(node_id_t receiver,
 					string_t uri_path,
@@ -230,6 +348,17 @@ template<typename OsModel_P,
 					string_t uri_host = string_t(),
 					uint16_t uri_port = COAP_STD_PORT);
 
+		/**
+		 * Sends a DELETE request
+		 * @param receiver server to send the request to
+		 * @param uri_path Uri-Path to be requested, use "" for empty path
+		 * @param uri_query Uri-Query to be requested, use "" for empty path
+		 * @param callback Delegate that is called when a response is received
+		 * @param confirmable set to true if a CON message should be send
+		 * @param uri_host use if server hosts several virtual hosts
+		 * @param uri_port use if a port other than COAP_STD_PORT is to be used
+		 * @return the packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* del(node_id_t receiver,
 					string_t uri_path,
@@ -239,6 +368,20 @@ template<typename OsModel_P,
 					string_t uri_host = string_t(),
 					uint16_t uri_port = COAP_STD_PORT);
 
+		/**
+		 * Sends a request, the type is determined by the code parameter
+		 * @param receiver server to send the request to
+		 * @param code type of the request (typically GET, PUT, POST or DELETE)
+		 * @param uri_path Uri-Path to be requested, use "" for empty path
+		 * @param uri_query Uri-Query to be requested, use "" for empty path
+		 * @param callback Delegate that is called when a response is received
+		 * @param payload body of the request
+		 * @param payload_length length of body
+		 * @param confirmable set to true if a CON message should be send
+		 * @param uri_host use if server hosts several virtual hosts
+		 * @param uri_port use if a port other than COAP_STD_PORT is to be used
+		 * @return the packet sent
+		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
 		coap_packet_t* request(node_id_t receiver,
 					CoapCode code,
@@ -251,26 +394,17 @@ template<typename OsModel_P,
 					string_t uri_host = string_t(),
 					uint16_t uri_port = COAP_STD_PORT);
 
+		/**
+		 * Sends a reply to a received message.
+		 * @param req_msg received message that triggered this reply
+		 * @param payload body of the reply
+		 * @param payload_length length of the body
+		 * @param code Code of the reply, COAP_CODE_CONTENT by default
+		 */
 		coap_packet_t* reply( ReceivedMessage& req_msg,
 				uint8_t* payload,
 				size_t payload_length,
 				CoapCode code = COAP_CODE_CONTENT );
-
-		enum error_codes
-		{
-			// inherited from concepts::BasicReturnValues_concept
-			SUCCESS = OsModel::SUCCESS,
-			ERR_UNSPEC = OsModel::ERR_UNSPEC,
-			ERR_NOTIMPL = OsModel::ERR_NOTIMPL
-		};
-
-		enum path_compare
-		{
-			EQUAL,
-			LHS_IS_SUBRESOURCE,
-			RHS_IS_SUBRESOURCE,
-			NOT_EQUAL
-		};
 
 	private:
 #ifdef BOOST_TEST_DECL
@@ -471,6 +605,8 @@ template<typename OsModel_P,
 		void retransmit_timeout ( void * message );
 
 		void error_response( int error, ReceivedMessage& message );
+
+		void receive_coap(ReceivedMessage& message);
 
 		int path_cmp( const string_t &lhs, const string_t &rhs);
 
@@ -835,20 +971,6 @@ template<typename OsModel_P,
 		rstp.set_type( COAP_MSG_TYPE_RST );
 		rstp.set_msg_id( id );
 		return send_coap_as_is<self_type, &self_type::receive_coap>( receiver, rstp, this );
-	}
-
-	template<typename OsModel_P,
-			typename Radio_P,
-			typename Timer_P,
-			typename Debug_P,
-			typename Rand_P,
-			typename String_T,
-			typename OsModel_P::size_t sent_list_size_,
-			typename OsModel_P::size_t received_list_size_,
-			typename OsModel_P::size_t resources_list_size_>
-	void CoapServiceStatic<OsModel_P, Radio_P, Timer_P, Debug_P, Rand_P, String_T, sent_list_size_, received_list_size_, resources_list_size_>::receive_coap(ReceivedMessage& message)
-	{
-		//TODO
 	}
 
 	template<typename OsModel_P,
@@ -1416,6 +1538,21 @@ template<typename OsModel_P,
 		error_description = (block_data_t *) error_description_str;
 #endif
 		reply( message, error_description, len, err_coap_code );
+	}
+
+
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Timer_P,
+	typename Debug_P,
+	typename Rand_P,
+	typename String_T,
+	typename OsModel_P::size_t sent_list_size_,
+	typename OsModel_P::size_t received_list_size_,
+	typename OsModel_P::size_t resources_list_size_>
+	void CoapServiceStatic<OsModel_P, Radio_P, Timer_P, Debug_P, Rand_P, String_T, sent_list_size_, received_list_size_, resources_list_size_>::receive_coap(ReceivedMessage& message)
+	{
+		//TODO
 	}
 
 	template<typename OsModel_P,
