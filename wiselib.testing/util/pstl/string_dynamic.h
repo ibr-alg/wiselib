@@ -97,6 +97,8 @@ namespace wiselib {
 					size_ = 0;
 				}
 			}
+				
+			
 			
 			Allocator& allocator() { return *allocator_; }
 			//void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
@@ -220,7 +222,35 @@ namespace wiselib {
 				return string_dynamic(buffer_.raw() + from, length, allocator_);
 			}
 			
+			template<typename Int>
+			void append_int(Int i, Int base=10) {
+				if(i < 0) {
+					push_back('-');
+					i = -i;
+				}
+				int_to_string_r(i, base);
+			}
+			
 		private:
+			
+			template<typename Int>
+			void int_to_string_r(Int i, Int base, bool first=true) {
+				if(i > base) {
+					int_to_string_r((Int)(i / base), (Int)base, false);
+				}
+				if((i == 0) && !first) {
+					return;
+				}
+				if((i%base) < 10) {
+					push_back('0' + (i % base));
+				}
+				else {
+					push_back('a' + ((i % base) - 10));
+				}
+			}
+			
+			
+		
 			template<typename T>
 			void to_buffer_(T src, size_t n, size_t offset = 0) {
 				if(n == 0) { return; }
