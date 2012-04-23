@@ -78,7 +78,6 @@ class String {
       static void read(buffer_t& buffer, string_t& out) {
          int_t l;
          intrw_t::read(buffer, l);
-         int_t p = out.size();
          out.resize(out.size() + l);
          for(int_t i=0; i<l; i++) {
             byterw_t::read(buffer, out[i]);
