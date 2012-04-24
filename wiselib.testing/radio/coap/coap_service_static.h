@@ -1503,6 +1503,10 @@ template<typename OsModel_P,
 		CoapCode err_coap_code;
 		CoapOptionNum err_optnum;
 		packet.get_error_context( err_coap_code, err_optnum);
+		if(err_coap_code == 0)
+		{
+			err_coap_code = COAP_CODE_INTERNAL_SERVER_ERROR;
+		}
 		block_data_t * error_description = NULL;
 		int len = 0;
 #if ( COAP_HUMAN_READABLE_ERRORS == 0 )
