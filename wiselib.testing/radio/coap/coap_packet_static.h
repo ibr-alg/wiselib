@@ -502,6 +502,9 @@ namespace wiselib
 		end_of_options_ = storage_;
 		data_length_ = 0;
 		option_count_ = 0;
+
+		error_code_ = 0;
+		error_option_ = 0;
 	}
 
 	template<typename OsModel_P,
