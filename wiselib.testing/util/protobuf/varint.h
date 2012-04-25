@@ -54,7 +54,8 @@ class VarInt {
       
       enum { WIRE_TYPE = 0 };
       
-      static void write(buffer_t& buffer, int_t v) {
+      static void write(buffer_t& buffer, int_t v_) {
+         unsigned v = (unsigned)v_;
          bool continuation = (v >> 7) != 0;
          
          byterw_t::write(buffer, (int_t)((v & DATA) | (continuation << 7)));
