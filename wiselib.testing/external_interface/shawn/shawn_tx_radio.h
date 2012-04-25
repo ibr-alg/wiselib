@@ -101,6 +101,11 @@ namespace wiselib
       {
           return os().proc->template reg_recv_callback<T, TMethod>( obj_pnt );
       }
+      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*, ExtendedData const &)>
+      int reg_ex_recv_callback( T *obj_pnt )
+      {
+          return os().proc->template reg_recv_callback<T, TMethod>( obj_pnt );
+      }
       // --------------------------------------------------------------------
       int unreg_recv_callback( int idx )
       { return ERR_NOTIMPL; }

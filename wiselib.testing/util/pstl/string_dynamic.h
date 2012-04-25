@@ -231,7 +231,40 @@ namespace wiselib {
 				int_to_string_r(i, base);
 			}
 			
+			/**
+			 * Currently only handles positive integer numbers
+			 */
+			template<typename Int>
+			Int parse_int(Int base=10) {
+				Int r = 0;
+				for(size_t i=0; i<size(); i++) {
+					if(isnum((*this)[i])) {
+						r = (r * base) + to_int((*this)[i]); 
+					}
+				}
+				return r;
+			}
+			
 		private:
+		size_t strlen(const char* s) {
+			size_t r = 0;
+			while(s[r] != '\0') r++;
+			return r;
+		}
+			int isnum(Char c) {
+				if(c >= '0' && c <= '9') {
+					return true;
+				}
+				if(c >= 'a' && c <= 'z') {
+					return true;
+				}
+			}
+			int to_int(Char c) {
+				if(c >= '0' && c <= '9') {
+					return c - '0';
+				}
+				return c - 'a';
+			}
 			
 			template<typename Int>
 			void int_to_string_r(Int i, Int base, bool first=true) {

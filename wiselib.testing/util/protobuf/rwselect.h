@@ -20,6 +20,11 @@ struct RWSelect {
 };
 
 template<typename OsModel_P, typename Buffer_P, typename Integer_P>
+struct RWSelect<OsModel_P, Buffer_P, Integer_P, short unsigned int> {
+	typedef VarInt<OsModel_P, Buffer_P, Integer_P> rw_t;
+};
+
+template<typename OsModel_P, typename Buffer_P, typename Integer_P>
 struct RWSelect<OsModel_P, Buffer_P, Integer_P, int> {
 	typedef VarInt<OsModel_P, Buffer_P, Integer_P> rw_t;
 };

@@ -127,12 +127,12 @@ class MallocFreeAllocator {
 				news_++;
 			#endif
 			#ifdef ISENSE
-				array_pointer_t<T> r((T*)isense::malloc(sizeof(T) * n), n);
+				array_pointer_t<T> r(reinterpret_cast<T*>(isense::malloc(sizeof(T) * n)), n);
 			#else
-				array_pointer_t<T> r((T*)malloc(sizeof(T) * n), n);
+				array_pointer_t<T> r(reinterpret_cast<T*>(malloc(sizeof(T) * n)), n);
 			#endif
 			for(typename OsModel::size_t i = 0; i < n; i++) {
-				new(pointer_t<T>((T*)r.raw() + sizeof(T) * i)) T;
+				new(pointer_t<T>(r.raw() + i)) T;
 			}
 			return r;
 		}

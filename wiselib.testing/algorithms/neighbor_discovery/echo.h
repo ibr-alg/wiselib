@@ -81,6 +81,9 @@ template<typename OsModel_P, typename Radio_P, typename Timer_P,
 		typename Debug_P>
 class Echo {
 public:
+	typedef Echo<OsModel_P, Radio_P, Timer_P, Debug_P> self_type;
+	typedef self_type* self_pointer_t;
+	
 	// Type definitions
 	typedef OsModel_P OsModel;
 
@@ -643,15 +646,19 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 				this, (void*) 0);
 	}
 	;
-
+	
 	/**
 	 * Receive callback uses the message
 	 * received if a beacon check the
 	 * sender's status update local vectors
 	 * change Neighboorhood's status.
 	 */
-	void receive(node_id_t from, size_t len, block_data_t * msg,
-			ExData const &ex) {
+	void receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t * msg
+		#ifdef SHAWN
+			) {
+		#else
+			, typename Radio::ExtendedData const &ex) {
+		#endif
 		//        void receive(node_id_t from, size_t len, block_data_t * msg) {
 
 #ifdef SUNSPOT_TEST
@@ -687,7 +694,11 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 #endif
 
 			// check the beacons sender status
+#ifndef SHAWN
 			received_beacon(from, ex);
+#else
+			received_beacon(from);
+#endif
 
 			for (iterator_t
 					it = neighborhood.begin();
@@ -883,7 +894,11 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 	 * if heard of sender enough times then add sender as
 	 * a listen_only node
 	 * */
+#ifdef SHAWN
+	void received_beacon(node_id_t from) {
+#else
 	void received_beacon(node_id_t from, ExData ex) {
+#endif
 		// known is true if node from was contacted before
 		bool known = false;
 		iterator_t it = neighborhood.begin();
@@ -917,8 +932,9 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 				if (it->beacons_in_row != 255) {
 					it->beacons_in_row++;
 				}
-
+#ifndef SHAWN				
 				it->last_lqi = ex.link_metric();
+#endif
 				//                    it->timeout = it->last_echo + timeout_period;
 
 				// set as a known source node
