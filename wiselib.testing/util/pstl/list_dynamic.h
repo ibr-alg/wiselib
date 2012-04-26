@@ -119,10 +119,33 @@ namespace wiselib {
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
+		typedef delegate3<int, value_type, value_type, void*> comparator_t;
+			
+		template<typename T>
+		static typename T::self_pointer_t to_t_ptr(value_type a) {
+			return *reinterpret_cast<typename T::self_pointer_t*>(&a);
+		}
+		
+		template<typename T>
+		static int ptr_cmp_comparator(value_type a, value_type b, void*) {
+			return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
+			//return reinterpret_cast<T*>(a)->cmp(*reinterpret_cast<T*>(b));
+		}
+			
 			list_dynamic() : allocator_(0), first_node_(0), last_node_(0), weak_(false) { };
 			list_dynamic(Allocator& alloc) : allocator_(&alloc), first_node_(0), last_node_(0), weak_(false) { };
 			list_dynamic(typename Allocator::self_pointer_t alloc) : allocator_(alloc), first_node_(0), last_node_(0), weak_(false) { };
 			list_dynamic(const list_dynamic& other) : weak_(false) { *this = other; }
+			
+			
+			int init(
+					typename Allocator::self_pointer_t alloc,
+					comparator_t compare
+			) {
+				allocator_ = alloc;
+				compare_ = compare;
+				return 0;
+			}
 			
 			~list_dynamic() {
 				if(!weak_) {
@@ -133,6 +156,7 @@ namespace wiselib {
 			list_dynamic& operator=(const self_type& other) {
 				// TODO: Implement copy-on-write
 				allocator_ = other.allocator_;
+				compare_ = other.compare_;
 				clear();
 				for(typename self_type::const_iterator iter = other.begin(); iter != other.end(); ++iter) {
 					push_back(*iter);
@@ -224,7 +248,7 @@ namespace wiselib {
 			
 			iterator find(value_type v, void* d = 0) {
 				for(iterator i = begin(); i != end(); ++i) {
-					if(*i == v) { return i; }
+					if(compare_(*i, v, d) == 0) { return i; }
 				}
 				return end();
 			}
@@ -280,6 +304,7 @@ namespace wiselib {
 			typename Allocator::self_pointer_t allocator_;
 			node_pointer_t first_node_, last_node_;
 			mutable bool weak_;
+			comparator_t compare_;
 	};
 	
 	

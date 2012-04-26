@@ -330,7 +330,7 @@ namespace wiselib
       
       //friend class bitstring_static_view<OsModel;
 
-   } __attribute__((__packed__));
+   }; // __attribute__((__packed__));
 
 }
 
