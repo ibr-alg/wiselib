@@ -299,7 +299,7 @@ namespace wiselib {
 			size_t size_;
 			typename Allocator::self_pointer_t allocator_;
 			//mutable bool weak_;
-	} __attribute__((__packed__));
+	}; // __attribute__((__packed__));
 	
 	/**
 	 */

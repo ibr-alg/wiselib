@@ -225,7 +225,7 @@ namespace wiselib {
 					typename FragmentingRadio::self_pointer_t fragmenting_radio,
 					typename Timer::self_pointer_t timer,
 					typename Neighborhood::self_pointer_t neighborhood,
-					typename Debug::self_pointer_t debug = 0) {
+					typename Debug::self_pointer_t debug ) {
 				allocator_ = allocator;
 				radio_ = radio;
 				fragmenting_radio_ = fragmenting_radio;
@@ -241,6 +241,7 @@ namespace wiselib {
 				neighborhood_->enable();
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				
+				advertise_interval_ = 1000;
 				timer_->template set_timer<self_type, &self_type::on_time>(advertise_interval_, this, 0);
 				init();
 				return SUCCESS;
@@ -300,6 +301,9 @@ namespace wiselib {
 				for(typename class_vector_t::iterator iter = state_.classes.begin(); iter != state_.classes.end(); ++iter) {
 					if(neighbor == iter->to_leader) {
 						iter->to_leader = Radio::NULL_NODE_ID;
+						
+						debug_->debug("ARR %s %x 0 $$", iter->name.c_str(), radio_->id());
+						
 						notify(SE_LEAVE, iter->name, iter->leader);
 					}
 				}
@@ -325,10 +329,25 @@ namespace wiselib {
 				// ignore messages from non-neighbors
 				if(!neighborhood_->is_neighbor_bidi(source)) { return; }
 				
+				memcpy(&incoming_message_, data, length);
+				incoming_source_ = source;
+				incoming_length_ = length;
+				
+				timer_->template set_timer<self_type, &self_type::handle_message>(500, this, 0);
+				
+				
+			}
+			
+			block_data_t incoming_message_[Radio::MAX_MESSAGE_LENGTH];
+			size_t incoming_length_;
+			node_id_t incoming_source_;
+			
+			
+			void handle_message(void*) {
 				State other_state;
 				other_state.classes.set_allocator(allocator_);
-				other_state.from_protobuf(data + 1, data + length, allocator_);
-				new_neighbor_state(source, other_state);
+				other_state.from_protobuf(incoming_message_ + 1, incoming_message_ + incoming_length_, allocator_);
+				new_neighbor_state(incoming_source_, other_state);
 			}
 			
 			void new_neighbor_state(node_id_t source, State& state) {
@@ -340,6 +359,9 @@ namespace wiselib {
 							if(niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->leader) {
 									iter->to_leader = niter->id;
+									
+									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									
 									iter->leader = niter->leader;
 									notify(SE_LEADER, iter->name, iter->leader);
 								}
@@ -354,11 +376,13 @@ namespace wiselib {
 							else if(!niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->id) {
 									iter->to_leader = iter->id;
+									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
 									iter->leader = iter->id;
 									notify(SE_LEADER, iter->name, iter->leader);
 								}
 								else {
 									iter->to_leader = niter->id;
+									debug_->debug("ARR %s %x %x ", iter->name.c_str(), radio_->id(), iter->to_leader);
 									iter->leader = niter->id;
 									notify(SE_JOIN, iter->name, iter->leader);
 								}
@@ -370,6 +394,7 @@ namespace wiselib {
 							else if(!niter->is_se() && iter->is_se()) {
 								if(niter->id == iter->to_leader) {
 									iter->to_leader = Radio::NULL_NODE_ID;
+									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), 0);
 									notify(SE_LEAVE, iter->name, iter->leader);
 								}
 							}
@@ -383,6 +408,7 @@ namespace wiselib {
 									notify(SE_LEAVE, iter->name, iter->leader);
 									iter->leader = niter->leader;
 									iter->to_leader = source;
+									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
 									notify(SE_JOIN, iter->name, iter->leader);
 									trigger_ = true;
 								}

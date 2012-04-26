@@ -618,6 +618,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 			buffer[1] = 0x69;
 			buffer[2] = 110;
 
+			if(echomsg.buffer_size() > 0)
 			memcpy( buffer+3, (uint8_t *) &echomsg, echomsg.buffer_size() );
 			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size()+3, (uint8_t *) buffer);
 #else
