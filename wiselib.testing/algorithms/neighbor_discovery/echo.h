@@ -1383,6 +1383,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 	Timer * timer_;
 	Debug * debug_;
 
+public:
 	Radio& radio() {
 		return *radio_;
 	}

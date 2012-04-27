@@ -241,14 +241,14 @@ namespace wiselib {
 				neighborhood_->enable();
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				
-				advertise_interval_ = 1000;
-				timer_->template set_timer<self_type, &self_type::on_time>(advertise_interval_, this, 0);
+				advertise_interval_ = 10000;
+				timer_->template set_timer<self_type, &self_type::on_time>(10000, this, 0);
 				init();
 				return SUCCESS;
 			}
 			
 			int init() {
-				advertise_interval_ = 1000;
+				advertise_interval_ = 10000;
 				listeners.set_allocator(allocator_);
 				return SUCCESS;
 			}
@@ -259,7 +259,7 @@ namespace wiselib {
 			
 			void state_updated() {
 				//neighborhood_->set_payload(PAYLOAD_ID, &state_, sizeof(state_));
-				inform_all_neighbors();
+				//inform_all_neighbors();
 			}
 			
 			void addClass(string_t classname) {
@@ -279,7 +279,7 @@ namespace wiselib {
 				uint8_t discard_mask =  Neighborhood::DROPPED_NB | Neighborhood::LOST_NB_BIDI;
 					
 				if(event_id | Neighborhood::NB_READY) {
-					inform_all_neighbors();
+				//	inform_all_neighbors();
 				}
 				if(event_id & inform_neighbor_mask) {
 					inform_neighbor(neighbor);
@@ -294,7 +294,7 @@ namespace wiselib {
 					inform_all_neighbors();
 					trigger_ = false;
 				//}
-				timer_->template set_timer<self_type, &self_type::on_time>(advertise_interval_, this, 0);
+				timer_->template set_timer<self_type, &self_type::on_time>(10000, this, 0);
 			}
 			
 			void on_loose_neighbor(node_id_t neighbor) {
@@ -302,7 +302,7 @@ namespace wiselib {
 					if(neighbor == iter->to_leader) {
 						iter->to_leader = Radio::NULL_NODE_ID;
 						
-						debug_->debug("ARR %s %x 0 $$", iter->name.c_str(), radio_->id());
+						debug_->debug("ARR %s 0x%x 0x0 $$", iter->name.c_str(), radio_->id());
 						
 						notify(SE_LEAVE, iter->name, iter->leader);
 					}
@@ -311,6 +311,16 @@ namespace wiselib {
 			
 			void inform_all_neighbors() {
 				inform_neighbor(Radio::BROADCAST_ADDRESS);
+				
+				for(typename class_vector_t::iterator iter = state_.classes.begin(); iter != state_.classes.end(); ++iter) {
+					if(iter->is_se() && iter->is_leader()) {
+						if(iter->to_leader != Radio::NULL_NODE_ID) {
+							debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), iter->to_leader);
+						}
+						debug_->debug("SE 0x%x %s%d $$", iter->id, iter->name.c_str(), iter->leader);
+					}
+				}
+				
 			}
 			
 			void inform_neighbor(node_id_t target) {
@@ -333,7 +343,7 @@ namespace wiselib {
 				incoming_source_ = source;
 				incoming_length_ = length;
 				
-				timer_->template set_timer<self_type, &self_type::handle_message>(500, this, 0);
+				timer_->template set_timer<self_type, &self_type::handle_message>(1000, this, 0);
 				
 				
 			}
@@ -360,7 +370,7 @@ namespace wiselib {
 								if(iter->id > niter->leader) {
 									iter->to_leader = niter->id;
 									
-									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
 									
 									iter->leader = niter->leader;
 									notify(SE_LEADER, iter->name, iter->leader);
@@ -376,13 +386,13 @@ namespace wiselib {
 							else if(!niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->id) {
 									iter->to_leader = iter->id;
-									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
 									iter->leader = iter->id;
 									notify(SE_LEADER, iter->name, iter->leader);
 								}
 								else {
 									iter->to_leader = niter->id;
-									debug_->debug("ARR %s %x %x ", iter->name.c_str(), radio_->id(), iter->to_leader);
+									debug_->debug("ARR %s 0x%x 0x%x ", iter->name.c_str(), radio_->id(), iter->to_leader);
 									iter->leader = niter->id;
 									notify(SE_JOIN, iter->name, iter->leader);
 								}
@@ -394,7 +404,7 @@ namespace wiselib {
 							else if(!niter->is_se() && iter->is_se()) {
 								if(niter->id == iter->to_leader) {
 									iter->to_leader = Radio::NULL_NODE_ID;
-									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), 0);
+									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), 0);
 									notify(SE_LEAVE, iter->name, iter->leader);
 								}
 							}
@@ -408,16 +418,22 @@ namespace wiselib {
 									notify(SE_LEAVE, iter->name, iter->leader);
 									iter->leader = niter->leader;
 									iter->to_leader = source;
-									debug_->debug("ARR %s %x %x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
 									notify(SE_JOIN, iter->name, iter->leader);
 									trigger_ = true;
 								}
 							}
+							
+							//neighborhood_->clock().wait(5000);
+							
 						} // if name eq
+						
 					} // for niter
 				} // for iter
 				
 			} // new_neighbor_state()
+			
+			
 			
 			template<typename T, void (T::*TMethod)(int, string_t, node_id_t)>
 			void reg_listener_callback(T* obj) {
