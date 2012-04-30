@@ -97,6 +97,8 @@ namespace wiselib {
 					size_ = 0;
 				}
 			}
+				
+			
 			
 			Allocator& allocator() { return *allocator_; }
 			//void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
@@ -165,8 +167,8 @@ namespace wiselib {
 			bool operator>=(const string_dynamic& other) const { return cmp(other) >= 0; }
 			bool operator==(const string_dynamic& other) const { return cmp(other) == 0; }
 			bool operator!=(const string_dynamic& other) const { return cmp(other) != 0; }
-			char operator[] (const size_t pos) const {return (pos >= size_) ? 0 : buffer_[pos]; }
-			//char operator[] (const size_t pos) {return (pos >= size_) ? 0 : buffer_[pos]; }
+		//	char operator[] (const size_t pos) const {return (pos >= size_) ? 0 : buffer_[pos]; }
+			Char& operator[] (const size_t pos)  { return buffer_[pos]; }
 			
 			string_dynamic& append(const Char* other) {
 				return append(string_dynamic(other, allocator_));
@@ -220,7 +222,68 @@ namespace wiselib {
 				return string_dynamic(buffer_.raw() + from, length, allocator_);
 			}
 			
+			template<typename Int>
+			void append_int(Int i, Int base=10) {
+				if(i < 0) {
+					push_back('-');
+					i = -i;
+				}
+				int_to_string_r(i, base);
+			}
+			
+			/**
+			 * Currently only handles positive integer numbers
+			 */
+			template<typename Int>
+			Int parse_int(Int base=10) {
+				Int r = 0;
+				for(size_t i=0; i<size(); i++) {
+					if(isnum((*this)[i])) {
+						r = (r * base) + to_int((*this)[i]); 
+					}
+				}
+				return r;
+			}
+			
 		private:
+		size_t strlen(const char* s) {
+			size_t r = 0;
+			while(s[r] != '\0') r++;
+			return r;
+		}
+			int isnum(Char c) {
+				if(c >= '0' && c <= '9') {
+					return true;
+				}
+				if(c >= 'a' && c <= 'z') {
+					return true;
+				}
+			}
+			int to_int(Char c) {
+				if(c >= '0' && c <= '9') {
+					return c - '0';
+				}
+				return c - 'a';
+			}
+			
+			template<typename Int>
+			void int_to_string_r(Int i, Int base, bool first=true) {
+				if(i > base) {
+					int_to_string_r((Int)(i / base), (Int)base, false);
+				}
+				if((i == 0) && !first) {
+					return;
+				}
+				if((i%base) < 10) {
+					push_back('0' + (i % base));
+				}
+				else {
+					push_back('a' + ((i % base) - 10));
+				}
+			}
+			
+			
+		
 			template<typename T>
 			void to_buffer_(T src, size_t n, size_t offset = 0) {
 				if(n == 0) { return; }
@@ -236,7 +299,7 @@ namespace wiselib {
 			size_t size_;
 			typename Allocator::self_pointer_t allocator_;
 			//mutable bool weak_;
-	} __attribute__((__packed__));
+	}; // __attribute__((__packed__));
 	
 	/**
 	 */

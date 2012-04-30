@@ -92,6 +92,7 @@ namespace wiselib
       // -----------------------------------------------------------------------
       int write( size_t len, block_data_t *buf )
       {
+         //os().debug( "uart::write" );
          //os().debug( "got %s", buf );
          os().uart(UART).write_packet( MESSAGE_TYPE_OUT, (char*)buf, len );
 

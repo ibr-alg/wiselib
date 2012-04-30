@@ -232,6 +232,7 @@ namespace wiselib {
                 uint16 lqi, uint8 seq_no, uint8 interface)
 #endif
         {
+//		  os_.fatal("RECV %d from %x len=%d\n", buf[0], src_addr, len);
             for (int i = 0; i < MAX_INTERNAL_RECEIVERS; i++) {
                 if (isense_radio_callbacks_[i])
                     isense_radio_callbacks_[i](src_addr, len, const_cast<uint8*> (buf));

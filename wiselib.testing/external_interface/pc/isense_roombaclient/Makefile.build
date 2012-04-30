@@ -1,0 +1,25 @@
+# Makefile to build TARGET
+
+.PHONY: all clean clean-dep
+all: JN5139R1 #shawn
+clean: JN5139R1-clean
+clean-dep: JN5139R1-clean-dep
+
+JN5139R1:
+	@echo "----- Building for JENNIC 5139R1 target ------"
+	@make JENNIC_CHIP=JN5139R1 TARGET=$(TARGET) -f Makefile.jennic
+	@echo "----- Done  ------"
+
+JN5139R1-clean:
+	@make JENNIC_CHIP=JN5139R1 TARGET=$(TARGET) -f Makefile.jennic clean
+	@echo "----- JN5139R1 cleaned ------"
+
+JN5139R1-clean-dep:
+	@make JENNIC_CHIP=JN5139R1 TARGET=$(TARGET) -f Makefile.jennic clean-dep
+	@echo "----- JN5139R1 dependencies cleaned ------"
+
+shawn:
+	@echo "----- Building for SHAWN target  ------"
+	@make TARGET=$(TARGET) -s -f Makefile.shawn  
+	@echo "----- Done  ------"
+
