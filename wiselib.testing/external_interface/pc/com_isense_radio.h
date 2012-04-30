@@ -394,7 +394,7 @@ namespace wiselib {
 					ExtendedData ex;
 					ex.set_link_metric( 255 - signal_strength );
 					sender = receiving_[3] << 8 | receiving_[4];
-					notify_receivers( sender, receiving_.size() - 17, receiving_.data() + 17, ex );
+					this->notify_receivers( sender, receiving_.size() - 17, receiving_.data() + 17, ex );
 				} break;
 
 				case packet_t::SUB_TX_POWER: {

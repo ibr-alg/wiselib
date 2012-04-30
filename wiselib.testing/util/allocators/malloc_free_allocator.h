@@ -75,7 +75,7 @@ class MallocFreeAllocator {
 				T* p_;
 				
 			friend class MallocFreeAllocator<OsModel_P>;
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		template<typename T>
 		struct array_pointer_t : public pointer_t<T> {
@@ -97,7 +97,7 @@ class MallocFreeAllocator {
 				
 			private:
 				size_t elements_;
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		MallocFreeAllocator()
 			#if KEEP_STATS
@@ -127,12 +127,12 @@ class MallocFreeAllocator {
 				news_++;
 			#endif
 			#ifdef ISENSE
-				array_pointer_t<T> r((T*)isense::malloc(sizeof(T) * n), n);
+				array_pointer_t<T> r(reinterpret_cast<T*>(isense::malloc(sizeof(T) * n)), n);
 			#else
-				array_pointer_t<T> r((T*)malloc(sizeof(T) * n), n);
+				array_pointer_t<T> r(reinterpret_cast<T*>(malloc(sizeof(T) * n)), n);
 			#endif
 			for(typename OsModel::size_t i = 0; i < n; i++) {
-				new(pointer_t<T>((T*)r.raw() + sizeof(T) * i)) T;
+				new(pointer_t<T>(&(r.raw()[i]))) T;
 			}
 			return r;
 		}
@@ -187,7 +187,7 @@ class MallocFreeAllocator {
 		#if KEEP_STATS
 		unsigned long news_, deletes_;
 		#endif
-} __attribute__((__packed__));
+}; // __attribute__((__packed__));
 
 
 } // namespace wiselib

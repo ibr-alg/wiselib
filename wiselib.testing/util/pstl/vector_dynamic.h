@@ -91,7 +91,7 @@ namespace wiselib
          allocator_ = vec.allocator_;
           //if(buffer_!= buffer_pointer_t()){
               clear();
-              resize(vec.capacity_);
+              change_capacity(vec.capacity_);
           //}
           for(size_t i = 0;i < vec.size_;++i){
               buffer_[size_++] = vec[i];
@@ -107,8 +107,8 @@ namespace wiselib
       vector_dynamic& operator=( vector_dynamic& vec )
       {
           if(buffer_!= buffer_pointer_t()){
-              resize(0);
-              resize(vec.size_);
+              change_capacity(0);
+              change_capacity(vec.size_);
           }
           for(size_t i = 0;i < vec.size_;++i){
               buffer_[size_++] = vec[i];
@@ -118,6 +118,7 @@ namespace wiselib
       */
       // --------------------------------------------------------------------
       void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
+      typename Allocator::self_pointer_t allocator() { return allocator_; }
       ///@name Iterators
       ///@{
       iterator begin()
@@ -278,25 +279,25 @@ namespace wiselib
       void clear()
       {
          size_ = 0;
-         resize(0);
+         change_capacity(0);
       }
       ///@}
       
       void grow() {
          if(capacity_ < VECTOR_DYNAMIC_MIN_SIZE) {
-            resize(VECTOR_DYNAMIC_MIN_SIZE);
+            change_capacity(VECTOR_DYNAMIC_MIN_SIZE);
          }
          else {
-            resize(capacity_ * 2);
+            change_capacity(capacity_ * 2);
          }
       }
-      void shrink() { resize(capacity_ / 2); }
+      void shrink() { change_capacity(capacity_ / 2); }
       
-      void pack() { resize(size_); }
+      void pack() { change_capacity(size_); }
       
-      void resize(size_t n) {
-         //assert(allocator_!=0);
-         //assert(n >= size_);
+      void change_capacity(size_t n) {
+         assert(allocator_!=0);
+         assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
             new_buffer = allocator_->template allocate_array<value_type>(n);
@@ -314,6 +315,11 @@ namespace wiselib
          
       }
       
+      void resize(size_t n) {
+         size_ = n;
+         change_capacity(n);
+      }
+      
   // protected:
      // value_type vec_[VECTOR_SIZE];
 
@@ -324,7 +330,7 @@ namespace wiselib
       
       //friend class bitstring_static_view<OsModel;
 
-   } __attribute__((__packed__));
+   }; // __attribute__((__packed__));
 
 }
 

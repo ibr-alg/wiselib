@@ -248,6 +248,10 @@ class FirstFitAllocator {
 			type_sizes_[std::string(typeid(T).name()) + "[]"] -= p.chunk_->size_;
 			#endif
 			free_chunk(p.chunk_ - reserved_);
+			for(int i=0; i<(p.chunk_->size_ / sizeof(T)); i++) {
+				p->~T();
+				++p;
+			}
 			return SUCCESS;
 		}
 		
@@ -276,7 +280,9 @@ class FirstFitAllocator {
 			#if ALLOCATOR_USE_RTTI
 			std::cout << "\n" << "RTTI Info:" << std::endl;
 			for(typename std::map<std::string, int>::iterator iter=allocated_types_.begin(); iter!=allocated_types_.end(); ++iter) {
-				std::cout << iter->second << "x  (tot. " << type_sizes_[iter->first] << " bytes): " << iter->first << std::endl;
+				if(iter->second != 0) {
+					std::cout << iter->second << "x  (tot. " << type_sizes_[iter->first] << " bytes): " << iter->first << std::endl;
+				}
 			}
 			#endif
 		}

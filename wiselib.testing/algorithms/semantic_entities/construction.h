@@ -62,8 +62,10 @@ namespace wiselib {
 			
 			typedef SEConstructionMessage<Radio, ClassInfo> message_t;
 			
-			typedef typename Allocator::template Ref<ClassInfo>::pointer_t classinfo_ptr_t;
+			typedef typename Allocator::template pointer_t<ClassInfo> classinfo_ptr_t;
 			typedef list_dynamic<OsModel, classinfo_ptr_t, Allocator> ClassContainer;
+			
+			typedef wiselib::string_dynamic<OsModel, Allocator> string_t;
 			
 			enum ErrorCodes {
 				SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC
@@ -98,7 +100,7 @@ namespace wiselib {
 			#if SE_CONSTRUCTION_DEBUG
 			void show_debug_info() {
 				for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
-					debug_->debug("Node %3d class %-10s state %2d\n", radio_->id(), (*iter)->name, (*iter)->state);
+					debug_->debug("Node %3d class %-10s state %2d leader %2d\n", radio_->id(), (*iter)->name().c_str(), (*iter)->state, (*iter)->leader);
 				}
 				debug_->debug("\n");
 			}
@@ -110,7 +112,7 @@ namespace wiselib {
 				char *b = buf;
 				for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
 					if((*iter)->state == ClassInfo::STATE_OPEN) { *b++ = '['; }
-					b += snprintf(b, buf - b - 1, "%s(%3x)", (*iter)->name, (*iter)->leader);
+					b += snprintf(b, buf - b - 1, "%s(%3x)", (*iter)->name().c_str(), (*iter)->leader);
 					if((*iter)->state == ClassInfo::STATE_OPEN) { *b++ = ']'; }
 					*b++ = ' ';
 				}
@@ -137,13 +139,13 @@ namespace wiselib {
 		private:
 			struct ClassInfo {
 				enum State { STATE_OPEN, STATE_SE };
-				typename Allocator::template Ref<block_data_t>::pointer_t ClassContainer;
+				typename Allocator::template pointer_t<block_data_t> ClassContainer;
 				void init() {
 					state = STATE_OPEN;
 					leader = 0; //Radio::NULL_NODE_ID;
 					to_leader = 0; //Radio::NULL_NODE_ID;
-					name_size = 0;
 				}
+				/*
 				int cmp(size_t sz, const block_data_t* data) {
 					if(name_size != sz) return name_size < sz ? -1 : 1;
 					for(size_t i=0; i<sz; ++i) {
@@ -151,12 +153,10 @@ namespace wiselib {
 					}
 					return 0;
 				}
+				*/
 				
-				bool sameClassAs(const classinfo_ptr_t other) const {
-					if(name_size != other->name_size) return false;
-					for(size_t i=0; i<name_size; ++i) {
-						if(name[i] != other->name[i]) return false;
-					}
+				bool sameClassAs( classinfo_ptr_t other) {
+					return name() == other->name();
 					return true;
 				}
 				
@@ -169,7 +169,7 @@ namespace wiselib {
 					Serialization<OsModel, endianness, block_data_t, node_id_t>::write(target, to_leader);
 					target += sizeof(node_id_t);
 					size_t i=0;
-					while(i<name_size) *(target++) = name[i++];
+					while(i<name().size()) *(target++) = class_name_[i++];
 					return target - start;
 				}
 				
@@ -180,15 +180,22 @@ namespace wiselib {
 					source += sizeof(node_id_t);
 					to_leader = Serialization<OsModel, endianness, block_data_t, node_id_t>::read(source);
 					source += sizeof(node_id_t);
-					name_size = size - sizeof(uint8_t) - 2*sizeof(node_id_t);
+					size_t name_size = size - sizeof(uint8_t) - 2*sizeof(node_id_t);
 					size_t i=0;
-					while(i<name_size) name[i++] = *(source++);
+					while(i<name_size) {
+						class_name_.push_back(*(source++)) ;
+						i++;
+					}
 				}
+				
+				string_t name() { return class_name_; }
+				void set_name(string_t n) { class_name_ = n; }
 				
 				uint8_t state;
 				node_id_t leader, to_leader;
-				size_t name_size;
-				block_data_t name[0];
+				//size_t name_size;
+				//block_data_t name[0];
+				string_t class_name_;
 			};
 			
 			
@@ -261,18 +268,14 @@ namespace wiselib {
 	addClass(size_t size, const block_data_t* data) {
 		// check if we already have that class
 		for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
-			if((*iter)->cmp(size, data) == 0) {
+			if((*iter)->name() == string_t((char*)data, size, allocator_)) {
 				return;
 			}
 		}
 		
-		classinfo_ptr_t info = allocator_->template allocate<ClassInfo>(size);
+		classinfo_ptr_t info = allocator_->template allocate<ClassInfo>();
 		info->init();
-		for(size_t i=0; i<size; ++i) {
-			info->name[i] = data[i];
-		}
-		info->name_size = size;
-		
+		info->set_name(string_t((char*)data, size, allocator_));
 		classes_.push_back(info);
 	}
 	
@@ -328,7 +331,7 @@ namespace wiselib {
 		message_t msg(size, data);
 		typename ClassContainer::iterator iter;
 		typename message_t::iterator miter;
-		classinfo_ptr_t m = allocator_->template allocate<ClassInfo>(MAX_CLASSNAME_LENGTH);
+		classinfo_ptr_t m = allocator_->template allocate<ClassInfo>(); //(MAX_CLASSNAME_LENGTH);
 		bool have_open_classes = false, trigger_advertise = false;
 		
 		for(iter = classes_.begin(); iter != classes_.end(); ++iter) {

@@ -17,38 +17,75 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
+// vim: set noexpandtab ts=4 sw=4:
 
-#ifndef BYTE_H
-#define BYTE_H
+#ifndef FAKE_RAND_H
+#define FAKE_RAND_H
 
 namespace wiselib {
-   namespace protobuf {
+	
+	template<typename OsModel_P>
+	class FakeRandModel {
+		public:
+			typedef OsModel_P OsModel;
+			typedef uint32_t value_t;
+			
+			typedef FakeRandModel<OsModel> self_type;
+			typedef self_type* self_pointer_t;
+			
+			enum { RANDOM_MAX = 10 };
+			
+			enum States
+			{
+				READY = OsModel::READY,
+				NO_VALUE = OsModel::NO_VALUE,
+				INACTIVE = OsModel::INACTIVE
+			};
+			
+			FakeRandModel();
+			FakeRandModel(value_t seed);
+			void srand(value_t seed);
+			value_t operator()();
+			value_t operator()(value_t max);
+			int state();
+			
+		private:
+	};
+	
+	template<typename OsModel_P>
+	FakeRandModel<OsModel_P>::
+	FakeRandModel() {
+	}
+	
+	template<typename OsModel_P>
+	FakeRandModel<OsModel_P>::
+	FakeRandModel(value_t seed) {
+	}
+	
+	template<typename OsModel_P>
+	void FakeRandModel<OsModel_P>::
+	srand(value_t seed) {
+	}
+	
+	template<typename OsModel_P>
+	typename FakeRandModel<OsModel_P>::value_t FakeRandModel<OsModel_P>::
+	operator()() {
+		return 4; // chosen by fair dice roll.
+	}
 
-template<
-   typename OsModel_P,
-   typename Buffer_P
->
-class Byte {
-   public:
-      typedef OsModel_P Os;
-      typedef Buffer_P buffer_t;
-      typedef typename Os::block_data_t block_data_t;
-      
-      static void write(buffer_t& buffer, block_data_t v) {
-         *buffer = v;
-         ++buffer;
-      }
-      
-      template<typename T>
-      static void read(buffer_t& buffer, T& out) {
-         out = *buffer;
-         ++buffer;
-      }
-};
+	template<typename OsModel_P>
+	typename FakeRandModel<OsModel_P>::value_t FakeRandModel<OsModel_P>::
+	operator()( value_t max ) {
+	        return ( operator()() % max );
+	}	
+	
+	template<typename OsModel_P>
+	int FakeRandModel<OsModel_P>::
+	state() {
+		return READY;
+	}
+	
+} // ns wiselib
 
-   }
-}
-
-#endif // VARINT_H
-// vim: set ts=3 sw=3 expandtab:
+#endif // FAKE_RAND_H
 

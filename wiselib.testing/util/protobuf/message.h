@@ -18,36 +18,76 @@
  ***************************************************************************/
 
 
-#ifndef BYTE_H
-#define BYTE_H
+#ifndef MESSAGE_H
+#define MESSAGE_H
+
+#include "varint.h"
+#include "rwselect.h"
 
 namespace wiselib {
    namespace protobuf {
 
+/**
+ * Implements the ProtobufRW Concept.
+ * 
+ * \tparam Buffer_P type of a (write-)iterator over a block_data_t collection,
+ * must support iter++ as well es (*iter) = some_block_data_t_instance.
+ * E.g. block_data_t*, vector_dynamic<..., block_data_t>::iterator.
+ * 
+ * \tparam Integer_P Unsigned integer type that is used on the application
+ * side to represent varints. Note that this *must* be an unsigned type, else
+ * you will get unexpected results.
+ */
 template<
    typename OsModel_P,
-   typename Buffer_P
+   typename Buffer_P,
+   typename Integer_P
 >
-class Byte {
+class Message {
    public:
       typedef OsModel_P Os;
       typedef Buffer_P buffer_t;
+      typedef Byte<Os, buffer_t> byte_t;
       typedef typename Os::block_data_t block_data_t;
+      typedef Integer_P int_t;
       
-      static void write(buffer_t& buffer, block_data_t v) {
-         *buffer = v;
-         ++buffer;
+      typedef VarInt<Os, buffer_t, int_t> varint_t;
+      
+      enum { WIRE_TYPE = 2 };
+      
+      template<typename T>
+      static void write(buffer_t& buffer, int_t field, T v) {
+         typedef typename RWSelect<Os, buffer_t, int_t, T>::rw_t rw_t;
+         varint_t::write(buffer, field << 3 | rw_t::WIRE_TYPE);
+         rw_t::write(buffer, v);
       }
       
       template<typename T>
-      static void read(buffer_t& buffer, T& out) {
-         out = *buffer;
-         ++buffer;
+      static void read(buffer_t& buffer, int_t& field, T& out) {
+         int_t r, wiretype;
+         varint_t::read(buffer, r);
+         field = r >> 3;
+         wiretype = r & 0x7;
+         // assert(wiretype == rw_t::WIRE_TYPE);
+         RWSelect<Os, buffer_t, int_t, T>::rw_t::read(buffer, out);
+      }
+      
+      static int_t field_number(buffer_t buffer) {
+         int_t r;
+         varint_t::read(buffer, r);
+         return r >> 3;
+      }
+
+      static int_t wire_type(buffer_t buffer) {
+         int_t r;
+         varint_t::read(buffer, r);
+         return r & 0x7;
       }
 };
 
-   }
-}
+
+   } // ns protobuf
+} // ns wiselib
 
 #endif // VARINT_H
 // vim: set ts=3 sw=3 expandtab:
