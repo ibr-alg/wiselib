@@ -74,7 +74,7 @@ namespace wiselib
       for ( int i = 0; i < MAX_REGISTERED_RECEIVERS; i++ )
       {
          if (receivers[i])
-            receivers[i]( data );
+            receivers[i]( 1, &data );
       }
 
       return data;
