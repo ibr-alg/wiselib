@@ -21,17 +21,15 @@
 #ifndef __WISELIB_ALGORITHMS_SE_CONSTRUCTION_H
 #define __WISELIB_ALGORITHMS_SE_CONSTRUCTION_H
 
-#pragma warning("SE construction is not usable yet!")
-
-#include "util/pstl/list_dynamic.h"
 #include "se_construction_message.h"
 #include "util/serialization/endian.h"
 #include <algorithms/neighbor_discovery/echo.h>
-#include <util/pstl/vector_dynamic.h>
+//#include <util/pstl/vector_dynamic.h>
 #include <util/protobuf/buffer_dynamic.h>
 #include <util/protobuf/message.h>
 #include <util/pstl/map_static_vector.h>
-#include <util/pstl/vector_dynamic.h>
+//#include <util/pstl/vector_dynamic.h>
+#include <util/pstl/list_dynamic.h>
 
 #define SE_CONSTRUCTION_DEBUG 1
 
@@ -71,7 +69,8 @@ namespace wiselib {
 			
 			typedef string_dynamic<OsModel, Allocator> string_t;
 			typedef delegate3<void, int, string_t, node_id_t> listener_t;
-			typedef vector_dynamic<OsModel, listener_t, Allocator> listeners_t;
+			//typedef vector_dynamic<OsModel, listener_t, Allocator> listeners_t;
+			typedef list_dynamic<OsModel, listener_t, Allocator> listeners_t;
 			
 			typedef node_id_t int_t;
 			typedef protobuf::buffer_dynamic<OsModel, Allocator> buffer_dynamic_t;
@@ -203,14 +202,14 @@ namespace wiselib {
 					classes.clear();
 					 while(p < p_end) {
 						buffer_dynamic_t buf_class(allocator_);
-						switch(msg_t::field_number(p)) {
-							case PROTOBUF_CLASS:
+					//	switch(msg_t::field_number(p)) {
+					//		case PROTOBUF_CLASS:
 								Class cls;
 								msg_t::read(p, field, buf_class.vector());
 								cls.from_protobuf(buf_class, allocator_);
 								classes.push_back(cls);
-								break;
-						}
+					//			break;
+					//	}
 					}
 				}
 				
@@ -249,7 +248,8 @@ namespace wiselib {
 			
 			int init() {
 				advertise_interval_ = 10000;
-				listeners.set_allocator(allocator_);
+				//listeners.set_allocator(allocator_);
+				listeners.init(allocator_);
 				return SUCCESS;
 			}
 			
@@ -292,7 +292,7 @@ namespace wiselib {
 			void on_time(void*) {
 				//if(trigger_) {
 					inform_all_neighbors();
-					trigger_ = false;
+					//trigger_ = false;
 				//}
 				timer_->template set_timer<self_type, &self_type::on_time>(10000, this, 0);
 			}
@@ -360,17 +360,24 @@ namespace wiselib {
 				new_neighbor_state(incoming_source_, other_state);
 			}
 			
+			void dbg_arrow(const char* name, node_id_t to_leader) {
+				debug_->debug("ARR %s 0x%x 0x%x $$", name, radio_->id(), to_leader);
+			}
+			
 			void new_neighbor_state(node_id_t source, State& state) {
 				for(typename class_vector_t::iterator iter = state_.classes.begin(); iter != state_.classes.end(); ++iter) {
 					for(typename class_vector_t::iterator niter = state.classes.begin(); niter != state.classes.end(); ++niter) {
 						if(iter->name == niter->name) {
+							
+							
+							
 							// other SE, we open -> JOIN if lower than leader,
 							// else create
 							if(niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->leader) {
 									iter->to_leader = niter->id;
 									
-									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									dbg_arrow(iter->name.c_str(), iter->to_leader);
 									
 									iter->leader = niter->leader;
 									notify(SE_LEADER, iter->name, iter->leader);
@@ -386,13 +393,13 @@ namespace wiselib {
 							else if(!niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->id) {
 									iter->to_leader = iter->id;
-									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									dbg_arrow(iter->name.c_str(), iter->to_leader);
 									iter->leader = iter->id;
 									notify(SE_LEADER, iter->name, iter->leader);
 								}
 								else {
 									iter->to_leader = niter->id;
-									debug_->debug("ARR %s 0x%x 0x%x ", iter->name.c_str(), radio_->id(), iter->to_leader);
+									dbg_arrow(iter->name.c_str(), iter->to_leader);
 									iter->leader = niter->id;
 									notify(SE_JOIN, iter->name, iter->leader);
 								}
@@ -404,7 +411,7 @@ namespace wiselib {
 							else if(!niter->is_se() && iter->is_se()) {
 								if(niter->id == iter->to_leader) {
 									iter->to_leader = Radio::NULL_NODE_ID;
-									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), 0);
+									dbg_arrow(iter->name.c_str(), 0);
 									notify(SE_LEAVE, iter->name, iter->leader);
 								}
 							}
@@ -418,9 +425,8 @@ namespace wiselib {
 									notify(SE_LEAVE, iter->name, iter->leader);
 									iter->leader = niter->leader;
 									iter->to_leader = source;
-									debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), radio_->id(), iter->to_leader);
+									dbg_arrow(iter->name.c_str(), iter->to_leader);
 									notify(SE_JOIN, iter->name, iter->leader);
-									trigger_ = true;
 								}
 							}
 							
@@ -441,6 +447,7 @@ namespace wiselib {
 						TMethod>(obj));
 			}
 			
+			#ifdef SHAWN
 			template<typename DebugPtr>
 			void label(DebugPtr d) {
 				char buf[256];
@@ -454,6 +461,7 @@ namespace wiselib {
 				*b++ = '\0';
 				d->debug("%3x: %s", radio_->id(), buf);
 			}
+#endif
 			
 		private:
 			
@@ -474,7 +482,7 @@ namespace wiselib {
 			typename Allocator::self_pointer_t allocator_;
 			typename Debug::self_pointer_t debug_;
 			typename Neighborhood::self_pointer_t neighborhood_;
-			bool trigger_;
+			//bool trigger_;
 			size_t advertise_interval_;
 			listeners_t listeners;
 	};
