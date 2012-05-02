@@ -28,15 +28,14 @@ namespace wiselib {
 			typename Value_P,
 			typename Allocator_P
 		>
-		struct DoublyConnectedListNode {
-			typedef DoublyConnectedListNode<Value_P, Allocator_P> self_type;
+		struct SingleConnectedListNode {
+			typedef SingleConnectedListNode<Value_P, Allocator_P> self_type;
 			typename Allocator_P::template pointer_t<self_type> next;
-			typename Allocator_P::template pointer_t<self_type> prev;
 			Value_P value;
 			Value_P& data() { return value; }
 			const Value_P& data() const { return value; }
 			
-			DoublyConnectedListNode() { }
+			SingleConnectedListNode() { }
 		};
 	
 	
@@ -72,11 +71,6 @@ namespace wiselib {
 				
 				iterator_type& operator++() { node_ = node_->next; return *this; }
 				
-				iterator_type& operator--() {
-					if(!node_) { node_ = list_->last(); }
-					else { node_ = node_->prev; }
-					return *this;
-				}
 				bool operator==(const iterator_type& other) const {
 					return node_ == other.node_;
 				}
@@ -103,7 +97,7 @@ namespace wiselib {
 	>
 	class list_dynamic {
 		public:
-			typedef list_dynamic_impl::DoublyConnectedListNode<Value_P, Allocator_P> Node_P;
+			typedef list_dynamic_impl::SingleConnectedListNode<Value_P, Allocator_P> Node_P;
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_t;
@@ -131,6 +125,10 @@ namespace wiselib {
 			return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
 			//return reinterpret_cast<T*>(a)->cmp(*reinterpret_cast<T*>(b));
 		}
+		
+			static int obvious_comparator(value_type a, value_type b, void*) {
+				return (a < b) ? -1 : (b > a);
+			}
 			
 			list_dynamic() : allocator_(0), first_node_(0), last_node_(0), weak_(false) { };
 			list_dynamic(Allocator& alloc) : allocator_(&alloc), first_node_(0), last_node_(0), weak_(false) { };
@@ -139,12 +137,24 @@ namespace wiselib {
 			
 			
 			int init(
+					typename Allocator::self_pointer_t alloc
+			) {
+				allocator_ = alloc;
+				compare_ = comparator_t::template from_function<&self_type::obvious_comparator>();
+				return 0;
+			}
+			
+			int init(
 					typename Allocator::self_pointer_t alloc,
 					comparator_t compare
 			) {
 				allocator_ = alloc;
 				compare_ = compare;
 				return 0;
+			}
+			
+			void set_allocator(typename Allocator::self_pointer_t alloc) {
+				allocator_ = alloc;
 			}
 			
 			~list_dynamic() {
@@ -207,41 +217,23 @@ namespace wiselib {
 			value_type& back() { return last_node_->value; }
 			iterator back_iterator() { return iterator(*this, last_node_); }
 			
+			/**
+			 * Insert item v *after* iter.
+			 */
 			iterator insert(iterator iter, const_reference v) {
-				node_pointer_t n = allocator_-> template allocate<node_type>();
-				n->value = v;
-				
-				iterator before(iter), after(iter);
-				--before;
-				if(before.node()) { before.node()->next = n; }
-				else { first_node_ = n; }
-				
-				if(after.node()) { after.node()->prev = n; }
-				else { last_node_ = n; }
-				
-				n->prev = before.node();
-				n->next = after.node();
-				
-				iterator new_iter(*this, n);
-				return new_iter;
+				node_pointer_t n = insert_n(v, iter.node());
+				return iterator(*this, n);
 			}
 			
-			node_pointer_t insert_n(const_reference v) {
-				iterator iter = end();
+			node_pointer_t insert_n(const_reference v, node_ptr_t after = 0) {
+				if(!after) { after = last_node_; }
 				
 				node_pointer_t n = allocator_-> template allocate<node_type>();
 				n->value = v;
 				
-				iterator before(iter), after(iter);
-				--before;
-				if(before.node()) { before.node()->next = n; }
-				else { first_node_ = n; }
-				
-				if(after.node()) { after.node()->prev = n; }
-				else { last_node_ = n; }
-				
-				n->prev = before.node();
-				n->next = after.node();
+				node_pointer_t prev = after;
+				n->next = prev->next;
+				prev->next = n;
 				
 				return n;
 			}
@@ -267,11 +259,15 @@ namespace wiselib {
 			void pop_back() { erase(iterator(*this, last_node_)); }
 			
 			iterator erase(iterator iter) {
+				node_ptr_t prev = first_node_;
+				while(prev && prev->next != iter.node()) {
+					prev = prev->next;
+				}
+				
 				if(!iter.node()) { return iter; }
 				if(iter.node() == first_node_) { first_node_ = iter.node()->next; }
-				if(iter.node() == last_node_) { last_node_ = iter.node()->prev; }
-				if(iter.node()->next) { iter.node()->next->prev = iter.node()->prev; }
-				if(iter.node()->prev) { iter.node()->prev->next = iter.node()->next; }
+				if(iter.node() == last_node_) { last_node_ = prev; }
+				if(prev) { prev->next = iter.node()->next; }
 				
 				iterator n(*this, iter.node()->next);
 				allocator_-> template free<node_type>(iter.node());

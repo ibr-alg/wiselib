@@ -50,7 +50,7 @@
  *	If enabled, beacons that are below certain LQI thresholds
  *	will be ignored.
  */
-#define ENABLE_LQI_THRESHOLDS
+//#define ENABLE_LQI_THRESHOLDS
 
 /**
  *	If enabled, beacons that are below certain Stability thresholds

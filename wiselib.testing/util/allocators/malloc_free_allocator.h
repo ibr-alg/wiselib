@@ -23,9 +23,12 @@
 
 #define KEEP_STATS 0
 
-template<typename pointer_t>
+/*template<typename pointer_t>
 void* operator new(size_t size, pointer_t ptr) {
 	return ptr.raw();
+}*/
+void* operator new(size_t size, void* ptr) {
+	return ptr;
 }
 
 namespace wiselib {
@@ -116,8 +119,9 @@ class MallocFreeAllocator {
 			#else
 				void *p = malloc(sizeof(T));
 			#endif
-			pointer_t<T> r((T*)p);
-			new(r) T;
+			//new(r) T;
+			new(p) T;
+			pointer_t<T> r(reinterpret_cast<T*>(p));
 			return r;
 		}
 		
@@ -127,12 +131,14 @@ class MallocFreeAllocator {
 				news_++;
 			#endif
 			#ifdef ISENSE
-				array_pointer_t<T> r(reinterpret_cast<T*>(isense::malloc(sizeof(T) * n)), n);
+				void *p = isense::malloc(sizeof(T) * n);
 			#else
-				array_pointer_t<T> r(reinterpret_cast<T*>(malloc(sizeof(T) * n)), n);
+				void *p = malloc(sizeof(T) * n);
 			#endif
+			array_pointer_t<T> r(reinterpret_cast<T*>(p), n);
 			for(typename OsModel::size_t i = 0; i < n; i++) {
-				new(pointer_t<T>(&(r.raw()[i]))) T;
+				//new(pointer_t<T>(&(r.raw()[i]))) T;
+				new(&(reinterpret_cast<T*>(p)[i])) T;
 			}
 			return r;
 		}
