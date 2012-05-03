@@ -34,7 +34,7 @@
 #include <err.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-
+#define PC_COM_UART_DEBUG 50
 /*
  * PC_COM_UART_DEBUG
  * 
@@ -44,7 +44,7 @@
  * >= 100         -> Hardcore debug output
  */
 
-#if PC_COM_UART_DEBUG
+#ifdef PC_COM_UART_DEBUG
 	#include <iostream>
 	#include <iomanip>
 #endif
@@ -127,7 +127,7 @@ namespace wiselib {
 	
 	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
 	PCComUartModel<OsModel_P, isense_reset_, Timer_P>::
-	PCComUartModel() : baudrate_(B9600), address_("/dev/ttyUSB0") {
+	PCComUartModel() : baudrate_(B115200), address_("/dev/tty.usbserial-000014FA") {
 	}
 
 	template<typename OsModel_P, const bool isense_reset_, typename Timer_P>
@@ -145,7 +145,7 @@ namespace wiselib {
 		attr.c_cc[VMIN] = 1; // try to read at least 1 char
 		attr.c_cc[VTIME] = 0; // time out after 800ms
 		
-		#if PC_COM_UART_DEBUG
+		#ifdef PC_COM_UART_DEBUG
 		std::cout << "[pc_com_uart] Opening: " << address_ << "\n";
 		#endif
 		
@@ -167,7 +167,7 @@ namespace wiselib {
 		}
 		
 		if(isense_reset_) {
-			#if PC_COM_UART_DEBUG
+			#ifdef PC_COM_UART_DEBUG
 			std::cout << "[pc_com_uart] Executing isense reset" << std::endl;
 			#endif
 			
@@ -206,9 +206,11 @@ namespace wiselib {
 		static const int max_retries = 100;
 		int retries = max_retries, r;
 		size_t written = 0;
-		
+
 		do {
+                    std::cout << (uint16_t)buf[0] << std::endl;
 			r = ::write(port_fd_, reinterpret_cast<void*>(buf+written), len-written);
+//                        std::cout << "r = " << r <<" len = " << len << std::endl;
 			if(r < 0) {
 				if( ( errno != EAGAIN ) && ( errno != EWOULDBLOCK ) && ( errno != EINTR ) ) {
 					warn("Error writing to UART %s (%d more retries)", address_, retries);
@@ -218,7 +220,9 @@ namespace wiselib {
 					else {
 						retries--;
 					}
-				}
+				}else{
+                                    warn("r<0 Uart seems \"full\" running till infinity");
+                                }
 			} else {
 				written += r;
 				retries = max_retries;
