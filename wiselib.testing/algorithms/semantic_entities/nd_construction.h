@@ -365,11 +365,19 @@ namespace wiselib {
 			}
 			
 			void new_neighbor_state(node_id_t source, State& state) {
+				//debug_->debug("----------------- new neigh st");
+				
 				for(typename class_vector_t::iterator iter = state_.classes.begin(); iter != state_.classes.end(); ++iter) {
 					for(typename class_vector_t::iterator niter = state.classes.begin(); niter != state.classes.end(); ++niter) {
+						
+						
+							
+							
 						if(iter->name == niter->name) {
-							
-							
+						debug_->debug("   we: n=%s id=%d l=%d to_l=%d",
+								iter->name.c_str(), iter->id, iter->leader, iter->to_leader);
+						debug_->debug("neigh: n=%s id=%d l=%d to_l=%d",
+								niter->name.c_str(), niter->id, niter->leader, niter->to_leader);
 							
 							// other SE, we open -> JOIN if lower than leader,
 							// else create
@@ -466,6 +474,7 @@ namespace wiselib {
 		private:
 			
 			void notify(int event, string_t name, node_id_t id) {
+				//debug_->debug("notify %d %s %d", event, name.c_str(), id);
 				for(typename listeners_t::iterator listener = listeners.begin();
 						listener != listeners.end(); ++listener) {
 					(*listener)(event, name, id);

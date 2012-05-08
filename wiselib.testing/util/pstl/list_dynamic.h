@@ -168,6 +168,8 @@ namespace wiselib {
 				allocator_ = other.allocator_;
 				compare_ = other.compare_;
 				clear();
+				first_node_ = 0;
+				last_node_ = 0;
 				for(typename self_type::const_iterator iter = other.begin(); iter != other.end(); ++iter) {
 					push_back(*iter);
 				}
@@ -221,7 +223,7 @@ namespace wiselib {
 			 * Insert item v *after* iter.
 			 */
 			iterator insert(iterator iter, const_reference v) {
-				node_pointer_t n = insert_n(v, iter.node());
+				node_pointer_t n = (iter == end()) ? insert_n(v, last_node_) : insert_n(v, iter.node());
 				return iterator(*this, n);
 			}
 			
@@ -232,8 +234,21 @@ namespace wiselib {
 				n->value = v;
 				
 				node_pointer_t prev = after;
-				n->next = prev->next;
-				prev->next = n;
+				if(prev) {
+					n->next = prev->next;
+					prev->next = n;
+				}
+				else {
+					n->next = 0;
+				}
+				
+				if(!first_node_) {
+					first_node_ = n;
+				}
+				
+				if(!n->next) {
+					last_node_ = n;
+				}
 				
 				return n;
 			}
