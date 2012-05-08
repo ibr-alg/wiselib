@@ -22,8 +22,6 @@ class Tuple_concept {
 		size_type size();
 		
 		bool is_wildcard(size_type idx);
-	
-	// Message-serialization interface??
 };
 
 } // namespace
