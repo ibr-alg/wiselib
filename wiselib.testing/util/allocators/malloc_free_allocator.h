@@ -27,7 +27,7 @@
 void* operator new(size_t size, pointer_t ptr) {
 	return ptr.raw();
 }*/
-void* operator new(size_t size, void* ptr) {
+void* operator new(size_t size, void* ptr, int xxxx) {
 	return ptr;
 }
 
@@ -120,7 +120,7 @@ class MallocFreeAllocator {
 				void *p = malloc(sizeof(T));
 			#endif
 			//new(r) T;
-			new(p) T;
+			new(p, 0) T;
 			pointer_t<T> r(reinterpret_cast<T*>(p));
 			return r;
 		}
@@ -138,7 +138,7 @@ class MallocFreeAllocator {
 			array_pointer_t<T> r(reinterpret_cast<T*>(p), n);
 			for(typename OsModel::size_t i = 0; i < n; i++) {
 				//new(pointer_t<T>(&(r.raw()[i]))) T;
-				new(&(reinterpret_cast<T*>(p)[i])) T;
+				new(&(reinterpret_cast<T*>(p)[i]), 0) T;
 			}
 			return r;
 		}
