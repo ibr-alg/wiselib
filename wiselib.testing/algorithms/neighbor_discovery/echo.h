@@ -479,7 +479,8 @@ public:
 		debug_ = &debug;
 		beacon_period = 1000;
 		timeout_period = 9000;
-		min_lqi_threshold = 150;
+		//min_lqi_threshold = 150;
+		min_lqi_threshold = 100;
 		max_lqi_threshold = 165;
 		max_stability_threshold = 40;
 		min_stability_threshold = 20;
