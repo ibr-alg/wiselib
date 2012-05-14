@@ -132,6 +132,10 @@ namespace wiselib {
 				return size_;
 			}
 			
+			void clear() {
+				resize(0);
+			}
+			
 			void resize(size_t n) {
 				if(n == size_) { return; }
 				size_ = n;
