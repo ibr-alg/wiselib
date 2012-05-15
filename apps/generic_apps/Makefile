@@ -109,7 +109,7 @@ flash-gnode:
 
 flash-inga:
 	inga_tool -d $(PORT)
-	avrdude -v -b 230400 -P $(PORT) -c avr109 -p atmega1284p -U flash:w:out/contiki-inga/$(BIN_OUT).hex
+	avrdude -v -b 230400 -P $(PORT) -c avr109 -p atmega1284p -U flash:w:out/$(BIN_OUT).hex
 
 ###############################################################
 ##
