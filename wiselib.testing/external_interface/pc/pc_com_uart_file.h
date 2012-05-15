@@ -52,7 +52,7 @@
 namespace wiselib {
 	
 	namespace {
-		enum { BUFFER_SIZE = 256 }; // should be enough for 19200 Baud (technically 20 should suffice)
+		enum { BUFFER_SIZE = 25600 }; // should be enough for 19200 Baud (technically 20 should suffice)
 	}
 	
 	/** \brief Uart model for PC
@@ -208,7 +208,7 @@ namespace wiselib {
 		size_t written = 0;
 
 		do {
-                    std::cout << (uint16_t)buf[0] << std::endl;
+//                    std::cout << (uint16_t)buf[0] << std::endl;
 			r = ::write(port_fd_, reinterpret_cast<void*>(buf+written), len-written);
 //                        std::cout << "r = " << r <<" len = " << len << std::endl;
 			if(r < 0) {
