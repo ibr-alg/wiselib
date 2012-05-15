@@ -23,6 +23,7 @@ configuration TinyosWiselibGlueAppC
 implementation
 {
    components MainC;
+   components PrintfC, SerialStartC;
    components TinyosWiselibGlueC as App;
 
    components TinyosWiselibGlueRadioC;

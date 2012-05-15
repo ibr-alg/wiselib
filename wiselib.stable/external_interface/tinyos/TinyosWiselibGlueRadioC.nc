@@ -40,6 +40,9 @@ implementation
 #elif defined(PLATFORM_GNODE)
   components PacketMetadataC;
   App.PacketMetadata -> PacketMetadataC;
+#elif defined(PLATFORM_INGA)
+  components ReadLqiC;
+  App.ReadLqi -> ReadLqiC;
 #endif
 
    App.Packet -> AMSenderC;
