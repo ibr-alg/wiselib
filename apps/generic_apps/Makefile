@@ -76,6 +76,9 @@ tinyos-telosb:
 tinyos-micaz:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.micaz micaz tinyos-micaz ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
+tinyos-inga:
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.inga inga tinyos-inga ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
 tinyos-tossim:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.tossim micaz sim tinyos-tossim ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
