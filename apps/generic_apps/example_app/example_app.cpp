@@ -28,12 +28,12 @@ class ExampleApplication
       void start( void* )
       {
          debug_->debug( "broadcast message at %d \n", radio_->id() );
-         Os::Radio::block_data_t message[] = "hello world!\0";
+         Os::Radio::block_data_t message[] = "hello!\0";
          radio_->send( Os::Radio::BROADCAST_ADDRESS, sizeof(message), message );
 
          // following can be used for periodic messages to sink
-         // timer_->set_timer<ExampleApplication,
-         //                  &ExampleApplication::start>( 5000, this, 0 );
+         timer_->set_timer<ExampleApplication,
+                          &ExampleApplication::start>( 5000, this, 0 );
       }
       // --------------------------------------------------------------------
       void receive_radio_message( Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *buf )
