@@ -22,7 +22,7 @@
 
 #include "coap.h"
 
-#define SINGLE_OPTION_NO_HEADER		0
+static const size_t SINGLE_OPTION_NO_HEADER = 0;
 
 namespace wiselib
 {
@@ -189,13 +189,13 @@ namespace wiselib
 		 * Sets Uri-Path value
 		 * @param path new Uri-Path
 		 */
-		int set_uri_path( string_t &path );
+		int set_uri_path( const string_t &path );
 
 		/**
 		 * Sets Uri-Query value
 		 * @param query new Uri-Query
 		 */
-		int set_uri_query( string_t &query );
+		int set_uri_query( const string_t &query );
 
 		/**
 		 * Retrieves a list of Query segments for Uri-Query of Location-Query
@@ -731,7 +731,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_path( string_t &path )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_path( const string_t &path )
 	{
 		return set_option( COAP_OPT_URI_PATH, path );
 	}
@@ -740,7 +740,7 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
-	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_query( string_t &query )
+	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_query( const string_t &query )
 	{
 		return set_option( COAP_OPT_URI_QUERY, query );
 	}
