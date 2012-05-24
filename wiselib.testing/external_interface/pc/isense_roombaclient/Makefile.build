@@ -10,6 +10,12 @@ JN5139R1:
 	@make JENNIC_CHIP=JN5139R1 TARGET=$(TARGET) -f Makefile.jennic
 	@echo "----- Done  ------"
 
+JN5148:
+	@echo "----- Building for JENNIC 5148 target ------"
+	@make JENNIC_CHIP=JN5148 TARGET=$(TARGET) -f Makefile.isense.5148
+	@echo "----- Done  ------"
+
+
 JN5139R1-clean:
 	@make JENNIC_CHIP=JN5139R1 TARGET=$(TARGET) -f Makefile.jennic clean
 	@echo "----- JN5139R1 cleaned ------"
