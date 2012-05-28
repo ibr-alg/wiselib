@@ -174,6 +174,23 @@ class MallocFreeAllocator {
 			return SUCCESS;
 		}
 		
+		template<typename T>
+		int free_array(T* p) {
+			#if KEEP_STATS
+				deletes_++;
+			#endif
+			#pragma warning("array freeing does not call destructors yet!!");
+			/*for(typename OsModel::size_t i = 0; i < n; i++) {
+				pointer_t<T>((T*)r.raw() + sizeof(T) * i)->~T();
+			}*/
+			#ifdef ISENSE
+				isense::free((void*)p);
+			#else
+				::free((void*)p);
+			#endif
+			return SUCCESS;
+		}
+		
 		size_t size() { return 0; }
 		size_t capacity() { return (size_t)-1; }
 			

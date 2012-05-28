@@ -7,14 +7,12 @@ namespace concepts {
  */
 class Tuple_concept {
 	public:
-		typedef ... data_t;
+		typedef ... block_data_t;
 		typedef ... size_type;
 		
-		/**
-		 * Provide read-only or read/write access to the idx'th element
-		 * of the tuple.
-		 */
-		data_t& operator[](size_type idx);
+		block_data_t *element_data(size_type idx);
+		size_type element_length(size_type idx);
+		
 		
 		/**
 		 * Return number of elements of the tuple.
@@ -22,6 +20,10 @@ class Tuple_concept {
 		size_type size();
 		
 		bool is_wildcard(size_type idx);
+		
+		
+		void set_element(size_type idx, block_data_t* data, size_type len);
+		void set_wildcard(size_type idx, bool wc);
 };
 
 } // namespace

@@ -140,7 +140,7 @@ namespace wiselib {
 					typename Allocator::self_pointer_t alloc
 			) {
 				allocator_ = alloc;
-				compare_ = comparator_t::template from_function<&self_type::obvious_comparator>();
+	//			compare_ = comparator_t::template from_function<&self_type::obvious_comparator>();
 				return 0;
 			}
 			
@@ -149,7 +149,7 @@ namespace wiselib {
 					comparator_t compare
 			) {
 				allocator_ = alloc;
-				compare_ = compare;
+	//			compare_ = compare;
 				return 0;
 			}
 			
@@ -166,7 +166,7 @@ namespace wiselib {
 			list_dynamic& operator=(const self_type& other) {
 				// TODO: Implement copy-on-write
 				allocator_ = other.allocator_;
-				compare_ = other.compare_;
+	//			compare_ = other.compare_;
 				clear();
 				first_node_ = 0;
 				last_node_ = 0;
@@ -227,6 +227,10 @@ namespace wiselib {
 				return iterator(*this, n);
 			}
 			
+			iterator insert(const_reference v) {
+				return insert(end(), v);
+			}
+			
 			node_pointer_t insert_n(const_reference v, node_ptr_t after = 0) {
 				if(!after) { after = last_node_; }
 				
@@ -255,7 +259,8 @@ namespace wiselib {
 			
 			iterator find(value_type v, void* d = 0) {
 				for(iterator i = begin(); i != end(); ++i) {
-					if(compare_(*i, v, d) == 0) { return i; }
+					//if(compare_(*i, v, d) == 0) { return i; }
+					if(*i == v) { return i; }
 				}
 				return end();
 			}
@@ -315,7 +320,7 @@ namespace wiselib {
 			typename Allocator::self_pointer_t allocator_;
 			node_pointer_t first_node_, last_node_;
 			mutable bool weak_;
-			comparator_t compare_;
+//			comparator_t compare_;
 	};
 	
 	
