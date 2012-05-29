@@ -56,8 +56,8 @@ namespace wiselib {
 				typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
 				typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
 				
-				list_dynamic_iterator() : list_(0) { }
-				list_dynamic_iterator(List& l) : list_(&l) { }
+				list_dynamic_iterator() : list_(0), node_(0) { }
+				list_dynamic_iterator(List& l) : list_(&l), node_(0) { }
 				list_dynamic_iterator(List& l, const node_pointer_t node) : list_(&l), node_(node) { }
 				list_dynamic_iterator(const self_type& other) : list_(other.list_), node_(other.node_) { }
 				
