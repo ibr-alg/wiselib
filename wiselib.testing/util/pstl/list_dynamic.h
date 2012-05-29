@@ -119,7 +119,7 @@ namespace wiselib {
 		static typename T::self_pointer_t to_t_ptr(value_type a) {
 			//return *reinterpret_cast<typename T::self_pointer_t*>(&a);
 			typename T::self_pointer_t r;
-			memcpy((void*)r, (void*)&a, sizeof(typename T::self_pointer_t));
+			memcpy((void*)&r, (void*)&a, sizeof(typename T::self_pointer_t));
 			return r;
 		}
 		
@@ -262,8 +262,8 @@ namespace wiselib {
 			
 			iterator find(value_type v, void* d = 0) {
 				for(iterator i = begin(); i != end(); ++i) {
-					//if(compare_(*i, v, d) == 0) { return i; }
-					if(*i == v) { return i; }
+					if(compare_(*i, v, d) == 0) { return i; }
+					//if(*i == v) { return i; }
 				}
 				return end();
 			}
