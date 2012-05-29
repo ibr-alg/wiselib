@@ -158,6 +158,20 @@ class MallocFreeAllocator {
 		}
 		
 		template<typename T>
+		int free(T* p) {
+			#if KEEP_STATS
+				deletes_++;
+			#endif
+			p->~T();
+			#ifdef ISENSE
+				isense::free((void*)p);
+			#else
+				::free((void*)p);
+			#endif
+			return SUCCESS;
+		}
+		
+		template<typename T>
 		int free_array(array_pointer_t<T> p) {
 			#if KEEP_STATS
 				deletes_++;

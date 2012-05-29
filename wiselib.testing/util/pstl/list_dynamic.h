@@ -117,7 +117,10 @@ namespace wiselib {
 			
 		template<typename T>
 		static typename T::self_pointer_t to_t_ptr(value_type a) {
-			return *reinterpret_cast<typename T::self_pointer_t*>(&a);
+			//return *reinterpret_cast<typename T::self_pointer_t*>(&a);
+			typename T::self_pointer_t r;
+			memcpy((void*)r, (void*)&a, sizeof(typename T::self_pointer_t));
+			return r;
 		}
 		
 		template<typename T>
@@ -140,7 +143,7 @@ namespace wiselib {
 					typename Allocator::self_pointer_t alloc
 			) {
 				allocator_ = alloc;
-	//			compare_ = comparator_t::template from_function<&self_type::obvious_comparator>();
+				compare_ = comparator_t::template from_function<&self_type::obvious_comparator>();
 				return 0;
 			}
 			
@@ -149,7 +152,7 @@ namespace wiselib {
 					comparator_t compare
 			) {
 				allocator_ = alloc;
-	//			compare_ = compare;
+				compare_ = compare;
 				return 0;
 			}
 			
@@ -166,7 +169,7 @@ namespace wiselib {
 			list_dynamic& operator=(const self_type& other) {
 				// TODO: Implement copy-on-write
 				allocator_ = other.allocator_;
-	//			compare_ = other.compare_;
+				compare_ = other.compare_;
 				clear();
 				first_node_ = 0;
 				last_node_ = 0;
@@ -320,7 +323,7 @@ namespace wiselib {
 			typename Allocator::self_pointer_t allocator_;
 			node_pointer_t first_node_, last_node_;
 			mutable bool weak_;
-//			comparator_t compare_;
+			comparator_t compare_;
 	};
 	
 	
