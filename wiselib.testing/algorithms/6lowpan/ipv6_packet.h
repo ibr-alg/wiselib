@@ -65,9 +65,11 @@ namespace wiselib
 	public:
 	typedef Debug_P Debug;
 	typedef OsModel_P OsModel;
-	//typedef Radio_P Radio;
-	//TODO: from the radio?
-	typedef uint8_t block_data_t;
+	typedef Radio_P Radio;
+
+	typedef typename Radio::block_data_t block_data_t;
+	typedef typename Radio::size_t size_t;
+	typedef typename Radio::node_id_t node_id_t;
 	
 	
 	typedef IPv6Address<Debug> IPv6Address_t;
@@ -82,50 +84,38 @@ namespace wiselib
 	}
 	
 	
-	void init( uint8_t next_header, uint8_t hop_limit, uint16_t length, uint8_t* payload, IPv6Address_t* source, IPv6Address_t* destination, uint8_t traffic_class=0, uint32_t flow_label=0 )
+	void init( uint8_t next_header, uint8_t hop_limit, uint16_t length, uint8_t* payload, node_id_t& source, node_id_t& destination, uint8_t traffic_class=0, uint32_t flow_label=0 )
 	{
 		memset(header_, 0, 40);
 		
 		//Version
-		//header_[0] |= 6 << 4;
 		uint8_t version = 6;
 		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
 		
 		//Traffic Class
-		//header_[0] |= traffic_class >> 4;
-		//header_[1] |= traffic_class << 4;
 		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + TRAFFIC_CLASS_BYTE, traffic_class, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
 		
 		//Flow Label
-		//header_[1] |= flow_label >> 16;
-		//header_[2] |= flow_label >> 8;
-		//header_[3] |= flow_label;
 		bitwise_write<OsModel, block_data_t, uint32_t>( header_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
 		
 		//Length
-		//header_[4] |= length >> 8;
-		//header_[5] |= length;
 		bitwise_write<OsModel, block_data_t, uint16_t>( header_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
 		
 		//Next Header
-		//header_[6] |= next_header;
 		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
 		
 		//Hop limit
-		//header_[7] |= hop_limit;
 		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
 		
 		//Source address
-		uint8_t* addr_pointer;
-		addr_pointer=source->get_address();
-		memcpy((header_ + SOURCE_ADDRESS_BYTE), addr_pointer, 16);
+		memcpy((header_ + SOURCE_ADDRESS_BYTE), source.addr_, 16);
 		
 		//Destination address
-		addr_pointer=destination->get_address();
-		memcpy((header_ + DESTINATION_ADDRESS_BYTE), addr_pointer, 16);
+		memcpy((header_ + DESTINATION_ADDRESS_BYTE), destination.addr_, 16);
 		
 		//Payload
-		payload_=payload;
+		//payload_=payload;
+		memcpy((header_ + PAYLOAD_POS), payload, length);
 	}
 	
 	inline uint8_t version()
@@ -158,22 +148,38 @@ namespace wiselib
 		return bitwise_read<OsModel, block_data_t, uint8_t>( header_ + HOP_LIMIT_BYTE, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
 	}
 	
-	inline void source_address(IPv6Address_t& address)
+	inline void source_address(node_id_t& address)
 	{
 		uint8_t tmp_address[16];
 		memcpy(tmp_address, (header_ + SOURCE_ADDRESS_BYTE) ,16);
 		address.set_address(tmp_address);
 	}
 	
-	inline void destination_address(IPv6Address_t& address)
+	inline void destination_address(node_id_t& address)
 	{
 		uint8_t tmp_address[16];
 		memcpy(tmp_address, (header_ + DESTINATION_ADDRESS_BYTE) ,16);
 		address.set_address(tmp_address);
 	}
 	
+	inline block_data_t* payload()
+	{
+		return header_ + PAYLOAD_POS;
+	}
+	
+	inline block_data_t* get_content()
+	{
+		return header_;
+	}
+	
+	inline size_t get_content_size()
+	{
+		return Radio::MAX_MESSAGE_LENGTH;
+	}
+	
 	void print_header()
 	{
+		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "Version: %d \n", version());
 		debug().debug( "Traffic Class: %d \n", traffic_class());
 		debug().debug( "Flow Label: %d \n", flow_label());
@@ -181,7 +187,7 @@ namespace wiselib
 		debug().debug( "Next Header: %d \n", next_header());
 		debug().debug( "Hop Limit: %d \n", hop_limit());
 		
-		IPv6Address_t addr;
+		node_id_t addr;
 		source_address( addr );
 		debug().debug( "Source Address: ");
 		addr.print_address();
@@ -189,6 +195,7 @@ namespace wiselib
 		destination_address( addr );
 		debug().debug( "Destination Address: ");
 		addr.print_address();
+		#endif
 	}
 	
 	enum position_starts_byte
@@ -200,7 +207,8 @@ namespace wiselib
 	  NEXT_HEADER_BYTE = 6,
 	  HOP_LIMIT_BYTE = 7,
 	  SOURCE_ADDRESS_BYTE= 8,
-	  DESTINATION_ADDRESS_BYTE= 24
+	  DESTINATION_ADDRESS_BYTE= 24,
+	  PAYLOAD_POS= 40
 	};
 	
 	enum position_shift_bit
@@ -228,8 +236,8 @@ namespace wiselib
 	};
 	
 	private:
-	block_data_t header_[40];
-	block_data_t* payload_;
+	block_data_t header_[Radio::MAX_MESSAGE_LENGTH + PAYLOAD_POS];
+	//block_data_t* payload_;
 	Debug& debug()
 	{ return *debug_; }
 

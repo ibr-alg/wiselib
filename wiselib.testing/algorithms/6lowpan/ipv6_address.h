@@ -91,7 +91,7 @@ namespace wiselib
 	
 	void print_address()
 	{
-		debug().debug( "Address: " );
+		#ifdef IPv6_LAYER_DEBUG
 		for(uint8_t i = 0; i < 16; i++)
 		{
 			debug().debug( "%x", addr_[i] >> 4 );
@@ -99,21 +99,27 @@ namespace wiselib
 			if(i%2==1 && i<15)
 				debug().debug( ":" );
 		}
-		debug().debug( "\n" );
+		#endif
 	}
 	
-	uint8_t* get_address()
+	
+	bool operator ==(const IPv6Address<Debug>& b)
 	{
-		return addr_;
+		for( int i = 0; i < 16; i++ )
+		{
+			if( addr_[i] != b.addr_[i] )
+				return false;
+		}
+		return true;
 	}
 	
-	  
+	uint8_t addr_[16];
 	private:
 	
 	Debug& debug()
 	{ return *debug_; }
 	
-	uint8_t addr_[16];
+	
 	typename Debug::self_pointer_t debug_;
    };
 }
