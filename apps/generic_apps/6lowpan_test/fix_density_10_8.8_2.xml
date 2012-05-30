@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<scenario>
+<snapshot id="0">
+	<node id="1">
+		<location x="0.384758" y="0.791445" z="0" />
+	</node>
+	<node id="2">
+		<location x="0.466919" y="0.422687" z="0" />
+	</node>
+	<node id="3">
+		<location x="0.676757" y="0.98185" z="0" />
+	</node>
+</snapshot>
+</scenario>
