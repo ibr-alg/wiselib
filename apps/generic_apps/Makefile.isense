@@ -64,7 +64,7 @@ LOCAL_COMMON_FLAGS += -fno-strength-reduce -pipe -fno-builtin -nostdlib
 
 LOCAL_CFLAGS = -Wstrict-prototypes -Werror-implicit-function-declaration
 
-LOCAL_CPPFLAGS = -march=ba2 -g -DCHIP_RELEASE_3 -fno-exceptions -fconserve-space -fno-implicit-inline-templates -fno-rtti
+LOCAL_CPPFLAGS = -g -DCHIP_RELEASE_3 -fno-exceptions -fconserve-space -fno-implicit-inline-templates -fno-rtti
 #LOCAL_CPPFLAGS = -g -DCHIP_RELEASE_3 -fno-exceptions -fconserve-space -fno-implicit-inline-templates -fno-rtti
 #LOCAL_CPPFLAGS = -DCHIP_RELEASE_3 -fno-exceptions -fno-implicit-inline-templates -fno-rtti
 
