@@ -23,15 +23,18 @@
 
 namespace wiselib
 {
-	template<typename Debug_P>
+	template<typename Radio_ll_P, typename Debug_P>
 	class IPv6Address
 	{
 	public:
 	
 	typedef Debug_P Debug;
+	typedef Radio_ll_P Radio_ll;
+	typedef typename Radio_ll::node_id_t ll_node_id_t;
 	
 	IPv6Address()
 	{
+		memset(addr,0, 16);
 	}
 	
 	void set_debug( Debug& debug )
@@ -41,39 +44,60 @@ namespace wiselib
 	
 	// --------------------------------------------------------------------
 	
-	void set_address( uint8_t* address )
+	//NOTE This should be a configured address (u bit)
+	void set_address( uint8_t* address, uint8_t prefix_l = 64 )
 	{
-		memcpy(&(addr_[0]), address, 16);
+		memcpy(&(addr[0]), address, 16);
+		prefix_length = prefix_l;
 	}
 	
 	// --------------------------------------------------------------------
 	
-	void set_prefix( uint8_t* prefix )
-	{
-		memcpy(&(addr_[0]), prefix, 8);
+	//If the prefix_l is shorter than 64, the prefix has to contain zeros at the lower bits!
+	void set_prefix( uint8_t* prefix, uint8_t prefix_l = 64 )
+	{	
+		memcpy(&(addr[0]), prefix, 8);
+		prefix_length = prefix_l;
 	}
 	
 	// --------------------------------------------------------------------
 	
-	void set_iid( uint8_t* iid )
+	void set_long_iid( ll_node_id_t* iid, bool global )
 	{
-		memcpy(&(addr_[8]), iid, 8);
+		//The different operation systems provide different length ll_node_id_t-s
+		for ( unsigned int i = 0; i < ( sizeof(ll_node_id_t) || 8 ); i++ )
+			addr[15-i] = *((uint8_t*)iid + i);
+		
+		/*//If the provided ll address is short (uint16_t), the FFFE is included
+		//TODO is this required?
+		if( sizeof(ll_node_id_t) < 5 )
+		{
+			addr[11] = 0xFF;
+			addr[12] = 0xFE;
+		}*/
+		
+		//Global address: u bit is 1
+		if( global )
+			addr[8] |= 0x02;
+		//Local address: u bit is 0
+		else
+			addr[8] &= 0xFD;
 	}
 	
-	// --------------------------------------------------------------------
-	
-	//MAC: 48-bit-long --> 6 bytes
-	//To construct EUI-64: 1. 2. 3. FF FE 4. 5. 6.
-	//U bit: in the first byte: _ _ _ _ _ _ 1 _
-	
-	//TODO: uint8_t doesn't seem so good for node_id_t
-	void set_iid_from_MAC( uint8_t* ll_addr )
+	//NOTE this is not used at the moment
+	void set_short_iid( uint16_t iid, uint16_t pan_id = 0 )
 	{
-		memcpy(&(addr_[8]), ll_addr, 3);
-		addr_[11]=0xFF;
-		addr_[12]=0xFE;
-		memcpy(&(addr_[13]), ll_addr+3, 3);
-		addr_[8] |= 0x02;
+		addr[8] = (pan_id >> 8);
+		
+		//The u bit has to be 0
+		addr[8] &= 0xFD;
+		
+		addr[9] = (pan_id & 0x00FF);
+		addr[10] = 0x00;
+
+		addr[13] = 0x00;
+		addr[14] = (iid >> 8);
+		addr[15] = (iid & 0x00FF);
 	}
 	
 	// --------------------------------------------------------------------
@@ -85,6 +109,7 @@ namespace wiselib
 		link_local_prefix[1]=0x80;
 		memset(&(link_local_prefix[2]),0, 6);
 		set_prefix(link_local_prefix);
+		prefix_length = 64;
 	}
 	
 	// --------------------------------------------------------------------
@@ -94,26 +119,28 @@ namespace wiselib
 		#ifdef IPv6_LAYER_DEBUG
 		for(uint8_t i = 0; i < 16; i++)
 		{
-			debug().debug( "%x", addr_[i] >> 4 );
-			debug().debug( "%x", addr_[i] & 0x0F );
+			debug().debug( "%x", addr[i] >> 4 );
+			debug().debug( "%x", addr[i] & 0x0F );
 			if(i%2==1 && i<15)
 				debug().debug( ":" );
 		}
+		debug().debug( "/ %i", prefix_length);
 		#endif
 	}
 	
 	
-	bool operator ==(const IPv6Address<Debug>& b)
+	bool operator ==(const IPv6Address<Radio_ll, Debug>& b)
 	{
 		for( int i = 0; i < 16; i++ )
 		{
-			if( addr_[i] != b.addr_[i] )
+			if( addr[i] != b.addr[i] )
 				return false;
 		}
 		return true;
 	}
 	
-	uint8_t addr_[16];
+	uint8_t addr[16];
+	uint8_t prefix_length;
 	private:
 	
 	Debug& debug()

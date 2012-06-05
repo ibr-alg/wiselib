@@ -14,14 +14,15 @@ typedef Os::Radio::node_id_t node_id_t;
 
 
 
-typedef wiselib::IPv6Address<Os::Debug> IPv6Address_t;
+typedef wiselib::IPv6Address<Radio, Os::Debug> IPv6Address_t;
 typedef wiselib::IPv6<Os, Radio, Os::Debug> IPv6_t;
-typedef wiselib::IPv6Packet<Os, IPv6_t, Os::Debug> IPv6Packet_t;
+typedef wiselib::IPv6Packet<Os, IPv6_t, Radio, Os::Debug> IPv6Packet_t;
 
 class lowpanApp
 {
   public:
     typedef Radio::block_data_t block_data_t;
+    typedef Radio::node_id_t node_id_t;
     typedef Radio::size_t size_t;
     typedef Radio::message_id_t message_id_t;
     
@@ -50,11 +51,10 @@ class lowpanApp
 	 
 	 destinationaddr.set_debug( *debug_ );
 	 destinationaddr.make_it_link_local();
-
-	 uint8_t ll_id[6];
-	 memset(ll_id,0,5);
-	 ll_id[5] = 0x01;
-	 destinationaddr.set_iid_from_MAC(ll_id);
+	
+	 
+	 node_id_t ll_id = 1;
+	 destinationaddr.set_long_iid(&ll_id, false);
 	 
 	 uint8_t mypayload[8];
 	 mypayload[0]='h';
