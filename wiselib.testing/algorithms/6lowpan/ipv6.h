@@ -45,7 +45,7 @@ namespace wiselib
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Debug_P = typename OsModel_P::Debug>
 	class IPv6
-	: public RadioBase<OsModel_P, wiselib::IPv6Address<Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
+	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
 		// HACK : it would be better to use the routingBase, but the problem is the IPv6Address...
 		//: public RoutingBase<OsModel_P, Radio_P>
 	{
@@ -57,8 +57,8 @@ namespace wiselib
 	typedef IPv6<OsModel, Radio, Debug> self_type;
 	typedef self_type* self_pointer_t;
 	
-	typedef IPv6Address<Debug> IPv6Address_t;
-	typedef IPv6Packet<OsModel, self_type, Debug> Packet;
+	typedef IPv6Address<Radio, Debug> IPv6Address_t;
+	typedef IPv6Packet<OsModel, self_type, Radio, Debug> Packet;
 	
 
 	
@@ -144,11 +144,8 @@ namespace wiselib
 		//HACK Because the radio's node_id_t is an uint16_t this is the sollution at the moment...
 		node_id_t my_id;
 		my_id.make_it_link_local();
-		uint8_t ll_id[6];
-		memset(ll_id,0,4);
-		ll_id[4] = ((radio_->id()) >> 8);
-		ll_id[5] = ((radio_->id()) & 0x00FF);
-		my_id.set_iid_from_MAC(ll_id);
+		ll_node_id_t ll_id = radio_->id();
+		my_id.set_long_iid( &ll_id, false );
 		
 		return my_id; }
 	   ///@}
@@ -250,10 +247,8 @@ namespace wiselib
 	 //There is no routing algorithm now, so the forwarding_table_ values are constructed here
 	 node_id_t hack_addr;
 	 hack_addr.make_it_link_local();
-	 uint8_t ll_id[6];
-	 memset(ll_id,0,5);
-	 ll_id[5]=0x1;
-	 hack_addr.set_iid_from_MAC(ll_id);
+	 ll_node_id_t ll_id = 1;
+	 hack_addr.set_long_iid(&ll_id, false);
 	 ll_node_id_t n_hop;
 	 if(radio().id() == 0)
 	 	n_hop = 2;

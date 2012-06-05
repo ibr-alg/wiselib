@@ -59,6 +59,7 @@ namespace wiselib
 	
 	template<typename OsModel_P,
 		typename Radio_P,
+		typename Radio_ll_P,
 		typename Debug_P>
 	class IPv6Packet
 	{
@@ -66,13 +67,14 @@ namespace wiselib
 	typedef Debug_P Debug;
 	typedef OsModel_P OsModel;
 	typedef Radio_P Radio;
+	typedef Radio_ll_P Radio_ll;
 
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::node_id_t node_id_t;
 	
 	
-	typedef IPv6Address<Debug> IPv6Address_t;
+	typedef IPv6Address<Radio_ll, Debug> IPv6Address_t;
 	
 	IPv6Packet()
 	{
@@ -108,10 +110,10 @@ namespace wiselib
 		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
 		
 		//Source address
-		memcpy((header_ + SOURCE_ADDRESS_BYTE), source.addr_, 16);
+		memcpy((header_ + SOURCE_ADDRESS_BYTE), source.addr, 16);
 		
 		//Destination address
-		memcpy((header_ + DESTINATION_ADDRESS_BYTE), destination.addr_, 16);
+		memcpy((header_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
 		
 		//Payload
 		//payload_=payload;
