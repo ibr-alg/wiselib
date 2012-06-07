@@ -23,14 +23,14 @@
 
 namespace wiselib
 {
-	template<typename Radio_ll_P, typename Debug_P>
+	template<typename Radio_Link_Layer_P, typename Debug_P>
 	class IPv6Address
 	{
 	public:
 	
 	typedef Debug_P Debug;
-	typedef Radio_ll_P Radio_ll;
-	typedef typename Radio_ll::node_id_t ll_node_id_t;
+	typedef Radio_Link_Layer_P Radio_Link_Layer;
+	typedef typename Radio_Link_Layer::node_id_t link_layer_node_id_t;
 	
 	IPv6Address()
 	{
@@ -62,19 +62,19 @@ namespace wiselib
 	
 	// --------------------------------------------------------------------
 	
-	void set_long_iid( ll_node_id_t* iid, bool global )
+	void set_long_iid( link_layer_node_id_t* iid, bool global )
 	{
-		//The different operation systems provide different length ll_node_id_t-s
-		for ( unsigned int i = 0; i < ( sizeof(ll_node_id_t) || 8 ); i++ )
+		//The different operation systems provide different length link_layer_node_id_t-s
+		for ( unsigned int i = 0; i < ( sizeof(link_layer_node_id_t) || 8 ); i++ )
 			addr[15-i] = *((uint8_t*)iid + i);
 		
-		/*//If the provided ll address is short (uint16_t), the FFFE is included
-		//TODO is this required?
-		if( sizeof(ll_node_id_t) < 5 )
+		//If the provided link_layer address is short (uint16_t), the FFFE is included
+		//Other bits are 0
+		if( sizeof(link_layer_node_id_t) < 3 )
 		{
 			addr[11] = 0xFF;
 			addr[12] = 0xFE;
-		}*/
+		}
 		
 		//Global address: u bit is 1
 		if( global )
@@ -128,15 +128,32 @@ namespace wiselib
 		#endif
 	}
 	
+	// --------------------------------------------------------------------
 	
-	bool operator ==(const IPv6Address<Radio_ll, Debug>& b)
+	bool operator ==(const IPv6Address<Radio_Link_Layer, Debug>& b)
 	{
-		for( int i = 0; i < 16; i++ )
+		//If every byte is equal, return true
+		if( common_prefix_length( b ) == 16 )
 		{
-			if( addr[i] != b.addr[i] )
-				return false;
+			return true;
 		}
-		return true;
+		return false;
+	}
+	
+	// --------------------------------------------------------------------
+	
+	//Return the size of the same bytes at from the beginning of the address
+	uint8_t common_prefix_length(const IPv6Address<Radio_Link_Layer, Debug>& b )
+	{
+		uint8_t same = 0;
+		for( uint8_t i = 0; i < 16; i++ )
+		{
+			if( addr[i] == b.addr[i] )
+				same++;
+			else
+				break;
+		}
+		return same;
 	}
 	
 	uint8_t addr[16];

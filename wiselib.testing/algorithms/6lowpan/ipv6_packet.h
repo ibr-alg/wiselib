@@ -22,6 +22,7 @@
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "util/serialization/bitwise_serialization.h"
 
+
 /*
   IPv6 Header
     1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8
@@ -59,7 +60,7 @@ namespace wiselib
 	
 	template<typename OsModel_P,
 		typename Radio_P,
-		typename Radio_ll_P,
+		typename Radio_Link_Layer_P,
 		typename Debug_P>
 	class IPv6Packet
 	{
@@ -67,14 +68,14 @@ namespace wiselib
 	typedef Debug_P Debug;
 	typedef OsModel_P OsModel;
 	typedef Radio_P Radio;
-	typedef Radio_ll_P Radio_ll;
+	typedef Radio_Link_Layer_P Radio_Link_Layer;
 
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::node_id_t node_id_t;
 	
 	
-	typedef IPv6Address<Radio_ll, Debug> IPv6Address_t;
+	typedef IPv6Address<Radio_Link_Layer, Debug> IPv6Address_t;
 	
 	IPv6Packet()
 	{
@@ -88,90 +89,90 @@ namespace wiselib
 	
 	void init( uint8_t next_header, uint8_t hop_limit, uint16_t length, uint8_t* payload, node_id_t& source, node_id_t& destination, uint8_t traffic_class=0, uint32_t flow_label=0 )
 	{
-		memset(header_, 0, 40);
+		memset(buffer_, 0, 40);
 		
 		//Version
 		uint8_t version = 6;
-		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
 		
 		//Traffic Class
-		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + TRAFFIC_CLASS_BYTE, traffic_class, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, traffic_class, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
 		
 		//Flow Label
-		bitwise_write<OsModel, block_data_t, uint32_t>( header_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
+		bitwise_write<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
 		
 		//Length
-		bitwise_write<OsModel, block_data_t, uint16_t>( header_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
+		bitwise_write<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
 		
 		//Next Header
-		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
 		
 		//Hop limit
-		bitwise_write<OsModel, block_data_t, uint8_t>( header_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
 		
 		//Source address
-		memcpy((header_ + SOURCE_ADDRESS_BYTE), source.addr, 16);
+		memcpy((buffer_ + SOURCE_ADDRESS_BYTE), source.addr, 16);
 		
 		//Destination address
-		memcpy((header_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
+		memcpy((buffer_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
 		
 		//Payload
 		//payload_=payload;
-		memcpy((header_ + PAYLOAD_POS), payload, length);
+		memcpy((buffer_ + PAYLOAD_POS), payload, length);
 	}
 	
 	inline uint8_t version()
 	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( header_ + VERSION_BYTE, VERSION_BIT, VERSION_LEN );
+		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, VERSION_BIT, VERSION_LEN );
 	}
 	
 	inline uint8_t traffic_class()
 	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( header_ + TRAFFIC_CLASS_BYTE, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
+		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
 	}
 	
 	inline uint32_t flow_label()
 	{
-		return bitwise_read<OsModel, block_data_t, uint32_t>( header_ + FLOW_LABEL_BYTE, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
+		return bitwise_read<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
 	}
 	
 	inline uint16_t length()
 	{
-		return bitwise_read<OsModel, block_data_t, uint16_t>( header_ + LENGTH_BYTE, LENGTH_BIT, LENGTH_LEN );
+		return bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, LENGTH_BIT, LENGTH_LEN );
 	}
 	
 	inline uint8_t next_header()
 	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( header_ + NEXT_HEADER_BYTE, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
+		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
 	}
 	
 	inline uint8_t hop_limit()
 	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( header_ + HOP_LIMIT_BYTE, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
+		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
 	}
 	
 	inline void source_address(node_id_t& address)
 	{
 		uint8_t tmp_address[16];
-		memcpy(tmp_address, (header_ + SOURCE_ADDRESS_BYTE) ,16);
+		memcpy(tmp_address, (buffer_ + SOURCE_ADDRESS_BYTE) ,16);
 		address.set_address(tmp_address);
 	}
 	
 	inline void destination_address(node_id_t& address)
 	{
 		uint8_t tmp_address[16];
-		memcpy(tmp_address, (header_ + DESTINATION_ADDRESS_BYTE) ,16);
+		memcpy(tmp_address, (buffer_ + DESTINATION_ADDRESS_BYTE) ,16);
 		address.set_address(tmp_address);
 	}
 	
 	inline block_data_t* payload()
 	{
-		return header_ + PAYLOAD_POS;
+		return buffer_ + PAYLOAD_POS;
 	}
 	
 	inline block_data_t* get_content()
 	{
-		return header_;
+		return buffer_;
 	}
 	
 	inline size_t get_content_size()
@@ -238,7 +239,7 @@ namespace wiselib
 	};
 	
 	private:
-	block_data_t header_[Radio::MAX_MESSAGE_LENGTH + PAYLOAD_POS];
+	block_data_t buffer_[LOWPAN_IP_PACKET_BUFFER_MAX_SIZE];
 	//block_data_t* payload_;
 	Debug& debug()
 	{ return *debug_; }

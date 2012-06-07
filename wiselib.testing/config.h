@@ -40,6 +40,9 @@
 #define IPv6_LAYER_DEBUG
 #endif
 
+//6LoWPAN IP packet max size
+#define LOWPAN_IP_PACKET_BUFFER_MAX_SIZE 1500
+
 
 // --------------------------------------------------------------------------
 // --------------------- Util -----------------------------------------------
