@@ -27,6 +27,7 @@
 #include "util/serialization/bitwise_serialization.h"
 
 #define FORWARDING_TABLE_SIZE 8
+//#define NUMBER_OF_INTERFACES 1
 
 namespace wiselib
 {
@@ -77,8 +78,8 @@ namespace wiselib
 	//In this layer and above, the node_id_t is an ipv6 address
 	typedef IPv6Address_t node_id_t;
 	
-	//The MAC address is called ll_node_id_t
-	typedef typename Radio::node_id_t ll_node_id_t;
+	//The MAC address is called link_layer_node_id_t
+	typedef typename Radio::node_id_t link_layer_node_id_t;
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::message_id_t message_id_t;
@@ -109,48 +110,56 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	///@name Construction / Destruction
 	///@{
-	 IPv6();
-	 ~IPv6();
-	 ///@}
+	IPv6();
+	~IPv6();
+	///@}
 	 
-	 int init( Radio& radio, Debug& debug )
-	 {
-	  radio_ = &radio;
-	  debug_ = &debug;
-	  return SUCCESS;
-	 }
+	int init( Radio& radio, Debug& debug )
+	{
+		radio_ = &radio;
+		debug_ = &debug;
+		return SUCCESS;
+	}
 	 
-	 inline int init();
-	 inline int destruct();
+	inline int init();
+	inline int destruct();
 	 
-	 ///@name Routing Control
-	 ///@{
-	  int enable_radio( void );
-	  int disable_radio( void );
-	  ///@}
+	///@name Routing Control
+	///@{
+	int enable_radio( void );
+	int disable_radio( void );
+	///@}
 	  
-	  ///@name Radio Concept
-	  ///@{
-	   /**
-	   */
-	   int send( node_id_t receiver, size_t len, block_data_t *data );
-	   /**
-	   */
-	   void receive( ll_node_id_t from, size_t len, block_data_t *data );
-	   /**
-	   */
-	   node_id_t id()
-	   {
-		//HACK Because the radio's node_id_t is an uint16_t this is the sollution at the moment...
+	///@name Radio Concept
+	///@{
+	/**
+	*/
+	int send( node_id_t receiver, size_t len, block_data_t *data );
+	/**
+	*/
+	void receive( link_layer_node_id_t from, size_t len, block_data_t *data );
+	/**
+	*/
+	node_id_t id()
+	{
 		node_id_t my_id;
 		my_id.make_it_link_local();
-		ll_node_id_t ll_id = radio_->id();
-		my_id.set_long_iid( &ll_id, false );
+		link_layer_node_id_t link_layer_id = radio_->id();
+		my_id.set_long_iid( &link_layer_id, false );
 		
-		return my_id; }
-	   ///@}
+		return my_id; 
+	}
+	///@}
+	
+	/*///@name Print the forwarding table
+	///@{
+	uint8_t get_number_of_interfaces()
+	{
+		return NUMBER_OF_INTERFACES;
+	}
+	///@}*/
 
-	 private:
+	private:
 	
 	Radio& radio()
 	{ return *radio_; }
@@ -247,9 +256,9 @@ namespace wiselib
 	 //There is no routing algorithm now, so the forwarding_table_ values are constructed here
 	 node_id_t hack_addr;
 	 hack_addr.make_it_link_local();
-	 ll_node_id_t ll_id = 1;
-	 hack_addr.set_long_iid(&ll_id, false);
-	 ll_node_id_t n_hop;
+	 link_layer_node_id_t link_layer_id = 1;
+	 hack_addr.set_long_iid(&link_layer_id, false);
+	 link_layer_node_id_t n_hop;
 	 if(radio().id() == 0)
 	 	n_hop = 2;
 	 else
@@ -331,7 +340,7 @@ namespace wiselib
 	typename Debug_P>
 	void
 	IPv6<OsModel_P, Radio_P, Debug_P>::
-	receive( ll_node_id_t from, size_t len, block_data_t *data )
+	receive( link_layer_node_id_t from, size_t len, block_data_t *data )
 	{
 		if ( from == radio().id() )
 			return;
