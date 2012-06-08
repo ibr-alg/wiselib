@@ -24,10 +24,10 @@
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
 #include "algorithms/6lowpan/forwarding_types.h"
+#include "algorithms/6lowpan/interface_type.h"
 #include "util/serialization/bitwise_serialization.h"
 
-#define FORWARDING_TABLE_SIZE 8
-//#define NUMBER_OF_INTERFACES 1
+
 
 namespace wiselib
 {
@@ -60,8 +60,8 @@ namespace wiselib
 	
 	typedef IPv6Address<Radio, Debug> IPv6Address_t;
 	typedef IPv6Packet<OsModel, self_type, Radio, Debug> Packet;
+	typedef LoWPANInterface<Radio, Debug> Interface_t;
 	
-
 	
 	//Define the forwarding table
 	//pass self_type as a radio because, in the table we want to search by IPv6 addresses
@@ -105,7 +105,7 @@ namespace wiselib
 	};
 	// --------------------------------------------------------------------
 	enum Restrictions {
-		MAX_MESSAGE_LENGTH = Radio_P::MAX_MESSAGE_LENGTH - 40  ///< Maximal number of bytes in payload
+		MAX_MESSAGE_LENGTH = LOWPAN_IP_PACKET_BUFFER_MAX_SIZE - 40  ///< Maximal number of bytes in payload
 	};
 	// --------------------------------------------------------------------
 	///@name Construction / Destruction
@@ -142,22 +142,29 @@ namespace wiselib
 	*/
 	node_id_t id()
 	{
-		node_id_t my_id;
-		my_id.make_it_link_local();
-		link_layer_node_id_t link_layer_id = radio_->id();
-		my_id.set_long_iid( &link_layer_id, false );
-		
-		return my_id; 
+		//NOTE now it is the Radio's link local address
+		return *(get_interface(0)->get_link_local_address());
 	}
 	///@}
 	
-	/*///@name Print the forwarding table
+	///@name Get the number of interfaces
 	///@{
 	uint8_t get_number_of_interfaces()
 	{
 		return NUMBER_OF_INTERFACES;
 	}
-	///@}*/
+	///@}
+	
+	///@name Get an interface
+	///@{
+	Interface_t* get_interface( uint8_t i )
+	{
+		if( ( i > -1 ) && ( i < NUMBER_OF_INTERFACES ) )
+			return &(interfaces_[i]);
+		
+		return NULL;
+	}
+	///@}
 
 	private:
 	
@@ -170,9 +177,19 @@ namespace wiselib
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
 	
+	/**
+	* Array for the interfaces
+	*/
+	Interface_t interfaces_[NUMBER_OF_INTERFACES];
+	
 	///@name Print the forwarding table
 	///@{
 	void print_forwarding_table( ForwardingTable& rt );
+	///@}
+	
+	///@name Test every interfaces and addresses to decide that the packet is for this node or not
+	///@{
+	bool ip_packet_for_this_node( node_id_t* destination );
 	///@}
 	
 	/**
@@ -250,7 +267,35 @@ namespace wiselib
 	 
 		radio().enable_radio();
 		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
-	 
+		
+		//Construct radio interface --> interface 0
+		get_interface(0)->set_link_local_address_from_MAC( radio().id() );
+		
+		//HACK
+		//It will have to come from an advertisement!
+		uint8_t my_prefix[8];
+			my_prefix[0] = 0x12;
+			my_prefix[1] = 0x1F;
+			my_prefix[2] = 0x1A;
+			my_prefix[3] = 0x12;
+			my_prefix[4] = 0x1B;
+			my_prefix[5] = 0x1A;
+			my_prefix[6] = 0xF2;
+			my_prefix[7] = 0x1D;
+		//HACK
+		
+		get_interface(0)->set_global_address_from_MAC( radio().id(), my_prefix );
+		
+		#ifdef IPv6_LAYER_DEBUG
+		debug().debug( "	IPv6 layer: Link Local address: ");
+		get_interface(0)->get_link_local_address()->print_address();
+		debug().debug( "\n");
+		
+		debug().debug( "	IPv6 layer: Global address: ");
+		get_interface(0)->get_global_address()->print_address();
+		debug().debug( "\n");
+		#endif
+		
 	 
 	 //HACK
 	 //There is no routing algorithm now, so the forwarding_table_ values are constructed here
@@ -364,7 +409,7 @@ namespace wiselib
 		node_id_t tmp;
 		message->destination_address(tmp);
 		//The packet is for this node (unicast)
-		if ( tmp == id() )
+		if ( ip_packet_for_this_node(&tmp) )
 		{
 			message->source_address(tmp);
 			
@@ -412,6 +457,22 @@ namespace wiselib
 			}
 			
 		}
+	}
+	
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	bool
+	IPv6<OsModel_P, Radio_P, Debug_P>::
+	ip_packet_for_this_node( node_id_t* destination )
+	{
+		for ( uint8_t i = 0; i < NUMBER_OF_INTERFACES; i++)
+		{
+			if ( *(get_interface(i)->get_link_local_address()) == *(destination) ||
+			 *(get_interface(i)->get_global_address()) == *(destination))
+				return true;
+		}
+		return false;
 	}
 
 	// -----------------------------------------------------------------------
