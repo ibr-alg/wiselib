@@ -39,9 +39,11 @@ class lowpanApp
 	 ipv6_.enable_radio();
 	 callback_id = ipv6_.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 	 
+	 /*
 	 debug_->debug( "My address: " );
 	 ipv6_.id().print_address();
 	 debug_->debug( "\n" );
+	 */
 	 
 	 //
 
