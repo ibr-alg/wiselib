@@ -38,6 +38,21 @@ namespace wiselib
 		memset(addr,0, 16);
 	}
 	
+	//----------------------------------------------------------------------------
+	IPv6Address(const IPv6Address& address)
+	{
+		memcpy(addr, address.addr, 16);
+		prefix_length = address.prefix_length;
+	}
+	
+	//----------------------------------------------------------------------------
+	IPv6Address(const uint8_t* addr)
+	{
+		memcpy(addr, addr, 16);
+	}
+	
+	//----------------------------------------------------------------------------
+	
 	void set_debug( Debug& debug )
 	{
 		debug_ = &debug;
@@ -139,6 +154,16 @@ namespace wiselib
 			return true;
 		}
 		return false;
+	}
+	
+	bool operator !=(const IPv6Address<Radio_Link_Layer, Debug>& b)
+	{
+	 //If every byte is equal, return true
+	 if( common_prefix_length( b ) != 16 )
+	 {
+	  return true;
+	 }
+	 return false;
 	}
 	
 	// --------------------------------------------------------------------

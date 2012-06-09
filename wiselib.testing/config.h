@@ -35,9 +35,11 @@
 
 //Debug for 6LoWPAN components
 //#define IPv6_LAYER_DEBUG
+//#define LoWPAN_LAYER_DEBUG
 
 #ifdef LoWPAN_DEBUG
 #define IPv6_LAYER_DEBUG
+#define LoWPAN_LAYER_DEBUG
 #endif
 
 //6LoWPAN IP packet max size
@@ -48,6 +50,10 @@
 
 //Minimum: 1, the index starts from 0 at the get_interface function!
 #define NUMBER_OF_INTERFACES 1
+
+//Select routing method
+#define LOWPAN_ROUTE_OVER
+//#define LOWPAN_MESH_UNDER
 
 
 // --------------------------------------------------------------------------

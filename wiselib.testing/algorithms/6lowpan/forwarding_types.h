@@ -22,28 +22,28 @@
 namespace wiselib
 {
 	template<typename Radio_P>
-	class LoWPANForwardingTableValue
+	class IPForwardingTableValue
 	{
 	public:
 		typedef Radio_P Radio;
 		typedef typename Radio::node_id_t node_id_t;
 
 		// -----------------------------------------------------------------
-		LoWPANForwardingTableValue()
-			: next_hop( Radio::NULL_NODE_ID ),
+		IPForwardingTableValue()
+			: /*next_hop( Radio::NULL_NODE_ID ),*/
 			hops( 0 ),
 			seq_nr( 0 )
 			{}
 
 		// -----------------------------------------------------------------
 
-		LoWPANForwardingTableValue( node_id_t next, uint8_t h, uint16_t s )
+		IPForwardingTableValue( node_id_t next, uint8_t h, uint16_t s )
 			: next_hop( next ),
 			hops( h ),
 			seq_nr( s )
 			{}
 		// -----------------------------------------------------------------
-		//Next hop is a MAC address, the IP address is in the packet
+		//Next hop is an IP address
 		node_id_t next_hop;
 		uint8_t hops;
 		uint16_t seq_nr; ///< Sequence Number of last Req

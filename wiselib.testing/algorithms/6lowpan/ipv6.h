@@ -63,10 +63,11 @@ namespace wiselib
 	typedef LoWPANInterface<Radio, Debug> Interface_t;
 	
 	
+	#ifdef LOWPAN_ROUTE_OVER
 	//Define the forwarding table
 	//pass self_type as a radio because, in the table we want to search by IPv6 addresses
 	//The entries have lower level Radio types because the next hop is a MAC address
-	typedef wiselib::StaticArrayRoutingTable<OsModel, self_type, FORWARDING_TABLE_SIZE, wiselib::LoWPANForwardingTableValue<Radio> > ForwardingTable;
+	typedef wiselib::StaticArrayRoutingTable<OsModel, self_type, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<self_type> > ForwardingTable;
 	typedef typename ForwardingTable::iterator ForwardingTableIterator;
 	
 	// pair<IPv6 address, LoWPANForwardingTableValue>
@@ -74,6 +75,7 @@ namespace wiselib
 	
 	// LoWPANForwardingTableValue<Radio>
 	typedef typename ForwardingTable::mapped_type ForwardingTableValue; 
+	#endif
 	
 	//In this layer and above, the node_id_t is an ipv6 address
 	typedef IPv6Address_t node_id_t;
@@ -182,10 +184,12 @@ namespace wiselib
 	*/
 	Interface_t interfaces_[NUMBER_OF_INTERFACES];
 	
+	#ifdef LOWPAN_ROUTE_OVER
 	///@name Print the forwarding table
 	///@{
 	void print_forwarding_table( ForwardingTable& rt );
 	///@}
+	#endif
 	
 	///@name Test every interfaces and addresses to decide that the packet is for this node or not
 	///@{
@@ -197,10 +201,12 @@ namespace wiselib
 	*/
 	int callback_id_;
 	
+	#ifdef LOWPAN_ROUTE_OVER
 	/**
 	* Forwarding Table
 	*/
 	ForwardingTable forwarding_table_;
+	#endif
 	
 	};
 	
@@ -226,7 +232,7 @@ namespace wiselib
 	{
 		disable_radio();
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6: Destroyed\n" );
+		debug().debug( "IPv6 layer: Destroyed\n" );
 		#endif
 	}
 	
@@ -238,7 +244,9 @@ namespace wiselib
 	IPv6<OsModel_P, Radio_P, Debug_P>::
 	init( void )
 	{
+		#ifdef LOWPAN_ROUTE_OVER
 		forwarding_table_.clear();
+		#endif
 		enable_radio();
 		
 		return SUCCESS;
@@ -261,11 +269,21 @@ namespace wiselib
 	IPv6<OsModel_P, Radio_P, Debug_P>::
 	enable_radio( void )
 	{
+		radio().enable_radio();
+		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Boot for %i\n", radio().id() );
+		debug().debug( "IPv6 layer: initialization at %i\n", radio().id() );
+		
+			#ifdef LOWPAN_ROUTE_OVER
+			debug().debug( "IPv6 layer: Routing mode: ROUTE OVER\n");
+			#endif
+			
+			#ifdef LOWPAN_MESH_UNDER
+			debug().debug( "IPv6 layer: Routing mode: MESH UNDER\n");
+			#endif
 		#endif
 	 
-		radio().enable_radio();
+		
 		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
 		
 		//Construct radio interface --> interface 0
@@ -297,17 +315,30 @@ namespace wiselib
 		#endif
 		
 	 
+	 #ifdef LOWPAN_ROUTE_OVER
 	 //HACK
 	 //There is no routing algorithm now, so the forwarding_table_ values are constructed here
 	 node_id_t hack_addr;
 	 hack_addr.make_it_link_local();
 	 link_layer_node_id_t link_layer_id = 1;
 	 hack_addr.set_long_iid(&link_layer_id, false);
-	 link_layer_node_id_t n_hop;
+	 
+	 /*link_layer_*/node_id_t n_hop;
+	 n_hop.make_it_link_local();
+	 
 	 if(radio().id() == 0)
-	 	n_hop = 2;
+	 {
+	  //n_hop = 2;
+		link_layer_id = 2;
+		n_hop.set_long_iid(&link_layer_id, false);
+	 }
+		
 	 else
-	 	n_hop = 1;
+	 {
+	  //n_hop = 1;
+	 	link_layer_id = 1;
+		n_hop.set_long_iid(&link_layer_id, false);
+	 }
 	 // 0 --> 2 --> 1
 	 
 	 
@@ -320,6 +351,7 @@ namespace wiselib
 	 
 	 print_forwarding_table( forwarding_table_ );
 	 //HACK END
+	 #endif
 	 
 		return SUCCESS;
 	}
@@ -332,7 +364,7 @@ namespace wiselib
 	disable_radio( void )
 	{
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6: Disable\n" );
+		debug().debug( "IPv6 layer: Disable\n" );
 		#endif
 		radio().disable_radio();
 		radio().template unreg_recv_callback(callback_id_);
@@ -340,6 +372,7 @@ namespace wiselib
 	}
 	
 	// -----------------------------------------------------------------------
+	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
@@ -347,28 +380,32 @@ namespace wiselib
 	IPv6<OsModel_P, Radio_P, Debug_P>::
 	send( node_id_t destination, size_t len, block_data_t *data )
 	{
+		#ifdef LOWPAN_ROUTE_OVER
+		//In the route over mode, every hop is an IP hop
 		//TODO handle multicast addresses here!
 		//Try to find the next hop
 		ForwardingTableIterator it = forwarding_table_.find( destination );
-		if ( it != forwarding_table_.end() && it->second.next_hop != radio().NULL_NODE_ID )
+		if ( it != forwarding_table_.end() /*&& it->second.next_hop != radio().NULL_NODE_ID*/ )
 		{
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( "IPv6 layer: Send to " );
+			destination.print_address();
+			debug().debug( " Next hop is: " );
+			it->second.next_hop.print_address();
+			debug().debug( "\n");
+			#endif
+			
 			//The *data has to be a constructed IPv6 package
 			Packet *message = reinterpret_cast<Packet*>(data);
-		
+			
 			//Send the package to the next hop
 			radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
-	
-			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6: Send to " );
-			destination.print_address();
-			debug().debug( " Next hop is: %i\n", it->second.next_hop );
-			#endif
 		}
 		//The next hop is not in the forwarding table
 		else
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6: No route to " );
+			debug().debug( "IPv6 layer: No route to " );
 			destination.print_address();
 			debug().debug( " in the forwarding table!\n" );
 			#endif
@@ -377,9 +414,16 @@ namespace wiselib
 		
 			return ERR_HOSTUNREACH;
 		}
+		#endif
+		
+		#ifdef LOWPAN_MESH_UNDER
+			//TODO
+		#endif
+		
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
+	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
@@ -394,7 +438,7 @@ namespace wiselib
 		if( bitwise_read<OsModel, block_data_t, uint8_t>( data, 0, 4 ) != 6 )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6: Dropped a non IPv6 packet!\n" );
+			debug().debug( "IPv6 layer: Dropped a non IPv6 packet!\n" );
 			#endif
 			return;
 		}
@@ -403,18 +447,19 @@ namespace wiselib
 		Packet *message = reinterpret_cast<Packet*>(data);
 
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6: Rcvd a packet at %i! \n",radio().id());
+		debug().debug( "IPv6 layer: Rcvd a packet at %i! \n",radio().id());
 		#endif
 		
 		node_id_t tmp;
 		message->destination_address(tmp);
 		//The packet is for this node (unicast)
+		//It is always true with MESH UNDER
 		if ( ip_packet_for_this_node(&tmp) )
 		{
 			message->source_address(tmp);
 			
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6: Received Message (unicast) from " );
+			debug().debug( "IPv6 layer: Received packet (unicast) from " );
 			tmp.print_address();
 			debug().debug( "\n" );
 			#endif
@@ -425,20 +470,24 @@ namespace wiselib
 		
 		//TODO: handle multicast addresses here
 		
+		#ifdef LOWPAN_ROUTE_OVER
 		//The packet has to be routed
 		else
 		{
 			IPv6Address_t destination;
 			message->destination_address(destination);
 			ForwardingTableIterator it = forwarding_table_.find( destination );
-			if ( it != forwarding_table_.end() && it->second.next_hop != radio().NULL_NODE_ID )
+			if ( it != forwarding_table_.end() /*&& it->second.next_hop != radio().NULL_NODE_ID*/ )
 			{
-				radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6: Packet forwarded to " );
+				debug().debug( "IPv6 layer: Packet forwarded to " );
 				destination.print_address();
-				debug().debug( " Next hop is: %i\n", it->second.next_hop );
+				debug().debug( " Next hop is: ");
+				it->second.next_hop.print_address();
+				debug().debug( "\n");
 				#endif
+
+				radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
 			}
 			
 			//TODO should the routing algorithm is called here too?
@@ -447,7 +496,7 @@ namespace wiselib
 				#ifdef IPv6_LAYER_DEBUG
 				IPv6Address_t address;
 				message->source_address(address);
-				debug().debug( "IPv6: Forwarding FAILED (src " );
+				debug().debug( "IPv6 layer: Forwarding FAILED (src " );
 				address.print_address();
 				debug().debug( "). No route to " );
 				message->destination_address(address);
@@ -455,8 +504,8 @@ namespace wiselib
 				debug().debug( " known.\n" );
 				#endif
 			}
-			
 		}
+		#endif
 	}
 	
 	template<typename OsModel_P,
@@ -476,6 +525,7 @@ namespace wiselib
 	}
 
 	// -----------------------------------------------------------------------
+	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
@@ -486,19 +536,21 @@ namespace wiselib
 		#ifdef IPv6_LAYER_DEBUG
 		int i = 0;
 
-		debug().debug( "IPv6: Forwarding Table of %i (%d entries):\n", radio().id(), ft.size() );
+		debug().debug( "IPv6 layer: Forwarding Table of %i (%d entries):\n", radio().id(), ft.size() );
 	 
 		for ( ForwardingTableIterator it = ft.begin(); it != ft.end(); ++it )
 		{
-			debug().debug( "   IPv6:   %i: Dest ",
+			debug().debug( "   IPv6 layer:   %i: Dest ",
 				i++);
 			it->first.print_address();
-			debug().debug( " SendTo %i Hops %i\n",
-				it->second.next_hop,
+			debug().debug( " SendTo " );
+			//it->second.next_hop.print_address();
+			debug().debug( " Hops %i\n",
 				it->second.hops );
 		}
 		#endif
 	}
+	#endif
 	
 }
 #endif
