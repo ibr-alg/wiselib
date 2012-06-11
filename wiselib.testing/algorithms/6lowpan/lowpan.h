@@ -255,7 +255,7 @@ namespace wiselib
 		radio().send( mac_destination, message->get_content_size(), message->get_content() );
 	
 		#ifdef LoWPAN_LAYER_DEBUG
-		debug().debug( "LoWPAN layer: Send to %i \n", mac_destination );
+		debug().debug( "LoWPAN layer: Send to %x \n", mac_destination );
 		#endif
 
 		return SUCCESS;
@@ -294,9 +294,14 @@ namespace wiselib
 	LoWPAN<OsModel_P, Radio_P, Debug_P>::
 	IP_to_MAC( ip_node_id_t ip_address ,node_id_t& mac_address )
 	{
-		mac_address = ip_address.addr[14];
-		mac_address <<= 8;
-		mac_address |= ip_address.addr[15];
+		if( ip_address == IPv6_t::BROADCAST_ADDRESS )
+			mac_address = BROADCAST_ADDRESS;
+		else
+		{
+			mac_address = ip_address.addr[14];
+			mac_address <<= 8;
+			mac_address |= ip_address.addr[15];
+		}
 	}
 	#endif
 }

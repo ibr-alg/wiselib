@@ -39,17 +39,36 @@ class lowpanApp
 	 ipv6_stack_.init(*radio_, *debug_);
 	 callback_id = ipv6_stack_.ipv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 	 
+	 //HACK
+	 //It will have to come from an advertisement!
+	 uint8_t my_prefix[8];
+	 my_prefix[0] = 0x12;
+	 my_prefix[1] = 0x1F;
+	 my_prefix[2] = 0x1A;
+	 my_prefix[3] = 0x12;
+	 my_prefix[4] = 0x1B;
+	 my_prefix[5] = 0x1A;
+	 my_prefix[6] = 0xF2;
+	 my_prefix[7] = 0x1D;
+	 //HACK
+	 ipv6_stack_.ipv6.set_prefix_for_interface( my_prefix, 0, 64 );
+	 
 	 //NOTE Test IP packet
 	 IPv6Address_t sourceaddr;
 	 IPv6Address_t destinationaddr;
 	 IPv6Packet_t message;
 	 
 	 destinationaddr.set_debug( *debug_ );
+	 
+	 
 	 destinationaddr.make_it_link_local();
-	
+	 
 	 
 	 node_id_t ll_id = 1;
 	 destinationaddr.set_long_iid(&ll_id, false);
+	 
+	 //Broadcast test
+	 //destinationaddr = IPv6_t::BROADCAST_ADDRESS;
 	 
 	 uint8_t mypayload[8];
 	 mypayload[0]='h';
@@ -66,7 +85,7 @@ class lowpanApp
 	 //These will be in the UDP layer!
 	 //Next header = 17 UDP
 	 //TODO hop limit?
-	 sourceaddr = ipv6_.id();
+	 sourceaddr = ipv6_stack_.ipv6.id();
 	 message.init(17,100,8,mypayload,sourceaddr,destinationaddr,0,0);
 	 
 	 //It will be routed: 0 --> 2 ---> 1
@@ -102,7 +121,7 @@ class lowpanApp
       }
    private:
       int callback_id;
-      IPv6_t ipv6_;
+      //IPv6_t ipv6_;
       LoWPAN_t lowpan_;
       IPv6_stack_t ipv6_stack_;
       Radio::self_pointer_t radio_;
