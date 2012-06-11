@@ -96,10 +96,10 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	
 	// 0:0:0:0:0:0:0:0
-	static IPv6Address_t NULL_NODE_ID;
+	static const IPv6Address_t NULL_NODE_ID;
 	
 	// FF02:0:0:0:0:0:0:1
-	static IPv6Address_t BROADCAST_ADDRESS;
+	static const IPv6Address_t BROADCAST_ADDRESS;
 	
 	// --------------------------------------------------------------------
 	enum Restrictions {
@@ -221,6 +221,7 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
+	const
 	IPv6Address<Radio_P, Debug_P>
 	IPv6<OsModel_P, Radio_P, Debug_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
 	
@@ -229,6 +230,7 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
+	const
 	IPv6Address<Radio_P, Debug_P>
 	IPv6<OsModel_P, Radio_P, Debug_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
 
