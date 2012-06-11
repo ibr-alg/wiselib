@@ -50,9 +50,10 @@
 #define COAP_HEADER_OPT_COUNT_SHIFT         0
 #define COAP_HEADER_LEN                     4
 // END OF CURRENT COAP DEFINES
+
+#include "util/pstl/static_string.h"
 #include "packet.h"
 #include "resource.h"
-#include <string.h>
 
 typedef wiselib::ResourceController<wiselib::StaticString> resource_t;
 typedef wiselib::CoapPacket coap_packet_t;
@@ -132,12 +133,12 @@ namespace wiselib
             uint8_t query_id = 0;
             uint8_t *data = NULL;
             uint8_t data_len;
+
             msg.init();
             response.init();
             //memset( data, 0, CONF_MAX_PAYLOAD_LEN );
             memset( buf_, 0, CONF_MAX_MSG_LEN );
             coap_error_code = msg.buffer_to_packet( *len, buf );
-            //debug_data(buf, *len);
 
             if ( msg.version_w() != COAP_VERSION )
             {
@@ -149,17 +150,21 @@ namespace wiselib
             }
             if ( coap_error_code == NO_ERROR )
             {
+               /*
                if ( ( msg.is_option( URI_HOST ) ) && ( msg.uri_host_w() != radio().id() ) )
                {
                   return; // if uri host option is set, and id doesn't match
                }
+               */
                if ( msg.code_w() >= 1 && msg.code_w() <= 4 )
-               {
-                  debug().debug( "REC::REQUEST" );
+			   {
+                  debug().debug( "REC::REQUEST\n" );
                   if ( find_resource( &resource_id, msg.uri_path_w(), msg.uri_path_len_w() ) == true )
                   {
-                     debug().debug( "REC::RESOURCE FOUND" );
-                     query_id = resources_[resource_id].has_query( msg.uri_query_w(), msg.uri_query_len_w() );
+                     debug().debug( "REC::RESOURCE FOUND\n" );
+                     // query_id = resources_[resource_id].has_query( msg.uri_query_w(), msg.uri_query_len_w() );
+                     query_id = 0;
+                     debug().debug("query id %d\n", query_id);
                      if ( resources_[resource_id].method_allowed( query_id, msg.code_w() ) )
                      {
                         debug().debug( "REC::METHOD_ALLOWED" );
@@ -294,12 +299,13 @@ namespace wiselib
 
          bool find_resource( uint8_t* i, const char* uri_path, const uint8_t uri_path_len )
          {
+            debug_->debug("Resource Path : %s\n", uri_path);
             for ( ( *i ) = 0; ( *i ) < CONF_MAX_RESOURCES; ( *i )++ )
             {
-               if ( !strncmp( uri_path, resources_[*i].name(), uri_path_len ) )
-               {
-                  return true;
-               }
+                if (!mystrncmp (uri_path, resources_[*i].name(), uri_path_len))
+                {
+                    return true;
+                }
             }
             return false;
          } // end of find_resource
@@ -407,30 +413,32 @@ namespace wiselib
 
          void coap_retransmit_loop( void *i )
          {
-            uint8_t timeout_factor = 0x01;
-            if ( retransmit_register_[( int )i] == 1 )
+        	int* k = reinterpret_cast<int*>(i);
+        	int j = *k;
+        	uint8_t timeout_factor = 0x01;
+            if ( retransmit_register_[j] == 1 )
             {
-               retransmit_timeout_and_tries_[( int ) i] += 1;
-               timeout_factor = timeout_factor << ( 0x0F & retransmit_timeout_and_tries_[( int ) i] );
+               retransmit_timeout_and_tries_[j] += 1;
+               timeout_factor = timeout_factor << ( 0x0F & retransmit_timeout_and_tries_[j] );
 
-               debug().debug( "RETRANSMIT!! %d, tries: %d", ( int ) i, 0x0F & retransmit_timeout_and_tries_[( int ) i] );
-               radio().send( retransmit_id_[( int )i], retransmit_size_[( int ) i], retransmit_packet_[( int ) i] );
+               debug().debug( "RETRANSMIT!! %d, tries: %d", j, 0x0F & retransmit_timeout_and_tries_[j] );
+               radio().send( retransmit_id_[j], retransmit_size_[j], retransmit_packet_[j] );
 
-               if ( ( 0x0F & retransmit_timeout_and_tries_[( int ) i] ) == CONF_COAP_MAX_RETRANSMIT_TRIES )
+               if ( ( 0x0F & retransmit_timeout_and_tries_[j] ) == CONF_COAP_MAX_RETRANSMIT_TRIES )
                {
-                  coap_remove_observer( retransmit_mid_[( int ) i] );
-                  coap_unregister_con_msg( retransmit_mid_[( int ) i], 1 );
+                  coap_remove_observer( retransmit_mid_[j] );
+                  coap_unregister_con_msg( retransmit_mid_[j], 1 );
                   return;
                }
                else
                {
-                  timer().template set_timer<Coap, &Coap::coap_retransmit_loop > ( timeout_factor * 1000 * ( retransmit_timeout_and_tries_[( int ) i] >> 4 ), this, ( void * ) i );
+                  timer().template set_timer<Coap, &Coap::coap_retransmit_loop > ( timeout_factor * 1000 * ( retransmit_timeout_and_tries_[j] >> 4 ), this, ( void * ) i );
                   return;
                }
             }
             else
             {
-               coap_unregister_con_msg( retransmit_mid_[( int ) i], 1 );
+               coap_unregister_con_msg( retransmit_mid_[j], 1 );
             }
          }
 
@@ -498,14 +506,16 @@ namespace wiselib
 
          void coap_notify_from_timer( void *resource_id )
          {
-            if ( resources_[( int )resource_id].interrupt_flag_w() == true )
+        	int* resource_id_i1 = reinterpret_cast<int*>(resource_id);
+            int resource_id_i = *resource_id_i1;
+        	if ( resources_[resource_id_i].interrupt_flag_w() == true )
             {
-               resources_[( int )resource_id].set_interrupt_flag( false );
+               resources_[resource_id_i].set_interrupt_flag( false );
                return;
             }
             else
             {
-               coap_notify( ( int )resource_id );
+               coap_notify( resource_id_i );
             }
          }
 
