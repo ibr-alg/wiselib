@@ -47,8 +47,6 @@ namespace wiselib
 		typename Debug_P = typename OsModel_P::Debug>
 	class IPv6
 	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
-		// HACK : it would be better to use the routingBase, but the problem is the IPv6Address...
-		//: public RoutingBase<OsModel_P, Radio_P>
 	{
 	public:
 	typedef OsModel_P OsModel;
@@ -90,21 +88,19 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	enum ErrorCodes
 	{
-	 SUCCESS = OsModel::SUCCESS,
-	 ERR_UNSPEC = OsModel::ERR_UNSPEC,
-	 ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-	 ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
+		SUCCESS = OsModel::SUCCESS,
+		ERR_UNSPEC = OsModel::ERR_UNSPEC,
+		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
+		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
 	};
 	// --------------------------------------------------------------------
 	
-	//TODO: How to implement these...?
-	enum SpecialNodeIds {
-	 // return FF02:0:0:0:0:0:0:1
-	 BROADCAST_ADDRESS = Radio_P::BROADCAST_ADDRESS, ///< All nodes in communication range
-	 
-	 // return 0:0:0:0:0:0:0:0
-	 NULL_NODE_ID      = Radio_P::NULL_NODE_ID      ///< Unknown/No node id
-	};
+	// 0:0:0:0:0:0:0:0
+	static IPv6Address_t NULL_NODE_ID;
+	
+	// FF02:0:0:0:0:0:0:1
+	static IPv6Address_t BROADCAST_ADDRESS;
+	
 	// --------------------------------------------------------------------
 	enum Restrictions {
 		MAX_MESSAGE_LENGTH = LOWPAN_IP_PACKET_BUFFER_MAX_SIZE - 40  ///< Maximal number of bytes in payload
@@ -167,6 +163,12 @@ namespace wiselib
 		return NULL;
 	}
 	///@}
+	
+	///@name Set the prefix for an interface
+	///@{
+	int set_prefix_for_interface( uint8_t* prefix, uint8_t prefix_len, uint8_t interface );
+	///@}
+	 
 
 	private:
 	
@@ -210,10 +212,27 @@ namespace wiselib
 	
 	};
 	
+	
 	// -----------------------------------------------------------------------
 	// -----------------------------------------------------------------------
 	// -----------------------------------------------------------------------
 	
+	//Initialize NULL_NODE_ID
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	IPv6Address<Radio_P, Debug_P>
+	IPv6<OsModel_P, Radio_P, Debug_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
+	
+	// -----------------------------------------------------------------------
+	//Initialize BROADCAST_ADDRESS
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	IPv6Address<Radio_P, Debug_P>
+	IPv6<OsModel_P, Radio_P, Debug_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
+
+	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
@@ -289,28 +308,9 @@ namespace wiselib
 		//Construct radio interface --> interface 0
 		get_interface(0)->set_link_local_address_from_MAC( radio().id() );
 		
-		//HACK
-		//It will have to come from an advertisement!
-		uint8_t my_prefix[8];
-			my_prefix[0] = 0x12;
-			my_prefix[1] = 0x1F;
-			my_prefix[2] = 0x1A;
-			my_prefix[3] = 0x12;
-			my_prefix[4] = 0x1B;
-			my_prefix[5] = 0x1A;
-			my_prefix[6] = 0xF2;
-			my_prefix[7] = 0x1D;
-		//HACK
-		
-		get_interface(0)->set_global_address_from_MAC( radio().id(), my_prefix );
-		
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "	IPv6 layer: Link Local address: ");
 		get_interface(0)->get_link_local_address()->print_address();
-		debug().debug( "\n");
-		
-		debug().debug( "	IPv6 layer: Global address: ");
-		get_interface(0)->get_global_address()->print_address();
 		debug().debug( "\n");
 		#endif
 		
@@ -382,24 +382,37 @@ namespace wiselib
 	{
 		#ifdef LOWPAN_ROUTE_OVER
 		//In the route over mode, every hop is an IP hop
-		//TODO handle multicast addresses here!
+		//TODO handle multicast group addresses here?
 		//Try to find the next hop
 		ForwardingTableIterator it = forwarding_table_.find( destination );
-		if ( it != forwarding_table_.end() /*&& it->second.next_hop != radio().NULL_NODE_ID*/ )
+		if ( destination == BROADCAST_ADDRESS || ( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID ) )
 		{
+			//The *data has to be a constructed IPv6 package
+		 	Packet *message = reinterpret_cast<Packet*>(data);
+			
+			
 			#ifdef IPv6_LAYER_DEBUG
 			debug().debug( "IPv6 layer: Send to " );
 			destination.print_address();
-			debug().debug( " Next hop is: " );
-			it->second.next_hop.print_address();
-			debug().debug( "\n");
 			#endif
-			
-			//The *data has to be a constructed IPv6 package
-			Packet *message = reinterpret_cast<Packet*>(data);
-			
-			//Send the package to the next hop
-			radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
+			if( destination == BROADCAST_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug().debug( " (multicast to all nodes)\n" );
+				#endif
+				//Send the package to the next hop
+				radio().send( BROADCAST_ADDRESS, message->get_content_size(), message->get_content() );
+			}
+			else
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug().debug( " Next hop is: " );
+				it->second.next_hop.print_address();
+				debug().debug( "\n");
+				#endif
+				//Send the package to the next hop
+				radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
+			}
 		}
 		//The next hop is not in the forwarding table
 		else
@@ -450,25 +463,29 @@ namespace wiselib
 		debug().debug( "IPv6 layer: Rcvd a packet at %i! \n",radio().id());
 		#endif
 		
-		node_id_t tmp;
-		message->destination_address(tmp);
+		node_id_t destination_ip;
+		message->destination_address(destination_ip);
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
-		if ( ip_packet_for_this_node(&tmp) )
+		if ( destination_ip == BROADCAST_ADDRESS || ip_packet_for_this_node(&destination_ip) )
 		{
-			message->source_address(tmp);
+			node_id_t source_ip;
+			message->source_address(source_ip);
 			
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: Received packet (unicast) from " );
-			tmp.print_address();
+			if( destination_ip == BROADCAST_ADDRESS )
+				debug().debug( "IPv6 layer: Received packet (multicast) from " );
+			else
+				debug().debug( "IPv6 layer: Received packet (unicast) from " );
+			source_ip.print_address();
 			debug().debug( "\n" );
 			#endif
 			
 			//Push up just the payload!
-			notify_receivers( tmp, message->length(), message->payload() );
+			notify_receivers( source_ip, message->length(), message->payload() );
 		}
 		
-		//TODO: handle multicast addresses here
+		//TODO: handle multicast group addresses here?
 		
 		#ifdef LOWPAN_ROUTE_OVER
 		//The packet has to be routed
@@ -477,7 +494,7 @@ namespace wiselib
 			IPv6Address_t destination;
 			message->destination_address(destination);
 			ForwardingTableIterator it = forwarding_table_.find( destination );
-			if ( it != forwarding_table_.end() /*&& it->second.next_hop != radio().NULL_NODE_ID*/ )
+			if ( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID )
 			{
 				#ifdef IPv6_LAYER_DEBUG
 				debug().debug( "IPv6 layer: Packet forwarded to " );
@@ -508,6 +525,31 @@ namespace wiselib
 		#endif
 	}
 	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	int 
+	IPv6<OsModel_P, Radio_P, Debug_P>::
+	set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len = 64)
+	{
+		Interface_t* interf = get_interface(selected_interface);
+		if ( interf == NULL )
+			return ERR_NOTIMPL;
+		
+		interf->set_global_address_from_MAC( radio().id(), prefix, prefix_len );
+
+		#ifdef IPv6_LAYER_DEBUG
+		debug().debug( "	IPv6 layer: Global address defined (for interface %i): ", selected_interface);
+		get_interface(selected_interface)->get_global_address()->print_address();
+		debug().debug( "\n");
+		#endif
+		
+		return SUCCESS;
+	}
+
+	
+	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P>
@@ -544,7 +586,7 @@ namespace wiselib
 				i++);
 			it->first.print_address();
 			debug().debug( " SendTo " );
-			//it->second.next_hop.print_address();
+			it->second.next_hop.print_address();
 			debug().debug( " Hops %i\n",
 				it->second.hops );
 		}

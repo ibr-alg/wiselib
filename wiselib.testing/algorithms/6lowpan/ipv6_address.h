@@ -34,7 +34,6 @@ namespace wiselib
 	
 	IPv6Address()
 	{
-		//Unspecified address
 		memset(addr,0, 16);
 	}
 	
@@ -49,7 +48,30 @@ namespace wiselib
 	IPv6Address(const uint8_t* addr)
 	{
 		memcpy(addr, addr, 16);
+		prefix_length = 64;
 	}
+	
+	//----------------------------------------------------------------------------
+	//Constructor for static pre defined addresses
+	IPv6Address(int type)
+	{
+		//"Broadcast" (Multicast) - FF02:0:0:0:0:0:0:1
+		if (type == 1)
+		{
+			addr[0]=0xFF;
+			addr[1]=0x02;
+			memset(addr+2,0,13);
+			addr[15]=0x01;
+			prefix_length = 64;
+		}
+		//Unspecified address - NULL NODE ID - 0:0:0:0:0:0:0:0
+		else
+		{
+		 memset(addr,0, 16);
+		 prefix_length = 0;
+		}
+	}
+	
 	
 	//----------------------------------------------------------------------------
 	

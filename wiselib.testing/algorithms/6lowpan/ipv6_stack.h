@@ -43,7 +43,6 @@ namespace wiselib
 	
 	void init( Radio& radio, Debug& debug )
 	{
-		
 		radio_ = &radio;
 		debug_ = &debug;
 		
