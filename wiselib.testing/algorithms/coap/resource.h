@@ -27,12 +27,11 @@
 
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/map_static_vector.h"
-#include "util/pstl/static_string.h"
 #include "util/pstl/pair.h"
 
 namespace wiselib
 {
-   template < typename String_P = StaticString >
+   template < typename String_P = StaticString>
    class ResourceController
    {
       public:
@@ -46,7 +45,7 @@ namespace wiselib
             for( i = 0; i < CONF_MAX_RESOURCE_QUERIES; i++ )
             {
                methods_[i] = 0x00;
-               q_name_[i] = NULL;
+               q_name_[i] = "";
             }
          }
 
@@ -87,10 +86,10 @@ namespace wiselib
             uint8_t i;
             for( i = 1; i < CONF_MAX_RESOURCE_QUERIES; i++ )
             {
-               if ( ( uint16_t ) len == q_name_[i].length() && !strncmp( query, q_name_[i].c_str(), len ) )
-               {
-                  return i;
-               }
+                if ( ( uint16_t ) len == q_name_[i].length() && !strncmp( query, q_name_[i].c_str(), len ) )
+                {
+                    return i;
+                }
             }
             return 0;
          }
