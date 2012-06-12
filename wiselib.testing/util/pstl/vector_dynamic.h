@@ -28,30 +28,27 @@ namespace wiselib
 {
 
    template<typename OsModel_P,
-            typename Value_P,
-            typename Allocator_P>
+            typename Value_P>
    class vector_dynamic
    {
    public:
+      typedef OsModel_P OsModel;
+      typedef typename OsModel::Allocator Allocator;
+      
       typedef Value_P value_type;
-      typedef Allocator_P Allocator;
       typedef value_type* pointer;
       typedef value_type& reference;
 
-      typedef vector_dynamic<OsModel_P, value_type, Allocator_P> vector_type;
-      typedef vector_dynamic<OsModel_P, value_type, Allocator_P> self_type;
-      typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
+      typedef vector_dynamic<OsModel_P, value_type> vector_type;
+      typedef vector_dynamic<OsModel_P, value_type> self_type;
+      typedef self_type* self_pointer_t;
 
       typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
 
       typedef typename OsModel_P::size_t size_type;
       typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       // --------------------------------------------------------------------
-      vector_dynamic() :  size_(0), capacity_(0), buffer_(0), allocator_(0)
-      {
-      }
-      // --------------------------------------------------------------------
-      vector_dynamic(typename Allocator::self_pointer_t alloc) :  size_(0), capacity_(0), buffer_(0),allocator_(alloc)
+      vector_dynamic() :  size_(0), capacity_(0), buffer_(0)
       {
       }
       // --------------------------------------------------------------------
@@ -62,7 +59,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       ~vector_dynamic() {
          if(buffer_) {
-            allocator_->free_array(buffer_);
+            OsModel::allocator->free_array(buffer_);
          }
       }
       
@@ -80,7 +77,7 @@ namespace wiselib
       
       void attach(buffer_pointer_t buffer, size_type size) {
          if(buffer_) {
-            allocator_->free_array(buffer_);
+            OsModel::allocator->free_array(buffer_);
          }
          buffer_ = buffer;
          size_ = size;
@@ -88,7 +85,6 @@ namespace wiselib
       
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
-         allocator_ = vec.allocator_;
           //if(buffer_!= buffer_pointer_t()){
               clear();
               change_capacity(vec.capacity_);
@@ -117,8 +113,13 @@ namespace wiselib
       }
       */
       // --------------------------------------------------------------------
-      void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
-      typename Allocator::self_pointer_t allocator() { return allocator_; }
+      
+      // @deprecated
+      void set_allocator(typename Allocator::self_pointer_t alloc) { }
+      
+      // @deprecated
+      typename Allocator::self_pointer_t allocator() { return OsModel::allocator; }
+      
       ///@name Iterators
       ///@{
       iterator begin()
@@ -296,11 +297,10 @@ namespace wiselib
       void pack() { change_capacity(size_); }
       
       void change_capacity(size_t n) {
-         assert(allocator_!=0);
          assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
-            new_buffer = allocator_->template allocate_array<value_type>(n);
+            new_buffer = OsModel::allocator->template allocate_array<value_type>(n);
          }
          
          if(buffer_) {
@@ -308,7 +308,7 @@ namespace wiselib
                new_buffer[i] = buffer_[i];
             }
             
-            allocator_->free_array(buffer_);
+            OsModel::allocator->free_array(buffer_);
          }
          buffer_ = new_buffer;
          capacity_ = n;
@@ -326,11 +326,10 @@ namespace wiselib
       //size_type size_, capacity_;
       uint16_t size_, capacity_;
       buffer_pointer_t buffer_;
-      typename Allocator::self_pointer_t allocator_;
       
       //friend class bitstring_static_view<OsModel;
 
-   }; // __attribute__((__packed__));
+   };
 
 }
 
