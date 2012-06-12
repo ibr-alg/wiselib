@@ -61,10 +61,10 @@ namespace wiselib {
 			typedef PCComUartModel<PCOsModel, false> Uart;
 			typedef ComISenseRadioModel<PCOsModel, ISenseUart> Radio;
 			
-			typedef MallocFreeAllocator<PCOsModel> Allocator;
+		//	typedef MallocFreeAllocator<PCOsModel> Allocator;
 			
 			static const Endianness endianness = WISELIB_ENDIANNESS;
-			static typename Allocator::self_pointer_t allocator;
+		//	static typename Allocator::self_pointer_t allocator;
 	};
 } // ns wiselib
 
