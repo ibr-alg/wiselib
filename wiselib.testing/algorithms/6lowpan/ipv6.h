@@ -43,8 +43,8 @@ namespace wiselib
 	*/
 	
 	template<typename OsModel_P,
-		typename Radio_P = typename OsModel_P::Radio,
-		typename Debug_P = typename OsModel_P::Debug>
+		typename Radio_P,
+		typename Debug_P>
 	class IPv6
 	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
@@ -57,14 +57,19 @@ namespace wiselib
 	typedef self_type* self_pointer_t;
 	
 	typedef IPv6Address<Radio, Debug> IPv6Address_t;
+	/**
+	* Define an IPv6 packet with self_type as a Radio and the lower level Radio as Link Layer Radio
+	*/
 	typedef IPv6Packet<OsModel, self_type, Radio, Debug> Packet;
 	typedef LoWPANInterface<Radio, Debug> Interface_t;
 	
 	
 	#ifdef LOWPAN_ROUTE_OVER
-	//Define the forwarding table
-	//pass self_type as a radio because, in the table we want to search by IPv6 addresses
-	//The entries have lower level Radio types because the next hop is a MAC address
+	/**
+	* Define the forwarding table
+	* pass self_type as a radio because, in the table we want to search by IPv6 addresses
+	* The entries have lower level Radio types because the next hop is a MAC address
+	*/
 	typedef wiselib::StaticArrayRoutingTable<OsModel, self_type, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<self_type> > ForwardingTable;
 	typedef typename ForwardingTable::iterator ForwardingTableIterator;
 	
@@ -75,11 +80,16 @@ namespace wiselib
 	typedef typename ForwardingTable::mapped_type ForwardingTableValue; 
 	#endif
 	
-	//In this layer and above, the node_id_t is an ipv6 address
+	/**
+	* In this layer and above, the node_id_t is an ipv6 address
+	*/
 	typedef IPv6Address_t node_id_t;
 	
-	//The MAC address is called link_layer_node_id_t
+	/**
+	* The MAC address is called link_layer_node_id_t
+	*/
 	typedef typename Radio::node_id_t link_layer_node_id_t;
+	
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::message_id_t message_id_t;
@@ -95,11 +105,20 @@ namespace wiselib
 	};
 	// --------------------------------------------------------------------
 	
-	// 0:0:0:0:0:0:0:0
+	/**
+	* Unspecified IP address: 0:0:0:0:0:0:0:0
+	*/
 	static const IPv6Address_t NULL_NODE_ID;
 	
-	// FF02:0:0:0:0:0:0:1
+	/**
+	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
+	*/
 	static const IPv6Address_t BROADCAST_ADDRESS;
+	
+	/**
+	* Solicited multicast address form: FF02:0:0:0:0:1:FFXX:XXXX
+	*/
+	IPv6Address_t SOLICITED_MULTICAST_ADDRESS;
 	
 	// --------------------------------------------------------------------
 	enum Restrictions {
@@ -154,6 +173,7 @@ namespace wiselib
 	///@}
 	
 	///@name Get an interface
+	/// \param i interface number
 	///@{
 	Interface_t* get_interface( uint8_t i )
 	{
@@ -165,6 +185,9 @@ namespace wiselib
 	///@}
 	
 	///@name Set the prefix for an interface
+	/// \param prefix The prefix as an array
+	/// \param prefix_len the lenght of the prefix in bytes
+	/// \param interface the number of the interface
 	///@{
 	int set_prefix_for_interface( uint8_t* prefix, uint8_t prefix_len, uint8_t interface );
 	///@}
@@ -194,6 +217,7 @@ namespace wiselib
 	#endif
 	
 	///@name Test every interfaces and addresses to decide that the packet is for this node or not
+	/// \param destination pointer to the destination's IP address
 	///@{
 	bool ip_packet_for_this_node( node_id_t* destination );
 	///@}
@@ -316,6 +340,10 @@ namespace wiselib
 		debug().debug( "\n");
 		#endif
 		
+		//SOLICITED_MULTICAST_ADDRESS configuration		
+		SOLICITED_MULTICAST_ADDRESS.make_it_solicited_multicast( radio().id() );
+		//TODO send out ICMP multicast join message here!
+		
 	 
 	 #ifdef LOWPAN_ROUTE_OVER
 	 //HACK
@@ -331,7 +359,7 @@ namespace wiselib
 	 if(radio().id() == 0)
 	 {
 	  //n_hop = 2;
-		link_layer_id = 2;
+		link_layer_id = 1;
 		n_hop.set_long_iid(&link_layer_id, false);
 	 }
 		
