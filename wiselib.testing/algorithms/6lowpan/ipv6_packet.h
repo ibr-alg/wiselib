@@ -79,6 +79,11 @@ namespace wiselib
 	
 	IPv6Packet()
 	{
+		memset(buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
+		
+		//Version
+		uint8_t version = 6;
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
 	}
 	
 	void set_debug( Debug& debug )
@@ -87,38 +92,55 @@ namespace wiselib
 	}
 	
 	
-	void init( uint8_t next_header, uint8_t hop_limit, uint16_t length, uint8_t* payload, node_id_t& source, node_id_t& destination, uint8_t traffic_class=0, uint32_t flow_label=0 )
+	void set_traffic_class( uint8_t traffic_class )
 	{
-		memset(buffer_, 0, 40);
-		
-		//Version
-		uint8_t version = 6;
-		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
-		
 		//Traffic Class
 		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, traffic_class, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
-		
+	}
+	
+	void set_flow_label( uint32_t flow_label )
+	{
 		//Flow Label
 		bitwise_write<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
-		
+	}
+	
+	void set_length( uint16_t length )
+	{
 		//Length
 		bitwise_write<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
-		
+	}
+	
+	void set_next_header( uint8_t next_header )
+	{
 		//Next Header
 		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
-		
+	}
+	
+	void set_hop_limit( uint8_t hop_limit )
+	{
 		//Hop limit
 		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
-		
+	}
+	
+	void set_source_address( node_id_t& source )
+	{
 		//Source address
 		memcpy((buffer_ + SOURCE_ADDRESS_BYTE), source.addr, 16);
-		
+	}
+	
+	void set_destination_address( node_id_t& destination )
+	{
 		//Destination address
 		memcpy((buffer_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
-		
+	}
+	
+	void set_payload( uint8_t* data, uint16_t len = 0, int shift = 0 )
+	{
 		//Payload
-		//payload_=payload;
-		memcpy((buffer_ + PAYLOAD_POS), payload, length);
+		if( len == 0 )
+			len = length();
+		
+		memcpy((buffer_ + PAYLOAD_POS + shift), data, len);
 	}
 	
 	inline uint8_t version()

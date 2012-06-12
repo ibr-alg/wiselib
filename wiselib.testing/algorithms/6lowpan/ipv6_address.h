@@ -56,7 +56,7 @@ namespace wiselib
 	IPv6Address(int type)
 	{
 		//"Broadcast" (Multicast) - FF02:0:0:0:0:0:0:1
-		if (type == 1)
+		if ( type == 1 )
 		{
 			addr[0]=0xFF;
 			addr[1]=0x02;
@@ -148,6 +148,25 @@ namespace wiselib
 		memset(&(link_local_prefix[2]),0, 6);
 		set_prefix(link_local_prefix);
 		prefix_length = 64;
+	}
+	
+	// --------------------------------------------------------------------
+	
+	void make_it_solicited_multicast( link_layer_node_id_t iid )
+	{
+		addr[0] = 0xFF;
+		addr[1] = 0x02;
+		memset(&(addr[2]), 0, 9);
+		addr[11] = 0x01;
+		addr[12] = 0xFF;
+		
+		if( sizeof( link_layer_node_id_t ) > 3 )
+			addr[13] = iid >> 16;
+		else
+			addr[13] =  0x00;
+		addr[14] = iid >> 8;
+		addr[15] = iid;
+		prefix_length = 104;
 	}
 	
 	// --------------------------------------------------------------------

@@ -25,7 +25,129 @@
 #include "algorithms/6lowpan/ipv6.h"
 #include "util/serialization/bitwise_serialization.h"
 
+/*
+rfc6282
 
+LOWPAN_IPHC
+
+  0   1   2   3   4   5   6   7   0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 0 | 1 | 1 |  TF   |NH | HLIM  |CID|SAC|  SAM  | M |DAC|  DAM  |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+- TF: Traffic Class ( 2-bit ECN, 6-bit DSCP ), Flow Label
+	00:  ECN + DSCP + 4-bit Pad + Flow Label (4 bytes)
+	01:  ECN + 2-bit Pad + Flow Label (3 bytes), DSCP is elided.
+	10:  ECN + DSCP (1 byte), Flow Label is elided.
+	11:  Traffic Class and Flow Label are elided.
+- NH: Next header
+	0: Full 8 bits for Next Header are carried in-line.
+	1: The Next Header field is compressed and the next header is
+	encoded using LOWPAN_NHC
+- HLIM: Hop Limit
+	00:  The Hop Limit field is carried in-line.
+	01:  The Hop Limit field is compressed and the hop limit is 1.
+	10:  The Hop Limit field is compressed and the hop limit is 64.
+	11:  The Hop Limit field is compressed and the hop limit is 255.
+- CID: Context Identifier Extension:
+	0: No additional 8-bit Context Identifier Extension is used.  If SAC=1 or DAC=1, context 0 (default) is used.
+	1: An additional 8-bit Context Identifier Extension field immediately follows the DAM field.
+- SAC: Source Address Compression
+	0: Source address compression uses stateless compression.
+	1: Source address compression uses stateful, context-based compression.
+- SAM: Source Address Mode:
+	If SAC=0:
+	00:  128 bits.  The full address is carried in-line.
+	01:  64 bits.  First 64 bits are elided: link-local prefix
+	10:  16 bits.  Link-local prefix + host ID: 64 bits are 0000:00ff:fe00:XXXX
+	11:  0 bits.  The address is fully elided. link-local prefix + host ID from the 802.15.4 address
+	
+	If SAC=1:
+	00:  The UNSPECIFIED address, ::
+	01:  64 bits. Context information + not covered bits from in-line, remaining bits are zero
+	10:  16 bits.  Context information + not covered bits from in-line, remaining bits are zero
+			0000:00ff:fe00:XXXX, where XXXX are the 16 bits carried in-line.
+	11:  0 bits. Context information + not covered bits from the encapsulating header, remaining bits are zero
+- M: Multicast Compression
+	0: Destination address is not a multicast address.
+	1: Destination address is a multicast address.
+
+- DAC: Destination Address Compression
+	0: Destination address compression uses stateless compression.
+	1: Destination address compression uses stateful, context-based compression.
+
+- DAM: Destination Address Mode:
+	If M=0 and DAC=0  This case matches SAC=0 but for the destination address:
+
+	If M=0 and DAC=1:
+	00:  Reserved.
+	01, 10, 11: same as SAC=1 case
+
+	If M=1 and DAC=0:
+	00:  128 bits.  The full address is carried in-line.
+	01:  48 bits.  The address takes the form ffXX::00XX:XXXX:XXXX.
+	10:  32 bits.  The address takes the form ffXX::00XX:XXXX.
+	11:  8 bits.  The address takes the form ff02::00XX.
+
+	If M=1 and DAC=1:
+	00:  48 bits.  This format is designed to match Unicast-Prefix-
+	based IPv6 Multicast Addresses as defined in [RFC3306] and
+	[RFC3956].  The multicast address takes the form ffXX:XXLL:
+	PPPP:PPPP:PPPP:PPPP:XXXX:XXXX. where the X are the nibbles
+	that are carried in-line, in the order in which they appear
+	in this format.  P denotes nibbles used to encode the prefix
+	itself.  L denotes nibbles used to encode the prefix length.
+	The prefix information P and L is taken from the specified
+	context.
+	01, 10, 11:  reserved
+	
+*******
+
+If CID=1 --> Context Identifier Extension after the DAM
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+|      SCI      |      DCI      |
++---+---+---+---+---+---+---+---+
+SCI: Source Context Identifier.  Identifies the prefix. 0 is the default context.
+DCI: Destination Context Identifier.  Identifies the prefix. 0 is the default context.
+
+*******
+
+Uncompressed IPv6 fields
+- Version: elided
+
+- Traffic class & Flow label
+TF=00:
+1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|ECN|   DSCP    |  rsv  |             Flow Label                |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+TF=01
+1                   2
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|ECN|rsv|             Flow Label                |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+TF=10
+ 0 1 2 3 4 5 6 7
++-+-+-+-+-+-+-+-+
+|ECN|   DSCP    |
++-+-+-+-+-+-+-+-+
+
+- Payload length: elided
+
+- Next header
+If NH=0: 8 bits in-line
+
+- Hop limit
+If HLIM=00: 8 bits in-line
+
+- Source address & Destination address
+As many bits as specified in the header
+
+
+*/
 
 namespace wiselib
 {

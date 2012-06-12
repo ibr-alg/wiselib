@@ -19,6 +19,7 @@
 #ifndef __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 #define __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 
+#include "algorithms/6lowpan/udp.h"
 #include "algorithms/6lowpan/ipv6.h"
 #include "algorithms/6lowpan/lowpan.h"
 
@@ -38,7 +39,7 @@ namespace wiselib
 	
 	typedef wiselib::LoWPAN<OsModel, Radio, Debug> LoWPAN_t;
 	typedef wiselib::IPv6<OsModel, LoWPAN_t, Debug> IPv6_t;
-	//UDP...
+	typedef wiselib::UDP<OsModel, IPv6_t, LoWPAN_t, Debug> UDP_t;
 	//ICMPv6...
 	
 	void init( Radio& radio, Debug& debug )
@@ -53,11 +54,14 @@ namespace wiselib
 	 
 		//Init IPv6
 		ipv6.init( lowpan, *debug_);
-		ipv6.enable_radio();
+		
+		//Init UDP
+		udp.init( ipv6, *debug_);
+		udp.enable_radio();
 	}
 
 	 
-	
+	UDP_t udp;
 	IPv6_t ipv6;
 	LoWPAN_t lowpan;
 	

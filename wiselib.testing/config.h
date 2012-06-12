@@ -36,10 +36,12 @@
 //Debug for 6LoWPAN components
 //#define IPv6_LAYER_DEBUG
 //#define LoWPAN_LAYER_DEBUG
+//#define UDP_LAYER_DEBUG
 
 #ifdef LoWPAN_DEBUG
 #define IPv6_LAYER_DEBUG
 #define LoWPAN_LAYER_DEBUG
+#define UDP_LAYER_DEBUG
 #endif
 
 //6LoWPAN IP packet max size
@@ -50,6 +52,9 @@
 
 //Minimum: 1, the index starts from 0 at the get_interface function!
 #define NUMBER_OF_INTERFACES 1
+
+//Number of UDP sockets in the UDP layer
+#define NUMBER_OF_UDP_SOCKETS 4
 
 //Select routing method
 #define LOWPAN_ROUTE_OVER
