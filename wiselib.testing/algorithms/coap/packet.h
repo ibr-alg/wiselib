@@ -604,7 +604,7 @@ namespace wiselib
             uint8_t shift = 0;
             while( index < uri_path_len_ )
             {
-               index += strcspn( &uri_path_[index], seperator ) + 1;
+               index += mystrcspn( &uri_path_[index], seperator ) + 1;
                if ( index - path_last - 1 > 15 ) // large option
                {
                   buf[buf_last] = ( opt - current_delta ) << 4 | 15;
