@@ -57,11 +57,11 @@ namespace wiselib {
         return ( (*s == c) ? (char *) s : NULL );
     }
 
-    size_t mystrcspn (const char *s1, const char *s2)
+    int mystrcspn (const char *s1, const char *s2)
     {
         const char *sc1;
         for (sc1 = s1; *sc1 != '\0'; sc1++)
-          if (mystrchr(s2, *sc1) != NULL)
+          if (mystrchr(s2, (int)*sc1) != NULL)
               return (sc1 - s1);
         return sc1 - s1;
     }
