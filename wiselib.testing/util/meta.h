@@ -57,7 +57,12 @@ template<typename T>
 	typename Uint<sizeof(T)>::t as_uint(T& src) { return *reinterpret_cast<typename Uint<sizeof(T)>::t*>(&src); }
 //};
 
-
+template<int N>
+struct UintWithAtLeastBits {
+   typedef typename Uint< (N + 7) / 8 >::t t;
+};
+   
+   
 template<typename T>
 struct RemovePointer { typedef T t; };
 
