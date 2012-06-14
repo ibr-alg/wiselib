@@ -16,30 +16,37 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ALGORITHMS_6LOWPAN_UDP_LAYER_H__
-#define __ALGORITHMS_6LOWPAN_UDP_LAYER_H__
+#ifndef __ALGORITHMS_6LOWPAN_ICMPV6_LAYER_H__
+#define __ALGORITHMS_6LOWPAN_ICMPV6_LAYER_H__
 
 #include "util/base_classes/routing_base.h"
 
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
 
-#include "algorithms/6lowpan/interface_type.h"
-#include "algorithms/6lowpan/socket_type.h"
-#include "util/serialization/bitwise_serialization.h"
+/*
+Echo Request & Reply:
+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|     Type      |     Code      |          Checksum             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|           Identifier          |        Sequence Number        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
+*/
 
 namespace wiselib
 {
 	/**
-	* \brief UDP layer for the 6LoWPAN implementation.
+	* \brief ICMPv6 layer for the 6LoWPAN implementation.
 	*
 	*  \ingroup routing_concept
 	*  \ingroup radio_concept
 	*
-	* This file contains the implementation of the UDP layer for the 6LoWPAN implementation.
-	* The UDP layer can be used as a radio.
+	* This file contains the implementation of the ICMPv6 layer for the 6LoWPAN implementation.
 	* 
 	*/
 	
@@ -47,7 +54,7 @@ namespace wiselib
 		typename Radio_P,
 		typename Radio_Link_Layer_P,
 		typename Debug_P>
-	class UDP
+	class ICMPv6
 	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_Link_Layer_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
 	public:
@@ -56,7 +63,7 @@ namespace wiselib
 	typedef Radio_Link_Layer_P Radio_Link_Layer;
 	typedef Debug_P Debug;
 	
-	typedef UDP<OsModel, Radio, Radio_Link_Layer, Debug> self_type;
+	typedef ICMPv6<OsModel, Radio, Radio_Link_Layer, Debug> self_type;
 	typedef self_type* self_pointer_t;
 	
 	typedef IPv6Address<Radio_Link_Layer, Debug> IPv6Address_t;
@@ -65,18 +72,8 @@ namespace wiselib
 	*/
 	typedef IPv6Packet<OsModel, Radio, Radio_Link_Layer, Debug> IPv6Packet_t;
 
-	typedef LoWPANSocket<Radio> Socket_t;
 	
-	/**
-	* The number of the Socket in the sockets_ array
-	*/
-	typedef int node_id_t;
-	
-	/**
-	* The ip_node_id_t is an ipv6 address
-	*/
-	typedef typename Radio::node_id_t ip_node_id_t;
-	
+	typedef typename Radio::node_id_t node_id_t;
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::message_id_t message_id_t;
@@ -92,6 +89,21 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	
 	/**
+	* Enumeration of the ICMPv6 message code types
+	*/
+	enum ICMPv6MessageCodes
+	{
+	 /*DESTINATION_UNREACHABLE = 1,
+	 PACKET_TOO_BIG = 2,
+	 TIME_EXCEEDED = 3,
+	 PARAMETER_PROBLEM = 4,*/
+	 ECHO_REQUEST = 128,
+	 ECHO_REPLY = 129/*,
+	 ROUTER_SOLICITATION = 133,
+	 ROUTER_ADVERTISEMENT = 134*/
+	};
+	
+	/**
 	* Unspecified IP address: 0:0:0:0:0:0:0:0
 	*/
 	static const IPv6Address_t NULL_NODE_ID;
@@ -100,12 +112,7 @@ namespace wiselib
 	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
 	*/
 	static const IPv6Address_t BROADCAST_ADDRESS;
-	
-	/**
-	* Solicited multicast address form: FF02:0:0:0:0:1:FFXX:XXXX
-	*/
-	/*IPv6Address_t SOLICITED_MULTICAST_ADDRESS;*/
-	
+
 	// --------------------------------------------------------------------
 	enum Restrictions {
 		MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
@@ -113,8 +120,8 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	///@name Construction / Destruction
 	///@{
-	UDP();
-	~UDP();
+	 ICMPv6();
+	 ~ICMPv6();
 	///@}
 	 
 	int init( Radio& radio, Debug& debug )
@@ -140,56 +147,32 @@ namespace wiselib
 	int send( node_id_t receiver, size_t len, block_data_t *data );
 	/**
 	*/
-	void receive( ip_node_id_t from, size_t len, block_data_t *data );
+	void receive( node_id_t from, size_t len, block_data_t *data );
 	/**
 	*/
-	ip_node_id_t id()
+	node_id_t id()
 	{
 		return radio().id();
 	}
 	///@}
 	
 	/**
-	* Get the number of sockets
+	* Send a ping (Echo Request)
+	* \param id pointer to the 2 byte identifier
 	*/
-	uint8_t get_number_of_sockets()
+	int ping( node_id_t destination )
 	{
-		return NUMBER_OF_UDP_SOCKETS;
+		uint8_t data = ECHO_REQUEST;
+		return send( destination, 1, &data );
 	}
-	
-	/**
-	* Get a socket
-	* \param i socket number
-	*/
-	Socket_t* get_socket( uint8_t i )
-	{
-		if( ( i > -1 ) && ( i < NUMBER_OF_UDP_SOCKETS ) )
-			return &(sockets_[i]);
-		
-		return NULL;
-	}
-	
-	/** 
-	* Add a socket
-	* \param i socket number
-	*/
-	 int add_socket( uint16_t local_port, uint16_t remote_port, IPv6Address_t remote_host, int callback_id )
-	 {
-	 	for( uint8_t i=0; i < NUMBER_OF_UDP_SOCKETS; i++ )
-	 		if( sockets_[i].callback_id == -1 )
-			{	
-				sockets_[i] = Socket_t(local_port, remote_port, remote_host, callback_id );
-				return i;
-			}
-		return -1;
-	 }
-	 
-	 /**
-	 * Print the sockets
-	 */
-	  void print_sockets();
 
 	private:
+	
+	/**
+	* Function to generate Ideintifier
+	* \param id pointer to the 2 byte identifier
+	*/
+	void generate_id( uint8_t* id );
 	
 	Radio& radio()
 	{ return *radio_; }
@@ -200,11 +183,6 @@ namespace wiselib
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
 	
-	/**
-	* Array for the sockets
-	*/
-	Socket_t sockets_[NUMBER_OF_UDP_SOCKETS];
-
 	/**
 	* Callback ID
 	*/
@@ -224,7 +202,7 @@ namespace wiselib
 	typename Debug_P>
 	const
 	IPv6Address<Radio_Link_Layer_P, Debug_P>
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::NULL_NODE_ID = Radio::NULL_NODE_ID;
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::NULL_NODE_ID = Radio::NULL_NODE_ID;
 	
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
@@ -234,7 +212,7 @@ namespace wiselib
 	typename Debug_P>
 	const
 	IPv6Address<Radio_Link_Layer_P, Debug_P>
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS;
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS;
 	
 	// -----------------------------------------------------------------------
 
@@ -242,8 +220,8 @@ namespace wiselib
 	typename Radio_P,
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	UDP()
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6()
 	: radio_ ( 0 ),
 	debug_ ( 0 )
 	{}
@@ -253,12 +231,12 @@ namespace wiselib
 	typename Radio_P,
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	~UDP()
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	~ICMPv6()
 	{
 		disable_radio();
-		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: Destroyed\n" );
+		#ifdef ICMPv6_LAYER_DEBUG
+		debug().debug( "ICMPv6 layer: Destroyed\n" );
 		#endif
 	}
 	
@@ -268,7 +246,7 @@ namespace wiselib
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
 	init( void )
 	{
 		return enable_radio();
@@ -279,7 +257,7 @@ namespace wiselib
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
 	destruct( void )
 	{
 		return disable_radio();
@@ -290,14 +268,15 @@ namespace wiselib
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
 	enable_radio( void )
 	{
-		if ( radio().enable_radio() != SUCCESS )
+		if( radio().enable_radio() != SUCCESS )
 			return ERR_UNSPEC;
 		
-		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: initialization at ");
+		
+		#ifdef ICMPv6_LAYER_DEBUG
+		debug().debug( "ICMPv6 layer: initialization at ");
 		radio().id().print_address();
 		debug().debug( "\n");
 		#endif
@@ -312,13 +291,13 @@ namespace wiselib
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
 	disable_radio( void )
 	{
-		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: Disable\n" );
+		#ifdef ICMPv6_LAYER_DEBUG
+		debug().debug( "ICMPv6 layer: Disable\n" );
 		#endif
-		if( radio().disable_radio() )
+		if( radio().disable_radio() != SUCCESS )
 			return ERR_UNSPEC;
 		radio().template unreg_recv_callback(callback_id_);
 		return SUCCESS;
@@ -330,15 +309,17 @@ namespace wiselib
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	send( node_id_t socket_number, size_t len, block_data_t *data )
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	send( node_id_t destination, size_t len, block_data_t *data )
 	{
-		if( socket_number < 0 || socket_number >= NUMBER_OF_UDP_SOCKETS || (sockets_[socket_number].callback_id == -1) )
-			return ERR_NOTIMPL;
-	
-		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: Send to (Local Port: %i, Remote Port: %i) ", sockets_[socket_number].local_port,  sockets_[socket_number].remote_port );
-		sockets_[socket_number].remote_host.print_address();
+		/*
+		data structure:
+		[0]: message type code
+		[1][2]: identifier for echo reply
+		*/
+		#ifdef ICMPv6_LAYER_DEBUG
+		debug().debug( "ICMPv6 layer: Send (%i) to ", *data );
+		destination.print_address();
 		debug().debug( "\n");
 		#endif
 		
@@ -349,55 +330,65 @@ namespace wiselib
 		//Construct the IPv6 packet here
 		IPv6Packet_t message;
 		
-		//Next header = 17 UDP
-		message.set_next_header(Radio::UDP);
+		message.set_next_header(Radio::ICMPV6);
 		//TODO hop limit?
-		message.set_hop_limit(100);
-		message.set_length(len + 8);
+		message.set_hop_limit(255);
 		message.set_source_address(sourceaddr);
-		message.set_destination_address(sockets_[socket_number].remote_host);
+		message.set_destination_address(destination);
 		message.set_flow_label(0);
 		message.set_traffic_class(0);
 		
+		//For most of the ICMPv6 messages but for some it has to be larger
+		message.set_length(8);
+		
+		//Message Type
+		message.set_payload( data, 1, 0 );
+		
+		//Message Code
+		uint8_t zero = 0;
+		message.set_payload( &zero, 1, 1 );
+
+		int typecode = data[0];
+		switch(typecode){
+			case ECHO_REQUEST:
+				//Identifier
+				uint8_t id[2];
+				generate_id(id);
+				message.set_payload( id, 2, 4 );
+				
+				//Sequence Number
+				message.set_payload( &zero, 1, 6 );
+				message.set_payload( &zero, 1, 7 );
+				break;
+			case ECHO_REPLY:
+				//Identifier
+				message.set_payload( data + 1, 2, 4 );
+			 
+				//Sequence Number
+				message.set_payload( &zero, 1, 6 );
+				message.set_payload( &zero, 1, 7 );
+				break;
+			default:
+				#ifdef ICMPv6_LAYER_DEBUG
+				debug().debug( "ICMPv6 layer: error, incorrect message code: %i ", *data );
+				#endif
+				return ERR_UNSPEC;
+		}
+		
+		//Checksum calculation
+		//To calculate checksum the field has to be 0
+		message.set_payload( &zero, 1, 2 );
+		message.set_payload( &zero, 1, 3 );
+		
 		uint8_t tmp;
-		
-		//Construct the UDP header
-		//Local Port
-		tmp = ( sockets_[socket_number].local_port >> 8 ) & 0xFF;
-		message.set_payload( &tmp, 1, 0 );
-		
-		tmp = ( sockets_[socket_number].local_port ) & 0xFF;
-		message.set_payload( &tmp, 1, 1 );
-		
-		//Remote Port
-		tmp = ( sockets_[socket_number].remote_port >> 8 ) & 0xFF;
-		message.set_payload( &tmp, 1, 2 );
-		
-		tmp = ( sockets_[socket_number].remote_port ) & 0xFF;
-		message.set_payload( &tmp, 1, 3 );
-		
-		//Length (payload + UDP header)
-		tmp = ( (len + 8) >> 8 ) & 0xFF;
-		message.set_payload( &tmp, 1, 4 );
-		
-		tmp = ( (len + 8) ) & 0xFF;
-		message.set_payload( &tmp, 1, 5 );
-		
-		//UDP payload
-		message.set_payload( data, len, 8 );
-		
-		//Generate CHECKSUM
-		tmp = 0;
-		message.set_payload( &tmp, 1, 6 );
-		message.set_payload( &tmp, 1, 7 );
-		
 		uint16_t checksum = radio().generate_checksum( message.length(), message.payload() );
 		tmp = 0xFF & (checksum >> 8);
-		message.set_payload( &tmp, 1, 6 );
+		message.set_payload( &tmp, 1, 2 );
 		tmp = 0xFF & (checksum);
-		message.set_payload( &tmp, 1, 7 );
-	
-		return radio().send( sockets_[socket_number].remote_host, message.get_content_size(), message.get_content() );
+		message.set_payload( &tmp, 1, 3 );
+		
+		//Send the packet to the IP layer
+		return radio().send( destination, message.get_content_size(), message.get_content() );
 	}
 	
 	// -----------------------------------------------------------------------
@@ -406,79 +397,78 @@ namespace wiselib
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	void
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	receive( ip_node_id_t from, size_t len, block_data_t *data )
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	receive( node_id_t from, size_t len, block_data_t *data )
 	{
-		uint16_t actual_local_port = ( data[2] << 8 ) | data[3];
-		uint16_t actual_remote_port = ( data[0] << 8 ) | data[1];
-		
-		uint16_t checksum = ( data[6] << 8 ) | data[7];
-		data[6] = 0;
-		data[7] = 0;
+		uint16_t checksum = ( data[2] << 8 ) | data[3];
+		data[2] = 0;
+		data[3] = 0;
 		if( checksum != radio().generate_checksum( len, data ) )
 		{
-			#ifdef UDP_LAYER_DEBUG
-			debug().debug( "UDP layer: Dropped packet (checksum error)\n");
+			#ifdef ICMPv6_LAYER_DEBUG
+			debug().debug( "ICMPv6 layer: Dropped packet (checksum error)\n");
 			#endif
 			return;
 		}
 		
-		
-		for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
-		{
-		//NOTE Just listening or full match?
-		if( ( sockets_[i].local_port == actual_local_port ) /*&& 
-			( sockets_[i].remote_port == actual_remote_port ) && 
-			( sockets_[i].remote_host == from )*/ )
-			{
-				#ifdef UDP_LAYER_DEBUG
-				debug().debug( "UDP layer: Received packet (Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port);
+		int typecode = data[0];
+		switch(typecode){
+			case ECHO_REQUEST:
+				#ifdef ICMPv6_LAYER_DEBUG
+				debug().debug( "ICMPv6 layer: Echo request received from: ");
 				from.print_address();
-				debug().debug( "\n");
+				debug().debug( ", sending echo reply.\n");
 				#endif
+				//Send an ECHO_REPLY
+				uint8_t reply_data[3];
+				reply_data[0] = ECHO_REPLY;
+				reply_data[1] = data[4];
+				reply_data[2] = data[5];
+				send( from, 3, reply_data );
+				break;
+			case ECHO_REPLY:
+				//Check Identifier
+				uint8_t id[2];
+				generate_id(id);
 				
-				//TODO notify just the subscribed application for the socket
-				/*CallbackVectorIterator it = callbacks_.begin();
-				it = it + sockets_[i].callback_id;
-				
-				(*it)( from, len, data );*/
-				
-				notify_receivers( from, len - 8, data + 8 );
-				
+				if( (id[0] == data[4]) && (id[1] == id[5]) )
+				{
+					#ifdef ICMPv6_LAYER_DEBUG
+					debug().debug( "ICMPv6 layer: Echo reply received from: ");
+					from.print_address();
+					debug().debug( "\n");
+					#endif
+					notify_receivers( from, 0, NULL );
+				}
+				else
+				{
+					#ifdef ICMPv6_LAYER_DEBUG
+					debug().debug( "ICMPv6 layer: Unexpected (wrong identifier) echo reply received from: ");
+					from.print_address();
+					debug().debug( "\n");
+					#endif
+				}
+				break;
+			default:
+				#ifdef ICMPv6_LAYER_DEBUG
+				debug().debug( "ICMPv6 layer: error, received message with incorrect type code: %i ", *data );
+				#endif
 				return;
-			}
 		}
-		
-		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port);
-		from.print_address();
-		debug().debug( "\n");
-		#endif
-		
-
 	}
-
+	
 	// -----------------------------------------------------------------------
-	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	void
-	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	print_sockets()
+	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	generate_id( uint8_t* id )
 	{
-		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: sockets: \n");
-		for( uint8_t i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
-		{
-			debug().debug( "	#%i Local port: %i, Remote port: %i, Callback_id: %i, Remote host: ", i, sockets_[i].local_port, sockets_[i].remote_port, sockets_[i].callback_id);
-			sockets_[i].remote_host.print_address();
-			debug().debug( "\n");
-		}
-		#endif
+		//NOTE Some random function...
+		id[0] = radio().id().addr[12] ^ radio().id().addr[13];
+		id[0] = radio().id().addr[14] ^ radio().id().addr[15];
 	}
-	#endif
-	
 }
 #endif

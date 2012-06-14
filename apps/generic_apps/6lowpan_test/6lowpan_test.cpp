@@ -86,7 +86,7 @@ class lowpanApp
 	 /*
 	 UDP
 	 */
-	 if( radio_->id() == 0 )
+	 /*if( radio_->id() == 0 )
 	 {
 	 	int my_number = ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
 	 	ipv6_stack_.udp.print_sockets();
@@ -97,8 +97,14 @@ class lowpanApp
 	 	node_id_t ll_id = 0;
 	 	destinationaddr.set_long_iid(&ll_id, false);
 	 	ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
-	 }
+	 }*/
 	 
+	 /*ICMPv6 Ping test*/
+	 // 0 ---> 1 <---- 2
+	 if( radio_->id() != 1 )
+	 {
+	 	ipv6_stack_.icmpv6.ping(destinationaddr);
+	 }
 	 
 	 //These will be in the UDP layer!
 	 //Next header = 17 UDP

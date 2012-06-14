@@ -166,8 +166,6 @@ namespace wiselib
 		typename Debug_P = typename OsModel_P::Debug>
 	class LoWPAN
 	: public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t>
-		// HACK : it would be better to use the routingBase, but the problem is the IPv6Address...
-		//: public RoutingBase<OsModel_P, Radio_P>
 	{
 	public:
 	typedef OsModel_P OsModel;
@@ -310,9 +308,7 @@ namespace wiselib
 	LoWPAN<OsModel_P, Radio_P, Debug_P>::
 	init( void )
 	{
-		enable_radio();
-		
-		return SUCCESS;
+		return enable_radio();
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -336,7 +332,9 @@ namespace wiselib
 		debug().debug( "LoWPAN layer: initialization at %i\n", radio().id() );
 		#endif
 	 
-		radio().enable_radio();
+		if ( radio().enable_radio() != SUCCESS )
+			return ERR_UNSPEC;
+		
 		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
 		
 		return SUCCESS;
@@ -352,7 +350,8 @@ namespace wiselib
 		#ifdef LoWPAN_LAYER_DEBUG
 		debug().debug( "LoWPAN layer: Disable\n" );
 		#endif
-		radio().disable_radio();
+		if( radio().disable_radio() != SUCCESS )
+			return ERR_UNSPEC;
 		radio().template unreg_recv_callback(callback_id_);
 		return SUCCESS;
 	}
@@ -370,11 +369,11 @@ namespace wiselib
 		//The *data has to be a constructed IPv6 package
 		Packet *message = reinterpret_cast<Packet*>(data);
 		
-		
 		//Send the package to the next hop
 		node_id_t mac_destination;
 		IP_to_MAC( destination, mac_destination);
-		radio().send( mac_destination, message->get_content_size(), message->get_content() );
+		if ( radio().send( mac_destination, message->get_content_size(), message->get_content() ) != SUCCESS )
+			return ERR_UNSPEC;
 	
 		#ifdef LoWPAN_LAYER_DEBUG
 		debug().debug( "LoWPAN layer: Send to %x \n", mac_destination );

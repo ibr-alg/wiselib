@@ -94,6 +94,16 @@ namespace wiselib
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::message_id_t message_id_t;
 	
+	enum NextHeaders
+	{
+		UDP = 17,
+		ICMPV6 = 58
+		/*TCP = 6
+		EH_HOHO = 0	//Hop by Hop
+		EH_DESTO = 60
+		EH_ROUTING = 43
+		EH_FRAG = 44*/
+	};
 
 	// --------------------------------------------------------------------
 	enum ErrorCodes
@@ -164,17 +174,18 @@ namespace wiselib
 	}
 	///@}
 	
-	///@name Get the number of interfaces
-	///@{
+	/**
+	* Get the number of interfaces
+	*/
 	uint8_t get_number_of_interfaces()
 	{
 		return NUMBER_OF_INTERFACES;
 	}
-	///@}
 	
-	///@name Get an interface
-	/// \param i interface number
-	///@{
+	/**
+	* Get an interface
+	* \param i interface number
+	*/
 	Interface_t* get_interface( uint8_t i )
 	{
 		if( ( i > -1 ) && ( i < NUMBER_OF_INTERFACES ) )
@@ -182,16 +193,19 @@ namespace wiselib
 		
 		return NULL;
 	}
-	///@}
 	
-	///@name Set the prefix for an interface
-	/// \param prefix The prefix as an array
-	/// \param prefix_len the lenght of the prefix in bytes
-	/// \param interface the number of the interface
-	///@{
+	/** Set the prefix for an interface
+	* \param prefix The prefix as an array
+	* \param prefix_len the length of the prefix in bytes
+	* \param interface the number of the interface
+	*/
 	int set_prefix_for_interface( uint8_t* prefix, uint8_t prefix_len, uint8_t interface );
-	///@}
-	 
+	
+	/** Generate Internet checksum
+	* \param len Data length
+	* \param data pointer to the data
+	*/
+	 uint16_t generate_checksum( uint16_t len, uint8_t* data);
 
 	private:
 	
@@ -210,17 +224,18 @@ namespace wiselib
 	Interface_t interfaces_[NUMBER_OF_INTERFACES];
 	
 	#ifdef LOWPAN_ROUTE_OVER
-	///@name Print the forwarding table
-	///@{
+	/** 
+	* Print the forwarding table
+	*/
 	void print_forwarding_table( ForwardingTable& rt );
 	///@}
 	#endif
 	
-	///@name Test every interfaces and addresses to decide that the packet is for this node or not
-	/// \param destination pointer to the destination's IP address
-	///@{
+	/**
+	* Test every interfaces and addresses to decide that the packet is for this node or not
+	* \param destination pointer to the destination's IP address
+	*/
 	bool ip_packet_for_this_node( node_id_t* destination );
-	///@}
 	
 	/**
 	* Callback ID
@@ -292,7 +307,8 @@ namespace wiselib
 		#ifdef LOWPAN_ROUTE_OVER
 		forwarding_table_.clear();
 		#endif
-		enable_radio();
+		if ( enable_radio() != SUCCESS )
+			return ERR_UNSPEC;
 		
 		return SUCCESS;
 	}
@@ -314,7 +330,8 @@ namespace wiselib
 	IPv6<OsModel_P, Radio_P, Debug_P>::
 	enable_radio( void )
 	{
-		radio().enable_radio();
+		if ( radio().enable_radio() != SUCCESS )
+			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: initialization at %i\n", radio().id() );
@@ -348,26 +365,34 @@ namespace wiselib
 	 #ifdef LOWPAN_ROUTE_OVER
 	 //HACK
 	 //There is no routing algorithm now, so the forwarding_table_ values are constructed here
+	 
+	 
 	 node_id_t hack_addr;
-	 hack_addr.make_it_link_local();
-	 link_layer_node_id_t link_layer_id = 1;
-	 hack_addr.set_long_iid(&link_layer_id, false);
+	 node_id_t n_hop;
 	 
-	 /*link_layer_*/node_id_t n_hop;
-	 n_hop.make_it_link_local();
-	 
-	 if(radio().id() == 0)
+	 if(radio().id() != 1)
 	 {
-	  //n_hop = 2;
+	  
+	  hack_addr.make_it_link_local();
+	  link_layer_node_id_t link_layer_id = 1;
+	  hack_addr.set_long_iid(&link_layer_id, false);
+	  	  
+	  n_hop.make_it_link_local();
+
 		link_layer_id = 1;
 		n_hop.set_long_iid(&link_layer_id, false);
 	 }
 		
 	 else
 	 {
-	  //n_hop = 1;
-	 	link_layer_id = 1;
-		n_hop.set_long_iid(&link_layer_id, false);
+	  hack_addr.make_it_link_local();
+	  link_layer_node_id_t link_layer_id = 2;
+	  hack_addr.set_long_iid(&link_layer_id, false);
+	  
+	  n_hop.make_it_link_local();
+	  
+	  link_layer_id = 2;
+	  n_hop.set_long_iid(&link_layer_id, false);
 	 }
 	 // 0 --> 2 --> 1
 	 
@@ -396,7 +421,8 @@ namespace wiselib
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: Disable\n" );
 		#endif
-		radio().disable_radio();
+		if ( radio().disable_radio() != SUCCESS )
+			return ERR_UNSPEC;
 		radio().template unreg_recv_callback(callback_id_);
 		return SUCCESS;
 	}
@@ -431,7 +457,8 @@ namespace wiselib
 				debug().debug( " (multicast to all nodes)\n" );
 				#endif
 				//Send the package to the next hop
-				radio().send( BROADCAST_ADDRESS, message->get_content_size(), message->get_content() );
+				if ( radio().send( BROADCAST_ADDRESS, message->get_content_size(), message->get_content() ) != SUCCESS )
+					return ERR_UNSPEC;
 			}
 			else
 			{
@@ -441,7 +468,8 @@ namespace wiselib
 				debug().debug( "\n");
 				#endif
 				//Send the package to the next hop
-				radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
+				if( radio().send( it->second.next_hop, message->get_content_size(), message->get_content() ) != SUCCESS )
+					return ERR_UNSPEC;
 			}
 		}
 		//The next hop is not in the forwarding table
@@ -488,10 +516,6 @@ namespace wiselib
 		
 		//Cast the received data
 		Packet *message = reinterpret_cast<Packet*>(data);
-
-		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Rcvd a packet at %i! \n",radio().id());
-		#endif
 		
 		node_id_t destination_ip;
 		message->destination_address(destination_ip);
@@ -570,7 +594,7 @@ namespace wiselib
 		interf->set_global_address_from_MAC( radio().id(), prefix, prefix_len );
 
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "	IPv6 layer: Global address defined (for interface %i): ", selected_interface);
+		debug().debug( "IPv6 layer: Global address defined (for interface %i): ", selected_interface);
 		get_interface(selected_interface)->get_global_address()->print_address();
 		debug().debug( "\n");
 		#endif
@@ -594,6 +618,36 @@ namespace wiselib
 				return true;
 		}
 		return false;
+	}
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	uint16_t
+	IPv6<OsModel_P, Radio_P, Debug_P>::
+	generate_checksum( uint16_t len, uint8_t* data)
+	{
+		uint32_t sum = 0;
+	 
+		while( len > 1 )
+		{
+			sum +=  0xFFFF & ( (*(data) << 8) | (*( data + 1 )));
+			data += 2;
+			len -= 2;
+		}
+		// if there is a byte left then add it (padded with zero)
+		if ( len )
+		{
+			sum += ( 0xFF & *data ) << 8;
+		}
+
+		while ( sum >> 16 )
+		{
+			sum = (sum & 0xFFFF) + (sum >> 16);
+		}
+	 
+		return ( sum ^ 0xFFFF );
 	}
 
 	// -----------------------------------------------------------------------
