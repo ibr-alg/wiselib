@@ -36,6 +36,8 @@
 
 #include "util/serialization/endian.h"
 
+#include <util/allocators/malloc_free_allocator.h>
+
 namespace wiselib
 {
 
@@ -64,6 +66,9 @@ namespace wiselib
       typedef iSenseSerialComBufferUartModel<iSenseOsModel> B_Uart;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
+
+      typedef MallocFreeAllocator<iSenseOsModel> Allocator;
+      static Allocator allocator;
    };
 }
 

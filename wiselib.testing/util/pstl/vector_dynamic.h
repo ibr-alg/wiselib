@@ -59,7 +59,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       ~vector_dynamic() {
          if(buffer_) {
-            OsModel::allocator->free_array(buffer_);
+            OsModel::allocator.free_array(buffer_);
          }
       }
       
@@ -77,7 +77,7 @@ namespace wiselib
       
       void attach(buffer_pointer_t buffer, size_type size) {
          if(buffer_) {
-            OsModel::allocator->free_array(buffer_);
+            OsModel::allocator.free_array(buffer_);
          }
          buffer_ = buffer;
          size_ = size;
@@ -297,10 +297,10 @@ namespace wiselib
       void pack() { change_capacity(size_); }
       
       void change_capacity(size_t n) {
-         assert(n >= size_);
+         //assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
-            new_buffer = OsModel::allocator->template allocate_array<value_type>(n);
+            new_buffer = OsModel::allocator.template allocate_array<value_type>(n);
          }
          
          if(buffer_) {
@@ -308,7 +308,7 @@ namespace wiselib
                new_buffer[i] = buffer_[i];
             }
             
-            OsModel::allocator->free_array(buffer_);
+            OsModel::allocator.free_array(buffer_);
          }
          buffer_ = new_buffer;
          capacity_ = n;
