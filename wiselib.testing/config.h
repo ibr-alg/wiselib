@@ -37,11 +37,13 @@
 //#define IPv6_LAYER_DEBUG
 //#define LoWPAN_LAYER_DEBUG
 //#define UDP_LAYER_DEBUG
+//#define ICMPv6_LAYER_DEBUG
 
 #ifdef LoWPAN_DEBUG
 #define IPv6_LAYER_DEBUG
 #define LoWPAN_LAYER_DEBUG
 #define UDP_LAYER_DEBUG
+#define ICMPv6_LAYER_DEBUG
 #endif
 
 //6LoWPAN IP packet max size
