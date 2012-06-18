@@ -43,10 +43,12 @@ namespace wiselib
       typedef vector_dynamic<OsModel_P, value_type> self_type;
       typedef self_type* self_pointer_t;
 
-      typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
-
+      //typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
+      
       typedef typename OsModel_P::size_t size_type;
       typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
+      
+      typedef buffer_pointer_t iterator;
       // --------------------------------------------------------------------
       vector_dynamic() :  size_(0), capacity_(0), buffer_(0)
       {
@@ -163,7 +165,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       reference back()
       {
-         return *(end() - 1);
+         return *(end() - (typename OsModel::size_t)1);
       }
       // --------------------------------------------------------------------
       pointer data()
@@ -213,12 +215,11 @@ namespace wiselib
          return insert(end(), x);
       }
       // --------------------------------------------------------------------
-      iterator find(value_type x) {
-         for(iterator iter = begin(); iter != end(); ++iter) {
-            value_type y = *iter;
-            if(y == x) { return iter; }
+      iterator find(value_type& x) {
+         iterator iter(begin());
+         for( ; iter != end() && !(*iter == x); ++iter) {
          }
-         return end();
+         return iter;
       }
       iterator insert( iterator position, const value_type& x )
       {
@@ -253,8 +254,8 @@ namespace wiselib
          if ( position == end() )
             return end();
 
-         for ( iterator cur = position; cur != end(); cur++ )
-            *cur = *(cur + 1);
+         for ( iterator cur = position; cur != end(); ++cur )
+            *cur = *(cur + (typename OsModel::size_t)1);
 
          pop_back();
 
@@ -313,9 +314,10 @@ namespace wiselib
          }
          
          if(buffer_) {
-            for(size_type i=0; i<size_; i++) {
+            /*for(size_type i=0; i<size_; i++) {
                new_buffer[i] = buffer_[i];
-            }
+            }*/
+            memcpy((void*)&new_buffer[0], (void*)&buffer_[0], size_);
             
             OsModel::allocator.free_array(buffer_);
          }

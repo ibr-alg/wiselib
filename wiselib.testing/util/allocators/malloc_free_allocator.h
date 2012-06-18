@@ -94,6 +94,7 @@ class MallocFreeAllocator {
 				array_pointer_t& operator++() { ++this->p_; --elements_; return *this; }
 				array_pointer_t& operator--() { --this->p_; ++elements_; return *this; }
 				array_pointer_t operator+(size_t n) const { return array_pointer_t(this->p_ + n, elements_); }
+				array_pointer_t operator-(size_t n) const { return array_pointer_t(this->p_ - n, elements_); }
 				
 			private:
 				size_t elements_;
