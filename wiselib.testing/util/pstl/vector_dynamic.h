@@ -114,12 +114,6 @@ namespace wiselib
       */
       // --------------------------------------------------------------------
       
-      // @deprecated
-      void set_allocator(typename Allocator::self_pointer_t alloc) { }
-      
-      // @deprecated
-      typename Allocator::self_pointer_t allocator() { return OsModel::allocator; }
-      
       ///@name Iterators
       ///@{
       iterator begin()
@@ -215,11 +209,26 @@ namespace wiselib
          }
       }
       // --------------------------------------------------------------------
+      iterator insert(const value_type& x) {
+         return insert(end(), x);
+      }
+      // --------------------------------------------------------------------
+      iterator find(value_type x) {
+         for(iterator iter = begin(); iter != end(); ++iter) {
+            value_type y = *iter;
+            if(y == x) { return iter; }
+         }
+         return end();
+      }
       iterator insert( iterator position, const value_type& x )
       {
          // no more elements can be inserted because vector is full
-         if ( size() == max_size() )
-            return iterator(buffer_ + size_);
+         //if ( size() == max_size() )
+            //return iterator((buffer_pointer_t)buffer_ + (typename OsModel_P::size_t)size_);
+         if(size_ >= capacity_) {
+            grow();
+         }
+         size_++;
 
          value_type cur = x, temp;
          for ( iterator it = position; it != end(); ++it )
