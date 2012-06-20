@@ -49,6 +49,9 @@
 //6LoWPAN IP packet max size
 #define LOWPAN_IP_PACKET_BUFFER_MAX_SIZE 1500
 
+//IP packet store size
+#define IP_PACKET_POOL_SIZE 2
+
 //Forwarding table size in the IPv6 layer
 #define FORWARDING_TABLE_SIZE 8
 

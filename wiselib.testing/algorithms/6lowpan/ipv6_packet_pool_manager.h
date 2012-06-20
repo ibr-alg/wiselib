@@ -16,37 +16,105 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ALGORITHMS_6LOWPAN_FORWARDING_TYPES_H__
-#define __ALGORITHMS_6LOWPAN_FORWARDING_TYPES_H__
+#ifndef __ALGORITHMS_6LOWPAN_IP_PACKET_STORE_TYPES_H__
+#define __ALGORITHMS_6LOWPAN_IP_PACKET_STORE_TYPES_H__
+
+#include "algorithms/6lowpan/ipv6_packet.h"
 
 namespace wiselib
 {
-	template<typename Radio_P>
-	class IPForwardingTableValue
+	template<typename OsModel_P,
+		typename Radio_P,
+		typename Radio_Link_Layer_P,
+		typename Debug_P>
+	class IPv6PacketPoolManager
 	{
 	public:
+		typedef OsModel_P OsModel;
 		typedef Radio_P Radio;
+		typedef Debug_P Debug;
+		typedef Radio_Link_Layer_P Radio_Link_Layer;
 		typedef typename Radio::node_id_t node_id_t;
+		
+		typedef IPv6Packet<OsModel, Radio, Radio_Link_Layer, Debug> Packet;
 
 		// -----------------------------------------------------------------
-		IPForwardingTableValue()
-			: next_hop( Radio::NULL_NODE_ID ),
-			hops( 0 ),
-			seq_nr( 0 )
-			{}
+		IPv6PacketPoolManager()
+			{
+				for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+				{
+					packet_pool[i].valid = false;
+				}
+			}
 
 		// -----------------------------------------------------------------
 
-		IPForwardingTableValue( node_id_t next, uint8_t h, uint16_t s )
-			: next_hop( next ),
-			hops( h ),
-			seq_nr( s )
-			{}
+		/**
+		* Get a pointor to a defined packet
+		*/
+		Packet* get_packet_pointer( uint8_t i )
+		{
+			return &(packet_pool[i]);
+		}
+		
 		// -----------------------------------------------------------------
-		//Next hop is an IP address
-		node_id_t next_hop;
-		uint8_t hops;
-		uint16_t seq_nr; ///< Sequence Number of last Req
+		
+		/**
+		* Get an unused packet with number
+		* \return packet number or -1 if no free packet
+		*/
+		uint8_t get_unused_packet_with_number()
+		{
+			for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+			{
+				if( packet_pool[i].valid == false )
+				{
+					packet_pool[i].valid = true;
+					return i;
+				}
+			}
+			return -1;
+		}
+		
+		/**
+		* Get an unused packet
+		* \return packet pointer or NULL if no free packet
+		*/
+		Packet* get_unused_packet()
+		{
+			for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+			{
+				if( packet_pool[i].valid == false )
+				{
+					packet_pool[i].valid = true;
+					return &(packet_pool[i]);
+				}
+			}
+			return NULL;
+		}
+		
+		/**
+		* Clean a packet
+		*/
+		void clean_packet_with_number( uint8_t i )
+		{
+			clean_packet( &(packet_pool[i]) );
+		}
+		
+		/**
+		* Clean a packet
+		*/
+		void clean_packet( Packet* target )
+		{
+		 target->valid = false;
+		 //TODO more?
+		}
+		
+		/**
+		* Array with defined size
+		*/
+		Packet packet_pool[IP_PACKET_POOL_SIZE];
+		
 	};
 
 }

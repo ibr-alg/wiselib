@@ -99,6 +99,13 @@ namespace wiselib
 	}
 	
 	// --------------------------------------------------------------------
+	//Fix 8 bytes long hostID
+	void set_hostID( uint8_t* host )
+	{	
+		memcpy(&(addr[8]), host, 8);
+	}
+	
+	// --------------------------------------------------------------------
 	
 	void set_long_iid( link_layer_node_id_t* iid, bool global )
 	{
@@ -148,6 +155,21 @@ namespace wiselib
 		memset(&(link_local_prefix[2]),0, 6);
 		set_prefix(link_local_prefix);
 		prefix_length = 64;
+	}
+	
+	// --------------------------------------------------------------------
+	
+	bool is_it_link_local( IPv6Address& address )
+	{
+		if ( (address.addr[0] == (uint8_t)0xFE) && (address.addr[1] == (uint8_t)0x80) )
+		{
+	 		for( uint8_t i = 2; i < 8; i++)
+				if( address.addr[i] != 0 )
+					return false;
+		
+			return true;
+		}
+		return false;
 	}
 	
 	// --------------------------------------------------------------------

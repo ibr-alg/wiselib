@@ -68,14 +68,12 @@ namespace wiselib
 	typedef Debug_P Debug;
 	typedef OsModel_P OsModel;
 	typedef Radio_P Radio;
+	//TODO: Link Layer not required
 	typedef Radio_Link_Layer_P Radio_Link_Layer;
 
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::node_id_t node_id_t;
-	
-	
-	typedef IPv6Address<Radio_Link_Layer, Debug> IPv6Address_t;
 	
 	IPv6Packet()
 	{
@@ -199,7 +197,7 @@ namespace wiselib
 	
 	inline size_t get_content_size()
 	{
-		return Radio::MAX_MESSAGE_LENGTH;
+		return length() + PAYLOAD_POS;
 	}
 	
 	void print_header()
@@ -260,9 +258,31 @@ namespace wiselib
 	  DESTINATION_ADDRESS_LEN= 8
 	};
 	
-	private:
 	block_data_t buffer_[LOWPAN_IP_PACKET_BUFFER_MAX_SIZE];
-	//block_data_t* payload_;
+	
+	/**
+	* Indicates that the packet is used at the moment or not
+	*/
+	bool valid;
+	
+	/**
+	* Indicator for incoming / outgoing packet
+	*/
+	bool incoming;
+	
+	/**
+	* Defragmentation finished
+	* If it is an incoming packet, it indicates that the packet headers could be decompressed and passed to the upper layer
+	*/
+	bool defragmentation_finished;
+	
+	/**
+	* Indicates that the header is compressed or not
+	*/
+	bool compressed;
+	
+	private:
+	
 	Debug& debug()
 	{ return *debug_; }
 
