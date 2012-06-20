@@ -16,37 +16,69 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ALGORITHMS_6LOWPAN_FORWARDING_TYPES_H__
-#define __ALGORITHMS_6LOWPAN_FORWARDING_TYPES_H__
+#ifndef __ALGORITHMS_6LOWPAN_SIMPLE_ROUTING_H__
+#define __ALGORITHMS_6LOWPAN_SIMPLE_ROUTING_H__
+
 
 namespace wiselib
 {
-	template<typename Radio_P>
-	class IPForwardingTableValue
+	template<typename OsModel_P,
+		typename Radio_P,
+		typename Radio_Link_Layer_P,
+		typename Debug_P,
+		typename Timer_P>
+	class SimpleQueryableRouting
 	{
 	public:
+		typedef OsModel_P OsModel;
 		typedef Radio_P Radio;
+		typedef Debug_P Debug;
+		typedef Timer_P Timer;
+		typedef Radio_Link_Layer_P Radio_Link_Layer;
 		typedef typename Radio::node_id_t node_id_t;
+		
+		typedef SimpleQueryableRouting<OsModel, Radio, Radio_Link_Layer, Debug, Timer> self_type;
+
+		
+		// -----------------------------------------------------------------
+		SimpleQueryableRouting()
+			{
+				is_working = false;
+			}
+			
+		void init( Timer& timer )
+		{
+			timer_ = &timer;
+		}
 
 		// -----------------------------------------------------------------
-		IPForwardingTableValue()
-			: next_hop( Radio::NULL_NODE_ID ),
-			hops( 0 ),
-			seq_nr( 0 )
-			{}
 
-		// -----------------------------------------------------------------
-
-		IPForwardingTableValue( node_id_t next, uint8_t h, uint16_t s )
-			: next_hop( next ),
-			hops( h ),
-			seq_nr( s )
-			{}
-		// -----------------------------------------------------------------
-		//Next hop is an IP address
-		node_id_t next_hop;
-		uint8_t hops;
-		uint16_t seq_nr; ///< Sequence Number of last Req
+		void find( node_id_t ip_destination, Radio* ipv6 )
+		{
+			callback_radio_ = ipv6;
+			requested_destination_ = ip_destination;
+			is_working = true;
+			timer().template set_timer<self_type, &self_type::call_it_back>( 2000, this, 0);
+		}
+		// --------------------------------------------------------------------
+		void call_it_back( void* )
+		{
+			is_working = false;
+			callback_radio_->route_estabilished( requested_destination_, requested_destination_ );
+		}
+		
+		bool is_working;
+		
+	 private:
+	 	typename Timer::self_pointer_t timer_;
+		node_id_t requested_destination_;
+		Radio* callback_radio_;
+		
+		Timer& timer()
+		{
+			return *timer_;
+		}
+		
 	};
 
 }

@@ -22,132 +22,11 @@
 #include "util/base_classes/routing_base.h"
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
+//#include "algorithms/6lowpan/lowpan_packet.h"
 #include "algorithms/6lowpan/ipv6.h"
 #include "util/serialization/bitwise_serialization.h"
+#include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
-/*
-rfc6282
-
-LOWPAN_IPHC
-
-  0   1   2   3   4   5   6   7   0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 0 | 1 | 1 |  TF   |NH | HLIM  |CID|SAC|  SAM  | M |DAC|  DAM  |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-- TF: Traffic Class ( 2-bit ECN, 6-bit DSCP ), Flow Label
-	00:  ECN + DSCP + 4-bit Pad + Flow Label (4 bytes)
-	01:  ECN + 2-bit Pad + Flow Label (3 bytes), DSCP is elided.
-	10:  ECN + DSCP (1 byte), Flow Label is elided.
-	11:  Traffic Class and Flow Label are elided.
-- NH: Next header
-	0: Full 8 bits for Next Header are carried in-line.
-	1: The Next Header field is compressed and the next header is
-	encoded using LOWPAN_NHC
-- HLIM: Hop Limit
-	00:  The Hop Limit field is carried in-line.
-	01:  The Hop Limit field is compressed and the hop limit is 1.
-	10:  The Hop Limit field is compressed and the hop limit is 64.
-	11:  The Hop Limit field is compressed and the hop limit is 255.
-- CID: Context Identifier Extension:
-	0: No additional 8-bit Context Identifier Extension is used.  If SAC=1 or DAC=1, context 0 (default) is used.
-	1: An additional 8-bit Context Identifier Extension field immediately follows the DAM field.
-- SAC: Source Address Compression
-	0: Source address compression uses stateless compression.
-	1: Source address compression uses stateful, context-based compression.
-- SAM: Source Address Mode:
-	If SAC=0:
-	00:  128 bits.  The full address is carried in-line.
-	01:  64 bits.  First 64 bits are elided: link-local prefix
-	10:  16 bits.  Link-local prefix + host ID: 64 bits are 0000:00ff:fe00:XXXX
-	11:  0 bits.  The address is fully elided. link-local prefix + host ID from the 802.15.4 address
-	
-	If SAC=1:
-	00:  The UNSPECIFIED address, ::
-	01:  64 bits. Context information + not covered bits from in-line, remaining bits are zero
-	10:  16 bits.  Context information + not covered bits from in-line, remaining bits are zero
-			0000:00ff:fe00:XXXX, where XXXX are the 16 bits carried in-line.
-	11:  0 bits. Context information + not covered bits from the encapsulating header, remaining bits are zero
-- M: Multicast Compression
-	0: Destination address is not a multicast address.
-	1: Destination address is a multicast address.
-
-- DAC: Destination Address Compression
-	0: Destination address compression uses stateless compression.
-	1: Destination address compression uses stateful, context-based compression.
-
-- DAM: Destination Address Mode:
-	If M=0 and DAC=0  This case matches SAC=0 but for the destination address:
-
-	If M=0 and DAC=1:
-	00:  Reserved.
-	01, 10, 11: same as SAC=1 case
-
-	If M=1 and DAC=0:
-	00:  128 bits.  The full address is carried in-line.
-	01:  48 bits.  The address takes the form ffXX::00XX:XXXX:XXXX.
-	10:  32 bits.  The address takes the form ffXX::00XX:XXXX.
-	11:  8 bits.  The address takes the form ff02::00XX.
-
-	If M=1 and DAC=1:
-	00:  48 bits.  This format is designed to match Unicast-Prefix-
-	based IPv6 Multicast Addresses as defined in [RFC3306] and
-	[RFC3956].  The multicast address takes the form ffXX:XXLL:
-	PPPP:PPPP:PPPP:PPPP:XXXX:XXXX. where the X are the nibbles
-	that are carried in-line, in the order in which they appear
-	in this format.  P denotes nibbles used to encode the prefix
-	itself.  L denotes nibbles used to encode the prefix length.
-	The prefix information P and L is taken from the specified
-	context.
-	01, 10, 11:  reserved
-	
-*******
-
-If CID=1 --> Context Identifier Extension after the DAM
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-|      SCI      |      DCI      |
-+---+---+---+---+---+---+---+---+
-SCI: Source Context Identifier.  Identifies the prefix. 0 is the default context.
-DCI: Destination Context Identifier.  Identifies the prefix. 0 is the default context.
-
-*******
-
-Uncompressed IPv6 fields
-- Version: elided
-
-- Traffic class & Flow label
-TF=00:
-1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|ECN|   DSCP    |  rsv  |             Flow Label                |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-TF=01
-1                   2
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|ECN|rsv|             Flow Label                |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-TF=10
- 0 1 2 3 4 5 6 7
-+-+-+-+-+-+-+-+-+
-|ECN|   DSCP    |
-+-+-+-+-+-+-+-+-+
-
-- Payload length: elided
-
-- Next header
-If NH=0: 8 bits in-line
-
-- Hop limit
-If HLIM=00: 8 bits in-line
-
-- Source address & Destination address
-As many bits as specified in the header
-
-
-*/
 
 namespace wiselib
 {
@@ -162,8 +41,9 @@ namespace wiselib
 	*/
 	
 	template<typename OsModel_P,
-		typename Radio_P = typename OsModel_P::Radio,
-		typename Debug_P = typename OsModel_P::Debug>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P>
 	class LoWPAN
 	: public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
@@ -171,13 +51,21 @@ namespace wiselib
 	typedef OsModel_P OsModel;
 	typedef Radio_P Radio;
 	typedef Debug_P Debug;
+	typedef Timer_P Timer;
 	
-	typedef LoWPAN<OsModel, Radio, Debug> self_type;
+	typedef LoWPAN<OsModel, Radio, Debug, Timer> self_type;
 	typedef self_type* self_pointer_t;
 	
-	typedef IPv6<OsModel, self_type, Debug> IPv6_t;
+	typedef IPv6<OsModel, self_type, Debug, Timer> IPv6_t;
 	typedef IPv6Address<self_type, Debug> IPv6Address_t;
 	typedef IPv6Packet<OsModel, IPv6_t, self_type, Debug> Packet;
+	
+	/**
+	* Packet pool manager type
+	*/
+	typedef wiselib::IPv6PacketPoolManager<OsModel, IPv6_t, self_type, Debug> Packet_Pool_Mgr_t;
+	
+	
 	typedef LoWPANInterface<self_type, Debug> Interface_t;
 	
 	typedef IPv6Address_t ip_node_id_t;
@@ -205,7 +93,7 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	enum Restrictions {
 	 	//TODO ...
-		MAX_MESSAGE_LENGTH = LOWPAN_IP_PACKET_BUFFER_MAX_SIZE - 40  ///< Maximal number of bytes in payload
+		MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH  ///< Maximal number of bytes in payload
 	};
 	// --------------------------------------------------------------------
 	///@name Construction / Destruction
@@ -214,12 +102,13 @@ namespace wiselib
 	~LoWPAN();
 	///@}
 	 
-	int init( Radio& radio, Debug& debug )
-	{
-		radio_ = &radio;
-		debug_ = &debug;
-		return SUCCESS;
-	}
+	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
+	 {
+	 	radio_ = &radio;
+	 	debug_ = &debug;
+	 	packet_pool_mgr_ = p_mgr;
+	 	return SUCCESS;
+	 }
 	 
 	inline int init();
 	inline int destruct();
@@ -256,6 +145,7 @@ namespace wiselib
 	
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
+	Packet_Pool_Mgr_t* packet_pool_mgr_;
 	
 	
 	/**
@@ -280,8 +170,9 @@ namespace wiselib
 	
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	typename Debug_P,
+	typename Timer_P>
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	LoWPAN()
 	: radio_ ( 0 ),
 	debug_ ( 0 )
@@ -290,8 +181,9 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	typename Debug_P,
+	typename Timer_P>
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	~LoWPAN()
 	{
 		disable_radio();
@@ -303,9 +195,10 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	init( void )
 	{
 		return enable_radio();
@@ -313,9 +206,10 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	destruct( void )
 	{
 		return disable_radio();
@@ -323,9 +217,10 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	enable_radio( void )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
@@ -342,9 +237,10 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	disable_radio( void )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
@@ -360,18 +256,19 @@ namespace wiselib
 	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	send( ip_node_id_t destination, size_t len, block_data_t *data )
 	{
-
 		//The *data has to be a constructed IPv6 package
 		Packet *message = reinterpret_cast<Packet*>(data);
 		
 		//Send the package to the next hop
 		node_id_t mac_destination;
 		IP_to_MAC( destination, mac_destination);
+
 		if ( radio().send( mac_destination, message->get_content_size(), message->get_content() ) != SUCCESS )
 			return ERR_UNSPEC;
 	
@@ -385,9 +282,10 @@ namespace wiselib
 	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	receive( node_id_t from, size_t len, block_data_t *data )
 	{
 		if ( from == radio().id() )
@@ -401,6 +299,8 @@ namespace wiselib
 		debug().debug( "LoWPAN layer: Received data from %i \n", from );
 		#endif
 		
+		
+		//TODO: Uncompress, defragment the packet, put it into the pool and push up just the number of the packet in the pool
 		notify_receivers( from, len, data );
 		
 	}
@@ -410,9 +310,10 @@ namespace wiselib
 	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
 	typename Radio_P,
-	typename Debug_P>
+	typename Debug_P,
+	typename Timer_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	IP_to_MAC( ip_node_id_t ip_address ,node_id_t& mac_address )
 	{
 		if( ip_address == IPv6_t::BROADCAST_ADDRESS )

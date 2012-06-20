@@ -23,6 +23,7 @@
 
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
+#include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
 /*
 Echo Request & Reply:
@@ -71,6 +72,12 @@ namespace wiselib
 	* Define an IPv6 packet with IP Radio and the lower level Radio as Link Layer Radio
 	*/
 	typedef IPv6Packet<OsModel, Radio, Radio_Link_Layer, Debug> IPv6Packet_t;
+	
+	/**
+	* Packet pool manager type
+	*/
+	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Radio_Link_Layer, Debug> Packet_Pool_Mgr_t;
+	
 
 	
 	typedef typename Radio::node_id_t node_id_t;
@@ -84,7 +91,8 @@ namespace wiselib
 		SUCCESS = OsModel::SUCCESS,
 		ERR_UNSPEC = OsModel::ERR_UNSPEC,
 		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
+		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
+		ROUTING_CALLED = Radio::ROUTING_CALLED
 	};
 	// --------------------------------------------------------------------
 	
@@ -124,10 +132,11 @@ namespace wiselib
 	 ~ICMPv6();
 	///@}
 	 
-	int init( Radio& radio, Debug& debug )
+	int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
 	{
 		radio_ = &radio;
 		debug_ = &debug;
+		packet_pool_mgr_ = p_mgr;
 		return SUCCESS;
 	}
 	 
@@ -182,6 +191,7 @@ namespace wiselib
 	
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
+	Packet_Pool_Mgr_t* packet_pool_mgr_;
 	
 	/**
 	* Callback ID
@@ -327,26 +337,31 @@ namespace wiselib
 		IPv6Address_t sourceaddr;
 		sourceaddr = radio().id();
 		
-		//Construct the IPv6 packet here
-		IPv6Packet_t message;
+		//Get a packet from the manager
+		IPv6Packet_t* message = packet_pool_mgr_->get_unused_packet();
+		if( message == NULL )
+			return ERR_UNSPEC;
+		//It is an outgoing packet
+		message->incoming = false;
+		message->compressed = false;
 		
-		message.set_next_header(Radio::ICMPV6);
+		message->set_next_header(Radio::ICMPV6);
 		//TODO hop limit?
-		message.set_hop_limit(255);
-		message.set_source_address(sourceaddr);
-		message.set_destination_address(destination);
-		message.set_flow_label(0);
-		message.set_traffic_class(0);
+		message->set_hop_limit(255);
+		message->set_source_address(sourceaddr);
+		message->set_destination_address(destination);
+		message->set_flow_label(0);
+		message->set_traffic_class(0);
 		
 		//For most of the ICMPv6 messages but for some it has to be larger
-		message.set_length(8);
+		message->set_length(8);
 		
 		//Message Type
-		message.set_payload( data, 1, 0 );
+		message->set_payload( data, 1, 0 );
 		
 		//Message Code
 		uint8_t zero = 0;
-		message.set_payload( &zero, 1, 1 );
+		message->set_payload( &zero, 1, 1 );
 
 		int typecode = data[0];
 		switch(typecode){
@@ -354,19 +369,19 @@ namespace wiselib
 				//Identifier
 				uint8_t id[2];
 				generate_id(id);
-				message.set_payload( id, 2, 4 );
+				message->set_payload( id, 2, 4 );
 				
 				//Sequence Number
-				message.set_payload( &zero, 1, 6 );
-				message.set_payload( &zero, 1, 7 );
+				message->set_payload( &zero, 1, 6 );
+				message->set_payload( &zero, 1, 7 );
 				break;
 			case ECHO_REPLY:
 				//Identifier
-				message.set_payload( data + 1, 2, 4 );
+				message->set_payload( data + 1, 2, 4 );
 			 
 				//Sequence Number
-				message.set_payload( &zero, 1, 6 );
-				message.set_payload( &zero, 1, 7 );
+				message->set_payload( &zero, 1, 6 );
+				message->set_payload( &zero, 1, 7 );
 				break;
 			default:
 				#ifdef ICMPv6_LAYER_DEBUG
@@ -377,18 +392,22 @@ namespace wiselib
 		
 		//Checksum calculation
 		//To calculate checksum the field has to be 0
-		message.set_payload( &zero, 1, 2 );
-		message.set_payload( &zero, 1, 3 );
+		message->set_payload( &zero, 1, 2 );
+		message->set_payload( &zero, 1, 3 );
 		
 		uint8_t tmp;
-		uint16_t checksum = radio().generate_checksum( message.length(), message.payload() );
+		uint16_t checksum = radio().generate_checksum( message->length(), message->payload() );
 		tmp = 0xFF & (checksum >> 8);
-		message.set_payload( &tmp, 1, 2 );
+		message->set_payload( &tmp, 1, 2 );
 		tmp = 0xFF & (checksum);
-		message.set_payload( &tmp, 1, 3 );
+		message->set_payload( &tmp, 1, 3 );
 		
 		//Send the packet to the IP layer
-		return radio().send( destination, message.get_content_size(), message.get_content() );
+		int result = radio().send( destination, message->get_content_size(), message->get_content() );
+		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
+		if( result != ROUTING_CALLED )
+			packet_pool_mgr_->clean_packet( message );
+		return result;
 	}
 	
 	// -----------------------------------------------------------------------
@@ -431,7 +450,7 @@ namespace wiselib
 				uint8_t id[2];
 				generate_id(id);
 				
-				if( (id[0] == data[4]) && (id[1] == id[5]) )
+				if( (id[0] == data[4]) && (id[1] == data[5]) )
 				{
 					#ifdef ICMPv6_LAYER_DEBUG
 					debug().debug( "ICMPv6 layer: Echo reply received from: ");
@@ -468,7 +487,7 @@ namespace wiselib
 	{
 		//NOTE Some random function...
 		id[0] = radio().id().addr[12] ^ radio().id().addr[13];
-		id[0] = radio().id().addr[14] ^ radio().id().addr[15];
+		id[1] = radio().id().addr[14] ^ radio().id().addr[15];
 	}
 }
 #endif

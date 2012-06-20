@@ -2,6 +2,7 @@
 #include "external_interface/external_interface.h"
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
+//#include "algorithms/6lowpan/lowpan_packet.h"
 #include "algorithms/6lowpan/ipv6.h"
 #include "algorithms/6lowpan/lowpan.h"
 #include "algorithms/6lowpan/ipv6_stack.h"
@@ -14,11 +15,12 @@ typedef Os::Radio::node_id_t node_id_t;
 
 
 
-typedef wiselib::IPv6Stack<Os, Radio, Os::Debug> IPv6_stack_t;
-typedef wiselib::LoWPAN<Os, Radio, Os::Debug> LoWPAN_t;
-typedef wiselib::IPv6<Os, LoWPAN_t, Os::Debug> IPv6_t;
+typedef wiselib::IPv6Stack<Os, Radio, Os::Debug, Os::Timer> IPv6_stack_t;
+typedef wiselib::LoWPAN<Os, Radio, Os::Debug, Os::Timer> LoWPAN_t;
+typedef wiselib::IPv6<Os, LoWPAN_t, Os::Debug, Os::Timer> IPv6_t;
 typedef wiselib::IPv6Address<LoWPAN_t, Os::Debug> IPv6Address_t;
 typedef wiselib::IPv6Packet<Os, IPv6_t, LoWPAN_t, Os::Debug> IPv6Packet_t;
+//typedef wiselib::LoWPANPacket<Os, LoWPAN_t, IPv6_t, Os::Debug> LoWPANPacket_t;
 
 class lowpanApp
 {
@@ -36,8 +38,8 @@ class lowpanApp
 
          debug_->debug( "Booting with ID: %d\n", radio_->id());
 	 
-	 ipv6_stack_.init(*radio_, *debug_);
-	 callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
+	 ipv6_stack_.init(*radio_, *debug_, *timer_);
+	 callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 	 
 	 //HACK
 	 //It will have to come from an advertisement!
@@ -86,7 +88,7 @@ class lowpanApp
 	 /*
 	 UDP
 	 */
-	 /*if( radio_->id() == 0 )
+	/* if( radio_->id() == 0 )
 	 {
 	 	int my_number = ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
 	 	ipv6_stack_.udp.print_sockets();
@@ -130,7 +132,48 @@ class lowpanApp
 	 	ipv6_stack_.ipv6.send(destinationaddr,message.get_content_size(),message.get_content());*/
 	//NOTE END
 	 
-
+	/*
+	LOWPAN PACKET TEST
+	*/
+	
+	/*node_id_t s = 10;
+	node_id_t d = 600;
+	
+	LoWPANPacket_t packet;
+	//packet.set_mesh_header(20,&s,&d);
+	
+	uint16_t size = 100;
+	uint16_t tag = 234;
+	packet.set_fragmentation_header( size, tag, 10 );
+	
+	packet.recover_packet();
+	
+	block_data_t* buf = packet.get_content();
+	size_t len = packet.get_content_len();
+	
+	if(radio_->id() == 0) 
+	for( int i = 0; i < 30; i++ )
+		debug_->debug( "%i: %x\n", i, buf[i] );*/
+	
+	/*packet.decrement_hopsleft();
+	
+	if(radio_->id() == 0) 
+	 for( int i = 0; i < 30; i++ )
+	  debug_->debug( "%i: %x\n", i, buf[i] );
+	 
+	 node_id_t tmpa = packet.get_mesh_source_address();
+	 debug_->debug( "Src %x\n", tmpa );
+	tmpa = packet.get_mesh_destination_address();
+	debug_->debug( "Dst %x\n", tmpa );*/
+	
+	/*uint16_t tmpf = packet.get_fragmentation_size();
+	debug_->debug( "Frag size %i\n", tmpf );
+	
+	tmpf = packet.get_fragmentation_tag();
+	debug_->debug( "Tag size %i\n", tmpf );
+	
+	uint8_t tmpf8 = packet.get_fragmentation_offset();
+	debug_->debug( "Offs size %i\n", tmpf8 );*/
 	 
          //timer_->set_timer<lowpanApp,&lowpanApp::broadcast_loop>( 3000, this, 0 );
       }
