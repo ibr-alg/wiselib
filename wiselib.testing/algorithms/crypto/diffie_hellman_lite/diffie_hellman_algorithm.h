@@ -22,10 +22,10 @@
 #define DIFFIE_HELLMAN_ALGORITHM_H
 
 #include "util/base_classes/routing_base.h"
-#include "algorithm/diffie_hellman_message.h"
-#include "algorithm/diffie_hellman_list.h"
-#include "algorithm/diffie_hellman_crypto_handler.h"
-#include "algorithm/aes.h"
+#include "algorithms/crypto/diffie_hellman_lite/diffie_hellman_message.h"
+#include "algorithms/crypto/diffie_hellman_lite/diffie_hellman_list.h"
+#include "algorithms/crypto/diffie_hellman_lite/diffie_hellman_crypto_handler.h"
+#include "algorithms/crypto/diffie_hellman_lite/aes.h"
 #include <string.h>
 #ifdef SHAWN
 #include <stdlib.h>
