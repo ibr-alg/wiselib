@@ -343,7 +343,6 @@ namespace wiselib
 			return ERR_UNSPEC;
 		//It is an outgoing packet
 		message->incoming = false;
-		message->compressed = false;
 		
 		message->set_next_header(Radio::ICMPV6);
 		//TODO hop limit?

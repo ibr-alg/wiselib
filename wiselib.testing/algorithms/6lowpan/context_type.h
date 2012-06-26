@@ -16,70 +16,53 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ALGORITHMS_6LOWPAN_INTERFACE_TYPE_H__
-#define __ALGORITHMS_6LOWPAN_INTERFACE_TYPE_H__
-
-#include "algorithms/6lowpan/ipv6_address.h"
+#ifndef __ALGORITHMS_6LOWPAN_CONTEXT_TYPE_H__
+#define __ALGORITHMS_6LOWPAN_CONTEXT_TYPE_H__
 
 namespace wiselib
 {
-	template<typename Radio_P, typename Debug_P>
-	class LoWPANInterface
+	template<typename Radio_P>
+	class LoWPANContextType
 	{
 	public:
 		typedef Radio_P Radio;
-		typedef Debug_P Debug;
 		typedef typename Radio::node_id_t node_id_t;
 		
-		typedef IPv6Address<Radio, Debug> IPv6Address_t;
-
 		// -----------------------------------------------------------------
-		LoWPANInterface()
+		LoWPANContextType()
+			: valid_lifetime( 0 ),
+			prefix( Radio::NULL_NODE_ID )
 			{}
 
 		// -----------------------------------------------------------------
 
-		LoWPANInterface( IPv6Address_t link_local, IPv6Address_t global)
-			: link_local_address_( link_local ),
-			global_address_( global )
+		LoWPANContextType( uint16_t life, node_id_t pref )
+			: valid_lifetime( life ),
+			prefix( pref )
 			{}
-		// -----------------------------------------------------------------
-		
-		IPv6Address_t* get_link_local_address()
-		{
-			return &link_local_address_;
-		}
-
-		// -----------------------------------------------------------------
-
-		IPv6Address_t* get_global_address()
-		{
-			return &global_address_;
-		}
-		
-		// -----------------------------------------------------------------
-		
-		void set_link_local_address_from_MAC( node_id_t link_layer_id )
-		{
-			link_local_address_.make_it_link_local();
-			link_local_address_.set_long_iid( &link_layer_id, false );
-		}
-		
-		// -----------------------------------------------------------------
-		
-		void set_global_address_from_MAC( node_id_t link_layer_id, uint8_t* prefix, uint8_t prefix_l = 64 )
-		{
-			global_address_.set_prefix( prefix, prefix_l );
-			global_address_.set_long_iid( &link_layer_id, true );
-		}
+			
+			
+		/**
+		* Maximum lifetime
+		*/
+		uint16_t valid_lifetime;
 	
-	private:
+		/*
+		*  Seuencenumber of this context
 		
-		typename Radio::self_pointer_t radio_;
-	 
-		//The interface's addresses
-		IPv6Address_t link_local_address_;
-		IPv6Address_t global_address_;
+		uint16_t sequence_number;
+		
+		
+		* Determines if this context is onlink
+		
+		bool onlink_;*/
+	
+		/**
+		* Prefix stored within this context
+		* This is an IPv6 address
+		* Prefix length inside
+		*/
+		node_id_t prefix;	  
 	};
 
 }

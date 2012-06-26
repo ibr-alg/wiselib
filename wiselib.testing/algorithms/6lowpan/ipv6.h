@@ -131,7 +131,7 @@ namespace wiselib
 		ERR_UNSPEC = OsModel::ERR_UNSPEC,
 		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
 		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-		ROUTING_CALLED = 100
+		ROUTING_CALLED = Radio::ROUTING_CALLED
 	};
 	// --------------------------------------------------------------------
 	
@@ -521,7 +521,7 @@ namespace wiselib
 		//Basic packet test
 		if( bitwise_read<OsModel, block_data_t, uint8_t>( data, 0, 4 ) != 6 )
 		{
-			for(int i = 0; i< 20; i++)
+			for(int i = 0; i< len; i++)
 				debug().debug( "%x\n", data[i] );
 			#ifdef IPv6_LAYER_DEBUG
 			debug().debug( "IPv6 layer: Dropped a non IPv6 packet!\n" );

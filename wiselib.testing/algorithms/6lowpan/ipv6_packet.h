@@ -276,11 +276,6 @@ namespace wiselib
 	*/
 	bool defragmentation_finished;
 	
-	/**
-	* Indicates that the header is compressed or not
-	*/
-	bool compressed;
-	
 	private:
 	
 	Debug& debug()

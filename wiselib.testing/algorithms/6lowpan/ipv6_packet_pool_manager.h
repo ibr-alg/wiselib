@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ALGORITHMS_6LOWPAN_IP_PACKET_STORE_TYPES_H__
-#define __ALGORITHMS_6LOWPAN_IP_PACKET_STORE_TYPES_H__
+#ifndef __ALGORITHMS_6LOWPAN_IP_PACKET_POOL__H__
+#define __ALGORITHMS_6LOWPAN_IP_PACKET_POOL__H__
 
 #include "algorithms/6lowpan/ipv6_packet.h"
 

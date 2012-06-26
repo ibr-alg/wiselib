@@ -47,6 +47,13 @@ namespace wiselib
 	  //If the remaining bits are less than the space in the actual byte
 	  if( value_length <= ( 8 - target_shift ))
 	  {
+	    //Clear the bits
+	    //Set 1 to the bits upper than the value
+	    BlockData mask = (0xFF << ( 8 - target_shift ));
+	    //Set 1 to the bits lower than the value
+	    mask |= ~(0xFF << ( 8 - target_shift - value_length ));
+	    target[position] &= mask;
+	    
 	    target[position] |= value << ( 8 - value_length - target_shift );
 	    return sizeof(Type);
 	  }
@@ -54,8 +61,13 @@ namespace wiselib
 	  
 	  else
 	  {
+	   //Clear the lower bits in the byte if target_shift exists or the whole byte if not.
+	   target[position] &= ~(0xFF >> target_shift);
+	   
 	     //remaining length
 	    value_length -= ( 8 - target_shift );
+	    
+	    
 	    
 	    //Shift out the overflow bits
 	    //1. Shift the actual highest bit to the top of the byte

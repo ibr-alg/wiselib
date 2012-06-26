@@ -49,6 +49,9 @@
 //6LoWPAN IP packet max size
 #define LOWPAN_IP_PACKET_BUFFER_MAX_SIZE 1500
 
+//The Contexts number, it should be 16
+#define LOWPAN_CONTEXTS_NUMBER 16
+
 //IP packet store size
 #define IP_PACKET_POOL_SIZE 2
 

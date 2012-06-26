@@ -39,7 +39,7 @@ class lowpanApp
          debug_->debug( "Booting with ID: %d\n", radio_->id());
 	 
 	 ipv6_stack_.init(*radio_, *debug_, *timer_);
-	 callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
+	 callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 	 
 	 //HACK
 	 //It will have to come from an advertisement!
@@ -72,7 +72,7 @@ class lowpanApp
 	 //Broadcast test
 	 //destinationaddr = IPv6_t::BROADCAST_ADDRESS;
 	 
-	 uint8_t mypayload[8];
+	 uint8_t mypayload[300];
 	 mypayload[0]='h';
 	 mypayload[1]='e';
 	 mypayload[2]='l';
@@ -88,25 +88,25 @@ class lowpanApp
 	 /*
 	 UDP
 	 */
-	/* if( radio_->id() == 0 )
+	 if( radio_->id() == 0 )
 	 {
 	 	int my_number = ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
 	 	ipv6_stack_.udp.print_sockets();
-	 	ipv6_stack_.udp.send(my_number,8,mypayload);
+	 	ipv6_stack_.udp.send(my_number,300,mypayload);
 	 }
 	 if( radio_->id() == 1 )
 	 {
 	 	node_id_t ll_id = 0;
 	 	destinationaddr.set_long_iid(&ll_id, false);
 	 	ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
-	 }*/
+	 }
 	 
 	 /*ICMPv6 Ping test*/
 	 // 0 ---> 1 <---- 2
-	 if( radio_->id() != 1 )
+	 /*if( radio_->id() != 1 )
 	 {
 	 	ipv6_stack_.icmpv6.ping(destinationaddr);
-	 }
+	 }*/
 	 
 	 //These will be in the UDP layer!
 	 //Next header = 17 UDP
