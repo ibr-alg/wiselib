@@ -366,7 +366,6 @@ namespace wiselib
 		 return ERR_UNSPEC;
 		//It is an outgoing packet
 		message->incoming = false;
-		message->compressed = true;
 		
 		//Next header = 17 UDP
 		message->set_next_header(Radio::UDP);

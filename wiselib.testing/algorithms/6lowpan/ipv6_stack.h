@@ -56,18 +56,18 @@ namespace wiselib
 		debug_->debug( "IPv6 stack init: %d\n", radio_->id());
 	
 		//Init LoWPAN
-		lowpan.init(*radio_, *debug_, &packet_pool_mgr);
+		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_, ipv6);
 	 
 		//Init IPv6
 		ipv6.init( lowpan, *debug_, &packet_pool_mgr, *timer_);
 		
 		//Init UDP
-		//udp.init( ipv6, *debug_, &packet_pool_mgr);
-		//udp.enable_radio();
+		udp.init( ipv6, *debug_, &packet_pool_mgr);
+		udp.enable_radio();
 		
 		//Init ICMPv6
-		icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
-		icmpv6.enable_radio();
+		//icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
+		//icmpv6.enable_radio();
 	}
 	
 	ICMPv6_t icmpv6; 

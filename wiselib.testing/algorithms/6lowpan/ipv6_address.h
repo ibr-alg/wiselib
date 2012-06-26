@@ -94,7 +94,7 @@ namespace wiselib
 	//If the prefix_l is shorter than 64, the prefix has to contain zeros at the lower bits!
 	void set_prefix( uint8_t* prefix, uint8_t prefix_l = 64 )
 	{	
-		memcpy(&(addr[0]), prefix, 8);
+		memcpy(&(addr[0]), prefix, (int)(prefix_l / 8));
 		prefix_length = prefix_l;
 	}
 	
@@ -159,12 +159,12 @@ namespace wiselib
 	
 	// --------------------------------------------------------------------
 	
-	bool is_it_link_local( IPv6Address& address )
+	bool is_it_link_local( )
 	{
-		if ( (address.addr[0] == (uint8_t)0xFE) && (address.addr[1] == (uint8_t)0x80) )
+		if ( (addr[0] == (uint8_t)0xFE) && (addr[1] == (uint8_t)0x80) )
 		{
 	 		for( uint8_t i = 2; i < 8; i++)
-				if( address.addr[i] != 0 )
+				if( addr[i] != 0 )
 					return false;
 		
 			return true;
