@@ -22,7 +22,6 @@
 #include "util/base_classes/routing_base.h"
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
-//#include "algorithms/6lowpan/lowpan_packet.h"
 #include "algorithms/6lowpan/ipv6.h"
 #include "util/serialization/bitwise_serialization.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
@@ -99,8 +98,8 @@ namespace wiselib
 	 NULL_NODE_ID      = Radio_P::NULL_NODE_ID      ///< Unknown/No node id
 	};
 	// --------------------------------------------------------------------
+	//NOTE: The length of the header stack is not fix, the MAX_MESSAGE_LENGTH is the full size of the transmittable packet
 	enum Restrictions {
-	 	//TODO ...
 		MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH  ///< Maximal number of bytes in payload
 	};
 	// --------------------------------------------------------------------
@@ -134,7 +133,7 @@ namespace wiselib
 	///@{
 	/**
 	*/
-	int send( IPv6Address_t receiver, size_t len, block_data_t *data );
+	int send( IPv6Address_t receiver, size_t packet_number, block_data_t *data );
 	/**
 	*/
 	void receive( node_id_t from, size_t len, block_data_t *data );
@@ -640,13 +639,13 @@ namespace wiselib
 	typename Timer_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	send( IPv6Address_t destination, size_t len, block_data_t *data )
+	send( IPv6Address_t destination, size_t packet_number, block_data_t *data )
 	{
 		//Reset buffer_ and shifts
 		reset_buffer();
 		
 		//The *data has to be a constructed IPv6 package
-		IPv6Packet_t *ip_packet = reinterpret_cast<IPv6Packet_t*>(data);
+		IPv6Packet_t *ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
 		//Send the package to the next hop
 		node_id_t mac_destination;
@@ -707,7 +706,7 @@ namespace wiselib
 			if( frag_required )
 			{
 				//Use the full uncompressed IP packet's size
-				set_fragmentation_header( (uint16_t)len, fragmentation_tag, offset );
+				set_fragmentation_header( ip_packet->get_content_size(), fragmentation_tag, offset );
 			}
 			
 			//Free space in the packet, the offset is used in 8 octets
@@ -844,9 +843,9 @@ namespace wiselib
 			else
 			{
 				//If no free packet, drop the actual
+				
 				if (!(reassembling_mgr_.start_new_reassembling( datagram_size, from, d_tag )))
 					return;
-				
 				reassembling_mgr_.is_it_new_offset( fragment_offset );
 			}
 		}
@@ -932,7 +931,7 @@ namespace wiselib
 				tmp = 0xFF & (checksum);
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
 			}
-			notify_receivers( from, reassembling_mgr_.ip_packet->get_content_size(), reassembling_mgr_.ip_packet->get_content() );
+			notify_receivers( from, reassembling_mgr_.ip_packet_number, NULL );
 		}
 		
 	}

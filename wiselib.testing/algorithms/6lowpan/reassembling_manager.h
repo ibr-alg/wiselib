@@ -74,17 +74,16 @@ namespace wiselib
 		bool start_new_reassembling( uint16_t size, node_id_t sender, uint16_t tag = 0 )
 		{
 			//Still working, or it is a fragment from the previous packet
-			if( valid == true || ((previous_datagram_tag == tag ) && (previous_frag_sender != sender)) )
+			if( valid == true || ( ( tag != 0 ) && (previous_datagram_tag == tag ) && (previous_frag_sender != sender)) )
 				return false;
 			else
 			{
-				ip_packet = packet_pool_mgr->get_unused_packet();
-			
-				//No free packet
-				if( ip_packet == NULL )
+				ip_packet_number = packet_pool_mgr->get_unused_packet_with_number();
+				if( ip_packet_number == 255 )
 					return false;
 				else
 				{
+					ip_packet = packet_pool_mgr->get_packet_pointer( ip_packet_number );
 					previous_datagram_tag = datagram_tag;
 					previous_frag_sender = frag_sender;
 					
@@ -92,6 +91,7 @@ namespace wiselib
 					datagram_tag = tag;
 					datagram_size = size;
 					received_fragments_number = 0;
+					received_datagram_size = 0;
 					memset( rcvd_offsets, 0, MAX_FRAGMENTS );
 					
 					//reset_timer();
@@ -150,6 +150,10 @@ namespace wiselib
 		* Reference to the used IP packet from the pool
 		*/
 		IPv6_Packet_t* ip_packet;
+		/**
+		* Number of the used IP packet from the pool
+		*/
+		uint8_t ip_packet_number;
 
 		/**
 		* The current fargmentation process is still valid
