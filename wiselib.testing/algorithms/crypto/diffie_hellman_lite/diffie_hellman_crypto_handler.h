@@ -22,8 +22,8 @@
 #define DIFFIE_HELLMAN_CRYPTO_HANDLER_H
 
 #include <string.h>
-#include "algorithm/aes.h"
-#include "algorithm/diffie_hellman_config.h"
+#include "algorithms/crypto/diffie_hellman_lite/aes.h"
+#include "algorithms/crypto/diffie_hellman_lite/diffie_hellman_config.h"
 
 namespace wiselib
 {
