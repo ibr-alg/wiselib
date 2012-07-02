@@ -361,7 +361,11 @@ namespace wiselib
 		//IPv6Packet_t message;
 		
 		//Get a packet from the manager
-		IPv6Packet_t* message = packet_pool_mgr_->get_unused_packet();
+		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
+		if( packet_number == 255 )
+		 return ERR_UNSPEC;
+		
+		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		if( message == NULL )
 		 return ERR_UNSPEC;
 		//It is an outgoing packet
@@ -416,7 +420,8 @@ namespace wiselib
 		message->set_payload( &tmp, 1, 7 );
 
 		//Send the packet to the IP layer
-		int result = radio().send( sockets_[socket_number].remote_host, message->get_content_size(), message->get_content() );
+		//data stored in the pool, pass just the number of the packet
+		int result = radio().send( sockets_[socket_number].remote_host, packet_number, NULL );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
 		if( result != ROUTING_CALLED )
 			packet_pool_mgr_->clean_packet( message );

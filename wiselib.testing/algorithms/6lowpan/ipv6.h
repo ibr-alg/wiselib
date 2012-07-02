@@ -186,10 +186,10 @@ namespace wiselib
 	///@{
 	/**
 	*/
-	int send( node_id_t receiver, size_t len, block_data_t *data );
+	int send( node_id_t receiver, size_t packet_number, block_data_t *data );
 	/**
 	*/
-	void receive( link_layer_node_id_t from, size_t len, block_data_t *data );
+	void receive( link_layer_node_id_t from, size_t packet_number, block_data_t *data );
 	/**
 	*/
 	node_id_t id()
@@ -431,7 +431,7 @@ namespace wiselib
 	typename Timer_P>
 	int
 	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	send( node_id_t destination, size_t len, block_data_t *data )
+	send( node_id_t destination, size_t packet_number, block_data_t *data )
 	{
 		#ifdef LOWPAN_ROUTE_OVER
 		//In the route over mode, every hop is an IP hop
@@ -440,8 +440,8 @@ namespace wiselib
 		ForwardingTableIterator it = forwarding_table_.find( destination );
 		if ( destination == BROADCAST_ADDRESS || ( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID ) )
 		{
-			//The *data has to be a constructed IPv6 package
-		 	Packet *message = reinterpret_cast<Packet*>(data);
+			//The *data has to be the packet's number in the pool
+			//Packet *message = packet_pool_mgr_->get_packet_pointer( *data );
 			
 			
 			#ifdef IPv6_LAYER_DEBUG
@@ -454,7 +454,7 @@ namespace wiselib
 				debug().debug( " (multicast to all nodes)\n" );
 				#endif
 				//Send the package to the next hop
-				if ( radio().send( BROADCAST_ADDRESS, message->get_content_size(), message->get_content() ) != SUCCESS )
+				if ( radio().send( BROADCAST_ADDRESS, packet_number, NULL ) != SUCCESS )
 					return ERR_UNSPEC;
 			}
 			else
@@ -465,7 +465,7 @@ namespace wiselib
 				debug().debug( "\n");
 				#endif
 				//Send the package to the next hop
-				if( radio().send( it->second.next_hop, message->get_content_size(), message->get_content() ) != SUCCESS )
+				if( radio().send( it->second.next_hop, packet_number, NULL ) != SUCCESS )
 					return ERR_UNSPEC;
 			}
 		}
@@ -513,24 +513,13 @@ namespace wiselib
 	typename Timer_P>
 	void
 	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	receive( link_layer_node_id_t from, size_t len, block_data_t *data )
+	receive( link_layer_node_id_t from, size_t packet_number, block_data_t *data )
 	{
 		if ( from == radio().id() )
 			return;
 		
-		//Basic packet test
-		if( bitwise_read<OsModel, block_data_t, uint8_t>( data, 0, 4 ) != 6 )
-		{
-			for(int i = 0; i< len; i++)
-				debug().debug( "%x\n", data[i] );
-			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: Dropped a non IPv6 packet!\n" );
-			#endif
-			return;
-		}
-		
-		//Cast the received data
-		Packet *message = reinterpret_cast<Packet*>(data);
+		//Get the packet pointer from the manager
+		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
 		node_id_t destination_ip;
 		message->destination_address(destination_ip);
@@ -550,8 +539,12 @@ namespace wiselib
 			debug().debug( "\n" );
 			#endif
 			
+			//TODO: won't it be a problem...?
+			packet_pool_mgr_->clean_packet( message );
+			
 			//Push up just the payload!
 			notify_receivers( source_ip, message->length(), message->payload() );
+
 		}
 		
 		//TODO: handle multicast group addresses here?
@@ -573,7 +566,8 @@ namespace wiselib
 				debug().debug( "\n");
 				#endif
 
-				radio().send( it->second.next_hop, message->get_content_size(), message->get_content() );
+				if( ROUTING_CALLED != radio().send( it->second.next_hop, packet_number, NULL ) )
+					packet_pool_mgr_->clean_packet( message );
 			}
 			
 			else
@@ -588,6 +582,8 @@ namespace wiselib
 				address.print_address();
 				debug().debug( " known.\n" );
 				#endif
+				
+				packet_pool_mgr_->clean_packet( message );
 			}
 		}
 		#endif
@@ -715,7 +711,7 @@ namespace wiselib
 				IPv6Address_t dest;
 				packet_pool_mgr_->packet_pool[i].destination_address(dest);
 			 
-				int result = send( dest, packet_pool_mgr_->packet_pool[i].get_content_size(), packet_pool_mgr_->packet_pool[i].get_content() );
+				int result = send( dest, i, NULL );
 				
 				//Set the packet unused when transmitted
 				//The result can be ROUTING_CALLED if there were more then one requests for the routing algorithm

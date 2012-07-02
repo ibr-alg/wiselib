@@ -73,7 +73,7 @@ namespace wiselib
 					return i;
 				}
 			}
-			return -1;
+			return 255;
 		}
 		
 		/**
