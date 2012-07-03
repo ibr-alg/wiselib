@@ -46,6 +46,13 @@ namespace wiselib
 					packet_pool[i].valid = false;
 				}
 			}
+		
+		// -----------------------------------------------------------------
+		
+		void init( Debug& debug )
+	 	{
+	 		debug_ = &debug;
+		}
 
 		// -----------------------------------------------------------------
 
@@ -73,6 +80,7 @@ namespace wiselib
 					return i;
 				}
 			}
+			debug().debug( "IP packet pool manager: ERROR - no free packet\n" );
 			return 255;
 		}
 		
@@ -114,6 +122,12 @@ namespace wiselib
 		* Array with defined size
 		*/
 		Packet packet_pool[IP_PACKET_POOL_SIZE];
+		
+	 private:
+	 	typename Debug::self_pointer_t debug_;
+		
+		Debug& debug()
+		{ return *debug_; }
 		
 	};
 

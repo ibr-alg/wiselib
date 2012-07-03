@@ -54,6 +54,8 @@ namespace wiselib
 		timer_ = &timer;
 		
 		debug_->debug( "IPv6 stack init: %d\n", radio_->id());
+		
+		packet_pool_mgr.init( *debug_ );
 	
 		//Init LoWPAN
 		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_, ipv6);
