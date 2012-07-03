@@ -481,17 +481,24 @@ namespace wiselib
 			if( routing_.is_working == false )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " in the forwarding table, routing algorithm called!\n" );
+				debug().debug( " in the forwarding table, routing algorithm is called!\n" );
 				#endif
 				
 				routing_.find( destination, this );
+			}
+			//If the algorithm is working on this destination, leave the packet in the pool,
+			else if( routing_.requested_destination_ == destination )
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug().debug( " in the forwarding table, routing algorithm is working on this destination address!\n" );
+				#endif
 			}
 			//If the algorithm is working, leave the packet in the pool,
 			//In the callback function this packet will be sent too, and the algorithm will be called.
 			else
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " in the forwarding table, routing algorithm working, it will be called later!\n" );
+				debug().debug( " in the forwarding table, routing algorithm is working, it will be called later!\n" );
 				#endif
 			}
 			
@@ -521,6 +528,7 @@ namespace wiselib
 		//Get the packet pointer from the manager
 		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
+		
 		node_id_t destination_ip;
 		message->destination_address(destination_ip);
 		//The packet is for this node (unicast)
@@ -539,11 +547,15 @@ namespace wiselib
 			debug().debug( "\n" );
 			#endif
 			
-			//TODO: won't it be a problem...?
-			packet_pool_mgr_->clean_packet( message );
+			//If not a supported transport layer, drop it
+			if( (message->next_header() != UDP) && (message->next_header() != ICMPV6) )
+			{
+				packet_pool_mgr_->clean_packet( message );
+				return;
+			}
 			
 			//Push up just the payload!
-			notify_receivers( source_ip, message->length(), message->payload() );
+			notify_receivers( source_ip, packet_number, NULL );
 
 		}
 		

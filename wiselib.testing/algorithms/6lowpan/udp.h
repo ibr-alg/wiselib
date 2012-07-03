@@ -304,8 +304,6 @@ namespace wiselib
 	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
 	enable_radio( void )
 	{
-		if ( radio().enable_radio() != SUCCESS )
-			return ERR_UNSPEC;
 		
 		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: initialization at ");
@@ -435,19 +433,30 @@ namespace wiselib
 	typename Debug_P>
 	void
 	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	receive( ip_node_id_t from, size_t len, block_data_t *data )
+	receive( ip_node_id_t from, size_t packet_number, block_data_t *data )
 	{
+		//Get the packet pointer from the manager
+		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
+		
+		//If it is not an UDP packet, just drop it
+		if( message->next_header() != Radio::UDP )
+			return;
+		//data is NULL, use this pointer for the payload
+		data = message->payload();
+		
+		
 		uint16_t actual_local_port = ( data[2] << 8 ) | data[3];
 		uint16_t actual_remote_port = ( data[0] << 8 ) | data[1];
 		
 		uint16_t checksum = ( data[6] << 8 ) | data[7];
 		data[6] = 0;
 		data[7] = 0;
-		if( checksum != radio().generate_checksum( len, data ) )
+		if( checksum != radio().generate_checksum( message->length(), data ) )
 		{
 			#ifdef UDP_LAYER_DEBUG
 			debug().debug( "UDP layer: Dropped packet (checksum error)\n");
 			#endif
+			packet_pool_mgr_->clean_packet( message );
 			return;
 		}
 		
@@ -470,8 +479,11 @@ namespace wiselib
 				it = it + sockets_[i].callback_id;
 				
 				(*it)( from, len, data );*/
+
+				notify_receivers( from, message->length() - 8, data + 8 );
 				
-				notify_receivers( from, len - 8, data + 8 );
+				//Clean packet after processing
+				packet_pool_mgr_->clean_packet( message );
 				
 				return;
 			}
@@ -482,8 +494,7 @@ namespace wiselib
 		from.print_address();
 		debug().debug( "\n");
 		#endif
-		
-
+		packet_pool_mgr_->clean_packet( message );
 	}
 
 	// -----------------------------------------------------------------------

@@ -69,9 +69,11 @@ namespace wiselib
 		
 		bool is_working;
 		
+		node_id_t requested_destination_;
+		
 	 private:
 	 	typename Timer::self_pointer_t timer_;
-		node_id_t requested_destination_;
+		
 		Radio* callback_radio_;
 		
 		Timer& timer()

@@ -60,13 +60,17 @@ namespace wiselib
 	 
 		//Init IPv6
 		ipv6.init( lowpan, *debug_, &packet_pool_mgr, *timer_);
+		//IPv6 will enable lower level radios
+		ipv6.enable_radio();
 		
 		//Init UDP
-		//udp.init( ipv6, *debug_, &packet_pool_mgr);
-		//udp.enable_radio();
+		udp.init( ipv6, *debug_, &packet_pool_mgr);
+		//Just register callback, not enable IP radio
+		udp.enable_radio();
 		
 		//Init ICMPv6
 		icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
+		//Just register callback, not enable IP radio
 		icmpv6.enable_radio();
 	}
 	

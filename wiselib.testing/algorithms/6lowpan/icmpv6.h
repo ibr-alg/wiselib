@@ -156,7 +156,7 @@ namespace wiselib
 	int send( node_id_t receiver, size_t len, block_data_t *data );
 	/**
 	*/
-	void receive( node_id_t from, size_t len, block_data_t *data );
+	void receive( node_id_t from, size_t packet_number, block_data_t *data );
 	/**
 	*/
 	node_id_t id()
@@ -281,10 +281,6 @@ namespace wiselib
 	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
 	enable_radio( void )
 	{
-		if( radio().enable_radio() != SUCCESS )
-			return ERR_UNSPEC;
-		
-		
 		#ifdef ICMPv6_LAYER_DEBUG
 		debug().debug( "ICMPv6 layer: initialization at ");
 		radio().id().print_address();
@@ -420,16 +416,26 @@ namespace wiselib
 	typename Debug_P>
 	void
 	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	receive( node_id_t from, size_t len, block_data_t *data )
+	receive( node_id_t from, size_t packet_number, block_data_t *data )
 	{
+		//Get the packet pointer from the manager
+		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
+		
+		//If it is not an ICMPv6 packet, just drop it
+		if( message->next_header() != Radio::ICMPV6 )
+			return;
+		//data is NULL, use this pointer for the payload
+		data = message->payload();
+		
 		uint16_t checksum = ( data[2] << 8 ) | data[3];
 		data[2] = 0;
 		data[3] = 0;
-		if( checksum != radio().generate_checksum( len, data ) )
+		if( checksum != radio().generate_checksum( message->length(), data ) )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
 			debug().debug( "ICMPv6 layer: Dropped packet (checksum error)\n");
 			#endif
+			packet_pool_mgr_->clean_packet( message );
 			return;
 		}
 		
@@ -446,6 +452,9 @@ namespace wiselib
 				reply_data[0] = ECHO_REPLY;
 				reply_data[1] = data[4];
 				reply_data[2] = data[5];
+				
+				packet_pool_mgr_->clean_packet( message );
+				
 				send( from, 3, reply_data );
 				break;
 			case ECHO_REPLY:
@@ -460,6 +469,7 @@ namespace wiselib
 					from.print_address();
 					debug().debug( "\n");
 					#endif
+					packet_pool_mgr_->clean_packet( message );
 					notify_receivers( from, 0, NULL );
 				}
 				else
@@ -469,12 +479,14 @@ namespace wiselib
 					from.print_address();
 					debug().debug( "\n");
 					#endif
+					packet_pool_mgr_->clean_packet( message );
 				}
 				break;
 			default:
 				#ifdef ICMPv6_LAYER_DEBUG
 				debug().debug( "ICMPv6 layer: error, received message with incorrect type code: %i ", *data );
 				#endif
+				packet_pool_mgr_->clean_packet( message );
 				return;
 		}
 	}
