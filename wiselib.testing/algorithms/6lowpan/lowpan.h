@@ -739,7 +739,7 @@ namespace wiselib
 				payload_length = 0;
 			}
 
-			debug().debug("PAY LEN: %x\n", ACTUAL_SHIFT );
+			//debug().debug("PAY LEN: %x buffer: %i %i\n", ACTUAL_SHIFT, buffer_[0], buffer_[1] );
 			if ( radio().send( mac_destination, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
 				return ERR_UNSPEC;
 	
@@ -786,7 +786,7 @@ namespace wiselib
 	receive( node_id_t from, size_t len, block_data_t *data )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
-		debug().debug( "LoWPAN layer: Received data from %i \n", from );
+		debug().debug( "LoWPAN layer: Received data from %i at %i\n", from, id() );
 		#endif
 		
 		reset_buffer();
@@ -860,7 +860,7 @@ namespace wiselib
 	//------------------------------------------------------------------------------------------------------------
 	//		IPHC & NHC HEADER PROCESSING
 	//------------------------------------------------------------------------------------------------------------
-		if( 0x03 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + IPHC_DISP_BYTE, IPHC_DISP_BIT, IPHC_DISP_LEN ))
+		if( (fragment_offset == 0) && ( 0x03 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + IPHC_DISP_BYTE, IPHC_DISP_BIT, IPHC_DISP_LEN ) ))
 		{
 			//Non fragmented packet
 			if( FRAG_SHIFT == MAX_MESSAGE_LENGTH )
@@ -901,18 +901,24 @@ namespace wiselib
 	//------------------------------------------------------------------------------------------------------------
 	//		IPHC & NHC HEADER PROCESSING		END
 	//------------------------------------------------------------------------------------------------------------
-		
+
 	//----------------------------------------------------------------------------------------
 	// Defragmentation
 	//----------------------------------------------------------------------------------------
 	
-	//Offset in 8 octetts, if it is not fragmented the offset is 0
-		reassembling_mgr_.ip_packet->set_payload( buffer_ + ACTUAL_SHIFT, len - ACTUAL_SHIFT, ( fragment_offset * 8 ) + NEXT_HEADER_SHIFT );
+		//Offset in 8 octetts, if it is not fragmented the offset is 0
+		int real_payload_offset = ( fragment_offset * 8 ) + NEXT_HEADER_SHIFT;
+		//According to the RFC: the offset starts from the beginning of the IP header
+		//If this is not the first fragment: minus 40 bytes (IP header)
+		if( fragment_offset != 0 )
+			real_payload_offset -= 40;
+		
+		reassembling_mgr_.ip_packet->set_payload( buffer_ + ACTUAL_SHIFT, len - ACTUAL_SHIFT, real_payload_offset );
 		reassembling_mgr_.received_datagram_size += len - ACTUAL_SHIFT;
 	//----------------------------------------------------------------------------------------
 	// Defragmentation		END
 	//----------------------------------------------------------------------------------------
-	debug().debug( "AS: %i len %i rcvd: %i, full:y %i contetn: %i\n", ACTUAL_SHIFT, len, reassembling_mgr_.received_datagram_size, reassembling_mgr_.datagram_size, reassembling_mgr_.ip_packet->get_content_size() );
+		//debug().debug( "AS: %i len %i rcvd: %i, full:y %i contetn: %i\n", ACTUAL_SHIFT, len, reassembling_mgr_.received_datagram_size, reassembling_mgr_.datagram_size, reassembling_mgr_.ip_packet->get_content_size() );
 		if( FRAG_SHIFT == MAX_MESSAGE_LENGTH || 
 		 	reassembling_mgr_.received_datagram_size == reassembling_mgr_.datagram_size )
 		{
@@ -1283,7 +1289,7 @@ namespace wiselib
 		{
 			M_mode = 1;
 			//NOTE: At the moment just DAC=0, the Unicast-Prefix based addresses are not supported
-			uint8_t AC_mode = 1;
+			uint8_t AC_mode = 0;
 			uint8_t AM_mode;
 		
 			//Count zero bytes in the address:
