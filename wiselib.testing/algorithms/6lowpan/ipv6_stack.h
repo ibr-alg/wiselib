@@ -47,16 +47,18 @@ namespace wiselib
 	typedef wiselib::ICMPv6<OsModel, IPv6_t, LoWPAN_t, Debug> ICMPv6_t;
 	typedef wiselib::IPv6PacketPoolManager<OsModel, IPv6_t, LoWPAN_t, Debug> Packet_Pool_Mgr_t;
 	
+	
 	void init( Radio& radio, Debug& debug, Timer& timer)
 	{
 		radio_ = &radio;
 		debug_ = &debug;
 		timer_ = &timer;
 		
-		debug_->debug( "IPv6 stack init: %d\n", radio_->id());
+		debug_->debug( "IPv6 stack init: %x\n", radio_->id());
 		
 		packet_pool_mgr.init( *debug_ );
-	
+		
+		
 		//Init LoWPAN
 		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_, ipv6);
 	 
@@ -73,7 +75,7 @@ namespace wiselib
 		//Init ICMPv6
 		icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
-		icmpv6.enable_radio();
+		//icmpv6.enable_radio();
 	}
 	
 	ICMPv6_t icmpv6; 

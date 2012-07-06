@@ -43,19 +43,11 @@ namespace wiselib
 		typedef typename Radio_IPv6::node_id_t ip_node_id_t;
 		
 		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio_IPv6, Radio, Debug> Packet_Pool_Mgr_t;
-		Packet_Pool_Mgr_t* packet_pool_mgr;
 		
-		typedef IPv6Packet<OsModel, Radio_IPv6, Radio, Debug> IPv6_Packet_t;
+		typedef IPv6Packet<OsModel, Radio_IPv6, Debug> IPv6_Packet_t;
 		
 		typedef LoWPANReassemblingManager<OsModel, Radio, Radio_IPv6, Debug, Timer> self_type;
-		
-		typename Timer::self_pointer_t timer_;
 
-		Timer& timer()
-		{
-			return *timer_;
-		}
-		
 		// -----------------------------------------------------------------
 		LoWPANReassemblingManager()
 			{
@@ -64,13 +56,24 @@ namespace wiselib
 
 		// -----------------------------------------------------------------
 		
+		/**
+		* Initialize the manager, get instances
+		*/
 		void init( Timer& timer,  Packet_Pool_Mgr_t* p_mgr )
 		{
 			timer_ = &timer;
-			packet_pool_mgr = p_mgr;
+			packet_pool_mgr_ = p_mgr;
 		}
 		
-		//If tag = 0, it will be a simple packet (non fragmented)
+		// -----------------------------------------------------------------
+		
+		/**
+		* With this function a new reassembling could be started.
+		* \param size the size of the full datagram
+		* \param sender the MAC address of the sender node
+		* \param tag tag code from the fragmentation, if 0 this is a non fragmented packet
+		* \return false: If the previous reassembling is still active, or there is no free packet in the pool, true: new reassembling started
+		*/
 		bool start_new_reassembling( uint16_t size, node_id_t sender, uint16_t tag = 0 )
 		{
 			//Still working, or it is a fragment from the previous packet
@@ -78,47 +81,66 @@ namespace wiselib
 				return false;
 			else
 			{
-				ip_packet_number = packet_pool_mgr->get_unused_packet_with_number();
+				ip_packet_number = packet_pool_mgr_->get_unused_packet_with_number();
+				//If no free packet, the reassembling canceled
 				if( ip_packet_number == 255 )
 					return false;
 				else
 				{
-					ip_packet = packet_pool_mgr->get_packet_pointer( ip_packet_number );
+					ip_packet = packet_pool_mgr_->get_packet_pointer( ip_packet_number );
+					
+					//Save the old variables, to eliminate remained fragments from the old process
 					previous_datagram_tag = datagram_tag;
 					previous_frag_sender = frag_sender;
 					
+					//Initilize the variables for the new process
 					valid = true;
 					datagram_tag = tag;
 					datagram_size = size;
 					received_fragments_number = 0;
 					received_datagram_size = 0;
 					memset( rcvd_offsets, 0, MAX_FRAGMENTS );
-					
-					//reset_timer();
-					
 					return true;
 				}
 			}
 			
 		}
 		
+		// -----------------------------------------------------------------
+		
+		/**
+		* Function to determinate that the received packet is a duplicate or not
+		* \param offset the new offset
+		* \return true if this is new, false otherwise
+		*/
 		bool is_it_new_offset( uint8_t offset )
 		{
 			for( uint8_t i = 0; i < received_fragments_number; i++ )
 				if( rcvd_offsets[i] == offset )
 					return false;
 			
-			//This is a new fragment
+			//This is a new fragment, save the offset
 			reset_timer();
 			rcvd_offsets[received_fragments_number++] = offset;
 			return true;
 		}
 		
+		// -----------------------------------------------------------------
+		
+		/**
+		* Function to set the timer
+		*/
 		void reset_timer()
 		{
 			timer().template set_timer<self_type, &self_type::timeout>( 2000, this, (void*) received_fragments_number );
 		}
 		
+		// -----------------------------------------------------------------
+		
+		/**
+		* If the timer expired this function is called.
+		* If there are no new fragments since the start of the timer, the reassembling process is canceled
+		*/
 		void timeout( void* old_received_fragments_number )
 		{
 			//If no new fragment since set the timer, reset the fragmentation process
@@ -126,10 +148,12 @@ namespace wiselib
 			 (received_fragments_number == ( int )(old_received_fragments_number)) )
 			{
 				valid = false;
-				packet_pool_mgr->clean_packet( ip_packet );
+				packet_pool_mgr_->clean_packet( ip_packet );
 			}
 		}
 		
+		// -----------------------------------------------------------------
+
 		/**
 		* Tag code for the actual packet
 		*/
@@ -170,7 +194,6 @@ namespace wiselib
 		*/
 		uint8_t rcvd_offsets[MAX_FRAGMENTS];
 		
-		
 		/**
 		* Tag code for the previous packet
 		*/
@@ -179,6 +202,19 @@ namespace wiselib
 		* The Sender of the previously reassembled packet
 		*/
 		node_id_t previous_frag_sender;
+		
+	 private:
+	 	typename Timer::self_pointer_t timer_;
+
+		Timer& timer()
+		{
+			return *timer_;
+		}
+		
+		/**
+		* Pointer to the packet pool manager
+		*/
+		Packet_Pool_Mgr_t* packet_pool_mgr_;
 		
 	};
 

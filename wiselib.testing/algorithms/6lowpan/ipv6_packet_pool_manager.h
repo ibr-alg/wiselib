@@ -36,7 +36,7 @@ namespace wiselib
 		typedef Radio_Link_Layer_P Radio_Link_Layer;
 		typedef typename Radio::node_id_t node_id_t;
 		
-		typedef IPv6Packet<OsModel, Radio, Radio_Link_Layer, Debug> Packet;
+		typedef IPv6Packet<OsModel, Radio, Debug> Packet;
 
 		// -----------------------------------------------------------------
 		IPv6PacketPoolManager()
@@ -114,8 +114,7 @@ namespace wiselib
 		*/
 		void clean_packet( Packet* target )
 		{
-		 target->valid = false;
-		 //TODO more?
+			target->valid = false;
 		}
 		
 		/**

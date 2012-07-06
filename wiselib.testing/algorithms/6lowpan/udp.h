@@ -64,18 +64,14 @@ namespace wiselib
 	/**
 	* Define an IPv6 packet with IP Radio and the lower level Radio as Link Layer Radio
 	*/
-	typedef IPv6Packet<OsModel, Radio, Radio_Link_Layer, Debug> IPv6Packet_t;
+	typedef IPv6Packet<OsModel, Radio, Debug> IPv6Packet_t;
 	
-	/**
-	* Packet pool manager type
-	*/
 	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Radio_Link_Layer, Debug> Packet_Pool_Mgr_t;
 	
-
 	typedef LoWPANSocket<Radio> Socket_t;
 	
 	/**
-	* The number of the Socket in the sockets_ array
+	* The number of the Socket in the sockets_ array is the address type
 	*/
 	typedef int node_id_t;
 	
@@ -182,8 +178,8 @@ namespace wiselib
 	* Add a socket
 	* \param i socket number
 	*/
-	 int add_socket( uint16_t local_port, uint16_t remote_port, IPv6Address_t remote_host, int callback_id )
-	 {
+	int add_socket( uint16_t local_port, uint16_t remote_port, IPv6Address_t remote_host, int callback_id )
+	{
 	 	for( uint8_t i=0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 	 		if( sockets_[i].callback_id == -1 )
 			{	
@@ -191,12 +187,12 @@ namespace wiselib
 				return i;
 			}
 		return -1;
-	 }
+	}
 	 
-	 /**
-	 * Print the sockets
-	 */
-	  void print_sockets();
+	/**
+	* Print the sockets
+	*/
+	void print_sockets();
 
 	private:
 	
@@ -308,7 +304,7 @@ namespace wiselib
 		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: initialization at ");
 		radio().id().print_address();
-		debug().debug( "\n");
+		//debug().debug( "\n");
 		#endif
 		
 		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
@@ -347,6 +343,7 @@ namespace wiselib
 	
 		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: Send to (Local Port: %i, Remote Port: %i) ", sockets_[socket_number].local_port,  sockets_[socket_number].remote_port );
+		sockets_[socket_number].remote_host.set_debug( *debug_ );
 		sockets_[socket_number].remote_host.print_address();
 		debug().debug( "\n");
 		#endif
@@ -470,6 +467,7 @@ namespace wiselib
 			{
 				#ifdef UDP_LAYER_DEBUG
 				debug().debug( "UDP layer: Received packet (Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port);
+				from.set_debug( *debug_ );
 				from.print_address();
 				debug().debug( "\n");
 				#endif
@@ -491,6 +489,7 @@ namespace wiselib
 		
 		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port);
+		from.set_debug( *debug_ );
 		from.print_address();
 		debug().debug( "\n");
 		#endif
@@ -498,7 +497,6 @@ namespace wiselib
 	}
 
 	// -----------------------------------------------------------------------
-	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Radio_Link_Layer_P,
@@ -512,12 +510,11 @@ namespace wiselib
 		for( uint8_t i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 		{
 			debug().debug( "	#%i Local port: %i, Remote port: %i, Callback_id: %i, Remote host: ", i, sockets_[i].local_port, sockets_[i].remote_port, sockets_[i].callback_id);
+			sockets_[i].remote_host.set_debug( *debug_ );
 			sockets_[i].remote_host.print_address();
 			debug().debug( "\n");
 		}
 		#endif
 	}
-	#endif
-	
 }
 #endif

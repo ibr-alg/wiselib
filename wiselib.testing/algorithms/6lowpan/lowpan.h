@@ -68,11 +68,8 @@ namespace wiselib
 	typedef IPv6<OsModel, self_type, Debug, Timer> Radio_IPv6;
 	typedef IPv6Address<self_type, Debug> IPv6Address_t;
 	
-	typedef IPv6Packet<OsModel, Radio_IPv6, self_type, Debug> IPv6Packet_t;
+	typedef IPv6Packet<OsModel, Radio_IPv6, Debug> IPv6Packet_t;
 
-	/**
-	* Packet pool manager type
-	*/
 	typedef IPv6PacketPoolManager<OsModel, Radio_IPv6, self_type, Debug> Packet_Pool_Mgr_t;
 	
 	typedef LoWPANContextManager<Radio_IPv6, Debug> Context_Mgr_t;
@@ -145,10 +142,6 @@ namespace wiselib
 	}
 	///@}
 	
-//-----------
-// Packet PART
-//-----------
-	
 	private:
 	
 	Radio& radio()
@@ -181,11 +174,6 @@ namespace wiselib
 	int IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address );
 	///@}
 	#endif
-	
-	/**
-	* Compress function for the IP headers
-	*/
-	//void compress( LoWPAN_Packet* lowpan_packet, IPv6Packet_t* ip_packet );
 
 //-----------
 // Packet PART
@@ -212,12 +200,7 @@ namespace wiselib
 		NHC_SHIFT = Radio::MAX_MESSAGE_LENGTH;
 	}
 	
-//TODO?
-	/**
-	* Recover lenghts and shifts at a received packet
-	*/
-	//void recover_packet();
-	
+
 	//-----------------------------------------------------------------------------------
 	//-----------------------Mesh header-------------------------------------------------
 	//-----------------------------------------------------------------------------------
@@ -400,7 +383,7 @@ namespace wiselib
 	* \param packet pointer to the target packet
 	* \param link_layer_from pointor to the source's MAC address
 	*/
-	void uncompress_IPHC( IPv6Packet_t* packet, node_id_t* link_layer_from );
+	int uncompress_IPHC( IPv6Packet_t* packet, node_id_t* link_layer_from );
 	
 	
 	/**
@@ -409,37 +392,37 @@ namespace wiselib
 	enum TRAFLO_00_byte_shifts
 	{
 	 TRAFLO_00_TRA_BYTE = 0,
-	 TRAFLO_00_FLO_BYTE = 1,
+	 TRAFLO_00_FLO_BYTE = 1
 	};
 	
 	enum TRAFLO_00_bit_shifts
 	{
 	 TRAFLO_00_TRA_BIT = 0,
-	 TRAFLO_00_FLO_BIT = 4,
+	 TRAFLO_00_FLO_BIT = 4
 	};
 	
 	enum TRAFLO_00_lenghts
 	{
 	 TRAFLO_00_TRA_LEN = 8,
-	 TRAFLO_00_FLO_LEN = 20,
+	 TRAFLO_00_FLO_LEN = 20
 	};
 	
 	enum TRAFLO_01_byte_shifts
 	{
 	 TRAFLO_01_ECN_BYTE = 0,
-	 TRAFLO_01_FLO_BYTE = 0,
+	 TRAFLO_01_FLO_BYTE = 0
 	};
 	
 	enum TRAFLO_01_bit_shifts
 	{
 	 TRAFLO_01_ECN_BIT = 0,
-	 TRAFLO_01_FLO_BIT = 4,
+	 TRAFLO_01_FLO_BIT = 4
 	};
 	
 	enum TRAFLO_01_lenghts
 	{
 	 TRAFLO_01_ECN_LEN = 2,
-	 TRAFLO_01_FLO_LEN = 20,
+	 TRAFLO_01_FLO_LEN = 20
 	};
 	//TRAFLO_10 is just 1 byte, no enums for it
 	//TRAFLO END
@@ -529,7 +512,7 @@ namespace wiselib
 	* \param source indicates that the source or the destination address required
 	* \return the IPv6 addresse
 	*/
-	void get_unicast_address( node_id_t* link_local_source, bool source, IPv6Address_t& address );
+	int get_unicast_address( node_id_t* link_local_source, bool source, IPv6Address_t& address );
 	 
 	 
 	block_data_t buffer_[Radio::MAX_MESSAGE_LENGTH];
@@ -599,7 +582,7 @@ namespace wiselib
 	enable_radio( void )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
-		debug().debug( "LoWPAN layer: initialization at %i\n", radio().id() );
+		debug().debug( "LoWPAN layer: initialization at %x\n", radio().id() );
 		#endif
 	 
 		if ( radio().enable_radio() != SUCCESS )
@@ -632,7 +615,6 @@ namespace wiselib
 	}
 	
 	// -----------------------------------------------------------------------
-	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
@@ -775,8 +757,6 @@ namespace wiselib
 	}
 
 // -----------------------------------------------------------------------
-
-	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
@@ -784,15 +764,11 @@ namespace wiselib
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	receive( node_id_t from, size_t len, block_data_t *data )
-	{
-		#ifdef LoWPAN_LAYER_DEBUG
-		debug().debug( "LoWPAN layer: Received data from %i at %i\n", from, id() );
-		#endif
-		
+	{		
 		reset_buffer();
 		
 		memcpy( buffer_, data, len );
-	
+		
 	 #ifdef MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER PROCESSING
@@ -811,7 +787,7 @@ namespace wiselib
 		uint8_t fragment_offset = 0;
 		uint8_t frag_disp = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + FRAG_DISP_BYTE, FRAG_DISP_BIT, FRAG_DISP_LEN );
 		uint16_t datagram_size = 0;
-
+		
 		if( (0x18 == frag_disp) || (0x1C == frag_disp) )
 		{	
 			FRAG_SHIFT = ACTUAL_SHIFT;
@@ -853,7 +829,7 @@ namespace wiselib
 	//------------------------------------------------------------------------------------------------------------
 	//		FRAGMENTATION HEADER PROCESSING		END
 	//------------------------------------------------------------------------------------------------------------
-	
+		
 		//Used at payload copy, because the transport layer header's place has to be shifted
 		int NEXT_HEADER_SHIFT = 0;
 		
@@ -876,7 +852,9 @@ namespace wiselib
 				}
 			}
 			IPHC_SHIFT = ACTUAL_SHIFT;
-			uncompress_IPHC( reassembling_mgr_.ip_packet, &from );
+			if( uncompress_IPHC( reassembling_mgr_.ip_packet, &from ) != SUCCESS )
+				return;
+			
 			reassembling_mgr_.received_datagram_size += 40;
 			
 			//If it is a UDP packet, uncompress it
@@ -902,10 +880,17 @@ namespace wiselib
 	//		IPHC & NHC HEADER PROCESSING		END
 	//------------------------------------------------------------------------------------------------------------
 
+		//If there were no headers this is an invalid packet: drop it
+		if( (MESH_SHIFT == MAX_MESSAGE_LENGTH) && (FRAG_SHIFT == MAX_MESSAGE_LENGTH) && (IPHC_SHIFT == MAX_MESSAGE_LENGTH) )
+			return;
+		
+		#ifdef LoWPAN_LAYER_DEBUG
+		//It is here, because if there isn't a 6LoWPAN message we have do drop it, and don't send a debug message
+		debug().debug( "LoWPAN layer: Received data from %x at %x (len: %i)\n", from, id(), len );
+		#endif
 	//----------------------------------------------------------------------------------------
-	// Defragmentation
+	// Reassembling
 	//----------------------------------------------------------------------------------------
-	
 		//Offset in 8 octetts, if it is not fragmented the offset is 0
 		int real_payload_offset = ( fragment_offset * 8 ) + NEXT_HEADER_SHIFT;
 		//According to the RFC: the offset starts from the beginning of the IP header
@@ -916,7 +901,7 @@ namespace wiselib
 		reassembling_mgr_.ip_packet->set_payload( buffer_ + ACTUAL_SHIFT, len - ACTUAL_SHIFT, real_payload_offset );
 		reassembling_mgr_.received_datagram_size += len - ACTUAL_SHIFT;
 	//----------------------------------------------------------------------------------------
-	// Defragmentation		END
+	// Reassembling		END
 	//----------------------------------------------------------------------------------------
 		//debug().debug( "AS: %i len %i rcvd: %i, full:y %i contetn: %i\n", ACTUAL_SHIFT, len, reassembling_mgr_.received_datagram_size, reassembling_mgr_.datagram_size, reassembling_mgr_.ip_packet->get_content_size() );
 		if( FRAG_SHIFT == MAX_MESSAGE_LENGTH || 
@@ -926,7 +911,7 @@ namespace wiselib
 
 			if( reassembling_mgr_.ip_packet->next_header() == Radio_IPv6::UDP )
 			{
-				//Generate CHECKSUM
+				//Generate CHECKSUM, set 0 to the checkum's bytes first
 				uint8_t tmp = 0;
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 6 );
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
@@ -1465,7 +1450,7 @@ namespace wiselib
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P>
-	void
+	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	uncompress_IPHC( IPv6Packet_t* packet, node_id_t* link_layer_from )
 	{
@@ -1541,7 +1526,9 @@ namespace wiselib
 		// SOURCE
 		//------------------------------------
 			IPv6Address_t address;
-			get_unicast_address( link_layer_from , true, address );
+			if( get_unicast_address( link_layer_from , true, address ) != SUCCESS )
+				return ERR_UNSPEC;
+			
 			packet->set_source_address( address );
 		
 		//------------------------------------
@@ -1552,7 +1539,9 @@ namespace wiselib
 			if( 0 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + IPHC_SHIFT + IPHC_M_BYTE, IPHC_M_BIT, IPHC_M_LEN ))
 			{
 				node_id_t my_address = radio_->id();
-				get_unicast_address( &my_address , false, address);
+				if( get_unicast_address( &my_address , false, address) != SUCCESS )
+					return ERR_UNSPEC;
+				
 				packet->set_destination_address( address );
 			}
 			else
@@ -1600,6 +1589,7 @@ namespace wiselib
 				
 				packet->set_destination_address( address );
 			}//else multicast
+		return SUCCESS;
 	}
 	
 //--------------------------------------------------------------------------------------------
@@ -1669,7 +1659,7 @@ namespace wiselib
 				tmp = ( packet_len - ACTUAL_SHIFT ) & 0x00FF;
 				packet->set_payload( &tmp, 1, 5 );
 				
-		//NOTE Checksum has to be calculated!
+		//NOTE Checksum will be calculated befor the notify_receivers call
 	}
 	
 //-------------------------------------------------------------------------------------
@@ -1701,9 +1691,9 @@ namespace wiselib
 	typename Timer_P>
 	bool
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	 is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address )
-	 {
-	 	//Copy the prefix
+	is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address )
+	{
+		//Copy the prefix
 		IPv6Address_t destination;
 		ip_packet->destination_address(destination);
 		
@@ -1717,7 +1707,7 @@ namespace wiselib
 		else
 			global = false;
 		
-	 	test_derived.set_long_iid( mac_address, global );
+		test_derived.set_long_iid( mac_address, global );
 		
 		if( test_derived == destination )
 			return true;
@@ -1840,7 +1830,7 @@ namespace wiselib
 	typename Radio_P,
 	typename Debug_P,
 	typename Timer_P>
-	void
+	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	get_unicast_address( node_id_t* link_local_address, bool source, IPv6Address_t& address )
 	{
@@ -1889,9 +1879,9 @@ namespace wiselib
 			//get the prefix from the context manager
 			IPv6Address_t* context_prefix = context_mgr_.get_prefix_by_number( SCI_value );
 			
-			//TODO cancel...
-			//if( context_prefix == NULL )
-			//	return ;				
+			//cancel if not a valid prefix
+			if( context_prefix == NULL )
+				return ERR_UNSPEC;
 		
 			address.set_prefix( context_prefix->addr, context_prefix->prefix_length );
 		}
@@ -1915,6 +1905,8 @@ namespace wiselib
 				address.set_long_iid( link_local_address, false );
 				break;
 		}
+		
+		return SUCCESS;
 	}
 }
 #endif
