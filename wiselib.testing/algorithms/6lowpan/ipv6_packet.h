@@ -60,7 +60,6 @@ namespace wiselib
 	
 	template<typename OsModel_P,
 		typename Radio_P,
-		typename Radio_Link_Layer_P,
 		typename Debug_P>
 	class IPv6Packet
 	{
@@ -68,8 +67,6 @@ namespace wiselib
 	typedef Debug_P Debug;
 	typedef OsModel_P OsModel;
 	typedef Radio_P Radio;
-	//TODO: Link Layer not required
-	typedef Radio_Link_Layer_P Radio_Link_Layer;
 
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::size_t size_t;
@@ -79,7 +76,7 @@ namespace wiselib
 	{
 		memset(buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
 		
-		//Version
+		//Version is fix 6
 		uint8_t version = 6;
 		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
 	}

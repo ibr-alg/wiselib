@@ -67,7 +67,7 @@ namespace wiselib
 	/**
 	* Define an IPv6 packet with self_type as a Radio and the lower level Radio as Link Layer Radio
 	*/
-	typedef IPv6Packet<OsModel, self_type, Radio, Debug> Packet;
+	typedef IPv6Packet<OsModel, self_type, Debug> Packet;
 	typedef LoWPANInterface<Radio, Debug> Interface_t;
 	
 	#ifdef LOWPAN_ROUTE_OVER
@@ -76,12 +76,8 @@ namespace wiselib
 	*/
 	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Debug, Timer> Routing_t;
 	#endif
-	
-	/**
-	* Packet pool manager type
-	*/
+
 	typedef wiselib::IPv6PacketPoolManager<OsModel, self_type, Radio, Debug> Packet_Pool_Mgr_t;
-	
 	
 	#ifdef LOWPAN_ROUTE_OVER
 	/**
@@ -195,7 +191,9 @@ namespace wiselib
 	node_id_t id()
 	{
 		//NOTE now it is the Radio's link local address
-		return *(get_interface(0)->get_link_local_address());
+		node_id_t tmp = *(get_interface(0)->get_link_local_address());
+		tmp.set_debug( *debug_ );
+		return tmp;
 	}
 	///@}
 	
@@ -376,25 +374,29 @@ namespace wiselib
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: initialization at %i\n", radio().id() );
-		
-			#ifdef LOWPAN_ROUTE_OVER
-			debug().debug( "IPv6 layer: Routing mode: ROUTE OVER\n");
-			#endif
+		debug().debug( "IPv6 layer: initialization at %x, MAC length: %i\n", radio().id(), sizeof(link_layer_node_id_t) );
+		//debug().debug( "IPv6 layer: IID: %i %i\n", (radio().id() & 0xFF),((radio().id()>>8) & 0xFF));
+		#ifdef LOWPAN_ROUTE_OVER
+		debug().debug( "IPv6 layer: Routing mode: ROUTE OVER\n");
+		#endif
 			
-			#ifdef LOWPAN_MESH_UNDER
-			debug().debug( "IPv6 layer: Routing mode: MESH UNDER\n");
-			#endif
+		#ifdef LOWPAN_MESH_UNDER
+		debug().debug( "IPv6 layer: Routing mode: MESH UNDER\n");
+		#endif
+		
 		#endif
 	 
 		
 		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
 		
 		//Construct radio interface --> interface 0
+		get_interface(0)->get_link_local_address()->set_debug( *debug_ );
 		get_interface(0)->set_link_local_address_from_MAC( radio().id() );
+		
 		
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "	IPv6 layer: Link Local address: ");
+		get_interface(0)->get_link_local_address()->set_debug( *debug_ );
 		get_interface(0)->get_link_local_address()->print_address();
 		debug().debug( "\n");
 		#endif
@@ -402,7 +404,7 @@ namespace wiselib
 		//SOLICITED_MULTICAST_ADDRESS configuration		
 		SOLICITED_MULTICAST_ADDRESS.make_it_solicited_multicast( radio().id() );
 		//TODO send out ICMP multicast join message here!
-
+		
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
@@ -446,6 +448,7 @@ namespace wiselib
 			
 			#ifdef IPv6_LAYER_DEBUG
 			debug().debug( "IPv6 layer: Send to " );
+			destination.set_debug( *debug_ );
 			destination.print_address();
 			#endif
 			if( destination == BROADCAST_ADDRESS )
@@ -461,6 +464,7 @@ namespace wiselib
 			{
 				#ifdef IPv6_LAYER_DEBUG
 				debug().debug( " Next hop is: " );
+				it->second.next_hop.set_debug( *debug_ );
 				it->second.next_hop.print_address();
 				debug().debug( "\n");
 				#endif
@@ -474,6 +478,7 @@ namespace wiselib
 		{
 			#ifdef IPv6_LAYER_DEBUG
 			debug().debug( "IPv6 layer: No route to " );
+			destination.set_debug( *debug_ );
 			destination.print_address();
 			#endif
 			
@@ -543,6 +548,7 @@ namespace wiselib
 				debug().debug( "IPv6 layer: Received packet (multicast) from " );
 			else
 				debug().debug( "IPv6 layer: Received packet (unicast) from " );
+			source_ip.set_debug( *debug_ );
 			source_ip.print_address();
 			debug().debug( "\n" );
 			#endif
@@ -572,8 +578,10 @@ namespace wiselib
 			{
 				#ifdef IPv6_LAYER_DEBUG
 				debug().debug( "IPv6 layer: Packet forwarded to " );
+				destination.set_debug( *debug_ );
 				destination.print_address();
 				debug().debug( " Next hop is: ");
+				it->second.next_hop.set_debug( *debug_ );
 				it->second.next_hop.print_address();
 				debug().debug( "\n");
 				#endif
@@ -588,9 +596,11 @@ namespace wiselib
 				IPv6Address_t address;
 				message->source_address(address);
 				debug().debug( "IPv6 layer: Forwarding FAILED (src " );
+				address.set_debug( *debug_ );
 				address.print_address();
 				debug().debug( "). No route to " );
 				message->destination_address(address);
+				address.set_debug( *debug_ );
 				address.print_address();
 				debug().debug( " known.\n" );
 				#endif
@@ -614,10 +624,13 @@ namespace wiselib
 		if ( interf == NULL )
 			return ERR_NOTIMPL;
 		
+		interf->get_global_address()->set_debug( *debug_ );
 		interf->set_global_address_from_MAC( radio().id(), prefix, prefix_len );
+		
 
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: Global address defined (for interface %i): ", selected_interface);
+		get_interface(selected_interface)->get_global_address()->set_debug( *debug_ );
 		get_interface(selected_interface)->get_global_address()->print_address();
 		debug().debug( "\n");
 		#endif
@@ -703,6 +716,7 @@ namespace wiselib
 		
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: Routing algorithm callback received (next hop to: ");
+		destination.set_debug( *debug_ );
 		destination.print_address();
 		debug().debug( " ).\n" );
 		#endif
@@ -751,10 +765,11 @@ namespace wiselib
 	 
 		for ( ForwardingTableIterator it = ft.begin(); it != ft.end(); ++it )
 		{
-			debug().debug( "   IPv6 layer:   %i: Dest ",
-				i++);
+			debug().debug( "   IPv6 layer:   %i: Dest ", i++);
+			it->first.set_debug( *debug_ );
 			it->first.print_address();
 			debug().debug( " SendTo " );
+			it->second.next_header.set_debug( *debug_ );
 			it->second.next_hop.print_address();
 			debug().debug( " Hops %i\n",
 				it->second.hops );

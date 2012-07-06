@@ -71,14 +71,9 @@ namespace wiselib
 	/**
 	* Define an IPv6 packet with IP Radio and the lower level Radio as Link Layer Radio
 	*/
-	typedef IPv6Packet<OsModel, Radio, Radio_Link_Layer, Debug> IPv6Packet_t;
+	typedef IPv6Packet<OsModel, Radio, Debug> IPv6Packet_t;
 	
-	/**
-	* Packet pool manager type
-	*/
 	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Radio_Link_Layer, Debug> Packet_Pool_Mgr_t;
-	
-
 	
 	typedef typename Radio::node_id_t node_id_t;
 	typedef typename Radio::size_t size_t;
@@ -325,6 +320,7 @@ namespace wiselib
 		*/
 		#ifdef ICMPv6_LAYER_DEBUG
 		debug().debug( "ICMPv6 layer: Send (%i) to ", *data );
+		destination.set_debug( *debug_ );
 		destination.print_address();
 		debug().debug( "\n");
 		#endif
@@ -340,12 +336,10 @@ namespace wiselib
 
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
-		
 		//It is an outgoing packet
 		message->incoming = false;
 		
 		message->set_next_header(Radio::ICMPV6);
-		//TODO hop limit?
 		message->set_hop_limit(255);
 		message->set_source_address(sourceaddr);
 		message->set_destination_address(destination);
@@ -444,6 +438,7 @@ namespace wiselib
 			case ECHO_REQUEST:
 				#ifdef ICMPv6_LAYER_DEBUG
 				debug().debug( "ICMPv6 layer: Echo request received from: ");
+				from.set_debug( *debug_ );
 				from.print_address();
 				debug().debug( ", sending echo reply.\n");
 				#endif
@@ -461,11 +456,11 @@ namespace wiselib
 				//Check Identifier
 				uint8_t id[2];
 				generate_id(id);
-				
 				if( (id[0] == data[4]) && (id[1] == data[5]) )
 				{
 					#ifdef ICMPv6_LAYER_DEBUG
 					debug().debug( "ICMPv6 layer: Echo reply received from: ");
+					from.set_debug( *debug_ );
 					from.print_address();
 					debug().debug( "\n");
 					#endif
@@ -476,6 +471,7 @@ namespace wiselib
 				{
 					#ifdef ICMPv6_LAYER_DEBUG
 					debug().debug( "ICMPv6 layer: Unexpected (wrong identifier) echo reply received from: ");
+					from.set_debug( *debug_ );
 					from.print_address();
 					debug().debug( "\n");
 					#endif

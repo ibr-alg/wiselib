@@ -107,11 +107,15 @@ namespace wiselib
 	
 	// --------------------------------------------------------------------
 	
-	void set_long_iid( link_layer_node_id_t* iid, bool global )
+	void set_long_iid( link_layer_node_id_t* iid_, bool global )
 	{
+		link_layer_node_id_t iid = *iid_;
 		//The different operation systems provide different length link_layer_node_id_t-s
-		for ( unsigned int i = 0; i < ( sizeof(link_layer_node_id_t) || 8 ); i++ )
-			addr[15-i] = *((uint8_t*)iid + i);
+		for ( unsigned int i = 0; i < ( sizeof(link_layer_node_id_t) ); i++ )
+		{
+			addr[15-i] = ( iid & 0xFF );
+			iid = iid >> 8;
+		}
 		
 		//If the provided link_layer address is short (uint16_t), the FFFE is included
 		//Other bits are 0
@@ -196,14 +200,34 @@ namespace wiselib
 	void print_address()
 	{
 		#ifdef IPv6_LAYER_DEBUG
-		for(uint8_t i = 0; i < 16; i++)
+		
+		debug().debug( "%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i/ %i\n",
+			addr[0] >> 4, addr[0] & 0x0F,
+			addr[1] >> 4, addr[1] & 0x0F,
+			addr[2] >> 4, addr[2] & 0x0F,
+			addr[3] >> 4, addr[3] & 0x0F,
+			addr[4] >> 4, addr[4] & 0x0F,
+			addr[5] >> 4, addr[5] & 0x0F,
+			addr[6] >> 4, addr[6] & 0x0F,
+			addr[7] >> 4, addr[7] & 0x0F,
+			addr[8] >> 4, addr[8] & 0x0F,
+			addr[9] >> 4, addr[9] & 0x0F,
+			addr[10] >> 4, addr[10] & 0x0F,
+			addr[11] >> 4, addr[11] & 0x0F,
+			addr[12] >> 4, addr[12] & 0x0F,
+			addr[13] >> 4, addr[13] & 0x0F,
+			addr[14] >> 4, addr[14] & 0x0F,
+			addr[15] >> 4, addr[15] & 0x0F,
+			prefix_length );
+		
+		/*for(uint8_t i = 0; i < 16; i++)
 		{
-			debug().debug( "%x", addr[i] >> 4 );
-			debug().debug( "%x", addr[i] & 0x0F );
+			debug().debug( "%i", addr[i] >> 4 );
+			debug().debug( "%i", addr[i] & 0x0F );
 			if(i%2==1 && i<15)
 				debug().debug( ":" );
 		}
-		debug().debug( "/ %i", prefix_length);
+		debug().debug( "/ %i", prefix_length);*/
 		#endif
 	}
 	
