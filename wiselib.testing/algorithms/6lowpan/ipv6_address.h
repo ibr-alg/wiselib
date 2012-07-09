@@ -199,7 +199,7 @@ namespace wiselib
 	
 	void print_address()
 	{
-		#ifdef IPv6_LAYER_DEBUG
+		//#ifdef IPv6_LAYER_DEBUG
 		
 		debug().debug( "%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i/ %i\n",
 			addr[0] >> 4, addr[0] & 0x0F,
@@ -228,7 +228,7 @@ namespace wiselib
 				debug().debug( ":" );
 		}
 		debug().debug( "/ %i", prefix_length);*/
-		#endif
+		//#endif
 	}
 	
 	// --------------------------------------------------------------------

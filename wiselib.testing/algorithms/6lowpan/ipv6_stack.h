@@ -54,7 +54,7 @@ namespace wiselib
 		debug_ = &debug;
 		timer_ = &timer;
 		
-		debug_->debug( "IPv6 stack init: %x\n", radio_->id());
+		//debug_->debug( "IPv6 stack init: %x\n", radio_->id());
 		
 		packet_pool_mgr.init( *debug_ );
 		
@@ -75,7 +75,7 @@ namespace wiselib
 		//Init ICMPv6
 		icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
-		//icmpv6.enable_radio();
+		icmpv6.enable_radio();
 	}
 	
 	ICMPv6_t icmpv6; 

@@ -727,9 +727,9 @@ namespace wiselib
 	
 			#ifdef LoWPAN_LAYER_DEBUG
 			if( !frag_required )
-				debug().debug( "LoWPAN layer: Sent without fragmentation to %x \n", mac_destination );
+				debug().debug( "LoWPAN layer: Sent without fragmentation to %x, full size: %i compressed size: %i\n", mac_destination, ip_packet->get_content_size(), ACTUAL_SHIFT );
 			else
-				debug().debug( "LoWPAN layer: Sent fragmented packet to %x, offset: %x \n", mac_destination, offset );
+				debug().debug( "LoWPAN layer: Sent fragmented packet to %x, next offset: %x full size: %i \n", mac_destination, offset, ip_packet->get_content_size() );
 			#endif
 			
 			//If no more payload, sending finished
@@ -764,7 +764,7 @@ namespace wiselib
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	receive( node_id_t from, size_t len, block_data_t *data )
-	{		
+	{
 		reset_buffer();
 		
 		memcpy( buffer_, data, len );
@@ -804,6 +804,7 @@ namespace wiselib
 				fragment_offset = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + FRAG_SHIFT + FRAG_OFFSET_BYTE, FRAG_OFFSET_BIT, FRAG_OFFSET_LEN );
 			}
 			
+			//debug().debug( "LoWPAN layer: RECEIVED!!! valid:%i, old tag:%i new tag:%i, old sender: %x offset: %x \n", reassembling_mgr_.valid, reassembling_mgr_.datagram_tag, d_tag, reassembling_mgr_.frag_sender, fragment_offset );
 			//This is a fragment for the actual reassembling process
 			if( reassembling_mgr_.valid && (reassembling_mgr_.datagram_tag == d_tag) &&
 			 (reassembling_mgr_.frag_sender == from))
@@ -811,10 +812,14 @@ namespace wiselib
 			 	//If it is an already received fragment drop it, if not, the manager registers it
 				if( !(reassembling_mgr_.is_it_new_offset( fragment_offset )) )
 					return;
+				//debug().debug( "LoWPAN layer: 1st offset: %x, \n", fragment_offset);
 			}
 			//new fragment, but if the manager is valid, It has to be dropped
 			else if( reassembling_mgr_.valid == true )
+			{
+			 //debug().debug( "LoWPAN layer: 2nd offset: %x, \n", fragment_offset);
 				return;
+			}
 			//new fragment, call the manager for a free IP packet
 			else
 			{
@@ -822,6 +827,7 @@ namespace wiselib
 				
 				if (!(reassembling_mgr_.start_new_reassembling( datagram_size, from, d_tag )))
 					return;
+				//debug().debug( "LoWPAN layer: 3rd offset: %x from: %x, size: %i\n", fragment_offset, from, datagram_size);
 				reassembling_mgr_.is_it_new_offset( fragment_offset );
 			}
 		}
@@ -882,7 +888,9 @@ namespace wiselib
 
 		//If there were no headers this is an invalid packet: drop it
 		if( (MESH_SHIFT == MAX_MESSAGE_LENGTH) && (FRAG_SHIFT == MAX_MESSAGE_LENGTH) && (IPHC_SHIFT == MAX_MESSAGE_LENGTH) )
+		{
 			return;
+		}
 		
 		#ifdef LoWPAN_LAYER_DEBUG
 		//It is here, because if there isn't a 6LoWPAN message we have do drop it, and don't send a debug message
@@ -1143,6 +1151,7 @@ namespace wiselib
 		//Fix 2 bytes long
 		ACTUAL_SHIFT += 2;
 		
+		
 		//------------------------------------------------------------------------------------
 		//	Set Dispatch ( 011 )
 		//------------------------------------------------------------------------------------
@@ -1259,7 +1268,6 @@ namespace wiselib
 		//------------------------------------------------------------------------------------
 		//	SET SOURCE ADDRESS	END
 		//------------------------------------------------------------------------------------
-		
 		
 		//------------------------------------------------------------------------------------
 		//	SET DESTINATION ADDRESS
@@ -1672,14 +1680,14 @@ namespace wiselib
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
 	is_it_short_address( IPv6Address_t* address )
 	 {
-	  if( ( address->addr[8] == 0x00 || address->addr[8] == 0x02 )  &&
+	  /*if( ( address->addr[8] == 0x00 || address->addr[8] == 0x02 )  &&
 	   	address->addr[9] == 0x00 &&
 	   	address->addr[10] == 0x00 &&
 	   	address->addr[11] == 0xFF &&
 	   	address->addr[12] == 0xFE &&
 	   	address->addr[13] == 0x00)
 	   	return true;
-	  else
+	  else*/
 	  	return false;
 	 }
 	 
@@ -1770,7 +1778,7 @@ namespace wiselib
 
 			//AM=11: address elided, if the IP destination address is derived from the actual link-layer destination address
 			//Test that the destination IP address is constructed from the destination MAC or not (1 HOP)
-			if( is_it_next_hop( packet, link_local_destination ) )
+			if( is_it_next_hop( packet, link_local_destination ) || *link_local_destination == BROADCAST_ADDRESS )
 			{
 				//The IP can be elided because it will be reconsructed from the source MAC address
 				AM_mode = 3;

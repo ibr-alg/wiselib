@@ -49,7 +49,7 @@ namespace wiselib
 		typename Radio_Link_Layer_P,
 		typename Debug_P>
 	class UDP
-	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_Link_Layer_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
+	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_Link_Layer_P, Debug_P>, uint16_t, typename Radio_P::block_data_t>
 	{
 	public:
 	typedef OsModel_P OsModel;
@@ -142,7 +142,7 @@ namespace wiselib
 	///@{
 	/**
 	*/
-	int send( node_id_t receiver, size_t len, block_data_t *data );
+	int send( node_id_t receiver, uint16_t len, block_data_t *data );
 	/**
 	*/
 	void receive( ip_node_id_t from, size_t len, block_data_t *data );
@@ -336,7 +336,7 @@ namespace wiselib
 	typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
-	send( node_id_t socket_number, size_t len, block_data_t *data )
+	send( node_id_t socket_number, uint16_t len, block_data_t *data )
 	{
 		if( socket_number < 0 || socket_number >= NUMBER_OF_UDP_SOCKETS || (sockets_[socket_number].callback_id == -1) )
 			return ERR_NOTIMPL;

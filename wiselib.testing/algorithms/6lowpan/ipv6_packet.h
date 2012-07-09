@@ -192,7 +192,7 @@ namespace wiselib
 		return buffer_;
 	}
 	
-	inline size_t get_content_size()
+	inline uint16_t get_content_size()
 	{
 		return length() + PAYLOAD_POS;
 	}

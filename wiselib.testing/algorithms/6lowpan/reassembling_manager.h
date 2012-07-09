@@ -63,6 +63,8 @@ namespace wiselib
 		{
 			timer_ = &timer;
 			packet_pool_mgr_ = p_mgr;
+			previous_datagram_tag = 0;
+			previous_frag_sender = 0;
 		}
 		
 		// -----------------------------------------------------------------
@@ -96,10 +98,11 @@ namespace wiselib
 					//Initilize the variables for the new process
 					valid = true;
 					datagram_tag = tag;
+					frag_sender = sender;
 					datagram_size = size;
 					received_fragments_number = 0;
 					received_datagram_size = 0;
-					memset( rcvd_offsets, 0, MAX_FRAGMENTS );
+					memset( rcvd_offsets, 255, MAX_FRAGMENTS );
 					return true;
 				}
 			}
