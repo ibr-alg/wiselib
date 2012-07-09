@@ -19,7 +19,7 @@ typedef wiselib::IPv6Stack<Os, Radio, Os::Debug, Os::Timer> IPv6_stack_t;
 typedef wiselib::LoWPAN<Os, Radio, Os::Debug, Os::Timer> LoWPAN_t;
 typedef wiselib::IPv6<Os, LoWPAN_t, Os::Debug, Os::Timer> IPv6_t;
 typedef wiselib::IPv6Address<LoWPAN_t, Os::Debug> IPv6Address_t;
-typedef wiselib::IPv6Packet<Os, IPv6_t, LoWPAN_t, Os::Debug> IPv6Packet_t;
+typedef wiselib::IPv6Packet<Os, IPv6_t, Os::Debug> IPv6Packet_t;
 //typedef wiselib::LoWPANPacket<Os, LoWPAN_t, IPv6_t, Os::Debug> LoWPANPacket_t;
 
 class lowpanApp
@@ -36,10 +36,12 @@ class lowpanApp
          timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
          debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
-         debug_->debug( "Booting with ID: %d\n", radio_->id());
+         debug_->debug( "Booting with ID: %x\n", radio_->id());
 	 
 	 ipv6_stack_.init(*radio_, *debug_, *timer_);
-	 callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
+	 
+	 
+	 callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
 	 callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 	 
 	 //HACK
@@ -67,114 +69,39 @@ class lowpanApp
 	 destinationaddr.make_it_link_local();
 	 
 	 
-	 node_id_t ll_id = 1;
+	 node_id_t ll_id = 0x210c;
 	 destinationaddr.set_long_iid(&ll_id, false);
 	 
 	 //Broadcast test
 	 //destinationaddr = IPv6_t::BROADCAST_ADDRESS;
 	 
-	 uint8_t mypayload[10];
-	 mypayload[0]='h';
-	 mypayload[1]='e';
-	 mypayload[2]='l';
-	 mypayload[3]='l';
-	 mypayload[4]='o';
-	 mypayload[5]=' ';
-	 mypayload[6]=':';
-	 mypayload[7]=')';	
-	 
-	 //destinationaddr.print_address();
-	 
+	 uint8_t mypayload[] = "hello :) This is a long test message from node 0 to test the fragmentation. Google will pre-publish the evaluation questions for both students and mentors. Mentors will fill out mid-term and final evaluations for their students via the Google Summer of Code 2012 site. These evaluations will be visible in the system to the mentor and the mentoring organization s administrator(s). Students will fill out a mid-term and final evaluation of their mentors online as well, and their evaluations will only be visible in the system to the mentoring organization s administrator(s). Program administrators from Google will have access to all evaluation data. Any student who does not submit an evaluation by the evaluation deadline will fail that evaluation, regardless of the grade the mentor gives the student. If a student submits his or her evaluation on time but the mentor does not, then the student is  in an undecided state until the program administrators can speak to the mentor and determine the student s grade. Students who fail the mid-term are immediately removed from the program: it s not possible to fail the mid-term, stay in the program, and then have a final evaluation. In almost all cases, students will never see their mentor s evaluation of their progress, nor will a mentor see a student s evaluation of her/his mentorship.";
 	 
 	 /*
 	 UDP
 	 */
-	 if( radio_->id() == 0 )
+	/* if( radio_->id() == 0x2110 )
 	 {
 	 	int my_number = ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
-	 	ipv6_stack_.udp.print_sockets();
-	 	ipv6_stack_.udp.send(my_number,10,mypayload);
+	 	//ipv6_stack_.udp.print_sockets();
+	 	ipv6_stack_.udp.send(my_number,sizeof(mypayload),mypayload);
 	 }
-	 if( radio_->id() == 1 )
+	 if( radio_->id() == 0x210c )
 	 {
 	 	node_id_t ll_id = 0;
 	 	destinationaddr.set_long_iid(&ll_id, false);
 	 	ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
-	 }
+	 }*/
 	 
 	 /*ICMPv6 Ping test*/
 	 // 0 ---> 1 <---- 2
-	 if( radio_->id() != 1 )
-	 {
-	 	ipv6_stack_.icmpv6.ping(destinationaddr);
-	 }
+	 //if( radio_->id() == 0x2110 )
+	 //{
+	 	debug_->debug("Application layer: sending echo request");
+		//ipv6_stack_.icmpv6.ping(destinationaddr);
+	 	ipv6_stack_.icmpv6.ping(IPv6_t::BROADCAST_ADDRESS);
+	 //}
 	 
-	 //These will be in the UDP layer!
-	 //Next header = 17 UDP
-	 //TODO hop limit?
-	 /*sourceaddr = ipv6_stack_.ipv6.id();
-	 
-	 
-	 //Next header = 17 UDP
-	 message.set_next_header(17);
-	 //TODO hop limit?
-	 message.set_hop_limit(100);
-	 message.set_length(8);
-	 message.set_source_address(sourceaddr);
-	 message.set_destination_address(destinationaddr);
-	 message.set_flow_label(0);
-	 message.set_traffic_class(0);
-	 message.set_payload(mypayload);
-	 
-	 //message.init(17,100,8,mypayload,sourceaddr,destinationaddr,0,0);
-	 
-	 //It will be routed: 0 --> 2 ---> 1
-	 if(radio_->id() == 0)
-	 	ipv6_stack_.ipv6.send(destinationaddr,message.get_content_size(),message.get_content());*/
-	//NOTE END
-	 
-	/*
-	LOWPAN PACKET TEST
-	*/
-	
-	/*node_id_t s = 10;
-	node_id_t d = 600;
-	
-	LoWPANPacket_t packet;
-	//packet.set_mesh_header(20,&s,&d);
-	
-	uint16_t size = 100;
-	uint16_t tag = 234;
-	packet.set_fragmentation_header( size, tag, 10 );
-	
-	packet.recover_packet();
-	
-	block_data_t* buf = packet.get_content();
-	size_t len = packet.get_content_len();
-	
-	if(radio_->id() == 0) 
-	for( int i = 0; i < 30; i++ )
-		debug_->debug( "%i: %x\n", i, buf[i] );*/
-	
-	/*packet.decrement_hopsleft();
-	
-	if(radio_->id() == 0) 
-	 for( int i = 0; i < 30; i++ )
-	  debug_->debug( "%i: %x\n", i, buf[i] );
-	 
-	 node_id_t tmpa = packet.get_mesh_source_address();
-	 debug_->debug( "Src %x\n", tmpa );
-	tmpa = packet.get_mesh_destination_address();
-	debug_->debug( "Dst %x\n", tmpa );*/
-	
-	/*uint16_t tmpf = packet.get_fragmentation_size();
-	debug_->debug( "Frag size %i\n", tmpf );
-	
-	tmpf = packet.get_fragmentation_tag();
-	debug_->debug( "Tag size %i\n", tmpf );
-	
-	uint8_t tmpf8 = packet.get_fragmentation_offset();
-	debug_->debug( "Offs size %i\n", tmpf8 );*/
 	 
          //timer_->set_timer<lowpanApp,&lowpanApp::broadcast_loop>( 3000, this, 0 );
       }
@@ -188,17 +115,28 @@ class lowpanApp
 	 //timer_->set_timer<lowpanApp,&lowpanApp::broadcast_loop>( 3000, this, 0 );
       }
       // --------------------------------------------------------------------
-      void receive_radio_message( IPv6Address_t from, Os::Radio::size_t len, Os::Radio::block_data_t *buf )
+      void receive_radio_message( IPv6Address_t from, uint16_t len, Os::Radio::block_data_t *buf )
       {
 
          debug_->debug( "Application layer received msg at %x from ", radio_->id() );
+	 from.set_debug( *debug_ );
 	 from.print_address();
-	 debug_->debug( " Content: " );
-	 for(int i = 0; i < len; i++)
-	 	debug_->debug( "%c", buf[i]);
+	 debug_->debug( " Size: %i Content: ", len);
+	 //for( int i = 0; i < len; i++ )
+	 	//debug_->debug( "%c", buf[i] );
 	 debug_->debug( "\n" );
-	 
 
+      }
+      // --------------------------------------------------------------------
+      void receive_echo_reply( IPv6Address_t from, size_t len, Os::Radio::block_data_t *buf )
+      {
+       if( len == 1 && buf[0] == ipv6_stack_.icmpv6.ECHO_REPLY )
+       {
+       		debug_->debug( "Application layer received echo reply at %x from ", radio_->id() );
+       		from.set_debug( *debug_ );
+       		from.print_address();
+       }
+       
       }
    private:
       int callback_id;
@@ -208,7 +146,7 @@ class lowpanApp
       Radio::self_pointer_t radio_;
       Os::Timer::self_pointer_t timer_;
       Os::Debug::self_pointer_t debug_;
-      Os::Rand::self_pointer_t rand_;
+      //Os::Rand::self_pointer_t rand_;
 };
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, lowpanApp> example_app;

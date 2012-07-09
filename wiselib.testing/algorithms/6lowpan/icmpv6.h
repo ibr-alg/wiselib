@@ -465,7 +465,8 @@ namespace wiselib
 					debug().debug( "\n");
 					#endif
 					packet_pool_mgr_->clean_packet( message );
-					notify_receivers( from, 0, NULL );
+					uint8_t typecode_short = (uint8_t)typecode;
+					notify_receivers( from, 1, &typecode_short );
 				}
 				else
 				{
