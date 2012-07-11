@@ -28,6 +28,10 @@
 #include "algorithms/6lowpan/context_manager.h"
 #include "algorithms/6lowpan/reassembling_manager.h"
 
+#ifdef LOWPAN_MESH_UNDER
+#include "algorithms/6lowpan/simple_queryable_routing.h"
+#endif
+
 
 namespace wiselib
 {
@@ -65,7 +69,7 @@ namespace wiselib
 	typedef LoWPAN<OsModel, Radio, Debug, Timer> self_type;
 	typedef self_type* self_pointer_t;
 	
-	typedef IPv6<OsModel, self_type, Debug, Timer> Radio_IPv6;
+	typedef IPv6<OsModel, self_type, Radio, Debug, Timer> Radio_IPv6;
 	typedef IPv6Address<self_type, Debug> IPv6Address_t;
 	
 	typedef IPv6Packet<OsModel, Radio_IPv6, Debug> IPv6Packet_t;
@@ -76,7 +80,12 @@ namespace wiselib
 	
 	typedef LoWPANReassemblingManager<OsModel, self_type, Radio_IPv6, Debug, Timer> Reassembling_Mgr_t;
 	
-	
+	#ifdef LOWPAN_MESH_UNDER
+	/**
+	* Simple Routing implementation
+	*/
+	typedef SimpleQueryableRouting<OsModel, Radio_IPv6, self_type, Radio, Debug, Timer> Routing_t;
+	#endif
 	
 
 	// --------------------------------------------------------------------
@@ -114,6 +123,11 @@ namespace wiselib
 		timer_ = &timer;
 	 	packet_pool_mgr_ = p_mgr;
 		reassembling_mgr_.init( *timer_, packet_pool_mgr_ );
+		
+		#ifdef LOWPAN_MESH_UNDER
+		routing_.init( *timer_, *debug_, *radio_ );
+		#endif
+		
 	 	return SUCCESS;
 	 }
 	 
@@ -142,6 +156,13 @@ namespace wiselib
 	}
 	///@}
 	
+	
+	/**
+	* IP to MAC conversation
+	*/
+	int IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address );
+	///@}
+	
 	private:
 	
 	Radio& radio()
@@ -153,6 +174,9 @@ namespace wiselib
 	Debug& debug()
 	{ return *debug_; }
 	
+	Timer& timer()
+	{ return *timer_; }
+	
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
@@ -160,6 +184,9 @@ namespace wiselib
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
 	Context_Mgr_t context_mgr_;
 	Reassembling_Mgr_t reassembling_mgr_;
+	#ifdef LOWPAN_MESH_UNDER
+	Routing_t routing_;
+	#endif
 	
 	
 	/**
@@ -167,13 +194,20 @@ namespace wiselib
 	*/
 	int callback_id_;
 	
-	#ifdef LOWPAN_ROUTE_OVER
+	
+	#ifdef LOWPAN_MESH_UNDER
 	/**
-	* IP to MAC conversation
+	* Pollig function, it will be called by the timer, and this function tries to resend the actual packet
 	*/
-	int IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address );
-	///@}
+	void routing_polling( void* p_number );
+	
+	/**
+	* Fucntion to determinate the next hop
+	*/
+	int determine_mesh_next_hop( node_id_t& mac_destination, node_id_t& mac_next_hop, uint8_t packet_number );
 	#endif
+	
+	
 
 //-----------
 // Packet PART
@@ -200,7 +234,6 @@ namespace wiselib
 		NHC_SHIFT = Radio::MAX_MESSAGE_LENGTH;
 	}
 	
-
 	//-----------------------------------------------------------------------------------
 	//-----------------------Mesh header-------------------------------------------------
 	//-----------------------------------------------------------------------------------
@@ -216,6 +249,7 @@ namespace wiselib
 	*/
 	uint8_t MESH_SHIFT;
 	
+	#ifdef LOWPAN_MESH_UNDER
 	enum MESH_byte_shifts
 	{
 	 MESH_DISP_BYTE = 0,
@@ -246,28 +280,17 @@ namespace wiselib
 	* \param source pointer to the source's MAC address
 	* \param destination pointer to the destination's MAC address
 	*/
-	void set_mesh_header( uint8_t hopsleft, node_id_t* source, node_id_t* destination );
+	void set_mesh_header( uint8_t hopsleft, node_id_t source, node_id_t destination );
 	
 	/**
 	* Decrement hop left field
 	* \return SUCCESS or ERR_UNSPEC if it reaches 0
 	*/
 	int decrement_hopsleft();
-	
-	/**
-	* Get mesh source address
-	* \return MAC source address
-	*/
-	//node_id_t get_mesh_source_address();
-	
-	/**
-	* Get mesh destination address, this is always after the source address
-	* \return MAC destination address
-	*/
-	//node_id_t get_mesh_destination_address();
 	//-----------------------------------------------------------------------------------
 	//-------------------------MESH END--------------------------------------------------
 	//-----------------------------------------------------------------------------------
+	#endif
 	
 	//-----------------------------------------------------------------------------------
 	//-------------------------FRAGMENTATION HEADER--------------------------------------
@@ -631,18 +654,30 @@ namespace wiselib
 		
 		//Send the package to the next hop
 		node_id_t mac_destination;
-		//IP to MAC differs for ROUTE-OVER and MESH-UNDER, but it returns a MAC destination
-		//In MESH-UNDER the routing algorithm maybe called, then the routing callback will call this send function again
-		//This case just return ROUTING_CALLED here
-		if( IP_to_MAC( destination, mac_destination) == ROUTING_CALLED )
-			return ROUTING_CALLED;
+		//Translate the IP destination to MAC destination
+		if( IP_to_MAC( destination, mac_destination) != SUCCESS )
+			return ERR_UNSPEC;
 	
-	#ifdef MESH_UNDER
+	#ifdef LOWPAN_MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER
 	//------------------------------------------------------------------------------------------------------------
 		node_id_t my_id = id();
-		set_mesh_header( ip_packet->hops_left(), &my_id, &mac_destination );
+		set_mesh_header( ip_packet->hop_limit(), my_id, mac_destination );
+		
+		node_id_t mac_next_hop;
+		
+		//Call the routing
+		if( mac_destination == BROADCAST_ADDRESS )
+			mac_next_hop = BROADCAST_ADDRESS;
+		else
+		{
+			int result = determine_mesh_next_hop( mac_destination, mac_next_hop, packet_number );
+		
+			//If there was an error, or ROUTING_CALLED, return it
+			if( result != SUCCESS )
+				return result;
+		}
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER		END
 	//------------------------------------------------------------------------------------------------------------
@@ -722,8 +757,15 @@ namespace wiselib
 			}
 
 			//debug().debug("PAY LEN: %x buffer: %i %i\n", ACTUAL_SHIFT, buffer_[0], buffer_[1] );
+			#ifdef LOWPAN_ROUTE_OVER
 			if ( radio().send( mac_destination, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
 				return ERR_UNSPEC;
+			#endif
+			
+			#ifdef LOWPAN_MESH_UNDER
+			if ( radio().send( mac_next_hop, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
+				return ERR_UNSPEC;
+			#endif
 	
 			#ifdef LoWPAN_LAYER_DEBUG
 			if( !frag_required )
@@ -769,11 +811,93 @@ namespace wiselib
 		
 		memcpy( buffer_, data, len );
 		
-	 #ifdef MESH_UNDER
+	 #ifdef LOWPAN_MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER PROCESSING
 	//------------------------------------------------------------------------------------------------------------
-		//...
+		if( 2 != bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + MESH_DISP_BYTE, MESH_DISP_BIT, MESH_DISP_LEN ) )
+		{
+			#ifdef LoWPAN_LAYER_DEBUG
+			debug().debug(" LoWPAN layer: Dropped packet without mesh header in mesh under mode %x %x %x \n", buffer_[0], buffer_[1], buffer_[2]);
+			#endif
+			return;
+		}
+		else
+		{
+			// ACTUAL_SHIFT = 0
+			MESH_SHIFT = 0;
+			
+			//Mesh header 1 byte
+			ACTUAL_SHIFT++;
+			
+			//EXTRA hopsleft byte exists or not
+			if( 0xF == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + MESH_SHIFT + MESH_HOPSLEFT_BYTE, MESH_HOPSLEFT_BIT, MESH_HOPSLEFT_LEN ))
+				ACTUAL_SHIFT++;
+			
+			uint8_t padding_size = 0;
+			uint8_t address_size = 0;
+			
+			//Determinate sizes of mesh addresses
+			if ( 0 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + MESH_SHIFT + MESH_V_BYTE, MESH_V_BIT, MESH_V_LEN ))
+			{
+				address_size = 2;
+			}
+			else
+			{
+				address_size = 8;
+				padding_size = 8 - sizeof(node_id_t);
+			}
+			
+			//Read the addresses
+			node_id_t mac_destination = 0;
+			from = 0;
+			
+			for ( uint8_t i = 0; i < sizeof(node_id_t) ; i++ )
+			{
+				mac_destination <<= 8;
+				mac_destination |= buffer_[MESH_SHIFT + ACTUAL_SHIFT + address_size + padding_size + i];
+				
+				//Source address
+				from <<= 8;
+				from |= buffer_[MESH_SHIFT + ACTUAL_SHIFT + padding_size + i];
+			}
+			
+			//The packet has to be routed
+			if( mac_destination != id() && mac_destination != BROADCAST_ADDRESS )
+			{
+				//Get- the next hop from the routing algorithm
+				node_id_t mac_next_hop;
+				if( SUCCESS != determine_mesh_next_hop( mac_destination, mac_next_hop, 0xFF ) )
+				{
+					#ifdef LoWPAN_LAYER_DEBUG
+					debug().debug(" LoWPAN layer: Received packet can't be forwarded towards %x!\n", mac_destination );
+					#endif
+					return;
+				}
+				
+				if( SUCCESS != decrement_hopsleft() )
+				{
+					#ifdef LoWPAN_LAYER_DEBUG
+					debug().debug(" LoWPAN layer: Received packet can't be forwarded towards %x, because hops left is 0!\n", mac_destination );
+					#endif
+					return;
+				}
+				
+				radio().send( mac_next_hop, len, buffer_ );
+				#ifdef LoWPAN_LAYER_DEBUG
+				debug().debug(" LoWPAN layer: Received packet is forwarded towards %x, the next hop is %x!\n", mac_destination, mac_next_hop );
+				#endif
+				return;
+			}
+			//
+			//else: The packet is for this node
+			
+			//Skip the addresses
+			if( address_size == 8 )
+				ACTUAL_SHIFT += 16;
+			else
+				ACTUAL_SHIFT += 4;
+		}
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER PROCESSING		END
 	//------------------------------------------------------------------------------------------------------------
@@ -937,14 +1061,13 @@ namespace wiselib
 
 // -----------------------------------------------------------------------
 	
-	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
 	typename Timer_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	IP_to_MAC( IPv6Address_t ip_address ,node_id_t& mac_address )
+	IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address )
 	{
 		if( ip_address == Radio_IPv6::BROADCAST_ADDRESS )
 			mac_address = BROADCAST_ADDRESS;
@@ -956,17 +1079,17 @@ namespace wiselib
 		}
 		return SUCCESS;
 	}
-	#endif
 
 //-----------------------------------------------------------------------
 	
+	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
 	typename Timer_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	set_mesh_header( uint8_t hopsleft, node_id_t* source, node_id_t* destination )
+	set_mesh_header( uint8_t hopsleft, node_id_t source, node_id_t destination )
 	{
 		//MESH HEADER
 		MESH_SHIFT = ACTUAL_SHIFT;
@@ -1007,17 +1130,17 @@ namespace wiselib
 		{
 			mode = 0;
 
-			buffer_[ACTUAL_SHIFT++] = ((&source) >> 8) & 0xFF;
-			buffer_[ACTUAL_SHIFT++] = (&source) & 0xFF;
+			buffer_[ACTUAL_SHIFT++] = ((source) >> 8) & 0xFF;
+			buffer_[ACTUAL_SHIFT++] = (source) & 0xFF;
 			
-			buffer_[ACTUAL_SHIFT++] = ((&destination) >> 8) & 0xFF;
-			buffer_[ACTUAL_SHIFT++] = (&destination) & 0xFF;
+			buffer_[ACTUAL_SHIFT++] = ((destination) >> 8) & 0xFF;
+			buffer_[ACTUAL_SHIFT++] = (destination) & 0xFF;
 		}
 		else
 		{
 			mode = 1;
 
-			//The different operation systems provide different length link_layer_node_id_t-s
+			//The different operation systems provide different length node_id_t-s
 			//Padding with zeros, the address is 8 bytes, calculate the difference
 			uint8_t padding_size = 8 - sizeof(node_id_t);
 			memset( buffer_ + ACTUAL_SHIFT, 0x00, padding_size);
@@ -1027,8 +1150,9 @@ namespace wiselib
 			//Set the addresses
 			for ( unsigned int i = 0; i < sizeof(node_id_t) ; i++ )
 			{
-				memset( buffer_ + ACTUAL_SHIFT + padding_size + i, *((uint8_t*)source + sizeof(node_id_t) -1 - i ), 1 );
-				memset( buffer_ + ACTUAL_SHIFT + 8 + padding_size + i, *((uint8_t*)destination + sizeof(node_id_t) -1 - i ), 1 );
+				uint8_t shift = (sizeof(node_id_t) - (i+1)) * 8;
+				buffer_[ACTUAL_SHIFT + padding_size + i] = ((source >> (shift)) & 0xFF);
+				buffer_[ACTUAL_SHIFT + padding_size + 8 + i] = ((destination >> (shift)) & 0xFF);
 			}
 			//2*8 bytes
 			ACTUAL_SHIFT += 16;
@@ -1040,9 +1164,10 @@ namespace wiselib
 		//	Set V & F & initialize addresses END
 		//------------------------------------------------------------------------------------
 	}
-	
+	#endif
 //-----------------------------------------------------------------------
 	
+	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
@@ -1071,6 +1196,7 @@ namespace wiselib
 		}
 		return SUCCESS;
 	}
+	#endif
 
 //-------------------------------------------------------------------------------------
 	
@@ -1916,5 +2042,108 @@ namespace wiselib
 		
 		return SUCCESS;
 	}
+	
+	//---------------------------------------------------------------------------
+	
+	#ifdef LOWPAN_MESH_UNDER
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P>
+	int
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	determine_mesh_next_hop( node_id_t& mac_destination, node_id_t& mac_next_hop, uint8_t packet_number )
+	{
+		//If no discovery needed (forwarding)
+		bool discovery = true;
+		if( packet_number == 0xFF )
+			discovery = false;
+		
+		int routing_result = routing_.find( mac_destination, mac_next_hop, discovery );
+		//Route available, send the packet to the next hop
+		if( routing_result == Routing_t::ROUTE_AVAILABLE )
+		{
+			#ifdef LoWPAN_LAYER_DEBUG
+			debug().debug( "LoWPAN layer: To %x next hop is: %x \n", mac_destination, mac_next_hop );
+			#endif
+			return SUCCESS;
+		}
+		
+		//If this call is from the receive() function --> forwarding
+		//The packet number is fix, and an error has to be returned if no next hop avalible
+		if( packet_number == 0xFF )
+		{
+			return ERR_UNSPEC;
+		}
+		
+		//The next hop is not in the forwarding table
+		#ifdef LoWPAN_LAYER_DEBUG
+		debug().debug( "LoWPAN layer: No route to %x", mac_destination);
+		#endif
+		
+		
+		//The algorithm is working
+		if( routing_result == Routing_t::CREATION_IN_PROGRESS )
+		{
+			#ifdef LoWPAN_LAYER_DEBUG
+			debug().debug( " in the forwarding table, the routing algorithm is working!\n" );
+			#endif
+			//set timer for polling
+			timer().template set_timer<self_type, &self_type::routing_polling>( 1000, this, (void*)packet_number);
+			return ROUTING_CALLED;
+		}
+		//The algorithm is working on another path
+		else if ( routing_result == Routing_t::ROUTING_BUSY)
+		{
+			#ifdef LoWPAN_LAYER_DEBUG
+			debug().debug( " in the forwarding table, and the routing algorithm is busy, discovery will be started soon!\n" );
+			#endif
+			//set timer for polling
+			timer().template set_timer<self_type, &self_type::routing_polling>( 1500, this, (void*)packet_number);
+			return ROUTING_CALLED;
+		}
+		//The algorithm is failed, it will be dropped
+		else // Routing_t::NO_ROUTE_TO_HOST
+		{
+			#ifdef LoWPAN_LAYER_DEBUG
+			debug().debug( " and the algorithm failed, packet dropped!\n" );
+			#endif
+			//It will be dropped by the caller (Upper layer's send or routing_polling())
+			return ERR_HOSTUNREACH;
+		}
+	}
+	#endif
+	
+	//---------------------------------------------------------------------------
+	
+	#ifdef LOWPAN_MESH_UNDER
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P>
+	void
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	routing_polling( void* p_number )
+	{
+		#ifdef IPv6_LAYER_DEBUG
+		debug().debug( "LoWPAN layer: Routing algorithm polling, try to send waiting packet (%i).\n", (int)p_number);
+		#endif
+		
+		int packet_number = (int)p_number;
+		
+		if( packet_pool_mgr_->packet_pool[packet_number].valid == true )
+		{
+				
+			IPv6Address_t dest;
+			packet_pool_mgr_->packet_pool[packet_number].destination_address(dest);
+			
+			//Set the packet unused when transmitted
+			//The result can be ROUTING_CALLED if there were more then one requests for the routing algorithm
+			//or if the algorithm is still working
+			if( send( dest, packet_number, NULL ) != ROUTING_CALLED )
+				packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
+		}
+	}
+	#endif
 }
 #endif

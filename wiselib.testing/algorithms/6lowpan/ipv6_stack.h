@@ -42,7 +42,7 @@ namespace wiselib
 	typedef Timer_P Timer;
 	
 	typedef wiselib::LoWPAN<OsModel, Radio, Debug, Timer> LoWPAN_t;
-	typedef wiselib::IPv6<OsModel, LoWPAN_t, Debug, Timer> IPv6_t;
+	typedef wiselib::IPv6<OsModel, LoWPAN_t, Radio, Debug, Timer> IPv6_t;
 	typedef wiselib::UDP<OsModel, IPv6_t, LoWPAN_t, Debug> UDP_t;
 	typedef wiselib::ICMPv6<OsModel, IPv6_t, LoWPAN_t, Debug> ICMPv6_t;
 	typedef wiselib::IPv6PacketPoolManager<OsModel, IPv6_t, LoWPAN_t, Debug> Packet_Pool_Mgr_t;
@@ -63,7 +63,7 @@ namespace wiselib
 		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_, ipv6);
 	 
 		//Init IPv6
-		ipv6.init( lowpan, *debug_, &packet_pool_mgr, *timer_);
+		ipv6.init( lowpan, *radio_, *debug_, &packet_pool_mgr, *timer_);
 		//IPv6 will enable lower level radios
 		ipv6.enable_radio();
 		

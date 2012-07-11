@@ -20,12 +20,9 @@
 #define __ALGORITHMS_6LOWPAN_IPV6_LAYER_H__
 
 #include "util/base_classes/routing_base.h"
-#include "internal_interface/routing_table/routing_table_static_array.h"
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
-#include "algorithms/6lowpan/forwarding_types.h"
 #include "algorithms/6lowpan/interface_type.h"
-#include "util/serialization/bitwise_serialization.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
 #ifdef LOWPAN_ROUTE_OVER
@@ -49,6 +46,7 @@ namespace wiselib
 	
 	template<typename OsModel_P,
 		typename Radio_P,
+		typename Radio_Os_P,
 		typename Debug_P,
 		typename Timer_P>
 	class IPv6
@@ -57,10 +55,11 @@ namespace wiselib
 	public:
 	typedef OsModel_P OsModel;
 	typedef Radio_P Radio;
+	typedef Radio_Os_P Radio_Os;
 	typedef Debug_P Debug;
 	typedef Timer_P Timer;
 	
-	typedef IPv6<OsModel, Radio, Debug, Timer> self_type;
+	typedef IPv6<OsModel, Radio, Radio_Os, Debug, Timer> self_type;
 	typedef self_type* self_pointer_t;
 	
 	typedef IPv6Address<Radio, Debug> IPv6Address_t;
@@ -74,26 +73,10 @@ namespace wiselib
 	/**
 	* Simple Routing implementation
 	*/
-	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Debug, Timer> Routing_t;
+	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Radio_Os, Debug, Timer> Routing_t;
 	#endif
 
 	typedef wiselib::IPv6PacketPoolManager<OsModel, self_type, Radio, Debug> Packet_Pool_Mgr_t;
-	
-	#ifdef LOWPAN_ROUTE_OVER
-	/**
-	* Define the forwarding table
-	* pass self_type as a radio because, in the table we want to search by IPv6 addresses
-	* The entries have lower level Radio types because the next hop is a MAC address
-	*/
-	typedef wiselib::StaticArrayRoutingTable<OsModel, self_type, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<self_type> > ForwardingTable;
-	typedef typename ForwardingTable::iterator ForwardingTableIterator;
-	
-	// pair<IPv6 address, LoWPANForwardingTableValue>
-	typedef typename ForwardingTable::value_type ForwardingTableEntry;
-	
-	// LoWPANForwardingTableValue<Radio>
-	typedef typename ForwardingTable::mapped_type ForwardingTableValue; 
-	#endif
 	
 	/**
 	* In this layer and above, the node_id_t is an ipv6 address
@@ -157,14 +140,17 @@ namespace wiselib
 	~IPv6();
 	///@}
 	 
-	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer )
+	 int init( Radio& radio, Radio_Os& radio_os, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer )
 	 {
 	 	radio_ = &radio;
+		radio_os_ = &radio_os;
 	 	debug_ = &debug;
 		timer_ = &timer;
 	 	packet_pool_mgr_ = p_mgr;
 		
-		routing_.init( *timer_ );
+		#ifdef LOWPAN_ROUTE_OVER
+		routing_.init( *timer_, *debug_, *radio_os_ );
+		#endif
 		
 	 	return SUCCESS;
 	 }
@@ -230,13 +216,6 @@ namespace wiselib
 	*/
 	uint16_t generate_checksum( uint16_t len, uint8_t* data);
 	
-	/**
-	* Callback function for routing algorithm
-	* \param destination The requested destination
-	* \param next_hop The determined next_hop (IP)
-	*/
-	void route_estabilished( node_id_t destination, node_id_t next_hop );
-
 	private:
 	
 	Radio& radio()
@@ -245,24 +224,22 @@ namespace wiselib
 	Debug& debug()
 	{ return *debug_; }
 	
+	Timer& timer()
+	{ return *timer_; }
+	
 	typename Radio::self_pointer_t radio_;
+	typename Radio_Os::self_pointer_t radio_os_;
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
+	#ifdef LOWPAN_ROUTE_OVER
 	Routing_t routing_;
+	#endif
 	
 	/**
 	* Array for the interfaces
 	*/
 	Interface_t interfaces_[NUMBER_OF_INTERFACES];
-	
-	#ifdef LOWPAN_ROUTE_OVER
-	/** 
-	* Print the forwarding table
-	*/
-	void print_forwarding_table( ForwardingTable& rt );
-	///@}
-	#endif
 	
 	/**
 	* Test every interfaces and addresses to decide that the packet is for this node or not
@@ -277,9 +254,9 @@ namespace wiselib
 	
 	#ifdef LOWPAN_ROUTE_OVER
 	/**
-	* Forwarding Table
+	* Pollig function, it will be called by the timer, and this function tries to resend the actual packet
 	*/
-	ForwardingTable forwarding_table_;
+	void routing_polling( void* p_number );
 	#endif
 	
 	};
@@ -292,28 +269,31 @@ namespace wiselib
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
 	
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
 
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	IPv6()
 	: radio_ ( 0 ),
 	debug_ ( 0 )
@@ -322,9 +302,10 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	~IPv6()
 	{
 		disable_radio();
@@ -336,15 +317,13 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	int
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	init( void )
 	{
-		#ifdef LOWPAN_ROUTE_OVER
-		forwarding_table_.clear();
-		#endif
 		if ( enable_radio() != SUCCESS )
 			return ERR_UNSPEC;
 		
@@ -353,10 +332,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	int
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	destruct( void )
 	{
 		return disable_radio();
@@ -364,10 +344,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	int
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	enable_radio( void )
 	{
 		if ( radio().enable_radio() != SUCCESS )
@@ -410,10 +391,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	int
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	disable_radio( void )
 	{
 		#ifdef IPv6_LAYER_DEBUG
@@ -426,105 +408,109 @@ namespace wiselib
 	}
 	
 	// -----------------------------------------------------------------------
-	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	int
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	send( node_id_t destination, size_t packet_number, block_data_t *data )
 	{
-		#ifdef LOWPAN_ROUTE_OVER
-		//In the route over mode, every hop is an IP hop
-		//TODO handle multicast group addresses here?
-		//Try to find the next hop
-		ForwardingTableIterator it = forwarding_table_.find( destination );
-		if ( destination == BROADCAST_ADDRESS || ( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID ) )
+		
+		//This is a multicast message to all nodes
+		//This is the same in MESH UNDER and ROUTE OVER
+		if ( destination == BROADCAST_ADDRESS )
 		{
-			//The *data has to be the packet's number in the pool
-			//Packet *message = packet_pool_mgr_->get_packet_pointer( *data );
-			
-			
 			#ifdef IPv6_LAYER_DEBUG
 			debug().debug( "IPv6 layer: Send to " );
 			destination.set_debug( *debug_ );
 			destination.print_address();
+			debug().debug( " (multicast to all nodes)\n" );
 			#endif
-			if( destination == BROADCAST_ADDRESS )
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " (multicast to all nodes)\n" );
-				#endif
-				//Send the package to the next hop
-				if ( radio().send( BROADCAST_ADDRESS, packet_number, NULL ) != SUCCESS )
-					return ERR_UNSPEC;
-			}
-			else
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " Next hop is: " );
-				it->second.next_hop.set_debug( *debug_ );
-				it->second.next_hop.print_address();
-				debug().debug( "\n");
-				#endif
-				//Send the package to the next hop
-				if( radio().send( it->second.next_hop, packet_number, NULL ) != SUCCESS )
-					return ERR_UNSPEC;
-			}
+			//Send the package to the next hop
+			return radio().send( BROADCAST_ADDRESS, packet_number, NULL );
 		}
-		//The next hop is not in the forwarding table
-		else
+		
+		#ifdef LOWPAN_ROUTE_OVER
+		//In the route over mode, every hop is an IP hop
+		//TODO handle multicast group addresses here?
+		
+		//Try to find the next hop
+		node_id_t next_hop;
+		int routing_result = routing_.find( destination, next_hop );
+		//Route available, send the packet to the next hop
+		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: No route to " );
+			debug().debug( "IPv6 layer: Send to " );
 			destination.set_debug( *debug_ );
 			destination.print_address();
+			debug().debug( " Next hop is: " );
+			next_hop.set_debug( *debug_ );
+			next_hop.print_address();
+			debug().debug( "\n");
 			#endif
-			
-			//If the algorithm is not working call it
-			if( routing_.is_working == false )
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " in the forwarding table, routing algorithm is called!\n" );
-				#endif
-				
-				routing_.find( destination, this );
-			}
-			//If the algorithm is working on this destination, leave the packet in the pool,
-			else if( routing_.requested_destination_ == destination )
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " in the forwarding table, routing algorithm is working on this destination address!\n" );
-				#endif
-			}
-			//If the algorithm is working, leave the packet in the pool,
-			//In the callback function this packet will be sent too, and the algorithm will be called.
-			else
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( " in the forwarding table, routing algorithm is working, it will be called later!\n" );
-				#endif
-			}
-			
+			//Send the package to the next hop
+			return radio().send( next_hop, packet_number, NULL );
+		}
+		
+		//The next hop is not in the forwarding table
+		#ifdef IPv6_LAYER_DEBUG
+		debug().debug( "IPv6 layer: No route to " );
+		destination.set_debug( *debug_ );
+		destination.print_address();
+		#endif
+		
+		
+		//The algorithm is working
+		if( routing_result == Routing_t::CREATION_IN_PROGRESS )
+		{
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( " in the forwarding table, the routing algorithm is working!\n" );
+			#endif
+			//set timer for polling
+			timer().template set_timer<self_type, &self_type::routing_polling>( 1000, this, (void*)packet_number);
 			return ROUTING_CALLED;
+		}
+		//The algorithm is working on another path
+		else if ( routing_result == Routing_t::ROUTING_BUSY)
+		{
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( " in the forwarding table, and the routing algorithm is busy, discovery will be started soon!\n" );
+			#endif
+			//set timer for polling
+			timer().template set_timer<self_type, &self_type::routing_polling>( 1500, this, (void*)packet_number);
+			return ROUTING_CALLED;
+		}
+		//The algorithm is failed, it will be dropped
+		else // Routing_t::NO_ROUTE_TO_HOST
+		{
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( " and the algorithm failed, packet dropped!\n" );
+			#endif
+			//It will be dropped by the caller (Upper layer's send or routing_polling())
+			return ERR_HOSTUNREACH;
 		}
 		#endif
 		
+		//In MESH UNDER the LoWPAN layer will deal with the next hop, just send the packet
 		#ifdef LOWPAN_MESH_UNDER
-			//TODO
+		//TODO if the packet goes outside the 6LoWPAN network, the destination should be the edge router
+		//or the parent or something like this
+		return radio().send( destination, packet_number, NULL );
 		#endif
 		
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
-	//TODO separate route-over / mesh-under parts
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	void
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	receive( link_layer_node_id_t from, size_t packet_number, block_data_t *data )
 	{
 		if ( from == radio().id() )
@@ -573,20 +559,35 @@ namespace wiselib
 		{
 			IPv6Address_t destination;
 			message->destination_address(destination);
-			ForwardingTableIterator it = forwarding_table_.find( destination );
-			if ( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID )
+			
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( "IPv6 layer: Packet forwarding to " );
+			destination.set_debug( *debug_ );
+			destination.print_address();
+			debug().debug( "\n");
+			#endif
+			
+			if( send( destination, packet_number, NULL ) != ROUTING_CALLED )
+				packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
+			
+			/*
+			//Try to find the next hop
+			node_id_t next_hop;
+			int routing_result = routing_.find( destination, next_hop );
+			//Route available, send the packet to the next hop
+			if( routing_result == Routing_t::ROUTE_AVAILABLE )
 			{
 				#ifdef IPv6_LAYER_DEBUG
 				debug().debug( "IPv6 layer: Packet forwarded to " );
 				destination.set_debug( *debug_ );
 				destination.print_address();
 				debug().debug( " Next hop is: ");
-				it->second.next_hop.set_debug( *debug_ );
-				it->second.next_hop.print_address();
+				next_hop.set_debug( *debug_ );
+				next_hop.print_address();
 				debug().debug( "\n");
 				#endif
 
-				if( ROUTING_CALLED != radio().send( it->second.next_hop, packet_number, NULL ) )
+				if( ROUTING_CALLED != radio().send( next_hop, packet_number, NULL ) )
 					packet_pool_mgr_->clean_packet( message );
 			}
 			
@@ -607,6 +608,7 @@ namespace wiselib
 				
 				packet_pool_mgr_->clean_packet( message );
 			}
+			*/
 		}
 		#endif
 	}
@@ -614,10 +616,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	int 
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len = 64)
 	{
 		Interface_t* interf = get_interface(selected_interface);
@@ -642,10 +645,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	bool
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	ip_packet_for_this_node( node_id_t* destination )
 	{
 		for ( uint8_t i = 0; i < NUMBER_OF_INTERFACES; i++)
@@ -660,10 +664,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	uint16_t
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
 	generate_checksum( uint16_t len, uint8_t* data)
 	{
 		uint32_t sum = 0;
@@ -692,89 +697,36 @@ namespace wiselib
 	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
 	typename Radio_P,
+	typename Radio_Os_P,
 	typename Debug_P,
 	typename Timer_P>
 	void 
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	route_estabilished( node_id_t destination, node_id_t next_hop )
+	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	routing_polling( void* p_number )
 	{
-		//Routing failed
-		if( next_hop == NULL_NODE_ID )
-		{
-			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: Routing algorithm failed...\n" );
-		 	#endif
-		 	
-			//delete all outgoing packets
-			for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i ++ )
-			{
-				if( packet_pool_mgr_->packet_pool[i].incoming == false )
-					packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[i]) );
-		  	}
-		  	return;
-		 }
-		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Routing algorithm callback received (next hop to: ");
-		destination.set_debug( *debug_ );
-		destination.print_address();
-		debug().debug( " ).\n" );
+		debug().debug( "IPv6 layer: Routing algorithm polling, try to send waiting packet (%i).\n", (int)p_number);
 		#endif
 		
-		//TODO iterate and make it older
-		ForwardingTableValue entry(next_hop, 0, 5);
-		forwarding_table_[destination] = entry;
+		int packet_number = (int)p_number;
 		
-		//resend all outgoing packets
-		for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i ++ )
-		{
-			
-			//tests: valid entry, outgoing packet
-			if( packet_pool_mgr_->packet_pool[i].valid == true &&
-			 packet_pool_mgr_->packet_pool[i].incoming == false )
+		//try to resend all outgoing packets
+		//for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i ++ )
+		//{
+			//tests: valid entry
+			if( packet_pool_mgr_->packet_pool[packet_number].valid == true )
 			{
 				
 				IPv6Address_t dest;
-				packet_pool_mgr_->packet_pool[i].destination_address(dest);
-			 
-				int result = send( dest, i, NULL );
+				packet_pool_mgr_->packet_pool[packet_number].destination_address(dest);
 				
 				//Set the packet unused when transmitted
 				//The result can be ROUTING_CALLED if there were more then one requests for the routing algorithm
-				if( result != ROUTING_CALLED )
-					packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[i]) );
+				//or if the algorithm is still working
+				if( send( dest, packet_number, NULL ) != ROUTING_CALLED )
+					packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
 			}
-		}
-	}
-	#endif
-
-	// -----------------------------------------------------------------------
-	#ifdef LOWPAN_ROUTE_OVER
-	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P>
-	void
-	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P>::
-	print_forwarding_table( ForwardingTable& ft )
-	{
-		#ifdef IPv6_LAYER_DEBUG
-		int i = 0;
-
-		debug().debug( "IPv6 layer: Forwarding Table of %i (%d entries):\n", radio().id(), ft.size() );
-	 
-		for ( ForwardingTableIterator it = ft.begin(); it != ft.end(); ++it )
-		{
-			debug().debug( "   IPv6 layer:   %i: Dest ", i++);
-			it->first.set_debug( *debug_ );
-			it->first.print_address();
-			debug().debug( " SendTo " );
-			it->second.next_header.set_debug( *debug_ );
-			it->second.next_hop.print_address();
-			debug().debug( " Hops %i\n",
-				it->second.hops );
-		}
-		#endif
+		//}
 	}
 	#endif
 	
