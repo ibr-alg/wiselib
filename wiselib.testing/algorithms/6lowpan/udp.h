@@ -443,7 +443,11 @@ namespace wiselib
 		
 		
 		uint16_t actual_local_port = ( data[2] << 8 ) | data[3];
+		
+		//NOTE maybe it will have to be removed, it is here to avoid unused warning
+		#ifdef UDP_LAYER_DEBUG
 		uint16_t actual_remote_port = ( data[0] << 8 ) | data[1];
+		#endif
 		
 		uint16_t checksum = ( data[6] << 8 ) | data[7];
 		data[6] = 0;

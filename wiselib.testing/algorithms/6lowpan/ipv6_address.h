@@ -118,7 +118,7 @@ namespace wiselib
 		}
 		
 		//If the provided link_layer address is short (uint16_t), the FFFE is included
-		//Other bits are 0
+		//Other bits are 0 --> PAN ID = 0
 		if( sizeof(link_layer_node_id_t) < 3 )
 		{
 			addr[11] = 0xFF;
@@ -201,7 +201,7 @@ namespace wiselib
 	{
 		//#ifdef IPv6_LAYER_DEBUG
 		
-		debug().debug( "%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i/ %i\n",
+		debug().debug( "%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i:%i%i%i%i/ %i",
 			addr[0] >> 4, addr[0] & 0x0F,
 			addr[1] >> 4, addr[1] & 0x0F,
 			addr[2] >> 4, addr[2] & 0x0F,
