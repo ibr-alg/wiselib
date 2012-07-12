@@ -16,8 +16,8 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ALGORITHMS_6LOWPAN_FRAGMENTATION_MANAGER_H__
-#define __ALGORITHMS_6LOWPAN_FRAGMENTATION_MANAGER_H__
+#ifndef __ALGORITHMS_6LOWPAN_REASSEMBLING_MANAGER_H__
+#define __ALGORITHMS_6LOWPAN_REASSEMBLING_MANAGER_H__
 
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
@@ -59,9 +59,10 @@ namespace wiselib
 		/**
 		* Initialize the manager, get instances
 		*/
-		void init( Timer& timer,  Packet_Pool_Mgr_t* p_mgr )
+		void init( Timer& timer, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
 		{
 			timer_ = &timer;
+			debug_ = &debug;
 			packet_pool_mgr_ = p_mgr;
 			previous_datagram_tag = 0;
 			previous_frag_sender = 0;
@@ -122,9 +123,11 @@ namespace wiselib
 				if( rcvd_offsets[i] == offset )
 					return false;
 			
+			rcvd_offsets[received_fragments_number++] = offset;
+				
 			//This is a new fragment, save the offset
 			reset_timer();
-			rcvd_offsets[received_fragments_number++] = offset;
+			
 			return true;
 		}
 		
@@ -152,6 +155,10 @@ namespace wiselib
 			{
 				valid = false;
 				packet_pool_mgr_->clean_packet( ip_packet );
+				
+				#ifdef LoWPAN_LAYER_DEBUG
+				debug().debug(" Reassembling manager: fragment collection timeot for packet: %i from %x.", ip_packet_number, frag_sender );
+				#endif
 			}
 		}
 		
@@ -208,10 +215,16 @@ namespace wiselib
 		
 	 private:
 	 	typename Timer::self_pointer_t timer_;
+		typename Debug::self_pointer_t debug_;
 
 		Timer& timer()
 		{
 			return *timer_;
+		}
+		
+		Debug& debug()
+		{
+			return *debug_;
 		}
 		
 		/**

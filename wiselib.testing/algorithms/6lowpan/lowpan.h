@@ -122,9 +122,15 @@ namespace wiselib
 	 	debug_ = &debug;
 		timer_ = &timer;
 	 	packet_pool_mgr_ = p_mgr;
-		reassembling_mgr_.init( *timer_, packet_pool_mgr_ );
+		reassembling_mgr_.init( *timer_, *debug_, packet_pool_mgr_ );
 		
 		#ifdef LOWPAN_MESH_UNDER
+		broadcast_sequence_number_ = 1;
+		for( uint8_t i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
+		{
+			received_broadcast_sequence_numbers_[i] = 0;
+			received_broadcast_originators_[i] = 0;
+		}
 		routing_.init( *timer_, *debug_, *radio_ );
 		#endif
 		
@@ -224,6 +230,9 @@ namespace wiselib
 		//Init Mesh header
 		MESH_SHIFT = Radio::MAX_MESSAGE_LENGTH;
 		
+		//Init Broadcast header
+		BROADCAST_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+		
 		//Init FRAG HEADER
 		FRAG_SHIFT = Radio::MAX_MESSAGE_LENGTH;
 		
@@ -291,6 +300,34 @@ namespace wiselib
 	//-------------------------MESH END--------------------------------------------------
 	//-----------------------------------------------------------------------------------
 	#endif
+	
+	//-----------------------------------------------------------------------------------
+	//-------------------------BROADCAST HEADER------------------------------------------
+	//-----------------------------------------------------------------------------------
+	
+	/*
+	 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|0|1|0 1 0 0 0 0|Sequence Number|
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	--> 0d80
+	*/
+	
+	uint8_t BROADCAST_SHIFT;
+	
+	#ifdef LOWPAN_MESH_UNDER
+	uint8_t broadcast_sequence_number_;
+	
+	uint8_t last_added_sequence_number_;
+	uint8_t received_broadcast_sequence_numbers_[MAX_BROADCAST_SEQUENCE_NUMBERS];
+	uint8_t received_broadcast_originators_[MAX_BROADCAST_SEQUENCE_NUMBERS];
+	
+	bool is_it_new_broadcast_message( node_id_t& originator, uint8_t sequence_number );
+	#endif
+	
+	//-----------------------------------------------------------------------------------
+	//-------------------------BROADCAST HEADER END--------------------------------------
+	//-----------------------------------------------------------------------------------
 	
 	//-----------------------------------------------------------------------------------
 	//-------------------------FRAGMENTATION HEADER--------------------------------------
@@ -669,7 +706,22 @@ namespace wiselib
 		
 		//Call the routing
 		if( mac_destination == BROADCAST_ADDRESS )
+		{
 			mac_next_hop = BROADCAST_ADDRESS;
+			//--------------------------------------------------------------------------------------------
+			//		BROADCAST HEADER
+			//--------------------------------------------------------------------------------------------
+			
+			BROADCAST_SHIFT = ACTUAL_SHIFT;
+			//Set dispatch for broadcast header
+			buffer_[ACTUAL_SHIFT++] = 0x50;
+			//Set the actual sequence number and increment it
+			buffer_[ACTUAL_SHIFT++] = broadcast_sequence_number_++;
+			
+			//--------------------------------------------------------------------------------------------
+			//		BROADCAST HEADER		END
+			//--------------------------------------------------------------------------------------------
+		}
 		else
 		{
 			int result = determine_mesh_next_hop( mac_destination, mac_next_hop, packet_number );
@@ -681,8 +733,10 @@ namespace wiselib
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER		END
 	//------------------------------------------------------------------------------------------------------------
-	#endif
 	
+	
+	#endif
+
 	//------------------------------------------------------------------------------------------------------------
 	//		IP HEADERS
 	//------------------------------------------------------------------------------------------------------------
@@ -718,7 +772,7 @@ namespace wiselib
 			frag_required = true;
 		
 		uint8_t offset = 0;
-		
+
 		do {
 			if( frag_required )
 			{
@@ -755,7 +809,7 @@ namespace wiselib
 				ACTUAL_SHIFT += payload_length;
 				payload_length = 0;
 			}
-
+			
 			//debug().debug("PAY LEN: %x buffer: %i %i\n", ACTUAL_SHIFT, buffer_[0], buffer_[1] );
 			#ifdef LOWPAN_ROUTE_OVER
 			if ( radio().send( mac_destination, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
@@ -782,6 +836,12 @@ namespace wiselib
 				//No IPHC and NHC for non first fragments
 				IPHC_SHIFT = MAX_MESSAGE_LENGTH;
 				NHC_SHIFT = MAX_MESSAGE_LENGTH;
+				
+				//Modify the broadcast_sequence_number_ in the MESH header if we are in MESH UNDER mode
+				#ifdef LOWPAN_MESH_UNDER
+				if( mac_next_hop == BROADCAST_ADDRESS)
+					buffer_[BROADCAST_SHIFT + 1] = broadcast_sequence_number_++;
+				#endif
 			}
 			else
 				frag_required = false;
@@ -862,6 +922,16 @@ namespace wiselib
 				from |= buffer_[MESH_SHIFT + ACTUAL_SHIFT + padding_size + i];
 			}
 			
+			//This packet is from this node
+			if( from == id() )
+				return;
+			
+			//Skip the addresses
+			if( address_size == 8 )
+				ACTUAL_SHIFT += 16;
+			else
+				ACTUAL_SHIFT += 4;
+			
 			//The packet has to be routed
 			if( mac_destination != id() && mac_destination != BROADCAST_ADDRESS )
 			{
@@ -892,11 +962,28 @@ namespace wiselib
 			//
 			//else: The packet is for this node
 			
-			//Skip the addresses
-			if( address_size == 8 )
-				ACTUAL_SHIFT += 16;
-			else
-				ACTUAL_SHIFT += 4;
+			//--------------------------------------------------------------------------------------------
+			//		BROADCAST HEADER
+			//--------------------------------------------------------------------------------------------
+			
+			if( mac_destination == BROADCAST_ADDRESS )
+			{
+				BROADCAST_SHIFT = ACTUAL_SHIFT;
+				
+				//Skipp the dispatch byte
+				ACTUAL_SHIFT++;
+				
+				//If this is a new broadcast message: continue processing and send it
+				if( is_it_new_broadcast_message( from, buffer_[ACTUAL_SHIFT++] ) )
+					radio().send( BROADCAST_ADDRESS, len, buffer_ );
+				//If it is a duplicate: drop it
+				else
+					return;
+			}
+			
+			//--------------------------------------------------------------------------------------------
+			//		BROADCAST HEADER		END
+			//--------------------------------------------------------------------------------------------
 		}
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER PROCESSING		END
@@ -2143,6 +2230,37 @@ namespace wiselib
 			if( send( dest, packet_number, NULL ) != ROUTING_CALLED )
 				packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
 		}
+	}
+	#endif
+	
+	//---------------------------------------------------------------------------
+	
+	#ifdef LOWPAN_MESH_UNDER
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P>
+	bool
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	is_it_new_broadcast_message( node_id_t& originator, uint8_t sequence_number )
+	{
+		for( int i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
+		{
+			if( received_broadcast_originators_[i] == originator &&
+				received_broadcast_sequence_numbers_[i] == sequence_number )
+			return false;
+		}
+		
+		//Increment the place of the new sequence_number (modulo)
+		if( last_added_sequence_number_ + 1 == MAX_BROADCAST_SEQUENCE_NUMBERS )
+			last_added_sequence_number_ = 0;
+		else
+			last_added_sequence_number_++;
+		
+		received_broadcast_originators_[last_added_sequence_number_] = originator;
+		received_broadcast_sequence_numbers_[last_added_sequence_number_] = sequence_number;
+		
+		return true;
 	}
 	#endif
 }
