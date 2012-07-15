@@ -19,10 +19,8 @@
 #ifndef __ALGORITHMS_6LOWPAN_LOWPAN_LAYER_H__
 #define __ALGORITHMS_6LOWPAN_LOWPAN_LAYER_H__
 
-#include "util/base_classes/routing_base.h"
-#include "algorithms/6lowpan/ipv6_address.h"
-#include "algorithms/6lowpan/ipv6_packet.h"
-#include "algorithms/6lowpan/ipv6.h"
+#include "util/base_classes/radio_base.h"
+
 #include "util/serialization/bitwise_serialization.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 #include "algorithms/6lowpan/context_manager.h"
@@ -30,6 +28,7 @@
 
 #ifdef LOWPAN_MESH_UNDER
 #include "algorithms/6lowpan/simple_queryable_routing.h"
+#include "algorithms/6lowpan/interface_manager.h"
 #endif
 
 
@@ -48,7 +47,8 @@ namespace wiselib
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename Uart_Radio_P>
 	class LoWPAN
 	: public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
@@ -57,6 +57,7 @@ namespace wiselib
 	typedef Radio_P Radio;
 	typedef Debug_P Debug;
 	typedef Timer_P Timer;
+	typedef Uart_Radio_P Uart_Radio;
 	
 	/**
 	* Parameters from the OS radio
@@ -66,25 +67,27 @@ namespace wiselib
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::message_id_t message_id_t;
 	
-	typedef LoWPAN<OsModel, Radio, Debug, Timer> self_type;
+	typedef LoWPAN<OsModel, Radio, Debug, Timer, Uart_Radio> self_type;
 	typedef self_type* self_pointer_t;
-	
-	typedef IPv6<OsModel, self_type, Radio, Debug, Timer> Radio_IPv6;
-	typedef IPv6Address<self_type, Debug> IPv6Address_t;
-	
-	typedef IPv6Packet<OsModel, Radio_IPv6, Debug> IPv6Packet_t;
 
-	typedef IPv6PacketPoolManager<OsModel, Radio_IPv6, self_type, Debug> Packet_Pool_Mgr_t;
+	typedef IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
+	typedef typename IPv6Packet_t::node_id_t IPv6Address_t;
 	
-	typedef LoWPANContextManager<Radio_IPv6, Debug> Context_Mgr_t;
+	typedef LoWPANContextManager<Radio, Debug> Context_Mgr_t;
 	
-	typedef LoWPANReassemblingManager<OsModel, self_type, Radio_IPv6, Debug, Timer> Reassembling_Mgr_t;
+	typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> Reassembling_Mgr_t;
 	
 	#ifdef LOWPAN_MESH_UNDER
+	
+	
+	typedef InterfaceManager<OsModel, self_type, Radio, Debug, Timer, Uart_Radio> InterfaceManager_t;
+	
 	/**
 	* Simple Routing implementation
 	*/
-	typedef SimpleQueryableRouting<OsModel, Radio_IPv6, self_type, Radio, Debug, Timer> Routing_t;
+	//Fake IP Radio
+	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Debug, Timer, InterfaceManager_t> Routing_t;
 	#endif
 	
 
@@ -98,6 +101,18 @@ namespace wiselib
 	 ROUTING_CALLED = 100
 	};
 	// --------------------------------------------------------------------
+	
+	
+	enum NextHeaders
+	{
+	 UDP = 17,
+	 ICMPV6 = 58
+	 /*TCP = 6
+	 EH_HOHO = 0	//Hop by Hop
+	 EH_DESTO = 60
+	 EH_ROUTING = 43
+	 EH_FRAG = 44*/
+	};
 	
 	enum SpecialNodeIds {
 	 BROADCAST_ADDRESS = Radio_P::BROADCAST_ADDRESS, ///< All nodes in communication range
@@ -115,10 +130,9 @@ namespace wiselib
 	~LoWPAN();
 	///@}
 	 
-	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer, Radio_IPv6& ip_radio )
+	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer )
 	 {
 	 	radio_ = &radio;
-		ip_radio_ = &ip_radio;
 	 	debug_ = &debug;
 		timer_ = &timer;
 	 	packet_pool_mgr_ = p_mgr;
@@ -131,7 +145,7 @@ namespace wiselib
 			received_broadcast_sequence_numbers_[i] = 0;
 			received_broadcast_originators_[i] = 0;
 		}
-		routing_.init( *timer_, *debug_, *radio_ );
+		routing_.init( *timer_, *debug_, *radio_, &interface_manager_ );
 		#endif
 		
 	 	return SUCCESS;
@@ -174,9 +188,6 @@ namespace wiselib
 	Radio& radio()
 	{ return *radio_; }
 	
-	Radio_IPv6& ip_radio()
-	{ return *ip_radio_; }
-	
 	Debug& debug()
 	{ return *debug_; }
 	
@@ -186,11 +197,11 @@ namespace wiselib
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
-	typename Radio_IPv6::self_pointer_t ip_radio_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
 	Context_Mgr_t context_mgr_;
 	Reassembling_Mgr_t reassembling_mgr_;
 	#ifdef LOWPAN_MESH_UNDER
+	InterfaceManager_t interface_manager_;
 	Routing_t routing_;
 	#endif
 	
@@ -589,8 +600,9 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	typename Timer_P,
+	typename Uart_Radio_P>
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	LoWPAN()
 	: radio_ ( 0 ),
 	debug_ ( 0 )
@@ -600,8 +612,9 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	typename Timer_P,
+	typename Uart_Radio_P>
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	~LoWPAN()
 	{
 		disable_radio();
@@ -614,9 +627,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	init( void )
 	{
 		return enable_radio();
@@ -625,9 +639,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	destruct( void )
 	{
 		return disable_radio();
@@ -636,9 +651,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	enable_radio( void )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
@@ -660,9 +676,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	disable_radio( void )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
@@ -678,22 +695,24 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	send( IPv6Address_t destination, size_t packet_number, block_data_t *data )
 	{
 		//Reset buffer_ and shifts
 		reset_buffer();
-		
+
 		//The *data has to be a constructed IPv6 package
 		IPv6Packet_t *ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
-		
+
 		//Send the package to the next hop
 		node_id_t mac_destination;
 		//Translate the IP destination to MAC destination
 		if( IP_to_MAC( destination, mac_destination) != SUCCESS )
 			return ERR_UNSPEC;
+
 	
 	#ifdef LOWPAN_MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
@@ -742,7 +761,7 @@ namespace wiselib
 	//------------------------------------------------------------------------------------------------------------
 		set_IPHC_header( ip_packet, &mac_destination );
 		
-		if( ip_packet->next_header() == Radio_IPv6::UDP )
+		if( ip_packet->next_header() == UDP )
 			set_NHC_header( ip_packet );
 	//------------------------------------------------------------------------------------------------------------
 	//		IP HEADERS			END
@@ -862,9 +881,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	receive( node_id_t from, size_t len, block_data_t *data )
 	{
 		reset_buffer();
@@ -1075,7 +1095,7 @@ namespace wiselib
 			reassembling_mgr_.received_datagram_size += 40;
 			
 			//If it is a UDP packet, uncompress it
-			if( reassembling_mgr_.ip_packet->next_header() == Radio_IPv6::UDP )
+			if( reassembling_mgr_.ip_packet->next_header() == UDP )
 			{
 				NEXT_HEADER_SHIFT += 8;
 				//NOTE if there will be other extension headers the size will be different
@@ -1128,14 +1148,14 @@ namespace wiselib
 		{
 			reassembling_mgr_.valid = false;
 
-			if( reassembling_mgr_.ip_packet->next_header() == Radio_IPv6::UDP )
+			if( reassembling_mgr_.ip_packet->next_header() == UDP )
 			{
 				//Generate CHECKSUM, set 0 to the checkum's bytes first
 				uint8_t tmp = 0;
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 6 );
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
 			
-				uint16_t checksum = ip_radio().generate_checksum( reassembling_mgr_.ip_packet->length(), reassembling_mgr_.ip_packet->payload() );
+				uint16_t checksum = reassembling_mgr_.ip_packet->generate_checksum( reassembling_mgr_.ip_packet->length(), reassembling_mgr_.ip_packet->payload() );
 				tmp = 0xFF & (checksum >> 8);
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 6 );
 				tmp = 0xFF & (checksum);
@@ -1151,12 +1171,14 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address )
 	{
-		if( ip_address == Radio_IPv6::BROADCAST_ADDRESS )
+		IPv6Address_t ip_broadcast = IPv6Address<Radio_P, Debug_P>(1);
+		if( ip_address == ip_broadcast )
 			mac_address = BROADCAST_ADDRESS;
 		else
 		{
@@ -1173,9 +1195,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_mesh_header( uint8_t hopsleft, node_id_t source, node_id_t destination )
 	{
 		//MESH HEADER
@@ -1258,9 +1281,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	decrement_hopsleft()
 	{
 		uint8_t hopsleft = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + MESH_SHIFT + MESH_HOPSLEFT_BYTE, MESH_HOPSLEFT_BIT, MESH_HOPSLEFT_LEN );
@@ -1291,9 +1315,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_fragmentation_header( uint16_t size, uint16_t tag, uint8_t offset )
 	{
 		uint8_t mode;
@@ -1354,9 +1379,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_IPHC_header( IPv6Packet_t* ip_packet, node_id_t* link_local_destination )
 	{
 		//Start position at the actual SHIFT
@@ -1427,7 +1453,7 @@ namespace wiselib
 		//------------------------------------------------------------------------------------
 
 		//If Next header is not UDP, full NH used
-		if( ip_packet->next_header() != Radio_IPv6::UDP )
+		if( ip_packet->next_header() != UDP )
 		{
 			mode = 0;
 			//Copy the full next-header byte
@@ -1584,9 +1610,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_NHC_header( IPv6Packet_t* ip_packet )
 	{
 		NHC_SHIFT = ACTUAL_SHIFT;
@@ -1670,9 +1697,10 @@ namespace wiselib
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	uncompress_IPHC( IPv6Packet_t* packet, node_id_t* link_layer_from )
 	{
 
@@ -1723,7 +1751,7 @@ namespace wiselib
 		if( 0 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + IPHC_SHIFT + IPHC_NH_BYTE, IPHC_NH_BIT, IPHC_NH_LEN ) )
 				packet->set_next_header( buffer_[ACTUAL_SHIFT++] );
 			else
-				packet->set_next_header( Radio_IPv6::UDP );
+				packet->set_next_header( UDP );
 		//------------------------------------
 		// HOP LIMIT
 		//------------------------------------
@@ -1818,9 +1846,10 @@ namespace wiselib
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	uncompress_NHC( IPv6Packet_t* packet, uint16_t packet_len )
 	{
 			NHC_SHIFT = ACTUAL_SHIFT;
@@ -1888,9 +1917,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	bool
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	is_it_short_address( IPv6Address_t* address )
 	 {
 	  /*if( ( address->addr[8] == 0x00 || address->addr[8] == 0x02 )  &&
@@ -1909,9 +1939,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	bool
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address )
 	{
 		//Copy the prefix
@@ -1941,9 +1972,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_unicast_address( IPv6Packet_t* packet, node_id_t* link_local_destination, bool source, uint8_t& CID_mode, uint8_t& CID_value )
 	{
 		//Variable for SAC and DAC
@@ -2050,9 +2082,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	get_unicast_address( node_id_t* link_local_address, bool source, IPv6Address_t& address )
 	{
 		uint8_t AM_mode;
@@ -2136,9 +2169,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	int
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	determine_mesh_next_hop( node_id_t& mac_destination, node_id_t& mac_next_hop, uint8_t packet_number )
 	{
 		//If no discovery needed (forwarding)
@@ -2146,7 +2180,8 @@ namespace wiselib
 		if( packet_number == 0xFF )
 			discovery = false;
 		
-		int routing_result = routing_.find( mac_destination, mac_next_hop, discovery );
+		uint8_t target_interface;
+		int routing_result = routing_.find( mac_destination, target_interface, mac_next_hop, discovery );
 		//Route available, send the packet to the next hop
 		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
@@ -2207,9 +2242,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	void
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	routing_polling( void* p_number )
 	{
 		#ifdef IPv6_LAYER_DEBUG
@@ -2239,9 +2275,10 @@ namespace wiselib
 	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename Uart_Radio_P>
 	bool
-	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P>::
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	is_it_new_broadcast_message( node_id_t& originator, uint8_t sequence_number )
 	{
 		for( int i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
@@ -2263,5 +2300,6 @@ namespace wiselib
 		return true;
 	}
 	#endif
+	
 }
 #endif

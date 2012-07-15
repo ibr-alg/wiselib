@@ -31,20 +31,23 @@ namespace wiselib
 		// -----------------------------------------------------------------
 		IPForwardingTableValue()
 			: next_hop( Radio::NULL_NODE_ID ),
+			target_interface( 0 ),
 			hops( 0 ),
 			seq_nr( 0 )
 			{}
 
 		// -----------------------------------------------------------------
 
-		IPForwardingTableValue( node_id_t next, uint8_t h, uint16_t s )
+		IPForwardingTableValue( node_id_t next, uint8_t h, uint16_t s, uint8_t i )
 			: next_hop( next ),
+			target_interface( i ),
 			hops( h ),
 			seq_nr( s )
 			{}
 		// -----------------------------------------------------------------
 		//Next hop is an IP address
 		node_id_t next_hop;
+		uint8_t target_interface;
 		uint8_t hops;
 		uint16_t seq_nr; ///< Sequence Number of last Req
 	};

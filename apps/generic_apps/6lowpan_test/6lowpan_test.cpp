@@ -3,24 +3,30 @@
 #include "algorithms/6lowpan/ipv6_address.h"
 #include "algorithms/6lowpan/ipv6_packet.h"
 //#include "algorithms/6lowpan/lowpan_packet.h"
-#include "algorithms/6lowpan/ipv6.h"
-#include "algorithms/6lowpan/lowpan.h"
+
 #include "algorithms/6lowpan/ipv6_stack.h"
 
-//#include "util/serialization/bitwise_serialization.h"
+#ifdef SHAWN
+#include "external_interface/shawn/shawn_testbedservice_uart.h"
+#endif
 
 typedef wiselib::OSMODEL Os;
 typedef Os::Radio Radio;
 typedef Os::Radio::node_id_t node_id_t;
 
+#ifdef SHAWN
+typedef wiselib::ShawnTestbedserviceUartModel<wiselib::OSMODEL> Uart;
+#else
+typedef Os::Uart Uart;
+#endif
 
 
-typedef wiselib::IPv6Stack<Os, Radio, Os::Debug, Os::Timer> IPv6_stack_t;
-typedef wiselib::LoWPAN<Os, Radio, Os::Debug, Os::Timer> LoWPAN_t;
-typedef wiselib::IPv6<Os, LoWPAN_t, Os::Debug, Os::Timer> IPv6_t;
-typedef wiselib::IPv6Address<LoWPAN_t, Os::Debug> IPv6Address_t;
-typedef wiselib::IPv6Packet<Os, IPv6_t, Os::Debug> IPv6Packet_t;
-//typedef wiselib::LoWPANPacket<Os, LoWPAN_t, IPv6_t, Os::Debug> LoWPANPacket_t;
+typedef wiselib::IPv6Stack<Os, Radio, Os::Debug, Os::Timer, Uart> IPv6_stack_t;
+
+typedef wiselib::IPv6Address<Radio, Os::Debug> IPv6Address_t;
+//typedef IPv6_stack_t::LoWPAN_t LoWPAN_t;
+//typedef IPv6_stack_t::IPv6Address_t IPv6Address_t;
+
 
 class lowpanApp
 {
@@ -35,15 +41,17 @@ class lowpanApp
          radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
          timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
          debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+	 uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet( value );
 
          debug_->debug( "Booting with ID: %x\n", radio_->id());
 	 
-	 ipv6_stack_.init(*radio_, *debug_, *timer_);
+	 ipv6_stack_.init(*radio_, *debug_, *timer_, *uart_);
 	 
 	 
 	 callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
 	 callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 	 
+	 /*
 	 //HACK
 	 //It will have to come from an advertisement!
 	 uint8_t my_prefix[8];
@@ -56,12 +64,11 @@ class lowpanApp
 	 my_prefix[6] = 0xF2;
 	 my_prefix[7] = 0x1D;
 	 //HACK
-	 ipv6_stack_.ipv6.set_prefix_for_interface( my_prefix, 0, 64 );
-	 
+	 ipv6_stack_.interface_manager.set_prefix_for_interface( my_prefix, ipv6_stack_.interface_manager.INTERFACE_RADIO , 64 );
+	 */
 	 //NOTE Test IP packet
 	 IPv6Address_t sourceaddr;
 	 IPv6Address_t destinationaddr;
-	 IPv6Packet_t message;
 	 
 	 destinationaddr.set_debug( *debug_ );
 	 
@@ -69,38 +76,35 @@ class lowpanApp
 	 destinationaddr.make_it_link_local();
 	 
 	 
-	 node_id_t ll_id = 0x210c;
+	 node_id_t ll_id = 0x2138;
 	 destinationaddr.set_long_iid(&ll_id, false);
 	 
-	 //Broadcast test
-	 //destinationaddr = IPv6_t::BROADCAST_ADDRESS;
-	 
-	 uint8_t mypayload[] = "hello :) This is a long test message from node 0 to test the fragmentation. Google will pre-publish the evaluation questions for both students and mentors. Mentors will fill out mid-term and final evaluations for their students via the Google Summer of Code 2012 site. These evaluations will be visible in the system to the mentor and the mentoring organization s administrator(s). Students will fill out a mid-term and final evaluation of their mentors online as well, and their evaluations will only be visible in the system to the mentoring organization s administrator(s). Program administrators from Google will have access to all evaluation data. Any student who does not submit an evaluation by the evaluation deadline will fail that evaluation, regardless of the grade the mentor gives the student. If a student submits his or her evaluation on time but the mentor does not, then the student is  in an undecided state until the program administrators can speak to the mentor and determine the student s grade. Students who fail the mid-term are immediately removed from the program: it s not possible to fail the mid-term, stay in the program, and then have a final evaluation. In almost all cases, students will never see their mentor s evaluation of their progress, nor will a mentor see a student s evaluation of her/his mentorship.";
+	 //uint8_t mypayload[] = "hello :) This is a long test message from node 0 to test the fragmentation. Google will pre-publish the evaluation questions for both students and mentors. Mentors will fill out mid-term and final evaluations for their students via the Google Summer of Code 2012 site. These evaluations will be visible in the system to the mentor and the mentoring organization s administrator(s). Students will fill out a mid-term and final evaluation of their mentors online as well, and their evaluations will only be visible in the system to the mentoring organization s administrator(s). Program administrators from Google will have access to all evaluation data. Any student who does not submit an evaluation by the evaluation deadline will fail that evaluation, regardless of the grade the mentor gives the student. If a student submits his or her evaluation on time but the mentor does not, then the student is  in an undecided state until the program administrators can speak to the mentor and determine the student s grade. Students who fail the mid-term are immediately removed from the program: it s not possible to fail the mid-term, stay in the program, and then have a final evaluation. In almost all cases, students will never see their mentor s evaluation of their progress, nor will a mentor see a student s evaluation of her/his mentorship.";
 	 
 	 /*
 	 UDP
 	 */
-	/* if( radio_->id() == 0x2110 )
+	/* if( radio_->id() == 1 )
 	 {
 	 	int my_number = ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
 	 	//ipv6_stack_.udp.print_sockets();
 	 	ipv6_stack_.udp.send(my_number,sizeof(mypayload),mypayload);
 	 }
-	 if( radio_->id() == 0x210c )
+	 if( radio_->id() == 0 )
 	 {
-	 	node_id_t ll_id = 0;
+	 	node_id_t ll_id = 1;
 	 	destinationaddr.set_long_iid(&ll_id, false);
 	 	ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
 	 }*/
 	 
 	 /*ICMPv6 Ping test*/
 	 // 0 ---> 1 <---- 2
-	 //if( radio_->id() == 0x2110 )
-	 //{
+	 if( radio_->id() == 0x2110 )
+	 {
 	 	debug_->debug("Application layer: sending echo request");
-		//ipv6_stack_.icmpv6.ping(destinationaddr);
-	 	ipv6_stack_.icmpv6.ping(IPv6_t::BROADCAST_ADDRESS);
-	 //}
+		ipv6_stack_.icmpv6.ping(destinationaddr);
+	 	//ipv6_stack_.icmpv6.ping(ipv6_stack_.ipv6.BROADCAST_ADDRESS);
+	 }
 	 
 	 
          //timer_->set_timer<lowpanApp,&lowpanApp::broadcast_loop>( 3000, this, 0 );
@@ -140,12 +144,12 @@ class lowpanApp
       }
    private:
       int callback_id;
-      //IPv6_t ipv6_;
-      LoWPAN_t lowpan_;
+
       IPv6_stack_t ipv6_stack_;
       Radio::self_pointer_t radio_;
       Os::Timer::self_pointer_t timer_;
       Os::Debug::self_pointer_t debug_;
+      Uart::self_pointer_t uart_;
       //Os::Rand::self_pointer_t rand_;
 };
 // --------------------------------------------------------------------------

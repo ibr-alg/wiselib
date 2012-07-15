@@ -25,7 +25,6 @@ namespace wiselib
 {
 	template<typename OsModel_P,
 		typename Radio_P,
-		typename Radio_Link_Layer_P,
 		typename Debug_P>
 	class IPv6PacketPoolManager
 	{
@@ -33,10 +32,9 @@ namespace wiselib
 		typedef OsModel_P OsModel;
 		typedef Radio_P Radio;
 		typedef Debug_P Debug;
-		typedef Radio_Link_Layer_P Radio_Link_Layer;
-		typedef typename Radio::node_id_t node_id_t;
 		
 		typedef IPv6Packet<OsModel, Radio, Debug> Packet;
+		typedef typename Packet::node_id_t node_id_t;
 
 		// -----------------------------------------------------------------
 		IPv6PacketPoolManager()

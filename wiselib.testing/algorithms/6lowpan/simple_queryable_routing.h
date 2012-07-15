@@ -25,26 +25,24 @@
 namespace wiselib
 {
 	template<typename OsModel_P,
-		typename Radio_Network_Layer_P,
-		typename Radio_Link_Layer_P,
+		typename Radio_Upper_Layer_P,
 		typename Radio_Os_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename InterfaceManager_P>
 	class SimpleQueryableRouting
 	{
 	public:
 		typedef OsModel_P OsModel;
-		typedef Radio_Network_Layer_P Radio_Network_Layer;
+		//NOTE: MESH UNDER: LoWPAN Radio, ROUTE OVER: IP Radio
+		typedef Radio_Upper_Layer_P Radio_Upper_Layer;
 		typedef Debug_P Debug;
 		typedef Timer_P Timer;
-		typedef Radio_Link_Layer_P Radio_Link_Layer;
 		typedef Radio_Os_P Radio_Os;
+		typedef InterfaceManager_P InterfaceManager_t;
 		
-		typedef IPv6Address<Radio_Link_Layer, Debug> IPv6Address_t;
-		
-		typedef SimpleQueryableRouting<OsModel, Radio_Network_Layer, Radio_Link_Layer, Radio_Os_P, Debug, Timer> self_type;
-		
-		
+		typedef SimpleQueryableRouting<OsModel, Radio_Upper_Layer, Radio_Os, Debug, Timer, InterfaceManager_t> self_type;
+
 		/**
 		* Define the forwarding table
 		* pass the IPv6 Radio, because in the table we want to search by IPv6 addresses
@@ -52,27 +50,27 @@ namespace wiselib
 		* The entries have lower level Radio types because the next hop is a MAC address if MESH UNDER mode enabled
 		*/
 		#ifdef LOWPAN_ROUTE_OVER
-		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Network_Layer, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<Radio_Network_Layer> > ForwardingTable;
-		typedef typename Radio_Network_Layer::node_id_t node_id_t;
+		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Upper_Layer, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<Radio_Upper_Layer> > ForwardingTable;
+		typedef typename Radio_Upper_Layer::node_id_t node_id_t;
 		
 		/**
 		* Unspecified IP address: 0:0:0:0:0:0:0:0
 		*/
-		static const IPv6Address_t NULL_NODE_ID;
+		static const node_id_t NULL_NODE_ID;
 		
 		/**
 		* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
 		*/
-		static const IPv6Address_t BROADCAST_ADDRESS;
+		static const node_id_t BROADCAST_ADDRESS;
 		#endif
 		
 		#ifdef LOWPAN_MESH_UNDER
-		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Link_Layer, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<Radio_Link_Layer> > ForwardingTable;
-		typedef typename Radio_Link_Layer::node_id_t node_id_t;
+		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Upper_Layer, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<Radio_Os> > ForwardingTable;
+		typedef typename Radio_Upper_Layer::node_id_t node_id_t;
 		
 		enum SpecialNodeIds {
-		 BROADCAST_ADDRESS = Radio_Link_Layer::BROADCAST_ADDRESS, ///< All nodes in communication range
-		 NULL_NODE_ID      = Radio_Link_Layer::NULL_NODE_ID      ///< Unknown/No node id
+		 BROADCAST_ADDRESS = Radio_Os::BROADCAST_ADDRESS, ///< All nodes in communication range
+		 NULL_NODE_ID      = Radio_Os::NULL_NODE_ID      ///< Unknown/No node id
 		};
 		#endif
 		
@@ -100,25 +98,23 @@ namespace wiselib
 		SimpleQueryableRouting()
 		{
 			is_working = false;
-			#ifdef LOWPAN_ROUTE_OVER
-			requested_destination_ = Radio_Network_Layer::NULL_NODE_ID;
-			#endif
-			
-			#ifdef LOWPAN_MESH_UNDER
-			requested_destination_ = Radio_Link_Layer::NULL_NODE_ID;
-			#endif
+
+			requested_destination_ = Radio_Upper_Layer::NULL_NODE_ID;
+
 			failed_alive_ = false;
 		}
 		
 		// -----------------------------------------------------------------
 		
 
-		void init( Timer& timer, Debug& debug, Radio_Os& os_radio )
+		void init( Timer& timer, Debug& debug, Radio_Os& os_radio, InterfaceManager_t* i_mgr )
 		{
 			timer_ = &timer;
 			debug_ = &debug;
 			os_radio_ = &os_radio;
 			forwarding_table_.clear();
+			
+			interface_manager_ = i_mgr;
 			
 			
 			// TEST for: 0x2110 <--> 0x210c <--> 0x212c
@@ -163,7 +159,7 @@ namespace wiselib
 
 		// -----------------------------------------------------------------
 
-		int find( node_id_t destination, node_id_t& next_hop, bool start_discovery = true );
+		int find( node_id_t destination, uint8_t& target_interface, node_id_t& next_hop, bool start_discovery = true );
 		
 
 		/** 
@@ -176,6 +172,7 @@ namespace wiselib
 	 	typename Timer::self_pointer_t timer_;
 		typename Radio_Os::self_pointer_t os_radio_;
 		typename Debug::self_pointer_t debug_;
+		InterfaceManager_t* interface_manager_;
 		
 		/**
 		* destination for the actual discovery
@@ -231,39 +228,39 @@ namespace wiselib
 	#ifdef LOWPAN_ROUTE_OVER
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
-	typename Radio_Network_Layer_P,
-	typename Radio_Link_Layer_P,
+	typename Radio_Upper_Layer_P,
 	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	const
-	IPv6Address<Radio_Link_Layer_P, Debug_P>
-	SimpleQueryableRouting<OsModel_P, Radio_Network_Layer_P, Radio_Link_Layer_P, Radio_Os_P, Debug_P, Timer_P>::NULL_NODE_ID = Radio_Network_Layer::NULL_NODE_ID;
+	typename Radio_Upper_Layer_P::node_id_t
+	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::NULL_NODE_ID = Radio_Upper_Layer_P::NULL_NODE_ID;
 	
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
-	typename Radio_Network_Layer_P,
-	typename Radio_Link_Layer_P,
+	typename Radio_Upper_Layer_P,
 	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	const
-	IPv6Address<Radio_Link_Layer_P, Debug_P>
-	SimpleQueryableRouting<OsModel_P, Radio_Network_Layer_P, Radio_Link_Layer_P, Radio_Os_P, Debug_P, Timer_P>::BROADCAST_ADDRESS = Radio_Network_Layer::BROADCAST_ADDRESS;
+	typename Radio_Upper_Layer_P::node_id_t
+	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::BROADCAST_ADDRESS = Radio_Upper_Layer_P::BROADCAST_ADDRESS;
 	#endif
 	
 	// ----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-		typename Radio_Network_Layer_P,
-		typename Radio_Link_Layer_P,
+		typename Radio_Upper_Layer_P,
 		typename Radio_Os_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename InterfaceManager_P>
 	int
-	SimpleQueryableRouting<OsModel_P, Radio_Network_Layer_P, Radio_Link_Layer_P, Radio_Os_P, Debug_P, Timer_P>::
-	find( node_id_t destination, node_id_t& next_hop, bool start_discovery )
+	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::
+	find( node_id_t destination, uint8_t& target_interface,  node_id_t& next_hop, bool start_discovery )
 		{
 			
 			//If this is the last failed destination again, return NO_ROUTE_TO_HOST
@@ -275,6 +272,7 @@ namespace wiselib
 			if( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID )
 			{
 				next_hop = it->second.next_hop;
+				target_interface = it->second.target_interface;
 				return ROUTE_AVAILABLE;
 			}
 			//Not in the table, but maybe the algorithm is working on this or another destination
@@ -324,13 +322,13 @@ namespace wiselib
 	// ----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-		typename Radio_Network_Layer_P,
-		typename Radio_Link_Layer_P,
-		typename Radio_Os_P,
-		typename Debug_P,
-		typename Timer_P>
+	typename Radio_Upper_Layer_P,
+	typename Radio_Os_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename InterfaceManager_P>
 	void
-	SimpleQueryableRouting<OsModel_P, Radio_Network_Layer_P, Radio_Link_Layer_P, Radio_Os_P, Debug_P, Timer_P>::
+	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::
 	search_for_a_route( void* )
 		{
 			//Routing implementation
@@ -347,7 +345,7 @@ namespace wiselib
 			node_id_t next_hop = requested_destination_;
 			
 			
-			ForwardingTableValue entry(next_hop, 0, 5);
+			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_UART);
 			forwarding_table_[requested_destination_] = entry;
 			
 			failed_alive_ = false;
@@ -358,13 +356,13 @@ namespace wiselib
 	// ----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-		typename Radio_Network_Layer_P,
-		typename Radio_Link_Layer_P,
-		typename Radio_Os_P,
-		typename Debug_P,
-		typename Timer_P>
+	typename Radio_Upper_Layer_P,
+	typename Radio_Os_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename InterfaceManager_P>
 	void
-	SimpleQueryableRouting<OsModel_P, Radio_Network_Layer_P, Radio_Link_Layer_P, Radio_Os_P, Debug_P, Timer_P>::
+	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::
 	print_forwarding_table()
 	{
 		int i = 0;

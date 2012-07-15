@@ -19,11 +19,14 @@
 #ifndef __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 #define __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 
+#include "algorithms/6lowpan/uart_radio.h"
+#include "algorithms/6lowpan/lowpan.h"
+#include "algorithms/6lowpan/interface_manager.h"
+#include "algorithms/6lowpan/ipv6.h"
+#include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 #include "algorithms/6lowpan/icmpv6.h"
 #include "algorithms/6lowpan/udp.h"
-#include "algorithms/6lowpan/ipv6.h"
-#include "algorithms/6lowpan/lowpan.h"
-#include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
+
 
 namespace wiselib
 {
@@ -31,7 +34,8 @@ namespace wiselib
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename Uart_P>
 	class IPv6Stack
 	{
 	public:
@@ -40,19 +44,28 @@ namespace wiselib
 	typedef Radio_P Radio;
 	typedef Debug_P Debug;
 	typedef Timer_P Timer;
+	typedef Uart_P Uart;
 	
-	typedef wiselib::LoWPAN<OsModel, Radio, Debug, Timer> LoWPAN_t;
-	typedef wiselib::IPv6<OsModel, LoWPAN_t, Radio, Debug, Timer> IPv6_t;
-	typedef wiselib::UDP<OsModel, IPv6_t, LoWPAN_t, Debug> UDP_t;
-	typedef wiselib::ICMPv6<OsModel, IPv6_t, LoWPAN_t, Debug> ICMPv6_t;
-	typedef wiselib::IPv6PacketPoolManager<OsModel, IPv6_t, LoWPAN_t, Debug> Packet_Pool_Mgr_t;
+	typedef IPv6Stack<OsModel, Radio, Debug, Timer, Uart> self_type;
+	
+	typedef wiselib::UartRadio<OsModel, Radio, Debug, Timer, Uart> UartRadio_t;
+	typedef wiselib::LoWPAN<OsModel, Radio, Debug, Timer, UartRadio_t> LoWPAN_t;
+	
+	typedef wiselib::InterfaceManager<OsModel, LoWPAN_t, Radio, Debug, Timer, UartRadio_t> InterfaceManager_t;
+	
+	typedef wiselib::IPv6<OsModel, LoWPAN_t, Radio, Debug, Timer, InterfaceManager_t> IPv6_t;
+
+	typedef wiselib::UDP<OsModel, IPv6_t, Radio, Debug> UDP_t;
+	typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug> ICMPv6_t;
+	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
 	
 	
-	void init( Radio& radio, Debug& debug, Timer& timer)
+	void init( Radio& radio, Debug& debug, Timer& timer, Uart& uart)
 	{
 		radio_ = &radio;
 		debug_ = &debug;
 		timer_ = &timer;
+		uart_ = &uart;
 		
 		//debug_->debug( "IPv6 stack init: %x\n", radio_->id());
 		
@@ -60,12 +73,18 @@ namespace wiselib
 		
 		
 		//Init LoWPAN
-		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_, ipv6);
+		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
+		
+		//Init Uart Radio
+		uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr );
 	 
+		interface_manager.init( &lowpan, *debug_, &uart_radio );
+		
 		//Init IPv6
-		ipv6.init( lowpan, *radio_, *debug_, &packet_pool_mgr, *timer_);
+		ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 		//IPv6 will enable lower level radios
 		ipv6.enable_radio();
+		
 		
 		//Init UDP
 		udp.init( ipv6, *debug_, &packet_pool_mgr);
@@ -82,13 +101,16 @@ namespace wiselib
 	UDP_t udp;
 	IPv6_t ipv6;
 	LoWPAN_t lowpan;
+	UartRadio_t uart_radio;
 	Packet_Pool_Mgr_t packet_pool_mgr;
+	InterfaceManager_t interface_manager;
 	
 	
 	private:
 	typename Radio::self_pointer_t radio_;
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
+	typename Uart::self_pointer_t uart_;
 	};
 }
 #endif

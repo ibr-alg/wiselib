@@ -70,7 +70,7 @@ namespace wiselib
 
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::size_t size_t;
-	typedef typename Radio::node_id_t node_id_t;
+	typedef IPv6Address<Radio, Debug> node_id_t;
 	
 	IPv6Packet()
 	{
@@ -273,6 +273,12 @@ namespace wiselib
 	*/
 	bool defragmentation_finished;
 	
+	/** Generate Internet checksum
+	* \param len Data length
+	* \param data pointer to the data
+	*/
+	uint16_t generate_checksum( uint16_t len, uint8_t* data);
+	
 	private:
 	
 	Debug& debug()
@@ -280,5 +286,35 @@ namespace wiselib
 
 	typename Debug::self_pointer_t debug_;
 	};
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	uint16_t
+	IPv6Packet<OsModel_P, Radio_P, Debug_P>::
+	generate_checksum( uint16_t len, uint8_t* data)
+	{
+		uint32_t sum = 0;
+	 
+		while( len > 1 )
+		{
+			sum +=  0xFFFF & ( (*(data) << 8) | (*( data + 1 )));
+			data += 2;
+			len -= 2;
+		}
+		// if there is a byte left then add it (padded with zero)
+		if ( len )
+		{
+			sum += ( 0xFF & *data ) << 8;
+		}
+
+		while ( sum >> 16 )
+		{
+			sum = (sum & 0xFFFF) + (sum >> 16);
+		}
+	 
+		return ( sum ^ 0xFFFF );
+	}
 }
 #endif

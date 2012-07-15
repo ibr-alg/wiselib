@@ -20,7 +20,6 @@
 #define __ALGORITHMS_6LOWPAN_REASSEMBLING_MANAGER_H__
 
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
-#include "algorithms/6lowpan/ipv6_packet.h"
 
 #define MAX_FRAGMENTS 16
 
@@ -28,7 +27,6 @@ namespace wiselib
 {
 	template<typename OsModel_P,
 		typename Radio_P,
-		typename Radio_IPv6_P,
 		typename Debug_P,
 		typename Timer_P>
 	class LoWPANReassemblingManager
@@ -36,17 +34,14 @@ namespace wiselib
 	public:
 		typedef OsModel_P OsModel;
 		typedef Radio_P Radio;
-		typedef Radio_IPv6_P Radio_IPv6;
 		typedef Debug_P Debug;
 		typedef Timer_P Timer;
 		typedef typename Radio::node_id_t node_id_t;
-		typedef typename Radio_IPv6::node_id_t ip_node_id_t;
 		
-		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio_IPv6, Radio, Debug> Packet_Pool_Mgr_t;
-		
-		typedef IPv6Packet<OsModel, Radio_IPv6, Debug> IPv6_Packet_t;
-		
-		typedef LoWPANReassemblingManager<OsModel, Radio, Radio_IPv6, Debug, Timer> self_type;
+		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+		typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
+
+		typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> self_type;
 
 		// -----------------------------------------------------------------
 		LoWPANReassemblingManager()
@@ -183,7 +178,7 @@ namespace wiselib
 		/**
 		* Reference to the used IP packet from the pool
 		*/
-		IPv6_Packet_t* ip_packet;
+		IPv6Packet_t* ip_packet;
 		/**
 		* Number of the used IP packet from the pool
 		*/
