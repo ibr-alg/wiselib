@@ -80,11 +80,15 @@ namespace wiselib
 			
 			//Construct link-local addresses for the interfaces
 			node_id_t my_id = radio_lowpan_->id();
-			for( uint8_t i = 0; i < NUMBER_OF_INTERFACES; i++ )
-			{
-				link_local_addresses_[i].make_it_link_local();
-				link_local_addresses_[i].set_long_iid( &my_id, false );
-			}
+			link_local_addresses_[INTERFACE_RADIO].make_it_link_local();
+			link_local_addresses_[INTERFACE_RADIO].set_long_iid( &my_id, false );
+			
+			//Use the radio's MAC for the UART
+			//The 16th bit is set to 1 because this is a reserved place of the addresses
+			my_id |= 8000;
+			link_local_addresses_[INTERFACE_UART].make_it_link_local();
+			link_local_addresses_[INTERFACE_UART].set_long_iid( &my_id, false );
+			
 		}
 		
 		// -----------------------------------------------------------------
@@ -193,6 +197,14 @@ namespace wiselib
 		
 		//The Os Radio's ID is used for all interfaces
 		node_id_t my_id = radio_lowpan().id();
+		
+		if( selected_interface == INTERFACE_UART )
+		{
+			//Use the radio's MAC for the UART
+			//The 16th bit is set to 1 because this is a reserved place of the addresses 
+			my_id |= 8000;
+		}
+		
 		global_addresses_[selected_interface].set_prefix( prefix, prefix_len );
 		global_addresses_[selected_interface].set_long_iid( &my_id, true );
 		

@@ -113,6 +113,7 @@ namespace wiselib
 		void clean_packet( Packet* target )
 		{
 			target->valid = false;
+			memset(target->buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
 		}
 		
 		/**
