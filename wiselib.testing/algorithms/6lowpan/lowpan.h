@@ -140,7 +140,7 @@ namespace wiselib
 		
 		#ifdef LOWPAN_MESH_UNDER
 		broadcast_sequence_number_ = 1;
-		for( uint8_t i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
+		for( int i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
 		{
 			received_broadcast_sequence_numbers_[i] = 0;
 			received_broadcast_originators_[i] = 0;
@@ -932,7 +932,7 @@ namespace wiselib
 			node_id_t mac_destination = 0;
 			from = 0;
 			
-			for ( uint8_t i = 0; i < sizeof(node_id_t) ; i++ )
+			for ( int i = 0; i < sizeof(node_id_t) ; i++ )
 			{
 				mac_destination <<= 8;
 				mac_destination |= buffer_[MESH_SHIFT + ACTUAL_SHIFT + address_size + padding_size + i];
@@ -1527,7 +1527,7 @@ namespace wiselib
 			//Count zero bytes in the address:
 			//FFXX:????:????:????:????:????:????:??XX
 			uint8_t zeros = 0;
-			for( uint8_t i = 2; i < 15; i++ )
+			for( int i = 2; i < 15; i++ )
 				if( address.addr[i] == 0x00 )
 					zeros++;
 				else

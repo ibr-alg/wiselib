@@ -154,7 +154,7 @@ namespace wiselib
 	* Get a socket
 	* \param i socket number
 	*/
-	Socket_t* get_socket( uint8_t i )
+	Socket_t* get_socket( int i )
 	{
 		if( ( i > -1 ) && ( i < NUMBER_OF_UDP_SOCKETS ) )
 			return &(sockets_[i]);
@@ -168,7 +168,7 @@ namespace wiselib
 	*/
 	int add_socket( uint16_t local_port, uint16_t remote_port, ip_node_id_t remote_host, int callback_id )
 	{
-	 	for( uint8_t i=0; i < NUMBER_OF_UDP_SOCKETS; i++ )
+	 	for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 	 		if( sockets_[i].callback_id == -1 )
 			{	
 				sockets_[i] = Socket_t(local_port, remote_port, remote_host, callback_id );
@@ -345,7 +345,7 @@ namespace wiselib
 		
 		//Get a packet from the manager
 		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
-		if( packet_number == 255 )
+		if( packet_number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
 		 return ERR_UNSPEC;
 		
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
@@ -499,7 +499,7 @@ namespace wiselib
 	{
 		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: sockets: \n");
-		for( uint8_t i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
+		for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 		{
 			debug().debug( "	#%i Local port: %i, Remote port: %i, Callback_id: %i, Remote host: ", i, sockets_[i].local_port, sockets_[i].remote_port, sockets_[i].callback_id);
 			sockets_[i].remote_host.set_debug( *debug_ );

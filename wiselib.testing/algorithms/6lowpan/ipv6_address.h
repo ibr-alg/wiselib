@@ -166,7 +166,7 @@ namespace wiselib
 	{
 		if ( (addr[0] == (uint8_t)0xFE) && (addr[1] == (uint8_t)0x80) )
 		{
-	 		for( uint8_t i = 2; i < 8; i++)
+	 		for( int i = 2; i < 8; i++)
 				if( addr[i] != 0 )
 					return false;
 		
@@ -219,7 +219,7 @@ namespace wiselib
 			addr[15] >> 4, addr[15] & 0x0F,
 			prefix_length );
 		
-		/*for(uint8_t i = 0; i < 16; i++)
+		/*for(int i = 0; i < 16; i++)
 		{
 			debug().debug( "%i", addr[i] >> 4 );
 			debug().debug( "%i", addr[i] & 0x0F );
@@ -258,7 +258,7 @@ namespace wiselib
 	uint8_t common_prefix_length(const IPv6Address<Radio, Debug>& b )
 	{
 		uint8_t same = 0;
-		for( uint8_t i = 0; i < 16; i++ )
+		for( int i = 0; i < 16; i++ )
 		{
 			if( addr[i] == b.addr[i] )
 				same++;

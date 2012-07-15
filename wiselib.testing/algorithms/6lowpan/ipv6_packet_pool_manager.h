@@ -39,7 +39,7 @@ namespace wiselib
 		// -----------------------------------------------------------------
 		IPv6PacketPoolManager()
 			{
-				for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+				for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
 				{
 					packet_pool[i].valid = false;
 				}
@@ -51,6 +51,13 @@ namespace wiselib
 	 	{
 	 		debug_ = &debug;
 		}
+		
+		// -----------------------------------------------------------------
+		
+		enum error_codes
+		{
+			NO_FREE_PACKET = 255
+		};
 
 		// -----------------------------------------------------------------
 
@@ -66,11 +73,11 @@ namespace wiselib
 		
 		/**
 		* Get an unused packet with number
-		* \return packet number or -1 if no free packet
+		* \return packet number or NO_FREE_PACKET (255) if no free packet
 		*/
 		uint8_t get_unused_packet_with_number()
 		{
-			for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+			for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
 			{
 				if( packet_pool[i].valid == false )
 				{
@@ -79,7 +86,7 @@ namespace wiselib
 				}
 			}
 			debug().debug( "IP packet pool manager: ERROR - no free packet\n" );
-			return 255;
+			return NO_FREE_PACKET;
 		}
 		
 		/**
@@ -88,7 +95,7 @@ namespace wiselib
 		*/
 		Packet* get_unused_packet()
 		{
-			for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+			for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
 			{
 				if( packet_pool[i].valid == false )
 				{

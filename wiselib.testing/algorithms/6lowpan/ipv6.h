@@ -545,7 +545,7 @@ namespace wiselib
 	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	ip_packet_for_this_node( node_id_t* destination )
 	{
-		for ( uint8_t i = 0; i < NUMBER_OF_INTERFACES; i++)
+		for ( int i = 0; i < NUMBER_OF_INTERFACES; i++)
 		{
 			if ( *(interface_manager_->get_link_local_address(i)) == *(destination) ||
 			 *(interface_manager_->get_global_address(i)) == *(destination))
@@ -571,24 +571,20 @@ namespace wiselib
 		#endif
 		
 		int packet_number = (int)p_number;
-		
-		//try to resend all outgoing packets
-		//for( uint8_t i = 0; i < IP_PACKET_POOL_SIZE; i ++ )
-		//{
-			//tests: valid entry
-			if( packet_pool_mgr_->packet_pool[packet_number].valid == true )
-			{
+
+		//tests: valid entry
+		if( packet_pool_mgr_->packet_pool[packet_number].valid == true )
+		{
 				
-				IPv6Address_t dest;
-				packet_pool_mgr_->packet_pool[packet_number].destination_address(dest);
+			IPv6Address_t dest;
+			packet_pool_mgr_->packet_pool[packet_number].destination_address(dest);
 				
-				//Set the packet unused when transmitted
-				//The result can be ROUTING_CALLED if there were more then one requests for the routing algorithm
-				//or if the algorithm is still working
-				if( send( dest, packet_number, NULL ) != ROUTING_CALLED )
-					packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
-			}
-		//}
+			//Set the packet unused when transmitted
+			//The result can be ROUTING_CALLED if there were more then one requests for the routing algorithm
+			//or if the algorithm is still working
+			if( send( dest, packet_number, NULL ) != ROUTING_CALLED )
+				packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
+		}
 	}
 	#endif
 	

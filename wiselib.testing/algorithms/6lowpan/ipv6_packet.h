@@ -299,20 +299,19 @@ namespace wiselib
 	 
 		while( len > 1 )
 		{
-			sum +=  0xFFFF & ( (*(data) << 8) | (*( data + 1 )));
+			// 2 * uint16_t --> uint32_t
+			sum +=  (*(data) << 8) | (*( data + 1 ));
 			data += 2;
 			len -= 2;
 		}
 		// if there is a byte left then add it (padded with zero)
 		if ( len )
 		{
-			sum += ( 0xFF & *data ) << 8;
+			sum += ( *data ) << 8;
 		}
-
-		while ( sum >> 16 )
-		{
-			sum = (sum & 0xFFFF) + (sum >> 16);
-		}
+		
+		//uint32_t --> uint16_t
+		sum = (sum) + (sum >> 16);
 	 
 		return ( sum ^ 0xFFFF );
 	}

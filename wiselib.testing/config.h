@@ -64,7 +64,7 @@
 #define FORWARDING_TABLE_SIZE 8
 
 //Minimum: 1, the index starts from 0 at the get_interface function!
-#define NUMBER_OF_INTERFACES 1
+#define NUMBER_OF_INTERFACES 2
 
 //Number of UDP sockets in the UDP layer
 #define NUMBER_OF_UDP_SOCKETS 4

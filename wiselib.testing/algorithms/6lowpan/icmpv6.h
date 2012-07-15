@@ -324,7 +324,7 @@ namespace wiselib
 		
 		//Get a packet from the manager
 		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
-		if( packet_number == 255 )
+		if( packet_number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
 			return ERR_UNSPEC;
 
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
@@ -357,17 +357,15 @@ namespace wiselib
 				generate_id(id);
 				message->set_payload( id, 2, 4 );
 				
-				//Sequence Number
-				message->set_payload( &zero, 1, 6 );
-				message->set_payload( &zero, 1, 7 );
+				//Sequence Number - 2 bytes
+				message->set_payload( &zero, 2, 6 );
 				break;
 			case ECHO_REPLY:
 				//Identifier
 				message->set_payload( data + 1, 2, 4 );
 			 
-				//Sequence Number
-				message->set_payload( &zero, 1, 6 );
-				message->set_payload( &zero, 1, 7 );
+				//Sequence Number - 2 bytes
+				message->set_payload( &zero, 2, 6 );
 				break;
 			default:
 				#ifdef ICMPv6_LAYER_DEBUG
@@ -377,9 +375,8 @@ namespace wiselib
 		}
 		
 		//Checksum calculation
-		//To calculate checksum the field has to be 0
-		message->set_payload( &zero, 1, 2 );
-		message->set_payload( &zero, 1, 3 );
+		//To calculate checksum the field has to be 0 - 2 bytes
+		message->set_payload( &zero, 2, 2 );
 		
 		uint8_t tmp;
 		uint16_t checksum = message->generate_checksum( message->length(), message->payload() );
