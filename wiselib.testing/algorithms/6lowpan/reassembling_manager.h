@@ -59,8 +59,8 @@ namespace wiselib
 			timer_ = &timer;
 			debug_ = &debug;
 			packet_pool_mgr_ = p_mgr;
-			previous_datagram_tag = 0;
-			previous_frag_sender = 0;
+			previous_datagram_tag_ = 0;
+			previous_frag_sender_ = 0;
 		}
 		
 		// -----------------------------------------------------------------
@@ -75,30 +75,30 @@ namespace wiselib
 		bool start_new_reassembling( uint16_t size, node_id_t sender, uint16_t tag = 0 )
 		{
 			//Still working, or it is a fragment from the previous packet
-			if( valid == true || ( ( tag != 0 ) && (previous_datagram_tag == tag ) && (previous_frag_sender != sender)) )
+			if( valid == true || ( ( tag != 0 ) && (previous_datagram_tag_ == tag ) && (previous_frag_sender_ != sender)) )
 				return false;
 			else
 			{
 				ip_packet_number = packet_pool_mgr_->get_unused_packet_with_number();
 				//If no free packet, the reassembling canceled
-				if( ip_packet_number == 255 )
+				if( ip_packet_number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
 					return false;
 				else
 				{
 					ip_packet = packet_pool_mgr_->get_packet_pointer( ip_packet_number );
 					
 					//Save the old variables, to eliminate remained fragments from the old process
-					previous_datagram_tag = datagram_tag;
-					previous_frag_sender = frag_sender;
+					previous_datagram_tag_ = datagram_tag;
+					previous_frag_sender_ = frag_sender;
 					
 					//Initilize the variables for the new process
 					valid = true;
 					datagram_tag = tag;
 					frag_sender = sender;
 					datagram_size = size;
-					received_fragments_number = 0;
+					received_fragments_number_ = 0;
 					received_datagram_size = 0;
-					memset( rcvd_offsets, 255, MAX_FRAGMENTS );
+					memset( rcvd_offsets_, 255, MAX_FRAGMENTS );
 					return true;
 				}
 			}
@@ -114,11 +114,11 @@ namespace wiselib
 		*/
 		bool is_it_new_offset( uint8_t offset )
 		{
-			for( uint8_t i = 0; i < received_fragments_number; i++ )
-				if( rcvd_offsets[i] == offset )
+			for( int i = 0; i < received_fragments_number_; i++ )
+				if( rcvd_offsets_[i] == offset )
 					return false;
 			
-			rcvd_offsets[received_fragments_number++] = offset;
+			rcvd_offsets_[received_fragments_number_++] = offset;
 				
 			//This is a new fragment, save the offset
 			reset_timer();
@@ -133,7 +133,7 @@ namespace wiselib
 		*/
 		void reset_timer()
 		{
-			timer().template set_timer<self_type, &self_type::timeout>( 2000, this, (void*) received_fragments_number );
+			timer().template set_timer<self_type, &self_type::timeout>( 2000, this, (void*) received_fragments_number_ );
 		}
 		
 		// -----------------------------------------------------------------
@@ -142,11 +142,11 @@ namespace wiselib
 		* If the timer expired this function is called.
 		* If there are no new fragments since the start of the timer, the reassembling process is canceled
 		*/
-		void timeout( void* old_received_fragments_number )
+		void timeout( void* old_received_fragments_number_ )
 		{
 			//If no new fragment since set the timer, reset the fragmentation process
 			if( valid && (received_datagram_size < datagram_size) &&
-			 (received_fragments_number == ( int )(old_received_fragments_number)) )
+			 (received_fragments_number_ == ( int )(old_received_fragments_number_)) )
 			{
 				valid = false;
 				packet_pool_mgr_->clean_packet( ip_packet );
@@ -160,6 +160,10 @@ namespace wiselib
 		// -----------------------------------------------------------------
 
 		/**
+		* The current fargmentation process is still valid
+		*/
+		bool valid;
+		/**
 		* Tag code for the actual packet
 		*/
 		uint16_t datagram_tag;
@@ -172,10 +176,6 @@ namespace wiselib
 		*/
 		uint16_t received_datagram_size;
 		/**
-		* number of received fragments
-		*/
-		uint8_t received_fragments_number;
-		/**
 		* Reference to the used IP packet from the pool
 		*/
 		IPv6Packet_t* ip_packet;
@@ -183,30 +183,10 @@ namespace wiselib
 		* Number of the used IP packet from the pool
 		*/
 		uint8_t ip_packet_number;
-
-		/**
-		* The current fargmentation process is still valid
-		*/
-		bool valid;
 		/**
 		* The Sender of the currently reassembled packet
 		*/
 		node_id_t frag_sender;
-		
-		/**
-		* Store of the offsets
-		* A packet can be received more than one time
-		*/
-		uint8_t rcvd_offsets[MAX_FRAGMENTS];
-		
-		/**
-		* Tag code for the previous packet
-		*/
-		uint16_t previous_datagram_tag;
-		/**
-		* The Sender of the previously reassembled packet
-		*/
-		node_id_t previous_frag_sender;
 		
 	 private:
 	 	typename Timer::self_pointer_t timer_;
@@ -221,6 +201,24 @@ namespace wiselib
 		{
 			return *debug_;
 		}
+		
+		/**
+		* number of received fragments
+		*/
+		uint8_t received_fragments_number_;
+		/**
+		* Store of the offsets
+		* A packet can be received more than one time
+		*/
+		uint8_t rcvd_offsets_[MAX_FRAGMENTS];
+		/**
+		* Tag code for the previous packet
+		*/
+		uint16_t previous_datagram_tag_;
+		/**
+		* The Sender of the previously reassembled packet
+		*/
+		node_id_t previous_frag_sender_;
 		
 		/**
 		* Pointer to the packet pool manager

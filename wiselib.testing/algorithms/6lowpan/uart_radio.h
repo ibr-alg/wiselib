@@ -150,7 +150,7 @@ namespace wiselib
 				receiving_ = true;
 				//The receiving_ is set to true also if no free packet, because we have to drop the other parts
 				//The timer will free up process
-				if( packet_number == 255 )
+				if( packet_number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
 					return;
 				
 				ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );

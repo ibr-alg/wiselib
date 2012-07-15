@@ -22,8 +22,6 @@
 #include "algorithms/6lowpan/context_type.h"
 #include "algorithms/6lowpan/ipv6_address.h"
 
-#define LOWPAN_CONTEXTS_NUMBER 16
-
 namespace wiselib
 {
 	template<typename Radio_P,
@@ -40,7 +38,7 @@ namespace wiselib
 		// -----------------------------------------------------------------
 		LoWPANContextManager()
 			{
-				for( uint8_t i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
+				for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
 				{
 					contexts[i].valid_lifetime = 0;
 				}
@@ -57,13 +55,13 @@ namespace wiselib
 		{
 			uint8_t selected = LOWPAN_CONTEXTS_NUMBER;
 			
-			for( uint8_t i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
+			for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
 			{
 				//If no selected context at the moment
 				//and the context is valid + the stored prefix matches the address' prefix
 				if( selected == LOWPAN_CONTEXTS_NUMBER &&
 				 	contexts[i].valid_lifetime > 0 &&
-					memcmp( address.addr, contexts[i].prefix.addr, contexts[i].prefix.prefix_length ) == 0 )
+					( memcmp( address.addr, contexts[i].prefix.addr, contexts[i].prefix.prefix_length ) == 0 ) )
 				{
 					selected = i;
 					//reset selected context's lifetime
@@ -110,7 +108,7 @@ namespace wiselib
 			uint16_t lowest_life = 0xFFFF;
 			uint8_t selected = 0;
 			//Search for a context with the lowest life time
-			for( uint8_t i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
+			for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
 			{
 				if( contexts[i].valid_lifetime < lowest_life )
 				{
