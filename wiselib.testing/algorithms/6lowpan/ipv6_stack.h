@@ -76,7 +76,7 @@ namespace wiselib
 		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
 		
 		//Init Uart Radio
-		uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr );
+		uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr, *timer_ );
 	 
 		interface_manager.init( &lowpan, *debug_, &uart_radio );
 		

@@ -1,8 +1,6 @@
 
 #include "external_interface/external_interface.h"
 #include "algorithms/6lowpan/ipv6_address.h"
-#include "algorithms/6lowpan/ipv6_packet.h"
-//#include "algorithms/6lowpan/lowpan_packet.h"
 
 #include "algorithms/6lowpan/ipv6_stack.h"
 
@@ -17,15 +15,13 @@ typedef Os::Radio::node_id_t node_id_t;
 #ifdef SHAWN
 typedef wiselib::ShawnTestbedserviceUartModel<wiselib::OSMODEL> Uart;
 #else
-typedef Os::Uart Uart;
+typedef Os::B_Uart Uart;
 #endif
 
 
 typedef wiselib::IPv6Stack<Os, Radio, Os::Debug, Os::Timer, Uart> IPv6_stack_t;
 
 typedef wiselib::IPv6Address<Radio, Os::Debug> IPv6Address_t;
-//typedef IPv6_stack_t::LoWPAN_t LoWPAN_t;
-//typedef IPv6_stack_t::IPv6Address_t IPv6Address_t;
 
 
 class lowpanApp
@@ -76,7 +72,7 @@ class lowpanApp
 	 destinationaddr.make_it_link_local();
 	 
 	 
-	 node_id_t ll_id = 0x2138;
+	 node_id_t ll_id = 0x2110;
 	 destinationaddr.set_long_iid(&ll_id, false);
 	 
 	 //uint8_t mypayload[] = "hello :) This is a long test message from node 0 to test the fragmentation. Google will pre-publish the evaluation questions for both students and mentors. Mentors will fill out mid-term and final evaluations for their students via the Google Summer of Code 2012 site. These evaluations will be visible in the system to the mentor and the mentoring organization s administrator(s). Students will fill out a mid-term and final evaluation of their mentors online as well, and their evaluations will only be visible in the system to the mentoring organization s administrator(s). Program administrators from Google will have access to all evaluation data. Any student who does not submit an evaluation by the evaluation deadline will fail that evaluation, regardless of the grade the mentor gives the student. If a student submits his or her evaluation on time but the mentor does not, then the student is  in an undecided state until the program administrators can speak to the mentor and determine the student s grade. Students who fail the mid-term are immediately removed from the program: it s not possible to fail the mid-term, stay in the program, and then have a final evaluation. In almost all cases, students will never see their mentor s evaluation of their progress, nor will a mentor see a student s evaluation of her/his mentorship.";
@@ -99,12 +95,12 @@ class lowpanApp
 	 
 	 /*ICMPv6 Ping test*/
 	 // 0 ---> 1 <---- 2
-	 if( radio_->id() == 0x2110 )
-	 {
+	 //if( radio_->id() == 0x2110 )
+	 //{
 	 	debug_->debug("Application layer: sending echo request");
 		ipv6_stack_.icmpv6.ping(destinationaddr);
 	 	//ipv6_stack_.icmpv6.ping(ipv6_stack_.ipv6.BROADCAST_ADDRESS);
-	 }
+	 //}
 	 
 	 
          //timer_->set_timer<lowpanApp,&lowpanApp::broadcast_loop>( 3000, this, 0 );

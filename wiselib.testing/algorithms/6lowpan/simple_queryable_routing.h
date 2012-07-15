@@ -264,7 +264,7 @@ namespace wiselib
 		{
 			
 			//If this is the last failed destination again, return NO_ROUTE_TO_HOST
-			if( requested_destination_ == destination && failed_alive_ )
+			if( destination == NULL_NODE_ID || requested_destination_ == destination && failed_alive_ )
 				return NO_ROUTE_TO_HOST;
 			
 		 	//Search for the next hop in the table
