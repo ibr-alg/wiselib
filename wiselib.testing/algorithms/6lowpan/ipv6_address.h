@@ -19,18 +19,17 @@
 #ifndef __ALGORITHMS_6LOWPAN_IPV6_ADDR_H__
 #define __ALGORITHMS_6LOWPAN_IPV6_ADDR_H__
 
-#include "util/serialization/simple_types.h"
 
 namespace wiselib
 {
-	template<typename Radio_Link_Layer_P, typename Debug_P>
+	template<typename Radio_P, typename Debug_P>
 	class IPv6Address
 	{
 	public:
 	
 	typedef Debug_P Debug;
-	typedef Radio_Link_Layer_P Radio_Link_Layer;
-	typedef typename Radio_Link_Layer::node_id_t link_layer_node_id_t;
+	typedef Radio_P Radio;
+	typedef typename Radio::node_id_t link_layer_node_id_t;
 	
 	IPv6Address()
 	{
@@ -233,7 +232,7 @@ namespace wiselib
 	
 	// --------------------------------------------------------------------
 	
-	bool operator ==(const IPv6Address<Radio_Link_Layer, Debug>& b)
+	bool operator ==(const IPv6Address<Radio, Debug>& b)
 	{
 		//If every byte is equal, return true
 		if( common_prefix_length( b ) == 16 )
@@ -243,7 +242,7 @@ namespace wiselib
 		return false;
 	}
 	
-	bool operator !=(const IPv6Address<Radio_Link_Layer, Debug>& b)
+	bool operator !=(const IPv6Address<Radio, Debug>& b)
 	{
 	 //If every byte is equal, return true
 	 if( common_prefix_length( b ) != 16 )
@@ -256,7 +255,7 @@ namespace wiselib
 	// --------------------------------------------------------------------
 	
 	//Return the size of the same bytes at from the beginning of the address
-	uint8_t common_prefix_length(const IPv6Address<Radio_Link_Layer, Debug>& b )
+	uint8_t common_prefix_length(const IPv6Address<Radio, Debug>& b )
 	{
 		uint8_t same = 0;
 		for( uint8_t i = 0; i < 16; i++ )

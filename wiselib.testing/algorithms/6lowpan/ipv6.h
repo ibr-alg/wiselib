@@ -19,10 +19,9 @@
 #ifndef __ALGORITHMS_6LOWPAN_IPV6_LAYER_H__
 #define __ALGORITHMS_6LOWPAN_IPV6_LAYER_H__
 
-#include "util/base_classes/routing_base.h"
+#include "util/base_classes/radio_base.h"
 #include "algorithms/6lowpan/ipv6_address.h"
-#include "algorithms/6lowpan/ipv6_packet.h"
-#include "algorithms/6lowpan/interface_type.h"
+
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
 #ifdef LOWPAN_ROUTE_OVER
@@ -45,38 +44,37 @@ namespace wiselib
 	*/
 	
 	template<typename OsModel_P,
+		typename Radio_LoWPAN_P,
 		typename Radio_P,
-		typename Radio_Os_P,
 		typename Debug_P,
-		typename Timer_P>
+		typename Timer_P,
+		typename InterfaceManager_P>
 	class IPv6
 	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
 	public:
 	typedef OsModel_P OsModel;
+	typedef Radio_LoWPAN_P Radio_LoWPAN;
 	typedef Radio_P Radio;
-	typedef Radio_Os_P Radio_Os;
 	typedef Debug_P Debug;
 	typedef Timer_P Timer;
+	typedef InterfaceManager_P InterfaceManager_t;
 	
-	typedef IPv6<OsModel, Radio, Radio_Os, Debug, Timer> self_type;
+	typedef IPv6<OsModel, Radio_LoWPAN, Radio, Debug, Timer, InterfaceManager_t> self_type;
 	typedef self_type* self_pointer_t;
 	
 	typedef IPv6Address<Radio, Debug> IPv6Address_t;
-	/**
-	* Define an IPv6 packet with self_type as a Radio and the lower level Radio as Link Layer Radio
-	*/
-	typedef IPv6Packet<OsModel, self_type, Debug> Packet;
-	typedef LoWPANInterface<Radio, Debug> Interface_t;
-	
+
 	#ifdef LOWPAN_ROUTE_OVER
 	/**
 	* Simple Routing implementation
 	*/
-	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Radio_Os, Debug, Timer> Routing_t;
+	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Debug, Timer, InterfaceManager_t> Routing_t;
 	#endif
 
-	typedef wiselib::IPv6PacketPoolManager<OsModel, self_type, Radio, Debug> Packet_Pool_Mgr_t;
+	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+	typedef typename Packet_Pool_Mgr_t::Packet Packet;
+	
 	
 	/**
 	* In this layer and above, the node_id_t is an ipv6 address
@@ -87,20 +85,25 @@ namespace wiselib
 	* The MAC address is called link_layer_node_id_t
 	*/
 	typedef typename Radio::node_id_t link_layer_node_id_t;
-	
 	typedef typename Radio::size_t size_t;
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::message_id_t message_id_t;
 	
 	enum NextHeaders
 	{
-		UDP = 17,
-		ICMPV6 = 58
+		UDP = Radio_LoWPAN::UDP,
+		ICMPV6 = Radio_LoWPAN::ICMPV6
 		/*TCP = 6
 		EH_HOHO = 0	//Hop by Hop
 		EH_DESTO = 60
 		EH_ROUTING = 43
 		EH_FRAG = 44*/
+	};
+	
+	enum interface_IDs
+	{
+		INTERFACE_RADIO = InterfaceManager_t::INTERFACE_RADIO,
+		INTERFACE_UART = InterfaceManager_t::INTERFACE_UART
 	};
 
 	// --------------------------------------------------------------------
@@ -110,7 +113,7 @@ namespace wiselib
 		ERR_UNSPEC = OsModel::ERR_UNSPEC,
 		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
 		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-		ROUTING_CALLED = Radio::ROUTING_CALLED
+		ROUTING_CALLED = Radio_LoWPAN::ROUTING_CALLED
 	};
 	// --------------------------------------------------------------------
 	
@@ -140,16 +143,16 @@ namespace wiselib
 	~IPv6();
 	///@}
 	 
-	 int init( Radio& radio, Radio_Os& radio_os, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer )
+	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer, InterfaceManager_t* i_mgr )
 	 {
 	 	radio_ = &radio;
-		radio_os_ = &radio_os;
 	 	debug_ = &debug;
 		timer_ = &timer;
 	 	packet_pool_mgr_ = p_mgr;
+		interface_manager_ = i_mgr;
 		
 		#ifdef LOWPAN_ROUTE_OVER
-		routing_.init( *timer_, *debug_, *radio_os_ );
+		routing_.init( *timer_, *debug_, *radio_, i_mgr );
 		#endif
 		
 	 	return SUCCESS;
@@ -177,44 +180,12 @@ namespace wiselib
 	node_id_t id()
 	{
 		//NOTE now it is the Radio's link local address
-		node_id_t tmp = *(get_interface(0)->get_link_local_address());
+		node_id_t tmp = *(interface_manager_->get_link_local_address(INTERFACE_RADIO));
 		tmp.set_debug( *debug_ );
 		return tmp;
 	}
 	///@}
 	
-	/**
-	* Get the number of interfaces
-	*/
-	uint8_t get_number_of_interfaces()
-	{
-		return NUMBER_OF_INTERFACES;
-	}
-	
-	/**
-	* Get an interface
-	* \param i interface number
-	*/
-	Interface_t* get_interface( uint8_t i )
-	{
-		if( ( i < NUMBER_OF_INTERFACES ) )
-			return &(interfaces_[i]);
-		
-		return NULL;
-	}
-	
-	/** Set the prefix for an interface
-	* \param prefix The prefix as an array
-	* \param prefix_len the length of the prefix in bytes
-	* \param interface the number of the interface
-	*/
-	int set_prefix_for_interface( uint8_t* prefix, uint8_t prefix_len, uint8_t interface );
-	
-	/** Generate Internet checksum
-	* \param len Data length
-	* \param data pointer to the data
-	*/
-	uint16_t generate_checksum( uint16_t len, uint8_t* data);
 	
 	private:
 	
@@ -228,30 +199,20 @@ namespace wiselib
 	{ return *timer_; }
 	
 	typename Radio::self_pointer_t radio_;
-	typename Radio_Os::self_pointer_t radio_os_;
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
+	InterfaceManager_t* interface_manager_;
 	#ifdef LOWPAN_ROUTE_OVER
 	Routing_t routing_;
 	#endif
-	
-	/**
-	* Array for the interfaces
-	*/
-	Interface_t interfaces_[NUMBER_OF_INTERFACES];
 	
 	/**
 	* Test every interfaces and addresses to decide that the packet is for this node or not
 	* \param destination pointer to the destination's IP address
 	*/
 	bool ip_packet_for_this_node( node_id_t* destination );
-	
-	/**
-	* Callback ID
-	*/
-	int callback_id_;
-	
+
 	#ifdef LOWPAN_ROUTE_OVER
 	/**
 	* Pollig function, it will be called by the timer, and this function tries to resend the actual packet
@@ -268,32 +229,35 @@ namespace wiselib
 	
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
 	
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
 
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	typename Timer_P,
+	typename InterfaceManager_P>
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	IPv6()
 	: radio_ ( 0 ),
 	debug_ ( 0 )
@@ -301,11 +265,12 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	typename Timer_P,
+	typename InterfaceManager_P>
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	~IPv6()
 	{
 		disable_radio();
@@ -316,12 +281,13 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	init( void )
 	{
 		if ( enable_radio() != SUCCESS )
@@ -331,32 +297,34 @@ namespace wiselib
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	destruct( void )
 	{
 		return disable_radio();
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	enable_radio( void )
 	{
-		if ( radio().enable_radio() != SUCCESS )
+		if ( interface_manager_->enable_radios() != SUCCESS )
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: initialization at %x, MAC length: %i\n", radio().id(), sizeof(link_layer_node_id_t) );
-		//debug().debug( "IPv6 layer: IID: %i %i\n", (radio().id() & 0xFF),((radio().id()>>8) & 0xFF));
+
 		#ifdef LOWPAN_ROUTE_OVER
 		debug().debug( "IPv6 layer: Routing mode: ROUTE OVER\n");
 		#endif
@@ -367,20 +335,7 @@ namespace wiselib
 		
 		#endif
 	 
-		
-		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
-		
-		//Construct radio interface --> interface 0
-		get_interface(0)->get_link_local_address()->set_debug( *debug_ );
-		get_interface(0)->set_link_local_address_from_MAC( radio().id() );
-		
-		
-		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "	IPv6 layer: Link Local address: ");
-		get_interface(0)->get_link_local_address()->set_debug( *debug_ );
-		get_interface(0)->get_link_local_address()->print_address();
-		debug().debug( "\n");
-		#endif
+		interface_manager_->register_for_callbacks( this );
 		
 		//SOLICITED_MULTICAST_ADDRESS configuration		
 		SOLICITED_MULTICAST_ADDRESS.make_it_solicited_multicast( radio().id() );
@@ -390,31 +345,33 @@ namespace wiselib
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	disable_radio( void )
 	{
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: Disable\n" );
 		#endif
-		if ( radio().disable_radio() != SUCCESS )
+		if ( interface_manager_->disable_radios() != SUCCESS )
 			return ERR_UNSPEC;
-		radio().template unreg_recv_callback(callback_id_);
+		interface_manager_->unregister_callbacks();
 		return SUCCESS;
 	}
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	send( node_id_t destination, size_t packet_number, block_data_t *data )
 	{
 		
@@ -428,8 +385,9 @@ namespace wiselib
 			destination.print_address();
 			debug().debug( " (multicast to all nodes)\n" );
 			#endif
-			//Send the package to the next hop
-			return radio().send( BROADCAST_ADDRESS, packet_number, NULL );
+			
+			//Broadcast the packet via the radio
+			return interface_manager_->send_to_interface( BROADCAST_ADDRESS, packet_number, NULL, INTERFACE_RADIO );
 		}
 		
 		#ifdef LOWPAN_ROUTE_OVER
@@ -438,7 +396,8 @@ namespace wiselib
 		
 		//Try to find the next hop
 		node_id_t next_hop;
-		int routing_result = routing_.find( destination, next_hop );
+		uint8_t target_interface;
+		int routing_result = routing_.find( destination, target_interface, next_hop );
 		//Route available, send the packet to the next hop
 		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
@@ -452,7 +411,7 @@ namespace wiselib
 			debug().debug( "\n");
 			#endif
 			//Send the package to the next hop
-			return radio().send( next_hop, packet_number, NULL );
+			return interface_manager_->send_to_interface( next_hop, packet_number, NULL, target_interface );
 		}
 		
 		//The next hop is not in the forwarding table
@@ -498,19 +457,20 @@ namespace wiselib
 		#ifdef LOWPAN_MESH_UNDER
 		//TODO if the packet goes outside the 6LoWPAN network, the destination should be the edge router
 		//or the parent or something like this
-		return radio().send( destination, packet_number, NULL );
+		return interface_manager_->send_to_interface( destination, packet_number, NULL, INTERFACE_RADIO );
 		#endif
 		
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	void
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	receive( link_layer_node_id_t from, size_t packet_number, block_data_t *data )
 	{
 		if ( from == radio().id() )
@@ -569,139 +529,41 @@ namespace wiselib
 			
 			if( send( destination, packet_number, NULL ) != ROUTING_CALLED )
 				packet_pool_mgr_->clean_packet( &(packet_pool_mgr_->packet_pool[packet_number]) );
-			
-			/*
-			//Try to find the next hop
-			node_id_t next_hop;
-			int routing_result = routing_.find( destination, next_hop );
-			//Route available, send the packet to the next hop
-			if( routing_result == Routing_t::ROUTE_AVAILABLE )
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Packet forwarded to " );
-				destination.set_debug( *debug_ );
-				destination.print_address();
-				debug().debug( " Next hop is: ");
-				next_hop.set_debug( *debug_ );
-				next_hop.print_address();
-				debug().debug( "\n");
-				#endif
-
-				if( ROUTING_CALLED != radio().send( next_hop, packet_number, NULL ) )
-					packet_pool_mgr_->clean_packet( message );
-			}
-			
-			else
-			{
-				#ifdef IPv6_LAYER_DEBUG
-				IPv6Address_t address;
-				message->source_address(address);
-				debug().debug( "IPv6 layer: Forwarding FAILED (src " );
-				address.set_debug( *debug_ );
-				address.print_address();
-				debug().debug( "). No route to " );
-				message->destination_address(address);
-				address.set_debug( *debug_ );
-				address.print_address();
-				debug().debug( " known.\n" );
-				#endif
-				
-				packet_pool_mgr_->clean_packet( message );
-			}
-			*/
 		}
 		#endif
 	}
 	
-	// -----------------------------------------------------------------------
-	template<typename OsModel_P,
-	typename Radio_P,
-	typename Radio_Os_P,
-	typename Debug_P,
-	typename Timer_P>
-	int 
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
-	set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len = 64)
-	{
-		Interface_t* interf = get_interface(selected_interface);
-		if ( interf == NULL )
-			return ERR_NOTIMPL;
-		
-		interf->get_global_address()->set_debug( *debug_ );
-		interf->set_global_address_from_MAC( radio().id(), prefix, prefix_len );
-		
-
-		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Global address defined (for interface %i): ", selected_interface);
-		get_interface(selected_interface)->get_global_address()->set_debug( *debug_ );
-		get_interface(selected_interface)->get_global_address()->print_address();
-		debug().debug( "\n");
-		#endif
-		
-		return SUCCESS;
-	}
-
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	bool
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	ip_packet_for_this_node( node_id_t* destination )
 	{
 		for ( uint8_t i = 0; i < NUMBER_OF_INTERFACES; i++)
 		{
-			if ( *(get_interface(i)->get_link_local_address()) == *(destination) ||
-			 *(get_interface(i)->get_global_address()) == *(destination))
+			if ( *(interface_manager_->get_link_local_address(i)) == *(destination) ||
+			 *(interface_manager_->get_global_address(i)) == *(destination))
 				return true;
 		}
 		return false;
 	}
 	
 	// -----------------------------------------------------------------------
-	template<typename OsModel_P,
-	typename Radio_P,
-	typename Radio_Os_P,
-	typename Debug_P,
-	typename Timer_P>
-	uint16_t
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
-	generate_checksum( uint16_t len, uint8_t* data)
-	{
-		uint32_t sum = 0;
-	 
-		while( len > 1 )
-		{
-			sum +=  0xFFFF & ( (*(data) << 8) | (*( data + 1 )));
-			data += 2;
-			len -= 2;
-		}
-		// if there is a byte left then add it (padded with zero)
-		if ( len )
-		{
-			sum += ( 0xFF & *data ) << 8;
-		}
-
-		while ( sum >> 16 )
-		{
-			sum = (sum & 0xFFFF) + (sum >> 16);
-		}
-	 
-		return ( sum ^ 0xFFFF );
-	}
-	
-	// -----------------------------------------------------------------------
 	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
 	typename Radio_P,
-	typename Radio_Os_P,
 	typename Debug_P,
-	typename Timer_P>
+	typename Timer_P,
+	typename InterfaceManager_P>
 	void 
-	IPv6<OsModel_P, Radio_P, Radio_Os_P, Debug_P, Timer_P>::
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	routing_polling( void* p_number )
 	{
 		#ifdef IPv6_LAYER_DEBUG

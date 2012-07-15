@@ -19,14 +19,18 @@
 #ifndef __ALGORITHMS_6LOWPAN_CONTEXT_TYPE_H__
 #define __ALGORITHMS_6LOWPAN_CONTEXT_TYPE_H__
 
+#include "algorithms/6lowpan/ipv6_address.h"
+
 namespace wiselib
 {
-	template<typename Radio_P>
+	template<typename Radio_P,
+		typename Debug_P>
 	class LoWPANContextType
 	{
 	public:
 		typedef Radio_P Radio;
-		typedef typename Radio::node_id_t node_id_t;
+		typedef Debug_P Debug;
+		typedef IPv6Address<Radio, Debug> node_id_t;
 		
 		// -----------------------------------------------------------------
 		LoWPANContextType()

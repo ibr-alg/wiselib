@@ -24,9 +24,9 @@
 // --------------------------------------------------------------------------
 
 // ---------------- Routing -------------------------------------------------
-// #define ROUTING_DSDV_DEBUG
+ #define ROUTING_DSDV_DEBUG
 // #define ROUTING_DSR_DEBUG
-// #define ROUTING_TREE_DEBUG
+ #define ROUTING_TREE_DEBUG
 
 // ---------------- 6LoWPAN -------------------------------------------------
 
@@ -36,12 +36,14 @@
 //Debug for 6LoWPAN components
 //#define IPv6_LAYER_DEBUG
 //#define LoWPAN_LAYER_DEBUG
+//#define UART_LAYER_DEBUG
 //#define UDP_LAYER_DEBUG
 //#define ICMPv6_LAYER_DEBUG
 
 #ifdef LoWPAN_DEBUG
 #define IPv6_LAYER_DEBUG
 #define LoWPAN_LAYER_DEBUG
+#define UART_LAYER_DEBUG
 #define UDP_LAYER_DEBUG
 #define ICMPv6_LAYER_DEBUG
 #endif
@@ -51,6 +53,9 @@
 
 //The Contexts number, it should be 16
 #define LOWPAN_CONTEXTS_NUMBER 16
+
+//The maximum of stored mesh broadcast sequence numbers
+#define MAX_BROADCAST_SEQUENCE_NUMBERS 15
 
 //IP packet store size
 #define IP_PACKET_POOL_SIZE 2

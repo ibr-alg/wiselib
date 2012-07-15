@@ -19,10 +19,8 @@
 #ifndef __ALGORITHMS_6LOWPAN_ICMPV6_LAYER_H__
 #define __ALGORITHMS_6LOWPAN_ICMPV6_LAYER_H__
 
-#include "util/base_classes/routing_base.h"
+#include "util/base_classes/radio_base.h"
 
-#include "algorithms/6lowpan/ipv6_address.h"
-#include "algorithms/6lowpan/ipv6_packet.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
 /*
@@ -52,33 +50,28 @@ namespace wiselib
 	*/
 	
 	template<typename OsModel_P,
+		typename Radio_IP_P,
 		typename Radio_P,
-		typename Radio_Link_Layer_P,
 		typename Debug_P>
 	class ICMPv6
-	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_Link_Layer_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
+	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
 	public:
 	typedef OsModel_P OsModel;
+	typedef Radio_IP_P Radio_IP;
 	typedef Radio_P Radio;
-	typedef Radio_Link_Layer_P Radio_Link_Layer;
 	typedef Debug_P Debug;
 	
-	typedef ICMPv6<OsModel, Radio, Radio_Link_Layer, Debug> self_type;
+	typedef ICMPv6<OsModel, Radio_IP, Radio, Debug> self_type;
 	typedef self_type* self_pointer_t;
 	
-	typedef IPv6Address<Radio_Link_Layer, Debug> IPv6Address_t;
-	/**
-	* Define an IPv6 packet with IP Radio and the lower level Radio as Link Layer Radio
-	*/
-	typedef IPv6Packet<OsModel, Radio, Debug> IPv6Packet_t;
+	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
 	
-	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Radio_Link_Layer, Debug> Packet_Pool_Mgr_t;
-	
-	typedef typename Radio::node_id_t node_id_t;
-	typedef typename Radio::size_t size_t;
-	typedef typename Radio::block_data_t block_data_t;
-	typedef typename Radio::message_id_t message_id_t;
+	typedef typename Radio_IP::node_id_t node_id_t;
+	typedef typename Radio_IP::size_t size_t;
+	typedef typename Radio_IP::block_data_t block_data_t;
+	typedef typename Radio_IP::message_id_t message_id_t;
 	
 	// --------------------------------------------------------------------
 	enum ErrorCodes
@@ -87,7 +80,7 @@ namespace wiselib
 		ERR_UNSPEC = OsModel::ERR_UNSPEC,
 		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
 		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-		ROUTING_CALLED = Radio::ROUTING_CALLED
+		ROUTING_CALLED = Radio_IP::ROUTING_CALLED
 	};
 	// --------------------------------------------------------------------
 	
@@ -109,16 +102,16 @@ namespace wiselib
 	/**
 	* Unspecified IP address: 0:0:0:0:0:0:0:0
 	*/
-	static const IPv6Address_t NULL_NODE_ID;
+	static const node_id_t NULL_NODE_ID;
 	
 	/**
 	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
 	*/
-	static const IPv6Address_t BROADCAST_ADDRESS;
+	static const node_id_t BROADCAST_ADDRESS;
 
 	// --------------------------------------------------------------------
 	enum Restrictions {
-		MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
+		MAX_MESSAGE_LENGTH = Radio_IP::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
 	};
 	// --------------------------------------------------------------------
 	///@name Construction / Destruction
@@ -127,9 +120,9 @@ namespace wiselib
 	 ~ICMPv6();
 	///@}
 	 
-	int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
+	int init( Radio_IP& radio_ip, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
 	{
-		radio_ = &radio;
+		radio_ip_ = &radio_ip;
 		debug_ = &debug;
 		packet_pool_mgr_ = p_mgr;
 		return SUCCESS;
@@ -156,7 +149,7 @@ namespace wiselib
 	*/
 	node_id_t id()
 	{
-		return radio().id();
+		return radio_ip().id();
 	}
 	///@}
 	
@@ -178,13 +171,13 @@ namespace wiselib
 	*/
 	void generate_id( uint8_t* id );
 	
-	Radio& radio()
-	{ return *radio_; }
+	Radio_IP& radio_ip()
+	{ return *radio_ip_; }
 	
 	Debug& debug()
 	{ return *debug_; }
 	
-	typename Radio::self_pointer_t radio_;
+	typename Radio_IP::self_pointer_t radio_ip_;
 	typename Debug::self_pointer_t debug_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
 	
@@ -202,41 +195,41 @@ namespace wiselib
 	
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	const
-	IPv6Address<Radio_Link_Layer_P, Debug_P>
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::NULL_NODE_ID = Radio::NULL_NODE_ID;
+	typename Radio_IP_P::node_id_t
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::NULL_NODE_ID = Radio_IP::NULL_NODE_ID;
 	
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	const
-	IPv6Address<Radio_Link_Layer_P, Debug_P>
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS;
+	typename Radio_IP_P::node_id_t
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::BROADCAST_ADDRESS = Radio_IP::BROADCAST_ADDRESS;
 	
 	// -----------------------------------------------------------------------
 
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	ICMPv6()
-	: radio_ ( 0 ),
+	: radio_ip_ ( 0 ),
 	debug_ ( 0 )
 	{}
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	~ICMPv6()
 	{
 		disable_radio();
@@ -247,70 +240,70 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	init( void )
 	{
 		return enable_radio();
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	destruct( void )
 	{
 		return disable_radio();
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	enable_radio( void )
 	{
 		#ifdef ICMPv6_LAYER_DEBUG
 		debug().debug( "ICMPv6 layer: initialization at ");
-		radio().id().print_address();
+		radio_ip().id().print_address();
 		debug().debug( "\n");
 		#endif
 		
-		callback_id_ = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
+		callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::receive>( this );
 		
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	disable_radio( void )
 	{
 		#ifdef ICMPv6_LAYER_DEBUG
 		debug().debug( "ICMPv6 layer: Disable\n" );
 		#endif
-		if( radio().disable_radio() != SUCCESS )
+		if( radio_ip().disable_radio() != SUCCESS )
 			return ERR_UNSPEC;
-		radio().template unreg_recv_callback(callback_id_);
+		radio_ip().template unreg_recv_callback(callback_id_);
 		return SUCCESS;
 	}
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	int
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	send( node_id_t destination, size_t len, block_data_t *data )
 	{
 		/*
@@ -326,8 +319,8 @@ namespace wiselib
 		#endif
 		
 		
-		IPv6Address_t sourceaddr;
-		sourceaddr = radio().id();
+		node_id_t sourceaddr;
+		sourceaddr = radio_ip().id();
 		
 		//Get a packet from the manager
 		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
@@ -339,7 +332,7 @@ namespace wiselib
 		//It is an outgoing packet
 		message->incoming = false;
 		
-		message->set_next_header(Radio::ICMPV6);
+		message->set_next_header(Radio_IP::ICMPV6);
 		message->set_hop_limit(255);
 		message->set_source_address(sourceaddr);
 		message->set_destination_address(destination);
@@ -389,14 +382,14 @@ namespace wiselib
 		message->set_payload( &zero, 1, 3 );
 		
 		uint8_t tmp;
-		uint16_t checksum = radio().generate_checksum( message->length(), message->payload() );
+		uint16_t checksum = message->generate_checksum( message->length(), message->payload() );
 		tmp = 0xFF & (checksum >> 8);
 		message->set_payload( &tmp, 1, 2 );
 		tmp = 0xFF & (checksum);
 		message->set_payload( &tmp, 1, 3 );
 		
 		//Send the packet to the IP layer
-		int result = radio().send( destination, packet_number, NULL );
+		int result = radio_ip().send( destination, packet_number, NULL );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
 		if( result != ROUTING_CALLED )
 			packet_pool_mgr_->clean_packet( message );
@@ -405,18 +398,18 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	void
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	receive( node_id_t from, size_t packet_number, block_data_t *data )
 	{
 		//Get the packet pointer from the manager
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
 		//If it is not an ICMPv6 packet, just drop it
-		if( message->next_header() != Radio::ICMPV6 )
+		if( message->next_header() != Radio_IP::ICMPV6 )
 			return;
 		//data is NULL, use this pointer for the payload
 		data = message->payload();
@@ -424,7 +417,7 @@ namespace wiselib
 		uint16_t checksum = ( data[2] << 8 ) | data[3];
 		data[2] = 0;
 		data[3] = 0;
-		if( checksum != radio().generate_checksum( message->length(), data ) )
+		if( checksum != message->generate_checksum( message->length(), data ) )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
 			debug().debug( "ICMPv6 layer: Dropped packet (checksum error)\n");
@@ -490,16 +483,16 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+	typename Radio_IP_P,
 	typename Radio_P,
-	typename Radio_Link_Layer_P,
 	typename Debug_P>
 	void
-	ICMPv6<OsModel_P, Radio_P, Radio_Link_Layer_P, Debug_P>::
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	generate_id( uint8_t* id )
 	{
 		//NOTE Some random function...
-		id[0] = radio().id().addr[12] ^ radio().id().addr[13];
-		id[1] = radio().id().addr[14] ^ radio().id().addr[15];
+		id[0] = radio_ip().id().addr[12] ^ radio_ip().id().addr[13];
+		id[1] = radio_ip().id().addr[14] ^ radio_ip().id().addr[15];
 	}
 }
 #endif

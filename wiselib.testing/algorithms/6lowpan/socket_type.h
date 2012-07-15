@@ -19,22 +19,20 @@
 #ifndef __ALGORITHMS_6LOWPAN_SOCKET_TYPE_H__
 #define __ALGORITHMS_6LOWPAN_SOCKET_TYPE_H__
 
-#include "algorithms/6lowpan/ipv6_address.h"
-
 namespace wiselib
 {
-	template<typename Radio_P>
+	template<typename Radio_IP_P>
 	class LoWPANSocket
 	{
 	public:
-		typedef Radio_P Radio;
-		typedef typename Radio::node_id_t node_id_t;
+		typedef Radio_IP_P Radio_IP;
+		typedef typename Radio_IP::node_id_t node_id_t;
 		
 		// -----------------------------------------------------------------
 		LoWPANSocket()
 			: local_port( 0 ),
 			remote_port( 0 ),
-			remote_host( Radio::NULL_NODE_ID ),
+			remote_host( Radio_IP::NULL_NODE_ID ),
 			callback_id( -1 )
 			{}
 
