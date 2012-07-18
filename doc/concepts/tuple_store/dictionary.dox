@@ -7,17 +7,80 @@ namespace concepts {
 		public:
 			typedef ... key_type;
 			typedef ... mapped_type;
+			typedef ... size_type;
 			
-			enum { NULL_KEY };
+			/**
+			 * Key that is used to represent an exception condition,
+			 * e.g. "value not found" for find().
+			 * Implementation hint:
+			 * If key_type is a pointer type a enum might not be feasible
+			 * and it might be easier instead to use a static const member
+			 * instead.
+			 */
+			enum { NULL_KEY = ... };
 			
+			/**
+			 * Either true or false.
+			 * false (i.e. non-abstract keys) means:
+			 *   key_type is implicitely convertible to mapped_type and
+			 *   represents the contents its pointing to in the same way
+			 *   mapped type does.
+			 *   E.g.:
+			 *   key_type and mapped_type are both char*'s,
+			 *   insert("foo") will copy the string somewhere and return a
+			 *   new char* that points to the internal position (i.e. to the
+			 *   internal "foo") but can also be used as a key for e.g.
+			 *   erase().
+			 */
+			enum { ABSTRACT_KEYS = ... };
+			
+			/**
+			 * Insert given value into the dictionary.
+			 * The dictionary is expected to do a deep copy of v in some way
+			 * such that the caller can free v deeply without destroying
+			 * dictionary content.
+			 */
 			key_type insert(mapped_type v);
+			
+			/**
+			 * OPTIONAL but recommended.
+			 * 
+			 * Returns the number of occurrences of the key/value pair with
+			 * the given key.
+			 */
 			size_type count(key_type k);
 			
+			/**
+			 * Return the key for the given value 'v'.
+			 * If 'v' is not in the dictionary, return NULL_KEY.
+			 */
 			key_type find(mapped_type v);
-			mapped_type& operator[](key_type k);
+			
+			/**
+			 * OPTIONAL if ABSTRACT_KEYS == false.
+			 * 
+			 * Return a copy of the mapped_type associated with k.
+			 * This might involve an allocation (e.g. when the stored
+			 * values are strings).
+			 * Thus, the caller is responsible for calling free_value
+			 * on the returned value when he doesn't need it anymore.
+			 */
+			value_type get_copy(key_type k);
+			
+			/**
+			 * OPTIONAL if ABSTRACT_KEYS == false,
+			 * however mandatory if get_copy() is implemented!
+			 * 
+			 * Free a value formerly returned by get_copy().
+			 * Depending on the kind of values your dictionary stores,
+			 * this might be a no-op or a real freeing.
+			 */
+			void free_value(value_type v);
 			
 			/**
 			 * Return number of erased elements (should usually be 1).
+			 * Deletes only one occurrence if the dictionary allows multiple
+			 * occurrences of the same key/value pair.
 			 */
 			size_type erase(key_type k);
 	};
