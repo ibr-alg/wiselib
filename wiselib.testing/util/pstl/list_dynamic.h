@@ -25,12 +25,11 @@ namespace wiselib {
 	
 	namespace list_dynamic_impl {
 		template<
-			typename Value_P,
-			typename Allocator_P
+			typename Value_P
 		>
 		struct SingleConnectedListNode {
-			typedef SingleConnectedListNode<Value_P, Allocator_P> self_type;
-			typename Allocator_P::template pointer_t<self_type> next;
+			typedef SingleConnectedListNode<Value_P> self_type;
+			Allocator::template pointer_t<self_type> next;
 			Value_P value;
 			Value_P& data() { return value; }
 			const Value_P& data() const { return value; }
@@ -46,15 +45,15 @@ namespace wiselib {
 			// {{{
 			public:
 				typedef List_P List;
-				typedef typename List::Allocator Allocator;
+				//typedef typename List::Allocator Allocator;
 				typedef typename List::value_type value_type;
 				typedef typename List::node_type node_type;
 				typedef value_type& reference;
 				typedef value_type* pointer;
 				typedef list_dynamic_iterator<List> iterator_type;
 				typedef list_dynamic_iterator<List> self_type;
-				typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
-				typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
+				typedef Allocator::template pointer_t<node_type> node_pointer_t;
+				typedef Allocator::template pointer_t<self_type> self_pointer_t;
 				
 				list_dynamic_iterator() : list_(0), node_(0) { }
 				list_dynamic_iterator(List& l) : list_(&l), node_(0) { }
@@ -96,19 +95,18 @@ namespace wiselib {
 	>
 	class list_dynamic {
 		public:
-			typedef list_dynamic_impl::SingleConnectedListNode<Value_P, typename OsModel_P::Allocator> Node_P;
+			typedef list_dynamic_impl::SingleConnectedListNode<Value_P> Node_P;
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_t;
 			typedef Value_P value_type;
 			typedef value_type& reference;
 			typedef const value_type& const_reference;
-			typedef typename OsModel::Allocator Allocator;
 			typedef Node_P node_type;
-			typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
-			typedef typename Allocator::template pointer_t<node_type> node_ptr_t;
+			typedef Allocator::template pointer_t<node_type> node_pointer_t;
+			typedef Allocator::template pointer_t<node_type> node_ptr_t;
 			typedef list_dynamic<OsModel_P, Value_P> self_type;
-			typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
+			typedef Allocator::template pointer_t<self_type> self_pointer_t;
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
@@ -217,7 +215,7 @@ namespace wiselib {
 			node_pointer_t insert_n(const_reference v, node_ptr_t after = 0) {
 				if(!after) { after = last_node_; }
 				
-				node_pointer_t n = OsModel::allocator.template allocate<node_type>();
+				node_pointer_t n = get_allocator().template allocate<node_type>();
 				n->value = v;
 				
 				node_pointer_t prev = after;
@@ -273,7 +271,7 @@ namespace wiselib {
 				if(prev) { prev->next = iter.node()->next; }
 				
 				iterator n(*this, iter.node()->next);
-            OsModel::allocator.template free<node_type>(iter.node());
+            	::get_allocator().template free<node_type>(iter.node());
 				return n;
 			}
 			

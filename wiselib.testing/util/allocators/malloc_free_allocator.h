@@ -227,6 +227,10 @@ class MallocFreeAllocator {
 
 } // namespace wiselib
 
+void* operator new(size_t size, void* ptr, bool _) {
+	return ptr;
+}
+
 #endif // MALLOC_FREE_ALLOCATOR_H
 
 
