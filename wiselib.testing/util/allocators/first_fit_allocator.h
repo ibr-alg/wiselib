@@ -127,7 +127,7 @@ class FirstFitAllocator {
 				Chunk* chunk_;
 				
 			friend class FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS>;
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		template<typename T>
 		struct array_pointer_t {
@@ -160,7 +160,7 @@ class FirstFitAllocator {
 				size_t offset_;
 				
 			friend class FirstFitAllocator<OsModel_P, BUFFER_SIZE, MAX_CHUNKS>;
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		FirstFitAllocator() :
 			chunks_used_(0),
@@ -240,9 +240,34 @@ class FirstFitAllocator {
 			free_chunk(p.chunk_ - reserved_);
 			return SUCCESS;
 		}
+		
+		template<typename T>
+		int free(T* p) {
+			#if ALLOCATOR_USE_RTTI
+			allocated_types_[typeid(T).name()]--;
+			type_sizes_[typeid(T).name()] -= p.chunk_->size_;
+			#endif
+			p->~T();
+			free_chunk(p.chunk_ - reserved_);
+			return SUCCESS;
+		}
 	
 		template<typename T>
 		int free_array(array_pointer_t<T> p) {
+			#if ALLOCATOR_USE_RTTI
+			allocated_types_[std::string(typeid(T).name()) + "[]"]--;
+			type_sizes_[std::string(typeid(T).name()) + "[]"] -= p.chunk_->size_;
+			#endif
+			free_chunk(p.chunk_ - reserved_);
+			for(int i=0; i<(p.chunk_->size_ / sizeof(T)); i++) {
+				p->~T();
+				++p;
+			}
+			return SUCCESS;
+		}
+		
+		template<typename T>
+		int free_array(T* p) {
 			#if ALLOCATOR_USE_RTTI
 			allocated_types_[std::string(typeid(T).name()) + "[]"]--;
 			type_sizes_[std::string(typeid(T).name()) + "[]"] -= p.chunk_->size_;
@@ -319,7 +344,7 @@ class FirstFitAllocator {
 				chunk_index_t next_;
 				block_data_t *start_;
 				
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		
 		#if DEBUG_PC
