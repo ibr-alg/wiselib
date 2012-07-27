@@ -63,11 +63,20 @@ namespace wiselib
 			addr[15]=0x01;
 			prefix_length = 64;
 		}
+		//All routers' address - FF02:0:0:0:0:0:0:2
+		else if( type == 2 )
+		{
+			addr[0]=0xFF;
+			addr[1]=0x02;
+			memset(addr+2,0,13);
+			addr[15]=0x02;
+			prefix_length = 64;
+		}
 		//Unspecified address - NULL NODE ID - 0:0:0:0:0:0:0:0
 		else
 		{
-		 memset(addr,0, 16);
-		 prefix_length = 0;
+			memset(addr,0, 16);
+			prefix_length = 0;
 		}
 	}
 	

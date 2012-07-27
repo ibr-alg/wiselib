@@ -138,6 +138,26 @@ namespace wiselib
 		memcpy((buffer_ + PAYLOAD_POS + shift), data, len);
 	}
 	
+	void set_payload( uint16_t* data, int shift = 0 )
+	{
+		buffer_[PAYLOAD_POS + shift] = ( *(data) >> 8 ) & 0xFF;
+		buffer_[PAYLOAD_POS + shift + 1] = ( *(data) ) & 0xFF;
+	}
+	
+	void set_payload( uint32_t* data, int shift = 0 )
+	{
+		//Shifts: 24, 16, 8, 0
+		for( int i = 0; i < 8; i++ )
+			buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (32 - ((i+1)*8)) ) & 0xFF;
+	}
+	
+	void set_payload( uint64_t* data, int shift = 0 )
+	{
+		//Shifts: 56, 48, 40, 32, 24, 16, 8, 0
+		for( int i = 0; i < 8; i++ )
+			buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (64 - ((i+1)*8)) ) & 0xFF;
+	}
+	
 	inline uint8_t version()
 	{
 		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, VERSION_BIT, VERSION_LEN );

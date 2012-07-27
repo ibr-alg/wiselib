@@ -92,12 +92,7 @@ namespace wiselib
 	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
 	*/
 	static const ip_node_id_t BROADCAST_ADDRESS;
-	
-	/**
-	* Solicited multicast address form: FF02:0:0:0:0:1:FFXX:XXXX
-	*/
-	/*ip_node_id_t SOLICITED_MULTICAST_ADDRESS;*/
-	
+
 	// --------------------------------------------------------------------
 	enum Restrictions {
 		MAX_MESSAGE_LENGTH = Radio_IP::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload

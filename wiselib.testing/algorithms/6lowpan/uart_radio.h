@@ -21,6 +21,7 @@
 
 #include "util/base_classes/radio_base.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
+#include "algorithms/6lowpan/nd_storage.h"
 
 namespace wiselib
 {
@@ -77,6 +78,7 @@ namespace wiselib
 			uart_ = &uart;
 			timer_ = &timer;
 			packet_pool_mgr_ = p_mgr;
+			ND_enabled = false;
 		}
 		
 		// -----------------------------------------------------------------
@@ -192,6 +194,12 @@ namespace wiselib
 				#endif
 			}
 		}
+		
+		/**
+		* Indicator for the ND algorithm
+		* If false, the NDStorage class is not used
+		*/
+		bool ND_enabled;
 		
 	 private:
 	 	typename Uart::self_pointer_t uart_;

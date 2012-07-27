@@ -78,7 +78,7 @@ namespace wiselib
 		//Init Uart Radio
 		uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr, *timer_ );
 	 
-		interface_manager.init( &lowpan, *debug_, &uart_radio );
+		interface_manager.init( &lowpan, *debug_, &uart_radio, &packet_pool_mgr );
 		
 		//Init IPv6
 		ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
