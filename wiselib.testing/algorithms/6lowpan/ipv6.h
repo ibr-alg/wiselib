@@ -128,9 +128,9 @@ namespace wiselib
 	static const IPv6Address_t BROADCAST_ADDRESS;
 	
 	/**
-	* Solicited multicast address form: FF02:0:0:0:0:1:FFXX:XXXX
+	* Multicast address for all routers: FF02:0:0:0:0:0:0:2
 	*/
-	IPv6Address_t SOLICITED_MULTICAST_ADDRESS;
+	static const IPv6Address_t ALL_ROUTERS_ADDRESS;
 	
 	// --------------------------------------------------------------------
 	enum Restrictions {
@@ -249,7 +249,19 @@ namespace wiselib
 	const
 	IPv6Address<Radio_P, Debug_P>
 	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
-
+	
+	// -----------------------------------------------------------------------
+	//Initialize ALL_ROUTERS_ADDRESS
+	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename InterfaceManager_P>
+	const
+	IPv6Address<Radio_P, Debug_P>
+	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::ALL_ROUTERS_ADDRESS = IPv6Address<Radio_P, Debug_P>(2);
+	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_LoWPAN_P,
@@ -336,11 +348,7 @@ namespace wiselib
 		#endif
 	 
 		interface_manager_->register_for_callbacks( this );
-		
-		//SOLICITED_MULTICAST_ADDRESS configuration		
-		SOLICITED_MULTICAST_ADDRESS.make_it_solicited_multicast( radio().id() );
-		//TODO send out ICMP multicast join message here!
-		
+
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------

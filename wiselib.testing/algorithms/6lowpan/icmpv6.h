@@ -34,6 +34,17 @@ Echo Request & Reply:
 |           Identifier          |        Sequence Number        |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+RS
+
+RA
+
+NS
+
+NA
+
+------ Options ------
+
+
 
 */
 
@@ -94,10 +105,9 @@ namespace wiselib
 	 TIME_EXCEEDED = 3,
 	 PARAMETER_PROBLEM = 4,*/
 	 ECHO_REQUEST = 128,
-	 ECHO_REPLY = 129/*,
-	 ROUTER_SOLICITATION = 133,
-	 ROUTER_ADVERTISEMENT = 134*/
+	 ECHO_REPLY = 129
 	};
+	
 	
 	/**
 	* Unspecified IP address: 0:0:0:0:0:0:0:0
@@ -108,6 +118,11 @@ namespace wiselib
 	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
 	*/
 	static const node_id_t BROADCAST_ADDRESS;
+	
+	/**
+	* Multicast address for all routers: FF02:0:0:0:0:0:0:2
+	*/
+	static const node_id_t ALL_ROUTERS_ADDRESS;
 
 	// --------------------------------------------------------------------
 	enum Restrictions {
@@ -213,6 +228,16 @@ namespace wiselib
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::BROADCAST_ADDRESS = Radio_IP::BROADCAST_ADDRESS;
 	
 	// -----------------------------------------------------------------------
+	//Initialize ALL_ROUTERS_ADDRESS
+	template<typename OsModel_P,
+	typename Radio_IP_P,
+	typename Radio_P,
+	typename Debug_P>
+	const
+	typename Radio_IP_P::node_id_t
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::ALL_ROUTERS_ADDRESS = Radio_IP::ALL_ROUTERS_ADDRESS;
+	
+	// -----------------------------------------------------------------------
 
 	template<typename OsModel_P,
 	typename Radio_IP_P,
@@ -310,6 +335,7 @@ namespace wiselib
 		data structure:
 		[0]: message type code
 		[1][2]: identifier for echo reply
+		[3-]: options
 		*/
 		#ifdef ICMPv6_LAYER_DEBUG
 		debug().debug( "ICMPv6 layer: Send (%i) to ", *data );
@@ -357,15 +383,15 @@ namespace wiselib
 				generate_id(id);
 				message->set_payload( id, 2, 4 );
 				
-				//Sequence Number - 2 bytes
-				message->set_payload( &zero, 2, 6 );
+				//Sequence Number - 0 - 2 bytes
+				//message->set_payload( &zero, 2, 6 );
 				break;
 			case ECHO_REPLY:
 				//Identifier
 				message->set_payload( data + 1, 2, 4 );
 			 
-				//Sequence Number - 2 bytes
-				message->set_payload( &zero, 2, 6 );
+				//Sequence Number - 0 - 2 bytes
+				//message->set_payload( &zero, 2, 6 );
 				break;
 			default:
 				#ifdef ICMPv6_LAYER_DEBUG
@@ -376,14 +402,11 @@ namespace wiselib
 		
 		//Checksum calculation
 		//To calculate checksum the field has to be 0 - 2 bytes
-		message->set_payload( &zero, 2, 2 );
+		//message->set_payload( &zero, 2, 2 );
 		
-		uint8_t tmp;
 		uint16_t checksum = message->generate_checksum( message->length(), message->payload() );
-		tmp = 0xFF & (checksum >> 8);
-		message->set_payload( &tmp, 1, 2 );
-		tmp = 0xFF & (checksum);
-		message->set_payload( &tmp, 1, 3 );
+		
+		message->set_payload( &checksum, 2 );
 		
 		//Send the packet to the IP layer
 		int result = radio_ip().send( destination, packet_number, NULL );
@@ -409,7 +432,7 @@ namespace wiselib
 		if( message->next_header() != Radio_IP::ICMPV6 )
 			return;
 		//data is NULL, use this pointer for the payload
-		data = message->payload();
+		data = message->payload();	
 		
 		uint16_t checksum = ( data[2] << 8 ) | data[3];
 		data[2] = 0;
@@ -417,12 +440,13 @@ namespace wiselib
 		if( checksum != message->generate_checksum( message->length(), data ) )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
-			debug().debug( "ICMPv6 layer: Dropped packet (checksum error)\n");
+			debug().debug( "ICMPv6 layer: Dropped packet (checksum error)\n" );
 			#endif
+
 			packet_pool_mgr_->clean_packet( message );
 			return;
 		}
-		
+
 		int typecode = data[0];
 		switch(typecode){
 			case ECHO_REQUEST:

@@ -20,10 +20,45 @@
 #define __ALGORITHMS_6LOWPAN_SIMPLE_ROUTING_H__
 
 #include "internal_interface/routing_table/routing_table_static_array.h"
-#include "algorithms/6lowpan/forwarding_types.h"
 
 namespace wiselib
 {
+	
+	template<typename Radio_P>
+	class ForwardingTableValue
+	{
+		public:
+			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			
+			// -----------------------------------------------------------------
+			ForwardingTableValue()
+			: next_hop( Radio::NULL_NODE_ID ),
+			target_interface( 0 ),
+			hops( 0 ),
+			seq_nr( 0 )
+			{}
+			
+			// -----------------------------------------------------------------
+			
+			ForwardingTableValue( node_id_t next, uint8_t h, uint16_t s, uint8_t i )
+			: next_hop( next ),
+			target_interface( i ),
+			hops( h ),
+			seq_nr( s )
+			{}
+			// -----------------------------------------------------------------
+			//Next hop is an IP address
+			node_id_t next_hop;
+			uint8_t target_interface;
+			uint8_t hops;
+			uint16_t seq_nr; ///< Sequence Number of last Req
+	};
+	
+// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+	
 	template<typename OsModel_P,
 		typename Radio_Upper_Layer_P,
 		typename Radio_Os_P,
@@ -50,7 +85,7 @@ namespace wiselib
 		* The entries have lower level Radio types because the next hop is a MAC address if MESH UNDER mode enabled
 		*/
 		#ifdef LOWPAN_ROUTE_OVER
-		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Upper_Layer, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<Radio_Upper_Layer> > ForwardingTable;
+		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Upper_Layer, FORWARDING_TABLE_SIZE, wiselib::ForwardingTableValue<Radio_Upper_Layer> > ForwardingTable;
 		typedef typename Radio_Upper_Layer::node_id_t node_id_t;
 		
 		/**
@@ -65,7 +100,7 @@ namespace wiselib
 		#endif
 		
 		#ifdef LOWPAN_MESH_UNDER
-		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Upper_Layer, FORWARDING_TABLE_SIZE, wiselib::IPForwardingTableValue<Radio_Os> > ForwardingTable;
+		typedef wiselib::StaticArrayRoutingTable<OsModel, Radio_Upper_Layer, FORWARDING_TABLE_SIZE, wiselib::ForwardingTableValue<Radio_Os> > ForwardingTable;
 		typedef typename Radio_Upper_Layer::node_id_t node_id_t;
 		
 		enum SpecialNodeIds {
@@ -264,7 +299,7 @@ namespace wiselib
 		{
 			
 			//If this is the last failed destination again, return NO_ROUTE_TO_HOST
-			if( destination == NULL_NODE_ID || requested_destination_ == destination && failed_alive_ )
+			if( destination == NULL_NODE_ID || (requested_destination_ == destination && failed_alive_) )
 				return NO_ROUTE_TO_HOST;
 			
 		 	//Search for the next hop in the table
@@ -345,7 +380,7 @@ namespace wiselib
 			node_id_t next_hop = requested_destination_;
 			
 			
-			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_UART);
+			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_RADIO); //INTERFACE_UART
 			forwarding_table_[requested_destination_] = entry;
 			
 			failed_alive_ = false;

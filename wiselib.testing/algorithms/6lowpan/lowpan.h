@@ -23,7 +23,7 @@
 
 #include "util/serialization/bitwise_serialization.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
-#include "algorithms/6lowpan/context_manager.h"
+#include "algorithms/6lowpan/nd_storage.h"
 #include "algorithms/6lowpan/reassembling_manager.h"
 
 #ifdef LOWPAN_MESH_UNDER
@@ -74,6 +74,7 @@ namespace wiselib
 	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
 	typedef typename IPv6Packet_t::node_id_t IPv6Address_t;
 	
+	typedef NDStorage<Radio, Debug> NDStorage_t;
 	typedef LoWPANContextManager<Radio, Debug> Context_Mgr_t;
 	
 	typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> Reassembling_Mgr_t;
@@ -138,6 +139,11 @@ namespace wiselib
 	 	packet_pool_mgr_ = p_mgr;
 		reassembling_mgr_.init( *timer_, *debug_, packet_pool_mgr_ );
 		
+		/*
+			ND is enabled for this interface
+		*/
+		ND_enabled = true;
+		
 		#ifdef LOWPAN_MESH_UNDER
 		broadcast_sequence_number_ = 1;
 		for( int i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
@@ -183,6 +189,12 @@ namespace wiselib
 	int IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address );
 	///@}
 	
+	/**
+	* Indicator for the ND algorithm
+	* If false, the NDStorage class is not used
+	*/
+	bool ND_enabled;
+	
 	private:
 	
 	Radio& radio()
@@ -199,6 +211,7 @@ namespace wiselib
 	typename Timer::self_pointer_t timer_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
 	Context_Mgr_t context_mgr_;
+	NDStorage_t nd_storage_;
 	Reassembling_Mgr_t reassembling_mgr_;
 	#ifdef LOWPAN_MESH_UNDER
 	InterfaceManager_t interface_manager_;
