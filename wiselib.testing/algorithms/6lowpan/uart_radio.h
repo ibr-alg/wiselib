@@ -138,9 +138,9 @@ namespace wiselib
 		{
 			#ifdef UART_LAYER_DEBUG
 			debug_->debug( "Uart: received len %i\n", len );
-			for( int i = 0; i < len; i++ )
-				debug_->debug( "%i ", buf[i] );
-			debug_->debug( "\n" );
+			//for( int i = 0; i < len; i++ )
+			//	debug_->debug( "%x ", buf[i] );
+			//debug_->debug( "\n" );
 			#endif
 			
 			timer().template set_timer<self_type, &self_type::timeout>( 4000, this, (void*) (received_size_ + len) );
@@ -160,10 +160,10 @@ namespace wiselib
 			
 			
 			//Copy the arrived part
-			memcpy( ip_packet->buffer_ + received_size_, buf, len );
+			memcpy( ip_packet->buffer_ + received_size_, buf + 1, len - 1 );
 			
-			received_size_ += len;
-			
+			received_size_ += len - 1;
+
 			//If the header arrived, we can get the length
 			if( received_size_ >= 40 )
 			{

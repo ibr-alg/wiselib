@@ -99,6 +99,13 @@ namespace wiselib
 		 AUTHORITIVE_BORDER_ROUTER = 33
 		};
 		
+		enum ARstatus
+		{
+			AR_SUCCESS = 0,
+			AR_DUPLICATE_ADDRESS = 1,
+			AR_NEIGHBOR_CACHE_FULL = 2
+		};
+		
 		/**
 		* Multicast address for all routers: FF02:0:0:0:0:0:0:2
 		*/
@@ -326,7 +333,7 @@ namespace wiselib
 		|   Options ...
 		+-+-+-+-+-+-+-+-+-+-+-+-
 		*/
-		int send_neighbor_advertisement( IPv6Address_t* dest_addr, uint8_t target_interface );
+		int send_neighbor_advertisement( IPv6Address_t* dest_addr, uint8_t target_interface, uint8_t status, uint16_t lifetime, uint64_t ll_source );
 		
 		/**
 		* Inserts a link layer option.
@@ -580,8 +587,14 @@ namespace wiselib
 		//Original size of the ROUTER_SOLICITATION
 		uint16_t length = 8;
 		
+		
+		node_id_t ll_source;
+		if( target_interface == INTERFACE_RADIO )
+			ll_source = radio_lowpan_->id();
+		
 		//Call Options here
-		//TODO
+		//Insert the SLLAO option
+		insert_link_layer_option( message, length, ll_source, false );
 		
 		
 		
@@ -646,9 +659,25 @@ namespace wiselib
 		
 		//----------------------------------
 		//Call Options here
-		//TODO
 		
+		node_id_t ll_source;
+		if( target_interface == INTERFACE_RADIO )
+			ll_source = radio_lowpan_->id();
 		
+		//Insert the SLLAO
+		insert_link_layer_option( message, length, ll_source, false );
+		
+		//Insert PIOs - skip the link local address
+		for( int i = 1; i < LOWPAN_MAX_PREFIXES; i++ )
+			if( prefix_list[target_interface][i].adv_valid_lifetime > 0 )
+				insert_prefix_information( message, length, target_interface, i );
+		
+		//Insert 6COs
+		for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
+			if( radio_lowpan_->context_mgr_.contexts[i].valid_lifetime > 0 )
+				insert_6lowpan_context_option( message, length, i );
+		
+		//TODO insert ABRO
 		
 		//Prepare the common parts and send the packet
 		int result = prepare_packet( packet_number, length, ROUTER_ADVERTISEMENT, src_addr, dest_addr, target_interface );
@@ -690,8 +719,17 @@ namespace wiselib
 		
 		//----------------------------------
 		//Call Options here
-		//TODO
 		
+		node_id_t ll_source;
+		if( target_interface == INTERFACE_RADIO )
+			ll_source = radio_lowpan_->id();
+		
+		//Insert the SLLAO
+		insert_link_layer_option( message, length, ll_source, false );
+		
+		//Insert ARO
+		//TODO: what is the lifetime?
+		insert_address_registration_option( message, length, AR_SUCCESS, 43200, (uint64_t)ll_source );
 		
 		
 		//Prepare the common parts and send the packet
@@ -711,7 +749,7 @@ namespace wiselib
 	typename Radio_Uart_P>
 	int 
 	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
-	send_neighbor_advertisement( IPv6Address_t* dest_addr, uint8_t target_interface )
+	send_neighbor_advertisement( IPv6Address_t* dest_addr, uint8_t target_interface, uint8_t status, uint16_t lifetime, uint64_t ll_source )
 	{
 		//Get a packet from the manager
 		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
@@ -746,8 +784,8 @@ namespace wiselib
 		
 		//----------------------------------
 		//Call Options here
-		//TODO
-		
+		//Insert ARO --> response
+		insert_address_registration_option( message, length, status, lifetime, ll_source );
 		
 		
 		//Prepare the common parts and send the packet

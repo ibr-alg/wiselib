@@ -59,6 +59,14 @@ namespace wiselib
 	typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug> ICMPv6_t;
 	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
 	
+	enum ErrorCodes
+	{
+		SUCCESS = OsModel::SUCCESS,
+		ERR_UNSPEC = OsModel::ERR_UNSPEC,
+		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
+		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
+	};
+	
 	
 	void init( Radio& radio, Debug& debug, Timer& timer, Uart& uart)
 	{
@@ -83,18 +91,21 @@ namespace wiselib
 		//Init IPv6
 		ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 		//IPv6 will enable lower level radios
-		ipv6.enable_radio();
+		if( SUCCESS != ipv6.enable_radio() )
+			debug_->debug( "Fatal error: IP/Radio/Uart layer enabling failed! \n" );
 		
 		
 		//Init UDP
 		udp.init( ipv6, *debug_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
-		udp.enable_radio();
+		if( SUCCESS != udp.enable_radio() )
+			debug_->debug( "Fatal error: UDP layer enabling failed! \n" );
 		
 		//Init ICMPv6
 		icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
-		icmpv6.enable_radio();
+		if( SUCCESS != icmpv6.enable_radio() )
+			debug_->debug( "Fatal error: ICMPv6 layer enabling failed! \n" );
 	}
 	
 	ICMPv6_t icmpv6; 

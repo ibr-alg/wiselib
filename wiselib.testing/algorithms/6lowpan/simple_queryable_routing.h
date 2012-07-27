@@ -380,7 +380,8 @@ namespace wiselib
 			node_id_t next_hop = requested_destination_;
 			
 			
-			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_RADIO); //INTERFACE_UART
+			//ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_RADIO);
+			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_UART);
 			forwarding_table_[requested_destination_] = entry;
 			
 			failed_alive_ = false;
