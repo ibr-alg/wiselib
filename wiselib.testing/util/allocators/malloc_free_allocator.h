@@ -23,11 +23,6 @@
 
 #define KEEP_STATS 0
 
-/*template<typename pointer_t>
-void* operator new(size_t size, pointer_t ptr) {
-	return ptr.raw();
-}*/
-
 namespace wiselib {
 	
 /**
