@@ -21,16 +21,14 @@ namespace concepts {
 			
 			/**
 			 * Either true or false.
-			 * false (i.e. non-abstract keys) means:
-			 *   key_type is implicitely convertible to mapped_type and
-			 *   represents the contents its pointing to in the same way
-			 *   mapped type does.
-			 *   E.g.:
-			 *   key_type and mapped_type are both char*'s,
-			 *   insert("foo") will copy the string somewhere and return a
-			 *   new char* that points to the internal position (i.e. to the
-			 *   internal "foo") but can also be used as a key for e.g.
-			 *   erase().
+			 * false => Internally the value is stored completely
+			 *   in one piec. E.g. assume mapped_type is char*,
+			 *   then internally the string is stored completely such that
+			 *   get() can return a reference to it without the need for
+			 *   copying.
+			 * true => Internally the value is stored in some encoded/spread
+			 *   form such that the only form of returning the full value
+			 *   is to construct a copy of this via get_copy().
 			 */
 			enum { ABSTRACT_KEYS = ... };
 			
@@ -57,7 +55,16 @@ namespace concepts {
 			key_type find(mapped_type v);
 			
 			/**
-			 * OPTIONAL if ABSTRACT_KEYS == false.
+			 * Only required if ABSTRACT_KEYS == false
+			 * 
+			 * Return a shallow value. E.g. if mapped_type is
+			 * char*, the returned string resides in internal structure
+			 * and shall not be freeed by the caller.
+			 */
+			mapped_type get(key_type k);
+			
+			/**
+			 * Only required if ABSTRACT_KEYS == true
 			 * 
 			 * Return a copy of the mapped_type associated with k.
 			 * This might involve an allocation (e.g. when the stored
@@ -65,17 +72,17 @@ namespace concepts {
 			 * Thus, the caller is responsible for calling free_value
 			 * on the returned value when he doesn't need it anymore.
 			 */
-			value_type get_copy(key_type k);
+			mapped_type get_copy(key_type k);
 			
 			/**
-			 * OPTIONAL if ABSTRACT_KEYS == false,
-			 * however mandatory if get_copy() is implemented!
+			 * Only required if get_copy() is implemented (e.g. ABSTRACT_KEYS
+			 * is true)!
 			 * 
 			 * Free a value formerly returned by get_copy().
 			 * Depending on the kind of values your dictionary stores,
 			 * this might be a no-op or a real freeing.
 			 */
-			void free_value(value_type v);
+			void free_value(mapped_type v);
 			
 			/**
 			 * Return number of erased elements (should usually be 1).
