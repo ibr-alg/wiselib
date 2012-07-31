@@ -160,6 +160,10 @@ public:
 	 * Actual Vector containing the nodes in the neighborhood
 	 */
 	node_info_vector_t neighborhood;
+	
+	typedef node_info_vector_t Neighbors;
+	Neighbors& topology() { return neighborhood; }
+	
 	// --------------------------------------------------------------------
 
 	enum error_codes {
