@@ -51,6 +51,8 @@
 #define COAP_HEADER_LEN                     4
 // END OF CURRENT COAP DEFINES
 
+#define COAP_DEFAULT_RESOURCE 1
+
 #include "util/pstl/static_string.h"
 #include "packet.h"
 #include "resource.h"
@@ -307,7 +309,12 @@ namespace wiselib
                     return true;
                 }
             }
-            return false;
+			
+			#if COAP_DEFAULT_RESOURCE
+			return resources_[*i].is_set();
+			#else
+			return false;
+			#endif
          } // end of find_resource
 
          coap_status_t coap_get_resource( uint8_t method, uint8_t id, uint8_t qid, uint8_t* data_len )

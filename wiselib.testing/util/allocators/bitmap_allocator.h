@@ -21,7 +21,7 @@
 #define __WISELIB_UTIL_ALLOCATORS_BITMAP_ALLOCATOR_H
 
 #include <util/meta.h>
-#include <util/bit_array.h>
+#include <util/pstl/bit_array.h>
 
 namespace wiselib {
 	
@@ -42,7 +42,7 @@ class BitmapAllocator {
 		typedef BitmapAllocator<OsModel, BUFFER_SIZE> self_type;
 		typedef typename OsModel::size_t size_type;
 		typedef typename OsModel::block_data_t block_data_t;
-		typedef Bitarray<OsModel> bitarray_t;
+		typedef BitArray<OsModel> bitarray_t;
 		
 		BitmapAllocator() {
 			for(size_type i=0; i<BITMAP_SIZE; i++) {
@@ -53,22 +53,30 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate() {
-			return (T*)first_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			block_data_t* r = first_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			new((void*)r, true) T;
+			return (T*)r;
 		}
 		
 		template<typename T>
 		T* allocate_array(size_type n) {
-			return (T*)first_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			block_data_t *r = first_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			for(size_type i=0; i<n; i++) {
+				new((T*)r + i, true) T;
+			}
+			return (T*)r;
 		}
 		
 		template<typename T>
 		int free(T* p) {
+			p->~T();
 			free_chunk((block_data_t*)p);
 			return OsModel::SUCCESS;
 		}
 		
 		template<typename T>
 		int free_array(T* p) {
+			// TODO: get blocksize, then call destructors, then free block
 			free_chunk((block_data_t*)p);
 			return OsModel::SUCCESS;
 		}
@@ -93,20 +101,20 @@ class BitmapAllocator {
 		}
 		
 		block_data_t* allocate_chunk(size_type pos, size_type required_blocks) {
-			start()[pos] = true;
+			start().set(pos, true);
 			for(size_type i=pos; i<pos + required_blocks; i++) {
-				used()[i] = true;
+				used().set(i, true);
 			}
-			start()[pos + required_blocks] = true;
+			start().set(pos + required_blocks, true);
 			return buffer_ + BLOCK_SIZE * pos;
 		}
 		
 		void free_chunk(block_data_t* ptr) {
 			size_type pos = (ptr - buffer_) / BLOCK_SIZE;
 			
-			start()[pos] = false;
+			start().set(pos, false);
 			do {
-				used()[pos] = false;
+				used().set(pos, false);
 			} while(!start()[pos++]);
 		}
 		
@@ -119,6 +127,9 @@ class BitmapAllocator {
 };
 
 } // namespace wiselib
+
+
+void* operator new(size_t size, void* ptr, bool _) { return ptr; }
 
 #endif // __WISELIB_UTIL_ALLOCATORS_BITMAP_ALLOCATOR_H
 

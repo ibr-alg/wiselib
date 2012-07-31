@@ -55,32 +55,45 @@ class Message {
       
       enum { WIRE_TYPE = 2 };
       
-      template<typename T>
-      static void write(buffer_t& buffer, int_t field, T v) {
+      /*
+      template<typename T, size_t N>
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, int_t field, T(&v)[N]) {
          typedef typename RWSelect<Os, buffer_t, int_t, T>::rw_t rw_t;
-         varint_t::write(buffer, field << 3 | rw_t::WIRE_TYPE);
-         rw_t::write(buffer, v);
+         if(!varint_t::write(buffer, buffer_end, field << 3 | rw_t::WIRE_TYPE)) {
+            return false;
+         }
+         return rw_t::write(buffer, buffer_end, v);
+      }
+      */
+      
+      template<typename T>
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, int_t field, T v, size_t size=0) {
+         typedef typename RWSelect<Os, buffer_t, int_t, T>::rw_t rw_t;
+         if(!varint_t::write(buffer, buffer_end, field << 3 | rw_t::WIRE_TYPE)) {
+            return false;
+         }
+         return rw_t::write(buffer, buffer_end, v, size);
       }
       
       template<typename T>
-      static void read(buffer_t& buffer, int_t& field, T& out) {
+      static bool read(buffer_t& buffer, buffer_t& buffer_end, int_t& field, T& out) {
          int_t r, wiretype;
-         varint_t::read(buffer, r);
+         if(!varint_t::read(buffer, buffer_end, r)) { return false; }
          field = r >> 3;
          wiretype = r & 0x7;
          // assert(wiretype == rw_t::WIRE_TYPE);
-         RWSelect<Os, buffer_t, int_t, T>::rw_t::read(buffer, out);
+         return RWSelect<Os, buffer_t, int_t, T>::rw_t::read(buffer, buffer_end, out);
       }
       
-      static int_t field_number(buffer_t buffer) {
+      static int_t field_number(buffer_t buffer, buffer_t end) {
          int_t r;
-         varint_t::read(buffer, r);
+         varint_t::read(buffer, end, r);
          return r >> 3;
       }
 
-      static int_t wire_type(buffer_t buffer) {
+      static int_t wire_type(buffer_t buffer, buffer_t end) {
          int_t r;
-         varint_t::read(buffer, r);
+         varint_t::read(buffer, end, r);
          return r & 0x7;
       }
 };

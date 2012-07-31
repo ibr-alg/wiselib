@@ -34,8 +34,6 @@
 #include "pc_com_uart.h"
 #include "util/serialization/endian.h"
 
-#include <util/allocators/malloc_free_allocator.h>
-
 namespace wiselib {
 	class PCOsModel
 		: public DefaultReturnValues<PCOsModel>
@@ -63,10 +61,7 @@ namespace wiselib {
 			typedef PCComUartModel<PCOsModel, false> Uart;
 			typedef ComISenseRadioModel<PCOsModel, ISenseUart> Radio;
 			
-			typedef MallocFreeAllocator<PCOsModel> Allocator;
-			
 			static const Endianness endianness = WISELIB_ENDIANNESS;
-			static Allocator allocator;
 	};
 } // ns wiselib
 

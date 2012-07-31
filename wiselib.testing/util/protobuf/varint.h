@@ -54,32 +54,34 @@ class VarInt {
       
       enum { WIRE_TYPE = 0 };
       
-      static void write(buffer_t& buffer, int_t v_) {
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, int_t v_, size_t sz=0) {
          unsigned v = (unsigned)v_;
          bool continuation = (v >> 7) != 0;
          
-         byterw_t::write(buffer, (int_t)((v & DATA) | (continuation << 7)));
+         if(!byterw_t::write(buffer, buffer_end, (int_t)((v & DATA) | (continuation << 7)))) { return false; }
          if(continuation) {
-            write(buffer, v >> 7);
+            if(!write(buffer, buffer_end, v >> 7)) { return false; }
          }
+         return true;
       }
       
-      static void read(buffer_t& buffer, int_t& out) {
+      static bool read(buffer_t& buffer, buffer_t& buffer_end, int_t& out) {
          int_t v;
          block_data_t b;
-         byterw_t::read(buffer, b);
+         if(!byterw_t::read(buffer, buffer_end, b)) { return false; }
          v = b;
          bool continuation = (v >> 7) != 0;
          v &= DATA;
          
          if(continuation) {
             int_t v2;
-            read(buffer, v2);
+            if(!read(buffer, buffer_end, v2)) { return false; }
             out = v | (v2 << 7);
          }
          else {
             out = v;
          }
+         return true;
       }
          
    private:
