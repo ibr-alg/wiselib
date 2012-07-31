@@ -36,7 +36,7 @@ namespace wiselib
    {
       public:
          typedef String_P String;
-         typedef delegate1<char *, uint8_t> my_delegate_t;
+         typedef delegate2<char *, uint8_t,uint16_t&> my_delegate_t;
 
          void init()
          {
@@ -49,7 +49,7 @@ namespace wiselib
             }
          }
 
-         template<class T, char* ( T::*TMethod ) ( uint8_t )>
+         template<class T, char* ( T::*TMethod ) ( uint8_t,uint16_t& )>
          void reg_callback( T *obj_pnt, uint8_t qid )
          {
             del_[qid] = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
@@ -60,9 +60,17 @@ namespace wiselib
             payload_ = NULL;
             if( del_[qid] )
             {
-               payload_ = del_[qid]( par );
+               payload_ = del_[qid]( par ,payload_length_);               
                put_data_ = NULL;
             }
+         }
+
+         void set_payload_length(uint16_t length){
+             payload_length_ = length;
+         }
+
+         uint16_t payload_length(){
+             return payload_length_;
          }
 
          void reg_resource( String name, bool fast_resource, uint16_t notify_time, uint8_t resource_len, uint8_t content_type )
@@ -187,6 +195,7 @@ namespace wiselib
          char *payload_;
          uint8_t *put_data_;
          uint8_t put_data_len_;
+         uint16_t payload_length_;
    };
 }
 #endif

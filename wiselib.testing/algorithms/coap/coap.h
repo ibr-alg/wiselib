@@ -31,8 +31,8 @@
 #define CONF_MAX_RESOURCES                  20
 #define CONF_MAX_RESOURCE_QUERIES           5
 #define CONF_MAX_OBSERVERS                  5
-#define CONF_MAX_MSG_LEN                    112
-#define CONF_MAX_PAYLOAD_LEN                64
+#define CONF_MAX_MSG_LEN                    1024
+#define CONF_MAX_PAYLOAD_LEN                1000
 #define CONF_PIGGY_BACKED                   1
 #define CONF_MAX_RETRANSMIT_SLOTS           10
 
@@ -121,6 +121,9 @@ namespace wiselib
             {
                coap_register_con_msg( *dest, msg->mid_w(), buf_, data_len, 0 );
             }
+//            for(int i=0;i<data_len;i++){
+//            	debug().debug("%d",buf_[i]);
+//            }
             radio().send( *dest, data_len, buf_ );
          }
 
@@ -251,7 +254,7 @@ namespace wiselib
                } // end of handle request
                if ( msg.code_w() >= 64 && msg.code_w() <= 191 )
                {
-                  debug().debug( "REC: %s", msg.payload_w() );
+//                  debug().debug( "REC: %s", msg.payload_w() );
                   debug().debug( "REC::RESPONSE" );
                   switch ( msg.type_w() )
                   {
@@ -317,7 +320,7 @@ namespace wiselib
             {
                return INTERNAL_SERVER_ERROR;
             }
-            *data_len = strlen( resources_[id].payload() );
+            *data_len = resources_[id].payload_length();
             return CONTENT;
          }
 
