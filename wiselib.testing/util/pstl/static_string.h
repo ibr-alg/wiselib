@@ -35,11 +35,42 @@ namespace wiselib {
         return tempt;
     }
 
+    int mystrncmp(const char* s1, const char* s2, uint8_t n)
+    {
+        unsigned char uc1, uc2;
+        if (n == 0) return 0;
+        while (n-- > 0 && *s1 == *s2)
+        {
+            if ( n == 0 || *s1 == '\0') return 0;
+
+            s1++;
+            s2++;
+        }
+        uc1 = (*(unsigned char *) s1);
+        uc2 = (*(unsigned char *) s2);
+        return ((uc1 < uc2) ? -1 : (uc1 > uc2));
+    }
+
+    char *mystrchr(const char *s, int c)
+    {
+        while (*s != '\0' && *s != (char)c) s++;
+        return ( (*s == c) ? (char *) s : NULL );
+    }
+
+    int mystrcspn (const char *s1, const char *s2)
+    {
+        const char *sc1;
+        for (sc1 = s1; *sc1 != '\0'; sc1++)
+          if (mystrchr(s2, (int)*sc1) != NULL)
+              return (sc1 - s1);
+        return sc1 - s1;
+    }
+
     class StaticString {
-    private:       
+    private:
         unsigned char length_;
         char buffer_[MAX_STRING_LENGTH];
-        
+
         char max(const char a, const char b){
             if(a>=b)
                 return a;
@@ -63,7 +94,7 @@ namespace wiselib {
         StaticString(const char* value)
         {
             length_ = strlen(value);
-            memcpy( buffer_, value, length_ + 1 );            
+            memcpy( buffer_, value, length_ + 1 );
         }
 
         StaticString(char *buffer, char buffer_size) {
@@ -79,7 +110,7 @@ namespace wiselib {
             int length = strlen(other);
             if (length_ + length + 1 <= MAX_STRING_LENGTH) {
 //                memcpy( buffer_[length_], other, length );
-            
+
                 mystrncpy(&(buffer_[length_]), other, length);
 //                buffer_[length_ - 1] = '\0';
                 length_ += length;

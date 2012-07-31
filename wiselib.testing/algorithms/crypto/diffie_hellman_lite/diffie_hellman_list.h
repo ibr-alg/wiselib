@@ -27,8 +27,8 @@
 #include <string.h>
 #include <time.h>
 #include <gmp.h>
-#include "algorithm/sha256.h"
-#include "algorithm/diffie_hellman_config.h"
+#include "algorithms/crypto/diffie_hellman_lite/sha256.h"
+#include "algorithms/crypto/diffie_hellman_lite/diffie_hellman_config.h"
 #include "util/serialization/simple_types.h"
 
 namespace wiselib
