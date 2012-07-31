@@ -111,7 +111,7 @@ namespace wiselib
             uint8_t i;
             for( i = 1; i < CONF_MAX_RESOURCE_QUERIES; i++ )
             {
-                if ( ( uint16_t ) len == q_name_[i].length() && !strncmp( query, q_name_[i].c_str(), len ) )
+                if ( ( uint16_t ) len == q_name_[i].length() && !mystrncmp( query, q_name_[i].c_str(), len ) )
                 {
                     return i;
                 }
