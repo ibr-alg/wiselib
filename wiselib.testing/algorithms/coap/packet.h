@@ -585,7 +585,7 @@ namespace wiselib
          {
             if ( *dst_len > 0 )
             {
-               ( *dst )[*dst_len] = seperator;
+               //( *dst )[*dst_len] = seperator;
                *dst_len += 1;
                memmove( ( *dst ) + ( *dst_len ), value, length );
                *dst_len += length;

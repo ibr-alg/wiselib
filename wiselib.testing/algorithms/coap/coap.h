@@ -31,8 +31,8 @@
 #define CONF_MAX_RESOURCES                  20
 #define CONF_MAX_RESOURCE_QUERIES           5
 #define CONF_MAX_OBSERVERS                  5
-#define CONF_MAX_MSG_LEN                    112
-#define CONF_MAX_PAYLOAD_LEN                64
+#define CONF_MAX_MSG_LEN                    1024
+#define CONF_MAX_PAYLOAD_LEN                1000
 #define CONF_PIGGY_BACKED                   1
 #define CONF_MAX_RETRANSMIT_SLOTS           10
 
@@ -123,6 +123,9 @@ namespace wiselib
             {
                coap_register_con_msg( *dest, msg->mid_w(), buf_, data_len, 0 );
             }
+//            for(int i=0;i<data_len;i++){
+//            	debug().debug("%d",buf_[i]);
+//            }
             radio().send( *dest, data_len, buf_ );
          }
 
@@ -136,6 +139,11 @@ namespace wiselib
             uint8_t *data = NULL;
             uint8_t data_len;
 
+			for(int i=0; i< *len; i++) {
+				debug().debug("%x %d %c\n", buf[i], buf[i], buf[i]);
+			}
+			
+			
             msg.init();
             response.init();
             //memset( data, 0, CONF_MAX_PAYLOAD_LEN );
@@ -160,7 +168,7 @@ namespace wiselib
                */
                if ( msg.code_w() >= 1 && msg.code_w() <= 4 )
 			   {
-                  debug().debug( "REC::REQUEST\n" );
+                  debug().debug( "REC::REQUEST for %s\n", msg.uri_path_w() );
                   if ( find_resource( &resource_id, msg.uri_path_w(), msg.uri_path_len_w() ) == true )
                   {
                      debug().debug( "REC::RESOURCE FOUND\n" );
@@ -200,7 +208,7 @@ namespace wiselib
                         {
                            case GET:
                               debug().debug( "REC::GET_REQUEST" );
-                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len ) );
+                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len, msg.uri_path_w()  ) );
                               response.set_option( CONTENT_TYPE );
                               response.set_content_type( resources_[resource_id].content_type() );
                               data = ( uint8_t * ) resources_[resource_id].payload();
@@ -220,7 +228,7 @@ namespace wiselib
                               debug().debug( "REC::PUT_REQUEST" );
                               resources_[resource_id].set_put_data( msg.payload_w() );
                               resources_[resource_id].set_put_data_len( msg.payload_len_w() );
-                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len ) );
+                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len, msg.uri_path_w() ) );
                               response.set_option( CONTENT_TYPE );
                               response.set_content_type( resources_[resource_id].content_type() );
                               data = ( uint8_t * ) resources_[resource_id].payload();
@@ -253,7 +261,7 @@ namespace wiselib
                } // end of handle request
                if ( msg.code_w() >= 64 && msg.code_w() <= 191 )
                {
-                  debug().debug( "REC: %s", msg.payload_w() );
+//                  debug().debug( "REC: %s", msg.payload_w() );
                   debug().debug( "REC::RESPONSE" );
                   switch ( msg.type_w() )
                   {
@@ -317,14 +325,14 @@ namespace wiselib
 			#endif
          } // end of find_resource
 
-         coap_status_t coap_get_resource( uint8_t method, uint8_t id, uint8_t qid, uint8_t* data_len )
+         coap_status_t coap_get_resource( uint8_t method, uint8_t id, uint8_t qid, uint8_t* data_len, char* path )
          {
-            resources_[id].execute( qid, method );
+            resources_[id].execute( qid, method, path );
             if ( resources_[id].payload() == NULL )
             {
                return INTERNAL_SERVER_ERROR;
             }
-            *data_len = strlen( resources_[id].payload() );
+            *data_len = resources_[id].payload_length();
             return CONTENT;
          }
 
@@ -548,7 +556,7 @@ namespace wiselib
                   notification.set_type( CON );
                   notification.set_mid( coap_new_mid() );
 
-                  resources_[resource_id].execute( 0, GET );
+                  resources_[resource_id].execute( 0, GET ); // XXX
                   data_value = resources_[resource_id].payload( );
                   if( data_value == NULL )
                   {
