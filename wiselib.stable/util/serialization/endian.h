@@ -19,7 +19,9 @@
 #ifndef __WISELIB_UTIL_SERIALIZATION_ENDIAN_H
 #define __WISELIB_UTIL_SERIALIZATION_ENDIAN_H
 
-#if defined(__APPLE__) || defined(__ba__) || defined(__arm__)
+#if defined(__ANDROID__)
+#include <sys/endian.h>
+#elif defined(__APPLE__) || defined(__ba__) || defined(__arm__)
 #include <machine/endian.h>
 #elif defined(__MSP430__)
 #include <sys/ieeefp.h>
