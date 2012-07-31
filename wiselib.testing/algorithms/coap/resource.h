@@ -29,6 +29,8 @@
 #include "util/pstl/map_static_vector.h"
 #include "util/pstl/pair.h"
 
+#define COAP_RESOURCE_NAME 1
+
 namespace wiselib
 {
    template < typename String_P = StaticString>
@@ -36,8 +38,15 @@ namespace wiselib
    {
       public:
          typedef String_P String;
+		 #if COAP_RESOURCE_NAME
+		 typedef delegate2<char *, uint8_t, char *> my_delegate_t;
+		 #else
          typedef delegate1<char *, uint8_t> my_delegate_t;
+		 #endif // COAP_RESOURCE_NAME
 
+		 ResourceController() : is_set_(false) {
+		}
+		 
          void init()
          {
             uint8_t i;
@@ -48,19 +57,35 @@ namespace wiselib
                q_name_[i] = "";
             }
          }
+		 
+		 void destruct() {
+			 is_set_ = false;
+		}
 
+		#if COAP_RESOURCE_NAME
+         template<class T, char* ( T::*TMethod ) ( uint8_t, char* )>
+         void reg_callback( T *obj_pnt, uint8_t qid )
+         {
+            del_[qid] = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
+         }
+		 #else
          template<class T, char* ( T::*TMethod ) ( uint8_t )>
          void reg_callback( T *obj_pnt, uint8_t qid )
          {
             del_[qid] = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
          }
+		 #endif
 
          void execute( uint8_t qid, uint8_t par )
          {
             payload_ = NULL;
             if( del_[qid] )
             {
+				#if COAP_RESOURCE_NAME
                payload_ = del_[qid]( par );
+			   #else
+               payload_ = del_[qid]( par, name_ );
+			   #endif
                put_data_ = NULL;
             }
          }
