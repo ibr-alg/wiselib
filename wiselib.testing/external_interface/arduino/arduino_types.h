@@ -16,41 +16,16 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __ARDUINO_OS_MODEL_H__
-#define __ARDUINO_OS_MODEL_H__
+#ifndef ARDUINO_TYPES_H
+#define ARDUINO_TYPES_H
 
-#include "external_interface/default_return_values.h"
-#include "external_interface/arduino/arduino_debug.h"
-#include "external_interface/arduino/arduino_clock.h"
-#include "external_interface/arduino/arduino_ethernet_radio.h"
+// default port that the radio listens to
+#define PORT 1337
 
-#include "util/serialization/endian.h"
-
-namespace wiselib
-{
-
-   /** \brief Arduino implementation of \ref os_concept "Os Concept".
-    *
-    *  \ingroup os_concept
-    *  \ingroup basic_return_values_concept
-    *  \ingroup arduino_facets
-    */
-   class ArduinoOsModel
-      : public DefaultReturnValues<ArduinoOsModel>
-   {
-   public:
-      typedef ArduinoOsModel AppMainParameter;
-
-      typedef unsigned int size_t;
-      typedef uint8_t block_data_t;
-
-      typedef ArduinoDebug<ArduinoOsModel> Debug;
-      typedef ArduinoClock<ArduinoOsModel> Clock;
-      typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
-
-      static const Endianness endianness = WISELIB_ENDIANNESS;
-   };
-
-}
+uint8_t mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+#define WISELIB_IP 0x0300A8C0
+#define WISELIB_IP_ROUTER 0x0100A8C0
+#define WISELIB_SUBNET 0x00FFFFFF
+#define WISELIB_DNS 0x0100A8C0
 
 #endif
