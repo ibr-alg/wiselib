@@ -4,8 +4,8 @@ WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
 CXX=avr-gcc
-INCLUDE=-I ~/work/arduino/include/arduino -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L ~/work/arduino/lib -lm -larduino
+INCLUDE=-I ~/work/arduino/include/arduino -I ~/work/arduino/include/ethernet -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
+LIBS=-L ~/work/arduino/lib -lm -larduino -lethernet
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
 CFLAGS=$(MCU) $(CPU_SPEED) -Os -w -Wl,--gc-sections -ffunction-sections -fdata-sections

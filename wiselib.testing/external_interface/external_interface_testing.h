@@ -125,6 +125,7 @@
 #ifdef ARDUINO
 #include "external_interface/arduino/arduino_os.h"
 #include "external_interface/arduino/arduino_debug.h"
+#include "external_interface/arduino/arduino_clock.h"
 #endif
 
 #endif

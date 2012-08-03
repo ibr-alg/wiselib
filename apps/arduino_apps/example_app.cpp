@@ -4,7 +4,7 @@
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
 #include "external_interface/arduino/arduino_debug.h"
-
+#include "external_interface/arduino/arduino_clock.h"
 
 typedef wiselib::ArduinoOsModel Os;
 

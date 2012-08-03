@@ -21,7 +21,7 @@
 
 #include "external_interface/default_return_values.h"
 #include "external_interface/arduino/arduino_debug.h"
-
+#include "external_interface/arduino/arduino_clock.h"
 
 #include "util/serialization/endian.h"
 
@@ -44,6 +44,7 @@ namespace wiselib
       typedef uint8_t block_data_t;
 
       typedef ArduinoDebug<ArduinoOsModel> Debug;
+      typedef ArduinoClock<ArduinoOsModel> Clock;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
