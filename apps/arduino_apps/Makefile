@@ -5,11 +5,11 @@ WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
 CXX=avr-gcc
 INCLUDE=-I ~/work/arduino/include/arduino -I ~/work/arduino/include/ethernet -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L ~/work/arduino/lib -lm -larduino -lethernet
+LIBS=-L ~/work/arduino/lib -lm -lethernet -larduino
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
 CFLAGS=$(MCU) $(CPU_SPEED) -Os -w -Wl,--gc-sections -ffunction-sections -fdata-sections
-PORT=/dev/ttyACM0
+PORT=/dev/ttyUSB0
 
 default: build upload
 
