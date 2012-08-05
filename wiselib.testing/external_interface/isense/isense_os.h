@@ -22,6 +22,7 @@
 #include "external_interface/default_return_values.h"
 #include "external_interface/isense/isense_extended_txradio_isensestyle.h"
 #include "external_interface/isense/isense_extended_txradio.h"
+#include "external_interface/isense/isense_extended_debug.h"
 #include "external_interface/isense/isense_radio.h"
 #include "external_interface/isense/isense_debug.h"
 #include "external_interface/isense/isense_clock.h"
@@ -51,6 +52,7 @@ namespace wiselib
 
       typedef iSenseClockModel<iSenseOsModel> Clock;
       typedef iSenseDebug<iSenseOsModel> Debug;
+      typedef iSenseExDebug<iSenseOsModel> ExDebug;
       typedef iSenseExtendedTime<iSenseOsModel> ExtendedTime;
       typedef iSenseExtendedTxRadioModel<iSenseOsModel> ExtendedRadio;
       typedef iSenseExtendedTxRadioModel<iSenseOsModel> ExtendedTxRadio;
