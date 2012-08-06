@@ -460,6 +460,32 @@ namespace wiselib {
         else
             value = 0;
         //Another way: value=-(((-db)/6)*6);
+	//and another way:
+	//
+	//if ( db > 6 )
+	//{
+	//	value = 6;
+	//}
+	//else if ( db < -30 )
+	//{
+	//	value = -30;
+	//}
+	//else
+	//{
+	//	int8_t i = 6;
+	//	while( i >= -30 )
+	//	{
+	//		if ( ( ( i - db ) <= 3 ) && ( ( i - db ) >= 0 ) )
+	//		{
+	//			value = i;
+	//		}
+	//		else if ( ( ( i - db ) > 3 ) && ( ( i - db ) <= 6 ) )
+	//		{
+	//			value = i - 6;
+	//		}
+	//		i = i - 6;
+	//	}
+	//}
     }
 
     template<typename OsModel_P>

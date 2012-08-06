@@ -1,5 +1,24 @@
-#ifndef PROTOCOL_H
-#define	PROTOCOL_H
+/***************************************************************************
+** This file is part of the generic algorithm library Wiselib.           **
+** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+**                                                                       **
+** The Wiselib is free software: you can redistribute it and/or modify   **
+** it under the terms of the GNU Lesser General Public License as        **
+** published by the Free Software Foundation, either version 3 of the    **
+** License, or (at your option) any later version.                       **
+**                                                                       **
+** The Wiselib is distributed in the hope that it will be useful,        **
+** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+** GNU Lesser General Public License for more details.                   **
+**                                                                       **
+** You should have received a copy of the GNU Lesser General Public      **
+** License along with the Wiselib.                                       **
+** If not, see <http://www.gnu.org/licenses/>.                           **
+***************************************************************************/
+
+#ifndef __PROTOCOL_H__
+#define	__PROTOCOL_H__
 
 #include "neighbor.h"
 #include "protocol_settings.h"
@@ -27,12 +46,15 @@ namespace wiselib
 		typedef Neighbor_Type<Os, Radio, Clock, Timer, Debug> Neighbor;
 		typedef ProtocolPayload_Type<Os, Radio, Debug> ProtocolPayload;
 		typedef ProtocolSettings_Type<Os, Radio, Timer, Debug> ProtocolSettings;
-		typedef vector_static<Os, Neighbor, NB_MAX_NEIGHBORS> Neighbor_vector;
+		typedef vector_static<Os, Neighbor, ND_MAX_NEIGHBORS> Neighbor_vector;
 		typedef typename Neighbor_vector::iterator Neighbor_vector_iterator;
-		typedef vector_static<Os, ProtocolPayload, NB_MAX_REGISTERED_PROTOCOLS> ProtocolPayload_vector;
+		typedef vector_static<Os, ProtocolPayload, ND_MAX_REGISTERED_PROTOCOLS> ProtocolPayload_vector;
 		typedef typename ProtocolPayload_vector::iterator ProtocolPayload_vector_iterator;
 		typedef delegate4<void, uint8_t, node_id_t, size_t, uint8_t*> event_notifier_delegate_t;
 		typedef Protocol_Type<Os, Radio, Clock, Timer, Debug> self_type;
+#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+		typedef typename Neighbor::Position Position;
+#endif
 		// --------------------------------------------------------------------
 		Protocol_Type() :
 			protocol_id					( 0 ),
@@ -236,29 +258,35 @@ namespace wiselib
 			return *this;
 		}
 		// --------------------------------------------------------------------
-#ifdef NB_DEBUG
-		void print( Debug& debug, Radio& radio )
-		{
-#ifndef NB_DEBUG_STATS
-			debug.debug( "-------------------------------------------------------\n");
-			debug.debug( "protocol :\n");
-			debug.debug( "protocol_id : %d\n", protocol_id );
-			debug.debug( "settings :\n");
-			settings.print( debug, radio );
-			debug.debug( "neighborhood :\n");
+#ifdef DEBUG_PROTOCOL_H
+		void print( Debug& _debug, Radio& _radio
+#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+				,Position& _pos = Position( 0, 0, 0 )
 #endif
-			debug.debug( "connectivity %d: %d\n", radio.id(), neighborhood.size() );
-			//for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
-			//{
-			//	it->print( debug, radio );
-			//}
-#ifndef NB_DEBUG_STATS
-			debug.debug( "-------------------------------------------------------\n");
+				)
+		{
+#ifndef DEBUG_NEIGHBOR_DISCOVERY_STATS
+			_debug.debug( "-------------------------------------------------------\n" );
+			_debug.debug( "Protocol :\n" );
+			_debug.debug( "protocol_id (size %i) : %d\n", sizeof(protocol_id), protocol_id );
+			_settings.print( debug, radio );
+			_debug.debug( "neighborhood : \n" );
+#endif
+			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
+			{
+#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+				it->print( _debug, _radio, _pos );
+#else
+				it->print( _debug, _radio );
+#endif
+			}
+#ifndef DEBUG_NEIGHBOR_DISCOVERY_STATS
+			_debug.debug( "-------------------------------------------------------\n" );
 #endif
 		}
 #endif
 		// --------------------------------------------------------------------
-		void null_callback( uint8_t null_event, node_id_t null_node_id, size_t null_len, uint8_t* null_data )
+		void null_callback( uint8_t _null_event, node_id_t _null_node_id, size_t _null_len, uint8_t* _null_data )
 		{}
 		// --------------------------------------------------------------------
 	private:
