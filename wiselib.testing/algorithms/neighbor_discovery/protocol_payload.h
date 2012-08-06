@@ -1,7 +1,26 @@
-#ifndef PROTOCOL_PAYLOAD_H
-#define	PROTOCOL_PAYLOAD_H
+/***************************************************************************
+** This file is part of the generic algorithm library Wiselib.           **
+** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+**                                                                       **
+** The Wiselib is free software: you can redistribute it and/or modify   **
+** it under the terms of the GNU Lesser General Public License as        **
+** published by the Free Software Foundation, either version 3 of the    **
+** License, or (at your option) any later version.                       **
+**                                                                       **
+** The Wiselib is distributed in the hope that it will be useful,        **
+** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+** GNU Lesser General Public License for more details.                   **
+**                                                                       **
+** You should have received a copy of the GNU Lesser General Public      **
+** License along with the Wiselib.                                       **
+** If not, see <http://www.gnu.org/licenses/>.                           **
+***************************************************************************/
 
-#include "neighbor_discovery_config.h"
+#ifndef __PROTOCOL_PAYLOAD_H__
+#define	__PROTOCOL_PAYLOAD_H__
+
+#include "neighbor_discovery_default_values_config.h"
 
 namespace wiselib
 {
@@ -19,9 +38,9 @@ namespace wiselib
 		typedef ProtocolPayload_Type<Os, Radio, Debug> self_type;
 	public:
 		ProtocolPayload_Type() :
-			payload_size		( NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			payload_size		( ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 		{
-			for ( size_t i = 0; i < NB_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
+			for ( size_t i = 0; i < ND_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
 			{
 				payload_data[i] = 0;
 			}
@@ -31,11 +50,11 @@ namespace wiselib
 		{
 			protocol_id = _pid;
 			payload_size = _ps;
-			for ( size_t i = 0; i < NB_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
+			for ( size_t i = 0; i < ND_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
 			{
 				payload_data[i] = 0;
 			}
-			if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
 				for ( size_t i = 0; i < payload_size; i++ )
 				{
@@ -64,7 +83,7 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		size_t get_max_payload_size()
 		{
-			return NB_MAX_PROTOCOL_PAYLOAD_SIZE;
+			return ND_MAX_PROTOCOL_PAYLOAD_SIZE;
 		}
 		// --------------------------------------------------------------------
 		void set_payload_size( size_t _ps )
@@ -79,7 +98,7 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void set_payload_data( block_data_t* _pd, size_t _offset = 0 )
 		{
-			if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
 				for ( size_t i = 0; i < payload_size; i++ )
 				{
@@ -91,7 +110,7 @@ namespace wiselib
 		void set_payload( block_data_t* _pd, size_t _ps, size_t _offset = 0 )
 		{
 			payload_size = _ps;
-			if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
 				for ( size_t i = 0; i < payload_size; i++ )
 				{
@@ -104,7 +123,7 @@ namespace wiselib
 		{
 			protocol_id = _pp.protocol_id;
 			payload_size = _pp.payload_size;
-			if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
 				for ( size_t i = 0 ; i < payload_size; i++ )
 				{
@@ -114,19 +133,19 @@ namespace wiselib
 			return *this;
 		}
 		// --------------------------------------------------------------------
-#ifdef NB_DEBUG
+#ifdef DEBUG_PROTOCOL_PAYLOAD_H
 		void print( Debug& debug, Radio& radio )
 		{
-			debug.debug( "-------------------------------------------------------\n");
-			debug.debug( "protocol_payload :\n");
-			debug.debug( "protocol_id : %d\n", protocol_id );
-			debug.debug( "max_payload_size : %d\n", NB_MAX_PROTOCOL_PAYLOAD_SIZE );
-			debug.debug( "payload_size : %d\n", payload_size );
-			if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			debug.debug( "-------------------------------------------------------\n" );
+			debug.debug( "ProtocolPayload : \n");
+			debug.debug( "protocol_id (size %i) : %d\n", sizeof(protocol_id), protocol_id );
+			debug.debug( "max_payload_size : %d\n", ND_MAX_PROTOCOL_PAYLOAD_SIZE );
+			debug.debug( "payload_size (size %i) : %d\n", sizeof(payload_size), payload_size );
+			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
 				for ( size_t i = 0; i < payload_size; i++ )
 				{
-					debug.debug( "payload %d 'th byte : %d\n", i, payload_data[i] );
+					debug.debug( "%d\n", i, payload_data[i] );
 				}
 			}
 			debug.debug( "-------------------------------------------------------");
@@ -142,7 +161,7 @@ namespace wiselib
 				size_t PAYLOAD_DATA_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
 				write<Os, block_data_t, uint8_t>( _buff + PROTOCOL_ID_POS + _offset, protocol_id );
 				write<Os, block_data_t, size_t>( _buff + PAYLOAD_SIZE_POS + _offset, payload_size );
-				if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+				if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 				{
 					for ( size_t i = 0 ; i < payload_size; i++ )
 					{
@@ -161,7 +180,7 @@ namespace wiselib
 			size_t PAYLOAD_DATA_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
 			protocol_id = read<Os, block_data_t, uint8_t>( _buff + PROTOCOL_ID_POS + _offset );
 			payload_size = read<Os, block_data_t, size_t>( _buff + PAYLOAD_SIZE_POS + _offset );
-			if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
 				for ( size_t i = 0 ; i < payload_size; i++ )
 				{
@@ -177,7 +196,7 @@ namespace wiselib
 				size_t PROTOCOL_ID_POS = 0;
 				size_t PAYLOAD_SIZE_POS = PROTOCOL_ID_POS + sizeof(uint8_t);
 				size_t PAYLOAD_DATA_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
-				if ( payload_size <= NB_MAX_PROTOCOL_PAYLOAD_SIZE )
+				if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 				{
 					return PAYLOAD_DATA_POS + sizeof( block_data_t) * payload_size;
 				}
@@ -192,7 +211,7 @@ namespace wiselib
 	private:
 		uint8_t protocol_id;
 		size_t payload_size;
-		block_data_t payload_data[NB_MAX_PROTOCOL_PAYLOAD_SIZE];
+		block_data_t payload_data[ND_MAX_PROTOCOL_PAYLOAD_SIZE];
 	};
 }
 #endif

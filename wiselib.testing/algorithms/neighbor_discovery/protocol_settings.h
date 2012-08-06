@@ -1,7 +1,26 @@
+/***************************************************************************
+** This file is part of the generic algorithm library Wiselib.           **
+** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+**                                                                       **
+** The Wiselib is free software: you can redistribute it and/or modify   **
+** it under the terms of the GNU Lesser General Public License as        **
+** published by the Free Software Foundation, either version 3 of the    **
+** License, or (at your option) any later version.                       **
+**                                                                       **
+** The Wiselib is distributed in the hope that it will be useful,        **
+** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+** GNU Lesser General Public License for more details.                   **
+**                                                                       **
+** You should have received a copy of the GNU Lesser General Public      **
+** License along with the Wiselib.                                       **
+** If not, see <http://www.gnu.org/licenses/>.                           **
+***************************************************************************/
+
 #ifndef PROTOCOL_SETTINGS_H
 #define	PROTOCOL_SETTINGS_H
 
-#include "neighbor_discovery_config.h"
+#include "neighbor_discovery_source_config.h"
 #include "protocol_payload.h"
 
 namespace wiselib
@@ -24,27 +43,27 @@ namespace wiselib
 		typedef ProtocolSettings_Type<Os, Radio, Timer, Debug> self_type;
 		// --------------------------------------------------------------------
 		ProtocolSettings_Type()	:
-			max_avg_LQI_threshold 					( NB_MAX_AVG_LQI_THRESHOLD ),
-			min_avg_LQI_threshold 					( NB_MIN_AVG_LQI_THRESHOLD ),
-			max_avg_LQI_inverse_threshold 			( NB_MAX_AVG_LQI_INVERSE_THRESHOLD ),
-			min_avg_LQI_inverse_threshold 			( NB_MIN_AVG_LQI_INVERSE_THRESHOLD ),
-			max_link_stab_ratio_threshold 			( NB_MAX_LINK_STAB_RATIO_THRESHOLD ),
-			min_link_stab_ratio_threshold 			( NB_MIN_LINK_STABILITY_RATIO_THRESHOLD ),
-			max_link_stab_ratio_inverse_threshold	( NB_MAX_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
-			min_link_stab_ratio_inverse_threshold	( NB_MIN_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
-			events_flag								( NEW_NB | UPDATE_NB | NEW_PAYLOAD | LOST_NB | TRANS_DB_UPDATE | BEACON_PERIOD_UPDATE | NEIGHBOR_REMOVED ),
-			proposed_transmission_power_dB			( NB_PROPOSED_TRANSMISSION_POWER_DB ),
-			proposed_transmission_power_dB_weight	( NB_PROPOSED_TRANSMISSION_POWER_DB_WEIGHT ),
-			proposed_beacon_period					( NB_PROPOSED_BEACON_PERIOD ),
-			proposed_beacon_period_weight			( NB_PROPOSED_BEACON_PERIOD_WEIGHT ),
+			max_avg_LQI_threshold 					( ND_MAX_AVG_LQI_THRESHOLD ),
+			min_avg_LQI_threshold 					( ND_MIN_AVG_LQI_THRESHOLD ),
+			max_avg_LQI_inverse_threshold 			( ND_MAX_AVG_LQI_INVERSE_THRESHOLD ),
+			min_avg_LQI_inverse_threshold 			( ND_MIN_AVG_LQI_INVERSE_THRESHOLD ),
+			max_link_stab_ratio_threshold 			( ND_MAX_LINK_STAB_RATIO_THRESHOLD ),
+			min_link_stab_ratio_threshold 			( ND_MIN_LINK_STABILITY_RATIO_THRESHOLD ),
+			max_link_stab_ratio_inverse_threshold	( ND_MAX_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
+			min_link_stab_ratio_inverse_threshold	( ND_MIN_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
+			events_flag								( NEW_NB | UPDATE_NB | NEW_PAYLOAD | LOST_NB | TRANS_DB_UPDATE | BEACON_PERIOD_UPDATE | NB_REMOVED ),
+			proposed_transmission_power_dB			( ND_PROPOSED_TRANSMISSION_POWER_DB ),
+			proposed_transmission_power_dB_weight	( ND_PROPOSED_TRANSMISSION_POWER_DB_WEIGHT ),
+			proposed_beacon_period					( ND_PROPOSED_BEACON_PERIOD ),
+			proposed_beacon_period_weight			( ND_PROPOSED_BEACON_PERIOD_WEIGHT ),
 			overflow_strategy						( RATIO_DIVIDER ),
-			ratio_divider							( NB_RATIO_DIVIDER ),
+			ratio_divider							( ND_RATIO_DIVIDER ),
 			dead_time_strategy						( MEAN_DEAD_TIME_PERIOD ),
-			old_dead_time_period_weight				( NB_OLD_DEAD_TIME_PERIOD_WEIGHT ),
-			new_dead_time_period_weight				( NB_NEW_DEAD_TIME_PERIOD_WEIGHT ),
+			old_dead_time_period_weight				( ND_OLD_DEAD_TIME_PERIOD_WEIGHT ),
+			new_dead_time_period_weight				( ND_NEW_DEAD_TIME_PERIOD_WEIGHT ),
 			ratio_normalization_strategy			( R_NR_NORMAL ),
-			beacon_weight							( NB_BEACON_WEIGHT ),
-			lost_beacon_weight						( NB_LOST_BEACON_WEIGHT )
+			beacon_weight							( ND_BEACON_WEIGHT ),
+			lost_beacon_weight						( ND_LOST_BEACON_WEIGHT )
 		{}
 		// --------------------------------------------------------------------
 		ProtocolSettings_Type(	uint8_t _maxLQI,
@@ -367,34 +386,34 @@ namespace wiselib
 			return *this;
 		}
 		// --------------------------------------------------------------------
-#ifdef NB_DEBUG
-		void print( Debug& debug, Radio& radio )
+#ifdef DEBUG_PROTOCOL_SETTINGS_H
+		void print( Debug& _debug, Radio& _radio )
 		{
-			debug.debug( "-------------------------------------------------------\n");
-			debug.debug( "protocol_settings :\n");
-			debug.debug( "max_avg_LQI_threshold : %d\n", max_avg_LQI_threshold );
-			debug.debug( "min_avg_LQI_threshold : %d\n", min_avg_LQI_threshold );
-			debug.debug( "max_avg_LQI_inverse_threshold : %d\n", max_avg_LQI_inverse_threshold );
-			debug.debug( "min_avg_LQI_inverse_threshold : %d\n", min_avg_LQI_inverse_threshold );
-			debug.debug( "max_link_stab_ratio_threshold : %d\n", max_link_stab_ratio_threshold );
-			debug.debug( "min_link_stab_ratio_threshold : %d\n", min_link_stab_ratio_threshold );
-			debug.debug( "max_link_stab_ratio_inverse_threshold : %d\n", max_link_stab_ratio_inverse_threshold );
-			debug.debug( "min_link_stab_ratio_inverse_threshold : %d\n", min_link_stab_ratio_inverse_threshold );
-			debug.debug( "events_flag : %d\n", events_flag );
-			debug.debug( "proposed transmission_power_dB : %i\n", proposed_transmission_power_dB );
-			debug.debug( "proposed transmission_power_dB_weight : %d\n", proposed_transmission_power_dB_weight );
-			debug.debug( "proposed_beacon_period : %d\n", proposed_beacon_period );
-			debug.debug( "proposed_beacon_period_weight : %d\n", proposed_beacon_period_weight );
-			debug.debug( "overflow_strategy : %d\n", overflow_strategy );
-			debug.debug( "ratio_divider : %d\n", ratio_divider );
-			debug.debug( "dead_time_strategy : %d\n", dead_time_strategy );
-			debug.debug( "old_dead_time_period_weight : %d\n", old_dead_time_period_weight );
-			debug.debug( "new_dead_time_period_weight : %d\n", new_dead_time_period_weight );
-			debug.debug( "ratio_normalization_strategy : %d\n", ratio_normalization_strategy );
-			debug.debug( "beacon_weight : %d\n", beacon_weight );
-			debug.debug( "lost_beacon_weight : %d\n", lost_beacon_weight );
-			protocol_payload.print( debug, radio );
-			debug.debug( "-------------------------------------------------------");
+			_debug.debug( "-------------------------------------------------------\n" );
+			_debug.debug( "ProtocolSettings : \n");
+			_debug.debug( "max_avg_LQI_threshold (size %i) : %d\n", sizeof(max_avg_LQI_threshold), max_avg_LQI_threshold );
+			_debug.debug( "min_avg_LQI_threshold (size %i) : %d\n", sizeof(min_avg_LQI_threshold), min_avg_LQI_threshold );
+			_debug.debug( "max_avg_LQI_inverse_threshold (size %i) : %d\n", sizeof(max_avg_LQI_inverse_threshold), max_avg_LQI_inverse_threshold );
+			_debug.debug( "min_avg_LQI_inverse_threshold (size %i) : %d\n", sizeof(min_avg_LQI_inverse_threshold),min_avg_LQI_inverse_threshold );
+			_debug.debug( "max_link_stab_ratio_threshold (size %i) : %d\n", sizeof(max_link_stab_ratio_threshold), max_link_stab_ratio_threshold );
+			_debug.debug( "min_link_stab_ratio_threshold (size %i) : %d\n", sizeof(min_link_stab_ratio_threshold), min_link_stab_ratio_threshold );
+			_debug.debug( "max_link_stab_ratio_inverse_threshold (size %i) : %d\n", sizeof(max_link_stab_ratio_inverse_threshold), max_link_stab_ratio_inverse_threshold );
+			_debug.debug( "min_link_stab_ratio_inverse_threshold (size %i) : %d\n", sizeof(min_link_stab_ratio_inverse_threshold), min_link_stab_ratio_inverse_threshold );
+			_debug.debug( "events_flag (size %i) : %d\n", sizeof(events_flag), events_flag );
+			_debug.debug( "proposed transmission_power_dB (size %i) : %i\n", sizeof(proposed_transmission_power_dB), proposed_transmission_power_dB );
+			_debug.debug( "proposed transmission_power_dB_weight (size %i) : %d\n", sizeof(proposed_transmission_power_dB_weight), proposed_transmission_power_dB_weight );
+			_debug.debug( "proposed_beacon_period (size %i) : %d\n", sizeof(proposed_beacon_period), proposed_beacon_period );
+			_debug.debug( "proposed_beacon_period_weight (size %i) : %d\n", sizeof(proposed_beacon_period_weight), proposed_beacon_period_weight );
+			_debug.debug( "overflow_strategy (size %i) : %d\n", sizeof(overflow_strategy), overflow_strategy );
+			_debug.debug( "ratio_divider (size %i) : %d\n", sizeof(ratio_divider), ratio_divider );
+			_debug.debug( "dead_time_strategy (size %i) : %d\n", sizeof(dead_time_strategy), dead_time_strategy );
+			_debug.debug( "old_dead_time_period_weight (size %i) : %d\n", sizeof(old_dead_time_period_weight), old_dead_time_period_weight );
+			_debug.debug( "new_dead_time_period_weight (size %i) : %d\n", sizeof(new_dead_time_period_weight), new_dead_time_period_weight );
+			_debug.debug( "ratio_normalization_strategy (size %i) : %d\n", sizeof(ratio_normalization_strategy), ratio_normalization_strategy );
+			_debug.debug( "beacon_weight (size %i) : %d\n", sizeof(beacon_weight), beacon_weight );
+			_debug.debug( "lost_beacon_weight (size %i) : %d\n", sizeof(lost_beacon_weight), lost_beacon_weight );
+			protocol_payload.print( _debug, _radio );
+			_debug.debug( "-------------------------------------------------------\n" );
 		}
 #endif
 		// --------------------------------------------------------------------
@@ -417,7 +436,7 @@ namespace wiselib
 			LOST_NB = 8,
 			TRANS_DB_UPDATE = 16,
 			BEACON_PERIOD_UPDATE = 32,
-			NEIGHBOR_REMOVED = 64
+			NB_REMOVED = 64
 		};
 		// --------------------------------------------------------------------
 		enum dead_time_strategies
