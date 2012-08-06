@@ -139,9 +139,9 @@ namespace wiselib
             uint8_t *data = NULL;
             uint8_t data_len;
 
-			for(int i=0; i< *len; i++) {
-				debug().debug("%x %d %c\n", buf[i], buf[i], buf[i]);
-			}
+			//for(int i=0; i< *len; i++) {
+				//debug().debug("%x %d %c\n", buf[i], buf[i], buf[i]);
+			//}
 			
 			
             msg.init();
@@ -168,25 +168,25 @@ namespace wiselib
                */
                if ( msg.code_w() >= 1 && msg.code_w() <= 4 )
 			   {
-                  debug().debug( "REC::REQUEST for %s\n", msg.uri_path_w() );
+                  //debug().debug( "REC::REQUEST for %s\n", msg.uri_path_w() );
                   if ( find_resource( &resource_id, msg.uri_path_w(), msg.uri_path_len_w() ) == true )
                   {
-                     debug().debug( "REC::RESOURCE FOUND\n" );
+                     //debug().debug( "REC::RESOURCE FOUND\n" );
                      // query_id = resources_[resource_id].has_query( msg.uri_query_w(), msg.uri_query_len_w() );
                      query_id = 0;
-                     debug().debug("query id %d\n", query_id);
+                     //debug().debug("query id %d\n", query_id);
                      if ( resources_[resource_id].method_allowed( query_id, msg.code_w() ) )
                      {
-                        debug().debug( "REC::METHOD_ALLOWED" );
+                        //debug().debug( "REC::METHOD_ALLOWED" );
                         if( msg.type_w() == CON )
                         {
                            if ( resources_[resource_id].fast_resource() == false )
                            {
-                              debug().debug( "REC::SLOW_RESPONSE" );
+                              //debug().debug( "REC::SLOW_RESPONSE" );
                               response.set_type( ACK );
                               response.set_mid( msg.mid_w() );
                               coap_send( &response, from );
-                              debug().debug( "ACTION: Sent ACK" );
+                              //debug().debug( "ACTION: Sent ACK" );
 
                               response.init();
                               memset( buf_, 0, CONF_MAX_MSG_LEN );
@@ -195,7 +195,7 @@ namespace wiselib
                            } // end of slow reply
                            else
                            {
-                              debug().debug( "REC::FAST_RESPONSE" );
+                              //debug().debug( "REC::FAST_RESPONSE" );
                               response.set_type( ACK );
                               response.set_mid( msg.mid_w() );
                            } // end of fast reply
@@ -207,7 +207,7 @@ namespace wiselib
                         switch ( msg.code_w() )
                         {
                            case GET:
-                              debug().debug( "REC::GET_REQUEST" );
+                              //debug().debug( "REC::GET_REQUEST" );
                               response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len, msg.uri_path_w()  ) );
                               response.set_option( CONTENT_TYPE );
                               response.set_content_type( resources_[resource_id].content_type() );
@@ -225,7 +225,7 @@ namespace wiselib
                               } // end of add observer
                               break;
                            case PUT:
-                              debug().debug( "REC::PUT_REQUEST" );
+                              //debug().debug( "REC::PUT_REQUEST" );
                               resources_[resource_id].set_put_data( msg.payload_w() );
                               resources_[resource_id].set_put_data_len( msg.payload_len_w() );
                               response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len, msg.uri_path_w() ) );
@@ -240,36 +240,36 @@ namespace wiselib
                      } // end of method is allowed
                      else
                      {
-                        debug().debug( "REC::METHOD_NOT_ALLOWED" );
+                        //debug().debug( "REC::METHOD_NOT_ALLOWED" );
                         response.set_code( METHOD_NOT_ALLOWED );
                      } // if( method_allowed )
                   } // end of resource found
                   else
                   {
-                     debug().debug( "REC::NOT_FOUND" );
+                     //debug().debug( "REC::NOT_FOUND" );
                      response.set_code( NOT_FOUND );
                   }
                   if ( msg.is_option( TOKEN ) )
                   {
-                     debug().debug( "REC::IS_SET_TOKEN" );
+                     //debug().debug( "REC::IS_SET_TOKEN" );
                      response.set_option( TOKEN );
                      response.set_token_len( msg.token_len_w() );
                      response.set_token( msg.token_w() );
                   }
                   coap_send( &response, from );
-                  debug().debug( "ACTION: Sent reply" );
+                  //debug().debug( "ACTION: Sent reply" );
                } // end of handle request
                if ( msg.code_w() >= 64 && msg.code_w() <= 191 )
                {
 //                  debug().debug( "REC: %s", msg.payload_w() );
-                  debug().debug( "REC::RESPONSE" );
+                  //debug().debug( "REC::RESPONSE" );
                   switch ( msg.type_w() )
                   {
                      case CON:
                         response.set_type( ACK );
                         response.set_mid( msg.mid_w() );
                         coap_send( &response, from );
-                        debug().debug( "ACTION: Sent ACK" );
+                        //debug().debug( "ACTION: Sent ACK" );
                         return;
                         break;
                      case ACK:
@@ -285,7 +285,7 @@ namespace wiselib
                }
                if ( msg.code_w() == 0 )
                {
-                  debug().debug( "REC::EMPTY" );
+                  //debug().debug( "REC::EMPTY" );
                   //empty msg, ack, or rst
                   coap_unregister_con_msg( msg.mid_w(), 0 );
                   if ( msg.type_w() == RST )
@@ -303,13 +303,13 @@ namespace wiselib
                else
                   response.set_type( NON );
                coap_send( &response, from );
-               debug().debug( "ACTION: Sent reply" );
+               //debug().debug( "ACTION: Sent reply" );
             }
          } // end of coap receiver
 
          bool find_resource( uint8_t* i, const char* uri_path, const uint8_t uri_path_len )
          {
-            debug_->debug("Resource Path : %s\n", uri_path);
+            //debug_->debug("Resource Path : %s\n", uri_path);
             for ( ( *i ) = 0; ( *i ) < CONF_MAX_RESOURCES; ( *i )++ )
             {
                 if (!mystrncmp (uri_path, resources_[*i].name(), uri_path_len))
@@ -436,7 +436,7 @@ namespace wiselib
                retransmit_timeout_and_tries_[j] += 1;
                timeout_factor = timeout_factor << ( 0x0F & retransmit_timeout_and_tries_[j] );
 
-               debug().debug( "RETRANSMIT!! %d, tries: %d", j, 0x0F & retransmit_timeout_and_tries_[j] );
+               //debug().debug( "RETRANSMIT!! %d, tries: %d", j, 0x0F & retransmit_timeout_and_tries_[j] );
                radio().send( retransmit_id_[j], retransmit_size_[j], retransmit_packet_[j] );
 
                if ( ( 0x0F & retransmit_timeout_and_tries_[j] ) == CONF_COAP_MAX_RETRANSMIT_TRIES )
@@ -514,7 +514,7 @@ namespace wiselib
                   observe_resource_[i] = 0;
                   memset( observe_token_[i], 0, observe_token_len_[i] );
                   observe_token_len_[i] = 0;
-                  debug().debug( "Observer removed" );
+                  //debug().debug( "Observer removed" );
                }
             }
          }
