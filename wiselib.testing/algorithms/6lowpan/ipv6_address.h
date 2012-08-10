@@ -125,13 +125,16 @@ namespace wiselib
 			iid = iid >> 8;
 		}
 		
+		//addr[14] = (iid >> 40) & 0xFF;
+		//addr[15] = (iid >> 32) & 0xFF;
+		
 		//If the provided link_layer address is short (uint16_t), the FFFE is included
 		//Other bits are 0 --> PAN ID = 0
-		if( sizeof(link_layer_node_id_t) < 3 )
+		/*if( sizeof(link_layer_node_id_t) < 3 )
 		{
 			addr[11] = 0xFF;
 			addr[12] = 0xFE;
-		}
+		}*/
 		
 		//Global address: u bit is 1
 		if( global )
@@ -147,7 +150,9 @@ namespace wiselib
 		addr[8] = (pan_id >> 8);
 		
 		//The u bit has to be 0
-		addr[8] &= 0xFD;
+		//HACK
+		//addr[8] &= 0xFD;
+		addr[8] |= 0x02;
 		
 		addr[9] = (pan_id & 0x00FF);
 		addr[10] = 0x00;

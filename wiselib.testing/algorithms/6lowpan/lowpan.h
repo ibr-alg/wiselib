@@ -115,6 +115,16 @@ namespace wiselib
 	 EH_FRAG = 44*/
 	};
 	
+	enum ICMPv6NDMessageCodes
+	{
+		ROUTER_SOLICITATION = 133,
+		ROUTER_ADVERTISEMENT = 134,
+		NEIGHBOR_SOLICITATION = 135,
+		NEIGHBOR_ADVERTISEMENT = 136/*,
+		DUPLICATE_ADDRESS_REQUEST = ,
+		DUPLICATE_ADDRESS_CONFIRMATION = */
+	};
+	
 	enum SpecialNodeIds {
 	 BROADCAST_ADDRESS = Radio_P::BROADCAST_ADDRESS, ///< All nodes in communication range
 	 NULL_NODE_ID      = Radio_P::NULL_NODE_ID      ///< Unknown/No node id
@@ -902,7 +912,12 @@ namespace wiselib
 	{
 		reset_buffer();
 		
+		
 		memcpy( buffer_, data, len );
+		
+		#ifdef LoWPAN_LAYER_DEBUG
+		debug().debug(" LoWPAN layer: received (len: %i)\n", len );
+		#endif
 		
 	 #ifdef LOWPAN_MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
@@ -1174,7 +1189,33 @@ namespace wiselib
 				tmp = 0xFF & (checksum);
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
 			}
-			notify_receivers( from, reassembling_mgr_.ip_packet_number, NULL );
+			
+			uint8_t* payload = reassembling_mgr_.ip_packet->payload();
+			//Separate ND messages here
+			if( reassembling_mgr_.ip_packet->next_header() == ICMPV6 &&
+				((payload[0] == ROUTER_SOLICITATION) ||
+				(payload[0] == ROUTER_ADVERTISEMENT) ||
+				(payload[0] == NEIGHBOR_SOLICITATION) ||
+				(payload[0] == NEIGHBOR_ADVERTISEMENT) )
+				{
+					if( interface_manager_->process_ND_message( reassembling_mgr_.ip_packet_number, interface_manager_->INTERFACE_RADIO ) )
+					{
+						#ifdef ND_DEBUG
+						debug().debug(" ND processing finished! " );
+						#endif
+					}
+					else
+					{
+						#ifdef ND_DEBUG
+						debug().debug(" ND processing failed! " );
+						#endif
+					}
+					
+					packet_pool_mgr_->clean_packet_with_number( reassembling_mgr_.ip_packet_number );
+				}
+			//Call the upper layers with not ND messages
+			else
+				notify_receivers( from, reassembling_mgr_.ip_packet_number, NULL );
 		}
 		
 	}

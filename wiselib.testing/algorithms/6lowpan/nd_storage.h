@@ -114,7 +114,7 @@ namespace wiselib
 			*
 			* \return UpdateNeighborReturnValues
 			*/
-			uint8_t update_neighbor( uint8_t& number_of_neighbor, IPv6Addr_t* ip_address, node_id_t ll_address, uint16_t lifetime )
+			uint8_t update_neighbor( uint8_t& number_of_neighbor, IPv6Addr_t* ip_address, node_id_t ll_address, uint16_t lifetime, bool is_tentative )
 			{
 				uint8_t selected_place = LOWPAN_MAX_OF_NEIGHBORS;
 				number_of_neighbor = LOWPAN_MAX_OF_NEIGHBORS;
@@ -130,8 +130,12 @@ namespace wiselib
 						{
 							if( lifetime == 0 )
 							{
-								//This is a message to delete this entry
-								neighbors_[i].status = GARBAGECOLLECTIBLE;
+								if( !is_tentative )
+									//This is a message to delete this entry
+									neighbors_[i].status = GARBAGECOLLECTIBLE;
+								else
+									//We are waiting for a NS
+									neighbors_[i].status = TENTATIVE;
 							}
 							else
 							{
@@ -155,16 +159,26 @@ namespace wiselib
 				if( selected_place == LOWPAN_MAX_OF_NEIGHBORS )
 					return NEIGHBOR_CACHE_FULL;
 				
+					
 				//Something wrong: new registration with 0 lifetime
-				if( lifetime == 0 )
+				if( lifetime == 0 && (!is_tentative))
 					return SUCCESS;
 				
 				neighbors_[selected_place].ip_address = *(ip_address);
 				neighbors_[selected_place].link_layer_address = (uint64_t)ll_address;
-				neighbors_[selected_place].status = REGISTERED;
-				neighbors_[selected_place].lifetime = lifetime;
 				neighbors_[selected_place].is_router = false;
+				neighbors_[selected_place].lifetime = lifetime;
 				number_of_neighbor = selected_place;
+				
+				if( is_tentative )
+				{
+					neighbors_[selected_place].status = TENTATIVE;
+				}
+				else
+				{
+					neighbors_[selected_place].status = REGISTERED;
+					
+				}
 				
 				return SUCCESS;
 			}
@@ -194,14 +208,14 @@ namespace wiselib
 			*
 			* \return	UpdateReturnValues
 			*/
-			uint8_t update_router( IPv6Addr_t* ip_address, node_id_t* ll_address, uint16_t valid_lifetime, uint16_t own_lifetime )
+			uint8_t update_router( IPv6Addr_t* ip_address, node_id_t* ll_address, uint16_t own_lifetime )
 			{
 				uint8_t selected_place = LOWPAN_MAX_OF_ROUTERS;
 				
 				//Call the update_neighbor function, it inserts or updates the router to the cache
 				//If there was an error, the function returns
 				uint8_t neighbor_number = LOWPAN_MAX_OF_NEIGHBORS;
-				int result = update_neighbor( selected_place, ip_address, ll_address, valid_lifetime );
+				int result = update_neighbor( selected_place, ip_address, ll_address, 0, true );
 				if( (result == NEIGHBOR_CACHE_FULL) ||
 					(result == DUPLICATE_ADDRESS) ||
 					(valid_lifetime == 0) )

@@ -171,7 +171,8 @@ namespace wiselib
 		* \param prefix_len the length of the prefix in bytes
 		* \param interface the number of the interface
 		*/
-		//int set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len = 64 );
+		int set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len, uint32_t valid_lifetime = 2592000, 
+					  bool onlink_flag = true, uint32_t prefered_lifetime = 604800, bool antonomous_flag = true );
 		
 		int enable_radios()
 		{
@@ -226,7 +227,7 @@ namespace wiselib
 		* This function is called by the interfaces if the incoming packet is an ICMP packet.
 		* \return true if the paket is ND and processed by the ND, false otherwise
 		*/
-		bool process_ND_message( uint8_t packet_number );
+		bool process_ND_message( uint8_t packet_number, uint8_t target_interface );
 		
 		private:
 		
@@ -353,7 +354,7 @@ namespace wiselib
 		*/
 		void insert_link_layer_option( IPv6Packet_t* message, uint16_t& length, node_id_t link_layer_address, bool is_target_address );
 		
-		//bool read_link_layer_option(uint8* src, uint8* option_length, ISENSE_RADIO_ADDR_TYPE* link_layer_address);
+		node_id_t read_link_layer_option( uint8_t* payload, uint16_t& act_pos );
 		
 		/**
 		* Inserts a prefix information.
@@ -385,8 +386,8 @@ namespace wiselib
 		*/
 		void insert_prefix_information( IPv6Packet_t* message, uint16_t& length, uint8_t target_interface, uint8_t prefix_number );
 		
-		//bool read_prefix_information(uint8* src, uint8* option_length, uint8* prefix_length, uint8* flags, uint32* valid_lifetime, uint32* preferred_lifetime, IPv6Addr* prefix);
-		
+		int process_prefix_information( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
+
 		/**
 		* Inserts an address registration option.
 		*
@@ -412,8 +413,8 @@ namespace wiselib
 		*/
 		void insert_address_registration_option( IPv6Packet_t* message, uint16_t& length, uint8_t status, uint16_t registration_lifetime, uint64_t link_layer_address );
 		
-		//bool read_address_registration_option(uint8* src, uint8* option_length, uint8* status, uint16* registration_lifetime, uint64* eui_64, IPv6Addr* registered_address);
-		
+		void process_address_registration_option( IPv6Address_t* source, uint8_t target_interface, uint8_t* payload, uint16_t act_pos, bool from_NS  );
+
 		/**
 		* Inserts a 6LoWPAN context option.
 		*
@@ -442,9 +443,8 @@ namespace wiselib
 		*/
 		void insert_6lowpan_context_option( IPv6Packet_t* message, uint16_t& length, uint8_t context_id);
 		
-		//bool read_6lowpan_context_option(uint8* src, uint8* option_length, uint8* context_id, Context* context);
+		void process_6lowpan_context_option( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
 		
-
 	};
 	
 	// -----------------------------------------------------------------------
@@ -461,8 +461,8 @@ namespace wiselib
 	
 	
 	// -----------------------------------------------------------------------
-	//NOTE: MOVE IT TO RECEIVED RA
-	/*template<typename OsModel_P,
+	
+	template<typename OsModel_P,
 	typename Radio_LoWPAN_P,
 	typename Radio_P,
 	typename Debug_P,
@@ -470,7 +470,8 @@ namespace wiselib
 	typename Radio_Uart_P>
 	int 
 	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
-	set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len )
+	set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len, uint32_t valid_lifetime, 
+				  bool onlink_flag, uint32_t prefered_lifetime, bool antonomous_flag )
 	{
 		if ( selected_interface >= NUMBER_OF_INTERFACES )
 			return ERR_NOTIMPL;
@@ -490,29 +491,65 @@ namespace wiselib
 		tmp.set_prefix( prefix, prefix_len );
 		tmp.set_long_iid( &my_id, true );
 		
-		uint8_t first_free = LOWPAN_MAX_PREFIXES;
+		uint8_t selected_number = LOWPAN_MAX_PREFIXES;
 		//Search in the prefix list, and try to insert or update
 		for( int i = 0; i < LOWPAN_MAX_PREFIXES; i++ )
 		{
+			//Update an old one, break and override the values
 			if( tmp == prefix_list[selected_interface][i].ip_address )
 			{
-				
+				selected_number = i;
+				break;
+			}
+			//Free place for a new one
+			else if( prefix_list[selected_interface][i].ip_address == Radio_IPv6::NULL_NODE_ID )
+			{
+				selected_number = i;
 			}
 		}
 		
+		if( selected_number < LOWPAN_MAX_PREFIXES )
+		{
+			prefix_list[selected_interface][selected_number].adv_valid_lifetime = valid_lifetime;
+			prefix_list[selected_interface][selected_number].adv_onlink_flag = onlink_flag;
+			prefix_list[selected_interface][selected_number].adv_prefered_lifetime = prefered_lifetime;
+			prefix_list[selected_interface][selected_number].adv_antonomous_flag = antonomous_flag;
+			prefix_list[selected_interface][selected_number].ip_address = tmp;
+			
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( "Interface manager: Global address defined (for interface %i): ", selected_interface);
+			prefix_list[selected_interface][selected_number].ip_address.set_debug( *debug_ );
+			prefix_list[selected_interface][selected_number].ip_address.print_address();
+			debug().debug( "\n");
+			#endif
+			
+			return SUCCESS;
+		}
+		//No free place for prefix
+		else
+			return ERR_UNSPEC;
 		
-		
-
-		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "Interface manager: Global address defined (for interface %i): ", selected_interface);
-		global_addresses_[selected_interface].set_debug( *debug_ );
-		global_addresses_[selected_interface].print_address();
-		debug().debug( "\n");
-		#endif
-		
-		return SUCCESS;
 	}
-	*/
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Radio_Uart_P>
+	bool
+	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
+	ip_packet_for_this_node( node_id_t* destination, uint8_t target_interface)
+	{
+		for ( int i = 0; i < LOWPAN_MAX_PREFIXES; i++)
+		{
+			if( prefix_list[target_interface][i] == *(destination) )
+				return true;
+		}
+		return false;
+	}
+	
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -523,44 +560,265 @@ namespace wiselib
 	typename Radio_Uart_P>
 	bool 
 	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
-	process_ND_message( uint8_t packet_number )
+	process_ND_message( uint8_t packet_number, uint8_t target_interface )
 	{
 		//Get the packet pointer from the manager
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
-		//If it is not an ICMPv6 packet, return FALSE
-		if( message->next_header() != Radio_IPv6::ICMPV6 )
-			return false;
+		IPv6Address_t source;
+		message->sorce_address( source );
 		
-		uint8_t* data = message->payload();
-		uint8_t typecode = data[0];
-		//check that this is an ND message or not
-		if( typecode == ROUTER_SOLICITATION )
+		IPv6Address_t destination;
+		message->destination_address( destination );
+		
+		if ( destination == ALL_ROUTERS_ADDRESS || ip_packet_for_this_node(&destination, target_interface) )
 		{
+			//Determinate the actual ND storage
+			NDStorage_t* act_nd_storage;
+			if( target_interface == INTERFACE_RADIO )
+				act_nd_storage = &(radio_lowpan_->nd_storage);
+			//For other future interfaces
+			//else if (...)
+			//ND is not enabled for other interfaces
+			else
+				return false;
 			
-		}
-		else if ( typecode == ROUTER_ADVERTISEMENT )
-		{
 			
-		}
-		else if ( typecode == NEIGHBOR_SOLICITATION )
-		{
 			
-		}
-		else if ( typecode == NEIGHBOR_ADVERTISEMENT )
-		{
+			//get payload pointer
+			uint8_t* payload = message->payload();
 			
+			//If it is not an ICMPv6 packet, return FALSE
+			if( message->next_header() != Radio_IPv6::ICMPV6 )
+				return false;
+			
+			#ifdef ND_DEBUG
+			debug().debug(" ND processing started " );
+			#endif
+			
+			//Set up values for processing
+			uint8_t* data = message->payload();
+			uint8_t typecode = data[0];
+			
+			//----Common message validation tests
+			//- The IP Hop Limit field has a value of 255, i.e., the packet could not possibly have been forwarded by a router.
+			if( message->hop_limit() != 255 )
+				return false;
+			
+			//- ICMP Checksum is valid.
+			uint16_t old_checksum = ( payload[2] << 8 ) | payload[3];
+			//To calculate checksum the field has to be 0 - 2 bytes
+			uint8_t zero = 0;
+			message->set_payload( &zero, 1, 2 );
+			message->set_payload( &zero, 1, 3 );
+			if( old_checksum != message->generate_checksum( message->length(), message->payload() ) )
+				return false;
+			
+			//- ICMP Code is 0.
+			if( payload[1] != 0 )
+				return false;
+			
+			
+			//check that this is an ND message or not
+			if( typecode == ROUTER_SOLICITATION )
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND processing ROUTER_SOLICITATION " );
+				#endif
+
+				
+				//If this is not a router, drop the message
+				if (!(act_nd_storage->is_router))
+					return false;
+				
+				//- ICMP length (derived from the IP length) is 8 or more octets.
+				if( message->length() < 8 )
+					return false;
+				
+				//actual position in the payload
+				uint16_t act_pos = 8;
+				
+				//Process the options
+				while( message->length() - act_pos > 0 )
+				{
+					//- All included options have a length that is greater than zero.
+					if( payload[act_pos + 1] == 0 )
+						return false;
+					
+					if( payload[act_pos] == SOURCE_LL_ADDRESS )
+						read_link_layer_option( payload, act_pos );
+					//No other option fields needed in ROUTER_SOLICITATION messages
+					//Ignore if there is any
+					else
+						//read a lenth field from the option and skipp 8 * length octets
+						act_pos += payload[act_pos + 1] * 8;
+				}
+				
+				//Send ROUTER_ADVERTISEMENT
+				send_router_advertisement( &source, target_interface );
+			}
+			else if ( typecode == ROUTER_ADVERTISEMENT )
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND processing ROUTER_ADVERTISEMENT " );
+				#endif
+							
+				//-------Validation
+				//- IP Source Address is a link-local address.
+				if( !(source.is_it_link_local() )
+					return false;
+				
+				//- ICMP length (derived from the IP length) is 16 or more octets.
+				if( message->length() < 16 )
+					return false;
+				
+				//actual position in the payload
+				uint16_t act_pos = 4;
+				
+				//Cur Hop Limit
+				if( payload[act_pos] != 0 )
+					act_nd_storage->adv_cur_hop_limit = payload[act_pos++]
+				
+				//M flag
+				if( (payload[act_pos++] & 0x80) > 0 )
+					act_nd_storage->adv_managed_flag = true;
+				else
+					act_nd_storage->adv_managed_flag = false;
+				
+				//O flag
+				if( (payload[act_pos++] & 0x40) > 0 )
+					act_nd_storage->adv_other_config_flag = true;
+				else
+					act_nd_storage->adv_other_config_flag = false;
+				
+				//Router Lifetime --> add the router
+				uint16_t router_lifetime = ( payload[act_pos] << 8 ) | payload[act_pos + 1];
+				act_pos += 2;
+				
+				//Reachable Time
+				act_nd_storage->adv_reachable_time = ( payload[act_pos] << 24 ) | ( payload[act_pos + 1] << 16 ) | ( payload[act_pos + 2] << 8 ) | payload[act_pos + 3]
+				act_pos += 4;
+				
+				//Retrans Timer
+				act_nd_storage->adv_retrans_timer = ( payload[act_pos] << 24 ) | ( payload[act_pos + 1] << 16 ) | ( payload[act_pos + 2] << 8 ) | payload[act_pos + 3]
+				act_pos += 4;
+				
+				node_id_t link_layer_source = 0;
+				//Process the options
+				while( message->length() - act_pos > 0 )
+				{
+					//- All included options have a length that is greater than zero.
+					if( payload[act_pos + 1] == 0 )
+						return false;
+					
+					else if( payload[act_pos] == SOURCE_LL_ADDRESS )
+						link_layer_source = read_link_layer_option( payload, act_pos );
+					
+					else if( payload[act_pos] == PREFIX_INFORMATION )
+						process_prefix_information( payload, act_pos );
+						
+					else if( payload[act_pos] == LOWPAN_CONTEXT )
+						process_6lowpan_context_option( payload, act_pos );
+					//No other option fields needed in ROUTER_ADVERTISEMENT messages
+					//Ignore if there is any
+					else
+						//read a lenth field from the option and skipp 8 * length octets
+						act_pos += payload[act_pos + 1] * 8;
+				}
+				
+				act_nd_storage->neighbor_cache.update_router( &source, &link_layer_source, router_lifetime )
+				
+				//Send NS for address registration
+				send_neighbor_solicitation( &source, target_interface )
+			}
+			else if ( typecode == NEIGHBOR_SOLICITATION )
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND processing NEIGHBOR_SOLICITATION " );
+				#endif
+				
+				//- ICMP length (derived from the IP length) is 24 or more octets.
+				if( message->length() < 24 )
+					return false;
+				
+				//- Target Address is not a multicast address.
+				//TODO
+				
+				node_id_t link_layer_source = 0;
+				//Process the options
+				while( message->length() - act_pos > 0 )
+				{
+					//- All included options have a length that is greater than zero.
+					if( payload[act_pos + 1] == 0 )
+						return false;
+					
+					else if( payload[act_pos] == SOURCE_LL_ADDRESS )
+						link_layer_source = read_link_layer_option( payload, act_pos );
+					
+					else if( payload[act_pos] == ADDRESS_REGISTRATION )
+						process_address_registration_option( &source, target_interface, payload, act_pos, true );
+					//No other option fields needed in ROUTER_ADVERTISEMENT messages
+					//Ignore if there is any
+					else
+						//read a lenth field from the option and skipp 8 * length octets
+						act_pos += payload[act_pos + 1] * 8;
+				}
+			}
+			else if ( typecode == NEIGHBOR_ADVERTISEMENT )
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND processing NEIGHBOR_ADVERTISEMENT " );
+				#endif
+				
+				//- ICMP length (derived from the IP length) is 24 or more octets.
+				if( message->length() < 24 )
+					return false;
+				
+				//- Target Address is not a multicast address.
+				//TODO
+				
+				//Process the options
+				while( message->length() - act_pos > 0 )
+				{
+					//- All included options have a length that is greater than zero.
+					if( payload[act_pos + 1] == 0 )
+						return false;
+					
+					else if( payload[act_pos] == SOURCE_LL_ADDRESS )
+						link_layer_source = read_link_layer_option( payload, act_pos );
+					
+					else if( payload[act_pos] == ADDRESS_REGISTRATION )
+						process_address_registration_option( &source, target_interface, payload, act_pos, false );
+					//No other option fields needed in ROUTER_ADVERTISEMENT messages
+					//Ignore if there is any
+					else
+						//read a lenth field from the option and skipp 8 * length octets
+						act_pos += payload[act_pos + 1] * 8;
+				}
+			}
+			else
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND processing not a valid ND message typecode " );
+				#endif
+				//This is not a ND message
+				return false;
+			}
+			
+			
+			return true;
 		}
 		else
 		{
-			//This is not a ND message
 			return false;
 		}
-		
-		packet_pool_mgr_->clean_packet( message );
-		return true;
 	}
 	
+// -----------------------------------------------------------------------
+
+//Send ROUTER_SOLICITATION function
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -597,14 +855,25 @@ namespace wiselib
 		insert_link_layer_option( message, length, ll_source, false );
 		
 		
-		
+		#ifdef ND_DEBUG
+		debug().debug(" ND send ROUTER_SOLICITATION to: " );
+		dest_addr->set_debug( *debug_ );
+		dest_addr->print_address();
+		#endif
 		//Prepare the common parts and send the packet
 		int result = prepare_packet( packet_number, length, ROUTER_SOLICITATION, src_addr, dest_addr, target_interface );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
+		
 		if( result != ROUTING_CALLED )
 			packet_pool_mgr_->clean_packet( message );
 		return result;
 	}
+	
+// -----------------------------------------------------------------------
+
+//Send ROUTER_ADVERTISEMENT function
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -636,6 +905,9 @@ namespace wiselib
 			act_nd_storage = &(radio_lowpan_->nd_storage);
 		//For other future interfaces
 		//else if (...)
+		//ND is not enabled for other interfaces
+		else
+			return false;
 		
 		//Set the Cur Hop Limit
 		message->set_payload( &(act_nd_storage->adv_cur_hop_limit), 4, 1 );
@@ -679,6 +951,12 @@ namespace wiselib
 		
 		//TODO insert ABRO
 		
+		
+		#ifdef ND_DEBUG
+		debug().debug(" ND send ROUTER_ADVERTISEMENT to: " );
+		dest_addr->set_debug( *debug_ );
+		dest_addr->print_address();
+		#endif
 		//Prepare the common parts and send the packet
 		int result = prepare_packet( packet_number, length, ROUTER_ADVERTISEMENT, src_addr, dest_addr, target_interface );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
@@ -686,6 +964,12 @@ namespace wiselib
 			packet_pool_mgr_->clean_packet( message );
 		return result;
 	}
+	
+// -----------------------------------------------------------------------
+
+//Send NEIGHBOR_SOLICITATION function
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -731,15 +1015,24 @@ namespace wiselib
 		//TODO: what is the lifetime?
 		insert_address_registration_option( message, length, AR_SUCCESS, 43200, (uint64_t)ll_source );
 		
-		
+		#ifdef ND_DEBUG
+		debug().debug(" ND send NEIGHBOR_SOLICITATION to: " );
+		dest_addr->set_debug( *debug_ );
+		dest_addr->print_address();
+		#endif
 		//Prepare the common parts and send the packet
-		int result = prepare_packet( packet_number, length, ROUTER_ADVERTISEMENT, src_addr, dest_addr, target_interface );
+		int result = prepare_packet( packet_number, length, NEIGHBOR_SOLICITATION, src_addr, dest_addr, target_interface );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
 		if( result != ROUTING_CALLED )
 			packet_pool_mgr_->clean_packet( message );
 		return result;
 	}
 	
+// -----------------------------------------------------------------------
+
+//Send NEIGHBOR_ADVERTISEMENT function
+
+// -----------------------------------------------------------------------
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_LoWPAN_P,
@@ -787,14 +1080,24 @@ namespace wiselib
 		//Insert ARO --> response
 		insert_address_registration_option( message, length, status, lifetime, ll_source );
 		
-		
+		#ifdef ND_DEBUG
+		debug().debug(" ND send NEIGHBOR_ADVERTISEMENT to: " );
+		dest_addr->set_debug( *debug_ );
+		dest_addr->print_address();
+		#endif
 		//Prepare the common parts and send the packet
-		int result = prepare_packet( packet_number, length, ROUTER_ADVERTISEMENT, src_addr, dest_addr, target_interface );
+		int result = prepare_packet( packet_number, length, NEIGHBOR_ADVERTISEMENT, src_addr, dest_addr, target_interface );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
 		if( result != ROUTING_CALLED )
 			packet_pool_mgr_->clean_packet( message );
 		return result;
 	}
+	
+// -----------------------------------------------------------------------
+
+//Common ND message function
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -829,13 +1132,21 @@ namespace wiselib
 		
 		//Calculate checksum
 		//To calculate checksum the field has to be 0 - 2 bytes
-		message->set_payload( &zero, 2, 2 );
+		message->set_payload( &zero, 1, 2 );
+		message->set_payload( &zero, 1, 3 );
 		
 		uint16_t checksum = message->generate_checksum( message->length(), message->payload() );
 		message->set_payload( &checksum, 2 );
 		
+		
 		return send_to_interface( *(dest_addr), packet_number, NULL, target_interface );
 	}
+	
+// -----------------------------------------------------------------------
+
+//LINK LAYER ADDRESS OPTION
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -879,6 +1190,36 @@ namespace wiselib
 		message->set_payload( &link_layer_address, 2 );
 	}
 	
+	
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Radio_Uart_P>
+	node_id_t 
+	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
+	read_link_layer_option( uint8_t* payload, uint16_t& act_pos )
+	{
+		node_id_t res = 0;
+		uint16_t end_pos = ( payload[act_pos] * 8 ) + act_pos - 2;
+		
+		act_pos += 2;
+		for( int i = 0; i < sizeof( node_id_t ); i++ )
+			res = (res << 8) | payload[act_pos + i];
+		
+		act_pos = end_pos;
+		
+		return res;
+	}
+	
+// -----------------------------------------------------------------------
+
+//PREFIX INFORMATION OPTION
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -925,7 +1266,59 @@ namespace wiselib
 		
 	}
 	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Radio_Uart_P>
+	int 
+	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
+	process_prefix_information( payload, act_pos, selected_interface )
+	{
+		act_pos += 2;
+		
+		//
+		uint8_t prefix_len = payload[act_pos++];
+		
+		//
+		bool onlink_flag;
+		if(( payload[act_pos] & 0x80) > 0 )
+			onlink_flag = true;
+		else
+			onlink_flag = false;
+		
+		//
+		bool antonomous_flag;
+		if(( payload[act_pos++] & 0x40) > 0 )
+			antonomous_flag = true;
+		else
+			antonomous_flag = false;
+		
+		//
+		uint32_t valid_lifetime = ( payload[act_pos] << 24 ) | ( payload[act_pos + 1] << 16 ) | ( payload[act_pos + 2] << 8 ) | payload[act_pos + 3]
+		
+		//
+		uint32_t prefered_lifetime = ( payload[act_pos] << 24 ) | ( payload[act_pos + 1] << 16 ) | ( payload[act_pos + 2] << 8 ) | payload[act_pos + 3]
+		
+		//Skip the reserved 4 bytes
+		act_pos += 4;
+		
+		int result = set_prefix_for_interface( payload + act_pos, selected_interface, prefix_len, valid_lifetime, onlink_flag, prefered_lifetime, antonomous_flag );
+		
+		//Add the address' bytes
+		act_pos += 16;
+		
+		return result;
+	}
 	
+// -----------------------------------------------------------------------
+
+//ADDRESS REGISTRATION OPTION
+
+// -----------------------------------------------------------------------
+
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 	typename Radio_LoWPAN_P,
@@ -959,6 +1352,49 @@ namespace wiselib
 		message->set_payload( &link_layer_address, length );
 		length += 8;
 	}
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Radio_Uart_P>
+	void 
+	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
+	process_address_registration_option( IPv6Address_t* source, uint8_t target_interface, uint8_t* payload, uint16_t act_pos, bool from_NS  )
+	{
+		//Shift to the lifetime
+		act_pos += 6;
+		
+		uint16_t lifetime = ( payload[act_pos] << 8 ) | payload[act_pos + 1];
+		act_pos += 2;
+		
+		//First byte
+		uint64_t ll_address = payload[act_pos++];
+		for( int i = 1; i < 8; i++ )
+			ll_address = ( ll_address << 8 ) | payload[act_pos++];
+		
+		
+		uint8_t number_of_neighbor = 0;
+		uint8_t status = act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, source, ll_address, lifetime, false );
+		
+		#ifdef ND_DEBUG
+		debug().debug(" ND processed address registration (status:  %i ) for: ", status);
+		source->set_debug( *debug_ );
+		source->print_address();
+		#endif
+		
+		if( from_NS )
+			//Send NA for address registration confirmation
+			send_neighbor_advertisement( source, target_interface, status, lifetime, ll_source );
+	}
+	
+// -----------------------------------------------------------------------
+
+//CONTEXT INFORMATION OPTION
+
+// -----------------------------------------------------------------------
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -1018,7 +1454,52 @@ namespace wiselib
 			length += 8;
 		}
 	}
-
+	
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_LoWPAN_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Radio_Uart_P>
+	void 
+	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
+	process_6lowpan_context_option( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface )
+	{
+		if( selected_interface != INTERFACE_RADIO )
+			return;
+		
+		uint8_t CID = (payload[act_pos + 3] & 0x0F)
+		
+		//Type and Length
+		uint8_t length = payload[act_pos + 1];
+		act_pos += 2;
+		
+		//Set the length of the prefix
+		radio_lowpan_->context_mgr_.contexts[CID].prefix.prefix_length = payload[act_pos++]
+		
+		//Read the C flag
+		if(( payload[act_pos++] & 10 ) > 0 )
+			radio_lowpan_->context_mgr_.contexts[CID].valid = true;
+		else
+			radio_lowpan_->context_mgr_.contexts[CID].valid = false;
+		
+		//2 bytes reserved
+		act_pos += 2;
+		
+		//Set the lifetime
+		radio_lowpan_->context_mgr_.contexts[CID].valid_lifetime = (payload[act_pos] << 8 ) | payload[act_pos + 1];
+		act_pos += 2;
+		
+		memset( radio_lowpan_->context_mgr_.contexts[CID].prefix.addr, 0, 16 );
+		//copy 8 or 16 bytes
+		memcpy( radio_lowpan_->context_mgr_.contexts[CID].prefix.addr, payload + act_pos, (length - 1) * 8 );
+		
+		#ifdef ND_DEBUG
+		debug().debug(" ND processed context information (CID:  %i ).", CID);
+		#endif
+	}
 
 }
 #endif

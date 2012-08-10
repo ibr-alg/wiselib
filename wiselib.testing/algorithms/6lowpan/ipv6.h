@@ -335,7 +335,16 @@ namespace wiselib
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: initialization at %x, MAC length: %i\n", radio().id(), sizeof(link_layer_node_id_t) );
+		debug().debug( "IPv6 layer: initialization at %x\n", radio().id() );
+		debug().debug( "IPv6 layer: MAC length: %i\n", sizeof(link_layer_node_id_t) );
+		
+		link_layer_node_id_t iid = radio().id();
+		for ( unsigned int i = 0; i < ( sizeof(link_layer_node_id_t) ); i++ )
+		{
+			uint8_t a = iid & 0xFF;
+			debug().debug( "..%i..: %x",  i, a );
+			iid = iid >> 8;
+		}
 
 		#ifdef LOWPAN_ROUTE_OVER
 		debug().debug( "IPv6 layer: Routing mode: ROUTE OVER\n");
