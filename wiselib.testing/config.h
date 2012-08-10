@@ -39,6 +39,7 @@
 //#define UART_LAYER_DEBUG
 //#define UDP_LAYER_DEBUG
 //#define ICMPv6_LAYER_DEBUG
+//#define ND_DEBUG
 
 #ifdef LoWPAN_DEBUG
 #define IPv6_LAYER_DEBUG
@@ -46,6 +47,7 @@
 #define UART_LAYER_DEBUG
 #define UDP_LAYER_DEBUG
 #define ICMPv6_LAYER_DEBUG
+#define ND_DEBUG
 #endif
 
 //6LoWPAN IP packet max size
@@ -53,6 +55,15 @@
 
 //The Contexts number, it should be 16
 #define LOWPAN_CONTEXTS_NUMBER 16
+
+//Number of neighbors in the neighbor cache
+#define LOWPAN_MAX_OF_NEIGHBORS 10
+
+//Number of routers in the default routers' list
+#define LOWPAN_MAX_OF_ROUTERS 5
+
+//Number of prefixes per interface
+#define LOWPAN_MAX_PREFIXES 2
 
 //The maximum of stored mesh broadcast sequence numbers
 #define MAX_BROADCAST_SEQUENCE_NUMBERS 15

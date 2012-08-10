@@ -440,11 +440,14 @@ namespace wiselib
 		if( checksum != message->generate_checksum( message->length(), data ) )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
-			debug().debug( "ICMPv6 layer: Dropped packet (checksum error), in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
+			//debug().debug( "ICMPv6 layer: Dropped packet (checksum error), in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
+			
+			debug().debug( "ICMPv6 layer: Checksum error, but not dropped, in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
+			
 			#endif
 
-			packet_pool_mgr_->clean_packet( message );
-			return;
+			//packet_pool_mgr_->clean_packet( message );
+			//return;
 		}
 
 		int typecode = data[0];

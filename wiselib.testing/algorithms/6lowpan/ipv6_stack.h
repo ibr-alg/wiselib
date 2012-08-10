@@ -75,18 +75,25 @@ namespace wiselib
 		timer_ = &timer;
 		uart_ = &uart;
 		
-		//debug_->debug( "IPv6 stack init: %x\n", radio_->id());
+		debug_->debug( "IPv6 stack init: %x\n", radio_->id());
 		
 		packet_pool_mgr.init( *debug_ );
 		
 		
 		//Init LoWPAN
 		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
+
+		if( radio_->set_channel( 18 ) == 18 )
+			debug_->debug( "Radio channel is set to: 18! \n" );
+		else
+			debug_->debug( "Fatal error: Radio channel can't be configured! \n" );
+		
 		
 		//Init Uart Radio
 		uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr, *timer_ );
 	 
 		interface_manager.init( &lowpan, *debug_, &uart_radio, &packet_pool_mgr );
+		
 		
 		//Init IPv6
 		ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
@@ -106,6 +113,7 @@ namespace wiselib
 		//Just register callback, not enable IP radio
 		if( SUCCESS != icmpv6.enable_radio() )
 			debug_->debug( "Fatal error: ICMPv6 layer enabling failed! \n" );
+		
 	}
 	
 	ICMPv6_t icmpv6; 

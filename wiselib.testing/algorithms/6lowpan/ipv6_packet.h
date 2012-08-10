@@ -313,27 +313,47 @@ namespace wiselib
 	typename Debug_P>
 	uint16_t
 	IPv6Packet<OsModel_P, Radio_P, Debug_P>::
-	generate_checksum( uint16_t len, uint8_t* data)
+	generate_checksum( uint16_t len, uint8_t* data )
 	{
 		uint32_t sum = 0;
+		
+		/* PSEUDO HEADER */
+		//Source and Dest address
+		for( int i = 0; i < 16; i+=2 )
+		{
+			sum += buffer_[SOURCE_ADDRESS_BYTE + i] << 8;
+			sum += buffer_[SOURCE_ADDRESS_BYTE + i + 1];
+			sum += buffer_[DESTINATION_ADDRESS_BYTE + i] << 8;
+			sum += buffer_[DESTINATION_ADDRESS_BYTE + i + 1];
+		}
+		
+		sum += buffer_[LENGTH_BYTE] << 8;
+		sum += buffer_[LENGTH_BYTE + 1];
+		sum += buffer_[NEXT_HEADER_BYTE];
+		
+		/* PSEUDO END */
 	 
 		while( len > 1 )
 		{
-			// 2 * uint16_t --> uint32_t
-			sum +=  (*(data) << 8) | (*( data + 1 ));
-			data += 2;
+			// 2 * uint8_t --> uint32_t
+			//sum +=  (*(data) << 8) | (*( data + 1 ));
+			//data += 2;
+			sum += ((uint16_t)*data++) << 8;
+			sum += (uint16_t)*data++;
 			len -= 2;
 		}
 		// if there is a byte left then add it (padded with zero)
-		if ( len )
+		if ( len > 0 )
 		{
-			sum += ( *data ) << 8;
+			//sum += ( *data ) << 8;
+			sum += ((uint16_t)*data++) << 8;
 		}
 		
 		//uint32_t --> uint16_t
-		sum = (sum) + (sum >> 16);
+		sum = (sum & 0xFFFF) + (sum >> 16);
 	 
 		return ( sum ^ 0xFFFF );
+		//return sum;
 	}
 }
 #endif
