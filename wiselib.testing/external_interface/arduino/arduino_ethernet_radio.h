@@ -66,7 +66,7 @@ namespace wiselib
          ERR_UNSPEC = OsModel::ERR_UNSPEC
       };
       // --------------------------------------------------------------------
-      enum { MAX_INTERNAL_RECEIVERS = 10 };
+      enum { MAX_INTERNAL_RECEIVERS = 5 };
       // --------------------------------------------------------------------
       enum SpecialNodeIds
       {
@@ -75,7 +75,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum Restrictions
       {
-         MAX_MESSAGE_LENGTH = 255 ///< Maximal number of bytes in payload
+         MAX_MESSAGE_LENGTH = 32 ///< Maximal number of bytes in payload
       };
       // --------------------------------------------------------------------
       ArduinoEthernetRadio();
@@ -88,6 +88,8 @@ namespace wiselib
       int disable_radio();
 
       node_id_t id();
+
+      int set_port( int port );
 
       template<class T, void ( T::*TMethod )( node_id_t, size_t, block_data_t* )>
       int reg_recv_callback( T* obj_pnt );
@@ -103,7 +105,7 @@ namespace wiselib
 
       int port_;
 
-      EthernetUDP* udp_;
+      EthernetUDP udp_;
 
       IPAddress* ip_;
       IPAddress* router_;
@@ -111,7 +113,6 @@ namespace wiselib
       IPAddress* dns_;
 
       arduino_radio_delegate_t arduino_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
-
    };
    // -----------------------------------------------------------------------
    // -----------------------------------------------------------------------
@@ -139,9 +140,8 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoEthernetRadio<OsModel_P>::enable_radio()
    {
-      udp_ = new EthernetUDP();
       Ethernet.begin( mac, *ip_, *dns_, *router_, *subnet_ );
-      udp_->begin( port_ );
+      udp_.begin( port_ );
 
       broadcast_ = *ip_ | ( ~ *subnet_ );
 
@@ -151,8 +151,6 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoEthernetRadio<OsModel_P>::disable_radio()
    {
-      delete udp_;
-
       return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -170,9 +168,18 @@ namespace wiselib
       if ( dest == BROADCAST_ADDRESS )
          dest = broadcast_;
 
-      udp_->beginPacket( dest, port_ );
-      udp_->write( data, len );
-      udp_->endPacket();
+      udp_.beginPacket( dest, port_ );
+      udp_.write( data, len );
+      udp_.endPacket();
+
+      return SUCCESS;
+   }
+   // -----------------------------------------------------------------------
+   template<typename OsModel_P>
+   int ArduinoEthernetRadio<OsModel_P>::
+   set_port( int port )
+   {
+      port_ = port;
 
       return SUCCESS;
    }

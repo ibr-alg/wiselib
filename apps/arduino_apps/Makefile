@@ -4,11 +4,11 @@ WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
 CXX=avr-gcc
-INCLUDE=-I ~/work/arduino/include/arduino -I ~/work/arduino/include/ethernet -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L ~/work/arduino/lib -lm -lethernet -larduino
+INCLUDE=-I ~/work/arduino/include/arduino -I ~/work/arduino/include/zeroconf -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
+LIBS=-L ~/work/arduino/lib -lm -lzeroconf -larduino
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -Os -w -Wl,--gc-sections -ffunction-sections -fdata-sections
+CFLAGS=$(MCU) $(CPU_SPEED) -Os -w -Wl,--gc-sections -ffunction-sections -fdata-sections -fno-inline-small-functions
 PORT=/dev/ttyUSB0
 
 default: build upload
@@ -20,6 +20,7 @@ example.hex: example.elf
 
 example.elf: example_app.cpp
 	$(CXX) $(CFLAGS) $(INCLUDE) $^ -o $@ $(LIBS)
+	avr-strip $@
 
 upload:
 	avrdude -V -F -p m328p -c arduino -b 115200 -Uflash:w:example.hex -P$(PORT)
