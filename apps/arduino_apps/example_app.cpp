@@ -6,11 +6,13 @@
 #include "external_interface/arduino/arduino_debug.h"
 #include "external_interface/arduino/arduino_clock.h"
 #include "external_interface/arduino/arduino_ethernet_radio.h"
+#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
 
 typedef wiselib::ArduinoOsModel Os;
 
 Os::Debug* debug;
 Os::EthernetRadio* radio;
+Os::Clock* clock;
 
 class ExampleApplication
 {
@@ -19,16 +21,22 @@ public:
    void init()
    {
       debug = new Os::Debug();
+      clock = new Os::Clock();
       radio = new Os::EthernetRadio();
 
       Os::EthernetRadio::block_data_t message[] = "Test\0";
 
       radio->enable_radio();
 
+      wiselib::ArduinoZeroconf<Os, Os::EthernetRadio, Os::Debug> mdns;
+      mdns.init( *radio, *clock, *debug );
+      mdns.enable();
+
+      debug->debug( "Hello World from Example Application!\n" );
+
       while ( 1 )
       {
-         debug->debug( "Hello World from Example Application!\n" );
-
+         mdns.topology();
          radio->send( Os::EthernetRadio::BROADCAST_ADDRESS, 4, message );
 
          if ( serialEventRun ) serialEventRun();
@@ -40,6 +48,7 @@ public:
    {
       delete debug;
       delete radio;
+      delete clock;
    }
 
 };

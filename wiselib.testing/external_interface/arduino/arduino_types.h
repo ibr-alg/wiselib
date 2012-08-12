@@ -28,4 +28,8 @@ uint8_t mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 #define WISELIB_SUBNET 0x00FFFFFF
 #define WISELIB_DNS 0x0100A8C0
 
+#define HOST_NAME "arduino"
+#define ZEROCONF_DISCOVER_SERVICE "_wiselib"
+#define ZEROCONF_PUBLISH_SERVICE "_node._wiselib"
+
 #endif
