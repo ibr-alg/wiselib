@@ -44,7 +44,7 @@ namespace wiselib
       typedef self_type* self_pointer_t;
       ArduinoDebug()
       {
-         Serial.begin( 115200 );
+         Serial.begin( 9600 );
       }
       // --------------------------------------------------------------------
       /**
