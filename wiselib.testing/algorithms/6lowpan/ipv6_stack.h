@@ -56,7 +56,7 @@ namespace wiselib
 	typedef wiselib::IPv6<OsModel, LoWPAN_t, Radio, Debug, Timer, InterfaceManager_t> IPv6_t;
 
 	typedef wiselib::UDP<OsModel, IPv6_t, Radio, Debug> UDP_t;
-	typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug> ICMPv6_t;
+	typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug, Timer> ICMPv6_t;
 	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
 	
 	enum ErrorCodes
@@ -94,7 +94,6 @@ namespace wiselib
 	 
 		interface_manager.init( &lowpan, *debug_, &uart_radio, &packet_pool_mgr );
 		
-		
 		//Init IPv6
 		ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 		//IPv6 will enable lower level radios
@@ -109,10 +108,13 @@ namespace wiselib
 			debug_->debug( "Fatal error: UDP layer enabling failed! \n" );
 		
 		//Init ICMPv6
-		icmpv6.init( ipv6, *debug_, &packet_pool_mgr);
+		icmpv6.init( ipv6, *debug_, *timer_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
 		if( SUCCESS != icmpv6.enable_radio() )
 			debug_->debug( "Fatal error: ICMPv6 layer enabling failed! \n" );
+		
+		//Start ND
+		icmpv6.ND_timeout_manager_function( NULL );
 		
 	}
 	

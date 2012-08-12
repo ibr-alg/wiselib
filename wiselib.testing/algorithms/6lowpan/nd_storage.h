@@ -215,10 +215,10 @@ namespace wiselib
 				//Call the update_neighbor function, it inserts or updates the router to the cache
 				//If there was an error, the function returns
 				uint8_t neighbor_number = LOWPAN_MAX_OF_NEIGHBORS;
-				int result = update_neighbor( selected_place, ip_address, ll_address, 0, true );
+				int result = update_neighbor( selected_place, ip_address, *ll_address, 0, true );
 				if( (result == NEIGHBOR_CACHE_FULL) ||
 					(result == DUPLICATE_ADDRESS) ||
-					(valid_lifetime == 0) )
+					(own_lifetime == 0) )
 					return result;
 				
 				//Search for an entry for this IP in the default routers' lis
@@ -272,6 +272,14 @@ namespace wiselib
 			DefaultRouterEntryType_t* get_router( uint8_t index )
 			{
 				return &(routers_[index]);
+			}
+			
+			bool is_default_routers_list_empty()
+			{
+				for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
+					if( routers_[i].neighbor_pointer->status == REGISTERED )
+						return false;
+				return true;
 			}
 			
 		private:

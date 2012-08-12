@@ -180,12 +180,13 @@ namespace wiselib
 	node_id_t id()
 	{
 		//NOTE now it is the Radio's link local address
-		node_id_t tmp = *(interface_manager_->get_link_local_address(INTERFACE_RADIO));
+		node_id_t tmp = (interface_manager_->prefix_list[INTERFACE_RADIO][0].ip_address);
 		tmp.set_debug( *debug_ );
 		return tmp;
 	}
 	///@}
 	
+	InterfaceManager_t* interface_manager_;
 	
 	private:
 	
@@ -202,7 +203,7 @@ namespace wiselib
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
-	InterfaceManager_t* interface_manager_;
+	
 	#ifdef LOWPAN_ROUTE_OVER
 	Routing_t routing_;
 	#endif
@@ -211,7 +212,7 @@ namespace wiselib
 	* Test every interfaces and addresses to decide that the packet is for this node or not
 	* \param destination pointer to the destination's IP address
 	*/
-	bool ip_packet_for_this_node( node_id_t* destination );
+	bool ip_packet_for_this_node( node_id_t* destination, uint8_t target_interface );
 
 	#ifdef LOWPAN_ROUTE_OVER
 	/**
@@ -394,7 +395,7 @@ namespace wiselib
 		
 		//This is a multicast message to all nodes
 		//This is the same in MESH UNDER and ROUTE OVER
-		if ( destination == BROADCAST_ADDRESS )
+		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
 		{
 			#ifdef IPv6_LAYER_DEBUG
 			debug().debug( "IPv6 layer: Send to " );
@@ -406,6 +407,13 @@ namespace wiselib
 			//Broadcast the packet via the radio
 			return interface_manager_->send_to_interface( BROADCAST_ADDRESS, packet_number, NULL, INTERFACE_RADIO );
 		}
+		
+		//Get the packet pointer from the manager
+		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
+		//For ND messages the destination could be specified, no routing needed
+		if( message->remote_ll_address != 0 && message->target_interface != NUMBER_OF_INTERFACES)
+			return interface_manager_->send_to_interface( destination, packet_number, NULL, message->target_interface );
+			
 		
 		#ifdef LOWPAN_ROUTE_OVER
 		//In the route over mode, every hop is an IP hop
@@ -501,7 +509,8 @@ namespace wiselib
 		message->destination_address(destination_ip);
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
-		if ( destination_ip == BROADCAST_ADDRESS || ip_packet_for_this_node(&destination_ip) )
+		if ( destination_ip == BROADCAST_ADDRESS || ip_packet_for_this_node(&destination_ip, message->target_interface) ||
+			destination_ip == ALL_ROUTERS_ADDRESS )
 		{
 			node_id_t source_ip;
 			message->source_address(source_ip);
@@ -509,6 +518,8 @@ namespace wiselib
 			#ifdef IPv6_LAYER_DEBUG
 			if( destination_ip == BROADCAST_ADDRESS )
 				debug().debug( "IPv6 layer: Received packet (multicast) from " );
+			else if( destination_ip == ALL_ROUTERS_ADDRESS )
+				debug().debug( "IPv6 layer: Received packet (all routers) from " );
 			else
 				debug().debug( "IPv6 layer: Received packet (unicast) from " );
 			source_ip.set_debug( *debug_ );
@@ -560,12 +571,11 @@ namespace wiselib
 	typename InterfaceManager_P>
 	bool
 	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
-	ip_packet_for_this_node( node_id_t* destination )
+	ip_packet_for_this_node( node_id_t* destination, uint8_t target_interface)
 	{
-		for ( int i = 0; i < NUMBER_OF_INTERFACES; i++)
+		for ( int i = 0; i < LOWPAN_MAX_PREFIXES; i++)
 		{
-			if ( *(interface_manager_->get_link_local_address(i)) == *(destination) ||
-			 *(interface_manager_->get_global_address(i)) == *(destination))
+			if( interface_manager_->prefix_list[target_interface][i].ip_address == *(destination) )
 				return true;
 		}
 		return false;
