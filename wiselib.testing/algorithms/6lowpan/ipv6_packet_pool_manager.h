@@ -120,6 +120,8 @@ namespace wiselib
 		void clean_packet( Packet* target )
 		{
 			target->valid = false;
+			target->target_interface =  NUMBER_OF_INTERFACES;
+			target->remote_ll_address = Radio::NULL_NODE_ID;
 			memset(target->buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
 		}
 		

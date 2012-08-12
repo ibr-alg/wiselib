@@ -25,10 +25,10 @@
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 #include "algorithms/6lowpan/nd_storage.h"
 #include "algorithms/6lowpan/reassembling_manager.h"
+#include "algorithms/6lowpan/interface_manager.h"
 
 #ifdef LOWPAN_MESH_UNDER
 #include "algorithms/6lowpan/simple_queryable_routing.h"
-#include "algorithms/6lowpan/interface_manager.h"
 #endif
 
 
@@ -80,9 +80,8 @@ namespace wiselib
 	typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> Reassembling_Mgr_t;
 	
 	#ifdef LOWPAN_MESH_UNDER
-	
-	
 	typedef InterfaceManager<OsModel, self_type, Radio, Debug, Timer, Uart_Radio> InterfaceManager_t;
+	
 	
 	/**
 	* Simple Routing implementation
@@ -103,6 +102,10 @@ namespace wiselib
 	};
 	// --------------------------------------------------------------------
 	
+	enum InterfaceID
+	{
+		INTERFACE_RADIO = 0
+	};
 	
 	enum NextHeaders
 	{
@@ -141,13 +144,16 @@ namespace wiselib
 	~LoWPAN();
 	///@}
 	 
-	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer )
+	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer/*, InterfaceManager_t* i_mgr*/ )
 	 {
 	 	radio_ = &radio;
 	 	debug_ = &debug;
 		timer_ = &timer;
 	 	packet_pool_mgr_ = p_mgr;
+		//interface_manager_ = i_mgr;
 		reassembling_mgr_.init( *timer_, *debug_, packet_pool_mgr_ );
+		
+		
 		
 		/*
 			ND is enabled for this interface
@@ -161,7 +167,7 @@ namespace wiselib
 			received_broadcast_sequence_numbers_[i] = 0;
 			received_broadcast_originators_[i] = 0;
 		}
-		routing_.init( *timer_, *debug_, *radio_, &interface_manager_ );
+		routing_.init( *timer_, *debug_, *radio_, interface_manager_ );
 		#endif
 		
 	 	return SUCCESS;
@@ -205,6 +211,10 @@ namespace wiselib
 	*/
 	bool ND_enabled;
 	
+	
+	Context_Mgr_t context_mgr_;
+	NDStorage_t nd_storage_;
+	
 	private:
 	
 	Radio& radio()
@@ -220,11 +230,12 @@ namespace wiselib
 	typename Debug::self_pointer_t debug_;
 	typename Timer::self_pointer_t timer_;
 	Packet_Pool_Mgr_t* packet_pool_mgr_;
-	Context_Mgr_t context_mgr_;
-	NDStorage_t nd_storage_;
+	
+	
 	Reassembling_Mgr_t reassembling_mgr_;
 	#ifdef LOWPAN_MESH_UNDER
-	InterfaceManager_t interface_manager_;
+	InterfaceManager_t* interface_manager_;
+	
 	Routing_t routing_;
 	#endif
 	
@@ -732,9 +743,13 @@ namespace wiselib
 
 		//Send the package to the next hop
 		node_id_t mac_destination;
-		//Translate the IP destination to MAC destination
-		if( IP_to_MAC( destination, mac_destination) != SUCCESS )
-			return ERR_UNSPEC;
+		
+		if( ip_packet->remote_ll_address != NULL_NODE_ID )
+			mac_destination = ip_packet->remote_ll_address;
+		else
+			//Translate the IP destination to MAC destination
+			if( IP_to_MAC( destination, mac_destination) != SUCCESS )
+				return ERR_UNSPEC;
 
 	
 	#ifdef LOWPAN_MESH_UNDER
@@ -1190,32 +1205,10 @@ namespace wiselib
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
 			}
 			
-			uint8_t* payload = reassembling_mgr_.ip_packet->payload();
-			//Separate ND messages here
-			if( reassembling_mgr_.ip_packet->next_header() == ICMPV6 &&
-				((payload[0] == ROUTER_SOLICITATION) ||
-				(payload[0] == ROUTER_ADVERTISEMENT) ||
-				(payload[0] == NEIGHBOR_SOLICITATION) ||
-				(payload[0] == NEIGHBOR_ADVERTISEMENT) )
-				{
-					if( interface_manager_->process_ND_message( reassembling_mgr_.ip_packet_number, interface_manager_->INTERFACE_RADIO ) )
-					{
-						#ifdef ND_DEBUG
-						debug().debug(" ND processing finished! " );
-						#endif
-					}
-					else
-					{
-						#ifdef ND_DEBUG
-						debug().debug(" ND processing failed! " );
-						#endif
-					}
-					
-					packet_pool_mgr_->clean_packet_with_number( reassembling_mgr_.ip_packet_number );
-				}
-			//Call the upper layers with not ND messages
-			else
-				notify_receivers( from, reassembling_mgr_.ip_packet_number, NULL );
+			reassembling_mgr_.ip_packet->target_interface = INTERFACE_RADIO;
+			reassembling_mgr_.ip_packet->remote_ll_address = from;
+
+			notify_receivers( from, reassembling_mgr_.ip_packet_number, NULL );
 		}
 		
 	}
@@ -1232,7 +1225,8 @@ namespace wiselib
 	IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address )
 	{
 		IPv6Address_t ip_broadcast = IPv6Address<Radio_P, Debug_P>(1);
-		if( ip_address == ip_broadcast )
+		IPv6Address_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
+		if( ip_address == ip_broadcast || ip_address == ip_all_routers )
 			mac_address = BROADCAST_ADDRESS;
 		else
 		{

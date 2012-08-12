@@ -70,11 +70,16 @@ namespace wiselib
 
 	typedef typename Radio::block_data_t block_data_t;
 	typedef typename Radio::size_t size_t;
+	typedef typename Radio::node_id_t link_layer_node_id_t;
 	typedef IPv6Address<Radio, Debug> node_id_t;
 	
 	IPv6Packet()
 	{
 		memset(buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
+		
+		valid = false;
+		remote_ll_address = Radio::NULL_NODE_ID;
+		target_interface = NUMBER_OF_INTERFACES;
 		
 		//Version is fix 6
 		uint8_t version = 6;
@@ -292,6 +297,16 @@ namespace wiselib
 	* If it is an incoming packet, it indicates that the packet headers could be decompressed and passed to the upper layer
 	*/
 	bool defragmentation_finished;
+	
+	/**
+	* Destionation / Source interface
+	*/
+	uint8_t target_interface;
+	
+	/**
+	* Remote link-layer address for ND messages
+	*/
+	link_layer_node_id_t remote_ll_address;
 	
 	/** Generate Internet checksum
 	* \param len Data length

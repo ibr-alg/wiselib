@@ -302,6 +302,15 @@ namespace wiselib
 			if( destination == NULL_NODE_ID || (requested_destination_ == destination && failed_alive_) )
 				return NO_ROUTE_TO_HOST;
 			
+			
+			//No routing for link-local addresses
+			if( destination.is_it_link_local() )
+			{
+				next_hop = destination;
+				target_interface = InterfaceManager_t::INTERFACE_RADIO;
+				return ROUTE_AVAILABLE;
+			}
+			
 		 	//Search for the next hop in the table
 		 	ForwardingTableIterator it = forwarding_table_.find( destination );
 			if( it != forwarding_table_.end() && it->second.next_hop != NULL_NODE_ID )

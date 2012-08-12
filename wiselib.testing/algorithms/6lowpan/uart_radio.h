@@ -58,6 +58,11 @@ namespace wiselib
 		 ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
 		 ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
 		};
+		
+		enum InterfaceID
+		{
+			INTERFACE_UART = 1
+		};
 
 
 		// -----------------------------------------------------------------
@@ -174,6 +179,7 @@ namespace wiselib
 					received_size_ = 0;
 					ip_packet = NULL;
 					node_id_t from = Radio::NULL_NODE_ID;
+					ip_packet->target_interface = INTERFACE_UART;
 					notify_receivers( from, packet_number, NULL );
 				}
 			}
