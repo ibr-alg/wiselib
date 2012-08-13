@@ -392,7 +392,7 @@ namespace wiselib
 	*/
 	void insert_address_registration_option( IPv6Packet_t* message, uint16_t& length, uint8_t status, uint16_t registration_lifetime, uint64_t link_layer_address );
 	
-	void process_address_registration_option( node_id_t* source, uint8_t target_interface, uint8_t* payload, uint16_t act_pos, bool from_NS, NDStorage_t* act_nd_storage  );
+	void process_address_registration_option( node_id_t* source, uint8_t target_interface, uint8_t* payload, uint16_t& act_pos, bool from_NS, NDStorage_t* act_nd_storage, link_layer_node_id_t link_layer_source  );
 	
 	/**
 	* Inserts a 6LoWPAN context option.
@@ -676,7 +676,7 @@ namespace wiselib
 			#ifdef ICMPv6_LAYER_DEBUG
 			//debug().debug( "ICMPv6 layer: Dropped packet (checksum error), in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
 			
-			debug().debug( "ICMPv6 layer: Checksum error, but not dropped, in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
+			debug().debug( "ICMPv6 layer: Checksum error, in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
 			
 			#endif
 
@@ -746,16 +746,31 @@ namespace wiselib
 			NDStorage_t* act_nd_storage;
 			act_nd_storage = radio_ip_->interface_manager_->get_nd_storage( target_interface );
 			if( act_nd_storage == NULL )
+			{
+				packet_pool_mgr_->clean_packet( message );
+				#ifdef ND_DEBUG
+				debug().debug( "ND is not enabled for this interface (%i)", target_interface );
+				#endif
 				return;
+			}
 						
 			//----Common message validation tests
 			//- The IP Hop Limit field has a value of 255, i.e., the packet could not possibly have been forwarded by a router.
 			if( message->hop_limit() != 255 )
+			{
+				packet_pool_mgr_->clean_packet( message );
+				#ifdef ND_DEBUG
+				debug().debug( "ND hop limit is not 255" );
+				#endif
 				return;
+			}
 			
 			//- ICMP Code is 0.
 			if( data[1] != 0 )
+			{
+				packet_pool_mgr_->clean_packet( message );
 				return;
+			}
 			
 			//check that this is an ND message or not
 			if( typecode == ROUTER_SOLICITATION )
@@ -767,11 +782,23 @@ namespace wiselib
 				
 				//If this is not a router, drop the message
 				if (!(act_nd_storage->is_router))
+				{
+					packet_pool_mgr_->clean_packet( message );
+					#ifdef ND_DEBUG
+					debug().debug( "ND This is not a router" );
+					#endif
 					return;
+				}
 				
 				//- ICMP length (derived from the IP length) is 8 or more octets.
 				if( message->length() < 8 )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					#ifdef ND_DEBUG
+					debug().debug( "ND incorrect length (%i)", message->length() );
+					#endif
 					return;
+				}
 				
 				//actual position in the data
 				uint16_t act_pos = 8;
@@ -780,9 +807,16 @@ namespace wiselib
 				//Process the options
 				while( message->length() - act_pos > 0 )
 				{
+				
 					//- All included options have a length that is greater than zero.
 					if( data[act_pos + 1] == 0 )
+					{
+						packet_pool_mgr_->clean_packet( message );
+						#ifdef ND_DEBUG
+						debug().debug( "ND incorrect option length (%i) (pos: %i, full len: %i)", data[act_pos + 1], act_pos, message->length() );
+						#endif
 						return;
+					}
 					
 					if( data[act_pos] == SOURCE_LL_ADDRESS )
 						ll_source = read_link_layer_option( data, act_pos );
@@ -805,21 +839,35 @@ namespace wiselib
 				//-------Validation
 				//- IP Source Address is a link-local address.
 				if( !(source.is_it_link_local() ) )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					#ifdef ND_DEBUG
+					debug().debug( "ND soure is not link-loal! " );
+					#endif
 					return;
+				}
 				
 				//- ICMP length (derived from the IP length) is 16 or more octets.
 				if( message->length() < 16 )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					#ifdef ND_DEBUG
+					debug().debug( "ND incorrect length (%i)", message->length() );
+					#endif
 					return;
+				}
 				
 				//actual position in the data
 				uint16_t act_pos = 4;
 				
 				//Cur Hop Limit
 				if( data[act_pos] != 0 )
-					act_nd_storage->adv_cur_hop_limit = data[act_pos++];
+					act_nd_storage->adv_cur_hop_limit = data[act_pos];
+				
+				act_pos++;
 				
 				//M flag
-				if( (data[act_pos++] & 0x80) > 0 )
+				if( (data[act_pos] & 0x80) > 0 )
 					act_nd_storage->adv_managed_flag = true;
 				else
 					act_nd_storage->adv_managed_flag = false;
@@ -848,7 +896,13 @@ namespace wiselib
 				{
 					//- All included options have a length that is greater than zero.
 					if( data[act_pos + 1] == 0 )
+					{
+						packet_pool_mgr_->clean_packet( message );
+						#ifdef ND_DEBUG
+						debug().debug( "ND incorrect option length (%i) type (%i) (pos: %i, full len: %i)", data[act_pos + 1], data[act_pos], act_pos, message->length() );
+						#endif
 						return;
+					}
 					
 					else if( data[act_pos] == SOURCE_LL_ADDRESS )
 						ll_source = read_link_layer_option( data, act_pos );
@@ -879,7 +933,10 @@ namespace wiselib
 				
 				//- ICMP length (derived from the IP length) is 24 or more octets.
 				if( message->length() < 24 )
+				{
+					packet_pool_mgr_->clean_packet( message );
 					return;
+				}
 				
 				//actual position in the data
 				uint16_t act_pos = 8;
@@ -889,20 +946,23 @@ namespace wiselib
 				
 				act_pos += 16;
 				
-				node_id_t link_layer_source = 0;
+				link_layer_node_id_t link_layer_source = 0;
 				//Process the options
 				while( message->length() - act_pos > 0 )
 				{
 					//- All included options have a length that is greater than zero.
 					if( data[act_pos + 1] == 0 )
+					{
+						packet_pool_mgr_->clean_packet( message );
 						return;
+					}
 					
 					else if( data[act_pos] == SOURCE_LL_ADDRESS )
 						link_layer_source = read_link_layer_option( data, act_pos );
 					
 					else if( data[act_pos] == ADDRESS_REGISTRATION )
-						process_address_registration_option( &source, target_interface, data, act_pos, true, act_nd_storage );
-					//No other option fields needed in ROUTER_ADVERTISEMENT messages
+						process_address_registration_option( &source, target_interface, data, act_pos, true, act_nd_storage, link_layer_source );
+					//No other option fields needed in NEIGHBOR_SOLICITATION messages
 					//Ignore if there is any
 					else
 						//read a lenth field from the option and skipp 8 * length octets
@@ -917,7 +977,10 @@ namespace wiselib
 				
 				//- ICMP length (derived from the IP length) is 24 or more octets.
 				if( message->length() < 24 )
+				{
+					packet_pool_mgr_->clean_packet( message );
 					return;
+				}
 				
 				//actual position in the data
 				uint16_t act_pos = 8;
@@ -927,24 +990,41 @@ namespace wiselib
 				
 				act_pos += 16;
 				
+				link_layer_node_id_t link_layer_source = 0;
+				bool processed = false;
 				//Process the options
 				while( message->length() - act_pos > 0 )
 				{
 					//- All included options have a length that is greater than zero.
 					if( data[act_pos + 1] == 0 )
+					{
+						packet_pool_mgr_->clean_packet( message );
 						return;
+					}
 					
 					else if( data[act_pos] == SOURCE_LL_ADDRESS )
-						read_link_layer_option( data, act_pos );
+						link_layer_source = read_link_layer_option( data, act_pos );
 					
 					else if( data[act_pos] == ADDRESS_REGISTRATION )
-						process_address_registration_option( &source, target_interface, data, act_pos, false, act_nd_storage );
-					//No other option fields needed in ROUTER_ADVERTISEMENT messages
+					{
+						//The link_layer_source is needed for the registration
+						//if( link_layer_source != 0 )
+						//{
+							process_address_registration_option( &source, target_interface, data, act_pos, false, act_nd_storage, link_layer_source );
+							processed = true;
+						//}
+					}
+					//No other option fields needed in NEIGHBOR_ADVERTISEMENT messages
 					//Ignore if there is any
 					else
 						//read a lenth field from the option and skipp 8 * length octets
 						act_pos += data[act_pos + 1] * 8;
+					
+					//Process again
+					//if( message->length() - act_pos == 0 && !processed )
+						//act_pos = 24;
 				}
+				
 			}
 	//----------------  ND messages processing part END -----------------
 	//----------------  Typecode error part -----------------------------
@@ -953,8 +1033,10 @@ namespace wiselib
 				#ifdef ICMPv6_LAYER_DEBUG
 				debug().debug( "ICMPv6 layer: error, received message with incorrect type code: %i ", *data );
 				#endif
-				packet_pool_mgr_->clean_packet( message );
+				
 			}
+			
+			packet_pool_mgr_->clean_packet( message );
 		}
 	}
 	
@@ -995,15 +1077,21 @@ namespace wiselib
 		act_nd_storage = radio_ip_->interface_manager_->get_nd_storage( target_interface );
 		if( act_nd_storage == NULL )
 			return;
-		
+
 		//If the list of the default routers is empty send a ROUTER_SOLICITATION
 		if( act_nd_storage->neighbor_cache.is_default_routers_list_empty() )
 		{
 			node_id_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
 			send_nd_message( ROUTER_SOLICITATION, &ip_all_routers, target_interface );
 		}
-		
+
 		//TODO --> make the timing values older, change states, delete outdated values, send ND messages when timer will expire soon
+		
+		#ifdef ND_DEBUG
+		act_nd_storage->set_debug( *debug_ );
+		act_nd_storage->print_storage();
+		#endif
+		
 		
 		timer().template set_timer<self_type, &self_type::ND_timeout_manager_function>( 10000, this, NULL );
 	}
@@ -1090,7 +1178,7 @@ namespace wiselib
 			length = 16;
 			
 			//Set the Cur Hop Limit
-			message->set_payload( &(act_nd_storage->adv_cur_hop_limit), 4, 1 );
+			message->set_payload( &(act_nd_storage->adv_cur_hop_limit), 1, 4 );
 			
 			//Set the M and O flags
 			uint8_t setter_byte = 0;
@@ -1098,7 +1186,7 @@ namespace wiselib
 				setter_byte |= 0x80;
 			if( act_nd_storage->adv_other_config_flag )
 				setter_byte |= 0x40;
-			message->set_payload( &(setter_byte), 5, 1 );
+			message->set_payload( &(setter_byte), 1, 5 );
 			
 			//Set the Router Lifetime
 			message->set_payload( &(act_nd_storage->adv_default_lifetime), 6 );
@@ -1140,8 +1228,8 @@ namespace wiselib
 		}
 		else if( typecode == NEIGHBOR_SOLICITATION )
 		{
-			//Set the source address, must be the link-layer one
-			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][0].ip_address);
+
+			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][1].ip_address);
 			
 			//Original size of the NEIGHBOR_SOLICITATION
 			length = 24;
@@ -1173,8 +1261,8 @@ namespace wiselib
 		}
 		else if( typecode == NEIGHBOR_ADVERTISEMENT )
 		{
-			//Set the source address, must be the link-layer one
-			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][0].ip_address);
+
+			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][1].ip_address);
 			
 			//Original size of the NEIGHBOR_ADVERTISEMENT
 			length = 24;
@@ -1191,6 +1279,13 @@ namespace wiselib
 			
 			//----------------------------------
 			//Call Options here
+			link_layer_node_id_t ll_source;
+			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
+				ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
+			
+			//Insert the SLLAO
+			insert_link_layer_option( message, length, ll_source, false );
+			
 			//Insert ARO --> response
 			insert_address_registration_option( message, length, status_for_NA, lifetime_for_NA, (uint64_t)ll_destination );
 			
@@ -1225,7 +1320,13 @@ namespace wiselib
 		
 		message->target_interface = target_interface;
 		
-		return radio_ip().send( *(dest_addr), packet_number, NULL );
+		#ifdef ND_DEBUG
+		debug().debug(" ND send length: %i ", message->length() );
+		#endif
+		
+		int result = radio_ip().send( *(dest_addr), packet_number, NULL );
+		packet_pool_mgr_->clean_packet( message );
+		return result;
 	}
 	
 // -----------------------------------------------------------------------
@@ -1254,9 +1355,12 @@ namespace wiselib
 		
 		message->set_payload( &(setter_byte), 1, length++ );
 		
+		//Set the link layer address with function overload
+		message->set_payload( &link_layer_address, length + 1 );
+		
 		//set the length
 		
-		if( sizeof( node_id_t ) + 2 < 8 )
+		if( sizeof( link_layer_node_id_t ) + 2 < 8 )
 		{
 			setter_byte = 1;
 			message->set_payload( &(setter_byte), 1, length++ );
@@ -1270,9 +1374,6 @@ namespace wiselib
 			//full size of this option 2*8 bytes
 			length += 14;
 		}
-		
-		//Set the link layer address with function overload
-		message->set_payload( &link_layer_address, 2 );
 	}
 	
 	
@@ -1287,14 +1388,21 @@ namespace wiselib
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
 	read_link_layer_option( uint8_t* payload, uint16_t& act_pos )
 	{
+		#ifdef ND_DEBUG
+		debug().debug( "ND LL option processing (pos: %i)", act_pos );
+		#endif
 		link_layer_node_id_t res = 0;
-		uint16_t end_pos = ( payload[act_pos] * 8 ) + act_pos - 2;
+		uint16_t end_pos = ( payload[act_pos + 1] * 8 ) + act_pos;
 		
 		act_pos += 2;
-		for( unsigned int i = 0; i < sizeof( node_id_t ); i++ )
+		for( unsigned int i = 0; i < sizeof( link_layer_node_id_t ); i++ )
 			res = (res << 8) | payload[act_pos + i];
 		
 		act_pos = end_pos;
+		
+		#ifdef ND_DEBUG
+		debug().debug( "ND LL option processing (end pos: %i, ll address: %x)", act_pos, res );
+		#endif
 		
 		return res;
 	}
@@ -1318,6 +1426,10 @@ namespace wiselib
 		//set the type
 		uint8_t setter_byte = PREFIX_INFORMATION;
 		message->set_payload( &(setter_byte), 1, length++ );
+		
+		#ifdef ND_DEBUG
+		debug().debug( "ND insert prefix option (num: %i)", prefix_number );
+		#endif
 		
 		//Set the size
 		setter_byte = 4;
@@ -1359,6 +1471,10 @@ namespace wiselib
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
 	process_prefix_information( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface )
 	{
+		#ifdef ND_DEBUG
+		debug().debug( "ND prefix option processing (pos: %i)", act_pos );
+		#endif
+		
 		act_pos += 2;
 		
 		//
@@ -1380,18 +1496,20 @@ namespace wiselib
 		
 		//
 		uint32_t valid_lifetime = ( payload[act_pos] << 24 ) | ( payload[act_pos + 1] << 16 ) | ( payload[act_pos + 2] << 8 ) | payload[act_pos + 3];
+		act_pos += 4;
 		
 		//
 		uint32_t prefered_lifetime = ( payload[act_pos] << 24 ) | ( payload[act_pos + 1] << 16 ) | ( payload[act_pos + 2] << 8 ) | payload[act_pos + 3];
+		//act_pos += 4;
 		
-		//Skip the reserved 4 bytes
-		act_pos += 4;
+		//Skip the reserved 4 bytes + 4 bytes lifetime
+		act_pos += 8;
 		
 		int result = radio_ip_->interface_manager_->set_prefix_for_interface( payload + act_pos, selected_interface, prefix_len, valid_lifetime, onlink_flag, prefered_lifetime, antonomous_flag );
 		
 		//Add the address' bytes
 		act_pos += 16;
-		
+		debug().debug( "ND prefix option processing END (pos: %i)", act_pos );
 		return result;
 	}
 	
@@ -1442,7 +1560,7 @@ namespace wiselib
 		typename Timer_P>
 	void
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
-	process_address_registration_option( node_id_t* source, uint8_t target_interface, uint8_t* payload, uint16_t act_pos, bool from_NS, NDStorage_t* act_nd_storage  )
+	process_address_registration_option( node_id_t* source, uint8_t target_interface, uint8_t* payload, uint16_t& act_pos, bool from_NS, NDStorage_t* act_nd_storage, link_layer_node_id_t link_layer_source  )
 	{
 		//Shift to the lifetime
 		act_pos += 6;
@@ -1457,10 +1575,16 @@ namespace wiselib
 		
 		
 		uint8_t number_of_neighbor = 0;
-		uint8_t status = act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, source, ll_address, lifetime, false );
+		uint8_t status;
+		//For NS processing
+		if( from_NS )
+			status = act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, source, ll_address, lifetime, false );
+		//For NA processing
+		else
+			status = act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, source, link_layer_source, lifetime, false );
 		
 		#ifdef ND_DEBUG
-		debug().debug(" ND processed address registration (status:  %i ) for: ", status);
+		debug().debug(" ND processed address registration (status:  %i ) (act_pos: %i) for: ", status, act_pos);
 		source->set_debug( *debug_ );
 		source->print_address();
 		#endif
