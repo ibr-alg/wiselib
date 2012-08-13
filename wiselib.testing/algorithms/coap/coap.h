@@ -28,13 +28,13 @@
 #define WISELIB_MID_COAP                    51
 // end of wiselib defines
 // CONFIGURATION
-#define CONF_MAX_RESOURCES                  20
+#define CONF_MAX_RESOURCES                  1 // 20
 #define CONF_MAX_RESOURCE_QUERIES           5
 #define CONF_MAX_OBSERVERS                  5
-#define CONF_MAX_MSG_LEN                    1024
-#define CONF_MAX_PAYLOAD_LEN                1000
+#define CONF_MAX_MSG_LEN                    128 // 1024
+#define CONF_MAX_PAYLOAD_LEN                128 // 1000
 #define CONF_PIGGY_BACKED                   1
-#define CONF_MAX_RETRANSMIT_SLOTS           10
+#define CONF_MAX_RETRANSMIT_SLOTS           5 // 10
 
 #define CONF_COAP_RESPONSE_TIMEOUT          2
 #define CONF_COAP_RESPONSE_RANDOM_FACTOR    1.5
