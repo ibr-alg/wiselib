@@ -41,7 +41,7 @@ template<> struct SmallUint<0x100000001LL> { typedef ::uint64_t t; };
 /**
  * Find the unisigned integer type that has exactly N bytes (if exists).
  */
-template<int N> struct Uint { };
+template<int N_> struct Uint { };
 template<> struct Uint<1> { typedef ::uint8_t t; };
 template<> struct Uint<2> { typedef ::uint16_t t; };
 template<> struct Uint<4> { typedef ::uint32_t t; };
@@ -57,9 +57,9 @@ template<typename T>
 	typename Uint<sizeof(T)>::t as_uint(T& src) { return *reinterpret_cast<typename Uint<sizeof(T)>::t*>(&src); }
 //};
 
-template<int N>
+template<int N_ >
 struct UintWithAtLeastBits {
-   typedef typename Uint< (N + 7) / 8 >::t t;
+   typedef typename Uint< (N_ + 7) / 8 >::t t;
 };
    
    
