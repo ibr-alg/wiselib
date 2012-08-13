@@ -80,12 +80,14 @@ namespace wiselib
 //-----------------------------------------------------------------------------
 	
 	template<typename LinkLayerAddress_P,
-		typename IPv6Addr_P>
+		typename IPv6Addr_P,
+		typename Debug_P>
 	class NeighborCache_DefaultRouters
 	{
 		public:
 			typedef LinkLayerAddress_P node_id_t;
 			typedef IPv6Addr_P IPv6Addr_t;
+			typedef Debug_P Debug;
 			
 			typedef NeighborCacheEntryType<LinkLayerAddress_P, IPv6Addr_P> NeighborCacheEntryType_t;
 			typedef DefaultRouterEntryType<NeighborCacheEntryType_t> DefaultRouterEntryType_t;
@@ -119,11 +121,17 @@ namespace wiselib
 				uint8_t selected_place = LOWPAN_MAX_OF_NEIGHBORS;
 				number_of_neighbor = LOWPAN_MAX_OF_NEIGHBORS;
 				
+				IPv6Addr_t link_local_ip = *(ip_address);
+				link_local_ip.make_it_link_local();
+				
+				ip_address->set_debug( *debug_ );
+				ip_address->print_address();
+				
 				//Search for the IP address in the list
 				for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
 				{
 					//If there is an entry with this IP
-					if( neighbors_[i].ip_address == *(ip_address) )
+					if( neighbors_[i].ip_address == *(ip_address) || (neighbors_[i].ip_address == link_local_ip))
 					{
 						//If this is for the same node, update the entry
 						if( neighbors_[i].link_layer_address == (uint64_t)ll_address )
@@ -140,16 +148,21 @@ namespace wiselib
 							else
 							{
 								//Update an existing entry
+								if( neighbors_[i].status == TENTATIVE )
+									neighbors_[i].ip_address = *(ip_address);
+								
 								neighbors_[i].status = REGISTERED;
 								neighbors_[i].lifetime = lifetime;
 								number_of_neighbor = i;
 							}
+							
 							return SUCCESS;
 						}
 						else
 						{
 							return DUPLICATE_ADDRESS;
 						}
+						
 					}
 					if( selected_place == LOWPAN_MAX_OF_NEIGHBORS &&
 						neighbors_[i].status == GARBAGECOLLECTIBLE )
@@ -198,6 +211,11 @@ namespace wiselib
 				return NULL;
 			}
 			
+			NeighborCacheEntryType_t* get_neighbor( uint8_t index )
+			{
+				return &(neighbors_[index]);
+			}
+			
 			/**
 			* Updates a router entry in the default router list or creates a new one.
 			*
@@ -215,7 +233,7 @@ namespace wiselib
 				//Call the update_neighbor function, it inserts or updates the router to the cache
 				//If there was an error, the function returns
 				uint8_t neighbor_number = LOWPAN_MAX_OF_NEIGHBORS;
-				int result = update_neighbor( selected_place, ip_address, *ll_address, 0, true );
+				int result = update_neighbor( neighbor_number, ip_address, *ll_address, 0, true );
 				if( (result == NEIGHBOR_CACHE_FULL) ||
 					(result == DUPLICATE_ADDRESS) ||
 					(own_lifetime == 0) )
@@ -241,8 +259,13 @@ namespace wiselib
 				//The entry in the neighbor cache is from the update_neighbor function call
 				else
 				{
+					
 					routers_[selected_place].neighbor_pointer = &(neighbors_[neighbor_number]);
 					routers_[selected_place].own_registration_lifetime = own_lifetime;
+					neighbors_[neighbor_number].is_router = true;
+					#ifdef ND_DEBUG
+					debug_->debug("Adding new router' %i mem %x:",selected_place, routers_[selected_place].neighbor_pointer);
+					#endif
 					return SUCCESS;
 				}
 			}
@@ -277,14 +300,23 @@ namespace wiselib
 			bool is_default_routers_list_empty()
 			{
 				for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
-					if( routers_[i].neighbor_pointer->status == REGISTERED )
-						return false;
+					if( routers_[i].neighbor_pointer != NULL )
+						if( routers_[i].neighbor_pointer->status == REGISTERED )
+							return false;
+				
 				return true;
+			}
+			
+			void set_debug( Debug& debug )
+			{
+				debug_ = &debug;
 			}
 			
 		private:
 			NeighborCacheEntryType_t neighbors_[LOWPAN_MAX_OF_NEIGHBORS];
 			DefaultRouterEntryType_t routers_[LOWPAN_MAX_OF_ROUTERS];
+			
+			typename Debug::self_pointer_t debug_;
 			
 	};
 
@@ -303,7 +335,12 @@ namespace wiselib
 		typedef typename Radio::node_id_t node_id_t;
 		typedef IPv6Address<Radio, Debug> IPv6Addr_t;
 		
-		typedef NeighborCache_DefaultRouters<node_id_t, IPv6Addr_t> NeighborCache_DefaultRouters_t;
+		typedef NeighborCache_DefaultRouters<node_id_t, IPv6Addr_t, Debug> NeighborCache_DefaultRouters_t;
+		
+		#ifdef ND_DEBUG
+		typedef NeighborCacheEntryType<node_id_t, IPv6Addr_t> NeighborCacheEntryType_t;
+		typedef DefaultRouterEntryType<NeighborCacheEntryType_t> DefaultRouterEntryType_t;
+		#endif
 
 		// -----------------------------------------------------------------
 		NDStorage( )
@@ -409,6 +446,30 @@ namespace wiselib
 		* Instance of the NeighborCache_DefaultRouters
 		*/
 		NeighborCache_DefaultRouters_t neighbor_cache;
+		
+		
+		
+		void set_debug( Debug& debug )
+		{
+			debug_ = &debug;
+			neighbor_cache.set_debug( *debug_ );
+		}
+		
+		#ifdef ND_DEBUG
+		void print_storage()
+		{
+			
+			debug_->debug(" ND storage contents: is_router: %i,adv_retrans_timer: %i, adv_cur_hop_limit: %i, adv_default_lifetime: %i", is_router, adv_retrans_timer, adv_cur_hop_limit, adv_default_lifetime );
+			for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
+			{
+				NeighborCacheEntryType_t* tmp = neighbor_cache.get_neighbor( i );
+				debug_->debug("   ND N.Cache(%i): status: %i, is_router: %i, lifetime: %i, IP-first last %x %x, ll address %x ", i, tmp->status, tmp->is_router, tmp->lifetime, tmp->ip_address.addr[0], tmp->ip_address.addr[15], (uint16_t)(tmp->link_layer_address) );
+			}
+		}
+		#endif
+		
+	private:
+		typename Debug::self_pointer_t debug_;	
 	};
 	
 	

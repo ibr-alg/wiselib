@@ -171,6 +171,8 @@ namespace wiselib
 		link_local_prefix[1]=0x80;
 		memset(&(link_local_prefix[2]),0, 6);
 		set_prefix(link_local_prefix);
+		//delete global bit
+		addr[8] &= 0xFD;
 		prefix_length = 64;
 	}
 	

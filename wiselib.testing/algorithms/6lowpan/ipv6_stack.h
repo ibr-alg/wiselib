@@ -113,8 +113,16 @@ namespace wiselib
 		if( SUCCESS != icmpv6.enable_radio() )
 			debug_->debug( "Fatal error: ICMPv6 layer enabling failed! \n" );
 		
-		//Start ND
-		icmpv6.ND_timeout_manager_function( NULL );
+		lowpan.nd_storage_.set_debug( *debug_ );
+		
+		if( radio_->id() == 0x2140 )
+			//Start ND
+			icmpv6.ND_timeout_manager_function( NULL );
+		
+		if( radio_->id() == 0x2144 )
+			lowpan.nd_storage_.is_router = true;
+		
+		
 		
 	}
 	
