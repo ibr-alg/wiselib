@@ -34,6 +34,7 @@ namespace wiselib
 	IPv6Address()
 	{
 		memset(addr,0, 16);
+		prefix_length = 0;
 	}
 	
 	//----------------------------------------------------------------------------

@@ -139,8 +139,14 @@ namespace wiselib
 							if( lifetime == 0 )
 							{
 								if( !is_tentative )
+								{
 									//This is a message to delete this entry
 									neighbors_[i].status = GARBAGECOLLECTIBLE;
+									neighbors_[i].link_layer_address = 0;
+									neighbors_[i].ip_address = IPv6Addr_t();
+									neighbors_[i].is_router = false;
+									neighbors_[i].lifetime = 0;
+								}
 								else
 									//We are waiting for a NS
 									neighbors_[i].status = TENTATIVE;
@@ -243,7 +249,7 @@ namespace wiselib
 				//and discover a free space if it will be a  new one
 				for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
 				{
-					if( routers_[i].neighbor_pointer == NULL )
+					if( routers_[i].neighbor_pointer == NULL && selected_place == LOWPAN_MAX_OF_ROUTERS )
 						selected_place = i;
 					else if( routers_[i].neighbor_pointer->ip_address == *(ip_address) )
 					{
@@ -300,9 +306,8 @@ namespace wiselib
 			bool is_default_routers_list_empty()
 			{
 				for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
-					if( routers_[i].neighbor_pointer != NULL )
-						if( routers_[i].neighbor_pointer->status == REGISTERED )
-							return false;
+					if( routers_[i].own_registration_lifetime != 0 )
+						return false;
 				
 				return true;
 			}
@@ -465,6 +470,15 @@ namespace wiselib
 				NeighborCacheEntryType_t* tmp = neighbor_cache.get_neighbor( i );
 				debug_->debug("   ND N.Cache(%i): status: %i, is_router: %i, lifetime: %i, IP-first last %x %x, ll address %x ", i, tmp->status, tmp->is_router, tmp->lifetime, tmp->ip_address.addr[0], tmp->ip_address.addr[15], (uint16_t)(tmp->link_layer_address) );
 			}
+			
+			for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
+			{
+				DefaultRouterEntryType_t* tmp = neighbor_cache.get_router( i );
+				if( tmp->own_registration_lifetime > 0 )
+					debug_->debug("   ND Def.Router(%i): ll address of the N.Cache pair: %x, lifetime: %i ", i, (uint16_t)tmp->neighbor_pointer->link_layer_address, tmp->own_registration_lifetime );
+				else
+					debug_->debug("   ND Def.Router(%i): ll address of the N.Cache pair: -, lifetime: %i ", i, tmp->own_registration_lifetime );
+			}
 		}
 		#endif
 		
@@ -607,29 +621,6 @@ namespace wiselib
 			
 			// -----------------------------------------------------------------
 			
-			/**
-			* Set a context
-			* It will be placed at the place with the lowest lifetime
-			* \return number of the new context
-			*/
-			uint8_t set_context( node_id_t context )
-			{
-				uint16_t lowest_life = 0xFFFF;
-				uint8_t selected = 0;
-				//Search for a context with the lowest life time
-				for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
-				{
-					if( contexts[i].valid_lifetime < lowest_life )
-					{
-						lowest_life = contexts[i].valid_lifetime;
-						selected = i;
-					}
-				}
-				contexts[selected].valid_lifetime = 0xFFFF;
-				contexts[selected].prefix = context;
-				
-				return selected;
-			}
 			
 			
 			
