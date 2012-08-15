@@ -35,9 +35,9 @@ namespace wiselib
 		typedef PrefixType<IPv6Addr_t> PrefixType_t;
 		
 		PrefixType():
-			adv_valid_lifetime( 2592000 ),
+			adv_valid_lifetime( 0 ),
 			adv_onlink_flag( true ),
-			adv_prefered_lifetime( 604800 ),
+			adv_prefered_lifetime( 0 ),
 			adv_antonomous_flag( true )
 			{}
 		/**

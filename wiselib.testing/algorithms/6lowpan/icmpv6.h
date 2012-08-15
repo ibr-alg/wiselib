@@ -545,9 +545,8 @@ namespace wiselib
 	enable_radio( void )
 	{
 		#ifdef ICMPv6_LAYER_DEBUG
-		debug().debug( "ICMPv6 layer: initialization at ");
-		radio_ip().id().print_address();
-		debug().debug( "\n");
+		char str[43];
+		debug().debug( "ICMPv6 layer: initialization at %s", radio_ip().id().get_address(str));
 		#endif
 		
 		callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::receive>( this );
@@ -590,10 +589,8 @@ namespace wiselib
 		[3-]: options
 		*/
 		#ifdef ICMPv6_LAYER_DEBUG
-		debug().debug( "ICMPv6 layer: Send (%i) to ", *data );
-		destination.set_debug( *debug_ );
-		destination.print_address();
-		debug().debug( "\n");
+		char str[43];
+		debug().debug( "ICMPv6 layer: Send (%i) to %s", *data, destination.get_address(str) );
 		#endif
 		
 		
@@ -709,10 +706,8 @@ namespace wiselib
 		if( typecode == ECHO_REQUEST )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
-			debug().debug( "ICMPv6 layer: Echo request received from: ");
-			from.set_debug( *debug_ );
-			from.print_address();
-			debug().debug( ", sending echo reply.\n");
+			char str[43];
+			debug().debug( "ICMPv6 layer: Echo request received from: %s sending echo reply.", from.get_address(str));
 			#endif
 			//Send an ECHO_REPLY
 			uint8_t reply_data[3];
@@ -732,10 +727,8 @@ namespace wiselib
 			if( (id[0] == data[4]) && (id[1] == data[5]) )
 			{
 				#ifdef ICMPv6_LAYER_DEBUG
-				debug().debug( "ICMPv6 layer: Echo reply received from: ");
-				from.set_debug( *debug_ );
-				from.print_address();
-				debug().debug( "\n");
+				char str[43];
+				debug().debug( "ICMPv6 layer: Echo reply received from: %s", from.get_address(str));
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				uint8_t typecode_short = (uint8_t)typecode;
@@ -744,10 +737,8 @@ namespace wiselib
 			else
 			{
 				#ifdef ICMPv6_LAYER_DEBUG
-				debug().debug( "ICMPv6 layer: Unexpected (wrong identifier) echo reply received from: ");
-				from.set_debug( *debug_ );
-				from.print_address();
-				debug().debug( "\n");
+				char str[43];
+				debug().debug( "ICMPv6 layer: Unexpected (wrong identifier) echo reply received from: %s", from.get_address(str));
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 			}
@@ -861,7 +852,7 @@ namespace wiselib
 				{
 					packet_pool_mgr_->clean_packet( message );
 					#ifdef ND_DEBUG
-					debug().debug( "ND soure is not link-loal! " );
+					debug().debug( "ND soure is not link-local! " );
 					#endif
 					return;
 				}
@@ -1309,8 +1300,9 @@ namespace wiselib
 			act_nd_storage->set_debug( *debug_ );
 			act_nd_storage->print_storage();
 			
+			char str[43];
 			for( int i = 0; i < LOWPAN_MAX_PREFIXES; i++ )
-				debug_->debug(" ND (if: %i) prefix(%i) valid: %i, addr: %x %x ...", target_interface, i, radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime, radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.addr[0], radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.addr[1] );
+				debug_->debug(" ND (if: %i) prefix(%i) valid: %i, addr: %s", target_interface, i, radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime, radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.get_address(str) );
 			
 			
 			#endif
@@ -1392,9 +1384,8 @@ namespace wiselib
 			insert_link_layer_option( message, length, ll_source, false );
 			
 			#ifdef ND_DEBUG
-			debug().debug(" ND send ROUTER_SOLICITATION to: " );
-			dest_addr->set_debug( *debug_ );
-			dest_addr->print_address();
+			char str[43];
+			debug().debug(" ND send ROUTER_SOLICITATION to: %s", dest_addr->get_address(str) );
 			#endif
 		}
 		else if( typecode == ROUTER_ADVERTISEMENT )
@@ -1449,9 +1440,8 @@ namespace wiselib
 					
 					
 			#ifdef ND_DEBUG
-			debug().debug(" ND send ROUTER_ADVERTISEMENT to: " );
-			dest_addr->set_debug( *debug_ );
-			dest_addr->print_address();
+			char str[43];
+			debug().debug(" ND send ROUTER_ADVERTISEMENT to: %s", dest_addr->get_address(str) );
 			#endif
 		}
 		else if( typecode == NEIGHBOR_SOLICITATION )
@@ -1482,9 +1472,8 @@ namespace wiselib
 			insert_address_registration_option( message, length, AR_SUCCESS, 1500, (uint64_t)ll_source );
 			
 			#ifdef ND_DEBUG
-			debug().debug(" ND send NEIGHBOR_SOLICITATION to: " );
-			dest_addr->set_debug( *debug_ );
-			dest_addr->print_address();
+			char str[43];
+			debug().debug(" ND send NEIGHBOR_SOLICITATION to: %s", dest_addr->get_address(str) );
 			#endif
 		}
 		else if( typecode == NEIGHBOR_ADVERTISEMENT )
@@ -1518,9 +1507,8 @@ namespace wiselib
 			insert_address_registration_option( message, length, status_for_NA, lifetime_for_NA, (uint64_t)ll_destination );
 			
 			#ifdef ND_DEBUG
-			debug().debug(" ND send NEIGHBOR_ADVERTISEMENT to: " );
-			dest_addr->set_debug( *debug_ );
-			dest_addr->print_address();
+			char str[43];
+			debug().debug(" ND send NEIGHBOR_ADVERTISEMENT to: %s", dest_addr->get_address(str) );
 			#endif
 		}
 		
@@ -1548,9 +1536,9 @@ namespace wiselib
 		
 		message->target_interface = target_interface;
 		
-		#ifdef ND_DEBUG
-		debug().debug(" ND send length: %i ", message->length() );
-		#endif
+// 		#ifdef ND_DEBUG
+// 		debug().debug(" ND send length: %i ", message->length() );
+// 		#endif
 		
 		int result = radio_ip().send( *(dest_addr), packet_number, NULL );
 		packet_pool_mgr_->clean_packet( message );
@@ -1616,9 +1604,9 @@ namespace wiselib
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
 	read_link_layer_option( uint8_t* payload, uint16_t& act_pos )
 	{
-		#ifdef ND_DEBUG
-		debug().debug( "ND LL option processing (pos: %i)", act_pos );
-		#endif
+// 		#ifdef ND_DEBUG
+// 		debug().debug( "ND LL option processing (pos: %i)", act_pos );
+// 		#endif
 		link_layer_node_id_t res = 0;
 		uint16_t end_pos = ( payload[act_pos + 1] * 8 ) + act_pos;
 		
@@ -1628,9 +1616,9 @@ namespace wiselib
 		
 		act_pos = end_pos;
 		
-		#ifdef ND_DEBUG
-		debug().debug( "ND LL option processing (end pos: %i, ll address: %x)", act_pos, res );
-		#endif
+// 		#ifdef ND_DEBUG
+// 		debug().debug( "ND LL option processing (end pos: %i, ll address: %x)", act_pos, res );
+// 		#endif
 		
 		return res;
 	}
@@ -1655,9 +1643,9 @@ namespace wiselib
 		uint8_t setter_byte = PREFIX_INFORMATION;
 		message->set_payload( &(setter_byte), 1, length++ );
 		
-		#ifdef ND_DEBUG
-		debug().debug( "ND insert prefix option (num: %i)", prefix_number );
-		#endif
+// 		#ifdef ND_DEBUG
+// 		debug().debug( "ND insert prefix option (num: %i)", prefix_number );
+// 		#endif
 		
 		//Set the size
 		setter_byte = 4;
@@ -1699,9 +1687,9 @@ namespace wiselib
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
 	process_prefix_information( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface )
 	{
-		#ifdef ND_DEBUG
-		debug().debug( "ND prefix option processing (pos: %i)", act_pos );
-		#endif
+// 		#ifdef ND_DEBUG
+// 		debug().debug( "ND prefix option processing (pos: %i)", act_pos );
+// 		#endif
 		
 		act_pos += 2;
 		
@@ -1737,7 +1725,7 @@ namespace wiselib
 		
 		//Add the address' bytes
 		act_pos += 16;
-		debug().debug( "ND prefix option processing END (pos: %i)", act_pos );
+// 		debug().debug( "ND prefix option processing END (pos: %i)", act_pos );
 		return result;
 	}
 	
@@ -1812,9 +1800,8 @@ namespace wiselib
 			status = act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, source, link_layer_source, lifetime, false );
 		
 		#ifdef ND_DEBUG
-		debug().debug(" ND processed address registration (status:  %i ) (act_pos: %i) for: ", status, act_pos);
-		source->set_debug( *debug_ );
-		source->print_address();
+		char str[43];
+		debug().debug(" ND processed address registration (status:  %i ) (act_pos: %i) for: %s", status, act_pos, source->get_address(str));
 		#endif
 		
 		if( from_NS )

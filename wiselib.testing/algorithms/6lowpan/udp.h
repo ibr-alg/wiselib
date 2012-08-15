@@ -285,9 +285,8 @@ namespace wiselib
 	{
 		
 		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: initialization at ");
-		radio_ip().id().print_address();
-		//debug().debug( "\n");
+		char str[43];
+		debug().debug( "UDP layer: initialization at %s", radio_ip().id().get_address(str));
 		#endif
 		
 		callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::receive>( this );
@@ -325,10 +324,8 @@ namespace wiselib
 			return ERR_NOTIMPL;
 	
 		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: Send to (Local Port: %i, Remote Port: %i) ", sockets_[socket_number].local_port,  sockets_[socket_number].remote_port );
-		sockets_[socket_number].remote_host.set_debug( *debug_ );
-		sockets_[socket_number].remote_host.print_address();
-		debug().debug( "\n");
+		char str[43];
+		debug().debug( "UDP layer: Send to (Local Port: %i, Remote Port: %i) ", sockets_[socket_number].local_port,  sockets_[socket_number].remote_port, sockets_[socket_number].remote_host.get_address() );
 		#endif
 		
 		
@@ -453,10 +450,8 @@ namespace wiselib
 			( sockets_[i].remote_host == from )*/ )
 			{
 				#ifdef UDP_LAYER_DEBUG
-				debug().debug( "UDP layer: Received packet (Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port);
-				from.set_debug( *debug_ );
-				from.print_address();
-				debug().debug( "\n");
+				char str[43];
+				debug().debug( "UDP layer: Received packet (Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port, from.get_address(str));
 				#endif
 				
 				//TODO notify just the subscribed application for the socket
@@ -475,10 +470,8 @@ namespace wiselib
 		}
 		
 		#ifdef UDP_LAYER_DEBUG
-		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port);
-		from.set_debug( *debug_ );
-		from.print_address();
-		debug().debug( "\n");
+		char str[43];
+		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port, from.get_address(str));
 		#endif
 		packet_pool_mgr_->clean_packet( message );
 	}
@@ -494,13 +487,9 @@ namespace wiselib
 	{
 		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: sockets: \n");
+		char str[43];
 		for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
-		{
-			debug().debug( "	#%i Local port: %i, Remote port: %i, Callback_id: %i, Remote host: ", i, sockets_[i].local_port, sockets_[i].remote_port, sockets_[i].callback_id);
-			sockets_[i].remote_host.set_debug( *debug_ );
-			sockets_[i].remote_host.print_address();
-			debug().debug( "\n");
-		}
+			debug().debug( "	#%i Local port: %i, Remote port: %i, Callback_id: %i, Remote host: ", i, sockets_[i].local_port, sockets_[i].remote_port, sockets_[i].callback_id, sockets_[i].remote_host.get_address(str));
 		#endif
 	}
 }

@@ -75,7 +75,7 @@ namespace wiselib
 		timer_ = &timer;
 		uart_ = &uart;
 		
-		debug_->debug( "IPv6 stack init: %x\n", radio_->id());
+		debug_->debug( "IPv6 stack init: %x", radio_->id());
 		
 		packet_pool_mgr.init( *debug_ );
 		
@@ -84,9 +84,9 @@ namespace wiselib
 		lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
 
 		if( radio_->set_channel( 18 ) == 18 )
-			debug_->debug( "Radio channel is set to: 18! \n" );
+			debug_->debug( "Radio channel is set to: 18! " );
 		else
-			debug_->debug( "Fatal error: Radio channel can't be configured! \n" );
+			debug_->debug( "Fatal error: Radio channel can't be configured! " );
 		
 		
 		//Init Uart Radio
@@ -98,20 +98,20 @@ namespace wiselib
 		ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 		//IPv6 will enable lower level radios
 		if( SUCCESS != ipv6.enable_radio() )
-			debug_->debug( "Fatal error: IP/Radio/Uart layer enabling failed! \n" );
+			debug_->debug( "Fatal error: IP/Radio/Uart layer enabling failed! " );
 		
 		
 		//Init UDP
 		udp.init( ipv6, *debug_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
 		if( SUCCESS != udp.enable_radio() )
-			debug_->debug( "Fatal error: UDP layer enabling failed! \n" );
+			debug_->debug( "Fatal error: UDP layer enabling failed! " );
 		
 		//Init ICMPv6
 		icmpv6.init( ipv6, *debug_, *timer_, &packet_pool_mgr);
 		//Just register callback, not enable IP radio
 		if( SUCCESS != icmpv6.enable_radio() )
-			debug_->debug( "Fatal error: ICMPv6 layer enabling failed! \n" );
+			debug_->debug( "Fatal error: ICMPv6 layer enabling failed! " );
 		
 		lowpan.nd_storage_.set_debug( *debug_ );
 		

@@ -154,7 +154,7 @@ namespace wiselib
 		int send_to_interface( IPv6Address_t receiver, typename Radio_LoWPAN::size_t packet_number, typename Radio_LoWPAN::block_data_t *data, uint8_t selected_interface )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug_->debug(" Sending to INTERFACE: %i\n", selected_interface );
+			debug_->debug(" Sending to INTERFACE: %i", selected_interface );
 			#endif
 			if( selected_interface == INTERFACE_RADIO )
 				return radio_lowpan().send( receiver, packet_number, data );
@@ -267,10 +267,8 @@ namespace wiselib
 			prefix_list[selected_interface][selected_number].ip_address = tmp;
 			
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "Interface manager: Global address defined (for interface %i): ", selected_interface);
-			prefix_list[selected_interface][selected_number].ip_address.set_debug( *debug_ );
-			prefix_list[selected_interface][selected_number].ip_address.print_address();
-			debug().debug( "\n");
+			char str[43];
+			debug().debug( "Interface manager: Global address defined (for interface %i): %s", selected_interface, prefix_list[selected_interface][selected_number].ip_address.get_address(str));
 			#endif
 			
 			return SUCCESS;

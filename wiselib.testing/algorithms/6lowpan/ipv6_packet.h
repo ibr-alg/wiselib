@@ -232,14 +232,13 @@ namespace wiselib
 		debug().debug( "Next Header: %d \n", next_header());
 		debug().debug( "Hop Limit: %d \n", hop_limit());
 		
+		char str[43];
 		node_id_t addr;
 		source_address( addr );
-		debug().debug( "Source Address: ");
-		addr.print_address();
+		debug().debug( "Source Address: %s", addr.get_address(str));
 		
 		destination_address( addr );
-		debug().debug( "Destination Address: ");
-		addr.print_address();
+		debug().debug( "Destination Address: %s", addr.get_address(str));
 		#endif
 	}
 	
