@@ -3,15 +3,39 @@ WISELIB_PATH=../..
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
-CXX=avr-gcc
-INCLUDE=-I ./include/arduino -I ./include/zeroconf -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L ./lib -lm -lzeroconf -larduino
+ARDUINO_PATH=/home/alinrus/work/arduino-lite/Arduino
+VARIANTS=standard
+
+SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
+PINS_PATH=$(ARDUINO_PATH)/hardware/arduino/variants/$(VARIANTS)
+WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
+ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
+
+ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
+	-I$(ETHERNET_PATH)/utility
+
+ZEROCONF_PATH=/home/alinrus/work/EthernetBonjour
+
+CXX=avr-g++
+INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -lspi -larduino -lethernet -lspi -larduino -lzeroconf
+
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -Os -w -Wl,--gc-sections -ffunction-sections -fdata-sections -fno-inline-small-functions
-PORT=/dev/ttyUSB1
+CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
+	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
-default: build upload
+PORT=/dev/ttyUSB0
+
+default: build-libs build upload
+
+build-libs: libarduino libzeroconf
+
+libarduino: 
+	make -C $(ARDUINO_PATH)
+
+libzeroconf:
+	make -C $(ZEROCONF_PATH)
 
 build: example.hex
 
@@ -19,7 +43,7 @@ example.hex: example.elf
 	avr-objcopy -O ihex $< $@
 
 example.elf: example_app.cpp
-	$(CXX) $(CFLAGS) $(INCLUDE) $^ -o $@ $(LIBS)
+	$(CXX) $(INCLUDE) $^ $(CFLAGS) -o $@ $(LIBS)
 	avr-strip $@
 
 upload:
