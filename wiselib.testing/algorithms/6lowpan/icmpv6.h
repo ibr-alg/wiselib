@@ -23,6 +23,15 @@
 #include "algorithms/6lowpan/nd_storage.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
+#define ND_TIMEOUT_INTERVAL 60
+
+#define MAX_RTR_SOLICITATION_INTERVAL 60
+#define RTR_SOLICITATION_INTERVAL 10
+#define MAX_RTR_SOLICITATIONS 3
+// result --> RS delay: 10,10,10,20,40,60,60...
+
+
+
 /*
 Echo Request & Reply:
 
@@ -140,14 +149,16 @@ namespace wiselib
 	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
 	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
 	
-	typedef NDStorage<Radio, Debug> NDStorage_t;
-	
 	typedef typename Radio_IP::node_id_t node_id_t;
 	typedef typename Radio_IP::size_t size_t;
 	typedef typename Radio_IP::block_data_t block_data_t;
 	typedef typename Radio_IP::message_id_t message_id_t;
 	
 	typedef typename Radio::node_id_t link_layer_node_id_t;
+	
+	typedef NDStorage<Radio, Debug> NDStorage_t;
+	typedef NeighborCacheEntryType<link_layer_node_id_t, node_id_t> NeighborCacheEntryType_t;
+	typedef DefaultRouterEntryType<NeighborCacheEntryType_t> DefaultRouterEntryType_t;
 	
 	// --------------------------------------------------------------------
 	enum ErrorCodes
@@ -230,6 +241,11 @@ namespace wiselib
 		debug_ = &debug;
 		timer_ = &timer;
 		packet_pool_mgr_ = p_mgr;
+		
+		//ND init
+		for( int i = 0; i < NUMBER_OF_INTERFACES; i++ )
+			sent_RS[i] = 0;
+		
 		return SUCCESS;
 	}
 	 
@@ -305,7 +321,10 @@ namespace wiselib
 	------------------ND part-----------------------------
 	*/
 	
+	//Helper variables for ND
+	uint8_t sent_RS[NUMBER_OF_INTERFACES];
 	
+	void send_RS_to_all_routers( void* target );
 	
 	
 	/**
@@ -857,6 +876,9 @@ namespace wiselib
 					return;
 				}
 				
+				//Reset RS sending variables
+				sent_RS[target_interface] = 0;
+				
 				//actual position in the data
 				uint16_t act_pos = 4;
 				
@@ -1054,7 +1076,40 @@ namespace wiselib
 		id[0] = radio_ip().id().addr[12] ^ radio_ip().id().addr[13];
 		id[1] = radio_ip().id().addr[14] ^ radio_ip().id().addr[15];
 	}
-
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_IP_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P>
+	void
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
+	send_RS_to_all_routers( void* target )
+	
+	{
+		uint8_t target_interface = (int)target;
+		//If an RA is received, stop sending RS messages
+		if( sent_RS[target_interface] > 0 )
+		{
+			
+			uint8_t actual_wait;
+			//If sent RS is "small", the interval is short
+			if( sent_RS[target_interface] <= MAX_RTR_SOLICITATIONS )
+				actual_wait = RTR_SOLICITATION_INTERVAL;
+			//Set the MAX value
+			else if( (RTR_SOLICITATION_INTERVAL << (sent_RS[target_interface] - MAX_RTR_SOLICITATIONS)) > MAX_RTR_SOLICITATION_INTERVAL )
+				actual_wait = MAX_RTR_SOLICITATION_INTERVAL;
+			else
+				actual_wait = RTR_SOLICITATION_INTERVAL << (sent_RS[target_interface] - MAX_RTR_SOLICITATIONS);
+			
+			sent_RS[target_interface]++;
+			node_id_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
+			send_nd_message( ROUTER_SOLICITATION, &ip_all_routers, target_interface );
+			
+			timer().template set_timer<self_type, &self_type::send_RS_to_all_routers>( actual_wait * 1000, this, target );
+		}
+	}
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -1067,33 +1122,206 @@ namespace wiselib
 	ND_timeout_manager_function( void* )
 	{
 		#ifdef ND_DEBUG
-		debug().debug(" ND timeout manager function called! " );
+		debug().debug(" ND manager function called! " );
 		#endif
 		
-		uint8_t target_interface = radio_ip_->interface_manager_->INTERFACE_RADIO;
-		
-		//Determinate the actual ND storage
-		NDStorage_t* act_nd_storage;
-		act_nd_storage = radio_ip_->interface_manager_->get_nd_storage( target_interface );
-		if( act_nd_storage == NULL )
-			return;
-
-		//If the list of the default routers is empty send a ROUTER_SOLICITATION
-		if( act_nd_storage->neighbor_cache.is_default_routers_list_empty() )
+		for( uint8_t target_interface = 0; target_interface < NUMBER_OF_INTERFACES; target_interface++ )
 		{
-			node_id_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
-			send_nd_message( ROUTER_SOLICITATION, &ip_all_routers, target_interface );
-		}
+			
+			//Determinate the actual ND storage
+			NDStorage_t* act_nd_storage;
+			act_nd_storage = radio_ip_->interface_manager_->get_nd_storage( target_interface );
+			if( act_nd_storage == NULL )
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND manager: ND is disabled for interface %i ", target_interface );
+				#endif
+				continue;
+			}
+			
+			#ifdef ND_DEBUG
+			debug().debug(" ND manager: interface %i ", target_interface );
+			#endif
 
-		//TODO --> make the timing values older, change states, delete outdated values, send ND messages when timer will expire soon
+			//If the list of the default routers is empty send a ROUTER_SOLICITATION
+			if( act_nd_storage->neighbor_cache.is_default_routers_list_empty() )
+			{
+				//If RS sending is not in process
+				if( sent_RS[target_interface] == 0 )
+				{
+					sent_RS[target_interface] = 1;
+					send_RS_to_all_routers( (void*)target_interface );
+				}
+			}
+
+			//----------------- DEFAULT ROUTERS --------------------
+			//If a router lifetime will expire soon, send a new ROUTER_SOLICITATION message for updates!
+			for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
+			{
+				DefaultRouterEntryType_t* defrouter = act_nd_storage->neighbor_cache.get_router( i );
+				
+				if( defrouter->own_registration_lifetime > 0 )
+				{
+					//Make it older, in units of 60 seconds
+					defrouter->own_registration_lifetime -= 1;
+					
+					//If the router is not responding for the new RS, set the time to 0, the neighbor cache entry will be set to TENTATIVE by this call
+					//and TENTATIVE entries will be deleted in the next loop.
+					if( defrouter->own_registration_lifetime == 0 || defrouter->neighbor_pointer->lifetime == 0 )
+					{
+						act_nd_storage->neighbor_cache.update_router( &(defrouter->neighbor_pointer->ip_address), ((link_layer_node_id_t*)(defrouter->neighbor_pointer->link_layer_address)), 0 );
+						defrouter->neighbor_pointer = NULL;
+					}
+					//Try to send a new ROUTER_SOLICITATION well before the registration expires
+					else if( defrouter->own_registration_lifetime < 4 )
+					{
+						send_nd_message( ROUTER_SOLICITATION, &(defrouter->neighbor_pointer->ip_address), target_interface );
+					}
+				}
+			}
+			
+			//---------------- CONTEXTS -----------------------------
+			for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
+			{
+				//If the lifetime is going to expire, start RS sending
+				if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime == 3 )
+				{
+					//If RS sending is not in process
+					if( sent_RS[target_interface] == 0 )
+					{
+						sent_RS[target_interface] = 1;
+						send_RS_to_all_routers( (void*)target_interface );
+					}
+				}
+				//If the lifetime expired, the context will be only used for decompression
+				else if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime == 1 )
+				{
+					radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid = false;
+				}
+				
+				if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime > 0 )
+					//Units of 60 seconds!
+					radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime -= 1;
+				
+			}
+			
+			//------------------ PREFIXES ----------------------------
+			//The first is the link-local address, count valid global addresses
+			uint8_t valid_global_prefixes = 0;
+			for( int i = 1; i < LOWPAN_MAX_PREFIXES; i++ )
+			{
+				//0xffffffff represents infinity
+				if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < 0xffffffff )
+				{
+					if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime > 0 )
+					{
+						//Make valid lifetime older
+						radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime -= ND_TIMEOUT_INTERVAL;
+						
+						//0xffffffff represents infinity
+						if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime < 0xffffffff )
+						{
+							//Make prefered lifetime older if it is greater than ND_TIMEOUT_INTERVAL
+							if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime > ND_TIMEOUT_INTERVAL )
+								radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime -= ND_TIMEOUT_INTERVAL;
+							else
+								radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime = 0;
+						}
+						
+						//If the time will have been expired at the next check invalidate the prefix, (it is not updated by a router)
+						if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < ( ND_TIMEOUT_INTERVAL ) )
+						{
+							radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime = 0;
+							radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime = 0;
+						}
+						//If the valid time will expire soon, send a solicitation to the all routers address
+						else if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < ( 4 * ND_TIMEOUT_INTERVAL ) )
+						{
+							//If RS sending is not in process
+							if( sent_RS[target_interface] == 0 )
+							{
+								sent_RS[target_interface] = 1;
+								send_RS_to_all_routers( (void*)target_interface );
+							}
+							
+							valid_global_prefixes++;
+						}
+						else
+						{
+							valid_global_prefixes++;
+						}
+					}
+				}
+				else
+					valid_global_prefixes++;
+			}
+			
+			//If there is no valid global prefix send a ROUTER_SOLICITATION
+			if( valid_global_prefixes == 0 )
+			{
+				//If RS sending is not in process
+				if( sent_RS[target_interface] == 0 )
+				{
+					sent_RS[target_interface] = 1;
+					send_RS_to_all_routers( (void*)target_interface );
+				}
+			}
+			
+			
+			
+			//----------------- NEIGHBOR CACHE --------------------
+			for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
+			{
+				NeighborCacheEntryType_t* neighbor = act_nd_storage->neighbor_cache.get_neighbor( i );
+
+				if( neighbor->lifetime > 0 && neighbor->status == act_nd_storage->neighbor_cache.REGISTERED )
+				{
+					//Make it older -> units of 60 seconds
+					neighbor->lifetime -= 1;
+				}
+				
+				//If this is a router, the entry must be in the cache
+				if( neighbor->lifetime < 4 && neighbor->lifetime > 0 && neighbor->is_router )
+					send_nd_message( NEIGHBOR_SOLICITATION, &(neighbor->ip_address), target_interface );
+					
+				//delete the entry (lifetime = 0)
+				//Reset the entry if it is not registered --> delete TENATIVE entries periodically!
+				if( ( neighbor->lifetime == 0 && ( neighbor->status == act_nd_storage->neighbor_cache.REGISTERED ) )
+					|| ( neighbor->status == act_nd_storage->neighbor_cache.TENTATIVE ) )
+				{
+					//If this is a router, the entry must be in the cache
+					//If RS sending is not in process
+					if( neighbor->is_router && sent_RS[target_interface] == 0 &&
+						neighbor->status == act_nd_storage->neighbor_cache.REGISTERED)
+					{
+						sent_RS[target_interface] = 1;
+						send_RS_to_all_routers( (void*)target_interface );
+					}
+					
+					uint8_t number_of_neighbor;
+					act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, &(neighbor->ip_address), (link_layer_node_id_t)(neighbor->link_layer_address), 0, false );
+				}
+			}
+			
+			
+			
+			#ifdef ND_DEBUG
+			act_nd_storage->set_debug( *debug_ );
+			act_nd_storage->print_storage();
+			
+			for( int i = 0; i < LOWPAN_MAX_PREFIXES; i++ )
+				debug_->debug(" ND (if: %i) prefix(%i) valid: %i, addr: %x %x ...", target_interface, i, radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime, radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.addr[0], radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.addr[1] );
+			
+			
+			#endif
+			
+			
+		}
 		
-		#ifdef ND_DEBUG
-		act_nd_storage->set_debug( *debug_ );
-		act_nd_storage->print_storage();
-		#endif
 		
 		
-		timer().template set_timer<self_type, &self_type::ND_timeout_manager_function>( 10000, this, NULL );
+		
+		timer().template set_timer<self_type, &self_type::ND_timeout_manager_function>( ND_TIMEOUT_INTERVAL * 1000, this, NULL );
 	}
 // -----------------------------------------------------------------------
 
@@ -1251,7 +1479,7 @@ namespace wiselib
 			
 			//Insert ARO
 			//TODO: what is the lifetime?
-			insert_address_registration_option( message, length, AR_SUCCESS, 43200, (uint64_t)ll_source );
+			insert_address_registration_option( message, length, AR_SUCCESS, 1500, (uint64_t)ll_source );
 			
 			#ifdef ND_DEBUG
 			debug().debug(" ND send NEIGHBOR_SOLICITATION to: " );
