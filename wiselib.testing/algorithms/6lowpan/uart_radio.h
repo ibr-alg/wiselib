@@ -91,7 +91,7 @@ namespace wiselib
 		int enable()
 		{
 			#ifdef UART_LAYER_DEBUG
-			debug_->debug( "Uart: Enable communication\n" );
+			debug_->debug( "Uart: Enable communication" );
 		 	#endif
 		 	
 			//NOTE At contiki: init() also has to be called
@@ -126,7 +126,7 @@ namespace wiselib
 		int send( size_t packet_number, block_data_t* data )
 		{
 			#ifdef UART_LAYER_DEBUG
-			debug_->debug( "Uart: Sending... size_t: %i\n", sizeof(size_t) );
+			debug_->debug( "Uart: Sending... size_t: %i", sizeof(size_t) );
 			#endif
 			
 			IPv6Packet_t* send_ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
@@ -134,7 +134,7 @@ namespace wiselib
 			int result = (uart_->write( send_ip_packet->get_content_size(), send_ip_packet->get_content() ));
 			
 			if( result == SUCCESS )
-				debug_->debug( "Uart: SUCCESS\n" );
+				debug_->debug( "Uart: SUCCESS" );
 			return result;
 		}
 		
@@ -142,10 +142,10 @@ namespace wiselib
 		void receive_packet( size_t len, block_data_t *buf )
 		{
 			#ifdef UART_LAYER_DEBUG
-			debug_->debug( "Uart: received len %i\n", len );
+			debug_->debug( "Uart: received len %i", len );
 			//for( int i = 0; i < len; i++ )
 			//	debug_->debug( "%x ", buf[i] );
-			//debug_->debug( "\n" );
+			//debug_->debug( "" );
 			#endif
 			
 			timer().template set_timer<self_type, &self_type::timeout>( 4000, this, (void*) (received_size_ + len) );

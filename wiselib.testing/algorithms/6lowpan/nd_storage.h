@@ -124,9 +124,6 @@ namespace wiselib
 				IPv6Addr_t link_local_ip = *(ip_address);
 				link_local_ip.make_it_link_local();
 				
-				ip_address->set_debug( *debug_ );
-				ip_address->print_address();
-				
 				//Search for the IP address in the list
 				for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
 				{
@@ -463,12 +460,12 @@ namespace wiselib
 		#ifdef ND_DEBUG
 		void print_storage()
 		{
-			
+			char str[43];
 			debug_->debug(" ND storage contents: is_router: %i,adv_retrans_timer: %i, adv_cur_hop_limit: %i, adv_default_lifetime: %i", is_router, adv_retrans_timer, adv_cur_hop_limit, adv_default_lifetime );
 			for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
 			{
 				NeighborCacheEntryType_t* tmp = neighbor_cache.get_neighbor( i );
-				debug_->debug("   ND N.Cache(%i): status: %i, is_router: %i, lifetime: %i, IP-first last %x %x, ll address %x ", i, tmp->status, tmp->is_router, tmp->lifetime, tmp->ip_address.addr[0], tmp->ip_address.addr[15], (uint16_t)(tmp->link_layer_address) );
+				debug_->debug("   ND N.Cache(%i): status: %i, is_router: %i, lifetime: %i, IP %s, ll address %x ", i, tmp->status, tmp->is_router, tmp->lifetime, tmp->ip_address.get_address(str), (uint16_t)(tmp->link_layer_address) );
 			}
 			
 			for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )

@@ -324,10 +324,8 @@ namespace wiselib
 			{
 				#ifdef LOWPAN_ROUTE_OVER
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug("Routing working on: ");
-				requested_destination_.set_debug( *debug_ );
-				requested_destination_.print_address();
-				debug().debug("\n");
+				char str[43];
+				debug().debug("Routing working on: %s", requested_destination_.get_address(str));
 				#endif
 				#endif
 				
@@ -413,32 +411,21 @@ namespace wiselib
 		int i = 0;
 
 		debug().debug( "Routing: (%d entries):\n", forwarding_table_.size() );
-	 
+		
+		#ifdef LOWPAN_ROUTE_OVER
+		char str[43];
+		char strb[43];
+		#endif
+		
 		for ( ForwardingTableIterator it = forwarding_table_.begin(); it != forwarding_table_.end(); ++it )
 		{
-			debug().debug( "   Routing:   %i: Dest ", i++);
-			
 			#ifdef LOWPAN_ROUTE_OVER
-			it->first.set_debug( *debug_ );
-			it->first.print_address();
+			debug().debug( "   Routing:   %i: Dest %s  SendTo %s Hops %i", i++, it->first.get_address(str), it->second.next_hop.get_address(strb), it->second.hops);
 			#endif
-			
+
 			#ifdef LOWPAN_MESH_UNDER
-			debug().debug( " %i ",  it->first);
+			debug().debug( "   Routing:   %i: Dest %x  SendTo %x Hops %i", i++, it->first, it->second.next_hop, it->second.hops);
 			#endif
-			
-			debug().debug( " SendTo " );
-			
-			#ifdef LOWPAN_ROUTE_OVER
-			it->second.next_hop.set_debug( *debug_ );
-			it->second.next_hop.print_address();
-			#endif
-			
-			#ifdef LOWPAN_MESH_UNDER
-			debug().debug( " %i ",  it->second.next_hop);
-			#endif
-			
-			debug().debug( " Hops %i\n", it->second.hops );
 		}
 	}
 

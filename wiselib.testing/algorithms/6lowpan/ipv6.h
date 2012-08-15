@@ -288,7 +288,7 @@ namespace wiselib
 	{
 		disable_radio();
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Destroyed\n" );
+		debug().debug( "IPv6 layer: Destroyed" );
 		#endif
 	}
 	
@@ -336,23 +336,23 @@ namespace wiselib
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: initialization at %x\n", radio().id() );
-		debug().debug( "IPv6 layer: MAC length: %i\n", sizeof(link_layer_node_id_t) );
+		debug().debug( "IPv6 layer: initialization at %x", radio().id() );
+// 		debug().debug( "IPv6 layer: MAC length: %i", sizeof(link_layer_node_id_t) );
 		
-		link_layer_node_id_t iid = radio().id();
+		/*link_layer_node_id_t iid = radio().id();
 		for ( unsigned int i = 0; i < ( sizeof(link_layer_node_id_t) ); i++ )
 		{
 			uint8_t a = iid & 0xFF;
 			debug().debug( "..%i..: %x",  i, a );
 			iid = iid >> 8;
-		}
+		}*/
 
 		#ifdef LOWPAN_ROUTE_OVER
-		debug().debug( "IPv6 layer: Routing mode: ROUTE OVER\n");
+		debug().debug( "IPv6 layer: Routing mode: ROUTE OVER");
 		#endif
 			
 		#ifdef LOWPAN_MESH_UNDER
-		debug().debug( "IPv6 layer: Routing mode: MESH UNDER\n");
+		debug().debug( "IPv6 layer: Routing mode: MESH UNDER");
 		#endif
 		
 		#endif
@@ -373,7 +373,7 @@ namespace wiselib
 	disable_radio( void )
 	{
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Disable\n" );
+		debug().debug( "IPv6 layer: Disable" );
 		#endif
 		if ( interface_manager_->disable_radios() != SUCCESS )
 			return ERR_UNSPEC;
@@ -398,10 +398,8 @@ namespace wiselib
 		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: Send to " );
-			destination.set_debug( *debug_ );
-			destination.print_address();
-			debug().debug( " (multicast to all nodes)\n" );
+			char str[43];
+			debug().debug( "IPv6 layer: Send to %s (multicast)", destination.get_address(str) );
 			#endif
 			
 			//Broadcast the packet via the radio
@@ -427,13 +425,8 @@ namespace wiselib
 		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: Send to " );
-			destination.set_debug( *debug_ );
-			destination.print_address();
-			debug().debug( " Next hop is: " );
-			next_hop.set_debug( *debug_ );
-			next_hop.print_address();
-			debug().debug( "\n");
+			char str[43];
+			debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(str), next_hop.get_address(str) );
 			#endif
 			//Send the package to the next hop
 			return interface_manager_->send_to_interface( next_hop, packet_number, NULL, target_interface );
@@ -441,9 +434,8 @@ namespace wiselib
 		
 		//The next hop is not in the forwarding table
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: No route to " );
-		destination.set_debug( *debug_ );
-		destination.print_address();
+		char str[43];
+		debug().debug( "IPv6 layer: No route to %s", destination.get_address(str) );
 		#endif
 		
 		
@@ -451,7 +443,7 @@ namespace wiselib
 		if( routing_result == Routing_t::CREATION_IN_PROGRESS )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( " in the forwarding table, the routing algorithm is working!\n" );
+			debug().debug( " in the forwarding table, the routing algorithm is working!" );
 			#endif
 			//set timer for polling
 			timer().template set_timer<self_type, &self_type::routing_polling>( 1000, this, (void*)packet_number);
@@ -461,7 +453,7 @@ namespace wiselib
 		else if ( routing_result == Routing_t::ROUTING_BUSY)
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( " in the forwarding table, and the routing algorithm is busy, discovery will be started soon!\n" );
+			debug().debug( " in the forwarding table, and the routing algorithm is busy, discovery will be started soon!" );
 			#endif
 			//set timer for polling
 			timer().template set_timer<self_type, &self_type::routing_polling>( 1500, this, (void*)packet_number);
@@ -471,7 +463,7 @@ namespace wiselib
 		else // Routing_t::NO_ROUTE_TO_HOST
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( " and the algorithm failed, packet dropped!\n" );
+			debug().debug( " and the algorithm failed, packet dropped!" );
 			#endif
 			//It will be dropped by the caller (Upper layer's send or routing_polling())
 			return ERR_HOSTUNREACH;
@@ -516,15 +508,13 @@ namespace wiselib
 			message->source_address(source_ip);
 			
 			#ifdef IPv6_LAYER_DEBUG
+			char str[43];
 			if( destination_ip == BROADCAST_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (multicast) from " );
+				debug().debug( "IPv6 layer: Received packet (multicast) from %s", source_ip.get_address(str) );
 			else if( destination_ip == ALL_ROUTERS_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (all routers) from " );
+				debug().debug( "IPv6 layer: Received packet (all routers) from %s", source_ip.get_address(str) );
 			else
-				debug().debug( "IPv6 layer: Received packet (unicast) from " );
-			source_ip.set_debug( *debug_ );
-			source_ip.print_address();
-			debug().debug( "\n" );
+				debug().debug( "IPv6 layer: Received packet (unicast) from %s", source_ip.get_address(str) );
 			#endif
 			
 			//If not a supported transport layer, drop it
@@ -549,10 +539,8 @@ namespace wiselib
 			message->destination_address(destination);
 			
 			#ifdef IPv6_LAYER_DEBUG
-			debug().debug( "IPv6 layer: Packet forwarding to " );
-			destination.set_debug( *debug_ );
-			destination.print_address();
-			debug().debug( "\n");
+			char str[43];
+			debug().debug( "IPv6 layer: Packet forwarding to %s", destination.get_address(str) );
 			#endif
 			
 			if( send( destination, packet_number, NULL ) != ROUTING_CALLED )
@@ -594,7 +582,7 @@ namespace wiselib
 	routing_polling( void* p_number )
 	{
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: Routing algorithm polling, try to send waiting packet (%i).\n", (int)p_number);
+		debug().debug( "IPv6 layer: Routing algorithm polling, try to send waiting packet (%i).", (int)p_number);
 		#endif
 		
 		int packet_number = (int)p_number;
