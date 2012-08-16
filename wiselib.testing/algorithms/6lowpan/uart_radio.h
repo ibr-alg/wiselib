@@ -16,6 +16,13 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: uart_radio.h
+* Class(es): UartRadio
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_UART_RADIO_H__
 #define __ALGORITHMS_6LOWPAN_UART_RADIO_H__
 
@@ -25,6 +32,9 @@
 
 namespace wiselib
 {
+	/** \brief Class for the uart communication
+	* As a radio it provides send and receive functions.
+	*/
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P,
@@ -87,7 +97,9 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------
-		
+		/** \brief Enable the communication and register for callbacks
+		* \return error codes
+		*/
 		int enable()
 		{
 			#ifdef UART_LAYER_DEBUG
@@ -110,7 +122,9 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------
-		
+		/** \brief Disable the communication and unregister callbacks
+		* \return error codes
+		*/
 		int disable()
 		{
 			int result = uart_->disable_serial_comm();
@@ -122,7 +136,11 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------------
-		
+		/** \brief Send a packet to the uart
+		* \param packet_number the packet number from the PacketPool
+		* \param data not used
+		* \return error codes
+		*/
 		int send( size_t packet_number, block_data_t* data )
 		{
 			#ifdef UART_LAYER_DEBUG
@@ -139,6 +157,12 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------------
+		/** \brief Callback function for the Uart
+		* In byte-by-byte order a packet can be received in shorter packets.
+		* A timeout function reset the receiver if the packet is not fully arrived.
+		* \param len the size of the received array
+		* \param buf the pointer to the data
+		*/
 		void receive_packet( size_t len, block_data_t *buf )
 		{
 			#ifdef UART_LAYER_DEBUG
@@ -185,6 +209,12 @@ namespace wiselib
 			}
 		}
 		
+		// -----------------------------------------------------------------------
+		/** \brief Timeout function for receiving
+		* If since the start of the timer the size of the received data is the same,
+		* and the receiving_ flag is true, the packet will be dropped here.
+		* \param old_received_size the size of the received array when the timer was started
+		*/
 		void timeout( void* old_received_size )
 		{
 			//If no new fragment since set the timer, reset the fragmentation process

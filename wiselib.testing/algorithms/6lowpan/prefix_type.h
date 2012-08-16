@@ -16,6 +16,14 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+ 
+ /*
+ * File: prefix_type.h
+ * Class(es): PrefixType
+ * Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+ */
+ 
+ 
 #ifndef __ALGORITHMS_6LOWPAN_PREFIX_TYPE_H__
 #define __ALGORITHMS_6LOWPAN_PREFIX_TYPE_H__
 
@@ -23,8 +31,7 @@
 
 namespace wiselib
 {
-	/**
-	* Type for the prefix list
+	/** \brief Type for the prefix list
 	* The list is not placed into the NDStorage because there should be addresses with ND_enabled = false too
 	*/
 	template<typename IPv6Addr_P>
@@ -34,6 +41,7 @@ namespace wiselib
 		typedef IPv6Addr_P IPv6Addr_t;
 		typedef PrefixType<IPv6Addr_t> PrefixType_t;
 		
+		///Constructor
 		PrefixType():
 			adv_valid_lifetime( 0 ),
 			adv_onlink_flag( true ),

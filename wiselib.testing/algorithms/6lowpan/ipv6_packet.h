@@ -16,6 +16,14 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: ipv6_packet.h
+* Class(es): IPv6Packet
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
+
 #ifndef __ALGORITHMS_6LOWPAN_IPV6_PACKET_H__
 #define __ALGORITHMS_6LOWPAN_IPV6_PACKET_H__
 
@@ -57,274 +65,297 @@
 namespace wiselib
 {
 	
-	
+	/** \brief Class for IPv6 packet
+	* This class represents an IPv6 packet with setter and getter functions
+	*/
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P>
 	class IPv6Packet
 	{
 	public:
-	typedef Debug_P Debug;
-	typedef OsModel_P OsModel;
-	typedef Radio_P Radio;
+		typedef Debug_P Debug;
+		typedef OsModel_P OsModel;
+		typedef Radio_P Radio;
 
-	typedef typename Radio::block_data_t block_data_t;
-	typedef typename Radio::size_t size_t;
-	typedef typename Radio::node_id_t link_layer_node_id_t;
-	typedef IPv6Address<Radio, Debug> node_id_t;
-	
-	IPv6Packet()
-	{
-		memset(buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
+		typedef typename Radio::block_data_t block_data_t;
+		typedef typename Radio::size_t size_t;
+		typedef typename Radio::node_id_t link_layer_node_id_t;
+		typedef IPv6Address<Radio, Debug> node_id_t;
 		
-		valid = false;
-		remote_ll_address = Radio::NULL_NODE_ID;
-		target_interface = NUMBER_OF_INTERFACES;
+		///Constructor
+		IPv6Packet()
+		{
+			memset(buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
+			
+			valid = false;
+			remote_ll_address = Radio::NULL_NODE_ID;
+			target_interface = NUMBER_OF_INTERFACES;
+			
+			//Version is fix 6
+			uint8_t version = 6;
+			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
+		}
 		
-		//Version is fix 6
-		uint8_t version = 6;
-		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
-	}
-	
-	void set_debug( Debug& debug )
-	{
-		debug_ = &debug;
-	}
-	
-	
-	void set_traffic_class( uint8_t traffic_class )
-	{
-		//Traffic Class
-		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, traffic_class, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
-	}
-	
-	void set_flow_label( uint32_t flow_label )
-	{
-		//Flow Label
-		bitwise_write<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
-	}
-	
-	void set_length( uint16_t length )
-	{
-		//Length
-		bitwise_write<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
-	}
-	
-	void set_next_header( uint8_t next_header )
-	{
-		//Next Header
-		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
-	}
-	
-	void set_hop_limit( uint8_t hop_limit )
-	{
-		//Hop limit
-		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
-	}
-	
-	void set_source_address( node_id_t& source )
-	{
-		//Source address
-		memcpy((buffer_ + SOURCE_ADDRESS_BYTE), source.addr, 16);
-	}
-	
-	void set_destination_address( node_id_t& destination )
-	{
-		//Destination address
-		memcpy((buffer_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
-	}
-	
-	void set_payload( uint8_t* data, uint16_t len = 0, int shift = 0 )
-	{
-		//Payload
-		if( len == 0 )
-			len = length();
+		///Set debug for print_header()
+		void set_debug( Debug& debug )
+		{
+			debug_ = &debug;
+		}
 		
-		memcpy((buffer_ + PAYLOAD_POS + shift), data, len);
-	}
-	
-	void set_payload( uint16_t* data, int shift = 0 )
-	{
-		buffer_[PAYLOAD_POS + shift] = ( *(data) >> 8 ) & 0xFF;
-		buffer_[PAYLOAD_POS + shift + 1] = ( *(data) ) & 0xFF;
-	}
-	
-	void set_payload( uint32_t* data, int shift = 0 )
-	{
-		//Shifts: 24, 16, 8, 0
-		for( int i = 0; i < 8; i++ )
-			buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (32 - ((i+1)*8)) ) & 0xFF;
-	}
-	
-	void set_payload( uint64_t* data, int shift = 0 )
-	{
-		//Shifts: 56, 48, 40, 32, 24, 16, 8, 0
-		for( int i = 0; i < 8; i++ )
-			buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (64 - ((i+1)*8)) ) & 0xFF;
-	}
-	
-	inline uint8_t version()
-	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, VERSION_BIT, VERSION_LEN );
-	}
-	
-	inline uint8_t traffic_class()
-	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
-	}
-	
-	inline uint32_t flow_label()
-	{
-		return bitwise_read<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
-	}
-	
-	inline uint16_t length()
-	{
-		return bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, LENGTH_BIT, LENGTH_LEN );
-	}
-	
-	inline uint8_t next_header()
-	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
-	}
-	
-	inline uint8_t hop_limit()
-	{
-		return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
-	}
-	
-	inline void source_address(node_id_t& address)
-	{
-		uint8_t tmp_address[16];
-		memcpy(tmp_address, (buffer_ + SOURCE_ADDRESS_BYTE) ,16);
-		address.set_address(tmp_address);
-	}
-	
-	inline void destination_address(node_id_t& address)
-	{
-		uint8_t tmp_address[16];
-		memcpy(tmp_address, (buffer_ + DESTINATION_ADDRESS_BYTE) ,16);
-		address.set_address(tmp_address);
-	}
-	
-	inline block_data_t* payload()
-	{
-		return buffer_ + PAYLOAD_POS;
-	}
-	
-	inline block_data_t* get_content()
-	{
-		return buffer_;
-	}
-	
-	inline uint16_t get_content_size()
-	{
-		return length() + PAYLOAD_POS;
-	}
-	
-	void print_header()
-	{
+		///@name Setters
+		///@{
+		void set_traffic_class( uint8_t traffic_class )
+		{
+			//Traffic Class
+			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, traffic_class, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
+		}
+		
+		void set_flow_label( uint32_t flow_label )
+		{
+			//Flow Label
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
+		}
+		
+		void set_length( uint16_t length )
+		{
+			//Length
+			bitwise_write<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
+		}
+		
+		void set_next_header( uint8_t next_header )
+		{
+			//Next Header
+			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
+		}
+		
+		void set_hop_limit( uint8_t hop_limit )
+		{
+			//Hop limit
+			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, hop_limit, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
+		}
+		
+		void set_source_address( node_id_t& source )
+		{
+			//Source address
+			memcpy((buffer_ + SOURCE_ADDRESS_BYTE), source.addr, 16);
+		}
+		
+		void set_destination_address( node_id_t& destination )
+		{
+			//Destination address
+			memcpy((buffer_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
+		}
+		
+		/** \brief Set bytes into the payload
+		* \param data byte array
+		* \param len the length of the array
+		* \param shift byte shift from the beginning of the payload
+		*/
+		void set_payload( uint8_t* data, uint16_t len = 0, int shift = 0 )
+		{
+			//Payload
+			if( len == 0 )
+				len = length();
+			
+			memcpy((buffer_ + PAYLOAD_POS + shift), data, len);
+		}
+		
+		/** \brief Set an uint16_t into the payload
+		* \param data pointer to the data
+		* \param shift byte shift from the beginning of the payload
+		*/
+		void set_payload( uint16_t* data, int shift = 0 )
+		{
+			buffer_[PAYLOAD_POS + shift] = ( *(data) >> 8 ) & 0xFF;
+			buffer_[PAYLOAD_POS + shift + 1] = ( *(data) ) & 0xFF;
+		}
+		
+		/** \brief Set an uint32_t into the payload
+		* \param data pointer to the data
+		* \param shift byte shift from the beginning of the payload
+		*/
+		void set_payload( uint32_t* data, int shift = 0 )
+		{
+			//Shifts: 24, 16, 8, 0
+			for( int i = 0; i < 8; i++ )
+				buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (32 - ((i+1)*8)) ) & 0xFF;
+		}
+		
+		/** \brief Set an uint64_t into the payload
+		* \param data pointer to the data
+		* \param shift byte shift from the beginning of the payload
+		*/
+		void set_payload( uint64_t* data, int shift = 0 )
+		{
+			//Shifts: 56, 48, 40, 32, 24, 16, 8, 0
+			for( int i = 0; i < 8; i++ )
+				buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (64 - ((i+1)*8)) ) & 0xFF;
+		}
+		///@}
+		
+		///@name Getters
+		///@{
+		inline uint8_t version()
+		{
+			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, VERSION_BIT, VERSION_LEN );
+		}
+		
+		inline uint8_t traffic_class()
+		{
+			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + TRAFFIC_CLASS_BYTE, TRAFFIC_CLASS_BIT, TRAFFIC_CLASS_LEN );
+		}
+		
+		inline uint32_t flow_label()
+		{
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
+		}
+		
+		inline uint16_t length()
+		{
+			return bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, LENGTH_BIT, LENGTH_LEN );
+		}
+		
+		inline uint8_t next_header()
+		{
+			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
+		}
+		
+		inline uint8_t hop_limit()
+		{
+			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + HOP_LIMIT_BYTE, HOP_LIMIT_BIT, HOP_LIMIT_LEN );
+		}
+		
+		inline void source_address(node_id_t& address)
+		{
+			uint8_t tmp_address[16];
+			memcpy(tmp_address, (buffer_ + SOURCE_ADDRESS_BYTE) ,16);
+			address.set_address(tmp_address);
+		}
+		
+		inline void destination_address(node_id_t& address)
+		{
+			uint8_t tmp_address[16];
+			memcpy(tmp_address, (buffer_ + DESTINATION_ADDRESS_BYTE) ,16);
+			address.set_address(tmp_address);
+		}
+		
+		inline block_data_t* payload()
+		{
+			return buffer_ + PAYLOAD_POS;
+		}
+		
+		inline block_data_t* get_content()
+		{
+			return buffer_;
+		}
+		
+		inline uint16_t get_content_size()
+		{
+			return length() + PAYLOAD_POS;
+		}
+		///@}
+		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "Version: %d \n", version());
-		debug().debug( "Traffic Class: %d \n", traffic_class());
-		debug().debug( "Flow Label: %d \n", flow_label());
-		debug().debug( "Length: %d \n", length());
-		debug().debug( "Next Header: %d \n", next_header());
-		debug().debug( "Hop Limit: %d \n", hop_limit());
-		
-		char str[43];
-		node_id_t addr;
-		source_address( addr );
-		debug().debug( "Source Address: %s", addr.get_address(str));
-		
-		destination_address( addr );
-		debug().debug( "Destination Address: %s", addr.get_address(str));
+		/** \brief Debug function
+		*/
+		void print_header()
+		{
+			debug().debug( "Version: %d \n", version());
+			debug().debug( "Traffic Class: %d \n", traffic_class());
+			debug().debug( "Flow Label: %d \n", flow_label());
+			debug().debug( "Length: %d \n", length());
+			debug().debug( "Next Header: %d \n", next_header());
+			debug().debug( "Hop Limit: %d \n", hop_limit());
+			
+			char str[43];
+			node_id_t addr;
+			source_address( addr );
+			debug().debug( "Source Address: %s", addr.get_address(str));
+			
+			destination_address( addr );
+			debug().debug( "Destination Address: %s", addr.get_address(str));
+		}
 		#endif
-	}
-	
-	enum position_starts_byte
-	{
-	  VERSION_BYTE = 0,
-	  TRAFFIC_CLASS_BYTE = 0,
-	  FLOW_LABEL_BYTE = 1,
-	  LENGTH_BYTE = 4,
-	  NEXT_HEADER_BYTE = 6,
-	  HOP_LIMIT_BYTE = 7,
-	  SOURCE_ADDRESS_BYTE= 8,
-	  DESTINATION_ADDRESS_BYTE= 24,
-	  PAYLOAD_POS= 40
-	};
-	
-	enum position_shift_bit
-	{
-	  VERSION_BIT = 0,
-	  TRAFFIC_CLASS_BIT = 4,
-	  FLOW_LABEL_BIT = 4,
-	  LENGTH_BIT = 0,
-	  NEXT_HEADER_BIT = 0,
-	  HOP_LIMIT_BIT = 0,
-	  SOURCE_ADDRESS_BIT= 0,
-	  DESTINATION_ADDRESS_BIT= 0
-	};
-	
-	enum length_bit
-	{
-	  VERSION_LEN = 4,
-	  TRAFFIC_CLASS_LEN = 8,
-	  FLOW_LABEL_LEN = 20,
-	  LENGTH_LEN = 16,
-	  NEXT_HEADER_LEN = 8,
-	  HOP_LIMIT_LEN = 8,
-	  SOURCE_ADDRESS_LEN= 8,
-	  DESTINATION_ADDRESS_LEN= 8
-	};
-	
-	block_data_t buffer_[LOWPAN_IP_PACKET_BUFFER_MAX_SIZE];
-	
-	/**
-	* Indicates that the packet is used at the moment or not
-	*/
-	bool valid;
-	
-	/**
-	* Indicator for incoming / outgoing packet
-	*/
-	bool incoming;
-	
-	/**
-	* Defragmentation finished
-	* If it is an incoming packet, it indicates that the packet headers could be decompressed and passed to the upper layer
-	*/
-	bool defragmentation_finished;
-	
-	/**
-	* Destionation / Source interface
-	*/
-	uint8_t target_interface;
-	
-	/**
-	* Remote link-layer address for ND messages
-	*/
-	link_layer_node_id_t remote_ll_address;
-	
-	/** Generate Internet checksum
-	* \param len Data length
-	* \param data pointer to the data
-	*/
-	uint16_t generate_checksum( uint16_t len, uint8_t* data);
-	
+		
+		///Constant byte positions for the fields
+		enum position_starts_byte
+		{
+		VERSION_BYTE = 0,
+		TRAFFIC_CLASS_BYTE = 0,
+		FLOW_LABEL_BYTE = 1,
+		LENGTH_BYTE = 4,
+		NEXT_HEADER_BYTE = 6,
+		HOP_LIMIT_BYTE = 7,
+		SOURCE_ADDRESS_BYTE= 8,
+		DESTINATION_ADDRESS_BYTE= 24,
+		PAYLOAD_POS= 40
+		};
+		
+		///Constant bit positions for the fields
+		enum position_shift_bit
+		{
+		VERSION_BIT = 0,
+		TRAFFIC_CLASS_BIT = 4,
+		FLOW_LABEL_BIT = 4,
+		LENGTH_BIT = 0,
+		NEXT_HEADER_BIT = 0,
+		HOP_LIMIT_BIT = 0,
+		SOURCE_ADDRESS_BIT= 0,
+		DESTINATION_ADDRESS_BIT= 0
+		};
+		
+		///Constant lengths for the fields
+		enum length_bit
+		{
+		VERSION_LEN = 4,
+		TRAFFIC_CLASS_LEN = 8,
+		FLOW_LABEL_LEN = 20,
+		LENGTH_LEN = 16,
+		NEXT_HEADER_LEN = 8,
+		HOP_LIMIT_LEN = 8,
+		SOURCE_ADDRESS_LEN= 8,
+		DESTINATION_ADDRESS_LEN= 8
+		};
+		
+		///Buffer for the packet
+		block_data_t buffer_[LOWPAN_IP_PACKET_BUFFER_MAX_SIZE];
+		
+		/**
+		* Indicates that the packet is used at the moment or not
+		*/
+		bool valid;
+		
+		/**
+		* Destionation / Source interface
+		*/
+		uint8_t target_interface;
+		
+		/**
+		* Remote link-layer address for ND messages
+		*/
+		link_layer_node_id_t remote_ll_address;
+		
+		/** \brief Generate Internet checksum
+		* \param len Data length
+		* \param data pointer to the data
+		*/
+		uint16_t generate_checksum( uint16_t len, uint8_t* data);
+		
 	private:
-	
-	Debug& debug()
-	{ return *debug_; }
+		
+		Debug& debug()
+		{ return *debug_; }
 
-	typename Debug::self_pointer_t debug_;
+		typename Debug::self_pointer_t debug_;
 	};
 	
 	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_P,
+		typename Debug_P>
 	uint16_t
 	IPv6Packet<OsModel_P, Radio_P, Debug_P>::
 	generate_checksum( uint16_t len, uint8_t* data )
@@ -367,7 +398,6 @@ namespace wiselib
 		sum = (sum & 0xFFFF) + (sum >> 16);
 	 
 		return ( sum ^ 0xFFFF );
-		//return sum;
 	}
 }
 #endif

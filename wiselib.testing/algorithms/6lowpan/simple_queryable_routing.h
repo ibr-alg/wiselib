@@ -16,6 +16,13 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: simple_queryable_routing.h
+* Class(es): ForwardingTableValue, SimpleQueryableRouting
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_SIMPLE_ROUTING_H__
 #define __ALGORITHMS_6LOWPAN_SIMPLE_ROUTING_H__
 
@@ -23,7 +30,8 @@
 
 namespace wiselib
 {
-	
+	/** \brief Entry type for the forwarding table
+	*/
 	template<typename Radio_P>
 	class ForwardingTableValue
 	{
@@ -48,17 +56,24 @@ namespace wiselib
 			seq_nr( s )
 			{}
 			// -----------------------------------------------------------------
-			//Next hop is an IP address
+			///The [IP|MAC] address of the next hop
 			node_id_t next_hop;
+			///The target interface for the packet
 			uint8_t target_interface;
+			///Number of hops
 			uint8_t hops;
-			uint16_t seq_nr; ///< Sequence Number of last Req
+			///Sequence Number of last Req
+			uint16_t seq_nr;
 	};
 	
 // -----------------------------------------------------------------
 // -----------------------------------------------------------------
 // -----------------------------------------------------------------
 	
+	/** \brief This class is a skeleton for a quaryable routing
+	* At the moment it just returns the destination as the next-hop
+	* A real routing must be placed here in the future!
+	*/
 	template<typename OsModel_P,
 		typename Radio_Upper_Layer_P,
 		typename Radio_Os_P,
@@ -120,6 +135,7 @@ namespace wiselib
 		
 		
 		// -----------------------------------------------------------------
+		/// Return codes of the routing
 		enum FindReturnCodes
 		{
 			NO_ROUTE_TO_HOST = 0,
@@ -129,7 +145,7 @@ namespace wiselib
 		};
 		
 		// -----------------------------------------------------------------
-		
+		/// Constructor
 		SimpleQueryableRouting()
 		{
 			is_working = false;
@@ -141,15 +157,14 @@ namespace wiselib
 		
 		// -----------------------------------------------------------------
 		
-
-		void init( Timer& timer, Debug& debug, Radio_Os& os_radio, InterfaceManager_t* i_mgr )
+		/** \brief Initialization for the routing
+		*/
+		void init( Timer& timer, Debug& debug, Radio_Os& os_radio )
 		{
 			timer_ = &timer;
 			debug_ = &debug;
 			os_radio_ = &os_radio;
 			forwarding_table_.clear();
-			
-			interface_manager_ = i_mgr;
 			
 			
 			// TEST for: 0x2110 <--> 0x210c <--> 0x212c
@@ -193,12 +208,17 @@ namespace wiselib
 		}
 
 		// -----------------------------------------------------------------
-
+		/** \brief The find function is called by the IPv6 or the 6LoWPAN layer to determinate the next hop for the destination
+		* \param destination The IP address of the destination
+		* \param target_interface Return value
+		* \param next_hop return value
+		* \param start_discovery if it is false, the routing just returns the next hop if it is avalible and an error if isn't
+		* \return Routing error codes
+		*/
 		int find( node_id_t destination, uint8_t& target_interface, node_id_t& next_hop, bool start_discovery = true );
 		
 
-		/** 
-		* Print the forwarding table
+		/** \brief Print the forwarding table
 		*/
 		void print_forwarding_table();
 		///@}
@@ -207,7 +227,6 @@ namespace wiselib
 	 	typename Timer::self_pointer_t timer_;
 		typename Radio_Os::self_pointer_t os_radio_;
 		typename Debug::self_pointer_t debug_;
-		InterfaceManager_t* interface_manager_;
 		
 		/**
 		* destination for the actual discovery
@@ -235,19 +254,19 @@ namespace wiselib
 		}
 		
 		/**
-		* Forwarding Table
+		* Forwarding Table, which stores the discovered paths
 		*/
 		ForwardingTable forwarding_table_;
 		
 		// --------------------------------------------------------------------
-		/**
-		* The implementation of the algorithm
+		/** \brief The implementation of the routing algorithm
+		* This is the simple implementation which must be replaced with a real routing.
+		* It is called by a timer to be assynchronous
 		*/
 		void search_for_a_route( void* );
 		
 		// --------------------------------------------------------------------
-		/**
-		* Clear the failed indicator at new search or if the failed timer is expired
+		/** \brief Clear the failed indicator at new search or if the failed timer is expired
 		*/
 		void clear_failed( void* )
 		{
@@ -263,11 +282,11 @@ namespace wiselib
 	#ifdef LOWPAN_ROUTE_OVER
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
-	typename Radio_Upper_Layer_P,
-	typename Radio_Os_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename InterfaceManager_P>
+		typename Radio_Upper_Layer_P,
+		typename Radio_Os_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename InterfaceManager_P>
 	const
 	typename Radio_Upper_Layer_P::node_id_t
 	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::NULL_NODE_ID = Radio_Upper_Layer_P::NULL_NODE_ID;
@@ -275,11 +294,11 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
-	typename Radio_Upper_Layer_P,
-	typename Radio_Os_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename InterfaceManager_P>
+		typename Radio_Upper_Layer_P,
+		typename Radio_Os_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename InterfaceManager_P>
 	const
 	typename Radio_Upper_Layer_P::node_id_t
 	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::BROADCAST_ADDRESS = Radio_Upper_Layer_P::BROADCAST_ADDRESS;
@@ -364,24 +383,16 @@ namespace wiselib
 	// ----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_Upper_Layer_P,
-	typename Radio_Os_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename InterfaceManager_P>
+		typename Radio_Upper_Layer_P,
+		typename Radio_Os_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename InterfaceManager_P>
 	void
 	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::
 	search_for_a_route( void* )
 		{
 			//Routing implementation
-			
-			//If FAIL:
-			/*
-				failed_alive_ = true;
-				timer().template set_timer<self_type, &self_type::clear_failed>( 15000, this, 0);
-			*/
-			
-			//************
 			
 			//The simple implementation
 			node_id_t next_hop = requested_destination_;
@@ -399,11 +410,11 @@ namespace wiselib
 	// ----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_Upper_Layer_P,
-	typename Radio_Os_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename InterfaceManager_P>
+		typename Radio_Upper_Layer_P,
+		typename Radio_Os_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename InterfaceManager_P>
 	void
 	SimpleQueryableRouting<OsModel_P, Radio_Upper_Layer_P, Radio_Os_P, Debug_P, Timer_P, InterfaceManager_P>::
 	print_forwarding_table()
@@ -428,7 +439,5 @@ namespace wiselib
 			#endif
 		}
 	}
-
-
 }
 #endif

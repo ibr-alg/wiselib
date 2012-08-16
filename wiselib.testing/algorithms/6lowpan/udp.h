@@ -16,27 +16,79 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: udp.h
+* Class(es): UDPSocket, UDP
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_UDP_LAYER_H__
 #define __ALGORITHMS_6LOWPAN_UDP_LAYER_H__
 
 #include "util/base_classes/radio_base.h"
 
-#include "algorithms/6lowpan/socket_type.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 
 namespace wiselib
 {
+	/** \brief Type for the UDP sockets
+	*/
+	template<typename Radio_IP_P>
+	class UDPSocket
+	{
+		public:
+			typedef Radio_IP_P Radio_IP;
+			typedef typename Radio_IP::node_id_t node_id_t;
+			
+			// -----------------------------------------------------------------
+			UDPSocket()
+			: local_port( 0 ),
+			remote_port( 0 ),
+			remote_host( Radio_IP::NULL_NODE_ID ),
+			callback_id( -1 )
+			{}
+			
+			// -----------------------------------------------------------------
+			
+			UDPSocket(uint16_t local_port, uint16_t remote_port, node_id_t remote_host, int callback_id)
+			: local_port( local_port ),
+			remote_port( remote_port ),
+			remote_host( remote_host ),
+			callback_id( callback_id )
+			{}
+			
+			/**
+			* Local Port
+			*/
+			uint16_t local_port;
+			/**
+			* Remote Port
+			*/
+			uint16_t remote_port;
+			/**
+			* IPv6 Address of the rmoote host
+			*/
+			node_id_t remote_host;
+			/**
+			* Callback ID of the user application
+			*/
+			int callback_id;	  
+	};
+	
+	// --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	// --------------------------------------------------------------------
+	
 	/**
 	* \brief UDP layer for the 6LoWPAN implementation.
 	*
-	*  \ingroup routing_concept
 	*  \ingroup radio_concept
 	*
 	* This file contains the implementation of the UDP layer for the 6LoWPAN implementation.
 	* The UDP layer can be used as a radio.
 	* 
 	*/
-	
 	template<typename OsModel_P,
 		typename Radio_IP_P,
 		typename Radio_P,
@@ -45,161 +97,169 @@ namespace wiselib
 	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, uint16_t, typename Radio_P::block_data_t>
 	{
 	public:
-	typedef OsModel_P OsModel;
-	typedef Radio_IP_P Radio_IP;
-	typedef Radio_P Radio;
-	typedef Debug_P Debug;
-	
-	typedef UDP<OsModel, Radio_IP, Radio, Debug> self_type;
-	typedef self_type* self_pointer_t;
-
-	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
-	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
-	
-	typedef LoWPANSocket<Radio_IP> Socket_t;
-	
-	/**
-	* The number of the Socket in the sockets_ array is the address type
-	*/
-	typedef int node_id_t;
-	
-	/**
-	* The ip_node_id_t is an ipv6 address
-	*/
-	typedef typename Radio_IP::node_id_t ip_node_id_t;
-	
-	typedef typename Radio::size_t size_t;
-	typedef typename Radio::block_data_t block_data_t;
-	typedef typename Radio::message_id_t message_id_t;
-	
-	// --------------------------------------------------------------------
-	enum ErrorCodes
-	{
-		SUCCESS = OsModel::SUCCESS,
-		ERR_UNSPEC = OsModel::ERR_UNSPEC,
-		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-		ROUTING_CALLED = Radio_IP::ROUTING_CALLED
-	};
-	// --------------------------------------------------------------------
-	
-	/**
-	* Unspecified IP address: 0:0:0:0:0:0:0:0
-	*/
-	static const ip_node_id_t NULL_NODE_ID;
-	
-	/**
-	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
-	*/
-	static const ip_node_id_t BROADCAST_ADDRESS;
-
-	// --------------------------------------------------------------------
-	enum Restrictions {
-		MAX_MESSAGE_LENGTH = Radio_IP::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
-	};
-	// --------------------------------------------------------------------
-	///@name Construction / Destruction
-	///@{
-	UDP();
-	~UDP();
-	///@}
-	 
-	 int init( Radio_IP& radio_ip, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
-	 {
-	 	radio_ip_ = &radio_ip;
-	 	debug_ = &debug;
-	 	packet_pool_mgr_ = p_mgr;
-	 	return SUCCESS;
-	 }
-	 
-	inline int init();
-	inline int destruct();
-	 
-	///@name Routing Control
-	///@{
-	int enable_radio( void );
-	int disable_radio( void );
-	///@}
-	  
-	///@name Radio Concept
-	///@{
-	/**
-	*/
-	int send( node_id_t receiver, uint16_t len, block_data_t *data );
-	/**
-	*/
-	void receive( ip_node_id_t from, size_t len, block_data_t *data );
-	/**
-	*/
-	ip_node_id_t id()
-	{
-		return radio_ip().id();
-	}
-	///@}
-	
-	/**
-	* Get the number of sockets
-	*/
-	uint8_t get_number_of_sockets()
-	{
-		return NUMBER_OF_UDP_SOCKETS;
-	}
-	
-	/**
-	* Get a socket
-	* \param i socket number
-	*/
-	Socket_t* get_socket( int i )
-	{
-		if( ( i > -1 ) && ( i < NUMBER_OF_UDP_SOCKETS ) )
-			return &(sockets_[i]);
+		typedef OsModel_P OsModel;
+		typedef Radio_IP_P Radio_IP;
+		typedef Radio_P Radio;
+		typedef Debug_P Debug;
 		
-		return NULL;
-	}
-	
-	/** 
-	* Add a socket
-	* \param i socket number
-	*/
-	int add_socket( uint16_t local_port, uint16_t remote_port, ip_node_id_t remote_host, int callback_id )
-	{
-	 	for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
-	 		if( sockets_[i].callback_id == -1 )
-			{	
-				sockets_[i] = Socket_t(local_port, remote_port, remote_host, callback_id );
-				return i;
-			}
-		return -1;
-	}
-	 
-	/**
-	* Print the sockets
-	*/
-	void print_sockets();
+		typedef UDP<OsModel, Radio_IP, Radio, Debug> self_type;
+		typedef self_type* self_pointer_t;
+
+		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+		typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
+		
+		typedef UDPSocket<Radio_IP> Socket_t;
+		
+		/**
+		* The number of the Socket in the sockets_ array is the address type
+		*/
+		typedef int node_id_t;
+		
+		/**
+		* The ip_node_id_t is an ipv6 address
+		*/
+		typedef typename Radio_IP::node_id_t ip_node_id_t;
+		
+		typedef typename Radio::size_t size_t;
+		typedef typename Radio::block_data_t block_data_t;
+		typedef typename Radio::message_id_t message_id_t;
+		
+		// --------------------------------------------------------------------
+		enum ErrorCodes
+		{
+			SUCCESS = OsModel::SUCCESS,
+			ERR_UNSPEC = OsModel::ERR_UNSPEC,
+			ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
+			ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
+			ROUTING_CALLED = Radio_IP::ROUTING_CALLED
+		};
+		// --------------------------------------------------------------------
+		
+		/**
+		* Unspecified IP address: 0:0:0:0:0:0:0:0
+		*/
+		static const ip_node_id_t NULL_NODE_ID;
+		
+		/**
+		* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
+		*/
+		static const ip_node_id_t BROADCAST_ADDRESS;
+
+		// --------------------------------------------------------------------
+		enum Restrictions {
+			MAX_MESSAGE_LENGTH = Radio_IP::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
+		};
+		// --------------------------------------------------------------------
+		///@name Construction / Destruction
+		///@{
+		UDP();
+		~UDP();
+		///@}
+		
+		int init( Radio_IP& radio_ip, Debug& debug, Packet_Pool_Mgr_t* p_mgr )
+		{
+			radio_ip_ = &radio_ip;
+			debug_ = &debug;
+			packet_pool_mgr_ = p_mgr;
+			return SUCCESS;
+		}
+		
+		inline int init();
+		inline int destruct();
+		
+		///@name Routing Control
+		///@{
+		int enable_radio( void );
+		int disable_radio( void );
+		///@}
+		
+		///@name Radio Concept
+		///@{
+		/**
+		* NOTE: uint16_t is used as a len because the provided uint8_t is not enough for IP packets
+		*/
+		int send( node_id_t receiver, uint16_t len, block_data_t *data );
+		/**
+		* Callback function of the layer. This is called by the IPv6 layer.
+		* \param from The IP address of the sender
+		* \param packet_number The number of the packet in the PacketPool
+		* \param data Not used here
+		*/
+		void receive( ip_node_id_t from, size_t packet_number, block_data_t *data );
+		/**
+		*/
+		ip_node_id_t id()
+		{
+			return radio_ip().id();
+		}
+		///@}
+		
+		/**
+		* Get the number of sockets
+		*/
+		uint8_t get_number_of_sockets()
+		{
+			return NUMBER_OF_UDP_SOCKETS;
+		}
+		
+		/**
+		* Get a socket
+		* \param i socket number
+		* \return poniter to the socket or NULL if the number is not valid
+		*/
+		Socket_t* get_socket( int i )
+		{
+			if( ( i > -1 ) && ( i < NUMBER_OF_UDP_SOCKETS ) )
+				return &(sockets_[i]);
+			
+			return NULL;
+		}
+		
+		/** 
+		* Add a socket
+		* \param i socket number
+		*/
+		int add_socket( uint16_t local_port, uint16_t remote_port, ip_node_id_t remote_host, int callback_id )
+		{
+			for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
+				if( sockets_[i].callback_id == -1 )
+				{	
+					sockets_[i] = Socket_t(local_port, remote_port, remote_host, callback_id );
+					return i;
+				}
+			return -1;
+		}
+		
+		/**
+		* Print the sockets
+		*/
+		#ifdef UDP_LAYER_DEBUG
+		void print_sockets();
+		#endif
 
 	private:
-	
-	Radio_IP& radio_ip()
-	{ return *radio_ip_; }
-	
-	Debug& debug()
-	{ return *debug_; }
-	
-	typename Radio_IP::self_pointer_t radio_ip_;
-	typename Debug::self_pointer_t debug_;
-	Packet_Pool_Mgr_t* packet_pool_mgr_;
-	
-	
-	/**
-	* Array for the sockets
-	*/
-	Socket_t sockets_[NUMBER_OF_UDP_SOCKETS];
+		
+		Radio_IP& radio_ip()
+		{ return *radio_ip_; }
+		
+		Debug& debug()
+		{ return *debug_; }
+		
+		typename Radio_IP::self_pointer_t radio_ip_;
+		typename Debug::self_pointer_t debug_;
+		Packet_Pool_Mgr_t* packet_pool_mgr_;
+		
+		
+		/**
+		* Array for the sockets
+		*/
+		Socket_t sockets_[NUMBER_OF_UDP_SOCKETS];
 
-	/**
-	* Callback ID
-	*/
-	int callback_id_;
-	
+		/**
+		* Callback ID
+		*/
+		int callback_id_;
+		
 	};
 	
 	
@@ -209,9 +269,9 @@ namespace wiselib
 	
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	const
 	typename Radio_IP_P::node_id_t
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::NULL_NODE_ID = Radio_IP::NULL_NODE_ID;
@@ -219,9 +279,9 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	const
 	typename Radio_IP_P::node_id_t
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::BROADCAST_ADDRESS = Radio_IP::BROADCAST_ADDRESS;
@@ -229,9 +289,9 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	UDP()
 	: radio_ip_ ( 0 ),
@@ -240,9 +300,9 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	~UDP()
 	{
@@ -254,9 +314,9 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	init( void )
@@ -265,9 +325,9 @@ namespace wiselib
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	destruct( void )
@@ -276,9 +336,9 @@ namespace wiselib
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	enable_radio( void )
@@ -295,9 +355,9 @@ namespace wiselib
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	disable_radio( void )
@@ -313,9 +373,9 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	send( node_id_t socket_number, uint16_t len, block_data_t *data )
@@ -343,8 +403,6 @@ namespace wiselib
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		if( message == NULL )
 		 return ERR_UNSPEC;
-		//It is an outgoing packet
-		message->incoming = false;
 		
 		//Next header = 17 UDP
 		message->set_next_header(Radio_IP::UDP);
@@ -405,9 +463,9 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	void
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	receive( ip_node_id_t from, size_t packet_number, block_data_t *data )
@@ -477,20 +535,20 @@ namespace wiselib
 	}
 
 	// -----------------------------------------------------------------------
+	#ifdef UDP_LAYER_DEBUG
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P>
 	void
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
 	print_sockets()
 	{
-		#ifdef UDP_LAYER_DEBUG
 		debug().debug( "UDP layer: sockets: \n");
 		char str[43];
 		for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 			debug().debug( "	#%i Local port: %i, Remote port: %i, Callback_id: %i, Remote host: ", i, sockets_[i].local_port, sockets_[i].remote_port, sockets_[i].callback_id, sockets_[i].remote_host.get_address(str));
-		#endif
 	}
+	#endif
 }
 #endif

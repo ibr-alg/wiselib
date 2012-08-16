@@ -16,11 +16,22 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+ 
+ /*
+ * File: nd_storage.h
+ * Class(es): NeighborCacheEntryType, DefaultRouterEntryType, NeighborCache_DefaultRouters, NDStorage,
+		LoWPANContextType, LoWPANContextManager
+ * Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+ */
+ 
+ 
 #ifndef __ALGORITHMS_6LOWPAN_ND_STORAGE_H__
 #define __ALGORITHMS_6LOWPAN_ND_STORAGE_H__
 
 namespace wiselib
 {
+	/** \brief Type for the neighbor cache's entries
+	*/
 	template<typename LinkLayerAddress_P,
 		typename IPv6Addr_P>
 	class NeighborCacheEntryType
@@ -57,7 +68,8 @@ namespace wiselib
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-	
+	/** \brief Type for the default routers' list
+	*/
 	template<typename NeighborCacheEntryType_P>
 	class DefaultRouterEntryType
 	{
@@ -78,7 +90,8 @@ namespace wiselib
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-	
+	/** \brief Class for the neighbor cache and default router list with management functions
+	*/
 	template<typename LinkLayerAddress_P,
 		typename IPv6Addr_P,
 		typename Debug_P>
@@ -109,11 +122,13 @@ namespace wiselib
 			
 			/**
 			* Updates a Neighbor Cache entry or creates a new one.
+			* An entry could be deleted with 0 lifetime and !is_tentative
 			*
-			* \param	address		the IPv6 address
-			* \param 	ll_address	the link-layer address
-			* \param	lifetime	the time this entry is valid
-			*
+			* \param number_of_neighbor return the number where the entry is placed
+			* \param address the IPv6 address
+			* \param ll_address the link-layer address
+			* \param lifetime the time this entry is valid
+			* \param is_tentative flag to set a value TENTATIVE
 			* \return UpdateNeighborReturnValues
 			*/
 			uint8_t update_neighbor( uint8_t& number_of_neighbor, IPv6Addr_t* ip_address, node_id_t ll_address, uint16_t lifetime, bool is_tentative )
@@ -200,20 +215,24 @@ namespace wiselib
 			}
 			
 			/**
-			* Returns the instance of Neighbor which owns the given IPv6 address.
+			* Returns the link layer address of the Neighbor which owns the given IPv6 address.
 			*
 			* \param 	address		the IPv6 address
 			*
-			* \return	the neighbor with the IPv6 address or NULL if no matching entry was found
+			* \return	the neighbor's link-layer address or 0 if no matching entry was found
 			*/
-			NeighborCacheEntryType_t* get_neighbor( IPv6Addr_t* ip_address )
+			node_id_t get_link_layer_address_for_neighbor( IPv6Addr_t* ip_address )
 			{
 				for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
-					if( neighbors_[i].ip_address == *(ip_address) )
-						return &(neighbors_[i]);
-				return NULL;
+					if( neighbors_[i].ip_address == *(ip_address) &&
+						neighbors_[i].ip_address == REGISTERED )
+						return (node_id_t)(neighbors_[i].link_layer_address);
+				return 0;
 			}
 			
+			/**
+			* Get a neighbor with number
+			*/
 			NeighborCacheEntryType_t* get_neighbor( uint8_t index )
 			{
 				return &(neighbors_[index]);
@@ -224,8 +243,7 @@ namespace wiselib
 			*
 			* \param	addr			the IPv6 address of the router
 			* \param	ll_addr			the link layer address of the router
-			* \param	valid_lifetime	the advertised valid lifetime of the router
-			* \param	own_lifetime	this node's registered lifetime at the router
+			* \param	own_lifetime	the advertised valid lifetime of the router
 			*
 			* \return	UpdateReturnValues
 			*/
@@ -300,6 +318,9 @@ namespace wiselib
 				return &(routers_[index]);
 			}
 			
+			/** \brief Function to determinate if no default router on the list
+			* \return true if the list is empty
+			*/
 			bool is_default_routers_list_empty()
 			{
 				for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
@@ -309,13 +330,17 @@ namespace wiselib
 				return true;
 			}
 			
+			/** \brief Set debug
+			*/
 			void set_debug( Debug& debug )
 			{
 				debug_ = &debug;
 			}
 			
 		private:
+			///Array for the neighbors (Neighbor Cache)
 			NeighborCacheEntryType_t neighbors_[LOWPAN_MAX_OF_NEIGHBORS];
+			///Array for the routers (Default Router List)
 			DefaultRouterEntryType_t routers_[LOWPAN_MAX_OF_ROUTERS];
 			
 			typename Debug::self_pointer_t debug_;
@@ -326,6 +351,11 @@ namespace wiselib
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 	
+	/** \brief The ND storage class
+	* This class stores the data for the ND (except: prefixes and contexts)
+	* The NighborCache is also instanced here.
+	* This class is only used where ND is enabled (6LoWPAN), and the ND_enabled flag indicates it
+	*/
 	template<typename Radio_P,
 		typename Debug_P>
 	class NDStorage
@@ -345,6 +375,7 @@ namespace wiselib
 		#endif
 
 		// -----------------------------------------------------------------
+		///Constructor
 		NDStorage( )
 			: is_router( false ),
 			adv_managed_flag( false ),
@@ -429,6 +460,7 @@ namespace wiselib
 		uint16_t adv_default_lifetime;
 		
 		/*
+		TODO these will be used in border routers
 		* Is this a border router?
 		* Default: FALSE
 		
@@ -450,7 +482,7 @@ namespace wiselib
 		NeighborCache_DefaultRouters_t neighbor_cache;
 		
 		
-		
+		///Set debug
 		void set_debug( Debug& debug )
 		{
 			debug_ = &debug;
@@ -458,6 +490,8 @@ namespace wiselib
 		}
 		
 		#ifdef ND_DEBUG
+		/** \brief Function to print the actual content of the storage
+		*/
 		void print_storage()
 		{
 			char str[43];
@@ -488,6 +522,8 @@ namespace wiselib
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 	
+	/** \brief Type for the LoWPAN context list
+	*/
 	template<typename Radio_P,
 	typename Debug_P>
 	class LoWPANContextType
@@ -543,7 +579,8 @@ namespace wiselib
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 	
-	
+	/** \brief Context storage class with management functions
+	*/
 	template<typename Radio_P,
 	typename Debug_P>
 	class LoWPANContextManager
@@ -556,6 +593,7 @@ namespace wiselib
 			typedef LoWPANContextType<Radio, Debug> ContextType_t;
 			
 			// -----------------------------------------------------------------
+			///Constructor
 			LoWPANContextManager()
 			{
 				for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
@@ -602,7 +640,7 @@ namespace wiselib
 			/**
 			* Get a pointer to a defined context
 			* \param num the number of the context
-			* \return Pointer to the prefix or NULL if it isn't valid
+			* \return Pointer to the prefix of the context or NULL if it isn't valid
 			*/
 			node_id_t* get_prefix_by_number( uint8_t num )
 			{
@@ -617,9 +655,6 @@ namespace wiselib
 			}
 			
 			// -----------------------------------------------------------------
-			
-			
-			
 			
 			/**
 			* Array with defined size

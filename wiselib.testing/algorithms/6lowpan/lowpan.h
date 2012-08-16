@@ -16,6 +16,14 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: lowpan.h
+* Class(es): LoWPAN
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
+
 #ifndef __ALGORITHMS_6LOWPAN_LOWPAN_LAYER_H__
 #define __ALGORITHMS_6LOWPAN_LOWPAN_LAYER_H__
 
@@ -25,9 +33,9 @@
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 #include "algorithms/6lowpan/nd_storage.h"
 #include "algorithms/6lowpan/reassembling_manager.h"
-#include "algorithms/6lowpan/interface_manager.h"
 
 #ifdef LOWPAN_MESH_UNDER
+#include "algorithms/6lowpan/interface_manager.h"
 #include "algorithms/6lowpan/simple_queryable_routing.h"
 #endif
 
@@ -37,7 +45,6 @@ namespace wiselib
 	/**
 	* \brief LoWPAN adaptation layer for the 6LoWPAN implementation.
 	*
-	*  \ingroup routing_concept
 	*  \ingroup radio_concept
 	*
 	* This file contains the implementation of the 6LoWPAN adaptation layer for the 6LoWPAN implementation.
@@ -53,577 +60,587 @@ namespace wiselib
 	: public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
 	public:
-	typedef OsModel_P OsModel;
-	typedef Radio_P Radio;
-	typedef Debug_P Debug;
-	typedef Timer_P Timer;
-	typedef Uart_Radio_P Uart_Radio;
-	
-	/**
-	* Parameters from the OS radio
-	*/
-	typedef typename Radio::node_id_t node_id_t;
-	typedef typename Radio::size_t size_t;
-	typedef typename Radio::block_data_t block_data_t;
-	typedef typename Radio::message_id_t message_id_t;
-	
-	typedef LoWPAN<OsModel, Radio, Debug, Timer, Uart_Radio> self_type;
-	typedef self_type* self_pointer_t;
-
-	typedef IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
-	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
-	typedef typename IPv6Packet_t::node_id_t IPv6Address_t;
-	
-	typedef NDStorage<Radio, Debug> NDStorage_t;
-	typedef LoWPANContextManager<Radio, Debug> Context_Mgr_t;
-	
-	typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> Reassembling_Mgr_t;
-	
-	#ifdef LOWPAN_MESH_UNDER
-	typedef InterfaceManager<OsModel, self_type, Radio, Debug, Timer, Uart_Radio> InterfaceManager_t;
-	
-	
-	/**
-	* Simple Routing implementation
-	*/
-	//Fake IP Radio
-	typedef SimpleQueryableRouting<OsModel, self_type, Radio, Debug, Timer, InterfaceManager_t> Routing_t;
-	#endif
-	
-
-	// --------------------------------------------------------------------
-	enum ErrorCodes
-	{
-	 SUCCESS = OsModel::SUCCESS,
-	 ERR_UNSPEC = OsModel::ERR_UNSPEC,
-	 ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-	 ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-	 ROUTING_CALLED = 100
-	};
-	// --------------------------------------------------------------------
-	
-	enum InterfaceID
-	{
-		INTERFACE_RADIO = 0
-	};
-	
-	enum NextHeaders
-	{
-	 UDP = 17,
-	 ICMPV6 = 58
-	 /*TCP = 6
-	 EH_HOHO = 0	//Hop by Hop
-	 EH_DESTO = 60
-	 EH_ROUTING = 43
-	 EH_FRAG = 44*/
-	};
-	
-	enum ICMPv6NDMessageCodes
-	{
-		ROUTER_SOLICITATION = 133,
-		ROUTER_ADVERTISEMENT = 134,
-		NEIGHBOR_SOLICITATION = 135,
-		NEIGHBOR_ADVERTISEMENT = 136/*,
-		DUPLICATE_ADDRESS_REQUEST = ,
-		DUPLICATE_ADDRESS_CONFIRMATION = */
-	};
-	
-	enum SpecialNodeIds {
-	 BROADCAST_ADDRESS = Radio_P::BROADCAST_ADDRESS, ///< All nodes in communication range
-	 NULL_NODE_ID      = Radio_P::NULL_NODE_ID      ///< Unknown/No node id
-	};
-	// --------------------------------------------------------------------
-	//NOTE: The length of the header stack is not fix, the MAX_MESSAGE_LENGTH is the full size of the transmittable packet
-	enum Restrictions {
-		MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH  ///< Maximal number of bytes in payload
-	};
-	// --------------------------------------------------------------------
-	///@name Construction / Destruction
-	///@{
-	LoWPAN();
-	~LoWPAN();
-	///@}
-	 
-	 int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer/*, InterfaceManager_t* i_mgr*/ )
-	 {
-	 	radio_ = &radio;
-	 	debug_ = &debug;
-		timer_ = &timer;
-	 	packet_pool_mgr_ = p_mgr;
-		//interface_manager_ = i_mgr;
-		reassembling_mgr_.init( *timer_, *debug_, packet_pool_mgr_ );
+		typedef OsModel_P OsModel;
+		typedef Radio_P Radio;
+		typedef Debug_P Debug;
+		typedef Timer_P Timer;
+		typedef Uart_Radio_P Uart_Radio;
 		
-		
-		
-		/*
-			ND is enabled for this interface
+		/**
+		* Parameters from the OS radio
 		*/
-		ND_enabled = true;
+		typedef typename Radio::node_id_t node_id_t;
+		typedef typename Radio::size_t size_t;
+		typedef typename Radio::block_data_t block_data_t;
+		typedef typename Radio::message_id_t message_id_t;
+		
+		typedef LoWPAN<OsModel, Radio, Debug, Timer, Uart_Radio> self_type;
+		typedef self_type* self_pointer_t;
+
+		typedef IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+		typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
+		typedef typename IPv6Packet_t::node_id_t IPv6Address_t;
+		
+		typedef NDStorage<Radio, Debug> NDStorage_t;
+		typedef LoWPANContextManager<Radio, Debug> Context_Mgr_t;
+		
+		typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> Reassembling_Mgr_t;
 		
 		#ifdef LOWPAN_MESH_UNDER
-		broadcast_sequence_number_ = 1;
-		for( int i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
-		{
-			received_broadcast_sequence_numbers_[i] = 0;
-			received_broadcast_originators_[i] = 0;
-		}
-		routing_.init( *timer_, *debug_, *radio_, interface_manager_ );
+		typedef InterfaceManager<OsModel, self_type, Radio, Debug, Timer, Uart_Radio> InterfaceManager_t;
+		
+		
+		// Simple Routing implementation
+		typedef SimpleQueryableRouting<OsModel, self_type, Radio, Debug, Timer, InterfaceManager_t> Routing_t;
 		#endif
 		
-	 	return SUCCESS;
-	 }
-	 
-	inline int init();
-	inline int destruct();
-	 
-	///@name Routing Control
-	///@{
-	int enable_radio( void );
-	int disable_radio( void );
-	///@}
-	  
-	///@name Radio Concept
-	///@{
-	/**
-	*/
-	int send( IPv6Address_t receiver, size_t packet_number, block_data_t *data );
-	/**
-	*/
-	void receive( node_id_t from, size_t len, block_data_t *data );
-	/**
-	*/
-	node_id_t id()
-	{
-		return radio().id();
-	}
-	///@}
-	
-	
-	/**
-	* IP to MAC conversation
-	*/
-	int IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address );
-	///@}
-	
-	/**
-	* Indicator for the ND algorithm
-	* If false, the NDStorage class is not used
-	*/
-	bool ND_enabled;
-	
-	
-	Context_Mgr_t context_mgr_;
-	NDStorage_t nd_storage_;
-	
+
+		// --------------------------------------------------------------------
+		enum ErrorCodes
+		{
+		SUCCESS = OsModel::SUCCESS,
+		ERR_UNSPEC = OsModel::ERR_UNSPEC,
+		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
+		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
+		ROUTING_CALLED = 100
+		};
+		// --------------------------------------------------------------------
+		
+		enum InterfaceID
+		{
+			INTERFACE_RADIO = 0
+		};
+		
+		enum NextHeaders
+		{
+		UDP = 17,
+		ICMPV6 = 58
+		/*TCP = 6
+		EH_HOHO = 0	//Hop by Hop
+		EH_DESTO = 60
+		EH_ROUTING = 43
+		EH_FRAG = 44*/
+		};
+		
+		enum SpecialNodeIds {
+		BROADCAST_ADDRESS = Radio_P::BROADCAST_ADDRESS, ///< All nodes in communication range
+		NULL_NODE_ID      = Radio_P::NULL_NODE_ID      ///< Unknown/No node id
+		};
+		// --------------------------------------------------------------------
+		//NOTE: The length of the header stack is not fix, the MAX_MESSAGE_LENGTH is the full size of the transmittable packet
+		enum Restrictions {
+			MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH  ///< Maximal number of bytes in payload
+		};
+		// --------------------------------------------------------------------
+		///@name Construction / Destruction
+		///@{
+		LoWPAN();
+		~LoWPAN();
+		///@}
+		
+		/** \brief Initialization of the layer
+		*/
+		int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer )
+		{
+			radio_ = &radio;
+			debug_ = &debug;
+			timer_ = &timer;
+			packet_pool_mgr_ = p_mgr;
+			reassembling_mgr_.init( *timer_, *debug_, packet_pool_mgr_ );
+			
+			
+			/*
+				ND is enabled for this interface
+			*/
+			ND_enabled = true;
+			
+			
+			#ifdef LOWPAN_MESH_UNDER
+			broadcast_sequence_number_ = 1;
+			for( int i = 0; i < MAX_BROADCAST_SEQUENCE_NUMBERS; i++ )
+			{
+				received_broadcast_sequence_numbers_[i] = 0;
+				received_broadcast_originators_[i] = 0;
+			}
+			routing_.init( *timer_, *debug_, *radio_ );
+			#endif
+			
+			return SUCCESS;
+		}
+		
+		inline int init();
+		inline int destruct();
+		
+		///@name Routing Control
+		///@{
+		int enable_radio( void );
+		int disable_radio( void );
+		///@}
+		
+		///@name Radio Concept
+		///@{
+		/**
+		* With this function a prepared packet can be sent.
+		* \param receiver The IP address of the destination
+		* \param packet_number The number of the packet in the PacketPool
+		* \param data Not used here
+		*/
+		int send( IPv6Address_t receiver, size_t packet_number, block_data_t *data );
+		
+		/**
+		* Callback function of the layer. This is called by the OSRadio.
+		*/
+		void receive( node_id_t from, size_t len, block_data_t *data );
+		/**
+		*/
+		node_id_t id()
+		{
+			return radio().id();
+		}
+		///@}
+		
+		
+		/** \brief IP to MAC conversation
+		* \param ip_address the source IP
+		* \param mac_destination the target MAC
+		* \return Error codes
+		*/
+		int IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address );
+		///@}
+		
+		/**
+		* Indicator for the ND algorithm
+		* If false, the NDStorage class is not used
+		*/
+		bool ND_enabled;
+		
+		///Instance of the Context Manager
+		Context_Mgr_t context_mgr_;
+		///Instance of the ND Storage
+		NDStorage_t nd_storage_;
+		
 	private:
-	
-	Radio& radio()
-	{ return *radio_; }
-	
-	Debug& debug()
-	{ return *debug_; }
-	
-	Timer& timer()
-	{ return *timer_; }
-	
-	typename Radio::self_pointer_t radio_;
-	typename Debug::self_pointer_t debug_;
-	typename Timer::self_pointer_t timer_;
-	Packet_Pool_Mgr_t* packet_pool_mgr_;
-	
-	
-	Reassembling_Mgr_t reassembling_mgr_;
-	#ifdef LOWPAN_MESH_UNDER
-	InterfaceManager_t* interface_manager_;
-	
-	Routing_t routing_;
-	#endif
-	
-	
-	/**
-	* Callback ID
-	*/
-	int callback_id_;
-	
-	
-	#ifdef LOWPAN_MESH_UNDER
-	/**
-	* Pollig function, it will be called by the timer, and this function tries to resend the actual packet
-	*/
-	void routing_polling( void* p_number );
-	
-	/**
-	* Fucntion to determinate the next hop
-	*/
-	int determine_mesh_next_hop( node_id_t& mac_destination, node_id_t& mac_next_hop, uint8_t packet_number );
-	#endif
-	
-	
+		
+		Radio& radio()
+		{ return *radio_; }
+		
+		Debug& debug()
+		{ return *debug_; }
+		
+		Timer& timer()
+		{ return *timer_; }
+		
+		typename Radio::self_pointer_t radio_;
+		typename Debug::self_pointer_t debug_;
+		typename Timer::self_pointer_t timer_;
+		Packet_Pool_Mgr_t* packet_pool_mgr_;
+		
+		///Instance of the Reassemling Manager
+		Reassembling_Mgr_t reassembling_mgr_;
+		#ifdef LOWPAN_MESH_UNDER
+		Routing_t routing_;
+		#endif
+		
+		
+		/**
+		* Callback ID
+		*/
+		int callback_id_;
+		
+		
+		#ifdef LOWPAN_MESH_UNDER
+		/** \brief Pollig function, it will be called by the timer, and this function tries to resend the actual packet
+		*/
+		void routing_polling( void* p_number );
+		
+		/** \brief Fucntion to determinate the next hop in MESH UNDER mode
+		*/
+		int determine_mesh_next_hop( node_id_t& mac_destination, node_id_t& mac_next_hop, uint8_t packet_number );
+		#endif
+		
+		
 
-//-----------
-// Packet PART
-//-----------
-	/**
-	* Reset buffer and header shifts
-	*/
-	void reset_buffer()
-	{
-		memset( buffer_, 0, Radio::MAX_MESSAGE_LENGTH );
+	//-----------
+	// Packet PART
+	//-----------
+		/** \brief Reset buffer and header shifts
+		*/
+		void reset_buffer()
+		{
+			memset( buffer_, 0, Radio::MAX_MESSAGE_LENGTH );
+			
+			ACTUAL_SHIFT = 0;
+			
+			//Init Mesh header
+			MESH_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+			
+			//Init Broadcast header
+			BROADCAST_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+			
+			//Init FRAG HEADER
+			FRAG_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+			
+			//Init IPHC HEADER
+			IPHC_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+			
+			//Init NHC HEADER
+			NHC_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+		}
 		
-		ACTUAL_SHIFT = 0;
+		//-----------------------------------------------------------------------------------
+		//-----------------------Mesh header-------------------------------------------------
+		//-----------------------------------------------------------------------------------
+		/*
+		0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|1 0|V|F|HopsLft| originator address, final address
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*/
 		
-		//Init Mesh header
-		MESH_SHIFT = Radio::MAX_MESSAGE_LENGTH;
+		/**
+		* Mesh header positioning
+		*/
+		uint8_t MESH_SHIFT;
 		
-		//Init Broadcast header
-		BROADCAST_SHIFT = Radio::MAX_MESSAGE_LENGTH;
-		
-		//Init FRAG HEADER
-		FRAG_SHIFT = Radio::MAX_MESSAGE_LENGTH;
-		
-		//Init IPHC HEADER
-		IPHC_SHIFT = Radio::MAX_MESSAGE_LENGTH;
-		
-		//Init NHC HEADER
-		NHC_SHIFT = Radio::MAX_MESSAGE_LENGTH;
-	}
-	
-	//-----------------------------------------------------------------------------------
-	//-----------------------Mesh header-------------------------------------------------
-	//-----------------------------------------------------------------------------------
-	/*
-	 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|1 0|V|F|HopsLft| originator address, final address
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	*/
-	
-	/**
-	* Mesh header positioning
-	*/
-	uint8_t MESH_SHIFT;
-	
 	#ifdef LOWPAN_MESH_UNDER
-	enum MESH_byte_shifts
-	{
-	 MESH_DISP_BYTE = 0,
-	 MESH_V_BYTE = 0,
-	 MESH_F_BYTE = 0,
-	 MESH_HOPSLEFT_BYTE = 0
-	};
-	
-	enum MESH_bit_shifts
-	{
-	 MESH_DISP_BIT = 0,
-	 MESH_V_BIT = 2,
-	 MESH_F_BIT = 3,
-	 MESH_HOPSLEFT_BIT = 4
-	};
-	
-	enum MESH_lenghts
-	{
-	 MESH_DISP_LEN = 2,
-	 MESH_V_LEN = 1,
-	 MESH_F_LEN = 1,
-	 MESH_HOPSLEFT_LEN = 4
-	};	
-	
-	/**
-	* Mesh header set function
-	* \param hopsleft hops left befor dropping the packet
-	* \param source pointer to the source's MAC address
-	* \param destination pointer to the destination's MAC address
-	*/
-	void set_mesh_header( uint8_t hopsleft, node_id_t source, node_id_t destination );
-	
-	/**
-	* Decrement hop left field
-	* \return SUCCESS or ERR_UNSPEC if it reaches 0
-	*/
-	int decrement_hopsleft();
-	//-----------------------------------------------------------------------------------
-	//-------------------------MESH END--------------------------------------------------
-	//-----------------------------------------------------------------------------------
+		enum MESH_byte_shifts
+		{
+		MESH_DISP_BYTE = 0,
+		MESH_V_BYTE = 0,
+		MESH_F_BYTE = 0,
+		MESH_HOPSLEFT_BYTE = 0
+		};
+		
+		enum MESH_bit_shifts
+		{
+		MESH_DISP_BIT = 0,
+		MESH_V_BIT = 2,
+		MESH_F_BIT = 3,
+		MESH_HOPSLEFT_BIT = 4
+		};
+		
+		enum MESH_lenghts
+		{
+		MESH_DISP_LEN = 2,
+		MESH_V_LEN = 1,
+		MESH_F_LEN = 1,
+		MESH_HOPSLEFT_LEN = 4
+		};	
+		
+		/**
+		* Mesh header set function
+		* \param hopsleft hops left befor dropping the packet
+		* \param source pointer to the source's MAC address
+		* \param destination pointer to the destination's MAC address
+		*/
+		void set_mesh_header( uint8_t hopsleft, node_id_t source, node_id_t destination );
+		
+		/**
+		* Decrement hop left field
+		* \return SUCCESS or ERR_UNSPEC if it reaches 0
+		*/
+		int decrement_hopsleft();
+		//-----------------------------------------------------------------------------------
+		//-------------------------MESH END--------------------------------------------------
+		//-----------------------------------------------------------------------------------
 	#endif
-	
-	//-----------------------------------------------------------------------------------
-	//-------------------------BROADCAST HEADER------------------------------------------
-	//-----------------------------------------------------------------------------------
-	
-	/*
-	 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|0|1|0 1 0 0 0 0|Sequence Number|
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	--> 0d80
-	*/
-	
-	uint8_t BROADCAST_SHIFT;
-	
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------BROADCAST HEADER------------------------------------------
+		//-----------------------------------------------------------------------------------
+		
+		/*
+		0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|0|1|0 1 0 0 0 0|Sequence Number|
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		--> 0d80
+		*/
+		///Position of the broadcast header
+		uint8_t BROADCAST_SHIFT;
+		
 	#ifdef LOWPAN_MESH_UNDER
-	uint8_t broadcast_sequence_number_;
-	
-	uint8_t last_added_sequence_number_;
-	uint8_t received_broadcast_sequence_numbers_[MAX_BROADCAST_SEQUENCE_NUMBERS];
-	uint8_t received_broadcast_originators_[MAX_BROADCAST_SEQUENCE_NUMBERS];
-	
-	bool is_it_new_broadcast_message( node_id_t& originator, uint8_t sequence_number );
+		///Actual broadcast sequence_number
+		uint8_t broadcast_sequence_number_;
+		
+		uint8_t last_added_sequence_number_;
+		///Storage for the received sequence_numbers
+		uint8_t received_broadcast_sequence_numbers_[MAX_BROADCAST_SEQUENCE_NUMBERS];
+		///Storage for the originators of the sequence_numbers
+		uint8_t received_broadcast_originators_[MAX_BROADCAST_SEQUENCE_NUMBERS];
+		
+		/** \brief This function determinates that a received message is a new one or a dupplicate
+		* \param originator MAC address of the source
+		* \param sequence_number the sequence number from the header
+		* \return true if new, false otherwise
+		*/
+		bool is_it_new_broadcast_message( node_id_t& originator, uint8_t sequence_number );
 	#endif
-	
-	//-----------------------------------------------------------------------------------
-	//-------------------------BROADCAST HEADER END--------------------------------------
-	//-----------------------------------------------------------------------------------
-	
-	//-----------------------------------------------------------------------------------
-	//-------------------------FRAGMENTATION HEADER--------------------------------------
-	//-----------------------------------------------------------------------------------
-	/**
-	* Fragmentation header positioning
-	*/
-	uint8_t FRAG_SHIFT;
-	
-	enum FRAG_byte_shifts
-	{
-	 FRAG_DISP_BYTE = 0,
-	 FRAG_SIZE_BYTE = 0,
-	 FRAG_TAG_BYTE = 2,
-	 FRAG_OFFSET_BYTE = 4
-	};
-	
-	enum FRAG_bit_shifts
-	{
-	 FRAG_DISP_BIT = 0,
-	 FRAG_SIZE_BIT = 5,
-	 FRAG_TAG_BIT = 0,
-	 FRAG_OFFSET_BIT = 0
-	};
-	
-	enum FRAG_lenghts
-	{
-	 FRAG_DISP_LEN = 5,
-	 FRAG_SIZE_LEN = 11,
-	 FRAG_TAG_LEN = 16,
-	 FRAG_OFFSET_LEN = 8
-	};
-	
-	/**
-	* Set the fragmentation header
-	* \param size the size of the whole IP packet
-	* \param tag tag code of the IP packet
-	* \param offset of the actual fragment, if it is 0 short form will be used
-	*/
-	void set_fragmentation_header( uint16_t size, uint16_t tag, uint8_t offset = 0 );
-	
-	//-----------------------------------------------------------------------------------
-	//-------------------------FRAGMENTATION HEADER END----------------------------------
-	//-----------------------------------------------------------------------------------
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------BROADCAST HEADER END--------------------------------------
+		//-----------------------------------------------------------------------------------
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------FRAGMENTATION HEADER--------------------------------------
+		//-----------------------------------------------------------------------------------
+		/**
+		* Fragmentation header positioning
+		*/
+		uint8_t FRAG_SHIFT;
+		
+		enum FRAG_byte_shifts
+		{
+		FRAG_DISP_BYTE = 0,
+		FRAG_SIZE_BYTE = 0,
+		FRAG_TAG_BYTE = 2,
+		FRAG_OFFSET_BYTE = 4
+		};
+		
+		enum FRAG_bit_shifts
+		{
+		FRAG_DISP_BIT = 0,
+		FRAG_SIZE_BIT = 5,
+		FRAG_TAG_BIT = 0,
+		FRAG_OFFSET_BIT = 0
+		};
+		
+		enum FRAG_lenghts
+		{
+		FRAG_DISP_LEN = 5,
+		FRAG_SIZE_LEN = 11,
+		FRAG_TAG_LEN = 16,
+		FRAG_OFFSET_LEN = 8
+		};
+		
+		/**
+		* Set the fragmentation header
+		* \param size the size of the whole IP packet
+		* \param tag tag code of the IP packet
+		* \param offset of the actual fragment, if it is 0 short form will be used
+		*/
+		void set_fragmentation_header( uint16_t size, uint16_t tag, uint8_t offset = 0 );
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------FRAGMENTATION HEADER END----------------------------------
+		//-----------------------------------------------------------------------------------
 
-	//-----------------------------------------------------------------------------------
-	//-------------------------IPHC HEADER ----------------------------------------------
-	//-----------------------------------------------------------------------------------
-	
-	/*
-	LOWPAN_IPHC
-	0   1   2   3   4   5   6   7   0   1   2   3   4   5   6   7
-	+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-	| 0 | 1 | 1 |  TF   |NH | HLIM  |CID|SAC|  SAM  | M |DAC|  DAM  |
-	+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-	*/
-	
-	/**
-	* IPHC Header positioning
-	*/
-	uint8_t IPHC_SHIFT;
-	
-	enum IPHC_byte_shifts
-	{
-	 IPHC_DISP_BYTE = 0,
-	 IPHC_TF_BYTE = 0,
-	 IPHC_NH_BYTE = 0,
-	 IPHC_HLIM_BYTE = 0,
-	 IPHC_CID_BYTE = 1,
-	 IPHC_SAC_BYTE = 1,
-	 IPHC_SAM_BYTE = 1,
-	 IPHC_M_BYTE = 1,
-	 IPHC_DAC_BYTE = 1,
-	 IPHC_DAM_BYTE = 1
-	};
-	
-	enum IPHC_bit_shifts
-	{
-	 IPHC_DISP_BIT = 0,
-	 IPHC_TF_BIT = 3,
-	 IPHC_NH_BIT = 5,
-	 IPHC_HLIM_BIT = 6,
-	 IPHC_CID_BIT = 0,
-	 IPHC_SAC_BIT = 1,
-	 IPHC_SAM_BIT = 2,
-	 IPHC_M_BIT = 4,
-	 IPHC_DAC_BIT = 5,
-	 IPHC_DAM_BIT = 6
-	};
-	
-	enum IPHC_lengths
-	{
-	 IPHC_DISP_LEN = 3,
-	 IPHC_TF_LEN = 2,
-	 IPHC_NH_LEN = 1,
-	 IPHC_HLIM_LEN = 2,
-	 IPHC_CID_LEN = 1,
-	 IPHC_SAC_LEN = 1,
-	 IPHC_SAM_LEN = 2,
-	 IPHC_M_LEN = 1,
-	 IPHC_DAC_LEN = 1,
-	 IPHC_DAM_LEN = 2
-	};
+		//-----------------------------------------------------------------------------------
+		//-------------------------IPHC HEADER ----------------------------------------------
+		//-----------------------------------------------------------------------------------
+		
+		/*
+		LOWPAN_IPHC
+		0   1   2   3   4   5   6   7   0   1   2   3   4   5   6   7
+		+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+		| 0 | 1 | 1 |  TF   |NH | HLIM  |CID|SAC|  SAM  | M |DAC|  DAM  |
+		+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+		*/
+		
+		/**
+		* IPHC Header positioning
+		*/
+		uint8_t IPHC_SHIFT;
+		
+		enum IPHC_byte_shifts
+		{
+		IPHC_DISP_BYTE = 0,
+		IPHC_TF_BYTE = 0,
+		IPHC_NH_BYTE = 0,
+		IPHC_HLIM_BYTE = 0,
+		IPHC_CID_BYTE = 1,
+		IPHC_SAC_BYTE = 1,
+		IPHC_SAM_BYTE = 1,
+		IPHC_M_BYTE = 1,
+		IPHC_DAC_BYTE = 1,
+		IPHC_DAM_BYTE = 1
+		};
+		
+		enum IPHC_bit_shifts
+		{
+		IPHC_DISP_BIT = 0,
+		IPHC_TF_BIT = 3,
+		IPHC_NH_BIT = 5,
+		IPHC_HLIM_BIT = 6,
+		IPHC_CID_BIT = 0,
+		IPHC_SAC_BIT = 1,
+		IPHC_SAM_BIT = 2,
+		IPHC_M_BIT = 4,
+		IPHC_DAC_BIT = 5,
+		IPHC_DAM_BIT = 6
+		};
+		
+		enum IPHC_lengths
+		{
+		IPHC_DISP_LEN = 3,
+		IPHC_TF_LEN = 2,
+		IPHC_NH_LEN = 1,
+		IPHC_HLIM_LEN = 2,
+		IPHC_CID_LEN = 1,
+		IPHC_SAC_LEN = 1,
+		IPHC_SAM_LEN = 2,
+		IPHC_M_LEN = 1,
+		IPHC_DAC_LEN = 1,
+		IPHC_DAM_LEN = 2
+		};
 
-	/**
-	* Set IPHC header from an IPv6 packet
-	*/
-	void set_IPHC_header( IPv6Packet_t* ip_packet, node_id_t* link_local_destination );
-	
-	/**
-	* IPHC header --> IPv6 header
-	* The length field will be calculated after this call
-	* \param packet pointer to the target packet
-	* \param link_layer_from pointor to the source's MAC address
-	*/
-	int uncompress_IPHC( IPv6Packet_t* packet, node_id_t* link_layer_from );
-	
-	
-	/**
-	* Traffic Class & Flow Label positioning
-	*/	
-	enum TRAFLO_00_byte_shifts
-	{
-	 TRAFLO_00_TRA_BYTE = 0,
-	 TRAFLO_00_FLO_BYTE = 1
-	};
-	
-	enum TRAFLO_00_bit_shifts
-	{
-	 TRAFLO_00_TRA_BIT = 0,
-	 TRAFLO_00_FLO_BIT = 4
-	};
-	
-	enum TRAFLO_00_lenghts
-	{
-	 TRAFLO_00_TRA_LEN = 8,
-	 TRAFLO_00_FLO_LEN = 20
-	};
-	
-	enum TRAFLO_01_byte_shifts
-	{
-	 TRAFLO_01_ECN_BYTE = 0,
-	 TRAFLO_01_FLO_BYTE = 0
-	};
-	
-	enum TRAFLO_01_bit_shifts
-	{
-	 TRAFLO_01_ECN_BIT = 0,
-	 TRAFLO_01_FLO_BIT = 4
-	};
-	
-	enum TRAFLO_01_lenghts
-	{
-	 TRAFLO_01_ECN_LEN = 2,
-	 TRAFLO_01_FLO_LEN = 20
-	};
-	//TRAFLO_10 is just 1 byte, no enums for it
-	//TRAFLO END
-	//-----------------------------------------------------------------------------------
-	//-------------------------IPHC HEADER  END------------------------------------------
-	//-----------------------------------------------------------------------------------
-	
-	//-----------------------------------------------------------------------------------
-	//-------------------------NHC HEADER  ----------------------------------------------
-	//-----------------------------------------------------------------------------------
-	/*
-	  0   1   2   3   4   5   6   7
-	+---+---+---+---+---+---+---+---+
-	| 1 | 1 | 1 | 1 | 0 | C |   P   |
-	+---+---+---+---+---+---+---+---+
-	*/
-	
-	/**
-	* NHC (for UDP) positionig
-	*/
-	uint8_t NHC_SHIFT;
-	
-	enum NHC_byte_shifts
-	{
-	 NHC_DISP_BYTE = 0,
-	 NHC_C_BYTE = 0,
-	 NHC_P_BYTE = 0
-	};
-	
-	enum NHC_bit_shifts
-	{
-	 NHC_DISP_BIT = 0,
-	 NHC_C_BIT = 5,
-	 NHC_P_BIT = 6
-	};
-	
-	enum NHC_lenghts
-	{
-	 NHC_DISP_LEN = 5,
-	 NHC_C_LEN = 1,
-	 NHC_P_LEN = 2
-	};
-	//NHC END
-	/**
-	* Set NHC header from an IPv6 packet
-	* NOTE: No validation, the UDP header has to be in the packet's payload!
-	* NOTE: It has to be called after the set_IPHC_header function!
-	* \param ip_packet pointer to the IP packet
-	*/
-	void set_NHC_header( IPv6Packet_t* ip_packet );
-	
-	/**
-	* NHC header --> UDP header
-	* \param packet pointer to the target packet
-	*/
-	void uncompress_NHC( IPv6Packet_t* packet, uint16_t packet_len );
-	
-	//-----------------------------------------------------------------------------------
-	//-------------------------NHC HEADER  END-------------------------------------------
-	//-----------------------------------------------------------------------------------
+		/**
+		* Set IPHC header from an IPv6 packet
+		* \param ip_packet pointer to the actual IP packet
+		* \param link_local_destination pointer to the ll destination
+		*/
+		void set_IPHC_header( IPv6Packet_t* ip_packet, node_id_t* link_local_destination );
+		
+		/**
+		* IPHC header --> IPv6 header
+		* The length field will be calculated after this call
+		* \param packet pointer to the target packet
+		* \param link_layer_from pointor to the source's MAC address
+		*/
+		int uncompress_IPHC( IPv6Packet_t* packet, node_id_t* link_layer_from );
+		
+		
+		/**
+		* Traffic Class & Flow Label positioning
+		*/	
+		enum TRAFLO_00_byte_shifts
+		{
+		TRAFLO_00_TRA_BYTE = 0,
+		TRAFLO_00_FLO_BYTE = 1
+		};
+		
+		enum TRAFLO_00_bit_shifts
+		{
+		TRAFLO_00_TRA_BIT = 0,
+		TRAFLO_00_FLO_BIT = 4
+		};
+		
+		enum TRAFLO_00_lenghts
+		{
+		TRAFLO_00_TRA_LEN = 8,
+		TRAFLO_00_FLO_LEN = 20
+		};
+		
+		enum TRAFLO_01_byte_shifts
+		{
+		TRAFLO_01_ECN_BYTE = 0,
+		TRAFLO_01_FLO_BYTE = 0
+		};
+		
+		enum TRAFLO_01_bit_shifts
+		{
+		TRAFLO_01_ECN_BIT = 0,
+		TRAFLO_01_FLO_BIT = 4
+		};
+		
+		enum TRAFLO_01_lenghts
+		{
+		TRAFLO_01_ECN_LEN = 2,
+		TRAFLO_01_FLO_LEN = 20
+		};
+		//TRAFLO_10 is just 1 byte, no enums for it
+		//TRAFLO END
+		//-----------------------------------------------------------------------------------
+		//-------------------------IPHC HEADER  END------------------------------------------
+		//-----------------------------------------------------------------------------------
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------NHC HEADER  ----------------------------------------------
+		//-----------------------------------------------------------------------------------
+		/*
+		0   1   2   3   4   5   6   7
+		+---+---+---+---+---+---+---+---+
+		| 1 | 1 | 1 | 1 | 0 | C |   P   |
+		+---+---+---+---+---+---+---+---+
+		*/
+		
+		/**
+		* NHC (for UDP) positionig
+		*/
+		uint8_t NHC_SHIFT;
+		
+		enum NHC_byte_shifts
+		{
+		NHC_DISP_BYTE = 0,
+		NHC_C_BYTE = 0,
+		NHC_P_BYTE = 0
+		};
+		
+		enum NHC_bit_shifts
+		{
+		NHC_DISP_BIT = 0,
+		NHC_C_BIT = 5,
+		NHC_P_BIT = 6
+		};
+		
+		enum NHC_lenghts
+		{
+		NHC_DISP_LEN = 5,
+		NHC_C_LEN = 1,
+		NHC_P_LEN = 2
+		};
+		//NHC END
+		/**
+		* Set NHC header from an IPv6 packet
+		* NOTE: No validation, the UDP header has to be in the packet's payload!
+		* NOTE: It has to be called after the set_IPHC_header function!
+		* \param ip_packet pointer to the IP packet
+		*/
+		void set_NHC_header( IPv6Packet_t* ip_packet );
+		
+		/**
+		* NHC header --> UDP header
+		* \param packet pointer to the target packet
+		*/
+		void uncompress_NHC( IPv6Packet_t* packet, uint16_t packet_len );
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------NHC HEADER  END-------------------------------------------
+		//-----------------------------------------------------------------------------------
 
-	 /** 
-	 * Helper function for 64 / 16 bit addresses 
-	 */
-	 bool is_it_short_address( IPv6Address_t* address );
-	 
-	 /**
-	 * Helper function to determine that the destination is the next hop
-	 */
-	 bool is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address );
-	 
-	/**
-	* Set unicast address to the ACTUAL_SHIFT position
-	* For source address compression and M=0 destination address compression
-	* \param packet The IPv6 packet
-	* \param link_local_destination The determined MAC next hop
-	* \param source source or destination address
-	* \param CID_mode
-	* \param CID_value
-	*/
-	void set_unicast_address( IPv6Packet_t* packet, node_id_t* link_local_destination, bool source, uint8_t& CID_mode, uint8_t& CID_value );
-	
-	/**
-	* Get an unicast address from a compressed IPHC header
-	* The ACTUAL_SHIFT has to be in position
-	* \param link_local_source pointer to the link-local source address
-	* \param source indicates that the source or the destination address required
-	* \return the IPv6 addresse
-	*/
-	int get_unicast_address( node_id_t* link_local_source, bool source, IPv6Address_t& address );
-	 
-	 
-	block_data_t buffer_[Radio::MAX_MESSAGE_LENGTH];
-	int ACTUAL_SHIFT;
-	//It has to be incremented after sent packets
-	uint16_t fragmentation_tag;
+		/** 
+		* Helper function to separate long and short addresses 
+		*/
+		bool is_it_short_address( IPv6Address_t* address );
+		
+		/**
+		* Helper function to determine that the destination is the next hop
+		* It is required for the compression because if it is true, the whole IP address could be elided
+		* \param ip_packet pointer to the actual IP packet
+		* \param mac_address pointer to the next hop's MAC address
+		*/
+		bool is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address );
+		
+		/**
+		* Set unicast address to the ACTUAL_SHIFT position
+		* For source address compression and M=0 destination address compression
+		* \param packet The IPv6 packet
+		* \param link_local_destination The determined MAC next hop
+		* \param source source or destination address
+		* \param CID_mode return value
+		* \param CID_value return value
+		*/
+		void set_unicast_address( IPv6Packet_t* packet, node_id_t* link_local_destination, bool source, uint8_t& CID_mode, uint8_t& CID_value );
+		
+		/**
+		* Get an unicast address from a compressed IPHC header
+		* The ACTUAL_SHIFT has to be in position
+		* \param link_local_source pointer to the link-local source address
+		* \param source indicates that the source or the destination address required
+		* \param address the IPv6 address (return)
+		* \return error codes
+		*/
+		int get_unicast_address( node_id_t* link_local_source, bool source, IPv6Address_t& address );
+		
+		///Buffer for the incoming radio messages
+		block_data_t buffer_[Radio::MAX_MESSAGE_LENGTH];
+		
+		///Common global place store for compression and decompression
+		int ACTUAL_SHIFT;
+		
+		//It has to be incremented after sent packets
+		///Global variable to store the next used fragmentation tag value
+		uint16_t fragmentation_tag;
 	
 	};
 	
@@ -632,10 +649,10 @@ namespace wiselib
 	// -----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	LoWPAN()
 	: radio_ ( 0 ),
@@ -644,10 +661,10 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	~LoWPAN()
 	{
@@ -659,34 +676,36 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	init( void )
 	{
 		return enable_radio();
 	}
+	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	destruct( void )
 	{
 		return disable_radio();
 	}
+	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	enable_radio( void )
@@ -706,12 +725,13 @@ namespace wiselib
 		
 		return SUCCESS;
 	}
+	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	disable_radio( void )
@@ -727,10 +747,10 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	send( IPv6Address_t destination, size_t packet_number, block_data_t *data )
@@ -917,10 +937,10 @@ namespace wiselib
 
 // -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	receive( node_id_t from, size_t len, block_data_t *data )
@@ -1216,23 +1236,23 @@ namespace wiselib
 // -----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	IP_to_MAC( IPv6Address_t ip_address, node_id_t& mac_address )
 	{
-		IPv6Address_t ip_broadcast = IPv6Address<Radio_P, Debug_P>(1);
-		IPv6Address_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
-		if( ip_address == ip_broadcast || ip_address == ip_all_routers )
-			mac_address = BROADCAST_ADDRESS;
-		else
+		mac_address = nd_storage_.neighbor_cache.get_link_layer_address_for_neighbor( &ip_address );
+		if( mac_address == 0 )
 		{
-			mac_address = ip_address.addr[14];
-			mac_address <<= 8;
-			mac_address |= ip_address.addr[15];
+			IPv6Address_t ip_broadcast = IPv6Address<Radio_P, Debug_P>(1);
+			IPv6Address_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
+			if( ip_address == ip_broadcast || ip_address == ip_all_routers )
+				mac_address = BROADCAST_ADDRESS;
+			else
+				mac_address = ( ip_address.addr[14] << 8 ) | ip_address.addr[15];
 		}
 		return SUCCESS;
 	}
@@ -1241,10 +1261,10 @@ namespace wiselib
 	
 	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_mesh_header( uint8_t hopsleft, node_id_t source, node_id_t destination )
@@ -1327,10 +1347,10 @@ namespace wiselib
 	
 	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	decrement_hopsleft()
@@ -1361,10 +1381,10 @@ namespace wiselib
 	
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_fragmentation_header( uint16_t size, uint16_t tag, uint8_t offset )
@@ -1425,10 +1445,10 @@ namespace wiselib
 //-----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_IPHC_header( IPv6Packet_t* ip_packet, node_id_t* link_local_destination )
@@ -1656,10 +1676,10 @@ namespace wiselib
 //-------------------------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_NHC_header( IPv6Packet_t* ip_packet )
@@ -1963,32 +1983,29 @@ namespace wiselib
 //-------------------------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	bool
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	is_it_short_address( IPv6Address_t* address )
 	 {
-	  /*if( ( address->addr[8] == 0x00 || address->addr[8] == 0x02 )  &&
-	   	address->addr[9] == 0x00 &&
-	   	address->addr[10] == 0x00 &&
-	   	address->addr[11] == 0xFF &&
+	  if( ( address->addr[11] == 0xFF &&
 	   	address->addr[12] == 0xFE &&
-	   	address->addr[13] == 0x00)
+	   	address->addr[13] == 0x00) )
 	   	return true;
-	  else*/
+	  else
 	  	return false;
 	 }
 	 
 //-------------------------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	bool
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address )
@@ -2018,10 +2035,10 @@ namespace wiselib
 //-------------------------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_unicast_address( IPv6Packet_t* packet, node_id_t* link_local_destination, bool source, uint8_t& CID_mode, uint8_t& CID_value )
@@ -2128,10 +2145,10 @@ namespace wiselib
 //-------------------------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	get_unicast_address( node_id_t* link_local_address, bool source, IPv6Address_t& address )
@@ -2215,10 +2232,10 @@ namespace wiselib
 	
 	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	int
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	determine_mesh_next_hop( node_id_t& mac_destination, node_id_t& mac_next_hop, uint8_t packet_number )
@@ -2288,10 +2305,10 @@ namespace wiselib
 	
 	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	routing_polling( void* p_number )
@@ -2321,10 +2338,10 @@ namespace wiselib
 	
 	#ifdef LOWPAN_MESH_UNDER
 	template<typename OsModel_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Uart_Radio_P>
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
 	bool
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	is_it_new_broadcast_message( node_id_t& originator, uint8_t sequence_number )
