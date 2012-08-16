@@ -16,6 +16,13 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: ipv6_stack.h
+* Class(es): ICMPv6 (Neighbor Detection included)
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_ICMPV6_LAYER_H__
 #define __ALGORITHMS_6LOWPAN_ICMPV6_LAYER_H__
 
@@ -121,7 +128,6 @@ namespace wiselib
 	/**
 	* \brief ICMPv6 layer for the 6LoWPAN implementation.
 	*
-	*  \ingroup routing_concept
 	*  \ingroup radio_concept
 	*
 	* This file contains the implementation of the ICMPv6 layer for the 6LoWPAN implementation.
@@ -137,311 +143,348 @@ namespace wiselib
 	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
 	{
 	public:
-	typedef OsModel_P OsModel;
-	typedef Radio_IP_P Radio_IP;
-	typedef Radio_P Radio;
-	typedef Debug_P Debug;
-	typedef Timer_P Timer;
-	
-	typedef ICMPv6<OsModel, Radio_IP, Radio, Debug, Timer> self_type;
-	typedef self_type* self_pointer_t;
-	
-	typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
-	typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
-	
-	typedef typename Radio_IP::node_id_t node_id_t;
-	typedef typename Radio_IP::size_t size_t;
-	typedef typename Radio_IP::block_data_t block_data_t;
-	typedef typename Radio_IP::message_id_t message_id_t;
-	
-	typedef typename Radio::node_id_t link_layer_node_id_t;
-	
-	typedef NDStorage<Radio, Debug> NDStorage_t;
-	typedef NeighborCacheEntryType<link_layer_node_id_t, node_id_t> NeighborCacheEntryType_t;
-	typedef DefaultRouterEntryType<NeighborCacheEntryType_t> DefaultRouterEntryType_t;
-	
-	// --------------------------------------------------------------------
-	enum ErrorCodes
-	{
-		SUCCESS = OsModel::SUCCESS,
-		ERR_UNSPEC = OsModel::ERR_UNSPEC,
-		ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-		ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-		ROUTING_CALLED = Radio_IP::ROUTING_CALLED
-	};
-	// --------------------------------------------------------------------
-	
-	/**
-	* Enumeration of the ICMPv6 message code types
-	*/
-	enum ICMPv6MessageCodes
-	{
-	 /*DESTINATION_UNREACHABLE = 1,
-	 PACKET_TOO_BIG = 2,
-	 TIME_EXCEEDED = 3,
-	 PARAMETER_PROBLEM = 4,*/
-	 ECHO_REQUEST = 128,
-	 ECHO_REPLY = 129,
-	 ROUTER_SOLICITATION = 133,
-	 ROUTER_ADVERTISEMENT = 134,
-	 NEIGHBOR_SOLICITATION = 135,
-	 NEIGHBOR_ADVERTISEMENT = 136/*,
-	 DUPLICATE_ADDRESS_REQUEST = ,
-	 DUPLICATE_ADDRESS_CONFIRMATION = */
-	};
-	
-	//----------------------------------------------------------------
-	
-	enum ND_Options
-	{
-		SOURCE_LL_ADDRESS = 1,
-		DESTINATION_LL_ADDRESS = 2,
-		PREFIX_INFORMATION = 3,
-		ADDRESS_REGISTRATION = 31,
-		LOWPAN_CONTEXT = 32,
-		AUTHORITIVE_BORDER_ROUTER = 33
-	};
-	
-	enum ARstatus
-	{
-		AR_SUCCESS = 0,
-		AR_DUPLICATE_ADDRESS = 1,
-		AR_NEIGHBOR_CACHE_FULL = 2
-	};
-	
-	/**
-	* Unspecified IP address: 0:0:0:0:0:0:0:0
-	*/
-	static const node_id_t NULL_NODE_ID;
-	
-	/**
-	* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
-	*/
-	static const node_id_t BROADCAST_ADDRESS;
-	
-	/**
-	* Multicast address for all routers: FF02:0:0:0:0:0:0:2
-	*/
-	static const node_id_t ALL_ROUTERS_ADDRESS;
+		typedef OsModel_P OsModel;
+		typedef Radio_IP_P Radio_IP;
+		typedef Radio_P Radio;
+		typedef Debug_P Debug;
+		typedef Timer_P Timer;
+		
+		typedef ICMPv6<OsModel, Radio_IP, Radio, Debug, Timer> self_type;
+		typedef self_type* self_pointer_t;
+		
+		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+		typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
+		
+		typedef typename Radio_IP::node_id_t node_id_t;
+		typedef typename Radio_IP::size_t size_t;
+		typedef typename Radio_IP::block_data_t block_data_t;
+		typedef typename Radio_IP::message_id_t message_id_t;
+		
+		typedef typename Radio::node_id_t link_layer_node_id_t;
+		
+		typedef NDStorage<Radio, Debug> NDStorage_t;
+		typedef NeighborCacheEntryType<link_layer_node_id_t, node_id_t> NeighborCacheEntryType_t;
+		typedef DefaultRouterEntryType<NeighborCacheEntryType_t> DefaultRouterEntryType_t;
+		
+		// --------------------------------------------------------------------
+		enum ErrorCodes
+		{
+			SUCCESS = OsModel::SUCCESS,
+			ERR_UNSPEC = OsModel::ERR_UNSPEC,
+			ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
+			ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
+			ROUTING_CALLED = Radio_IP::ROUTING_CALLED
+		};
+		// --------------------------------------------------------------------
+		
+		/**
+		* Enumeration of the ICMPv6 message code types
+		*/
+		enum ICMPv6MessageCodes
+		{
+		/*DESTINATION_UNREACHABLE = 1,
+		PACKET_TOO_BIG = 2,
+		TIME_EXCEEDED = 3,
+		PARAMETER_PROBLEM = 4,*/
+		ECHO_REQUEST = 128,
+		ECHO_REPLY = 129,
+		ROUTER_SOLICITATION = 133,
+		ROUTER_ADVERTISEMENT = 134,
+		NEIGHBOR_SOLICITATION = 135,
+		NEIGHBOR_ADVERTISEMENT = 136/*,
+		DUPLICATE_ADDRESS_REQUEST = ,
+		DUPLICATE_ADDRESS_CONFIRMATION = */
+		};
+		
+		//----------------------------------------------------------------
+		
+		enum ND_Options
+		{
+			SOURCE_LL_ADDRESS = 1,
+			DESTINATION_LL_ADDRESS = 2,
+			PREFIX_INFORMATION = 3,
+			ADDRESS_REGISTRATION = 31,
+			LOWPAN_CONTEXT = 32,
+			AUTHORITIVE_BORDER_ROUTER = 33
+		};
+		
+		enum ARstatus
+		{
+			AR_SUCCESS = 0,
+			AR_DUPLICATE_ADDRESS = 1,
+			AR_NEIGHBOR_CACHE_FULL = 2
+		};
+		
+		/**
+		* Unspecified IP address: 0:0:0:0:0:0:0:0
+		*/
+		static const node_id_t NULL_NODE_ID;
+		
+		/**
+		* Multicast address for every link-local nodes: FF02:0:0:0:0:0:0:1
+		*/
+		static const node_id_t BROADCAST_ADDRESS;
+		
+		/**
+		* Multicast address for all routers: FF02:0:0:0:0:0:0:2
+		*/
+		static const node_id_t ALL_ROUTERS_ADDRESS;
 
-	// --------------------------------------------------------------------
-	enum Restrictions {
-		MAX_MESSAGE_LENGTH = Radio_IP::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
-	};
-	// --------------------------------------------------------------------
-	///@name Construction / Destruction
-	///@{
-	 ICMPv6();
-	 ~ICMPv6();
-	///@}
-	 
-	int init( Radio_IP& radio_ip, Debug& debug, Timer& timer, Packet_Pool_Mgr_t* p_mgr )
-	{
-		radio_ip_ = &radio_ip;
-		debug_ = &debug;
-		timer_ = &timer;
-		packet_pool_mgr_ = p_mgr;
+		// --------------------------------------------------------------------
+		enum Restrictions {
+			MAX_MESSAGE_LENGTH = Radio_IP::MAX_MESSAGE_LENGTH - 8  ///< Maximal number of bytes in payload
+		};
+		// --------------------------------------------------------------------
+		///@name Construction / Destruction
+		///@{
+		ICMPv6();
+		~ICMPv6();
+		///@}
 		
-		//ND init
-		for( int i = 0; i < NUMBER_OF_INTERFACES; i++ )
-			sent_RS[i] = 0;
+		///Initialization
+		int init( Radio_IP& radio_ip, Debug& debug, Timer& timer, Packet_Pool_Mgr_t* p_mgr )
+		{
+			radio_ip_ = &radio_ip;
+			debug_ = &debug;
+			timer_ = &timer;
+			packet_pool_mgr_ = p_mgr;
+			
+			//ND init
+			for( int i = 0; i < NUMBER_OF_INTERFACES; i++ )
+				sent_RS[i] = 0;
+			
+			return SUCCESS;
+		}
 		
-		return SUCCESS;
-	}
-	 
-	inline int init();
-	inline int destruct();
-	 
-	///@name Routing Control
-	///@{
-	int enable_radio( void );
-	int disable_radio( void );
-	///@}
-	  
-	///@name Radio Concept
-	///@{
-	/**
-	*/
-	int send( node_id_t receiver, size_t len, block_data_t *data );
-	/**
-	*/
-	void receive( node_id_t from, size_t packet_number, block_data_t *data );
-	/**
-	*/
-	node_id_t id()
-	{
-		return radio_ip().id();
-	}
-	///@}
-	
-	/**
-	* Send a ping (Echo Request)
-	* \param id pointer to the 2 byte identifier
-	*/
-	int ping( node_id_t destination )
-	{
-		uint8_t data = ECHO_REQUEST;
-		return send( destination, 1, &data );
-	}
-	
-	/**
-	* Common function for timing
-	* Periodically called by the timer
-	*/
-	void ND_timeout_manager_function( void* );
+		inline int init();
+		inline int destruct();
+		
+		///@name Routing Control
+		///@{
+		int enable_radio( void );
+		int disable_radio( void );
+		///@}
+		
+		///@name Radio Concept
+		///@{
+		/**
+		*/
+		int send( node_id_t receiver, size_t len, block_data_t *data );
+		/**
+		* Callback function of the layer. This is called by the IPv6 layer.
+		* \param from The IP address of the sender
+		* \param packet_number The number of the packet in the PacketPool
+		* \param data Not used here
+		*/
+		void receive( node_id_t from, size_t packet_number, block_data_t *data );
+		/**
+		*/
+		node_id_t id()
+		{
+			return radio_ip().id();
+		}
+		///@}
+		
+		/**
+		* Send a ping (Echo Request)
+		* \param destination IP address of the destination
+		*/
+		int ping( node_id_t destination )
+		{
+			uint8_t data = ECHO_REQUEST;
+			return send( destination, 1, &data );
+		}
+		
+		/**
+		* Common function for timing
+		* ND can be started with a call of this function, after it will be periodically  called by the timer
+		*/
+		void ND_timeout_manager_function( void* );
 
 	private:
-	
-	/**
-	* Function to generate Ideintifier
-	* \param id pointer to the 2 byte identifier
-	*/
-	void generate_id( uint8_t* id );
-	
-	Radio_IP& radio_ip()
-	{ return *radio_ip_; }
-	
-	Debug& debug()
-	{ return *debug_; }
-	
-	Timer& timer()
-	{ return *timer_; }
-	
-	typename Radio_IP::self_pointer_t radio_ip_;
-	typename Debug::self_pointer_t debug_;
-	typename Timer::self_pointer_t timer_;
-	Packet_Pool_Mgr_t* packet_pool_mgr_;
-	
-	/**
-	* Callback ID
-	*/
-	int callback_id_;
-	
-	/*
-	------------------ND part-----------------------------
-	*/
-	
-	//Helper variables for ND
-	uint8_t sent_RS[NUMBER_OF_INTERFACES];
-	
-	void send_RS_to_all_routers( void* target );
-	
-	
-	/**
-	* Common packet prepare function for ND messages
-	*/
-	int send_nd_message( uint8_t typecode, node_id_t* dest_addr, uint8_t target_interface, link_layer_node_id_t ll_destination = 0, uint8_t status_for_NA = 0, uint16_t lifetime_for_NA = 0 );
-	
-	
-	
-	/**
-	* Inserts a link layer option.
-	*
-	* \param	length		actual size of the IP payload
-	* \param	link_layer_address	the link layer address which is going to be inserted
-	* \param	is_target_address	indicates whether the option is a source or a target link layer address
-	*
-	* \return	the length of the inserted option
-	*/
-	/*
-	0                   1                   2                   3
-	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|     Type      |    Length     |    Link-Layer Address ...
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	*/
-	void insert_link_layer_option( IPv6Packet_t* message, uint16_t& length, link_layer_node_id_t link_layer_address, bool is_target_address );
-	
-	link_layer_node_id_t read_link_layer_option( uint8_t* payload, uint16_t& act_pos );
-	
-	/**
-	* Inserts a prefix information.
-	*
-	* \param	length		actual size of the IP payload
-	*
-	* \return	the length of the inserted option
-	*/
-	/*
-	0                   1                   2                   3
-	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|     Type      |    Length     | Prefix Length |L|A| Reserved1 |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|                         Valid Lifetime                        |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|                       Preferred Lifetime                      |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|                           Reserved2                           |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|                                                               |
-	+                                                               +
-	|                                                               |
-	+                            Prefix                             +
-	|                                                               |
-	+                                                               +
-	|                                                               |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	*/
-	void insert_prefix_information( IPv6Packet_t* message, uint16_t& length, uint8_t target_interface, uint8_t prefix_number );
-	
-	int process_prefix_information( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
-	
-	/**
-	* Inserts an address registration option.
-	*
-	* \param	length		actual size of the IP payload
-	* \param	status		indicates the status of a registration, valid values are 0 (=success), 1 (=duplicate address) and 2 (= neighbor cache full)
-	* \param	registration_lifetime	amount of time (in units of 10 seconds) a router should retain the neighbor cache entry
-	* \param	interface_address		used to uniquely identify the interface of the registered address
-	*
-	* \return	the length of the inserted option
-	*/
-	/*
-	0                   1                   2                   3
-	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|     Type      |   Length = 2  |    Status     |   Reserved    |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|           Reserved            |     Registration Lifetime     |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|                                                               |
-	+                            EUI-64                             +
-	|                                                               |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	*/
-	void insert_address_registration_option( IPv6Packet_t* message, uint16_t& length, uint8_t status, uint16_t registration_lifetime, uint64_t link_layer_address );
-	
-	void process_address_registration_option( node_id_t* source, uint8_t target_interface, uint8_t* payload, uint16_t& act_pos, bool from_NS, NDStorage_t* act_nd_storage, link_layer_node_id_t link_layer_source  );
-	
-	/**
-	* Inserts a 6LoWPAN context option.
-	*
-	* \param	length		actual size of the IP payload
-	* \param	context_id	ID of the context
-	
-	* \param	context_length	the number of leading bit in the context prefix that are valid
-	* \param	valid_for_compression	indicates if the context is valid for use in compression
-	* \param 	valid_lifetime	length of time (in units of 10 seconds) that this prefix is valid for the purpose of header compression
-	* \param 	context_prefix	the context prefix for the given context ID
-	*
-	* \return	the length of the inserted option
-	*/
-	/*
-	0                   1                   2                   3
-	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|     Type      |     Length    |Context Length | Res |C|  CID  |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	|            Reserved           |         Valid Lifetime        |
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	.                                                               .
-	.                       Context Prefix                          .
-	.                                                               .
-	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	*/
-	void insert_6lowpan_context_option( IPv6Packet_t* message, uint16_t& length, uint8_t context_id);
-	
-	void process_6lowpan_context_option( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
+		
+		/**
+		* Function to generate Ideintifier
+		* \param id pointer to the 2 byte identifier
+		*/
+		void generate_id( uint8_t* id );
+		
+		Radio_IP& radio_ip()
+		{ return *radio_ip_; }
+		
+		Debug& debug()
+		{ return *debug_; }
+		
+		Timer& timer()
+		{ return *timer_; }
+		
+		typename Radio_IP::self_pointer_t radio_ip_;
+		typename Debug::self_pointer_t debug_;
+		typename Timer::self_pointer_t timer_;
+		Packet_Pool_Mgr_t* packet_pool_mgr_;
+		
+		/**
+		* Callback ID
+		*/
+		int callback_id_;
+		
+		/*
+		------------------ND part-----------------------------
+		*/
+		
+		//Helper variables for ND
+		///Number of sent ROUTER_SOLICITATIONs without response on the interfaces
+		uint8_t sent_RS[NUMBER_OF_INTERFACES];
+		
+		/**
+		* For ROUTER_SOLICITATION sending this function must be called, it will be called by a
+		* timer periodically until a ROUTER_ADVERTISEMENT will bereceived.
+		* \param target the number of the target interface
+		*/
+		void send_RS_to_all_routers( void* target );
+		
+		
+		/**
+		* Network Discovery message sending function
+		* \param typecode the type of the message
+		* \param dest_addr the target IP address
+		* \param target_interface target output interface
+		* \param ll_destination if the link layer address is specified it could be set here
+		* \param status_for_NA status field for NEIGHBOR_ADVERTISEMENT
+		* \param lifetime_for_NA lifetime field for NEIGHBOR_ADVERTISEMENT
+		*/
+		int send_nd_message( uint8_t typecode, node_id_t* dest_addr, uint8_t target_interface, link_layer_node_id_t ll_destination = 0, uint8_t status_for_NA = 0, uint16_t lifetime_for_NA = 0 );
+		
+		
+		/*
+		0                   1                   2                   3
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|     Type      |    Length     |    Link-Layer Address ...
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*/
+		/**
+		* Inserts a link layer option.
+		* \param message the actal IP packet
+		* \param length actual size of the IP payload
+		* \param link_layer_address the link layer address which is going to be inserted
+		* \param is_target_address indicates whether the option is a source or a target link layer address
+		*/
+		void insert_link_layer_option( IPv6Packet_t* message, uint16_t& length, link_layer_node_id_t link_layer_address, bool is_target_address );
+		
+		/**
+		* Read a link layer option from the specified place
+		* \param payload the payload of the packet
+		* \param act_pos the actual start position
+		* \return the link layer address
+		*/
+		link_layer_node_id_t read_link_layer_option( uint8_t* payload, uint16_t& act_pos );
+		
+		
+		/*
+		0                   1                   2                   3
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|     Type      |    Length     | Prefix Length |L|A| Reserved1 |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|                         Valid Lifetime                        |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|                       Preferred Lifetime                      |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|                           Reserved2                           |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|                                                               |
+		+                                                               +
+		|                                                               |
+		+                            Prefix                             +
+		|                                                               |
+		+                                                               +
+		|                                                               |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*/
+		/**
+		* Inserts a prefix information.
+		* \param message the actal IP packet
+		* \param length actual size of the IP payload
+		* \param target_interface the interface which from the prefix information will be readed
+		* \param prefix_number the number of the requested prefix
+		*/
+		void insert_prefix_information( IPv6Packet_t* message, uint16_t& length, uint8_t target_interface, uint8_t prefix_number );
+		
+		/**
+		* Process a prefix information option from the specified place
+		* \param payload the payload of the packet
+		* \param act_pos the actual start position
+		* \param target_interface the interface which from the information was arrived
+		* \return the link layer address
+		*/
+		int process_prefix_information( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
+		
+		
+		/*
+		0                   1                   2                   3
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|     Type      |   Length = 2  |    Status     |   Reserved    |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|           Reserved            |     Registration Lifetime     |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|                                                               |
+		+                            EUI-64                             +
+		|                                                               |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*/
+		/**
+		* Inserts an address registration option.
+		* \param message the actal IP packet
+		* \param length actual size of the IP payload
+		* \param status indicates the status of a registration, valid values are 0 (=success), 1 (=duplicate address) and 2 (= neighbor cache full)
+		* \param registration_lifetime amount of time (in units of 10 seconds) a router should retain the neighbor cache entry
+		* \param link_layer_address used to uniquely identify the interface of the registered address
+		*/
+		void insert_address_registration_option( IPv6Packet_t* message, uint16_t& length, uint8_t status, uint16_t registration_lifetime, uint64_t link_layer_address );
+		
+		/**
+		* Processes an address registration option
+		* \param source pointer to the source of the message
+		* \param target_interface the incoming interface
+		* \param payload the payload of the message
+		* \param act_pos the actual start position
+		* \param from_NS flag to indicate that this ARO is from a NEIGHBOR_SOLICITATION
+		* \param act_nd_storage pointer to the actual ND storage
+		* \param link_layer_source the MAC source of the message
+		*/
+		void process_address_registration_option( node_id_t* source, uint8_t target_interface, uint8_t* payload, uint16_t& act_pos, bool from_NS, NDStorage_t* act_nd_storage, link_layer_node_id_t link_layer_source  );
+		
+		
+		/*
+		0                   1                   2                   3
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|     Type      |     Length    |Context Length | Res |C|  CID  |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|            Reserved           |         Valid Lifetime        |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		.                                                               .
+		.                       Context Prefix                          .
+		.                                                               .
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*/
+		/**
+		* Inserts a 6LoWPAN context option.
+		* \param message the actal IP packet
+		* \param length actual size of the IP payload
+		* \param context_id ID of the context
+		*/
+		void insert_6lowpan_context_option( IPv6Packet_t* message, uint16_t& length, uint8_t context_id);
+		
+		/**
+		* Processes a context information option
+		* \param payload the payload of the message
+		* \param act_pos the actual start position
+		* \param selected_interface the incoming interface
+		*/
+		void process_6lowpan_context_option( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
 	
 	};
 	
@@ -603,9 +646,6 @@ namespace wiselib
 			return ERR_UNSPEC;
 
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
-		
-		//It is an outgoing packet
-		message->incoming = false;
 		
 		message->set_next_header(Radio_IP::ICMPV6);
 		message->set_hop_limit(255);
@@ -1070,10 +1110,10 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-	typename Radio_IP_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P>
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P>
 	void
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
 	send_RS_to_all_routers( void* target )
@@ -1347,8 +1387,6 @@ namespace wiselib
 		/*
 			SET the common fields
 							*/
-		//It is an outgoing packet
-		message->incoming = false;
 		
 		//Set IP header fields
 		message->set_next_header(Radio_IP::ICMPV6);

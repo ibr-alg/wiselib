@@ -16,6 +16,13 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: interface_manager.h
+* Class(es): InterfaceManager
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_INTERFACE_MANAGER_H__
 #define __ALGORITHMS_6LOWPAN_INTERFACE_MANAGER_H__
 
@@ -27,6 +34,11 @@
 
 namespace wiselib
 {
+	/** \brief Interface manager class is to separate the interfeces under the IPv6 layer
+	* 
+	* At the moment the 6LoWPAN radio and the UartRadio are implemented.
+	* Every outgoing packet go through this manager, but incoming pockets aren't.
+	*/
 	template<typename OsModel_P,
 		typename Radio_LoWPAN_P,
 		typename Radio_P,
@@ -57,6 +69,7 @@ namespace wiselib
 		typedef PrefixType<IPv6Address_t> PrefixType_t;
 
 		// -----------------------------------------------------------------
+		///Constructor
 		InterfaceManager()
 		{
 			
@@ -71,6 +84,7 @@ namespace wiselib
 		 ROUTING_CALLED = Radio_LoWPAN::ROUTING_CALLED
 		};
 		
+		///The IDs for the interfaces are defined in the layers
 		enum interface_IDs
 		{
 			//0
@@ -83,8 +97,7 @@ namespace wiselib
 		
 		// -----------------------------------------------------------------
 		
-		/**
-		* Initialize the manager, get instances
+		/** \brief Initialize the manager, get instances, setup link-local addresses
 		*/
 		void init( Radio_LoWPAN* radio_lowpan, Debug& debug, Radio_Uart* radio_uart, Packet_Pool_Mgr_t* packet_pool_mgr )
 		{
@@ -117,12 +130,20 @@ namespace wiselib
 	
 		/** Set the prefix for an interface
 		* \param prefix The prefix as an array
+		* \param selected_interface the number of the selected interface
 		* \param prefix_len the length of the prefix in bytes
-		* \param interface the number of the interface
+		* \param valid_lifetime
+		* \param onlink_flag
+		* \param prefered_lifetime
+		* \param antonomous_flag
+		* \return error code: ERR_UNSPEC if no free place for the prefix
 		*/
 		int set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len, uint32_t valid_lifetime = 2592000, 
 					  bool onlink_flag = true, uint32_t prefered_lifetime = 604800, bool antonomous_flag = true );
 		
+		// -----------------------------------------------------------------
+		/** \brief Enable all radios
+		*/
 		int enable_radios()
 		{
 			if( radio_uart().enable() != SUCCESS )
@@ -130,6 +151,8 @@ namespace wiselib
 			return radio_lowpan().enable_radio();
 		}
 		
+		/** \brief Disable all radios
+		*/
 		int disable_radios()
 		{
 			if( radio_uart().disable() != SUCCESS )
@@ -137,7 +160,11 @@ namespace wiselib
 			return radio_lowpan().disable_radio();
 		}
 		
-		
+		// -----------------------------------------------------------------
+		/** \brief Get a ND storage for the specified interface
+		* \param target_interface the specified interface
+		* \return a pointer to the storage or NULL if the ND is not enabled on the required interface
+		*/
 		NDStorage_t* get_nd_storage( uint8_t target_interface )
 		{
 			if( target_interface == INTERFACE_RADIO )
@@ -150,7 +177,13 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------
-		
+		/** \brief Send a packet to a specified interface
+		* \param receiver the IP address of the destination (or the NextHop)
+		* \param packet_number the number of the packet in the PacketPool
+		* \param data not used now
+		* \param target_interface the selected interface
+		* \return error code - ERR_NOTIMPL if the interface is not specified
+		*/
 		int send_to_interface( IPv6Address_t receiver, typename Radio_LoWPAN::size_t packet_number, typename Radio_LoWPAN::block_data_t *data, uint8_t selected_interface )
 		{
 			#ifdef IPv6_LAYER_DEBUG
@@ -166,7 +199,9 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------
-		
+		/** \brief Register the IPv6 layer for callbacks of the lower layers
+		* \param ipv6 self pointer for the IPv6 layer
+		*/
 		void register_for_callbacks( typename Radio_IPv6::self_pointer_t ipv6 )
 		{
 			callback_ids_[INTERFACE_RADIO] = radio_lowpan().template reg_recv_callback<Radio_IPv6, &Radio_IPv6::receive>( ipv6 );
@@ -174,7 +209,8 @@ namespace wiselib
 		}
 		
 		// -----------------------------------------------------------------
-		
+		/** \brief Delete all callbacks
+		*/
 		void unregister_callbacks()
 		{
 			radio_lowpan().template unreg_recv_callback(callback_ids_[INTERFACE_RADIO]);
@@ -187,6 +223,7 @@ namespace wiselib
 		* Make the prefix list, the addresses are also stored in it
 		*/
 		PrefixType_t prefix_list[NUMBER_OF_INTERFACES][LOWPAN_MAX_PREFIXES];
+		
 		typename Radio_LoWPAN::self_pointer_t radio_lowpan_;
 		
 		private:
@@ -204,20 +241,22 @@ namespace wiselib
 		Radio_Uart& radio_uart()
 		{ return *radio_uart_; }
 		
-		
+		///Storage for the callback IDs
 		uint8_t callback_ids_[NUMBER_OF_INTERFACES];
 		
 		
 	};
 	
 	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
 	
 	template<typename OsModel_P,
-	typename Radio_LoWPAN_P,
-	typename Radio_P,
-	typename Debug_P,
-	typename Timer_P,
-	typename Radio_Uart_P>
+		typename Radio_LoWPAN_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Radio_Uart_P>
 	int 
 	InterfaceManager<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, Radio_Uart_P>::
 	set_prefix_for_interface( uint8_t* prefix, uint8_t selected_interface, uint8_t prefix_len, uint32_t valid_lifetime, 
@@ -276,7 +315,6 @@ namespace wiselib
 		//No free place for prefix
 		else
 			return ERR_UNSPEC;
-		
 	}
 }
 #endif

@@ -16,6 +16,13 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: reassembling_manager.h
+* Class(es): LoWPANReassemblingManager
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_REASSEMBLING_MANAGER_H__
 #define __ALGORITHMS_6LOWPAN_REASSEMBLING_MANAGER_H__
 
@@ -25,6 +32,8 @@
 
 namespace wiselib
 {
+	/** \brief This manager deals with the reassebling of the 6LoWPAN fragments
+	*/
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P,
@@ -44,6 +53,7 @@ namespace wiselib
 		typedef LoWPANReassemblingManager<OsModel, Radio, Debug, Timer> self_type;
 
 		// -----------------------------------------------------------------
+		///Constructor
 		LoWPANReassemblingManager()
 			{
 				valid = false;

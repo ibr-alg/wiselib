@@ -16,6 +16,13 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+
+/*
+* File: ipv6_packet_pool_manager.h
+* Class(es): IPv6PacketPoolManager
+* Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
+*/
+
 #ifndef __ALGORITHMS_6LOWPAN_IP_PACKET_POOL__H__
 #define __ALGORITHMS_6LOWPAN_IP_PACKET_POOL__H__
 
@@ -23,6 +30,10 @@
 
 namespace wiselib
 {
+	/** \brief This manager deals with the packets stored in the system
+	* Because dynamic memory allocation is forbidden, a predefined number of packets are avalible,
+	* and a packet must be freed up after the usage.
+	*/
 	template<typename OsModel_P,
 		typename Radio_P,
 		typename Debug_P>
@@ -37,6 +48,7 @@ namespace wiselib
 		typedef typename Packet::node_id_t node_id_t;
 
 		// -----------------------------------------------------------------
+		///Constructor
 		IPv6PacketPoolManager()
 			{
 				for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
@@ -46,7 +58,7 @@ namespace wiselib
 			}
 		
 		// -----------------------------------------------------------------
-		
+		///Initialization of the manager
 		void init( Debug& debug )
 	 	{
 	 		debug_ = &debug;
