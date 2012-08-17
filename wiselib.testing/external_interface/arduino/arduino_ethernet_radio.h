@@ -107,10 +107,10 @@ namespace wiselib
 
       EthernetUDP udp_;
 
-      IPAddress* ip_;
-      IPAddress* router_;
-      IPAddress* subnet_;
-      IPAddress* dns_;
+      IPAddress ip_;
+      IPAddress router_;
+      IPAddress subnet_;
+      IPAddress dns_;
 
       arduino_radio_delegate_t arduino_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
    };
@@ -120,10 +120,10 @@ namespace wiselib
    template<typename OsModel_P>
    ArduinoEthernetRadio<OsModel_P>::ArduinoEthernetRadio(): port_( PORT )
    {
-      ip_ = new IPAddress( WISELIB_IP );
-      router_ = new IPAddress( WISELIB_IP_ROUTER );
-      subnet_ = new IPAddress( WISELIB_SUBNET );
-      dns_ = new IPAddress( WISELIB_DNS );
+      ip_ = WISELIB_IP;
+      router_ = WISELIB_IP_ROUTER;
+      subnet_ = WISELIB_SUBNET;
+      dns_ = WISELIB_DNS;
 
       id_ = WISELIB_IP;
    }
@@ -131,19 +131,15 @@ namespace wiselib
    template<typename OsModel_P>
    ArduinoEthernetRadio<OsModel_P>::~ArduinoEthernetRadio()
    {
-      delete ip_;
-      delete router_;
-      delete subnet_;
-      delete dns_;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
    int ArduinoEthernetRadio<OsModel_P>::enable_radio()
    {
-      Ethernet.begin( mac, *ip_, *dns_, *router_, *subnet_ );
+      Ethernet.begin( mac, ip_, dns_, router_, subnet_ );
       udp_.begin( port_ );
 
-      broadcast_ = *ip_ | ( ~ *subnet_ );
+      broadcast_ = ip_ | ( ~ subnet_ );
 
       return SUCCESS;
    }
