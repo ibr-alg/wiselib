@@ -18,7 +18,7 @@ ZEROCONF_PATH=/home/alinrus/work/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -lspi -larduino -lethernet -lspi -larduino -lzeroconf
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group -lspi -larduino -lethernet -lzeroconf -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
