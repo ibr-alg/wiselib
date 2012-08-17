@@ -10,9 +10,9 @@
 
 typedef wiselib::ArduinoOsModel Os;
 
-Os::Debug* debug;
-Os::EthernetRadio* radio;
-Os::Clock* clock;
+Os::Debug debug;
+Os::EthernetRadio radio;
+Os::Clock clock;
 
 class ExampleApplication
 {
@@ -20,37 +20,25 @@ public:
    // --------------------------------------------------------------------
    void init()
    {
-      debug = new Os::Debug();
-      clock = new Os::Clock();
-      radio = new Os::EthernetRadio();
-
       Os::EthernetRadio::block_data_t message[] = "Test\0";
 
-      radio->enable_radio();
+      radio.enable_radio();
 
       wiselib::ArduinoZeroconf<Os, Os::EthernetRadio, Os::Debug> mdns;
-      mdns.init( *radio, *clock, *debug );
+      mdns.init( radio, clock, debug );
       mdns.enable();
 
-      debug->debug( "Hello World from Example Application!\n" );
+      debug.debug( "Hello World from Example Application!\n" );
 
       while ( 1 )
       {
          mdns.topology();
-         radio->send( Os::EthernetRadio::BROADCAST_ADDRESS, 4, message );
+         radio.send( Os::EthernetRadio::BROADCAST_ADDRESS, 4, message );
 
          if ( serialEventRun ) serialEventRun();
       }
 
    }
-   // --------------------------------------------------------------------
-   ~ExampleApplication()
-   {
-      delete debug;
-      delete radio;
-      delete clock;
-   }
-
 };
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, ExampleApplication> example_app;
