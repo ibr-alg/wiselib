@@ -94,6 +94,7 @@ namespace wiselib
 			timer_ = &timer;
 			packet_pool_mgr_ = p_mgr;
 			ND_enabled = false;
+			saved_target_interface = 0;
 		}
 		
 		// -----------------------------------------------------------------
@@ -167,10 +168,18 @@ namespace wiselib
 		{
 			#ifdef UART_LAYER_DEBUG
 			debug_->debug( "Uart: received len %i", len );
-			//for( int i = 0; i < len; i++ )
-			//	debug_->debug( "%x ", buf[i] );
-			//debug_->debug( "" );
 			#endif
+			
+			
+			if( buf[0] == 0xcf && receiving_ == false )
+			{
+				#ifdef UART_LAYER_DEBUG
+				debug_->debug( "Uart: ND config received for interface %i", buf[1] );
+				#endif
+				saved_target_interface = buf[1];
+				buf = buf + 2;
+				len -= 2;
+			}
 			
 			timer().template set_timer<self_type, &self_type::timeout>( 4000, this, (void*) (received_size_ + len) );
 			
@@ -189,21 +198,30 @@ namespace wiselib
 			
 			
 			//Copy the arrived part
-			memcpy( ip_packet->buffer_ + received_size_, buf + 1, len - 1 );
+			memcpy( ip_packet->buffer_ + received_size_, buf, len );
 			
-			received_size_ += len - 1;
-
+			received_size_ += len;
+			
 			//If the header arrived, we can get the length
 			if( received_size_ >= 40 )
 			{
 				//If the packet completed, notify_receivers
 				if( (ip_packet->length() + 40) == received_size_ )
-				{			
+				{
+					
 					receiving_ = false;
 					received_size_ = 0;
-					ip_packet = NULL;
 					node_id_t from = Radio::NULL_NODE_ID;
-					ip_packet->target_interface = INTERFACE_UART;
+					//Set the ND installation messsage type
+					if( saved_target_interface != NUMBER_OF_INTERFACES )
+					{
+						ip_packet->ND_installation_message = true;
+						ip_packet->target_interface = saved_target_interface;
+						saved_target_interface = NUMBER_OF_INTERFACES;
+					}
+					else
+						ip_packet->target_interface = INTERFACE_UART;
+					ip_packet = NULL;
 					notify_receivers( from, packet_number, NULL );
 				}
 			}
@@ -244,6 +262,7 @@ namespace wiselib
 		typename Timer::self_pointer_t timer_;
 		
 		bool receiving_;
+		uint8_t saved_target_interface;
 		uint16_t received_size_;
 		IPv6Packet_t* ip_packet;
 		uint8_t packet_number;

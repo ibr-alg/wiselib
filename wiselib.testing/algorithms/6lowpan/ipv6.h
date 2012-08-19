@@ -501,11 +501,14 @@
 	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	receive( link_layer_node_id_t from, size_t packet_number, block_data_t *data )
 	{
-		if ( from == radio().id() )
-			return;
-		
 		//Get the packet pointer from the manager
 		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
+		
+		if ( from == radio().id() )
+		{
+			packet_pool_mgr_->clean_packet( message );
+			return;
+		}
 		
 		//Determinate the actual ND storage
 		NDStorage_t* act_nd_storage;
@@ -513,6 +516,14 @@
 		
 		node_id_t destination_ip;
 		message->destination_address(destination_ip);
+		
+		if( act_nd_storage != NULL && !(act_nd_storage->is_router) && destination_ip == ALL_ROUTERS_ADDRESS )
+		{
+			packet_pool_mgr_->clean_packet( message );
+			return;
+		}
+
+		
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
 		if ( destination_ip == BROADCAST_ADDRESS || ip_packet_for_this_node(&destination_ip, message->target_interface) ||
@@ -545,6 +556,15 @@
 			notify_receivers( source_ip, packet_number, NULL );
 		}
 	#ifdef LOWPAN_ROUTE_OVER
+		//link-local addresses aren't routed
+		else if( destination_ip.is_it_link_local() )
+		{
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( "IPv6 layer: Dropped packet with link-local destination and not for me." );
+			#endif
+			
+			packet_pool_mgr_->clean_packet( message );
+		}
 		//The packet has to be routed
 		else
 		{
