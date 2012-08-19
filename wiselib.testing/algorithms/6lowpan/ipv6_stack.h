@@ -156,7 +156,10 @@ namespace wiselib
 				icmpv6.ND_timeout_manager_function( NULL );
 			
 			if( radio_->id() == 0x2144 )
+			{
 				lowpan.nd_storage_.is_router = true;
+				//icmpv6.ND_timeout_manager_function( NULL );
+			}
 		}
 		
 		ICMPv6_t icmpv6; 

@@ -285,7 +285,7 @@ namespace wiselib
 					routers_[selected_place].own_registration_lifetime = own_lifetime;
 					neighbors_[neighbor_number].is_router = true;
 					#ifdef ND_DEBUG
-					debug_->debug("Adding new router' %i mem %x:",selected_place, routers_[selected_place].neighbor_pointer);
+					debug_->debug("Adding new router' %x mem %x:",neighbors_[neighbor_number].link_layer_address, routers_[selected_place].neighbor_pointer);
 					#endif
 					return SUCCESS;
 				}
@@ -384,7 +384,11 @@ namespace wiselib
 			adv_reachable_time( 0 ),
 			adv_retrans_timer( 0 ),
 			adv_cur_hop_limit( 255 ),
-			adv_default_lifetime( 1800 )
+			adv_default_lifetime( 1800 ),
+			is_border_router( false ),
+			border_router_address( ),
+			border_router_version_number( 0 ),
+			abro_valid_lifetime( 10000 )
 			{}
 		// -----------------------------------------------------------------
 		
@@ -459,22 +463,26 @@ namespace wiselib
 		*/
 		uint16_t adv_default_lifetime;
 		
-		/*
-		TODO these will be used in border routers
+		/**
 		* Is this a border router?
 		* Default: FALSE
-		
+		*/
 		bool is_border_router;
 		
-
+		/**
 		* The address of the border router
-		
+		*/
 		IPv6Addr_t border_router_address;
 		
-
-		* Version number from the border router
+		/**
+		* Version number from the border router (or of the border router if this is a b.r.)
+		*/
+		uint32_t border_router_version_number;
 		
-		uint16_t border_router_version_number;*/
+		/**
+		* Valid lifetime for the ABRO option
+		*/
+		uint16_t abro_valid_lifetime;
 		
 		/**
 		* Instance of the NeighborCache_DefaultRouters

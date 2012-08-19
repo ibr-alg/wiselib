@@ -89,6 +89,7 @@ namespace wiselib
 			memset(buffer_, 0, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE);
 			
 			valid = false;
+			ND_installation_message = false;
 			remote_ll_address = Radio::NULL_NODE_ID;
 			target_interface = NUMBER_OF_INTERFACES;
 			
@@ -325,6 +326,11 @@ namespace wiselib
 		* Indicates that the packet is used at the moment or not
 		*/
 		bool valid;
+		
+		/**
+		* Indicates that this is from the Uart but this is an ND setter message for a borer router
+		*/
+		bool ND_installation_message;
 		
 		/**
 		* Destionation / Source interface

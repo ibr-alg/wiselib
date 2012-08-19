@@ -18,8 +18,9 @@
  ***************************************************************************/
 
 /*
-* File: ipv6_stack.h
-* Class(es): ICMPv6 (Neighbor Detection included)
+* File: icmpv6.h
+* Class(es): ICMPv6 (Neighbor Discovery included)
+* NOTE: for ND the draft-ietf-6lowpan-nd-19 (July 16, 2012) document was used
 * Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
 */
 
@@ -37,7 +38,16 @@
 #define MAX_RTR_SOLICITATIONS 3
 // result --> RS delay: 10,10,10,20,40,60,60...
 
+#define ADDRESS_REGISTRATION_LIFETIME 1500
+#define MULTIHOP_HOPLIMIT 64
 
+//These are not specified by IANA because the document is just a draft now
+//draft-ietf-6lowpan-nd-19
+#define TBD1 33 //Address registration option
+#define TBD2 34 // Context option
+#define TBD3 35 //Authoritive border router option
+#define TBD4 157 //Duplicate Address Request
+#define TBD5 158 //Duplicate Address Confirmation
 
 /*
 Echo Request & Reply:
@@ -191,9 +201,9 @@ namespace wiselib
 		ROUTER_SOLICITATION = 133,
 		ROUTER_ADVERTISEMENT = 134,
 		NEIGHBOR_SOLICITATION = 135,
-		NEIGHBOR_ADVERTISEMENT = 136/*,
-		DUPLICATE_ADDRESS_REQUEST = ,
-		DUPLICATE_ADDRESS_CONFIRMATION = */
+		NEIGHBOR_ADVERTISEMENT = 136,
+		DUPLICATE_ADDRESS_REQUEST = TBD4,
+		DUPLICATE_ADDRESS_CONFIRMATION = TBD5
 		};
 		
 		//----------------------------------------------------------------
@@ -203,9 +213,9 @@ namespace wiselib
 			SOURCE_LL_ADDRESS = 1,
 			DESTINATION_LL_ADDRESS = 2,
 			PREFIX_INFORMATION = 3,
-			ADDRESS_REGISTRATION = 31,
-			LOWPAN_CONTEXT = 32,
-			AUTHORITIVE_BORDER_ROUTER = 33
+			ADDRESS_REGISTRATION = TBD1,
+			LOWPAN_CONTEXT = TBD2,
+			AUTHORITIVE_BORDER_ROUTER = TBD3
 		};
 		
 		enum ARstatus
@@ -343,6 +353,15 @@ namespace wiselib
 		*/
 		void send_RS_to_all_routers( void* target );
 		
+		#ifdef LOWPAN_ROUTE_OVER
+		/**
+		* For ROUTER_ADVERTISEMENT sending, it is called at config changes, because other routers must be notified
+		* It sends 3 multicast RAs
+		* \param target the number of the target interface
+		*/
+		void send_RA_to_all_routers( void* number_target );
+		#endif
+		
 		
 		/**
 		* Network Discovery message sending function
@@ -350,10 +369,13 @@ namespace wiselib
 		* \param dest_addr the target IP address
 		* \param target_interface target output interface
 		* \param ll_destination if the link layer address is specified it could be set here
-		* \param status_for_NA status field for NEIGHBOR_ADVERTISEMENT
-		* \param lifetime_for_NA lifetime field for NEIGHBOR_ADVERTISEMENT
+		* \param status_for_NA_DAC status field for NEIGHBOR_ADVERTISEMENT
+		* \param lifetime_for_NA_DA lifetime field for NEIGHBOR_ADVERTISEMENT
+		* \param EUI_for_DA registered MAC address field for DAC and DAR
+		* \param registered_address_for_DA registered IP address field for DAC and DAR
 		*/
-		int send_nd_message( uint8_t typecode, node_id_t* dest_addr, uint8_t target_interface, link_layer_node_id_t ll_destination = 0, uint8_t status_for_NA = 0, uint16_t lifetime_for_NA = 0 );
+		int send_nd_message( uint8_t typecode, node_id_t* dest_addr, uint8_t target_interface, link_layer_node_id_t ll_destination = 0, 
+				     uint8_t status_for_NA_DAC = 0, uint16_t lifetime_for_NA_DA = 0,  uint64_t EUI_for_DA = 0,  node_id_t* registered_address_for_DA = NULL );
 		
 		
 		/*
@@ -485,7 +507,43 @@ namespace wiselib
 		* \param selected_interface the incoming interface
 		*/
 		void process_6lowpan_context_option( uint8_t* payload, uint16_t& act_pos, uint8_t selected_interface );
-	
+		
+		/*
+		0                   1                   2                   3
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|     Type      |  Length = 3   |          Version Low          |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|          Version High         |        Valid Lifetime         |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|                                                               |
+		+                                                               +
+		|                                                               |
+		+                          6LBR Address                         +
+		|                                                               |
+		+                                                               +
+		|                                                               |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		*/
+		#ifdef LOWPAN_ROUTE_OVER
+		/**
+		* Insert an Authoritative border router option
+		* \param message the actal IP packet
+		* \param length actual size of the IP payload
+		* \param act_nd_storage pointer to the actual ND storage
+		*/
+		void insert_authoritative_border_router_option( IPv6Packet_t* message, uint16_t& length, NDStorage_t* act_nd_storage );
+		
+		/**
+		* Processes an Authoritative border router option
+		* \param payload the payload of the message
+		* \param act_pos the actual start position
+		* \param act_nd_storage pointer to the actual ND storage
+		* \param ND_uart_installation indicator for installation from the uart
+		* \return true if this is an update for the existing information
+		*/
+		bool process_authoritative_border_router_option( uint8_t* payload, uint16_t& act_pos, NDStorage_t* act_nd_storage, bool ND_uart_installation );
+		#endif
 	};
 	
 	
@@ -806,7 +864,12 @@ namespace wiselib
 						
 			//----Common message validation tests
 			//- The IP Hop Limit field has a value of 255, i.e., the packet could not possibly have been forwarded by a router.
-			if( message->hop_limit() != 255 )
+			//For DAR and DAC no hop-limit check
+			if( message->hop_limit() != 255
+				#ifdef LOWPAN_ROUTE_OVER
+				&& ( typecode != DUPLICATE_ADDRESS_REQUEST && typecode != DUPLICATE_ADDRESS_CONFIRMATION )
+				#endif
+				)
 			{
 				packet_pool_mgr_->clean_packet( message );
 				#ifdef ND_DEBUG
@@ -839,6 +902,16 @@ namespace wiselib
 					#endif
 					return;
 				}
+			#ifdef LOWPAN_ROUTE_OVER
+				else if( act_nd_storage->border_router_address == Radio_IP::NULL_NODE_ID )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					#ifdef ND_DEBUG
+					debug().debug( "ND This is a router but no information from the border router received yet!" );
+					#endif
+					return;
+				}
+			#endif
 				
 				//- ICMP length (derived from the IP length) is 8 or more octets.
 				if( message->length() < 8 )
@@ -892,7 +965,7 @@ namespace wiselib
 				{
 					packet_pool_mgr_->clean_packet( message );
 					#ifdef ND_DEBUG
-					debug().debug( "ND soure is not link-local! " );
+					debug().debug( "ND source is not link-local! " );
 					#endif
 					return;
 				}
@@ -907,11 +980,58 @@ namespace wiselib
 					return;
 				}
 				
+			
+				//Is the ABRO new or the packet has to be dropped
+				//Set it after the RA part
+				uint16_t act_pos = 16;
+				
+			#ifdef LOWPAN_ROUTE_OVER
+				bool processing = false;
+				while(  message->length() - act_pos > 0 )
+				{
+					//- All included options have a length that is greater than zero.
+					if( data[act_pos + 1] == 0 )
+					{
+						packet_pool_mgr_->clean_packet( message );
+						#ifdef ND_DEBUG
+						debug().debug( "ND incorrect option length (%i) type (%i) (pos: %i, full len: %i)", data[act_pos + 1], data[act_pos], act_pos, message->length() );
+						#endif
+						return;
+					}
+					
+					if( data[act_pos] == AUTHORITIVE_BORDER_ROUTER )
+					{
+						if( process_authoritative_border_router_option( data, act_pos, act_nd_storage, message->ND_installation_message ) )
+							processing = true;
+						//option is found, break the loop
+						break;
+					}
+					//No other option fields needed at this pre-processing
+					//Ignore if there is any
+					else
+						//read a lenth field from the option and skipp 8 * length octets
+						act_pos += data[act_pos + 1] * 8;
+					
+					debug().debug( "preproc shist pos: %i",data[act_pos + 1] );
+				}
+				
+				//If the ABRO is outdated, drop the packet
+				if( !processing )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					#ifdef ND_DEBUG
+					debug().debug( "ND ABRO is outdated, packet is dropped! " );
+					#endif
+					return;
+				}
+				
+			#endif
+				
 				//Reset RS sending variables
 				sent_RS[target_interface] = 0;
 				
 				//actual position in the data
-				uint16_t act_pos = 4;
+				act_pos = 4;
 				
 				//Cur Hop Limit
 				if( data[act_pos] != 0 )
@@ -972,11 +1092,39 @@ namespace wiselib
 						act_pos += data[act_pos + 1] * 8;
 				}
 				
+				
+				if( message->ND_installation_message )
+				{
+					#ifdef ND_DEBUG
+					debug().debug( "ND border router installation message is processed, inform routers about the changes in RAs!" );
+					#endif
+					packet_pool_mgr_->clean_packet( message );
+					
+					uint8_t number_target = ( 3 << 4 ) | target_interface;
+					send_RA_to_all_routers( (void*)number_target );
+					return;
+					
+				}
+			#ifdef LOWPAN_ROUTE_OVER
+				//This is an update RA from the border router and this is a router --> send RAs
+				if( act_nd_storage->is_router )
+				{
+					#ifdef ND_DEBUG
+					debug().debug( "ND RA update information received at a router, send it towards!" );
+					#endif
+					packet_pool_mgr_->clean_packet( message );
+					
+					uint8_t number_target = ( 3 << 4 ) | target_interface;
+					send_RA_to_all_routers( (void*)number_target );
+					
+					return;
+				}
+			#endif
+			
 				act_nd_storage->neighbor_cache.update_router( &source, &ll_source, router_lifetime );
 				
 				//Send NS for address registration
 				send_nd_message( NEIGHBOR_SOLICITATION, &source, target_interface, ll_source );
-				
 			}
 			else if ( typecode == NEIGHBOR_SOLICITATION )
 			{
@@ -995,7 +1143,11 @@ namespace wiselib
 				uint16_t act_pos = 8;
 				
 				//- Target Address is not a multicast address.
-				//TODO
+				if( data[act_pos] == 0xFF && data[act_pos + 1] == 0x02 )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					return;
+				}
 				
 				act_pos += 16;
 				
@@ -1039,7 +1191,11 @@ namespace wiselib
 				uint16_t act_pos = 8;
 				
 				//- Target Address is not a multicast address.
-				//TODO
+				if( data[act_pos] == 0xFF && data[act_pos + 1] == 0x02 )
+				{
+					packet_pool_mgr_->clean_packet( message );
+					return;
+				}
 				
 				act_pos += 16;
 				
@@ -1079,6 +1235,14 @@ namespace wiselib
 				}
 				
 			}
+			/*
+			#ifdef LOWPAN_ROUTE_OVER
+			else if( typecode == DUPLICATE_ADDRESS_REQUEST || typecode == DUPLICATE_ADDRESS_CONFIRMATION )
+			{
+				//TODO
+			}
+			#endif
+			*/
 	//----------------  ND messages processing part END -----------------
 	//----------------  Typecode error part -----------------------------
 			else
@@ -1142,6 +1306,35 @@ namespace wiselib
 		}
 	}
 	
+	#ifdef LOWPAN_ROUTE_OVER
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_IP_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P>
+	void
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
+	send_RA_to_all_routers( void* number_target )
+	{
+		uint8_t RAs_left = ( (int)number_target >> 4 ) & 0x0F;
+		uint8_t target_interface = (int)number_target & 0x0F;
+		
+		if( RAs_left > 0 )
+		{
+			node_id_t ip_all_routers = IPv6Address<Radio_P, Debug_P>(2);
+			send_nd_message( ROUTER_ADVERTISEMENT, &ip_all_routers, target_interface );
+			
+			RAs_left--;
+			
+			//If more RAs are required, set the timer
+			if( (RAs_left > 0 ) )
+				timer().template set_timer<self_type, &self_type::send_RA_to_all_routers>( 10000, this, (void*)( RAs_left << 4 | target_interface ) );
+		}
+		
+	}
+	#endif
+	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 		typename Radio_IP_P,
@@ -1184,38 +1377,143 @@ namespace wiselib
 					send_RS_to_all_routers( (void*)target_interface );
 				}
 			}
-
-			//----------------- DEFAULT ROUTERS --------------------
-			//If a router lifetime will expire soon, send a new ROUTER_SOLICITATION message for updates!
-			for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
-			{
-				DefaultRouterEntryType_t* defrouter = act_nd_storage->neighbor_cache.get_router( i );
-				
-				if( defrouter->own_registration_lifetime > 0 )
+			
+		#ifdef LOWPAN_ROUTE_OVER
+			//----------------- ABRO lifetime ----------------------
+			//decrement lifetime
+			if( act_nd_storage->abro_valid_lifetime > 0 )
+				act_nd_storage->abro_valid_lifetime -= 1;
+			//Start RS sending before the timer expire
+			if( act_nd_storage->abro_valid_lifetime == 3 )
+				//If RS sending is not in process
+				if( sent_RS[target_interface] == 0 )
 				{
-					//Make it older, in units of 60 seconds
-					defrouter->own_registration_lifetime -= 1;
+					sent_RS[target_interface] = 1;
+					send_RS_to_all_routers( (void*)target_interface );
+				}
+			
+			//All informatiom must be deleted
+			if(  act_nd_storage->abro_valid_lifetime == 0 )
+			{
+				for( int i = 1; i < LOWPAN_MAX_PREFIXES; i++ )
+					radio_ip_->interface_manager_->prefix_list[target_interface][i] = typename Radio_IP::InterfaceManager_t::PrefixType_t();
+				
+				if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
+					radio_ip_->interface_manager_->radio_lowpan_->context_mgr_ = typename Radio_IP::InterfaceManager_t::Radio_LoWPAN::Context_Mgr_t();
+				
+				*(act_nd_storage) = NDStorage_t();
+				
+				#ifdef ND_DEBUG
+				debug().debug(" ND manager: ABRO outdated, all information is deleted " );
+				#endif
+			}
+			else
+			{
+		#endif
+				//----------------- DEFAULT ROUTERS --------------------
+				//If a router lifetime will expire soon, send a new ROUTER_SOLICITATION message for updates!
+				for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
+				{
+					DefaultRouterEntryType_t* defrouter = act_nd_storage->neighbor_cache.get_router( i );
 					
-					//If the router is not responding for the new RS, set the time to 0, the neighbor cache entry will be set to TENTATIVE by this call
-					//and TENTATIVE entries will be deleted in the next loop.
-					if( defrouter->own_registration_lifetime == 0 || defrouter->neighbor_pointer->lifetime == 0 )
+					if( defrouter->own_registration_lifetime > 0 )
 					{
-						act_nd_storage->neighbor_cache.update_router( &(defrouter->neighbor_pointer->ip_address), ((link_layer_node_id_t*)(defrouter->neighbor_pointer->link_layer_address)), 0 );
-						defrouter->neighbor_pointer = NULL;
-					}
-					//Try to send a new ROUTER_SOLICITATION well before the registration expires
-					else if( defrouter->own_registration_lifetime < 4 )
-					{
-						send_nd_message( ROUTER_SOLICITATION, &(defrouter->neighbor_pointer->ip_address), target_interface );
+						//Make it older, in units of 60 seconds
+						defrouter->own_registration_lifetime -= 1;
+						
+						//If the router is not responding for the new RS, set the time to 0, the neighbor cache entry will be set to TENTATIVE by this call
+						//and TENTATIVE entries will be deleted in the next loop.
+						if( defrouter->own_registration_lifetime == 0 || defrouter->neighbor_pointer->lifetime == 0 )
+						{
+							act_nd_storage->neighbor_cache.update_router( &(defrouter->neighbor_pointer->ip_address), ((link_layer_node_id_t*)(defrouter->neighbor_pointer->link_layer_address)), 0 );
+							defrouter->neighbor_pointer = NULL;
+						}
+						//Try to send a new ROUTER_SOLICITATION well before the registration expires
+						else if( defrouter->own_registration_lifetime < 4 )
+						{
+							send_nd_message( ROUTER_SOLICITATION, &(defrouter->neighbor_pointer->ip_address), target_interface );
+						}
 					}
 				}
-			}
-			
-			//---------------- CONTEXTS -----------------------------
-			for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
-			{
-				//If the lifetime is going to expire, start RS sending
-				if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime == 3 )
+				
+				//---------------- CONTEXTS -----------------------------
+				for( int i = 0; i < LOWPAN_CONTEXTS_NUMBER; i++ )
+				{
+					//If the lifetime is going to expire, start RS sending
+					if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime == 3 )
+					{
+						//If RS sending is not in process
+						if( sent_RS[target_interface] == 0 )
+						{
+							sent_RS[target_interface] = 1;
+							send_RS_to_all_routers( (void*)target_interface );
+						}
+					}
+					//If the lifetime expired, the context will be only used for decompression
+					else if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime == 1 )
+					{
+						radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid = false;
+					}
+					
+					if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime > 0 )
+						//Units of 60 seconds!
+						radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime -= 1;
+					
+				}
+				
+				//------------------ PREFIXES ----------------------------
+				//The first is the link-local address, count valid global addresses
+				uint8_t valid_global_prefixes = 0;
+				for( int i = 1; i < LOWPAN_MAX_PREFIXES; i++ )
+				{
+					//0xffffffff represents infinity
+					if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < 0xffffffff )
+					{
+						if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime > 0 )
+						{
+							//Make valid lifetime older
+							radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime -= ND_TIMEOUT_INTERVAL;
+							
+							//0xffffffff represents infinity
+							if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime < 0xffffffff )
+							{
+								//Make prefered lifetime older if it is greater than ND_TIMEOUT_INTERVAL
+								if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime > ND_TIMEOUT_INTERVAL )
+									radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime -= ND_TIMEOUT_INTERVAL;
+								else
+									radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime = 0;
+							}
+							
+							//If the time will have been expired at the next check invalidate the prefix, (it is not updated by a router)
+							if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < ( ND_TIMEOUT_INTERVAL ) )
+							{
+								radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime = 0;
+								radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime = 0;
+							}
+							//If the valid time will expire soon, send a solicitation to the all routers address
+							else if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < ( 4 * ND_TIMEOUT_INTERVAL ) )
+							{
+								//If RS sending is not in process
+								if( sent_RS[target_interface] == 0 )
+								{
+									sent_RS[target_interface] = 1;
+									send_RS_to_all_routers( (void*)target_interface );
+								}
+								
+								valid_global_prefixes++;
+							}
+							else
+							{
+								valid_global_prefixes++;
+							}
+						}
+					}
+					else
+						valid_global_prefixes++;
+				}
+				
+				//If there is no valid global prefix send a ROUTER_SOLICITATION
+				if( valid_global_prefixes == 0 )
 				{
 					//If RS sending is not in process
 					if( sent_RS[target_interface] == 0 )
@@ -1224,116 +1522,45 @@ namespace wiselib
 						send_RS_to_all_routers( (void*)target_interface );
 					}
 				}
-				//If the lifetime expired, the context will be only used for decompression
-				else if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime == 1 )
-				{
-					radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid = false;
-				}
 				
-				if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime > 0 )
-					//Units of 60 seconds!
-					radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime -= 1;
 				
-			}
-			
-			//------------------ PREFIXES ----------------------------
-			//The first is the link-local address, count valid global addresses
-			uint8_t valid_global_prefixes = 0;
-			for( int i = 1; i < LOWPAN_MAX_PREFIXES; i++ )
-			{
-				//0xffffffff represents infinity
-				if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < 0xffffffff )
+				
+				//----------------- NEIGHBOR CACHE --------------------
+				for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
 				{
-					if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime > 0 )
-					{
-						//Make valid lifetime older
-						radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime -= ND_TIMEOUT_INTERVAL;
-						
-						//0xffffffff represents infinity
-						if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime < 0xffffffff )
-						{
-							//Make prefered lifetime older if it is greater than ND_TIMEOUT_INTERVAL
-							if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime > ND_TIMEOUT_INTERVAL )
-								radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime -= ND_TIMEOUT_INTERVAL;
-							else
-								radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime = 0;
-						}
-						
-						//If the time will have been expired at the next check invalidate the prefix, (it is not updated by a router)
-						if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < ( ND_TIMEOUT_INTERVAL ) )
-						{
-							radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime = 0;
-							radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_prefered_lifetime = 0;
-						}
-						//If the valid time will expire soon, send a solicitation to the all routers address
-						else if( radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime < ( 4 * ND_TIMEOUT_INTERVAL ) )
-						{
-							//If RS sending is not in process
-							if( sent_RS[target_interface] == 0 )
-							{
-								sent_RS[target_interface] = 1;
-								send_RS_to_all_routers( (void*)target_interface );
-							}
-							
-							valid_global_prefixes++;
-						}
-						else
-						{
-							valid_global_prefixes++;
-						}
-					}
-				}
-				else
-					valid_global_prefixes++;
-			}
-			
-			//If there is no valid global prefix send a ROUTER_SOLICITATION
-			if( valid_global_prefixes == 0 )
-			{
-				//If RS sending is not in process
-				if( sent_RS[target_interface] == 0 )
-				{
-					sent_RS[target_interface] = 1;
-					send_RS_to_all_routers( (void*)target_interface );
-				}
-			}
-			
-			
-			
-			//----------------- NEIGHBOR CACHE --------------------
-			for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
-			{
-				NeighborCacheEntryType_t* neighbor = act_nd_storage->neighbor_cache.get_neighbor( i );
+					NeighborCacheEntryType_t* neighbor = act_nd_storage->neighbor_cache.get_neighbor( i );
 
-				if( neighbor->lifetime > 0 && neighbor->status == act_nd_storage->neighbor_cache.REGISTERED )
-				{
-					//Make it older -> units of 60 seconds
-					neighbor->lifetime -= 1;
-				}
-				
-				//If this is a router, the entry must be in the cache
-				if( neighbor->lifetime < 4 && neighbor->lifetime > 0 && neighbor->is_router )
-					send_nd_message( NEIGHBOR_SOLICITATION, &(neighbor->ip_address), target_interface );
-					
-				//delete the entry (lifetime = 0)
-				//Reset the entry if it is not registered --> delete TENATIVE entries periodically!
-				if( ( neighbor->lifetime == 0 && ( neighbor->status == act_nd_storage->neighbor_cache.REGISTERED ) )
-					|| ( neighbor->status == act_nd_storage->neighbor_cache.TENTATIVE ) )
-				{
-					//If this is a router, the entry must be in the cache
-					//If RS sending is not in process
-					if( neighbor->is_router && sent_RS[target_interface] == 0 &&
-						neighbor->status == act_nd_storage->neighbor_cache.REGISTERED)
+					if( neighbor->lifetime > 0 && neighbor->status == act_nd_storage->neighbor_cache.REGISTERED )
 					{
-						sent_RS[target_interface] = 1;
-						send_RS_to_all_routers( (void*)target_interface );
+						//Make it older -> units of 60 seconds
+						neighbor->lifetime -= 1;
 					}
 					
-					uint8_t number_of_neighbor;
-					act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, &(neighbor->ip_address), (link_layer_node_id_t)(neighbor->link_layer_address), 0, false );
+					//If this is a router, the entry must be in the cache
+					if( neighbor->lifetime < 4 && neighbor->lifetime > 0 && neighbor->is_router )
+						send_nd_message( NEIGHBOR_SOLICITATION, &(neighbor->ip_address), target_interface );
+						
+					//delete the entry (lifetime = 0)
+					//Reset the entry if it is not registered --> delete TENATIVE entries periodically!
+					if( ( neighbor->lifetime == 0 && ( neighbor->status == act_nd_storage->neighbor_cache.REGISTERED ) )
+						|| ( neighbor->status == act_nd_storage->neighbor_cache.TENTATIVE ) )
+					{
+						//If this is a router, the entry must be in the cache
+						//If RS sending is not in process
+						if( neighbor->is_router && sent_RS[target_interface] == 0 &&
+							neighbor->status == act_nd_storage->neighbor_cache.REGISTERED)
+						{
+							sent_RS[target_interface] = 1;
+							send_RS_to_all_routers( (void*)target_interface );
+						}
+						
+						uint8_t number_of_neighbor;
+						act_nd_storage->neighbor_cache.update_neighbor( number_of_neighbor, &(neighbor->ip_address), (link_layer_node_id_t)(neighbor->link_layer_address), 0, false );
+					}
 				}
+		#ifdef LOWPAN_ROUTE_OVER
 			}
-			
+		#endif
 			
 			
 			#ifdef ND_DEBUG
@@ -1369,7 +1596,8 @@ namespace wiselib
 		typename Timer_P>
 	int
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
-	send_nd_message( uint8_t typecode, node_id_t* dest_addr, uint8_t target_interface, link_layer_node_id_t ll_destination, uint8_t status_for_NA, uint16_t lifetime_for_NA )
+	send_nd_message( uint8_t typecode, node_id_t* dest_addr, uint8_t target_interface, link_layer_node_id_t ll_destination, 
+				uint8_t status_for_NA_DAC, uint16_t lifetime_for_NA_DA, uint64_t EUI_for_DA,  node_id_t* registered_address_for_DA )
 	{
 		//Determinate the actual ND storage
 		NDStorage_t* act_nd_storage;
@@ -1457,6 +1685,9 @@ namespace wiselib
 			//----------------------------------
 			//Call Options here
 			
+			//insert ABRO
+			insert_authoritative_border_router_option( message, length, act_nd_storage );
+			
 			link_layer_node_id_t ll_source;
 			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
 				ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
@@ -1474,9 +1705,6 @@ namespace wiselib
 				if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[i].valid_lifetime > 0 )
 					insert_6lowpan_context_option( message, length, i );
 					
-			//TODO insert ABRO
-					
-					
 			#ifdef ND_DEBUG
 			char str[43];
 			debug().debug(" ND send ROUTER_ADVERTISEMENT to: %s", dest_addr->get_address(str) );
@@ -1484,7 +1712,6 @@ namespace wiselib
 		}
 		else if( typecode == NEIGHBOR_SOLICITATION )
 		{
-
 			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][1].ip_address);
 			
 			//Original size of the NEIGHBOR_SOLICITATION
@@ -1506,8 +1733,7 @@ namespace wiselib
 			insert_link_layer_option( message, length, ll_source, false );
 			
 			//Insert ARO
-			//TODO: what is the lifetime?
-			insert_address_registration_option( message, length, AR_SUCCESS, 1500, (uint64_t)ll_source );
+			insert_address_registration_option( message, length, AR_SUCCESS, ADDRESS_REGISTRATION_LIFETIME, (uint64_t)ll_source );
 			
 			#ifdef ND_DEBUG
 			char str[43];
@@ -1528,6 +1754,7 @@ namespace wiselib
 			uint8_t setter_byte = 0x60;
 			if( act_nd_storage->is_router )
 				setter_byte |= 0x80;
+			message->set_payload( &setter_byte, 1, 4 );
 			
 			//Set the Target Address field
 			message->set_payload( dest_addr->addr, 16, 8 );
@@ -1542,13 +1769,54 @@ namespace wiselib
 			insert_link_layer_option( message, length, ll_source, false );
 			
 			//Insert ARO --> response
-			insert_address_registration_option( message, length, status_for_NA, lifetime_for_NA, (uint64_t)ll_destination );
+			insert_address_registration_option( message, length, status_for_NA_DAC, lifetime_for_NA_DA, (uint64_t)ll_destination );
 			
 			#ifdef ND_DEBUG
 			char str[43];
 			debug().debug(" ND send NEIGHBOR_ADVERTISEMENT to: %s", dest_addr->get_address(str) );
 			#endif
 		}
+		/*
+	#ifdef LOWPAN_ROUTE_OVER
+		else if( typecode == DUPLICATE_ADDRESS_REQUEST || typecode == DUPLICATE_ADDRESS_CONFIRMATION )
+		{
+			//Overwrite the hoplimit field --> MULTIHOP_HOPLIMIT 
+			message->set_hop_limit(MULTIHOP_HOPLIMIT);
+			
+			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][1].ip_address);
+			
+			//Original size of the DUPLICATE_ADDRESS_CONFIRMATION and DUPLICATE_ADDRESS_REQUEST
+			length = 32;
+			
+			
+			if( typecode == DUPLICATE_ADDRESS_REQUEST )
+			{
+				//Set the Status field
+				uint8_t setter_byte = AR_SUCCESS;
+				message->set_payload( &setter_byte, 1, 4 );
+			}
+			else
+				message->set_payload( &status_for_NA_DAC, 1, 4 );
+			
+			//Set the lifetime
+			message->set_payload( &lifetime_for_NA_DA, 6 );
+			
+			//Set the registered EUI-64
+			message->set_payload( &EUI_for_DA, 8 );
+			
+			//Set the registered address
+			message->set_payload( registered_address_for_DA->addr, 16, 8 );
+			
+			#ifdef ND_DEBUG
+			char str[43];
+			if( typecode == DUPLICATE_ADDRESS_REQUEST )
+				debug().debug(" ND send DUPLICATE_ADDRESS_REQUEST to: %s", dest_addr->get_address(str) );
+			else
+				debug().debug(" ND send DUPLICATE_ADDRESS_CONFIRMATION to: %s", dest_addr->get_address(str) );
+			#endif
+		}
+	#endif
+		*/
 		
 		
 		
@@ -1572,7 +1840,10 @@ namespace wiselib
 		if( ll_destination != 0 )
 			message->remote_ll_address = ll_destination;
 		
-		message->target_interface = target_interface;
+		//if( typecode == ROUTER_ADVERTISEMENT )
+		//	message->target_interface = 1;
+		//else
+			message->target_interface = target_interface;
 		
 // 		#ifdef ND_DEBUG
 // 		debug().debug(" ND send length: %i ", message->length() );
@@ -1956,5 +2227,88 @@ namespace wiselib
 		debug().debug(" ND processed context information (CID:  %i ).", CID);
 		#endif
 	}
+	
+	
+	#ifdef LOWPAN_ROUTE_OVER
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+		typename Radio_IP_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P>
+	void
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
+	insert_authoritative_border_router_option( IPv6Packet_t* message, uint16_t& length, NDStorage_t* act_nd_storage )
+	{
+		//set the type
+		uint8_t setter_byte = AUTHORITIVE_BORDER_ROUTER;
+		message->set_payload( &(setter_byte), 1, length++ );
+		
+		//Length of the Option
+		setter_byte = 3;
+		message->set_payload( &(setter_byte), 1, length++ );
+		
+		//Set the version number
+		uint16_t version = act_nd_storage->border_router_version_number & 0xFFFF;
+		message->set_payload( &version, length );
+		version = act_nd_storage->border_router_version_number >> 16;
+		message->set_payload( &version, length );
+		length += 4;
+		
+		//Set the valid lifetime - uint16_t
+		message->set_payload( &(act_nd_storage->abro_valid_lifetime), length );
+		length += 2;
+		
+		//Set border router's address
+		message->set_payload( act_nd_storage->border_router_address.addr, 16, length );
+		length += 16;
+	}
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_IP_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P>
+	bool
+	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
+	process_authoritative_border_router_option( uint8_t* payload, uint16_t& act_pos, NDStorage_t* act_nd_storage, bool ND_uart_installation )
+	{
+		act_pos += 2;
+		
+		uint32_t new_version = ( payload[act_pos + 2] << 24 ) | ( payload[act_pos + 3] << 16 ) | ( payload[act_pos] << 8 ) | payload[act_pos + 1];
+		act_pos += 4;
+		
+		//If this is an installation from the uart set this node as a border router
+		if( ND_uart_installation )
+		{
+			act_nd_storage->is_border_router = true;
+			act_nd_storage->is_router = true;
+		}
+		//If this is an old ABRO, it must be dropped!
+		//NOTE: address also has to be checked according to the draft
+		else if( new_version < act_nd_storage->border_router_version_number )
+			return false;
+		
+		//Update the version
+		act_nd_storage->border_router_version_number = new_version;
+		
+		//Update the lifetime
+		uint16_t new_lifetime = ( payload[act_pos] << 8 ) | payload[act_pos + 1];
+		//0 means 10000
+		if( new_lifetime == 0 )
+			new_lifetime = 10000;
+		
+		act_nd_storage->abro_valid_lifetime = new_lifetime;
+		act_pos += 2;
+		
+		//Update the address TODO?
+		act_nd_storage->border_router_address.set_address( payload + act_pos );
+		act_pos += 16;
+		
+		return true;
+	}
+	#endif
+	
 }
 #endif
