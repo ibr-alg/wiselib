@@ -34,6 +34,7 @@
 #include "external_interface/isense/isense_com_uart.h"
 #include "external_interface/isense/isense_distance.h"
 #include "external_interface/isense/isense_com_bufferuart.h"
+#include "external_interface/isense/isense_duty_cycling.h"
 
 #include "util/serialization/endian.h"
 
@@ -64,7 +65,7 @@ namespace wiselib
       typedef iSenseSerialComUartModel<iSenseOsModel> Uart;
       typedef iSenseDistanceModel<iSenseOsModel> Distance;
       typedef iSenseSerialComBufferUartModel<iSenseOsModel> B_Uart;
-
+      typedef iSenseDutyCycling<iSenseOsModel> DutyCycling;
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
 }
