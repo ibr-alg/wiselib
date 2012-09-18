@@ -22,7 +22,7 @@
 
 namespace wiselib {
 	
-	enum { MSG_CONSTRUCT = 80, MSG_BRIDGE_REQUEST, MSG_DESTRUCT_DETOUR };
+	enum { MSG_CONSTRUCT = 80, MSG_BRIDGE_REQUEST, MSG_DESTRUCT_DETOUR, MSG_EDGE_REQUEST };
 	
 	template<typename OsModel_P, typename Radio_P>
 	class BridgeRequestMessage {
@@ -63,8 +63,8 @@ namespace wiselib {
 			DestructDetourMessage(node_id_t low_origin, node_id_t high_origin) {
 			}
 			
-			node_id_t low_origin() { return 0; } // TODO
-			node_id_t high_origin() { return 0; } // TODO
+			node_id_t low_origin() { return low_origin_; }
+			node_id_t high_origin() { return high_origin_; }
 			void set_low_origin(node_id_t l) { low_origin_ = l; }
 			void set_high_origin(node_id_t l) { high_origin_ = l; }
 		
@@ -81,6 +81,25 @@ namespace wiselib {
 			
 		private:
 			::uint8_t message_type_;
+	};
+	
+	template<typename OsModel_P, typename Radio_P>
+	class EdgeRequestMessage {
+		public:
+			typedef OsModel_P OsModel;
+			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			
+			EdgeRequestMessage() { }
+			
+			EdgeRequestMessage(uint8_t type) : message_type_(MSG_EDGE_REQUEST) {
+			}
+			
+			uint8_t type() { return edge_type_; }
+			
+		private:
+			::uint8_t message_type_;
+			::uint8_t edge_type_;
 	};
 }
 
