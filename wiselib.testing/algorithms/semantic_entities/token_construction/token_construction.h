@@ -51,6 +51,7 @@ namespace wiselib {
 			typedef BridgeRequestMessage<Os, Radio> BridgeRequestMessageT;
 			typedef DestructDetourMessage<Os, Radio> DestructDetourMessageT;
 			typedef RenumberMessage<Os, Radio> RenumberMessageT;
+			typedef EdgeRequestMessage<Os, Radio> EdgeRequestMessageT;
 			
 			typedef typename Radio::node_id_t node_id_t;
 			typedef uint8_t position_t;
@@ -60,11 +61,14 @@ namespace wiselib {
 			struct State {
 				uint8_t message_type_;
 				node_id_t ring_id_;
+				node_id_t parent_;
 				position_t position_;
 				
 				State() : message_type_(MSG_CONSTRUCT) {
 				}
 				
+				node_id_t parent() { return parent_; }
+				void set_parent(node_id_t p) { parent_ = p; }
 				node_id_t ring_id() { return ring_id_; }
 				position_t position() { return position_; }
 				void set_ring_id(node_id_t r) { ring_id_ = r; }
@@ -112,7 +116,6 @@ namespace wiselib {
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
 				
-				// TODO register receive callback
 				return OsModel::SUCCESS;
 			}
 			
@@ -145,7 +148,7 @@ namespace wiselib {
 				
 				switch(data[0]) {
 					case MSG_CONSTRUCT: {
-						debug_->debug("%d recv: CONSTRUCT from %d\n", radio_->id(), source);
+						//debug_->debug("%d recv: CONSTRUCT from %d\n", radio_->id(), source);
 								
 						State state;
 						memcpy(&state, data, Math::template min<typename Radio::size_t>(len, sizeof(state)));
@@ -168,6 +171,13 @@ namespace wiselib {
 						on_destruct_detour_message(source, msg);
 						break;
 					}
+					case MSG_EDGE_REQUEST: {
+						debug_->debug("%d recv: EDGE_REQUEST from %d\n", radio_->id(), source);
+						EdgeRequestMessageT msg;
+						memcpy(&msg, data, Math::template min<typename Radio::size_t>(len, sizeof(msg)));
+						add_edge(source, msg.type());
+						break;
+					}
 					default:
 						return;
 				}
@@ -180,16 +190,29 @@ namespace wiselib {
 			 * (from his perspective).
 			 */
 			void request_edge(node_id_t neighbor, uint8_t type) {
-				// TODO
+				EdgeRequestMessageT er(type);
+				radio_->send(neighbor, sizeof(er), (block_data_t*)&er);
+			}
+			
+			void reduce_beacons() {
 			}
 			
 			void on_neighbor_state_received(node_id_t source, State& neighbor_state) {
 				if(neighbor_state.ring_id() > my_state_.ring_id()) {
 					my_state_.set_ring_id(neighbor_state.ring_id());
-					add_edge(source, Edge::INOUT);
-					request_edge(source, Edge::INOUT);
+					if(my_state_.parent()) {
+						drop_edge(my_state_.parent())
+					}
+					my_state_.set_parent(source);
+					
+						debug_->debug("doing something\n");
+						//edges_.clear();
+						add_edge(source, Edge::INOUT);
+						request_edge(source, Edge::INOUT);
+						radio_->send(Radio::BROADCAST_ADDRESS, sizeof(my_state_), (block_data_t*)&my_state_);
 				}
 				else if(neighbor_state.ring_id() == my_state_.ring_id() && !has_edge(source)) {
+					/*
 					BridgeRequestMessageT bridge_request;
 					bridge_request.set_low_origin(Math::min(radio_->id(), source));
 					bridge_request.set_high_origin(Math::max(radio_->id(), source));
@@ -204,6 +227,7 @@ namespace wiselib {
 							radio_->send(iter->second.neighbor(), sizeof(bridge_request), (block_data_t*)&bridge_request);
 						}
 					}
+					*/
 				}
 				
 				// IF neighbor ring id > my ring id {
@@ -322,6 +346,23 @@ namespace wiselib {
 			
 			bool has_edge(node_id_t to) {
 				return edges_.contains(to);
+			}
+			
+			void debug_edges() {
+				debug_->debug("RING %d -- %d ;\n", my_state_.ring_id_, radio_->id());
+				for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+					if(iter->second.type() == Edge::INOUT) {
+						if(radio_->id() > iter->second.neighbor()) {
+						debug_->debug("%d -- %d [penwidth=2];\n", radio_->id(), iter->second.neighbor());
+						}
+						else {
+						//debug_->debug("%d -- %d [penwidth=1];\n", radio_->id(), iter->second.neighbor());
+						}
+					}
+					else if(iter->second.type() == Edge::OUT) {
+						debug_->debug("%d -> %d [penwidth=1];\n", radio_->id(), iter->second.neighbor());
+					}
+				}
 			}
 			
 		
