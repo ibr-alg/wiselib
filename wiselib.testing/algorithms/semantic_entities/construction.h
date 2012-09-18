@@ -21,13 +21,9 @@
 #ifndef __WISELIB_ALGORITHMS_SE_CONSTRUCTION_H
 #define __WISELIB_ALGORITHMS_SE_CONSTRUCTION_H
 
-#pragma warning("SE construction is not usable yet!")
-
-#include "util/pstl/list_dynamic.h"
-#include "se_construction_message.h"
-#include "util/serialization/endian.h"
-
-#define SE_CONSTRUCTION_DEBUG 1
+#include <util/pstl/map_static_vector.h>
+#include <algorithms/crypto/hash/fnv.h>
+#include <algorithms/neighbor_discovery/echo.h>
 
 namespace wiselib {
 	
@@ -36,37 +32,68 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Allocator_P,
+		typename Broker_P,
 		typename Radio_P,
+		typename Hash_P = Fnv32<OsModel_P>,
 		typename Timer_P = typename OsModel_P::Timer,
-		typename Debug_P = typename OsModel_P::Debug
+		typename Debug_P = typename OsModel_P::Debug,
+		typename Neighborhood_P = Echo<OsModel_P, Radio_P, Timer_P, Debug_P>
 	>
 	class SEConstruction {
-		
-			struct ClassInfo;
 		public:
-			typedef SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P> self_type;
-			typedef self_type* self_pointer_t;
+			//typedef self_type* self_pointer_t;
 			
 			typedef OsModel_P OsModel;
 			static const Endianness endianness = OsModel::endianness;
-			typedef Allocator_P Allocator;
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
-			
 			typedef Radio_P Radio;
+			typedef Broker_P Broker;
+			typedef Hash_P Hash;
+			typedef Neighborhood_P Neighborhood;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::size_t size_t;
 			typedef typename Radio::block_data_t block_data_t;
 			typedef typename Radio::message_id_t message_id_t;
+			typedef typename Hash::hash_t Feature;
+			typedef typename Broker::TupleStore TupleStore; 
+			typedef typename TupleStore::Tuple Tuple;
+			typedef typename Broker::CompressedTupleStore CompressedTupleStore; 
+			typedef typename Broker::bitmask_t bitmask_t;
+			typedef typename Broker::column_mask_t column_mask_t;
+			typedef typename Broker::iterator iterator;
+			typedef typename Broker::compressed_iterator compressed_iterator;
 			
-			typedef SEConstructionMessage<Radio, ClassInfo> message_t;
+			typedef SEConstruction<OsModel, Broker, Radio, Hash, Timer, Debug, Neighborhood> self_type;
 			
-			typedef typename Allocator::template pointer_t<ClassInfo> classinfo_ptr_t;
-			typedef list_dynamic<OsModel, classinfo_ptr_t, Allocator> ClassContainer;
+			enum { MAX_FEATURES = 4 };
 			
-			typedef wiselib::string_dynamic<OsModel, Allocator> string_t;
+		private:
+			class State {
+				public:
+					enum { nfeature = 0 };
+					State() {
+						memset(features_, 0, sizeof(features_));
+					}
+					size_t max_features() { return MAX_FEATURES; }
+					Feature& feature(size_t i) { return features_[i]; }
+					node_id_t& leader(size_t i) { return leaders_[i]; }
+				
+				protected:
+					Feature features_[MAX_FEATURES];
+					node_id_t leaders_[MAX_FEATURES];
+			};
 			
+			class MyState : public State {
+				public:
+					node_id_t& parent(size_t i) { return parents_[i]; }
+					
+				private:
+					node_id_t parents_[MAX_FEATURES];
+			};
+				
+			
+		public:
 			enum ErrorCodes {
 				SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
@@ -76,315 +103,284 @@ namespace wiselib {
 				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
-			enum Restrictions {
-				MAX_CLASSNAME_LENGTH = 64,
-				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
-					- (2*sizeof(node_id_t) + sizeof(size_t))
-			};
+			enum { PAYLOAD_ID = 1 };
 			
-			enum AdvertiseIntervals {
-				CONSTRUCTING_INTERVAL = 5 * 1000,
-				OPERATING_INTERVAL = 60 * 1000
-			};
-			
-			int init(typename Allocator::self_pointer_t, typename Radio::self_pointer_t, typename Timer::self_pointer_t, typename Debug::self_pointer_t = 0);
-			int init();
-			int destruct();
-			
-			void addClass(size_t, const block_data_t*);
-			
-			void advertise(void* _=0);
-			void timed_advertise(void* _=0);
-			void on_receive(node_id_t, size_t, block_data_t*);
-			
-			#if SE_CONSTRUCTION_DEBUG
-			void show_debug_info() {
-				for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
-					debug_->debug("Node %3d class %-10s state %2d leader %2d\n", radio_->id(), (*iter)->name().c_str(), (*iter)->state, (*iter)->leader);
-				}
-				debug_->debug("\n");
-			}
-			#endif // SE_CONSTRUCTION_DEBUG
-			
-			template<typename DebugPtr>
-			void label(DebugPtr d) {
-				char buf[256];
-				char *b = buf;
-				for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
-					if((*iter)->state == ClassInfo::STATE_OPEN) { *b++ = '['; }
-					b += snprintf(b, buf - b - 1, "%s(%3x)", (*iter)->name().c_str(), (*iter)->leader);
-					if((*iter)->state == ClassInfo::STATE_OPEN) { *b++ = ']'; }
-					*b++ = ' ';
-				}
-				*b++ = '\0';
-				d->debug("%3x: %s", radio_->id(), buf);
-			}
-			
-			// TODO: Add radio interface for entity wide communication
-			// use leader-tree/bcast + sequence numbers (for identifying
-			// wheter or not a node has received a message)
-			/*
-			int enable_radio();
-			int disable_radio();
-			int send(node_id_t, size_t, block_data_t*)
-			node_id_t id() { return radio_->id(); }
-			template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
-			int reg_recv_callback(T *obj_pnt);
-			int unreg_recv_callback(int idx);
-			*/
-			
-			/// For debugging only
-			ClassContainer& classes() { return classes_; }
-			
-		private:
-			struct ClassInfo {
-				enum State { STATE_OPEN, STATE_SE };
-				typename Allocator::template pointer_t<block_data_t> ClassContainer;
-				void init() {
-					state = STATE_OPEN;
-					leader = 0; //Radio::NULL_NODE_ID;
-					to_leader = 0; //Radio::NULL_NODE_ID;
-				}
-				/*
-				int cmp(size_t sz, const block_data_t* data) {
-					if(name_size != sz) return name_size < sz ? -1 : 1;
-					for(size_t i=0; i<sz; ++i) {
-						if(name[i] != data[i]) return name[i] < data[i] ? -1 : 1;
-					}
-					return 0;
-				}
-				*/
-				
-				bool sameClassAs( classinfo_ptr_t other) {
-					return name() == other->name();
-					return true;
-				}
-				
-				size_t write_to(block_data_t* target) {
-					block_data_t *start = target;
-					Serialization<OsModel, endianness, block_data_t, uint8_t>::write(target, state);
-					target += sizeof(uint8_t);
-					Serialization<OsModel, endianness, block_data_t, node_id_t>::write(target, leader);
-					target += sizeof(node_id_t);
-					Serialization<OsModel, endianness, block_data_t, node_id_t>::write(target, to_leader);
-					target += sizeof(node_id_t);
-					size_t i=0;
-					while(i<name().size()) *(target++) = class_name_[i++];
-					return target - start;
-				}
-				
-				void read_from(size_t size, block_data_t* source) {
-					state = Serialization<OsModel, endianness, block_data_t, uint8_t>::read(source);
-					source += sizeof(uint8_t);
-					leader = Serialization<OsModel, endianness, block_data_t, node_id_t>::read(source);
-					source += sizeof(node_id_t);
-					to_leader = Serialization<OsModel, endianness, block_data_t, node_id_t>::read(source);
-					source += sizeof(node_id_t);
-					size_t name_size = size - sizeof(uint8_t) - 2*sizeof(node_id_t);
-					size_t i=0;
-					while(i<name_size) {
-						class_name_.push_back(*(source++)) ;
-						i++;
-					}
-				}
-				
-				string_t name() { return class_name_; }
-				void set_name(string_t n) { class_name_ = n; }
-				
-				uint8_t state;
-				node_id_t leader, to_leader;
-				//size_t name_size;
-				//block_data_t name[0];
-				string_t class_name_;
-			};
-			
-			
-			typename Radio::self_pointer_t radio_;
-			ClassContainer classContainer_;
-			typename Timer::self_pointer_t timer_;
-			
-			ClassContainer classes_;
-			typename Allocator::self_pointer_t allocator_;
-			typename Debug::self_pointer_t debug_;
-			
-			size_t advertise_interval_;
-	};
-	
-	template<
-		typename OsModel_P,
-		typename Allocator_P,
-		typename Radio_P,
-		typename Timer_P,
-		typename Debug_P
-	>
-	int
-	SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P, Debug_P>::
-	init(
-			typename Allocator::self_pointer_t allocator,
-			typename Radio::self_pointer_t radio,
-			typename Timer::self_pointer_t timer,
-			typename Debug::self_pointer_t debug
-	) {
-		allocator_ = allocator;
-		radio_ = radio;
-		timer_ = timer;
-		debug_ = debug;
-		advertise_interval_ = CONSTRUCTING_INTERVAL;
-		classes_.set_allocator(*allocator_);
-		radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-		radio_->enable_radio();
-		return SUCCESS;
-	}
-	
-	template<
-		typename OsModel_P,
-		typename Allocator_P,
-		typename Radio_P,
-		typename Timer_P,
-		typename Debug_P
-	>
-	int
-	SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P, Debug_P>::
-	destruct() {
-		// TODO: Stop timers, etc...
-		
-		for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
-			allocator_->free(*iter);
-		}
-		classes_.clear();
-		
-		return SUCCESS;
-	}
-	
-	template<
-		typename OsModel_P,
-		typename Allocator_P,
-		typename Radio_P,
-		typename Timer_P,
-		typename Debug_P
-	>
-	void
-	SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P, Debug_P>::
-	addClass(size_t size, const block_data_t* data) {
-		// check if we already have that class
-		for(typename ClassContainer::iterator iter = classes_.begin(); iter != classes_.end(); ++iter) {
-			if((*iter)->name() == string_t((char*)data, size, allocator_)) {
-				return;
-			}
-		}
-		
-		classinfo_ptr_t info = allocator_->template allocate<ClassInfo>();
-		info->init();
-		info->set_name(string_t((char*)data, size, allocator_));
-		classes_.push_back(info);
-	}
-	
-	
-	template<
-		typename OsModel_P,
-		typename Allocator_P,
-		typename Radio_P,
-		typename Timer_P,
-		typename Debug_P
-	>
-	void
-	SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P, Debug_P>::
-	advertise(void*) {
-		message_t msg;
-		msg.setType(message_t::MSG_STATE);
-		
-		typename ClassContainer::iterator iter;
-		for(iter = classes_.begin(); iter != classes_.end(); ++iter) {
-			msg.pushClassInfo(**iter);
-		}
-		
-		radio_->send(Radio::BROADCAST_ADDRESS, msg.size(), msg.data());
-	}
-	
-	template<
-		typename OsModel_P,
-		typename Allocator_P,
-		typename Radio_P,
-		typename Timer_P,
-		typename Debug_P
-	>
-	void
-	SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P, Debug_P>::
-	timed_advertise(void*) {
-		show_debug_info();
-		advertise();
-		timer_->template set_timer<self_type, &self_type::timed_advertise>(advertise_interval_, this, 0);
-	}
-	
-	template<
-		typename OsModel_P,
-		typename Allocator_P,
-		typename Radio_P,
-		typename Timer_P,
-		typename Debug_P
-	>
-	void
-	SEConstruction<OsModel_P, Allocator_P, Radio_P, Timer_P, Debug_P>::
-	on_receive(node_id_t sender, size_t size, block_data_t* data) {
-		if(sender == radio_->id()) { return; }
-		
-		message_t msg(size, data);
-		typename ClassContainer::iterator iter;
-		typename message_t::iterator miter;
-		classinfo_ptr_t m = allocator_->template allocate<ClassInfo>(); //(MAX_CLASSNAME_LENGTH);
-		bool have_open_classes = false, trigger_advertise = false;
-		
-		for(iter = classes_.begin(); iter != classes_.end(); ++iter) {
-			for(miter = msg.begin(); miter != msg.end(); ++miter) {
-				//debug_->debug("buffer=%lx size=%d end buffer=%lx\n", miter.buffer_, miter.size(), msg.end().buffer_);
-				m->read_from(miter.size(), *miter);
-				
-				if(m->sameClassAs(*iter)) {
-					// other open, we SE -> advertise state
-					if(m->state == ClassInfo::STATE_SE && (*iter)->state == ClassInfo::STATE_OPEN) {
-						trigger_advertise = true;
-					}
+			int init(
+					char *myuri,
+					bitmask_t docmask,
 					
-					// both open -> create (state := SE, leader := this)
-					else if(m->state == ClassInfo::STATE_OPEN && (*iter)->state == ClassInfo::STATE_OPEN) {
-						(*iter)->state = ClassInfo::STATE_SE;
-						(*iter)->to_leader = radio_->id();
-						(*iter)->leader = radio_->id();
-						trigger_advertise = true;
-					}
-					
-					// other SE, we open -> join (state := SE, leader := other)
-					else if(m->state == ClassInfo::STATE_SE && (*iter)->state == ClassInfo::STATE_OPEN) {
-						(*iter)->state = ClassInfo::STATE_SE;
-						(*iter)->to_leader = sender;
-						(*iter)->leader = m->leader;
-						trigger_advertise = true;
-					}
-					
-					// both SE, different leaders -> merge (leader := max(otherleader, leader))
-					else if(m->state == ClassInfo::STATE_SE && (*iter)->state == ClassInfo::STATE_SE) {
-						if((*iter)->leader < m->leader) {
-							(*iter)->leader = m->leader;
-							(*iter)->to_leader = sender;
-							trigger_advertise = true;
+					typename Radio::self_pointer_t radio,
+					typename Neighborhood::self_pointer_t neighborhood,
+					typename Broker::self_pointer_t broker,
+					typename Timer::self_pointer_t timer,
+					typename Debug::self_pointer_t debug
+			) {
+				radio_ = radio;
+				neighborhood_ = neighborhood;
+				broker_ = broker;
+				timer_ = timer;
+				debug_ = debug;
+				
+				debug_->debug("SE construction starting sz(State)=%d\n", sizeof(State));
+				
+				feature_query_.set(myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", 0, docmask);
+				feature_query_mask_ = (1 << 0) | (1 << 1); // | (1 << 3);
+				
+				inse_query_.set(myuri, "<http://spitfire-project.eu/inse#partOfSE>", 0, docmask);
+				inse_query_mask_ = (1 << 0) | (1 << 1) | (1 << 3);
+				
+				update_rdf_features();
+				
+				neighborhood_->register_payload_space(PAYLOAD_ID);
+				update_nd_payload();
+				
+				neighborhood_->template reg_event_callback
+					<self_type, &self_type::on_nd_event>(
+						PAYLOAD_ID,
+						Neighborhood::NEW_NB_BIDI | Neighborhood::LOST_NB_BIDI | Neighborhood::DROPPED_NB | Neighborhood::NEW_NB_BIDI |
+						Neighborhood::NEW_PAYLOAD | Neighborhood::NEW_PAYLOAD_BIDI,
+						this
+					);
+				
+				neighborhood_->enable();
+				
+				return SUCCESS;
+			}
+			
+			int init() {
+				return SUCCESS;
+			}
+			
+			void on_nd_event(uint8_t event_id, node_id_t neighbor, uint8_t payload_id, uint8_t *payload) {
+				
+				//debug_->debug("+++++++ ND EVENT %d payload=%p\n", event_id, payload);
+				State neighbor_state; // = *(State*)payload;
+				
+				if(event_id & (Neighborhood::DROPPED_NB | Neighborhood::LOST_NB_BIDI)) {
+					debug_->debug("lost neighbor: %llx\n", neighbor);
+					for(int i=0; i<state_.max_features(); i++) {
+						Feature myfeature = state_.feature(i);
+						if(myfeature == state_.nfeature) { continue; }
+						//node_id_t myleader = state_.leader(i);
+						node_id_t myparent = state_.parent(i);
+						if(neighbor == myparent) {
+							destroy_se(myfeature);
 						}
 					}
-				} // if same class
-			} // for message classes
+					update_nd_payload();
+				}
+				
+				if(event_id & (/*Neighborhood::NEW_NB_BIDI |*/ Neighborhood::NEW_PAYLOAD_BIDI | Neighborhood::NEW_PAYLOAD)) {
+					if(payload) {
+						//debug_packet(payload, sizeof(State));
+						memcpy(&neighbor_state, payload, sizeof(State));
+						new_neighbor_state(neighbor, neighbor_state);
+					}
+				}
+			}
 			
-			if((*iter)->state == ClassInfo::STATE_OPEN) { have_open_classes = true; }
-		} // for own classes
+			void new_neighbor_state(node_id_t neighbor_address, State& neighbor_state) {
+				//debug_->debug("+++++++ NEW ND STATE\n");
+				node_id_t me = radio_->id();
+				if(neighbor_address == me) { return; }
+				
+				// iterate over my features
+				for(int i=0; i<state_.max_features(); i++) {
+					Feature myfeature = state_.feature(i);
+					if(myfeature == neighbor_state.nfeature) { continue; }
+					
+					node_id_t myleader = state_.leader(i);
+					node_id_t myparent = state_.parent(i);
+					
+					// find according neighbor feature entry
+					bool had_feature = false;
+					for(int j=0; j<neighbor_state.max_features(); j++) {
+						Feature feature = neighbor_state.feature(i);
+						if(feature != myfeature) { continue; }
+						node_id_t neighbor_leader = neighbor_state.leader(i);
+						
+						if(neighbor_leader > myleader) { // -> adopt neighs leader
+							make_se(myfeature, neighbor_leader, neighbor_address);
+						}
+						else if(neighbor_address > myleader && neighbor_address > me) { // -> neigh is leader
+							make_se(myfeature, neighbor_address, neighbor_address);
+						}
+						else if(neighbor_address == myparent) { // parent still has the feature but now lower leader -> become leader
+							if(neighbor_leader < me) {
+								make_se(myfeature, me, me);
+							}
+						}
+						else { // some node with lower leader -> node is our child -> become leader
+							if(myleader == Radio::NULL_NODE_ID) {
+								make_se(myfeature, me, me);
+							}
+						}
+						had_feature = true;
+						break;
+					}
+					
+					if(neighbor_address == myparent && !had_feature) {
+						// our former parent lost the feature, destroy se (for
+						// now)
+						destroy_se(myfeature);
+					}
+				}
+				
+				update_nd_payload();
+			}
+			
+			void make_se(Feature feature, node_id_t leader, node_id_t parent) {
+				debug_->debug("make se: %s %llx", get_feature(feature), leader);
+				//debug_->debug("id=%04x f=%08lx %s-%04x\n", radio_->id(), feature, get_feature(feature), leader);
+				
+				int first_free = -1;
+				int i=0;
+				for( ; i<state_.max_features(); i++) {
+					if((first_free == -1) && (state_.feature(i) == state_.nfeature)) {
+						first_free = i;
+					}
+					else if(state_.feature(i) == feature) {
+						state_.leader(i) = leader;
+						state_.parent(i) = parent;
+						break;
+					}
+				}
+				if(i == state_.max_features() && first_free != -1) {
+					state_.feature(first_free) = feature;
+					state_.leader(first_free) = leader;
+					state_.parent(first_free) = parent;
+				}
+				
+				update_nd_payload();
+				update_rdf_inses();
+			}
+			
+			void destroy_se(Feature feature) {
+				debug_->debug("destroy se:");
+				debug_->debug("id=%llx f=%08lx %s\n", radio_->id(), feature, get_feature(feature));
+				
+				for(int i=0; i<state_.max_features(); i++) {
+					if(state_.feature(i) == feature) {
+						//state_.feature(i) = state_.nfeature;
+						state_.leader(i) = Radio::NULL_NODE_ID;
+						state_.parent(i) = Radio::NULL_NODE_ID;
+						break;
+					}
+				}
+			}
+			
+			void on_ses_updated() {
+				update_nd_payload();
+				update_rdf_inses();
+			}
+			
+			void update_nd_payload() {
+				State *s = &state_;
+				
+				//debug_->debug("setting payload: sz=%d\n", sizeof(State));
+				//for(int i=0; i<s->max_features(); i++) {
+					//debug_->debug("%2d f=%x l=%x\n", i, s->feature(i), s->leader(i));
+				//}
+				//debug_packet(reinterpret_cast< ::uint8_t* >(s), sizeof(State));
+				
+				neighborhood_->set_payload(PAYLOAD_ID, reinterpret_cast< ::uint8_t* >(s), sizeof(State));
+			}
+			
+			void debug_packet(::uint8_t* packet, int l) {
+				debug_->debug("packet len=%d\n", l);
+				for(int i=0; i<l; i += 4) {
+					debug_->debug("%02x %02x %02x %02x\n", packet[i], packet[i+1], packet[i+2], packet[i+3]);
+				}
+			}
+			
+			void update_rdf_features() {
+				//node_id_t me = radio_->id();
+				
+				iterator iter = tuple_store().begin(&feature_query_, feature_query_mask_);
+				for( ; iter != tuple_store().end(); ++iter) {
+					block_data_t *s = iter->get(2);
+					Feature f = (Hash::hash(s) + 1) & 0xffffffff;
+					
+					//debug_->debug("(%s %s %s)\n", iter->get(0), iter->get(1), iter->get(2));
+					//debug_->debug("(%s %s *)\n", feature_query_.get(0), feature_query_.get(1));
+					//debug_->debug("-----> f=%08x\n", f);
+					
+					
+					if(!feature_names_.contains(f)) {
+						size_t l = strlen((char*)s) + 1;
+						char *s2 = get_allocator().allocate_array<char>(l).raw();
+						memcpy(s2, s, l);
+						feature_names_[f] = s2;
+						for(int i=0; i<MAX_FEATURES; i++) {
+							if(state_.feature(i) == state_.nfeature) {
+								state_.feature(i) = f;
+								state_.leader(i) = Radio::NULL_NODE_ID;
+								state_.parent(i) = Radio::NULL_NODE_ID;
+								break;
+							}
+						}
+						
+						debug_->debug("%s has feature %s\n", uri(), s2);
+						
+					}	
+				}
+			}
+			
+			char* uri() { return (char*)feature_query_.get(0); }
+			
+			void update_rdf_inses() {
+				static const int MAX_INSE_LEN = 200;
+				char inse[MAX_INSE_LEN];
+				
+				// delete all INSE tuples
+				
+				compressed_iterator iter = compressed_tuplestore().begin(&inse_query_, inse_query_mask_);
+				while(iter != compressed_tuplestore().end()) {
+					iter = compressed_tuplestore().erase(iter);
+				}
+				
+				// insert new INSE tuples
+				
+				Tuple t;
+				t.set_bitmask(inse_query_mask_);
+				t.set(0, inse_query_.get(0));
+				t.set(1, inse_query_.get(1));
+				for(int i=0; i<state_.max_features(); i++) {
+					if(state_.feature(i) == state_.nfeature) { continue; }
+					
+					snprintf(inse, MAX_INSE_LEN, "%s-%04llx",
+							(char*)get_feature(state_.feature(i)), state_.leader(i));
+					t.set(2, (block_data_t*)inse);
+					
+					debug_->debug("ins: (%s %s %s)\n", t.get(0), t.get(1), t.get(2));
+					
+					tuple_store().insert(t);
+				}
+			}
+			
+			char* get_feature(Feature f) { return feature_names_[f]; }
+			
+			CompressedTupleStore& compressed_tuplestore() { return broker_->compressed_tuple_store(); }
+			TupleStore& tuple_store() { return broker_->tuple_store(); }
+			bitmask_t document_mask() { return feature_query_.get_bitmask(); }
 		
-		advertise_interval_ = have_open_classes ? CONSTRUCTING_INTERVAL : OPERATING_INTERVAL;
-		
-		allocator_->template free<ClassInfo>(m);
-		
-		if(trigger_advertise) {
-			advertise();
-		}
-		
-		//allocator_->print_stats(debug_);
-	} // on_receive
+		private:
+			
+			Tuple feature_query_;
+			Tuple inse_query_;
+			column_mask_t feature_query_mask_;
+			column_mask_t inse_query_mask_;
+			MyState state_;
+			
+			typename Broker::self_pointer_t broker_;
+			typename Radio::self_pointer_t radio_;
+			typename Neighborhood::self_pointer_t neighborhood_;
+			typename Debug::self_pointer_t debug_;
+			typename Timer::self_pointer_t timer_;
+			
+			MapStaticVector<OsModel, Feature, char*, 3 * MAX_FEATURES> feature_names_;
+			
+	}; // class SEConstruction
 	
 } // namespace
 

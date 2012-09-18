@@ -43,7 +43,7 @@
 //#define DEBUG_ECHO
 //#define DEBUG_ECHO_EXTRA
 //#define DEBUG_PIGGYBACKING
-#define MAX_PG_PAYLOAD 30
+#define MAX_PG_PAYLOAD 200
 #define ECHO_MAX_NODES 60
 
 /**
@@ -575,6 +575,7 @@ private:
 	 *
 	 */
 	void say_hello(void * a) {
+		//debug().debug("say_hello()\n");
 
 
 			// Check for Neighbors that do not exist and need to be dropped
@@ -627,8 +628,9 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 			memcpy( buffer+3, (uint8_t *) &echomsg, echomsg.buffer_size() );
 			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size()+3, (uint8_t *) buffer);
 #else
-			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(),
-					(uint8_t *) &echomsg);
+			//debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
+			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) &echomsg);
+			//radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
 #endif
 
 			msgs_stats.echo_msg_count++;
@@ -666,6 +668,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 			, typename Radio::ExtendedData const &ex) {
 		#endif
 		//        void receive(node_id_t from, size_t len, block_data_t * msg) {
+		//debug().debug("recv\n");
 
 #ifdef SUNSPOT_TEST
 		len-=3;
