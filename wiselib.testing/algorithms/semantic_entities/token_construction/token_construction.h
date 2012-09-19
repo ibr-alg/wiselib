@@ -52,10 +52,12 @@ namespace wiselib {
 			typedef DestructDetourMessage<Os, Radio> DestructDetourMessageT;
 			typedef RenumberMessage<Os, Radio> RenumberMessageT;
 			typedef EdgeRequestMessage<Os, Radio> EdgeRequestMessageT;
+			typedef DropEdgeRequestMessage<Os, Radio> DropEdgeRequestMessageT;
 			
 			typedef typename Radio::node_id_t node_id_t;
 			typedef uint8_t position_t;
 			typedef StandaloneMath<OsModel> Math;
+			typedef typename OsModel::size_t size_t;
 			
 		private:
 			struct State {
@@ -75,7 +77,7 @@ namespace wiselib {
 			};
 			
 			struct Edge {
-				enum { IN, OUT, INOUT };
+				enum { IN = 0x01, OUT = 0x02, INOUT = (IN | OUT) };
 				node_id_t neighbor_;
 				uint8_t type_;
 				
@@ -89,6 +91,9 @@ namespace wiselib {
 				node_id_t parent_;
 				bool from_low_;
 				
+				Bridge() : high_origin_(Radio::NULL_NODE_ID) {
+				}
+				
 				node_id_t low_origin() { return low_origin_; }
 				node_id_t high_origin() { return high_origin_; }
 				node_id_t parent() { return parent_; }
@@ -96,11 +101,16 @@ namespace wiselib {
 				void set_low_origin(node_id_t l) { low_origin_ = l; }
 				void set_high_origin(node_id_t l) { high_origin_ = l; }
 				void set_is_low(bool i) { from_low_ = i; }
+				void set_parent(node_id_t p) { parent_ = p; }
+				
+				void is_enabled() { return high_origin_ != Radio::NULL_NODE_ID; }
+				void disable() { high_origin_ = Radio::NULL_NODE_ID; }
 			};
 			
 		public:
-			typedef MapStaticVector<OsModel, node_id_t, Edge, 8> Edges;
-			typedef MapStaticVector<OsModel, pair<node_id_t, node_id_t>, Bridge, 8> Bridges;
+			enum { MAX_BRIDGES = 1 };
+			typedef MapStaticVector<OsModel, node_id_t, Edge, 32> Edges;
+			//typedef MapStaticVector<OsModel, pair<node_id_t, node_id_t>, Bridge, 32> Bridges;
 			
 			int init() {
 				return OsModel::SUCCESS;
@@ -112,6 +122,7 @@ namespace wiselib {
 				clock_ = clock;
 				debug_ = debug;
 				my_state_.ring_id_ = radio_->id();
+				next_bridge_index_ = 0;
 				
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
@@ -139,7 +150,7 @@ namespace wiselib {
 					
 					radio_->send(Radio::BROADCAST_ADDRESS, sizeof(my_state_), (block_data_t*)&my_state_);
 					
-					timer_->template set_timer<self_type, &self_type::on_time>(100, this, 0);
+					timer_->template set_timer<self_type, &self_type::on_time>(1000, this, 0);
 				}
 			}
 			
@@ -156,7 +167,7 @@ namespace wiselib {
 						break;
 					}
 					case MSG_BRIDGE_REQUEST: {
-						debug_->debug("%d recv: BRIDGE_REQUEST from %d\n", radio_->id(), source);
+						//debug_->debug("%d recv: BRIDGE_REQUEST from %d\n", radio_->id(), source);
 						
 						BridgeRequestMessageT msg;
 						memcpy(&msg, data, Math::template min<typename Radio::size_t>(len, sizeof(msg)));
@@ -164,7 +175,7 @@ namespace wiselib {
 						break;
 					}
 					case MSG_DESTRUCT_DETOUR: {
-						debug_->debug("%d recv: DESTRUCT_DETOUR from %d\n", radio_->id(), source);
+						//debug_->debug("%d recv: DESTRUCT_DETOUR from %d\n", radio_->id(), source);
 						
 						DestructDetourMessageT msg;
 						memcpy(&msg, data, Math::template min<typename Radio::size_t>(len, sizeof(msg)));
@@ -176,6 +187,20 @@ namespace wiselib {
 						EdgeRequestMessageT msg;
 						memcpy(&msg, data, Math::template min<typename Radio::size_t>(len, sizeof(msg)));
 						add_edge(source, msg.type());
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
+						break;
+					}
+					case MSG_DROP_EDGE_REQUEST: {
+						//debug_->debug("%d recv: DROP_EDGE_REQUEST from %d\n", radio_->id(), source);
+						DropEdgeRequestMessageT msg;
+						memcpy(&msg, data, Math::template min<typename Radio::size_t>(len, sizeof(msg)));
+						remove_edge(source, msg.type());
 						break;
 					}
 					default:
@@ -194,40 +219,100 @@ namespace wiselib {
 				radio_->send(neighbor, sizeof(er), (block_data_t*)&er);
 			}
 			
-			void reduce_beacons() {
+			/**
+			 */
+			void request_drop_edge(node_id_t neighbor, uint8_t type = Edge::INOUT) {
+				DropEdgeRequestMessageT er(type);
+				radio_->send(neighbor, sizeof(er), (block_data_t*)&er);
 			}
 			
+			//void increase_beacons() {
+				//if(beacon_interval_ <= BEACON_INTERVAL_MAX - BEACON_INTERVAL_INCREASE) {
+					//beacon_interval_ += BEACON_INTERVAL_INCREASE;
+				//}
+			//}
+			
+			//void decrease_beacons() {
+				//if(beacon_interval_ >= BEACON_INTERVAL_MIN + BEACON_INTERVAL_DECREASE) {
+					//beacon_interval_ -= BEACON_INTERVAL_DECREASE;
+				//}
+			//}
+			
 			void on_neighbor_state_received(node_id_t source, State& neighbor_state) {
-				if(neighbor_state.ring_id() > my_state_.ring_id()) {
+				if(neighbor_state.ring_id() > my_state_.ring_id() && (!bridge_locked() /*|| !my_state_.parent()*/)) {
+					debug_->debug("%d joining ring %d (old: %d) new parent %d (old: %d)\n", radio_->id(),
+							neighbor_state.ring_id(), my_state_.ring_id(),
+							source, my_state_.parent());
+							
 					my_state_.set_ring_id(neighbor_state.ring_id());
 					if(my_state_.parent()) {
-						drop_edge(my_state_.parent())
+						// if we do not sever the link to our former parent,
+						// we might accidentially double-connect two segments
+						// of the network
+						
+						//request_drop_edge(my_state_.parent());
+						//remove_edge(my_state_.parent());
+						for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ) {
+							request_drop_edge(iter->first);
+							edges_.erase(iter->first);
+							iter = edges_.begin();
+						}
 					}
 					my_state_.set_parent(source);
 					
-						debug_->debug("doing something\n");
-						//edges_.clear();
-						add_edge(source, Edge::INOUT);
-						request_edge(source, Edge::INOUT);
-						radio_->send(Radio::BROADCAST_ADDRESS, sizeof(my_state_), (block_data_t*)&my_state_);
+					add_edge(source, Edge::INOUT);
+					//request_edge(source, Edge::INOUT);
+					radio_->send(Radio::BROADCAST_ADDRESS, sizeof(my_state_), (block_data_t*)&my_state_);
+					
+					//decrease_beacons();
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
 				}
 				else if(neighbor_state.ring_id() == my_state_.ring_id() && !has_edge(source)) {
-					/*
-					BridgeRequestMessageT bridge_request;
-					bridge_request.set_low_origin(Math::min(radio_->id(), source));
-					bridge_request.set_high_origin(Math::max(radio_->id(), source));
 					
-					bridge_request.set_is_low(radio_->id() == bridge_request.low_origin());
-					
-					// forward bridge message along INOUT edges
-					
-					add_bridge(bridge_request.low_origin(), bridge_request.high_origin(), bridge_request.from_low(), source);
+					if(neighbor_state.parent() == radio_->id() && !has_edge(source)) {
+						debug_->debug("%d adding missing inout edge to child %d\n", radio_->id(), source);
+						add_edge(source, Edge::INOUT);
+						
+					debug_->debug("edges of %d:\n", radio_->id());
 					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
-						if(iter->second.neighbor() != source && iter->second.type() == Edge::INOUT) {
-							radio_->send(iter->second.neighbor(), sizeof(bridge_request), (block_data_t*)&bridge_request);
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
+					}
+					else {
+						if(bridge_locked()) {
+							return;
+						}
+						
+						BridgeRequestMessageT bridge_request;
+						bridge_request.set_low_origin(Math::min(radio_->id(), source));
+						bridge_request.set_high_origin(Math::max(radio_->id(), source));
+						
+						//debug_->debug("trying to build bridge: (%d %d)\n", bridge_request.low_origin(), bridge_request.high_origin());
+						
+						debug_->debug("%d -> %d [color=grey, style=dashed];\n", bridge_request.low_origin(), bridge_request.high_origin());
+					
+						bridge_request.set_is_low(radio_->id() == bridge_request.low_origin());
+						
+						// forward bridge message along INOUT edges
+						
+						lock_bridge(bridge_request, source);
+						
+						for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+							if(iter->second.neighbor() != source && iter->second.type() == Edge::INOUT) {
+								debug_->debug("%d sending bridge request to: %d br: (%d %d)\n", radio_->id(), iter->second.neighbor(), bridge_request.low_origin(), bridge_request.high_origin());
+								radio_->send(iter->second.neighbor(), sizeof(bridge_request), (block_data_t*)&bridge_request);
+							}
 						}
 					}
-					*/
 				}
 				
 				// IF neighbor ring id > my ring id {
@@ -255,83 +340,202 @@ namespace wiselib {
 				if(e->type() != Edge::INOUT) { return; }
 				
 				
-				if(msg.low_origin() == radio_->id()) {
-					// we can build a bridge!
-					add_edge(msg.high_origin(), Edge::OUT);
+				if(bridge_locked() &&
+						current_bridge().low_origin() == msg.low_origin() &&
+						current_bridge().high_origin() == msg.high_origin() &&
+						current_bridge().parent() != source &&
+						source < radio_->id()) {
 					
-					DestructDetourMessageT dd(msg);
-					radio_->send(msg.high_origin(), sizeof(dd), (block_data_t*)&dd);
-				}
-				
-				Bridge * b = get_bridge(msg.low_origin(), msg.high_origin());
-				if(b && b->parent() != source) {
-					DestructDetourMessageT destruct_detour(b->low_origin(), b->high_origin());
-					radio_->send(b->parent(), sizeof(destruct_detour), (block_data_t*)&destruct_detour);
+					bool bridge_head = (radio_->id() == current_bridge().low_origin() ||
+							radio_->id() == current_bridge().high_origin());
+					
+					if(current_bridge().from_low()) {
+						remove_edge(current_bridge().parent(), Edge::IN);
+						//request_drop_edge(current_bridge().parent(), Edge::OUT);
+						remove_edge(source, Edge::OUT);
+						//request_drop_edge(source, Edge::IN);
+					}
+					else {
+						remove_edge(current_bridge().parent(), Edge::OUT);
+						//request_drop_edge(current_bridge().parent(), Edge::IN);
+						remove_edge(source, Edge::IN);
+						//request_drop_edge(source, Edge::OUT);
+					}
+					
+					DestructDetourMessageT destruct_detour(current_bridge().low_origin(), current_bridge().high_origin(), current_bridge().from_low());
+					
+					debug_->debug("sending DD message %d -> %d, %d bridge = (%d %d)\n", radio_->id(), current_bridge().parent(), source, current_bridge().low_origin(), current_bridge().high_origin());
+					
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
+					
+					// if we are one of the bridge heads, only send DD the
+					// long way round (as other direction is already the
+					// bridge for construction
+					if(bridge_head) {
+						if(radio_->id() == current_bridge().low_origin()) {
+							add_edge(current_bridge().high_origin(), Edge::OUT);
+							remove_edge(source, Edge::OUT);
+						}
+						else {
+							add_edge(current_bridge().low_origin(), Edge::IN);
+							remove_edge(source, Edge::IN);
+						}
+					}
+					else {
+						radio_->send(current_bridge().parent(), sizeof(destruct_detour), (block_data_t*)&destruct_detour);
+					}
 					radio_->send(source, sizeof(destruct_detour), (block_data_t*)&destruct_detour);
+					
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
+					
+					release_bridge();
 					return;
 				}
-				
-				// forward bridge message along INOUT edges
-				
-				add_bridge(msg.low_origin(), msg.high_origin(), msg.from_low(), source);
-				for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
-					if(iter->second.neighbor() != source && iter->second.type() == Edge::INOUT) {
-						radio_->send(iter->second.neighbor(), sizeof(msg), (block_data_t*)&msg);
+				else {
+					if(!bridge_locked()) {
+					// forward bridge message along INOUT edges
+					
+					lock_bridge(msg.low_origin(), msg.high_origin(), msg.from_low(), source);
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						if(iter->second.neighbor() != source && iter->second.type() == Edge::INOUT) {
+							debug_->debug("propagating bridge request %d -> %d br: (%d %d)\n", radio_->id(), iter->second.neighbor(), msg.low_origin(), msg.high_origin());
+							radio_->send(iter->second.neighbor(), sizeof(msg), (block_data_t*)&msg);
+						}
+					}
 					}
 				}
 			}
 			
 			void on_destruct_detour_message(node_id_t source, DestructDetourMessageT destruct_detour) {
-				Bridge *b = get_bridge(destruct_detour.low_origin(), destruct_detour.high_origin());
-				if(!b) { return; }
+				if(!bridge_locked()) {
+					return;
+				}
 				
 				Edge *e_from = get_edge(source);
 				
 				if(!e_from || e_from->type() != Edge::INOUT) {
-					remove_bridge(b);
+					debug_->debug("%d not forwarding DD message: e_from=%p type=%d\n",
+							radio_->id(), e_from, e_from ? e_from->type() : 0);
+					release_bridge();
 					return;
 				}
 				
+				Bridge *b = &current_bridge();
+				
+				// Build the actual bridge
+				
 				if(radio_->id() == b->low_origin()) {
+					debug_->debug("%d -> %d [color=orange, penwidth=2];\n", b->low_origin(), b->high_origin());
 					add_edge(b->high_origin(), Edge::OUT);
+					remove_edge(source, Edge::OUT);
+					
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
 				}
 				else if(radio_->id() == b->high_origin()) {
+					debug_->debug("%d -> %d [color=orange, style=dashed];\n", b->low_origin(), b->high_origin());
 					add_edge(b->low_origin(), Edge::IN);
+					remove_edge(source, Edge::IN);
+					
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
 				}
+				
+				// Destruct detour
+				
 				else {
 					Edge *e = get_edge(b->parent());
-					if(!e || e->type() != Edge::INOUT) {
-						remove_bridge(b);
+					if(!e ) { //|| e->type() != Edge::INOUT) {
+					debug_->debug("%d not forwarding DD message: e_bridgeparent=%p type=%d\n",
+							radio_->id(), e, e ? e->type() : 0);
+						release_bridge();
 						return;
 					}
-					e->set_type(b->from_low() ? Edge::OUT : Edge::IN);
+					//if(e) {
+					//e->set_type(b->from_low() ? Edge::OUT : Edge::IN);
+					//}
+					
+					if(destruct_detour.from_low()) {
+						remove_edge(b->parent(), Edge::IN);
+						//request_drop_edge(b->parent(), Edge::OUT);
+						remove_edge(source, Edge::OUT);
+						//request_drop_edge(source, Edge::IN);
+					}
+					else {
+						remove_edge(b->parent(), Edge::OUT);
+						//request_drop_edge(b->parent(), Edge::IN);
+						remove_edge(source, Edge::IN);
+						//request_drop_edge(source, Edge::OUT);
+					}
+					
+					debug_->debug("propagating DD message %d -> %d\n", radio_->id(), b->parent());
+					
+					debug_->debug("edges of %d:\n", radio_->id());
+					for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
+						debug_->debug("  %d => (%d %s%s)\n", iter->first, iter->second.neighbor(),
+									(iter->second.type() & Edge::IN) ? "IN" : "",
+									(iter->second.type() & Edge::OUT) ? "OUT" : ""
+								);
+					}
 					
 					radio_->send(b->parent(), sizeof(destruct_detour), (block_data_t*)&destruct_detour);
 				}
 				
+				if(e_from) {
 				e_from->set_type(b->from_low() ? Edge::IN : Edge::OUT);
-				remove_bridge(b);
+				}
 				
+				release_bridge();
 			}
 			
 			void on_renumber_message_received(node_id_t source, RenumberMessageT renumber_message) {
 			}
 			
-			void add_bridge(node_id_t low, node_id_t high, bool from_low, node_id_t parent) {
-				Bridge & b = bridges_[make_pair(low, high)];
-				b.low_origin_ = low;
-				b.high_origin_ = high;
-				b.from_low_ = from_low;
-				b.parent_ = parent;
+			bool bridge_locked() {
+				return current_bridge_.high_origin_ != Radio::NULL_NODE_ID;
 			}
 			
-			Bridge *get_bridge(node_id_t low, node_id_t high) {
-				if(!bridges_.contains(make_pair(low, high))) { return 0; }
-				return &bridges_[make_pair(low, high)];
+			Bridge& current_bridge() { return current_bridge_; }
+			
+			void lock_bridge(BridgeRequestMessageT& msg, node_id_t parent) {
+				Bridge &b = current_bridge_;
+				lock_bridge(msg.low_origin(), msg.high_origin(), msg.from_low(), parent);
+			}
+				
+			void lock_bridge(node_id_t low, node_id_t high, bool from_low, node_id_t parent) {
+				Bridge &b = current_bridge_;
+				b.set_low_origin(low);
+				b.set_high_origin(high);
+				b.set_is_low(from_low);
+				b.set_parent(parent);
+				
+				timer_->template set_timer<self_type, &self_type::release_bridge>(5000, this, 0);
 			}
 			
-			void remove_bridge(Bridge *b) {
-				bridges_.erase(make_pair(b->low_origin(), b->high_origin()));
+			void release_bridge(void* v=0) {
+				current_bridge_.high_origin_ = Radio::NULL_NODE_ID;
 			}
 			
 			Edge *get_edge(node_id_t neigh) {
@@ -345,22 +549,46 @@ namespace wiselib {
 			}
 			
 			bool has_edge(node_id_t to) {
+				if(edges_.contains(to) && edges_[to].type() == 0) {
+					debug_->debug("NULL EDGE!!!!\n");
+				}
 				return edges_.contains(to);
 			}
 			
+			void remove_edge(node_id_t to, uint8_t type = Edge::INOUT) {
+				if(edges_.contains(to)) {
+					uint8_t new_type = edges_[to].type() & ~type;
+					//debug_->debug("edge change: %d - %d = %d\n",edges_[to].type(), type, edges_[to].type() & ~type); 
+					edges_[to].set_type(new_type);
+					if(!new_type) {
+						edges_.erase(to);
+					}
+				}
+				else {
+					//debug_->debug("trying to remove nonexistant edge %d -> %d %d\n", radio_->id(), to, type);
+				}
+			}
+			
 			void debug_edges() {
-				debug_->debug("RING %d -- %d ;\n", my_state_.ring_id_, radio_->id());
+				//debug_->debug("RING %d -- %d ;\n", my_state_.ring_id_, radio_->id());
 				for(typename Edges::iterator iter = edges_.begin(); iter != edges_.end(); ++iter) {
 					if(iter->second.type() == Edge::INOUT) {
-						if(radio_->id() > iter->second.neighbor()) {
-						debug_->debug("%d -- %d [penwidth=2];\n", radio_->id(), iter->second.neighbor());
+						if(iter->second.neighbor() == my_state_.parent()) {
+							debug_->debug("%d -> %d [penwidth=2, color=violet];\n", radio_->id(), iter->second.neighbor());
+						}
+						else if(radio_->id() > iter->second.neighbor()) {
+							debug_->debug("%d -> %d [penwidth=2];\n", radio_->id(), iter->second.neighbor());
 						}
 						else {
-						//debug_->debug("%d -- %d [penwidth=1];\n", radio_->id(), iter->second.neighbor());
+							//debug_->debug("%d -- %d [penwidth=1];\n", radio_->id(), iter->second.neighbor());
+							debug_->debug("%d -> %d [penwidth=2, color=red];\n", radio_->id(), iter->second.neighbor());
 						}
 					}
 					else if(iter->second.type() == Edge::OUT) {
-						debug_->debug("%d -> %d [penwidth=1];\n", radio_->id(), iter->second.neighbor());
+						debug_->debug("%d -> %d [penwidth=1, color=green];\n", radio_->id(), iter->second.neighbor());
+					}
+					else if(iter->second.type() == Edge::IN) {
+						debug_->debug("%d -> %d [penwidth=1, color=blue];\n", iter->second.neighbor(), radio_->id());
 					}
 				}
 			}
@@ -374,7 +602,9 @@ namespace wiselib {
 			
 			State my_state_;
 			Edges edges_;
-			Bridges bridges_;
+			Bridge current_bridge_;
+			
+			size_t next_bridge_index_;
 			uint32_t last_receive_;
 			
 	}; // TokenConstruction
