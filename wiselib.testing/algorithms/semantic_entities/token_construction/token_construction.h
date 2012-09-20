@@ -60,6 +60,15 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_t;
 			
 		private:
+			struct Token {
+				uint16_t real :1;
+				uint16_t renumber :1;
+				
+				uint16_t call_again;
+				uint8_t nodes;
+				uint8_t number;
+			};
+			
 			struct State {
 				uint8_t message_type_;
 				node_id_t ring_id_;
