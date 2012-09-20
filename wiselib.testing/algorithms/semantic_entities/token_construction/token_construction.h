@@ -34,6 +34,7 @@ namespace wiselib {
 		typename Radio_P,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Clock_P = typename OsModel_P::Clock,
+		typename Rand_P = typename OsModel_P::Rand,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class TokenConstruction {
@@ -45,8 +46,9 @@ namespace wiselib {
 			typedef Debug_P Debug;
 			typedef Timer_P Timer;
 			typedef Clock_P Clock;
+			typedef Rand_P Rand;
 			
-			typedef TokenConstruction<OsModel, Radio, Timer, Clock, Debug> self_type;
+			typedef TokenConstruction<OsModel, Radio, Timer, Clock, Rand, Debug> self_type;
 			
 			typedef BridgeRequestMessage<Os, Radio> BridgeRequestMessageT;
 			typedef DestructDetourMessage<Os, Radio> DestructDetourMessageT;
@@ -59,12 +61,16 @@ namespace wiselib {
 			typedef StandaloneMath<OsModel> Math;
 			typedef typename OsModel::size_t size_t;
 			
-			enum { MSG_TOKEN = 80, MSG_BEACON, MSG_MERGE };
+			enum { MSG_TOKEN = 80, MSG_SURROGATE_TOKEN, MSG_BEACON, MSG_MERGE_REQUEST };
+			static const double SHORTCUT_PROBABILITY = .3;
+			
+			enum Restrictions { MAX_CHANNELS = 8 };
+			enum { BEACON_INTERVAL = 1000, TOKEN_STAY_INTERVAL = 5000 };
 			
 		private:
 			
+			enum { OPTION_END, OPTION_RENUMBER, OPTION_SHORTCUT };
 			struct Option {
-				enum { OPTION_END, OPTION_RENUMBER, OPTION_SHORTCUT };
 				
 				Option(uint8_t type) : option_type(type) {
 				}
@@ -77,7 +83,7 @@ namespace wiselib {
 			
 			struct ShortcutOption : public Option {
 				
-				ShurtcutOption() : Option(OPTION_SHORTCUT) {
+				ShortcutOption() : Option(OPTION_SHORTCUT) {
 				}
 				
 				node_id_t from;
@@ -103,10 +109,18 @@ namespace wiselib {
 				Option options[0];
 			};
 			
+			enum { SURROGATE_WAKE_ALL };
+			
 			
 			struct Channel {
 				node_id_t in_, out_;
 				position_t number_;
+				
+				Channel() : in_(Radio::NULL_NODE_ID) {
+				}
+				
+				bool used() { return in_ != Radio::NULL_NODE_ID; }
+				void erase() { in_ = Radio::NULL_NODE_ID; }
 				
 				node_id_t in() { return in_; }
 				void set_in(node_id_t i) { in_ = i; }
@@ -116,11 +130,32 @@ namespace wiselib {
 				void set_number(position_t n) { number_ = n; }
 			};
 			
-		public:
-			typedef Channel[MAX_CHANNELS] Channels;
+			/// Messages
+			// {{{
 			
-			TokenConstruction()
-				: received_token_(0), sending_token_(0) {
+			struct Message {
+				Message(uint8_t type) : message_type_(type) { }
+				uint8_t message_type_;
+			};
+			
+			struct Beacon : public Message {
+				Beacon() : Message(MSG_BEACON) { }
+				
+				node_id_t ring_id() { return ring_id_; }
+				void set_ring_id(node_id_t r) { ring_id_ = r; }
+				node_id_t ring_id_;
+			};
+			
+			struct MergeRequest : public Message {
+				MergeRequest() : Message(MSG_MERGE_REQUEST) { }
+			};
+			
+			// }}}
+			
+		public:
+			typedef Channel Channels[MAX_CHANNELS];
+			
+			TokenConstruction() : received_token_(0), sending_token_(0) {
 			}
 			
 			int init() {
@@ -132,11 +167,11 @@ namespace wiselib {
 				timer_ = timer;
 				clock_ = clock;
 				debug_ = debug;
-				my_state_.ring_id_ = radio_->id();
-				next_bridge_index_ = 0;
 				
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
+				
+				channel_count_ = 0;
 				
 				return OsModel::SUCCESS;
 			}
@@ -150,28 +185,97 @@ namespace wiselib {
 				//last_receive_ = clock_->seconds(clock_->time());
 				//timer_->template set_timer<self_type, &self_type::on_time>(100, this, 0);
 				
+				set_ring_id(radio_->id());
+				
+				
 				if(sending_token_) { get_allocator().free(sending_token_); sending_token_ = 0; }
 				
 				sending_token_ = get_allocator().allocate<Token>().raw();
-				sending_token_.real = true;
-				sending_token_.stay_awake = false;
-				sending_token_.ring_id = radio_->id();
-				sending_token_.nodes = 1;
+				//sending_token_.real = true;
+				//sending_token_.stay_awake = false;
+				//sending_token_.ring_id = radio_->id();
+				//sending_token_.nodes = 1;
 				
-				current_channel_ = add_channel(radio_->id(), radio_->id(), 0);
+				current_channel_ = add_channel(radio_->id(), radio_->id());
+				awake_ = true;
+				
+				send_beacon();
 			}
 			
-			void send_beacon(void*) {
-				// IF awake(), regularly broadcast beacon (ring-id, ...)
-				
-				//radio_->send(Radio::BROADCAST_ADDRESS, sizeof(my_state_), (block_data_t*)&my_state_);
+			/// Message sending
+			// {{{
+			
+			void send_beacon(void* _=0) {
+				if(awake()) {
+					radio_->send(Radio::BROADCAST_ADDRESS, sizeof(beacon_), (block_data_t*)&beacon_);
+				}
 				
 				timer_->template set_timer<self_type, &self_type::send_beacon>(BEACON_INTERVAL, this, 0);
 			}
 			
+			void send_token(void   *_=0){
+				// this will be called by timer set when receiving token
+				// that will also set another timer that will trigger wakeup
+				// and a timeout for the next token
+				
+				
+				// TODO: if surrogate mode is active, send surrogate instead,
+				
+				node_id_t to = current_channel_->to;
+				if(to == radio_->id()) {
+					on_receive(to, sending_token_->length(), (typename Radio::block_data_t*)sending_token_);
+				}
+				else {
+					// TODO: send via radio
+				}
+			}
+			
+			void send_merge_request(node_id_t to) {
+				MergeRequest msg;
+				radio_->send(to, sizeof(msg), (block_data_t*)&msg);
+			}
+			
+			// }}}
+			
+			
+			// }}}
+			
+			/// Message retrieval: on_receive_XXX
+			// {{{
+			
 			void on_receive(typename Radio::node_id_t source, typename Radio::size_t len, typename Radio::block_data_t* data) {
 				if(len < 1) { return; }
 				if(!awake()) { return; }
+				
+				switch(data[0]) {
+					case MSG_BEACON:
+						{
+							//debug_->debug("recv beacon %d->%d\n", source, radio_->id());
+							Beacon beacon;
+							memcpy(&beacon, data, sizeof(beacon));
+							on_receive_beacon(source, beacon);
+						}
+						break;
+						
+					case MSG_MERGE_REQUEST:
+						{
+							debug_->debug("recv merge request %d->%d\n", source, radio_->id());
+							MergeRequest merge_request;
+							memcpy(&merge_request, data, sizeof(merge_request));
+							on_receive_merge_request(source, merge_request);
+						}
+						break;
+						
+					case MSG_TOKEN:
+						{
+							debug_->debug("recv token %d->%d\n", source, radio_->id());
+							if(received_token_) { get_allocator().free(received_token_); received_token_ = 0; }
+							received_token_ = (Token*)get_allocator().allocate_array<block_data_t>(len).raw();
+							memcpy(received_token_, data, len);
+							on_receive_token(source, *received_token_);
+						}
+						break;
+				}
 				
 				// IF state broadcast received from different ring, send MERGE_RINGS
 				
@@ -197,39 +301,200 @@ namespace wiselib {
 				last_receive_ = clock_->seconds(clock_->time());
 			}
 			
-			void send_token() {
-				node_id_t to = current_channel_->to;
-				if(to == radio_->id()) {
-					on_receive(to, sending_token_->length(), (typename Radio::block_data_t*)sending_token_);
+			void on_receive_beacon(node_id_t source, Beacon& beacon) {
+				if(beacon.ring_id() == ring_id()) {
+					// possible shortcut
+					if(rand_->operator()() <= SHORTCUT_PROBABILITY * Rand::RANDOM_MAX) {
+						token_add_shortcut_option(ring_id(), beacon.ring_id());
+					}
 				}
-				else {
-					// TODO: send via radio
+				
+				// ring with smaller id found, request its token
+				else if(ring_id() > beacon.ring_id()) {
+					start_stay_awake();
+					send_merge_request(source);
+					start_merge_master(source);
+					start_surrogate_mode(SURROGATE_WAKE_ALL);
 				}
 			}
 			
-			void on_receive_token(Token& token) {
+			void on_receive_merge_request(node_id_t source, MergeRequest& merge_request) {
+				start_merge_slave(source);
+				
+				if(have_token()) {
+					start_surrogate_mode(SURROGATE_WAKE_ALL);
+					radio_->send(merge_partner_, received_token_size_, (block_data_t*)received_token_);
+					end_merge_slave();
+				}
+			}
+			
+			void on_receive_token(node_id_t source, Token& token) {
 				// insert time-sync code here some day
 				
 				// apply permanent wake state & new expected token time
 				
 				// stay awake for given wake time, then pass on token
+				
+				if(is_merge_master() && source == merge_partner_) {
+					on_receive_merge_token(source, token);
+				}
+				else {
+					on_receive_regular_token(source, token);
+				}
+				
+				// start timer for passing on token
 			}
 			
-			void process_token_option(TokenOption& option) {
+			void on_receive_regular_token(node_id_t source, Token& token) {
+				if(is_merge_slave()) {
+					radio_->send(merge_partner_, received_token_size_, (block_data_t*)received_token_);
+					start_surrogate_mode(SURROGATE_WAKE_ALL);
+					end_merge_slave();
+					add_channel(source, source);
+				}
+				
+				if(is_wait_for_reschedule()) {
+					// add timing info to token
+				}
+				
+			}
+			
+			void on_receive_merge_token(node_id_t source, Token& token) {
+				end_surrogate_mode(SURROGATE_WAKE_ALL);
+				end_merge_master();
+				
+				add_channel(source, source);
+				token_set_reschedule(); // set renumber flag on token, will make this node position 0, and count nodes,
+				start_wait_for_reschedule();
+				// next round it will disable stay awake mode and provide a
+				// proper round time (which we will measure)
+			}
+			
+			// }}}
+			 
+			/// Token manipulation & Options
+			// {{{
+			 
+			void token_add_shortcut_option(node_id_t from, node_id_t to) {
+			}
+			
+			void token_set_reschedule() {
+			}
+			
+			void process_token_option(Option& option) {
 				// apply renumbering
 				// apply shortcuts
 			}
+			
+			// }}}
+			
+			/// Sleep/wake states
+			// {{{
 			
 			void wakeup() { awake_ = true; }
 			void sleep() { awake_ = false; }
 			bool awake() { return awake_; }
 			
-		
+			void start_stay_awake() {
+				stay_awake_ = true;
+				wakeup();
+			}
+			void stop_stay_awake() { stay_awake_ = false; }
+			bool staying_awake() { return stay_awake_; }
+			
+			// }}}
+			
+			/// Wait states
+			// {{{
+			
+			void start_merge_master(node_id_t partner) {
+				merge_partner_ = partner;
+				merge_master_ = true;
+			}
+			void end_merge_master() { merge_master_ = false; }
+			bool is_merge_master() { return merge_master_; }
+			
+			void start_merge_slave(node_id_t partner) {
+				merge_partner_ = partner;
+				merge_slave_ = true;
+			}
+			void end_merge_slave() { merge_slave_ = false; }
+			bool is_merge_slave() { return merge_slave_; }
+			
+			void start_wait_for_reschedule() { wait_for_reschedule_ = true; }
+			void end_wait_for_reschedule() { wait_for_reschedule_ = false; }
+			bool is_wait_for_reschedule() { return wait_for_reschedule_; }
+			
+			void start_surrogate_mode(uint8_t) { surrogate_mode_ = true; }
+			void end_surrogate_mode(uint8_t mode = 0) { surrogate_mode_ = false; }
+			bool is_surrogate_mode() { return surrogate_mode_; }
+			
+			// }}}
+			
+			void set_ring_id(node_id_t id) { beacon_.set_ring_id(id); }
+			node_id_t ring_id() { return beacon_.ring_id(); }
+			
+			bool have_token() { return have_token_; }
+			
 		private:
-			Channel* add_channel(node_id_t in, node_id_t out, position_t position) {
+			/**
+			 * CHANNEL_NEXT: add channel so that its out port will be next in
+			 * line.
+			 */
+			Channel* add_channel(node_id_t in, node_id_t out) {
+				Channel *ch;
+				
+				// if there is a this/this channel, remove it
+				for(ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
+					if(ch->in() == radio_->id() && ch->out() == radio_->id()) {
+						ch->erase();
+						channel_count_--;
+						break;
+					}
+				}
+				
+				if(channel_count_ == 0) {
+					ch = &channels_[0];
+					ch->set_in(in);
+					ch->set_out(out);
+				}
+				else {
+					node_id_t out_tmp = Radio::NULL_NODE_ID;
+					
+					ch = current_channel_;
+					out_tmp = ch->out();
+					ch->set_out(out);
+					
+					ch = next_free_channel(ch);
+					ch->set_in(in);
+					ch->set_out(out_tmp);
+				}
+				channel_count_++;
+				
+				return ch;
 			}
 			
 			Channel* find_channel_by_in(node_id_t in) {
+			}
+			
+			Channel* next_used_channel(Channel* ch) {
+				Channel *end = ch;
+				ch++;
+				while(!ch->used() && ch != end) {
+					ch++;
+					if(ch >= channels_ + MAX_CHANNELS) { ch = channels_; }
+				}
+				return ch;
+			}
+			
+			Channel* next_free_channel(Channel* ch) {
+				Channel *end = ch;
+				ch++;
+				while(ch->used() && ch != end) {
+					ch++;
+					if(ch >= channels_ + MAX_CHANNELS) { ch = channels_; }
+				}
+				return ch;
 			}
 			
 			
@@ -237,13 +502,26 @@ namespace wiselib {
 			typename Timer::self_pointer_t timer_;
 			typename Clock::self_pointer_t clock_;
 			typename Debug::self_pointer_t debug_;
+			typename Rand::self_pointer_t rand_;
 			
-			State my_state_;
-			Positions positions_;
 			Token *received_token_, *sending_token_;
+			size_t received_token_size_;
+			
 			Channel *current_channel_;
+			Channels channels_;
+			size_t channel_count_;
+			
+			Beacon beacon_;
 			
 			bool awake_;
+			bool stay_awake_;
+			bool have_token_;
+			bool wait_for_reschedule_;
+			bool merge_slave_;
+			bool merge_master_;
+			bool surrogate_mode_;
+			
+			node_id_t merge_partner_;
 			
 			uint32_t last_receive_;
 			
