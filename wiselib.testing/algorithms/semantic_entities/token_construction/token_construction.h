@@ -244,6 +244,7 @@ namespace wiselib {
 				add_channel(radio_->id(), radio_->id());
 				current_channel_ = &channels_[0];
 				awake_ = true;
+				wait_for_master_ = Radio::NULL_NODE_ID;
 				
 				send_beacon();
 				
@@ -420,12 +421,14 @@ namespace wiselib {
 					received_token().make_surrogate();
 					start_surrogate_mode(SURROGATE_WAKE_ALL);
 					end_merge_slave();
-					add_channel(source, source);
 					
 					// TODO: when joining as a slave, set a
 					// node_id_t wait_for_master_token to nonzero and dont
 					// update channels yet (so surrogates get passed on
 					// correctly), but only when master sends his token
+					
+					//add_channel(source, source);
+					wait_for_master_ = source;
 				}
 				
 				if(is_wait_for_reschedule()) {
@@ -562,6 +565,7 @@ namespace wiselib {
 
 			void end_have_token() { have_token_ = false; }
 			bool have_token() { return have_token_; }
+			bool waiting_for_master() { return wait_for_master_ != Radio::NULL_NODE_ID; }
 			
 		private:
 			/**
@@ -652,6 +656,7 @@ namespace wiselib {
 			bool surrogate_mode_;
 			
 			node_id_t merge_partner_;
+			node_id_t wait_for_master_;
 			
 			uint32_t last_receive_;
 			
