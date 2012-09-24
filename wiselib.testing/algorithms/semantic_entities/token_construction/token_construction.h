@@ -69,7 +69,7 @@ namespace wiselib {
 			static const double SHORTCUT_PROBABILITY = .3;
 			
 			enum Restrictions { MAX_CHANNELS = 8, MAX_TOKEN_SIZE = Radio::MAX_MESSAGE_LENGTH };
-			enum { BEACON_INTERVAL = 100, TOKEN_STAY_INTERVAL = 5000, TOKEN_WAKEUP_BEFORE = 1000 };
+			enum { BEACON_INTERVAL = 100, TOKEN_STAY_INTERVAL = 5000, TOKEN_WAKEUP_BEFORE = 2000 };
 			//enum MergeState { MERGED, WAIT_FOR_SLAVE_TOKEN, WAIT_FOR_MASTER_TOKEN };
 			enum MergeState {
 				MERGED = 0,
@@ -270,6 +270,7 @@ namespace wiselib {
 				
 				scheduling_send_token_ = false;
 				scheduling_wakeup_ = false;
+				measure_out_time_begin_ = -1;
 				
 				// create & send initial token
 				last_non_keepalive_token_.init();
@@ -384,6 +385,13 @@ namespace wiselib {
 					on_receive_regular_token(source, token);
 				}
 			}
+
+			void measure_channel_time(node_id_t source, Token& token) {
+				//debug_->debug("%d measure_channel_time chan=(%d %d), begin=%d, now=%d
+				if(measure_out_time_begin_ != -1) {
+				current_channel_->out_time_ = now() - measure_out_time_begin_;
+				}
+			}
 			
 			void on_receive_regular_token(node_id_t source, Token& token) {
 				if(!awake()) {
@@ -395,6 +403,7 @@ namespace wiselib {
 				token.touch();
 				
 				debug_->debug("recv token: %d @%d -> %d @%d  keepalive=%d T%d%s\n", source, token.ring_id_, radio_->id(), ring_id(), token.is_keepalive(), token.token_id_, token.renumbering() ? "R" : "");
+				
 				
 				
 				if(token.ring_id_ == ring_id()) {
@@ -421,6 +430,8 @@ namespace wiselib {
 					
 					// is this our new "real" token? 
 					if(token.ring_id_ >= ring_id()) {
+						measure_channel_time(source, token);
+						
 						schedule_send_token(TOKEN_STAY_INTERVAL);
 						
 						set_have_token(true);
@@ -431,31 +442,22 @@ namespace wiselib {
 					
 				}
 				else {
-					if(measure_out_time_) {
-						debug_->debug("measured out_time channel: %p (%d %d). now=%d begin=%d result=%d T%d",
-								measure_out_time_channel_, measure_out_time_channel_->in(), measure_out_time_channel_->out(),
-								now(), measure_out_time_begin_,now() - measure_out_time_begin_, token.token_id_);
-						measure_out_time_channel_->out_time_ = now() - measure_out_time_begin_;
-						measure_out_time_ = false;
-					}
+					//if(measure_out_time_) {
+						//debug_->debug("measured out_time channel: %p (%d %d). now=%d begin=%d result=%d T%d",
+								//measure_out_time_channel_, measure_out_time_channel_->in(), measure_out_time_channel_->out(),
+								//now(), measure_out_time_begin_,now() - measure_out_time_begin_, token.token_id_);
+						//measure_out_time_channel_->out_time_ = now() - measure_out_time_begin_;
+						//measure_out_time_ = false;
+					//}
+					measure_channel_time(source, token);
 					
-					
-					if(expect_token_active_) {
-						debug_->debug("ERROR: expecting twice?!\n");
-					}
-					expect_token_active_ = true;
-					
-					if(token.renumbering()) {
-						current_channel_->out_time_ = 0;
-					}
-						
 					select_channels(source);
 						
 					if(current_channel_->out_time_ == 0 || token.renumbering()) {
-						debug_->debug("%d starting time measurement for ch %p (%d %d) T%d\n", radio_->id(), current_channel_, current_channel_->in(), current_channel_->out(), token.token_id_);
-						measure_out_time_ = true;
-						measure_out_time_channel_ = current_channel_;
-						measure_out_time_begin_ = now() + TOKEN_STAY_INTERVAL;
+						//debug_->debug("%d starting time measurement for ch %p (%d %d) T%d\n", radio_->id(), current_channel_, current_channel_->in(), current_channel_->out(), token.token_id_);
+						//measure_out_time_ = true;
+						//measure_out_time_channel_ = current_channel_;
+						//measure_out_time_begin_ = now() + TOKEN_STAY_INTERVAL;
 							//clock_->seconds(clock_->clock()) * 1000 + clock_->milliseconds(clock_->clock());
 						start_stay_awake();
 						schedule_send_token(TOKEN_STAY_INTERVAL);
@@ -560,6 +562,9 @@ namespace wiselib {
 				Token send = last_non_keepalive_token_;
 				if(have_token()) {
 					to = current_channel_->out();
+					if(to != radio_->id()) {
+						measure_out_time_begin_ = now();
+					}
 				}
 				else {
 					to = current_keepalive_channel_->out();
