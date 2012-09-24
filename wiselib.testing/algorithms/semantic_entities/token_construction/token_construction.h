@@ -268,7 +268,8 @@ namespace wiselib {
 				
 				send_beacon();
 				
-				//start_stay_awake(); // DEBUG
+				scheduling_send_token_ = false;
+				scheduling_wakeup_ = false;
 				
 				// create & send initial token
 				last_non_keepalive_token_.init();
@@ -444,7 +445,12 @@ namespace wiselib {
 					}
 					expect_token_active_ = true;
 					
+					if(token.renumbering()) {
+						current_channel_->out_time_ = 0;
+					}
+						
 					select_channels(source);
+						
 					if(current_channel_->out_time_ == 0 || token.renumbering()) {
 						debug_->debug("%d starting time measurement for ch %p (%d %d) T%d\n", radio_->id(), current_channel_, current_channel_->in(), current_channel_->out(), token.token_id_);
 						measure_out_time_ = true;
@@ -512,12 +518,18 @@ namespace wiselib {
 			
 			
 			void schedule_send_token(uint32_t interval) {
+				if(scheduling_send_token_) { return; }
+				
 				debug_->debug("%d scheduling token send in %d\n", radio_->id(), interval);
+				scheduling_send_token_ = true;
 				timer_->template set_timer<self_type, &self_type::pass_on_token>(interval, this, 0);
 			}
 
 			void schedule_wakeup(uint32_t interval) {
+				if(scheduling_wakeup_) { return; }
+				
 				debug_->debug("%d scheduling wakeup in %d\n", radio_->id(), interval);
+				scheduling_wakeup_ = true;
 				timer_->template set_timer<self_type, &self_type::expect_token>(interval, this, 0);
 			}
 			
@@ -528,12 +540,14 @@ namespace wiselib {
 			 */
 			void expect_token(void* = 0) {
 				debug_->debug("scheduled wakeup: %d\n", radio_->id());
+				scheduling_wakeup_ = false;
 				wakeup();
-				expect_token_active_ = false;
 			}
 
 			void pass_on_token(void* = 0) {
 				debug_->debug("%d pass_on_token() T%d%s have=%d\n", radio_->id(), last_non_keepalive_token_.token_id_, last_non_keepalive_token_.renumbering() ? "R" : "", have_token());
+				scheduling_send_token_ = false;
+				
 				if(!have_token() && !current_keepalive_channel_) {
 					debug_->debug("pass_on_token(): %d dont have a token and no keepalive channel!!\n", radio_->id());
 					return;
@@ -758,6 +772,8 @@ namespace wiselib {
 			bool merge_slave_;
 			bool merge_master_;
 			bool expect_token_active_;
+			bool scheduling_send_token_;
+			bool scheduling_wakeup_;
 			
 			//node_id_t merge_partner_;
 			MergeState merge_state_;
