@@ -36,6 +36,7 @@
 #include "external_interface/isense/isense_com_uart.h"
 #include "external_interface/isense/isense_facet_provider.h"
 #include "external_interface/isense/isense_wiselib_application.h"
+#include "external_interface/isense/isense_duty_cycling.h"
 #endif
 
 #ifdef __SCATTERWEB__
