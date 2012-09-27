@@ -199,6 +199,14 @@ namespace wiselib
 					{
 						n_ref->set_avg_LQI_inverse( 0 );
 					}
+					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_AVG_RSSI )
+					{
+						n_ref->set_avg_RSSI( 0 );
+					}
+					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_AVG_RSSI_INVERSE )
+					{
+						n_ref->set_avg_RSSI_inverse( 0 );
+					}
 					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_STAB )
 					{
 						n_ref->set_link_stab_ratio( 0 );
@@ -261,7 +269,7 @@ namespace wiselib
 #ifdef DEBUG_PROTOCOL_H
 		void print( Debug& _debug, Radio& _radio
 #ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
-				,Position& _pos = Position( 0, 0, 0 )
+				,Position _pos = Position( 0, 0, 0 )
 #endif
 				)
 		{
@@ -269,7 +277,7 @@ namespace wiselib
 			_debug.debug( "-------------------------------------------------------\n" );
 			_debug.debug( "Protocol :\n" );
 			_debug.debug( "protocol_id (size %i) : %d\n", sizeof(protocol_id), protocol_id );
-			_settings.print( debug, radio );
+			settings.print( _debug, _radio );
 			_debug.debug( "neighborhood : \n" );
 #endif
 			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )

@@ -37,25 +37,19 @@ namespace wiselib
 		typedef typename Radio::block_data_t block_data_t;
 		typedef ProtocolPayload_Type<Os, Radio, Debug> self_type;
 	public:
-		ProtocolPayload_Type() :
-			payload_size		( ND_MAX_PROTOCOL_PAYLOAD_SIZE )
-		{
-			for ( size_t i = 0; i < ND_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
-			{
-				payload_data[i] = 0;
-			}
-		}
+		ProtocolPayload_Type()
+		{}
 		// --------------------------------------------------------------------
 		ProtocolPayload_Type( uint8_t _pid, size_t _ps, block_data_t* _pd, size_t _offset = 0 )
 		{
-			protocol_id = _pid;
-			payload_size = _ps;
-			for ( size_t i = 0; i < ND_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
+			if ( _ps <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
 			{
-				payload_data[i] = 0;
-			}
-			if ( payload_size <= ND_MAX_PROTOCOL_PAYLOAD_SIZE )
-			{
+				protocol_id = _pid;
+				payload_size = _ps;
+				for ( size_t i = 0; i < ND_MAX_PROTOCOL_PAYLOAD_SIZE; i++ )
+				{
+					payload_data[i] = 0;
+				}
 				for ( size_t i = 0; i < payload_size; i++ )
 				{
 					payload_data[i] = _pd[i + _offset];
@@ -138,6 +132,7 @@ namespace wiselib
 		{
 			debug.debug( "-------------------------------------------------------\n" );
 			debug.debug( "ProtocolPayload : \n");
+			debug.debug( "serial_size : %d\n", serial_size() );
 			debug.debug( "protocol_id (size %i) : %d\n", sizeof(protocol_id), protocol_id );
 			debug.debug( "max_payload_size : %d\n", ND_MAX_PROTOCOL_PAYLOAD_SIZE );
 			debug.debug( "payload_size (size %i) : %d\n", sizeof(payload_size), payload_size );
@@ -145,7 +140,7 @@ namespace wiselib
 			{
 				for ( size_t i = 0; i < payload_size; i++ )
 				{
-					debug.debug( "%d\n", i, payload_data[i] );
+					debug.debug( "%d:%d\n", i, payload_data[i] );
 				}
 			}
 			debug.debug( "-------------------------------------------------------");
