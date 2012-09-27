@@ -19,6 +19,8 @@
 
 #ifndef __MESSAGE_H__
 #define __MESSAGE_H__
+#include "message_source_config.h"
+#include "util/serialization/simple_types.h"
 
 namespace wiselib
 {
@@ -56,31 +58,53 @@ namespace wiselib
 		inline size_t get_payload_size()
 		{
 			size_t MESSAGE_ID_POS = 0;
+#ifdef MESSAGE_H_FLETCHER_CHECKSUM
+			size_t CSUM_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+			size_t PAYLOAD_SIZE_POS = CSUM_POS + sizeof(uint16_t);
+#else
 			size_t PAYLOAD_SIZE_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+#endif
 			return read<OsModel, block_data_t, size_t> (buffer + PAYLOAD_SIZE_POS );
 		}
 		// --------------------------------------------------------------------
 		inline block_data_t* get_payload()
 		{
 			size_t MESSAGE_ID_POS = 0;
+#ifdef MESSAGE_H_FLETCHER_CHECKSUM
+			size_t CSUM_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+			size_t PAYLOAD_SIZE_POS = CSUM_POS + sizeof(uint16_t);
+#else
 			size_t PAYLOAD_SIZE_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+#endif
 			size_t PAYLOAD_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
 			return buffer + PAYLOAD_POS;
 		}
 		// --------------------------------------------------------------------
-		inline void set_payload( size_t _len, block_data_t* _buf )
+		inline void set_payload( size_t _len, block_data_t* _buff, size_t _offset = 0 )
 		{
 			size_t MESSAGE_ID_POS = 0;
+#ifdef MESSAGE_H_FLETCHER_CHECKSUM
+			size_t CSUM_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+			size_t PAYLOAD_SIZE_POS = CSUM_POS + sizeof(uint16_t);
+			uint16_t csum = fletcher16_checksum( _buff + _offset, _len);
+			write<OsModel, block_data_t, uint16_t> ( buffer + _offset + CSUM_POS, csum );
+#else
 			size_t PAYLOAD_SIZE_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+#endif
 			size_t PAYLOAD_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
-			write<OsModel, block_data_t, size_t> ( buffer + PAYLOAD_SIZE_POS, _len );
-			memcpy( buffer + PAYLOAD_POS, _buf, _len );
+			write<OsModel, block_data_t, size_t> ( buffer + _offset + PAYLOAD_SIZE_POS, _len );
+			memcpy( buffer + PAYLOAD_POS, _buff, _len );
 		}
 		// --------------------------------------------------------------------
 		inline size_t serial_size()
 		{
 			size_t MESSAGE_ID_POS = 0;
+#ifdef MESSAGE_H_FLETCHER_CHECKSUM
+			size_t CSUM_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+			size_t PAYLOAD_SIZE_POS = CSUM_POS + sizeof(uint16_t);
+#else
 			size_t PAYLOAD_SIZE_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+#endif
 			size_t PAYLOAD_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
 			return PAYLOAD_POS + get_payload_size();
 		}
@@ -88,6 +112,11 @@ namespace wiselib
 		inline block_data_t* serialize( block_data_t* _buff = NULL )
 		{
 			return buffer;
+		}
+		// --------------------------------------------------------------------
+		inline void de_serialize( block_data_t* _buff, size_t _offset = 0 )
+		{
+			memcpy( buffer + _offset, _buff, Radio::MAX_MESSAGE_LENGTH );
 		}
 		// --------------------------------------------------------------------
 		Message_Type& operator=( const Message_Type& _msg )
@@ -101,9 +130,12 @@ namespace wiselib
 		{
 			_debug.debug( "-------------------------------------------------------\n" );
 			_debug.debug( "Message : \n" );
-			_debug.debug( "message_id (size %i) : %d\n", sizeof(message_id_t), get_message_id() );
-			_debug.debug( "payload_size: %d\n", get_payload_size() );
 			_debug.debug( "serial_size: %d\n", serial_size() );
+			_debug.debug( "message_id (size %i) : %d\n", sizeof(message_id_t), get_message_id() );
+#ifdef MESSAGE_H_FLETCHER_CHECKSUM
+			_debug.debug( "checksum (size %i) : %d\n", sizeof(uint16_t), csum() );
+#endif
+			_debug.debug( "payload_size (size %i): %d\n", sizeof(size_t), get_payload_size() );
 			_debug.debug( "payload : \n");
 			for (size_t i = 0; i < get_payload_size(); i++ )
 			{
@@ -111,6 +143,46 @@ namespace wiselib
 			}
 			_debug.debug( "-------------------------------------------------------\n" );
 		}
+		// --------------------------------------------------------------------
+#ifdef MESSAGE_H_FLETCHER_CHECKSUM
+		inline uint16_t fletcher16_checksum( uint8_t const* _data, size_t _bytes )
+		{
+		        uint16_t sum1 = 0xff, sum2 = 0xff;
+		        while ( _bytes )
+		        {
+		                size_t tlen = _bytes > 20 ? 20 : _bytes;
+		                _bytes -= tlen;
+		                do
+		                {
+		                        sum2 += sum1 += *_data++;
+		                }
+		                while ( --tlen );
+		                sum1 = ( sum1 & 0xff ) + ( sum1 >> 8 );
+		                sum2 = ( sum2 & 0xff ) + ( sum2 >> 8 );
+		        }
+		        sum1 = ( sum1 & 0xff ) + ( sum1 >> 8 );
+		        sum2 = ( sum2 & 0xff ) + ( sum2 >> 8 );
+		        return sum2 << 8 | sum1;
+		}
+		// --------------------------------------------------------------------
+		inline uint8_t compare_checksum()
+		{
+			size_t MESSAGE_ID_POS = 0;
+			size_t CSUM_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+			size_t PAYLOAD_SIZE_POS = CSUM_POS + sizeof(uint16_t);
+			size_t PAYLOAD_POS = PAYLOAD_SIZE_POS + sizeof(size_t);
+			uint16_t csum_transmitted = read<OsModel, block_data_t, uint16_t> ( buffer + CSUM_POS );
+			uint16_t csum_actual = fletcher16_checksum( buffer + PAYLOAD_POS, get_payload_size() );
+			return ( csum_transmitted == csum_actual );
+		}
+		// --------------------------------------------------------------------
+		inline uint16_t csum()
+		{
+			size_t MESSAGE_ID_POS = 0;
+			size_t CSUM_POS = MESSAGE_ID_POS + sizeof(message_id_t);
+			return read<OsModel, block_data_t, uint16_t> ( buffer + CSUM_POS );
+		}
+#endif
 	private:
 		block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
 	};
