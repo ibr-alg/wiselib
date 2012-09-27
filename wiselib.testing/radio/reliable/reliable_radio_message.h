@@ -1,5 +1,5 @@
-#ifndef __RELIABLE_RADIO_PROTOCOL_SETTING_H__
-#define	__RELIABLE_RADIO_PROTOCOL_SETTING_H__
+#ifndef __RELIABLE_RADIO_MESSAGE_H__
+#define	__RELIABLE_RADIO_MESSAGE_H__
 
 #include "reliable_radio_source_config.h"
 
@@ -17,6 +17,7 @@ namespace wiselib
 		typedef typename Radio::message_id_t message_id_t;
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::node_id_t node_id_t;
+		typedef typename Radio::size_t size_t;
 		typedef ReliableRadioMessage_Type<Os, Radio, Debug> self_t;
 		// --------------------------------------------------------------------
 		ReliableRadioMessage_Type() :
