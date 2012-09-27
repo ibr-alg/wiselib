@@ -47,6 +47,10 @@ namespace wiselib
 			min_avg_LQI_threshold 					( ND_MIN_AVG_LQI_THRESHOLD ),
 			max_avg_LQI_inverse_threshold 			( ND_MAX_AVG_LQI_INVERSE_THRESHOLD ),
 			min_avg_LQI_inverse_threshold 			( ND_MIN_AVG_LQI_INVERSE_THRESHOLD ),
+			max_avg_RSSI_threshold 					( ND_MAX_AVG_RSSI_THRESHOLD ),
+			min_avg_RSSI_threshold 					( ND_MIN_AVG_RSSI_THRESHOLD ),
+			max_avg_RSSI_inverse_threshold 			( ND_MAX_AVG_RSSI_INVERSE_THRESHOLD ),
+			min_avg_RSSI_inverse_threshold 			( ND_MIN_AVG_RSSI_INVERSE_THRESHOLD ),
 			max_link_stab_ratio_threshold 			( ND_MAX_LINK_STAB_RATIO_THRESHOLD ),
 			min_link_stab_ratio_threshold 			( ND_MIN_LINK_STABILITY_RATIO_THRESHOLD ),
 			max_link_stab_ratio_inverse_threshold	( ND_MAX_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
@@ -70,6 +74,10 @@ namespace wiselib
 								uint8_t _minLQI,
 								uint8_t _maxLQI_in,
 								uint8_t _minLQI_in,
+								uint8_t _maxRSSI,
+								uint8_t _minRSSI,
+								uint8_t _maxRSSI_in,
+								uint8_t _minRSSI_in,
 								uint8_t _maxlsr,
 								uint8_t _minlsr,
 								uint8_t _maxlsr_in,
@@ -79,7 +87,7 @@ namespace wiselib
 								uint8_t _tp_dB_w,
 								millis_t _pb,
 								uint8_t _pb_w,
-								uint8_t _ofs,
+								uint16_t _ofs,
 								uint32_t _rd,
 								uint8_t _dt_s,
 								uint8_t _odtp_w,
@@ -93,6 +101,10 @@ namespace wiselib
 			min_avg_LQI_threshold = _minLQI;
 			max_avg_LQI_inverse_threshold = _maxLQI_in;
 			min_avg_LQI_inverse_threshold = _minLQI_in;
+			max_avg_RSSI_threshold = _maxRSSI;
+			min_avg_RSSI_threshold = _minRSSI;
+			max_avg_RSSI_inverse_threshold = _maxRSSI_in;
+			min_avg_RSSI_inverse_threshold = _minRSSI_in;
 			max_link_stab_ratio_threshold = _maxlsr;
 			min_link_stab_ratio_threshold = _minlsr;
 			max_link_stab_ratio_inverse_threshold = _maxlsr_in;
@@ -154,6 +166,46 @@ namespace wiselib
 		void set_min_avg_LQI_inverse_threshold( uint8_t _minLQI_in )
 		{
 			min_avg_LQI_inverse_threshold = _minLQI_in;
+		}
+		// --------------------------------------------------------------------
+		uint8_t get_max_avg_RSSI_threshold()
+		{
+			return max_avg_RSSI_threshold;
+		}
+		// --------------------------------------------------------------------
+		void set_max_avg_RSSI_threshold( uint8_t _maxRSSI )
+		{
+			max_avg_RSSI_threshold = _maxRSSI;
+		}
+		// --------------------------------------------------------------------
+		uint8_t get_min_avg_RSSI_threshold()
+		{
+			return min_avg_RSSI_threshold;
+		}
+		// --------------------------------------------------------------------
+		void set_min_avg_RSSI_threshold( uint8_t _minRSSI )
+		{
+			min_avg_RSSI_threshold = _minRSSI;
+		}
+		// --------------------------------------------------------------------
+		uint8_t get_max_avg_RSSI_inverse_threshold()
+		{
+			return max_avg_RSSI_inverse_threshold;
+		}
+		// --------------------------------------------------------------------
+		void set_max_avg_RSSI_inverse_threshold( uint8_t _maxRSSI_in )
+		{
+			max_avg_RSSI_inverse_threshold = _maxRSSI_in;
+		}
+		// --------------------------------------------------------------------
+		uint8_t get_min_avg_RSSI_inverse_threshold()
+		{
+			return min_avg_RSSI_inverse_threshold;
+		}
+		// --------------------------------------------------------------------
+		void set_min_avg_RSSI_inverse_threshold( uint8_t _minRSSI_in )
+		{
+			min_avg_RSSI_inverse_threshold = _minRSSI_in;
 		}
 		// --------------------------------------------------------------------
 		uint8_t get_max_link_stab_ratio_threshold()
@@ -246,12 +298,12 @@ namespace wiselib
 			proposed_beacon_period_weight = _pbp_w;
 		}
 		// --------------------------------------------------------------------
-		uint8_t get_overflow_strategy()
+		uint16_t get_overflow_strategy()
 		{
 			return overflow_strategy;
 		}
 		// --------------------------------------------------------------------
-		void set_overflow_strategy( uint8_t _ofs )
+		void set_overflow_strategy( uint16_t _ofs )
 		{
 			overflow_strategy = _ofs;
 		}
@@ -365,6 +417,10 @@ namespace wiselib
 			min_avg_LQI_threshold = _psett.min_avg_LQI_threshold;
 			max_avg_LQI_inverse_threshold = _psett.max_avg_LQI_inverse_threshold;
 			min_avg_LQI_inverse_threshold = _psett.min_avg_LQI_inverse_threshold;
+			max_avg_RSSI_threshold = _psett.max_avg_RSSI_threshold;
+			min_avg_RSSI_threshold = _psett.min_avg_RSSI_threshold;
+			max_avg_RSSI_inverse_threshold = _psett.max_avg_RSSI_inverse_threshold;
+			min_avg_RSSI_inverse_threshold = _psett.min_avg_RSSI_inverse_threshold;
 			max_link_stab_ratio_threshold = _psett.max_link_stab_ratio_threshold;
 			min_link_stab_ratio_threshold = _psett.min_link_stab_ratio_threshold;
 			max_link_stab_ratio_inverse_threshold = _psett.max_link_stab_ratio_inverse_threshold;
@@ -395,6 +451,10 @@ namespace wiselib
 			_debug.debug( "min_avg_LQI_threshold (size %i) : %d\n", sizeof(min_avg_LQI_threshold), min_avg_LQI_threshold );
 			_debug.debug( "max_avg_LQI_inverse_threshold (size %i) : %d\n", sizeof(max_avg_LQI_inverse_threshold), max_avg_LQI_inverse_threshold );
 			_debug.debug( "min_avg_LQI_inverse_threshold (size %i) : %d\n", sizeof(min_avg_LQI_inverse_threshold),min_avg_LQI_inverse_threshold );
+			_debug.debug( "max_avg_RSSI_threshold (size %i) : %d\n", sizeof(max_avg_RSSI_threshold), max_avg_RSSI_threshold );
+			_debug.debug( "min_avg_RSSI_threshold (size %i) : %d\n", sizeof(min_avg_RSSI_threshold), min_avg_RSSI_threshold );
+			_debug.debug( "max_avg_RSSI_inverse_threshold (size %i) : %d\n", sizeof(max_avg_RSSI_inverse_threshold), max_avg_RSSI_inverse_threshold );
+			_debug.debug( "min_avg_RSSI_inverse_threshold (size %i) : %d\n", sizeof(min_avg_RSSI_inverse_threshold),min_avg_RSSI_inverse_threshold );
 			_debug.debug( "max_link_stab_ratio_threshold (size %i) : %d\n", sizeof(max_link_stab_ratio_threshold), max_link_stab_ratio_threshold );
 			_debug.debug( "min_link_stab_ratio_threshold (size %i) : %d\n", sizeof(min_link_stab_ratio_threshold), min_link_stab_ratio_threshold );
 			_debug.debug( "max_link_stab_ratio_inverse_threshold (size %i) : %d\n", sizeof(max_link_stab_ratio_inverse_threshold), max_link_stab_ratio_inverse_threshold );
@@ -425,7 +485,9 @@ namespace wiselib
 			RESET_STAB_INVERSE = 8,
 			RESET_AVG_LQI = 16,
 			RESET_AVG_LQI_INVERSE = 32,
-			RATIO_DIVIDER = 64,
+			RESET_AVG_RSSI = 64,
+			RESET_AVG_RSSI_INVERSE = 128,
+			RATIO_DIVIDER = 256,
 		};
 		// --------------------------------------------------------------------
 		enum event_codes
@@ -459,6 +521,10 @@ namespace wiselib
 		uint8_t min_avg_LQI_threshold;
 		uint8_t max_avg_LQI_inverse_threshold;
 		uint8_t min_avg_LQI_inverse_threshold;
+		uint8_t max_avg_RSSI_threshold;
+		uint8_t min_avg_RSSI_threshold;
+		uint8_t max_avg_RSSI_inverse_threshold;
+		uint8_t min_avg_RSSI_inverse_threshold;
 		uint8_t max_link_stab_ratio_threshold;
 		uint8_t min_link_stab_ratio_threshold;
 		uint8_t max_link_stab_ratio_inverse_threshold;
@@ -468,7 +534,7 @@ namespace wiselib
 		uint8_t proposed_transmission_power_dB_weight;
 		millis_t proposed_beacon_period;
 		uint8_t proposed_beacon_period_weight;
-		uint8_t overflow_strategy;
+		uint16_t overflow_strategy;
 		uint32_t ratio_divider;
 		uint8_t dead_time_strategy;
 		uint8_t old_dead_time_period_weight;
