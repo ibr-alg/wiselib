@@ -248,6 +248,9 @@ namespace wiselib {
 			}
 			
 			void start_construction() {
+				actuator_->set_value(0.0);
+				actuator_->set_value(-1.0);
+				
 				debug_->debug("starting token ring construction\n");
 				//last_receive_ = clock_->seconds(clock_->time());
 				//timer_->template set_timer<self_type, &self_type::on_time>(100, this, 0);
@@ -261,6 +264,7 @@ namespace wiselib {
 				
 				add_channel(radio_->id(), radio_->id(), CHANNEL_NORMAL);
 				current_channel_ = &channels_[0];
+				measure_out_time_begin_ = -1;
 				//awake_ = true;
 				wakeup();
 				//wait_for_master_ = Radio::NULL_NODE_ID;
@@ -270,7 +274,6 @@ namespace wiselib {
 				
 				scheduling_send_token_ = false;
 				scheduling_wakeup_ = false;
-				measure_out_time_begin_ = -1;
 				
 				// create & send initial token
 				last_non_keepalive_token_.init();
@@ -387,7 +390,10 @@ namespace wiselib {
 			}
 
 			void measure_channel_time(node_id_t source, Token& token) {
-				//debug_->debug("%d measure_channel_time chan=(%d %d), begin=%d, now=%d
+				debug_->debug("%d measure_channel_time chan=(%d %d), src=%d, begin=%d, now=%d\n",
+						radio_->id(), current_channel_->in(), current_channel_->out(),
+						source, measure_out_time_begin_, now());
+				
 				if(measure_out_time_begin_ != -1) {
 				current_channel_->out_time_ = now() - measure_out_time_begin_;
 				}
@@ -436,6 +442,18 @@ namespace wiselib {
 						
 						set_have_token(true);
 						last_non_keepalive_token_ = token;
+					}
+					else {
+						// TODO: next time the "real" token is being send
+						// to the newly created channel make sure
+						// to send a keepalive to the "old" channel as well!
+						// (doesn't change anything regarding wake-times, but
+						// makes it easier to detect token loss)
+						// 
+						// TODO: how do we detect token loss when the token
+						// was lost during "exploration" of a new channel?
+						// (the "new" nodes are in stay_awake and we
+						// don't know when to expect the token back)
 					}
 					last_non_keepalive_token_.ring_id_ = new_ring_id;
 					set_ring_id(new_ring_id);
@@ -509,10 +527,10 @@ namespace wiselib {
 				if(have_token()) { return; }
 				
 				//debug_->debug("KEEPALIVE from %d-> %d will wake up in %d again.\n", source, radio_->id(), token.period() - TOKEN_WAKEUP_BEFORE);
-				if(expect_token_active_) {
-					debug_->debug("ERROR: expecting twice?!\n");
-				}
-				expect_token_active_ = true;
+				//if(expect_token_active_) {
+					//debug_->debug("ERROR: expecting twice?!\n");
+				//}
+				//expect_token_active_ = true;
 				//timer_->template set_timer<self_type, &self_type::expect_token>(token.period() - TOKEN_WAKEUP_BEFORE, this, 0);
 				//set_have_token(false);
 				schedule_send_token(TOKEN_STAY_INTERVAL);
@@ -605,6 +623,9 @@ namespace wiselib {
 					awake_ = false;
 					actuator_->set_value((double)awake_ - 1);
 				}
+				else {
+					debug_->debug("%d not sleeping because its in stay-awake\n", radio_->id());
+				}
 				update_awake_actuator();
 			}
 			bool awake() { return awake_; }
@@ -641,6 +662,7 @@ namespace wiselib {
 				for(Channel* ch=&channels_[0]; ch < &channels_[MAX_CHANNELS]; ch++) {
 					if(ch->used() && ch->in() == source) {
 						if(!ch->is_old()) {
+							measure_out_time_begin_ = -1;
 							current_channel_ = ch;
 							found = true;
 						}
@@ -666,7 +688,12 @@ namespace wiselib {
 			 * line.
 			 */
 			Channel* add_channel(node_id_t in, node_id_t out, uint8_t flags) {
-				measure_out_time_ = false;
+				debug_->debug("%d add_channel(%d, %d)\n", radio_->id(), in, out);
+				if(current_channel_) {
+				debug_->debug("%d former current ch: (%d %d)\n", radio_->id(), current_channel_->in(),
+						current_channel_->out());
+				}
+				//measure_out_time_ = false;
 				Channel *ch;
 				
 				// if there is a this/this channel, remove it
@@ -688,6 +715,7 @@ namespace wiselib {
 					node_id_t out_tmp = Radio::NULL_NODE_ID;
 					
 					ch = current_channel_;
+					
 					out_tmp = ch->out();
 					ch->set_out(out);
 					ch->out_time_ = 0;
@@ -700,7 +728,13 @@ namespace wiselib {
 				
 					ch->set_in(in);
 					ch->set_out(out_tmp);
-					ch->out_time_ = 0;
+					//ch->out_time_ = 0;
+					
+					// ensure, new current channel has the same out()
+					// value as previous (so time measurements make sense)
+					current_channel_ = ch;
+					debug_->debug("%d new current ch: (%d %d)\n", radio_->id(), current_channel_->in(),
+							current_channel_->out());
 				}
 				ch->flags_ = flags;
 				channel_count_++;
