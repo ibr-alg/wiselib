@@ -107,7 +107,7 @@ namespace wiselib {
 			
 			int init(
 					char *myuri,
-					bitmask_t docmask,
+					bitmask_t docmask, ///< look for foisand insert partOfSE statements here
 					
 					typename Radio::self_pointer_t radio,
 					typename Neighborhood::self_pointer_t neighborhood,
@@ -120,16 +120,22 @@ namespace wiselib {
 				broker_ = broker;
 				timer_ = timer;
 				debug_ = debug;
+				inses_changed_ = false;
 				
-				debug_->debug("SE construction starting sz(State)=%d\n", sizeof(State));
+				debug_->debug("INSE construction starting\n");
 				
 				feature_query_.set(myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", 0, docmask);
 				feature_query_mask_ = (1 << 0) | (1 << 1); // | (1 << 3);
 				
 				inse_query_.set(myuri, "<http://spitfire-project.eu/inse#partOfSE>", 0, docmask);
-				inse_query_mask_ = (1 << 0) | (1 << 1) | (1 << 3);
+				inse_query_mask_ = (1 << 0) | (1 << 1); // | (1 << 3);
 				
 				update_rdf_features();
+				for(int i=0; i<state_.max_features(); i++) {
+					Feature myfeature = state_.feature(i);
+					if(myfeature == state_.nfeature) { continue; }
+					make_se(myfeature, radio_->id(), radio_->id());
+				}
 				
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				update_nd_payload();
@@ -147,25 +153,21 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			int init() {
-				return SUCCESS;
-			}
+			//int init() {
+				//return SUCCESS;
+			//}
 			
 			void on_nd_event(uint8_t event_id, node_id_t neighbor, uint8_t payload_id, uint8_t *payload) {
 				
-				//debug_->debug("+++++++ ND EVENT %d payload=%p\n", event_id, payload);
+				//debug_->debug("+++++++ ND EVENT %d pid=%d payload != 0: %d\n", (::int32_t)event_id, (::int32_t)payload_id, (::int32_t)(payload != 0));
 				State neighbor_state; // = *(State*)payload;
 				
 				if(event_id & (Neighborhood::DROPPED_NB | Neighborhood::LOST_NB_BIDI)) {
-					debug_->debug("lost neighbor: %llx\n", neighbor);
 					for(int i=0; i<state_.max_features(); i++) {
 						Feature myfeature = state_.feature(i);
 						if(myfeature == state_.nfeature) { continue; }
-						//node_id_t myleader = state_.leader(i);
-						node_id_t myparent = state_.parent(i);
-						if(neighbor == myparent) {
-							destroy_se(myfeature);
-						}
+						debug_->debug("AD %s %llx 0 $$", get_feature(myfeature), state_.parent(i));
+						make_se(myfeature, radio_->id(), radio_->id());
 					}
 					update_nd_payload();
 				}
@@ -180,7 +182,7 @@ namespace wiselib {
 			}
 			
 			void new_neighbor_state(node_id_t neighbor_address, State& neighbor_state) {
-				//debug_->debug("+++++++ NEW ND STATE\n");
+				//debug_->debug("+++++++ NEW ND STATE me=%llx neigh=%llx\n", radio_->id(), neighbor_address);
 				node_id_t me = radio_->id();
 				if(neighbor_address == me) { return; }
 				
@@ -196,22 +198,29 @@ namespace wiselib {
 					bool had_feature = false;
 					for(int j=0; j<neighbor_state.max_features(); j++) {
 						Feature feature = neighbor_state.feature(i);
+						//debug_->debug("myfeature: %d '%s' neigh feature: %d '%s'\n", myfeature, get_feature(myfeature), feature, get_feature(feature));
 						if(feature != myfeature) { continue; }
 						node_id_t neighbor_leader = neighbor_state.leader(i);
 						
-						if(neighbor_leader > myleader) { // -> adopt neighs leader
+						if(neighbor_leader > myleader) { // -> adopt neighs leader, make neigh parent
+							//debug_->debug("case 1\n");
 							make_se(myfeature, neighbor_leader, neighbor_address);
 						}
-						else if(neighbor_address > myleader && neighbor_address > me) { // -> neigh is leader
+						else if(neighbor_address > myleader && neighbor_address > me) { // -> neigh is leader, make neigh parent
+							//debug_->debug("case 2x\n");
 							make_se(myfeature, neighbor_address, neighbor_address);
 						}
 						else if(neighbor_address == myparent) { // parent still has the feature but now lower leader -> become leader
+							//debug_->debug("case 2\n");
 							if(neighbor_leader < me) {
+								//debug_->debug("case 2a\n");
 								make_se(myfeature, me, me);
 							}
 						}
 						else { // some node with lower leader -> node is our child -> become leader
+							//debug_->debug("case 3\n");
 							if(myleader == Radio::NULL_NODE_ID) {
+								//debug_->debug("case 3a\n");
 								make_se(myfeature, me, me);
 							}
 						}
@@ -220,9 +229,11 @@ namespace wiselib {
 					}
 					
 					if(neighbor_address == myparent && !had_feature) {
+								//debug_->debug("case 4\n");
 						// our former parent lost the feature, destroy se (for
 						// now)
-						destroy_se(myfeature);
+						//destroy_se(myfeature);
+						make_se(myfeature, radio_->id(), radio_->id());
 					}
 				}
 				
@@ -230,7 +241,11 @@ namespace wiselib {
 			}
 			
 			void make_se(Feature feature, node_id_t leader, node_id_t parent) {
-				debug_->debug("make se: %s %llx", get_feature(feature), leader);
+				//debug_->debug("make se: %s %llx", get_feature(feature), leader);
+				if(get_feature(feature)) {
+					debug_->debug("ARR %s %llx %llx $$", get_feature(feature), radio_->id(), parent);
+				}
+				
 				//debug_->debug("id=%04x f=%08lx %s-%04x\n", radio_->id(), feature, get_feature(feature), leader);
 				
 				int first_free = -1;
@@ -240,39 +255,46 @@ namespace wiselib {
 						first_free = i;
 					}
 					else if(state_.feature(i) == feature) {
-						state_.leader(i) = leader;
-						state_.parent(i) = parent;
+						if(state_.leader(i) != leader || state_.parent(i) != parent) {
+							state_.leader(i) = leader;
+							state_.parent(i) = parent;
+							inses_changed_ = true;
+						}
 						break;
 					}
 				}
 				if(i == state_.max_features() && first_free != -1) {
-					state_.feature(first_free) = feature;
-					state_.leader(first_free) = leader;
-					state_.parent(first_free) = parent;
-				}
-				
-				update_nd_payload();
-				update_rdf_inses();
-			}
-			
-			void destroy_se(Feature feature) {
-				debug_->debug("destroy se:");
-				debug_->debug("id=%llx f=%08lx %s\n", radio_->id(), feature, get_feature(feature));
-				
-				for(int i=0; i<state_.max_features(); i++) {
-					if(state_.feature(i) == feature) {
-						//state_.feature(i) = state_.nfeature;
-						state_.leader(i) = Radio::NULL_NODE_ID;
-						state_.parent(i) = Radio::NULL_NODE_ID;
-						break;
+					if(state_.feature(first_free) != feature || state_.leader(first_free) != leader || state_.parent(first_free) != parent) {
+						state_.feature(first_free) = feature;
+						state_.leader(first_free) = leader;
+						state_.parent(first_free) = parent;
+						inses_changed_ = true;
 					}
 				}
+				
+				if(inses_changed_) {
+					update_nd_payload();
+					update_rdf_inses();
+					inses_changed_ = false;
+				}
 			}
 			
-			void on_ses_updated() {
-				update_nd_payload();
-				update_rdf_inses();
-			}
+			//void destroy_se(Feature feature) {
+				//debug_->debug("destroy se:");
+				//debug_->debug("id=%llx f=%08lx %s\n", radio_->id(), feature, get_feature(feature));
+				
+				//for(int i=0; i<state_.max_features(); i++) {
+					//if(state_.feature(i) == feature) {
+						////state_.feature(i) = state_.nfeature;
+						//state_.leader(i) = Radio::NULL_NODE_ID;
+						//state_.parent(i) = Radio::NULL_NODE_ID;
+						//break;
+					//}
+				//}
+				
+				//update_nd_payload();
+				//update_rdf_inses();
+			//}
 			
 			void update_nd_payload() {
 				State *s = &state_;
@@ -286,19 +308,22 @@ namespace wiselib {
 				neighborhood_->set_payload(PAYLOAD_ID, reinterpret_cast< ::uint8_t* >(s), sizeof(State));
 			}
 			
-			void debug_packet(::uint8_t* packet, int l) {
-				debug_->debug("packet len=%d\n", l);
-				for(int i=0; i<l; i += 4) {
-					debug_->debug("%02x %02x %02x %02x\n", packet[i], packet[i+1], packet[i+2], packet[i+3]);
-				}
-			}
+			//void debug_packet(::uint8_t* packet, int l) {
+				//debug_->debug("packet len=%d\n", l);
+				//for(int i=0; i<l; i += 4) {
+					//debug_->debug("%02x %02x %02x %02x\n", packet[i], packet[i+1], packet[i+2], packet[i+3]);
+				//}
+			//}
 			
 			void update_rdf_features() {
 				//node_id_t me = radio_->id();
+				//debug_->debug("update_rdf_features()\n");
+				//debug_ts();
 				
 				iterator iter = tuple_store().begin(&feature_query_, feature_query_mask_);
 				for( ; iter != tuple_store().end(); ++iter) {
 					block_data_t *s = iter->get(2);
+					//debug_->debug("s=%s\n", (char*)s);
 					Feature f = (Hash::hash(s) + 1) & 0xffffffff;
 					
 					//debug_->debug("(%s %s %s)\n", iter->get(0), iter->get(1), iter->get(2));
@@ -309,6 +334,7 @@ namespace wiselib {
 					if(!feature_names_.contains(f)) {
 						size_t l = strlen((char*)s) + 1;
 						char *s2 = get_allocator().allocate_array<char>(l).raw();
+						//debug_->debug("copying '%s' to %x\n", s, (::uint32_t)(void*)s2);
 						memcpy(s2, s, l);
 						feature_names_[f] = s2;
 						for(int i=0; i<MAX_FEATURES; i++) {
@@ -320,7 +346,7 @@ namespace wiselib {
 							}
 						}
 						
-						debug_->debug("%s has feature %s\n", uri(), s2);
+						//debug_->debug("%s has feature %s\n", uri(), s2);
 						
 					}	
 				}
@@ -328,41 +354,67 @@ namespace wiselib {
 			
 			char* uri() { return (char*)feature_query_.get(0); }
 			
+			void debug_ts() {
+				debug_->debug("debug_ts()\n");
+				iterator iter = tuple_store().begin();
+				for( ; iter != tuple_store().end(); ++iter) {
+					bitmask_t mask;
+					memcpy(&mask, iter->get(3), sizeof(mask));
+					debug_->debug("(%s %s %s %d)",
+							(char*)iter->get(0), (char*)iter->get(1), (char*)iter->get(2), mask);
+				}
+							
+							
+			}
+			
 			void update_rdf_inses() {
 				static const int MAX_INSE_LEN = 200;
 				char inse[MAX_INSE_LEN];
 				
 				// delete all INSE tuples
 				
-				compressed_iterator iter = compressed_tuplestore().begin(&inse_query_, inse_query_mask_);
-				while(iter != compressed_tuplestore().end()) {
-					iter = compressed_tuplestore().erase(iter);
+				//debug_->debug("erasing: (%s, %s, %s) docmask=%x qmask=%x\n", inse_query_.get(0), inse_query_.get(1), inse_query_.get(2),
+						//(::int32_t)inse_query_.bitmask(), (::int32_t)inse_query_mask_);
+				iterator iter = tuple_store().begin(&inse_query_, inse_query_mask_);
+				while(iter != tuple_store().end()) {
+					//debug_->debug("erase: (%s %s %s)\n", iter->get(0), iter->get(1), iter->get(2));
+					iter = tuple_store().erase(iter);
 				}
 				
 				// insert new INSE tuples
 				
 				Tuple t;
-				t.set_bitmask(inse_query_mask_);
+				t.set_bitmask(inse_query_.bitmask());
 				t.set(0, inse_query_.get(0));
 				t.set(1, inse_query_.get(1));
 				for(int i=0; i<state_.max_features(); i++) {
 					if(state_.feature(i) == state_.nfeature) { continue; }
+					if(state_.leader(i) == Radio::NULL_NODE_ID) { continue; }
 					
-					snprintf(inse, MAX_INSE_LEN, "%s-%04llx",
-							(char*)get_feature(state_.feature(i)), state_.leader(i));
+					char *feature_name = get_feature(state_.feature(i));
+					if(!feature_name) {
+						debug_->debug("warning: no feature name found for feature %08x, ignoring!\n", state_.feature(i));
+						continue;
+					}
+					
+					snprintf(inse, MAX_INSE_LEN, "%.*s-%04llx>", strlen(feature_name) - 1, feature_name, state_.leader(i));
 					t.set(2, (block_data_t*)inse);
 					
-					debug_->debug("ins: (%s %s %s)\n", t.get(0), t.get(1), t.get(2));
+					debug_->debug("SE %llx %s $$", radio_->id(), inse);
+							
+					//debug_->debug("insert: (%s %s %s)\n", t.get(0), t.get(1), t.get(2));
 					
 					tuple_store().insert(t);
 				}
+				//debug_ts();
+				//debug_->debug("end update_rdf_inses()\n");
 			}
 			
 			char* get_feature(Feature f) { return feature_names_[f]; }
 			
-			CompressedTupleStore& compressed_tuplestore() { return broker_->compressed_tuple_store(); }
+			CompressedTupleStore& compressed_tuple_store() { return broker_->compressed_tuple_store(); }
 			TupleStore& tuple_store() { return broker_->tuple_store(); }
-			bitmask_t document_mask() { return feature_query_.get_bitmask(); }
+			bitmask_t document_mask() { return feature_query_.bitmask(); }
 		
 		private:
 			
@@ -379,6 +431,7 @@ namespace wiselib {
 			typename Timer::self_pointer_t timer_;
 			
 			MapStaticVector<OsModel, Feature, char*, 3 * MAX_FEATURES> feature_names_;
+			bool inses_changed_;
 			
 	}; // class SEConstruction
 	
