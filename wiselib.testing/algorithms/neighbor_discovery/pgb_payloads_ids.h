@@ -29,6 +29,6 @@
 #define CLRADIO 6
 #define CONTROLL 7
 
-#define TOTAL_REG_ALG 8
+#define TOTAL_REG_ALG 2
 
 #endif
