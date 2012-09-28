@@ -122,7 +122,7 @@ namespace wiselib {
 				debug_ = debug;
 				inses_changed_ = false;
 				
-				debug_->debug("INSE construction starting\n");
+				//debug_->debug("INSE construction starting\n");
 				
 				feature_query_.set(myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", 0, docmask);
 				feature_query_mask_ = (1 << 0) | (1 << 1); // | (1 << 3);
@@ -166,7 +166,7 @@ namespace wiselib {
 					for(int i=0; i<state_.max_features(); i++) {
 						Feature myfeature = state_.feature(i);
 						if(myfeature == state_.nfeature) { continue; }
-						debug_->debug("AD %s %llx 0 $$", get_feature(myfeature), state_.parent(i));
+						//debug_->debug("AD %s %llx 0 $$", get_feature(myfeature), state_.parent(i));
 						make_se(myfeature, radio_->id(), radio_->id());
 					}
 					update_nd_payload();
@@ -241,9 +241,11 @@ namespace wiselib {
 			}
 			
 			void make_se(Feature feature, node_id_t leader, node_id_t parent) {
+				//debug_ts();
+				
 				//debug_->debug("make se: %s %llx", get_feature(feature), leader);
 				if(get_feature(feature)) {
-					debug_->debug("ARR %s %llx %llx $$", get_feature(feature), radio_->id(), parent);
+					debug_->debug("ARR %x %x $$", (::uint16_t)(radio_->id() & 0xffff), (::uint16_t)(parent & 0xffff));
 				}
 				
 				//debug_->debug("id=%04x f=%08lx %s-%04x\n", radio_->id(), feature, get_feature(feature), leader);
@@ -354,18 +356,18 @@ namespace wiselib {
 			
 			char* uri() { return (char*)feature_query_.get(0); }
 			
-			void debug_ts() {
-				debug_->debug("debug_ts()\n");
-				iterator iter = tuple_store().begin();
-				for( ; iter != tuple_store().end(); ++iter) {
-					bitmask_t mask;
-					memcpy(&mask, iter->get(3), sizeof(mask));
-					debug_->debug("(%s %s %s %d)",
-							(char*)iter->get(0), (char*)iter->get(1), (char*)iter->get(2), mask);
-				}
+			//void debug_ts() {
+				//debug_->debug("debug_ts()\n");
+				//iterator iter = tuple_store().begin();
+				//for( ; iter != tuple_store().end(); ++iter) {
+					//bitmask_t mask;
+					//memcpy(&mask, iter->get(3), sizeof(mask));
+					//debug_->debug("(%s %s %s %d)",
+							//(char*)iter->get(0), (char*)iter->get(1), (char*)iter->get(2), mask);
+				//}
 							
 							
-			}
+			//}
 			
 			void update_rdf_inses() {
 				static const int MAX_INSE_LEN = 200;
@@ -400,7 +402,7 @@ namespace wiselib {
 					snprintf(inse, MAX_INSE_LEN, "%.*s-%04llx>", strlen(feature_name) - 1, feature_name, state_.leader(i));
 					t.set(2, (block_data_t*)inse);
 					
-					debug_->debug("SE %llx %s $$", radio_->id(), inse);
+					debug_->debug("SE %x %s $$", (::uint16_t)(radio_->id() & 0xffff), inse);
 							
 					//debug_->debug("insert: (%s %s %s)\n", t.get(0), t.get(1), t.get(2));
 					
