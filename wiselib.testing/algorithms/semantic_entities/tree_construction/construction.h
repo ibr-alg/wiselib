@@ -66,7 +66,7 @@ namespace wiselib {
 			
 			typedef SEConstruction<OsModel, Broker, Radio, Hash, Timer, Debug, Neighborhood> self_type;
 			
-			enum { MAX_FEATURES = 4 };
+			enum { MAX_FEATURES = 2 };
 			
 		private:
 			class State {
