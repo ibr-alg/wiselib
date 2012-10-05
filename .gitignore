@@ -1,0 +1,5 @@
+*.orig
+*.o
+*.swp
+*.pyc
+Makefile.local
