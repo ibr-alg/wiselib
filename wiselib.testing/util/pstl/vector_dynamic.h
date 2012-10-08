@@ -28,12 +28,12 @@ namespace wiselib
 {
 
    template<typename OsModel_P,
-            typename Value_P>
+            typename Value_P
+            >
    class vector_dynamic
    {
    public:
       typedef OsModel_P OsModel;
-      typedef typename OsModel::Allocator Allocator;
       
       typedef Value_P value_type;
       typedef value_type* pointer;
@@ -61,7 +61,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       ~vector_dynamic() {
          if(buffer_) {
-            OsModel::allocator.free_array(buffer_);
+            get_allocator().free_array(buffer_);
          }
       }
       
@@ -79,7 +79,7 @@ namespace wiselib
       
       void attach(buffer_pointer_t buffer, size_type size) {
          if(buffer_) {
-            OsModel::allocator.free_array(buffer_);
+            get_allocator().free_array(buffer_);
          }
          buffer_ = buffer;
          size_ = size;
@@ -310,7 +310,7 @@ namespace wiselib
          //assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
-            new_buffer = OsModel::allocator.template allocate_array<value_type>(n);
+            new_buffer = get_allocator().template allocate_array<value_type>(n);
          }
          
          if(buffer_) {
@@ -319,7 +319,7 @@ namespace wiselib
             }*/
             memcpy((void*)&new_buffer[0], (void*)&buffer_[0], size_);
             
-            OsModel::allocator.free_array(buffer_);
+            get_allocator().free_array(buffer_);
          }
          buffer_ = new_buffer;
          capacity_ = n;
