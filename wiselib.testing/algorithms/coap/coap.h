@@ -28,13 +28,13 @@
 #define WISELIB_MID_COAP                    51
 // end of wiselib defines
 // CONFIGURATION
-#define CONF_MAX_RESOURCES                  20
+#define CONF_MAX_RESOURCES                  1 // 20
 #define CONF_MAX_RESOURCE_QUERIES           5
 #define CONF_MAX_OBSERVERS                  5
-#define CONF_MAX_MSG_LEN                    1024
-#define CONF_MAX_PAYLOAD_LEN                1000
+#define CONF_MAX_MSG_LEN                    128 // 1024
+#define CONF_MAX_PAYLOAD_LEN                128 // 1000
 #define CONF_PIGGY_BACKED                   1
-#define CONF_MAX_RETRANSMIT_SLOTS           10
+#define CONF_MAX_RETRANSMIT_SLOTS           5 // 10
 
 #define CONF_COAP_RESPONSE_TIMEOUT          2
 #define CONF_COAP_RESPONSE_RANDOM_FACTOR    1.5
@@ -51,8 +51,7 @@
 #define COAP_HEADER_LEN                     4
 // END OF CURRENT COAP DEFINES
 
-#define DEBUG_COAP
-
+#define COAP_DEFAULT_RESOURCE 1
 
 #include "util/pstl/static_string.h"
 #include "packet.h"
@@ -143,6 +142,11 @@ namespace wiselib {
             uint8_t *data = NULL;
             uint8_t data_len;
 
+			//for(int i=0; i< *len; i++) {
+				//debug().debug("%x %d %c\n", buf[i], buf[i], buf[i]);
+			//}
+			
+			
             msg.init();
             response.init();
             //memset( data, 0, CONF_MAX_PAYLOAD_LEN );
@@ -155,187 +159,179 @@ namespace wiselib {
             if (msg.type_w() > 3) {
                 coap_error_code = BAD_REQUEST;
             }
-            if (coap_error_code == NO_ERROR) {
-                /*
-                if ( ( msg.is_option( URI_HOST ) ) && ( msg.uri_host_w() != radio().id() ) )
-                {
-                   return; // if uri host option is set, and id doesn't match
-                }
-                 */
-                if (msg.is_request()) {
-#ifdef DEBUG_COAP
-                    debug().debug("REC::REQUEST\n");
-#endif
+            if ( coap_error_code == NO_ERROR )
+            {
+               /*
+               if ( ( msg.is_option( URI_HOST ) ) && ( msg.uri_host_w() != radio().id() ) )
+               {
+                  return; // if uri host option is set, and id doesn't match
+               }
+               */
+               if ( msg.code_w() >= 1 && msg.code_w() <= 4 )
+			   {
+                  //debug().debug( "REC::REQUEST for %s\n", msg.uri_path_w() );
+                  if ( find_resource( &resource_id, msg.uri_path_w(), msg.uri_path_len_w() ) == true )
+                  {
+                     //debug().debug( "REC::RESOURCE FOUND\n" );
+                     // query_id = resources_[resource_id].has_query( msg.uri_query_w(), msg.uri_query_len_w() );
+                     query_id = 0;
+                     //debug().debug("query id %d\n", query_id);
+                     if ( resources_[resource_id].method_allowed( query_id, msg.code_w() ) )
+                     {
+                        //debug().debug( "REC::METHOD_ALLOWED" );
+                        if( msg.type_w() == CON )
+                        {
+                           if ( resources_[resource_id].fast_resource() == false )
+                           {
+                              //debug().debug( "REC::SLOW_RESPONSE" );
+                              response.set_type( ACK );
+                              response.set_mid( msg.mid_w() );
+                              coap_send( &response, from );
+                              //debug().debug( "ACTION: Sent ACK" );
 
-                    //Check if the resource requested exists 
-                    if (find_resource(&resource_id, msg.uri_path_w(), msg.uri_path_len_w())) {
-#ifdef DEBUG_COAP
-                        debug().debug("REC::RESOURCE FOUND\n");
-#endif
-                        // query_id = resources_[resource_id].has_query( msg.uri_query_w(), msg.uri_query_len_w() );
-                        query_id = 0;
-#ifdef DEBUG_COAP
-                        debug().debug("query id %d\n", query_id);
-#endif
-                        if (resources_[resource_id].method_allowed(query_id, msg.code_w())) {
-#ifdef DEBUG_COAP
-                            debug().debug("REC::METHOD_ALLOWED");
-#endif
-                            if ( msg.is_confirmable() ) {
-                                if (resources_[resource_id].fast_resource() == false) {
-#ifdef DEBUG_COAP
-                                    debug().debug("REC::SLOW_RESPONSE");
-#endif
-                                    response.set_type(ACK);
-                                    response.set_mid(msg.mid_w());
-                                    coap_send(&response, from);
-#ifdef DEBUG_COAP
-                                    debug().debug("ACTION: Sent ACK");
-#endif
-                                    response.init();
-                                    memset(buf_, 0, CONF_MAX_MSG_LEN);
-                                    response.set_type(CON);
-                                    response.set_mid(coap_new_mid());
-                                }// end of slow reply
-                                else {
-#ifdef DEBUG_COAP
-                                    debug().debug("REC::FAST_RESPONSE");
-#endif 
-                                    response.set_type(ACK);
-                                    response.set_mid(msg.mid_w());
-                                } // end of fast reply
-                            } else {
-                                response.set_type(NON);
-                            } // end set response msgmsg type
-                            //check the Method of the REQUEST
-                            switch (msg.code_w()) {
-                                case GET:
-                                    #ifdef DEBUG_COAP
-                                    debug().debug("REC::GET_REQUEST");
-#endif
-                                    response.set_code(coap_get_resource(msg.code_w(), resource_id, query_id, &data_len));
-                                    response.set_option(CONTENT_TYPE);
-                                    response.set_content_type(resources_[resource_id].content_type());
-                                    data = (uint8_t *) resources_[resource_id].payload();
-                                    coap_blockwise_response(&msg, &response, &data, &data_len);
-                                    response.set_payload(data);
-                                    response.set_payload_len(data_len);
-                                    if (msg.is_option(OBSERVE) && resources_[resource_id].notify_time_w() > 0 && msg.is_option(TOKEN)) {
-                                        if (coap_add_observer(&msg, from, resource_id) == 1) {
-                                            response.set_option(OBSERVE);
-                                            response.set_observe(observe_counter());
-                                        }
-                                    } // end of add observer
-                                    break;
-                                case PUT:
-#ifdef DEBUG_COAP
-                                    debug().debug("REC::PUT_REQUEST");
-#endif
-                                    resources_[resource_id].set_put_data(msg.payload_w());
-                                    resources_[resource_id].set_put_data_len(msg.payload_len_w());
-                                    response.set_code(coap_get_resource(msg.code_w(), resource_id, query_id, &data_len));
-                                    response.set_option(CONTENT_TYPE);
-                                    response.set_content_type(resources_[resource_id].content_type());
-                                    data = (uint8_t *) resources_[resource_id].payload();
-                                    coap_blockwise_response(&msg, &response, &data, &data_len);
-                                    response.set_payload(data);
-                                    response.set_payload_len(data_len);
-                                    break;
-                            }
-                        }// end of method is allowed
-                        else {
-#ifdef DEBUG_COAP
-                            debug().debug("REC::METHOD_NOT_ALLOWED");
-#endif
-                            response.set_code(METHOD_NOT_ALLOWED);
-                        } // if( method_allowed )
-                    }// end of resource found
-                    else {
-#ifdef DEBUG_COAP
-                        debug().debug("REC::NOT_FOUND");
-#endif
-                        response.set_code(NOT_FOUND);
-                    }
-                    if (msg.is_option(TOKEN)) {
-#ifdef DEBUG_COAP
-                        debug().debug("REC::IS_SET_TOKEN");
-#endif
-                        response.set_option(TOKEN);
-                        response.set_token_len(msg.token_len_w());
-                        response.set_token(msg.token_w());
-                    }
-                    coap_send(&response, from);
-#ifdef DEBUG_COAP
-                    debug().debug("ACTION: Sent reply");
-#endif
-                } // end of handle request
-                if (msg.code_w() >= 64 && msg.code_w() <= 191) {
-                    //                  debug().debug( "REC: %s", msg.payload_w() );
-#ifdef DEBUG_COAP
-                    debug().debug("REC::RESPONSE");
-#endif
-                    switch (msg.type_w()) {
-                        case CON:
-                            response.set_type(ACK);
-                            response.set_mid(msg.mid_w());
-                            coap_send(&response, from);
-#ifdef DEBUG_COAP
-                            debug().debug("ACTION: Sent ACK");
-#endif
-                            return;
-                            break;
-                        case ACK:
-                            coap_unregister_con_msg(msg.mid_w(), 0);
-                            return;
-                            break;
-                        case RST:
-                            coap_remove_observer(msg.mid_w());
-                            coap_unregister_con_msg(msg.mid_w(), 0);
-                            return;
-                            break;
-                    }
-                }
-                if (msg.code_w() == 0) {
-#ifdef DEBUG_COAP
-                    debug().debug("REC::EMPTY");
-#endif
-                    //empty msg, ack, or rst
-                    coap_unregister_con_msg(msg.mid_w(), 0);
-                    if (msg.type_w() == RST) {
-                        coap_remove_observer(msg.mid_w());
-                    }
-                }
-            }// end of no error found
-            else {
-                // error found
-                response.set_code(coap_error_code);
-                if (msg.type_w() == CON)
-                    response.set_type(ACK);
-                else
-                    response.set_type(NON);
-                coap_send(&response, from);
-#ifdef DEBUG_COAP
-                debug().debug("ACTION: Sent reply");
-#endif
+                              response.init();
+                              memset( buf_, 0, CONF_MAX_MSG_LEN );
+                              response.set_type( CON );
+                              response.set_mid( coap_new_mid() );
+                           } // end of slow reply
+                           else
+                           {
+                              //debug().debug( "REC::FAST_RESPONSE" );
+                              response.set_type( ACK );
+                              response.set_mid( msg.mid_w() );
+                           } // end of fast reply
+                        }
+                        else
+                        {
+                           response.set_type( NON );
+                        } // end set response msgmsg type
+                        switch ( msg.code_w() )
+                        {
+                           case GET:
+                              //debug().debug( "REC::GET_REQUEST" );
+                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len, msg.uri_path_w()  ) );
+                              response.set_option( CONTENT_TYPE );
+                              response.set_content_type( resources_[resource_id].content_type() );
+                              data = ( uint8_t * ) resources_[resource_id].payload();
+                              coap_blockwise_response( &msg, &response, &data, &data_len );
+                              response.set_payload( data );
+                              response.set_payload_len( data_len );
+                              if ( msg.is_option( OBSERVE ) && resources_[resource_id].notify_time_w() > 0 && msg.is_option( TOKEN ) )
+                              {
+                                 if ( coap_add_observer( &msg, from, resource_id ) == 1 )
+                                 {
+                                    response.set_option( OBSERVE );
+                                    response.set_observe( observe_counter() );
+                                 }
+                              } // end of add observer
+                              break;
+                           case PUT:
+                              //debug().debug( "REC::PUT_REQUEST" );
+                              resources_[resource_id].set_put_data( msg.payload_w() );
+                              resources_[resource_id].set_put_data_len( msg.payload_len_w() );
+                              response.set_code( coap_get_resource( msg.code_w(), resource_id, query_id, &data_len, msg.uri_path_w() ) );
+                              response.set_option( CONTENT_TYPE );
+                              response.set_content_type( resources_[resource_id].content_type() );
+                              data = ( uint8_t * ) resources_[resource_id].payload();
+                              coap_blockwise_response( &msg, &response, &data, &data_len );
+                              response.set_payload( data );
+                              response.set_payload_len( data_len );
+                              break;
+                        }
+                     } // end of method is allowed
+                     else
+                     {
+                        //debug().debug( "REC::METHOD_NOT_ALLOWED" );
+                        response.set_code( METHOD_NOT_ALLOWED );
+                     } // if( method_allowed )
+                  } // end of resource found
+                  else
+                  {
+                     //debug().debug( "REC::NOT_FOUND" );
+                     response.set_code( NOT_FOUND );
+                  }
+                  if ( msg.is_option( TOKEN ) )
+                  {
+                     //debug().debug( "REC::IS_SET_TOKEN" );
+                     response.set_option( TOKEN );
+                     response.set_token_len( msg.token_len_w() );
+                     response.set_token( msg.token_w() );
+                  }
+                  coap_send( &response, from );
+                  //debug().debug( "ACTION: Sent reply" );
+               } // end of handle request
+               if ( msg.code_w() >= 64 && msg.code_w() <= 191 )
+               {
+//                  debug().debug( "REC: %s", msg.payload_w() );
+                  //debug().debug( "REC::RESPONSE" );
+                  switch ( msg.type_w() )
+                  {
+                     case CON:
+                        response.set_type( ACK );
+                        response.set_mid( msg.mid_w() );
+                        coap_send( &response, from );
+                        //debug().debug( "ACTION: Sent ACK" );
+                        return;
+                        break;
+                     case ACK:
+                        coap_unregister_con_msg( msg.mid_w(), 0 );
+                        return;
+                        break;
+                     case RST:
+                        coap_remove_observer( msg.mid_w() );
+                        coap_unregister_con_msg( msg.mid_w(), 0 );
+                        return;
+                        break;
+                  }
+               }
+               if ( msg.code_w() == 0 )
+               {
+                  //debug().debug( "REC::EMPTY" );
+                  //empty msg, ack, or rst
+                  coap_unregister_con_msg( msg.mid_w(), 0 );
+                  if ( msg.type_w() == RST )
+                  {
+                     coap_remove_observer( msg.mid_w() );
+                  }
+               }
+            } // end of no error found
+            else
+            {
+               // error found
+               response.set_code( coap_error_code );
+               if ( msg.type_w() == CON )
+                  response.set_type( ACK );
+               else
+                  response.set_type( NON );
+               coap_send( &response, from );
+               //debug().debug( "ACTION: Sent reply" );
             }
         } // end of coap receiver
 
-        bool find_resource(uint8_t* i, const char* uri_path, const uint8_t uri_path_len) {
-#ifdef DEBUG_COAP
-            debug_->debug("Resource Path : %s\n", uri_path);
-#endif
-            for ((*i) = 0; (*i) < CONF_MAX_RESOURCES; (*i)++) {
-                if (!mystrncmp(uri_path, resources_[*i].name(), uri_path_len)) {
+         bool find_resource( uint8_t* i, const char* uri_path, const uint8_t uri_path_len )
+         {
+            //debug_->debug("Resource Path : %s\n", uri_path);
+            for ( ( *i ) = 0; ( *i ) < CONF_MAX_RESOURCES; ( *i )++ )
+            {
+                if (!mystrncmp (uri_path, resources_[*i].name(), uri_path_len))
+                {
                     return true;
                 }
             }
-            return false;
-        } // end of find_resource
+			
+			#if COAP_DEFAULT_RESOURCE
+			return resources_[*i].is_set();
+			#else
+			return false;
+			#endif
+         } // end of find_resource
 
-        coap_status_t coap_get_resource(uint8_t method, uint8_t id, uint8_t qid, uint8_t* data_len) {
-            resources_[id].execute(qid, method);
-            if (resources_[id].payload() == NULL) {
-                return INTERNAL_SERVER_ERROR;
+         coap_status_t coap_get_resource( uint8_t method, uint8_t id, uint8_t qid, uint8_t* data_len, char* path )
+         {
+            resources_[id].execute( qid, method, path );
+            if ( resources_[id].payload() == NULL )
+            {
+               return INTERNAL_SERVER_ERROR;
             }
             *data_len = resources_[id].payload_length();
             return CONTENT;
@@ -409,31 +405,36 @@ namespace wiselib {
                 i++;
             }
             return 0;
-        }
+         }
 
-        void coap_retransmit_loop(void *i) {
-            int* k = reinterpret_cast<int*> (i);
-            int j = *k;
-            uint8_t timeout_factor = 0x01;
-            if (retransmit_register_[j] == 1) {
-                retransmit_timeout_and_tries_[j] += 1;
-                timeout_factor = timeout_factor << (0x0F & retransmit_timeout_and_tries_[j]);
+         void coap_retransmit_loop( void *i )
+         {
+        	int* k = reinterpret_cast<int*>(i);
+        	int j = *k;
+        	uint8_t timeout_factor = 0x01;
+            if ( retransmit_register_[j] == 1 )
+            {
+               retransmit_timeout_and_tries_[j] += 1;
+               timeout_factor = timeout_factor << ( 0x0F & retransmit_timeout_and_tries_[j] );
 
-#ifdef DEBUG_COAP
-                debug().debug("RETRANSMIT!! %d, tries: %d", j, 0x0F & retransmit_timeout_and_tries_[j]);
-#endif
-                radio().send(retransmit_id_[j], retransmit_size_[j], retransmit_packet_[j]);
+               //debug().debug( "RETRANSMIT!! %d, tries: %d", j, 0x0F & retransmit_timeout_and_tries_[j] );
+               radio().send( retransmit_id_[j], retransmit_size_[j], retransmit_packet_[j] );
 
-                if ((0x0F & retransmit_timeout_and_tries_[j]) == CONF_COAP_MAX_RETRANSMIT_TRIES) {
-                    coap_remove_observer(retransmit_mid_[j]);
-                    coap_unregister_con_msg(retransmit_mid_[j], 1);
-                    return;
-                } else {
-                    timer().template set_timer<Coap, &Coap::coap_retransmit_loop > (timeout_factor * 1000 * (retransmit_timeout_and_tries_[j] >> 4), this, (void *) i);
-                    return;
-                }
-            } else {
-                coap_unregister_con_msg(retransmit_mid_[j], 1);
+               if ( ( 0x0F & retransmit_timeout_and_tries_[j] ) == CONF_COAP_MAX_RETRANSMIT_TRIES )
+               {
+                  coap_remove_observer( retransmit_mid_[j] );
+                  coap_unregister_con_msg( retransmit_mid_[j], 1 );
+                  return;
+               }
+               else
+               {
+                  timer().template set_timer<Coap, &Coap::coap_retransmit_loop > ( timeout_factor * 1000 * ( retransmit_timeout_and_tries_[j] >> 4 ), this, ( void * ) i );
+                  return;
+               }
+            }
+            else
+            {
+               coap_unregister_con_msg( retransmit_mid_[j], 1 );
             }
         }
 
@@ -476,17 +477,17 @@ namespace wiselib {
 
         void coap_remove_observer(uint16_t mid) {
             uint8_t i;
-            for (i = 0; i < CONF_MAX_OBSERVERS; i++) {
-                if (observe_last_mid_[i] == mid) {
-                    observe_last_mid_[i] = 0;
-                    observe_id_[i] = 0;
-                    observe_resource_[i] = 0;
-                    memset(observe_token_[i], 0, observe_token_len_[i]);
-                    observe_token_len_[i] = 0;
-#ifdef DEBUG_COAP
-                    debug().debug("Observer removed");
-#endif
-                }
+            for( i = 0; i < CONF_MAX_OBSERVERS; i++ )
+            {
+               if( observe_last_mid_[i] == mid )
+               {
+                  observe_last_mid_[i] = 0;
+                  observe_id_[i] = 0;
+                  observe_resource_[i] = 0;
+                  memset( observe_token_[i], 0, observe_token_len_[i] );
+                  observe_token_len_[i] = 0;
+                  //debug().debug( "Observer removed" );
+               }
             }
         }
 
@@ -511,37 +512,42 @@ namespace wiselib {
             uint8_t notification_size;
             char* data_value;
             uint8_t i;
-            memset(buf_, 0, CONF_MAX_MSG_LEN);
-            for (i = 0; i < CONF_MAX_OBSERVERS; i++) {
-                if (observe_resource_[i] == resource_id) {
-                    // send msg
-                    notification.init();
-                    notification.set_type(CON);
-                    notification.set_mid(coap_new_mid());
+            memset( buf_, 0, CONF_MAX_MSG_LEN );
+            for( i = 0; i < CONF_MAX_OBSERVERS; i++ )
+            {
+               if( observe_resource_[i] == resource_id )
+               {
+                  // send msg
+                  notification.init();
+                  notification.set_type( CON );
+                  notification.set_mid( coap_new_mid() );
 
-                    resources_[resource_id].execute(0, GET);
-                    data_value = resources_[resource_id].payload();
-                    if (data_value == NULL) {
-                        notification.set_code(INTERNAL_SERVER_ERROR);
-                    } else {
-                        //debug().debug( "NOTIFY: Sensor value: %s", data_value );
-                        notification.set_code(CONTENT);
-                        notification.set_option(CONTENT_TYPE);
-                        notification.set_content_type(resources_[resource_id].content_type());
-                        notification.set_option(TOKEN);
-                        notification.set_token_len(observe_token_len_[i]);
-                        notification.set_token(observe_token_[i]);
-                        notification.set_option(OBSERVE);
-                        notification.set_observe(observe_counter());
-                    }
-                    notification.set_payload((uint8_t*) data_value);
-                    notification.set_payload_len(strlen(data_value));
-                    notification_size = notification.packet_to_buffer(buf_);
-                    coap_register_con_msg(observe_id_[i], notification.mid_w(), buf_, notification_size, coap_unregister_con_msg(observe_last_mid_[i], 0));
-                    observe_last_mid_[i] = notification.mid_w();
-                    radio().send(observe_id_[i], notification_size, buf_);
-                    timer().template set_timer<Coap, &Coap::coap_notify_from_timer > (1000 * resources_[(int) resource_id].notify_time_w(), this, (void *) resource_id);
-                }
+                  resources_[resource_id].execute( 0, GET ); // XXX
+                  data_value = resources_[resource_id].payload( );
+                  if( data_value == NULL )
+                  {
+                     notification.set_code( INTERNAL_SERVER_ERROR );
+                  }
+                  else
+                  {
+                     //debug().debug( "NOTIFY: Sensor value: %s", data_value );
+                     notification.set_code( CONTENT );
+                     notification.set_option( CONTENT_TYPE );
+                     notification.set_content_type( resources_[resource_id].content_type() );
+                     notification.set_option( TOKEN );
+                     notification.set_token_len( observe_token_len_[i] );
+                     notification.set_token( observe_token_[i] );
+                     notification.set_option( OBSERVE );
+                     notification.set_observe( observe_counter() );
+                  }
+                  notification.set_payload( ( uint8_t* ) data_value );
+                  notification.set_payload_len( strlen( data_value ) );
+                  notification_size = notification.packet_to_buffer( buf_ );
+                  coap_register_con_msg( observe_id_[i], notification.mid_w(), buf_, notification_size, coap_unregister_con_msg( observe_last_mid_[i], 0 ) );
+                  observe_last_mid_[i] = notification.mid_w();
+                  radio().send( observe_id_[i], notification_size, buf_ );
+                  timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[( int )resource_id].notify_time_w(), this, ( void * )resource_id );
+               }
             }
             increase_observe_counter();
             //next notification will have greater observe option

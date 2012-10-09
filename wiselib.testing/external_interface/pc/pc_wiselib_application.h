@@ -40,5 +40,22 @@ namespace wiselib {
 	};
 }
 
+void application_main(wiselib::PCOsModel&);
+	
+int main(int argc, const char** argv) {
+	wiselib::PCOsModel app_main_arg;
+	app_main_arg.argc = argc;
+	app_main_arg.argv = argv;
+	application_main(app_main_arg);
+	
+	#if not WISELIB_EXIT_MAIN
+	while(true) {
+		pause();
+	}
+	#endif
+	
+	return 0;
+}
+
 #endif // PC_WISELIB_APPLICATION_H
 

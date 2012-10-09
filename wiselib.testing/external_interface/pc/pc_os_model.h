@@ -39,9 +39,9 @@ namespace wiselib {
 		: public DefaultReturnValues<PCOsModel>
 	{
 		public:
-	      int argc;
+			int argc;
 			const char** argv;
-
+			
 			typedef PCOsModel AppMainParameter;
 			typedef PCOsModel Os;
 			

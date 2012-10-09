@@ -40,7 +40,6 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Allocator_P,
 		typename Radio_P,
 		typename FragmentingRadio_P,
 		typename Neighborhood_P,
@@ -55,7 +54,6 @@ namespace wiselib {
 			
 			typedef OsModel_P OsModel;
 			static const Endianness endianness = OsModel::endianness;
-			typedef Allocator_P Allocator;
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
 			typedef Neighborhood_P Neighborhood;

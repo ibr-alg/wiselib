@@ -63,6 +63,12 @@ namespace wiselib
       return p1.first < p2.first ||
       ( !( p2.first < p1.first ) && p1.second < p2.second ); 
    }
+   
+   template <class First, class Second>
+   inline bool operator==(const pair<First, Second>& p1, const pair<First, Second>& p2)
+   {
+      return p1.first == p2.first && p1.second == p2.second;
+   }
 
 }
 

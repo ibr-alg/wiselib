@@ -35,8 +35,8 @@ ifeq ($(JENNIC_CHIP),JN5148)
 	 TOOLCHAIN = $(JENNIC_TOOLCHAIN_JN5148)
 
 	 # ISENSE_PATH must be set outside (e.g., in Makefile.local)
-	 JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v2
-	 #JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v4
+	 #JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v2
+	 JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v4
 	 BASE_DIR=$(JENNIC_SDK_PATH)
     include $(JENNIC_SDK_PATH)/Makefile.properties.JN5148.mk
 
