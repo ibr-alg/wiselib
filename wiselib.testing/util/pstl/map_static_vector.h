@@ -167,7 +167,8 @@ namespace wiselib
          // *only* returned if the static vector is full and can not hold
          // new components
          // TODO: Print Error message since this case should not happen!
-         return dummy_;
+		 //return dummy_;
+		 return *(mapped_type*)0;
       }
       ///@}
       

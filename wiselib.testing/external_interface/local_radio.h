@@ -17,18 +17,58 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef __ALGORITHMS_NEIGHBOR_DISCOVERY_PG_PAYLOADS_IDS_H__
-#define __ALGORITHMS_NEIGHBOR_DISCOVERY_PG_PAYLOADS_IDS_H__
+#ifndef LOCAL_RADIO_H
+#define LOCAL_RADIO_H
 
-#define TEST 0
-#define RESERVED 1
-#define PLTT 2
-#define HWY_N 3
-#define MOBILITY 4
-#define CLUSTERING 5
-#define CLRADIO 6
-#define CONTROLL 7
+#include "util/base_classes/radio_base.h"
 
-#define TOTAL_REG_ALG 2
+namespace wiselib {
+	
+	template<
+		typename OsModel_P
+	>
+	class LocalRadio : public RadioBase<OsModel_P, int, int, uint8_t> {
+		public:
+			typedef OsModel_P OsModel;
+			typedef int node_id_t;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef int size_t;
+			typedef uint8_t message_id_t;
+			typedef LocalRadio<OsModel> self_type;
+			typedef self_type* self_pointer_t;
+			
+			enum SpecialNodeIds {
+				BROADCAST_ADDRESS = 0xffff,
+				NULL_NODE_ID = 0
+			};
+			
+			enum Restrictions {
+				MAX_MESSAGE_LENGTH = 100
+			};
+			
+			void init() {
+			}
+			
+			void destruct() {
+			}
+			
+			void enable_radio() {
+			}
+			
+			void disable_radio() {
+			}
+			
+			node_id_t id() {
+				return 1;
+			}
+			
+			void send(node_id_t target, size_t sz, block_data_t* data) {
+				this->notify_receivers(id(), sz, data);
+			}
+	};
+	
+}
+			
+#endif // LOCAL_RADIO_H
 
-#endif
+

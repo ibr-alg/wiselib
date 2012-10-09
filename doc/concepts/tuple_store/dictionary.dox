@@ -7,17 +7,87 @@ namespace concepts {
 		public:
 			typedef ... key_type;
 			typedef ... mapped_type;
+			typedef ... size_type;
 			
-			enum { NULL_KEY };
+			/**
+			 * Key that is used to represent an exception condition,
+			 * e.g. "value not found" for find().
+			 * Implementation hint:
+			 * If key_type is a pointer type a enum might not be feasible
+			 * and it might be easier instead to use a static const member
+			 * instead.
+			 */
+			enum { NULL_KEY = ... };
 			
+			/**
+			 * Either true or false.
+			 * false => Internally the value is stored completely
+			 *   in one piec. E.g. assume mapped_type is char*,
+			 *   then internally the string is stored completely such that
+			 *   get() can return a reference to it without the need for
+			 *   copying.
+			 * true => Internally the value is stored in some encoded/spread
+			 *   form such that the only form of returning the full value
+			 *   is to construct a copy of this via get_copy().
+			 */
+			enum { ABSTRACT_KEYS = ... };
+			
+			/**
+			 * Insert given value into the dictionary.
+			 * The dictionary is expected to do a deep copy of v in some way
+			 * such that the caller can free v deeply without destroying
+			 * dictionary content.
+			 */
 			key_type insert(mapped_type v);
+			
+			/**
+			 * OPTIONAL but recommended.
+			 * 
+			 * Returns the number of occurrences of the key/value pair with
+			 * the given key.
+			 */
 			size_type count(key_type k);
 			
+			/**
+			 * Return the key for the given value 'v'.
+			 * If 'v' is not in the dictionary, return NULL_KEY.
+			 */
 			key_type find(mapped_type v);
-			mapped_type& operator[](key_type k);
+			
+			/**
+			 * Only required if ABSTRACT_KEYS == false
+			 * 
+			 * Return a shallow value. E.g. if mapped_type is
+			 * char*, the returned string resides in internal structure
+			 * and shall not be freeed by the caller.
+			 */
+			mapped_type get(key_type k);
+			
+			/**
+			 * Only required if ABSTRACT_KEYS == true
+			 * 
+			 * Return a copy of the mapped_type associated with k.
+			 * This might involve an allocation (e.g. when the stored
+			 * values are strings).
+			 * Thus, the caller is responsible for calling free_value
+			 * on the returned value when he doesn't need it anymore.
+			 */
+			mapped_type get_copy(key_type k);
+			
+			/**
+			 * Only required if get_copy() is implemented (e.g. ABSTRACT_KEYS
+			 * is true)!
+			 * 
+			 * Free a value formerly returned by get_copy().
+			 * Depending on the kind of values your dictionary stores,
+			 * this might be a no-op or a real freeing.
+			 */
+			void free_value(mapped_type v);
 			
 			/**
 			 * Return number of erased elements (should usually be 1).
+			 * Deletes only one occurrence if the dictionary allows multiple
+			 * occurrences of the same key/value pair.
 			 */
 			size_type erase(key_type k);
 	};

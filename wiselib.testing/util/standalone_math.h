@@ -71,6 +71,11 @@ class StandaloneMath {
 			return (a > b) ? a : b;
 		}
 		
+		template<typename T>
+		static T min(T a, T b) {
+			return (a < b) ? a : b;
+		}
+		
 		/// chop off everything after the decimal dot
 		static integer_t trunc(real_t);
 		/// round to nearest integer that is <= value
