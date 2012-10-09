@@ -590,7 +590,7 @@ namespace wiselib {
 
         static void merge_options(char **dst, size_t *dst_len, uint8_t *value, uint16_t length, char seperator) {
             if (*dst_len > 0) {
-                (*dst)[*dst_len] = seperator;
+                //(*dst)[*dst_len] = seperator;
                 *dst_len += 1;
                 memmove((*dst) + (*dst_len), value, length);
                 *dst_len += length;
