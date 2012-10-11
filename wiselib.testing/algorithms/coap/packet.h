@@ -46,11 +46,28 @@ typedef enum {
     IF_NONE_MATCH = 21
 } coap_option_t;
 
+<<<<<<< HEAD
+typedef enum
+{
+   GET = 1,
+   POST = 2,
+   PUT = 4,
+   DELETE = 8
+} app_method_t;
+
+typedef enum
+{
+   COAP_GET = 1,
+   COAP_POST,
+   COAP_PUT,
+   COAP_DELETE
+=======
 typedef enum {
     GET = 1,
     POST,
     PUT,
     DELETE
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
 } coap_method_t;
 
 typedef enum {
@@ -112,6 +129,19 @@ typedef enum {
     PROXYING_NOT_SUPPORTED = 165
 } coap_status_t;
 
+<<<<<<< HEAD
+namespace wiselib
+{
+   template<typename Debug_P>
+   class CoapPacket
+   {
+      public:
+         typedef Debug_P Debug;
+         void init( Debug& debug )
+         {
+            debug_ = &debug;
+
+=======
 namespace wiselib {
 
     class CoapPacket {
@@ -121,6 +151,7 @@ namespace wiselib {
          * Initializes and empty Message.
          */
         void init(void) {
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
             version_ = COAP_VERSION;
             type_ = 0;
             opt_count_ = 0;
@@ -250,9 +281,15 @@ namespace wiselib {
 
         inline uint32_t block2_offset_w() {
             return block2_offset_;
+<<<<<<< HEAD
+         }
+         size_t payload_len_w()
+         {
+=======
         }
 
         inline uint8_t payload_len_w() {
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
             return payload_len_;
         }
 
@@ -366,6 +403,131 @@ namespace wiselib {
 
             //options
             uint8_t *current_opt = buf + COAP_HEADER_LEN + 1;
+<<<<<<< HEAD
+            if( opt_count_ )
+            {
+
+               uint16_t opt_len = 0;
+               uint8_t opt_index = 0;
+               uint8_t current_delta = 0;
+               for ( opt_index = 0; opt_index < opt_count_; opt_index++ )
+               {
+
+                  current_delta += current_opt[0] >> 4;
+                  //get option length
+                  if ( ( 0x0F & current_opt[0] ) < 15 )
+                  {
+                     opt_len = 0x0F & current_opt[0];
+                     current_opt += 1; //point to option value
+                  }
+                  else
+                  {
+                     opt_len = current_opt[1] + 15;
+                     current_opt += 2; //point to option value
+                  }
+                  if ( current_delta == 14 && opt_len == 0 ) // fence post
+                  {
+                     continue;
+                  }
+
+                  switch ( current_delta )
+                  {
+                     case CONTENT_TYPE:
+                        set_option( CONTENT_TYPE );
+                        debug().debug("OPTION:CONTENT TYPE");
+                        content_type_ = get_int_opt_value( current_opt, opt_len );
+                        break;
+                     case MAX_AGE:
+                        debug().debug("OPTION:MAX AGE");
+                        set_option( MAX_AGE );
+                        max_age_ = get_int_opt_value( current_opt, opt_len );
+                        break;
+                     case PROXY_URI:
+                        debug().debug("OPTION:PROXY URI");
+                        set_option( PROXY_URI );
+                        break;
+                     case ETAG:
+                        debug().debug("OPTION:ETAG");
+                        set_option( ETAG );
+                        break;
+                     case URI_HOST:
+                        // based on id, not ip-literal
+                        set_option( URI_HOST );
+                        debug().debug("OPTION:URI HOST");
+                        uri_host_ = get_int_opt_value( current_opt, opt_len );
+                        break;
+                     case LOCATION_PATH:
+                        debug().debug("OPTION:LOCATION PATH");
+                        set_option( LOCATION_PATH );
+                        break;
+                     case URI_PORT:
+                        debug().debug("OPTION:URI PORT");
+                        set_option( URI_PORT );
+                        uri_port_ = get_int_opt_value( current_opt, opt_len );
+                        break;
+                     case LOCATION_QUERY:
+                        debug().debug("OPTION:LOCATION QUERY");
+                        set_option( LOCATION_QUERY );
+                        break;
+                     case URI_PATH:
+                        set_option( URI_PATH );
+                        debug().debug("OPTION:URI PATH");
+                        merge_options( &uri_path_, &uri_path_len_, current_opt, opt_len, '/' );
+                        break;
+                     case OBSERVE:
+                        set_option( OBSERVE );
+                        debug().debug("OPTION:OBSERVE");
+                        observe_ = get_int_opt_value( current_opt, opt_len );
+                        break;
+                     case TOKEN:
+                        set_option( TOKEN );
+                        debug().debug("OPTION:TOKEN");
+                        token_len_ = opt_len; // may fix
+                        memcpy( token_, current_opt, opt_len ); // may fix
+                        break;
+                     case ACCEPT:
+                        debug().debug("OPTION:ACCEPT");
+                        set_option( ACCEPT );
+                        accept_ = get_int_opt_value( current_opt, opt_len );
+                        break;
+                     case IF_MATCH:
+                        debug().debug("OPTION:IF MATCH");
+                        set_option( IF_MATCH );
+                        break;
+                     case MAX_OFE:
+                        debug().debug("OPTION:MAX OFE");
+                        set_option( MAX_OFE );
+                        break;
+                     case URI_QUERY:
+                        debug().debug("OPTION:URI QUERY");
+                        set_option( URI_QUERY );
+                        merge_options( &uri_query_, &uri_query_len_, current_opt, opt_len, '&' );
+                        break;
+                     case BLOCK2:
+                        debug().debug("OPTION:BLOCK2");
+                        set_option( BLOCK2 );
+                        block2_num_ = get_int_opt_value( current_opt, opt_len );
+                        block2_more_ = ( block2_num_ & 0x08 ) >> 3;
+                        block2_size_ = 16 << ( block2_num_ & 0x07 );
+                        block2_offset_ = ( block2_num_ & ~0x0F ) << ( block2_num_ & 0x07 );
+                        block2_num_ >>= 4;
+                        break;
+                     case BLOCK1:
+                        debug().debug("OPTION:BLOCK1");
+                        set_option( BLOCK1 );
+                        break;
+                     case IF_NONE_MATCH:
+                        debug().debug("OPTION:IF NONE MATCH");
+                        set_option( IF_NONE_MATCH );
+                        break;
+                     default:
+                        debug().debug("OPTION:BAD OPTION");
+                        return BAD_OPTION;
+
+                  }
+                  current_opt += opt_len; // point to next option delta
+               }
+=======
             if (opt_count_) {
 
                 uint16_t opt_len = 0;
@@ -464,6 +626,7 @@ namespace wiselib {
                     }
                     current_opt += opt_len; // point to next option delta
                 }
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
             }
             //get payload
             payload_ = current_opt;
@@ -632,6 +795,60 @@ namespace wiselib {
                 i++;
             }
             return i;
+<<<<<<< HEAD
+         }
+      private:
+         uint8_t version_;
+         uint8_t type_;
+         uint8_t opt_count_;
+         uint8_t code_;
+         uint16_t mid_;
+
+         uint32_t options_;
+
+         uint8_t content_type_; // 1
+         uint32_t max_age_; // 2
+         //TODO...
+         //size_t proxy_uri_len_; // 3
+         //char *proxy_uri_; // 3
+         //uint8_t etag_len_; // 4
+         //uint8_t etag[8]_; // 4
+         //size_t uri_host_len_; // 5
+         uint16_t uri_host_; // 5
+         uint16_t uri_port_; // 7
+         //TODO...
+         size_t uri_path_len_; // 9
+         char *uri_path_; // 9
+         uint16_t observe_; // 10
+         uint8_t token_len_; // 11
+         uint8_t token_[8]; // 11
+         uint16_t accept_; // 12
+         //TODO...
+         //uint8_t if_match_len_; // 13
+         //uint8_t if_match_[8]; // 13
+         size_t uri_query_len_; // 15
+         char *uri_query_; // 15
+         // block2 17
+         uint32_t block2_num_; // 17
+         uint8_t block2_more_; // 17
+         uint16_t block2_size_; // 17
+         uint32_t block2_offset_; // 17
+         //uint32_t block1_num_; // 19
+         //uint8_t block1_more_; // 19
+         //uint16_t block1_size_; // 19
+         //uint32_t block1_offset_; // 19
+         //uint8_t if_none_match; // 21
+
+         uint8_t payload_len_;
+         uint8_t *payload_;
+
+         Debug * debug_;
+         Debug& debug()
+         {
+            return *debug_;
+         }
+   };
+=======
         }
     private:
         uint8_t version_;
@@ -678,5 +895,6 @@ namespace wiselib {
         uint8_t payload_len_;
         uint8_t *payload_;
     };
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
 }
 #endif

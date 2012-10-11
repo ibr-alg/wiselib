@@ -36,6 +36,13 @@ namespace wiselib
    {
       public:
          typedef String_P String;
+<<<<<<< HEAD
+         typedef delegate5<coap_status_t, uint8_t, uint8_t*, size_t, uint8_t*, uint8_t*> my_delegate_t;
+
+         ResourceController() {}
+
+         ResourceController( String name, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
+=======
          typedef delegate2<char *, uint8_t,uint16_t&> my_delegate_t;
 
          void init()
@@ -74,38 +81,42 @@ namespace wiselib
          }
 
          void reg_resource( String name, bool fast_resource, uint16_t notify_time, uint8_t resource_len, uint8_t content_type )
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
          {
             name_ = name;
-            is_set_ = true;
+            methods_ = methods;
             fast_resource_ = fast_resource;
-            resource_len_ = resource_len;
-            content_type_ = content_type;
             notify_time_ = notify_time;
+            content_type_ = content_type;
             interrupt_flag_ = false;
          }
 
-         void reg_query( uint8_t qid, String name )
+         template<class T, coap_status_t ( T::*TMethod ) ( uint8_t, uint8_t*, size_t, uint8_t*, uint8_t* )>
+         void reg_callback( T *obj_pnt )
          {
-            q_name_[qid] = name;
+            del_ = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
          }
 
-         uint8_t has_query( char *query, size_t len )
+         coap_status_t execute( uint8_t method, uint8_t* input_data, size_t input_data_len, uint8_t* output_data, uint8_t* output_data_len )
          {
-            uint8_t i;
-            for( i = 1; i < CONF_MAX_RESOURCE_QUERIES; i++ )
+            if( del_ )
             {
+<<<<<<< HEAD
+               if ( method == 3 )
+                  method = 4;
+               else if ( method == 4 )
+                  method = 8;
+               return del_( method, input_data, input_data_len, output_data, output_data_len );
+=======
                 if ( ( uint16_t ) len == q_name_[i].length() && !mystrncmp( query, q_name_[i].c_str(), len ) )
                 {
                     return i;
                 }
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
             }
-            return 0;
+            return INTERNAL_SERVER_ERROR;
          }
 
-         void set_method( uint8_t qid, uint8_t method )
-         {
-            methods_[qid] |= 1L << method;
-         }
          void set_notify_time( uint16_t notify_time )
          {
             notify_time_ = notify_time;
@@ -113,20 +124,6 @@ namespace wiselib
          void set_interrupt_flag( bool flag )
          {
             interrupt_flag_ = flag;
-         }
-         void set_put_data( uint8_t * put_data )
-         {
-            put_data_ = put_data;
-         }
-
-         void set_put_data_len( uint8_t put_data_len )
-         {
-            put_data_len_ = put_data_len;
-         }
-
-         bool is_set()
-         {
-            return is_set_;
          }
 
          char* name()
@@ -139,11 +136,19 @@ namespace wiselib
             return name_.length();
          }
 
-         uint8_t method_allowed( uint8_t qid, uint8_t method )
+         uint8_t method_allowed( uint8_t method )
          {
-            return methods_[qid] & 1L << method;
+            if ( method == 3 )
+               method = 4;
+            else if ( method == 4 )
+               method = 8;
+            return methods_ & method;
+            //return methods_ & 1L << method;
          }
-
+         uint8_t get_methods()
+         {
+            return methods_;
+         }
          uint16_t notify_time_w()
          {
             return notify_time_;
@@ -169,33 +174,22 @@ namespace wiselib
             return interrupt_flag_;
          }
 
-         char * payload()
-         {
-            return payload_;
-         }
-         uint8_t * put_data_w()
-         {
-            return put_data_;
-         }
-         uint8_t put_data_len_w()
-         {
-            return put_data_len_;
-         }
       private:
-         bool is_set_;
-         my_delegate_t del_[CONF_MAX_RESOURCE_QUERIES];
+         my_delegate_t del_;
          String name_;
-         String q_name_[CONF_MAX_RESOURCE_QUERIES];
-         uint8_t methods_[CONF_MAX_RESOURCE_QUERIES];
+         uint8_t methods_;
          uint16_t notify_time_;
          bool fast_resource_;
          uint8_t resource_len_;
          uint8_t content_type_;
          bool interrupt_flag_;
+<<<<<<< HEAD
+=======
          char *payload_;
          uint8_t *put_data_;
          uint8_t put_data_len_;
          uint16_t payload_length_;
+>>>>>>> 896949cccf354b6643dd14de2eac32e71fe31622
    };
 }
 #endif
