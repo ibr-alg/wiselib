@@ -22,7 +22,8 @@
 // default port that the radio listens to
 #define PORT 1337
 
-uint8_t mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+//uint8_t mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+#define MAC "\xde\xad\xbe\xef\xfe\xed"
 #define WISELIB_IP 0x0300A8C0
 #define WISELIB_IP_ROUTER 0x0100A8C0
 #define WISELIB_SUBNET 0x00FFFFFF

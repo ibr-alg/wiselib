@@ -20,6 +20,8 @@
 #ifndef ARDUINO_ETHERNET_RADIO_H
 #define ARDUINO_ETHERNET_RADIO_H
 
+#if ARDUINO_USE_ETHERNET
+
 #include "arduino_types.h"
 
 #include "util/delegates/delegate.hpp"
@@ -136,7 +138,7 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoEthernetRadio<OsModel_P>::enable_radio()
    {
-      Ethernet.begin( mac, ip_, dns_, router_, subnet_ );
+      Ethernet.begin( (uint8_t*)MAC, ip_, dns_, router_, subnet_ );
       udp_.begin( port_ );
 
       broadcast_ = ip_ | ( ~ subnet_ );
@@ -224,4 +226,7 @@ namespace wiselib
    }
 }
 
-#endif
+
+#endif // ARDUINO_USE_ETHERNET
+
+#endif // ARDUINO_ETHERNET_RADIO_H

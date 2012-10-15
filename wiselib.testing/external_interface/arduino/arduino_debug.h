@@ -44,7 +44,7 @@ namespace wiselib
       typedef self_type* self_pointer_t;
       ArduinoDebug()
       {
-         Serial.begin( 9600 );
+         ::Serial.begin( 9600 );
       }
       // --------------------------------------------------------------------
       enum Restrictions { MAXLINE = 32 };
@@ -68,7 +68,8 @@ namespace wiselib
       vsnprintf( buffer, sizeof( buffer ) - 1, msg, fmtargs );
       va_end( fmtargs );
 
-      Serial.println( buffer );
+      ::Serial.println( buffer );
+	  delay(20);
    }
 }
 
