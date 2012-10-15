@@ -147,6 +147,7 @@ namespace wiselib
          */
          void update_resource( const char* name, resource_t updated_resource )
          {
+            debug().debug( "FUNCTION: update_resource" );
             for ( resource_iterator_t it = resources_.begin(); it != resources_.end(); it++ )
             {
                if ( !strncmp( name, it->name(), it->name_length() ) )
@@ -160,13 +161,15 @@ namespace wiselib
          /**
          Delete a resource based on its name
          */
-         void delete_resource( const char* name )
+         void delete_resource( const char* name, const uint8_t name_len )
          {
+            debug().debug( "FUNCTION: delete_resource" );
             for ( resource_iterator_t it = resources_.begin(); it != resources_.end(); it++ )
             {
-               if ( !strncmp( name, it->name(), it->name_length() ) )
+               if ( it->name_length() == name_len && !strncmp( name, it->name(), it->name_length() ) )
                {
                   resources_.erase( it );
+                  return;
                }
             }
          }
@@ -306,36 +309,44 @@ namespace wiselib
                      if ( resources_[resource_id].method_allowed( msg.code_w() ) )
                      {
                         debug().debug( "REQUEST: METHOD_ALLOWED" );
-                        if ( resources_[resource_id].fast_resource() == false && response.type_w() == ACK )
+                        if ( msg.code_w() == COAP_DELETE )
                         {
-                           // send the ACK
-                           coap_send( &response, from );
-                           // init the response again
-                           response.init( debug() );
-                           response.set_type( CON );
-                           response.set_mid( coap_new_mid() );
+                           delete_resource( msg.uri_path_w(), msg.uri_path_len_w() );
+                           response.set_code( DELETED );
                         }
-                        // execute the resource and set the status to the response object
-                        response.set_code( resources_[resource_id].execute( msg.code_w(), msg.payload_w(), msg.payload_len_w(), ( uint8_t* )output_data, &output_data_len ) );
-                        // set the content type
-                        response.set_option( CONTENT_TYPE );
-                        response.set_content_type( resources_[resource_id].content_type() );
-                        // check for blockwise response
-                        int offset = blockwise_response( &msg, &response, ( uint8_t** )&output_data, &output_data_len );
-                        // set the payload and length
-                        response.set_payload( output_data + offset );
-                        response.set_payload_len( output_data_len );
-
-                        // if it is set, register the observer
-                        if ( msg.code_w() == COAP_GET && msg.is_option( OBSERVE ) && resources_[resource_id].notify_time_w() > 0 && msg.is_option( TOKEN ) )
+                        else
                         {
-                           debug().debug( "REQUEST: OBSERVE" );
-                           if ( add_observer( &msg, from, resource_id ) == 1 )
+                           if ( resources_[resource_id].fast_resource() == false && response.type_w() == ACK )
                            {
-                              response.set_option( OBSERVE );
-                              response.set_observe( observe_counter_ );
+                              // send the ACK
+                              coap_send( &response, from );
+                              // init the response again
+                              response.init( debug() );
+                              response.set_type( CON );
+                              response.set_mid( coap_new_mid() );
                            }
-                        } // end of add observer
+                           // execute the resource and set the status to the response object
+                           response.set_code( resources_[resource_id].execute( msg.code_w(), msg.payload_w(), msg.payload_len_w(), ( uint8_t* )output_data, &output_data_len ) );
+                           // set the content type
+                           response.set_option( CONTENT_TYPE );
+                           response.set_content_type( resources_[resource_id].content_type() );
+                           // check for blockwise response
+                           int offset = blockwise_response( &msg, &response, ( uint8_t** )&output_data, &output_data_len );
+                           // set the payload and length
+                           response.set_payload( output_data + offset );
+                           response.set_payload_len( output_data_len );
+
+                           // if it is set, register the observer
+                           if ( msg.code_w() == COAP_GET && msg.is_option( OBSERVE ) && resources_[resource_id].notify_time_w() > 0 && msg.is_option( TOKEN ) )
+                           {
+                              debug().debug( "REQUEST: OBSERVE" );
+                              if ( add_observer( &msg, from, resource_id ) == 1 )
+                              {
+                                 response.set_option( OBSERVE );
+                                 response.set_observe( observe_counter_ );
+                              }
+                           } // end of add observer
+                        }
                      } // end of method is allowed  problem with options, print all deltas and option len to see what's wrong
                      else
                      {
@@ -345,7 +356,7 @@ namespace wiselib
                   }
                   else
                   {
-                     if(msg.code_w() != COAP_PUT )
+                     if( msg.code_w() != COAP_PUT )
                      {
                         debug().debug( "RECUEST: NOT_FOUND" );
                         response.set_code( NOT_FOUND );
@@ -353,9 +364,9 @@ namespace wiselib
                      else
                      {
                         //create resource
-                        debug().debug("RECEIVE: PUT");
-                        resource_t new_resource( make_string( msg.uri_path_w(), msg.uri_path_len_w()), make_string( (char*)msg.payload_w(), msg.payload_len_w()), GET, true, 0, TEXT_PLAIN );
-                        resources_.push_back(new_resource);
+                        debug().debug( "RECEIVE: PUT" );
+                        resource_t new_resource( make_string( msg.uri_path_w(), msg.uri_path_len_w() ), make_string( ( char* )msg.payload_w(), msg.payload_len_w() ), GET | DELETE, true, 0, TEXT_PLAIN );
+                        resources_.push_back( new_resource );
                         response.set_code( CREATED );
                      }
                   }
@@ -428,7 +439,7 @@ namespace wiselib
          */
          int blockwise_response( coap_packet_t *req, coap_packet_t *resp, uint8_t **data, uint16_t *data_len )
          {
-            debug().debug("FUNCTION: blockwise_response");
+            debug().debug( "FUNCTION: blockwise_response" );
             if ( req->is_option( BLOCK2 ) )
             {
                if ( req->block2_size_w() > CONF_MAX_PAYLOAD_LEN )
@@ -638,7 +649,7 @@ namespace wiselib
                return;
             }
             else {
-               coap_notify( (int) resource_id );
+               coap_notify( ( int ) resource_id );
             }
          }
 
@@ -703,12 +714,12 @@ namespace wiselib
             //next notification will have greater observe option
          }
 
-         String make_string( char* name, size_t len)
+         String make_string( char* name, size_t len )
          {
-            String str_name(name, len);
-            str_name.append("\0");
-            debug().debug("Name:%s",str_name.c_str());
-            debug().debug("Length: %d - %d", len, str_name.length());
+            String str_name( name, len );
+            str_name.append( "\0" );
+            debug().debug( "Name:%s", str_name.c_str() );
+            debug().debug( "Length: %d - %d", len, str_name.length() );
 
             return str_name;
          }
