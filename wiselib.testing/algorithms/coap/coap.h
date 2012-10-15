@@ -414,7 +414,7 @@ namespace wiselib
             ( *i ) = 0;
             for ( resource_iterator_t it = resources_.begin(); it != resources_.end(); it++ )
             {
-               if ( !strncmp( uri_path, it->name(), it->name_length() ) )
+               if ( it->name_length() == uri_path_len && !strncmp( uri_path, it->name(), it->name_length() ) )
                {
                   return true;
                }
