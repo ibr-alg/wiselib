@@ -46,7 +46,9 @@ namespace wiselib
 
       typedef ArduinoDebug<ArduinoOsModel> Debug;
       typedef ArduinoClock<ArduinoOsModel> Clock;
+#if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
+#endif
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
