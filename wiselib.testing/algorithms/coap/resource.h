@@ -29,8 +29,6 @@
 #include "util/pstl/map_static_vector.h"
 #include "util/pstl/pair.h"
 
-#define COAP_RESOURCE_NAME 1
-
 namespace wiselib
 {
    template < typename String_P = StaticString>
@@ -38,99 +36,55 @@ namespace wiselib
    {
       public:
          typedef String_P String;
-		 #if COAP_RESOURCE_NAME
-		 typedef delegate3<char *, uint8_t, uint16_t&, char *> my_delegate_t;
-		 #else
-         typedef delegate1<char *, uint8_t> my_delegate_t;
-		 #endif // COAP_RESOURCE_NAME
+         typedef delegate5<coap_status_t, uint8_t, uint8_t*, size_t, uint8_t*, uint16_t*> my_delegate_t;
 
-		 ResourceController() : is_set_(false) {
-		}
-		 
-         void init()
-         {
-            uint8_t i;
-            is_set_ = false;
-            for( i = 0; i < CONF_MAX_RESOURCE_QUERIES; i++ )
-            {
-               methods_[i] = 0x00;
-               q_name_[i] = "";
-            }
-         }
-		 
-		 void destruct() {
-			 is_set_ = false;
-		}
+         ResourceController() {}
 
-		#if COAP_RESOURCE_NAME
-         template<class T, char* ( T::*TMethod ) ( uint8_t, uint16_t&, char* )>
-         void reg_callback( T *obj_pnt, uint8_t qid )
-         {
-            del_[qid] = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
-         }
-		 #else
-         template<class T, char* ( T::*TMethod ) ( uint8_t )>
-         void reg_callback( T *obj_pnt, uint8_t qid )
-         {
-            del_[qid] = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
-         }
-		 #endif
-
-         void execute( uint8_t qid, uint8_t par, char* path = "" )
-         {
-            payload_ = NULL;
-            if( del_[qid] )
-            {
-				#if COAP_RESOURCE_NAME
-               payload_ = del_[qid]( par, payload_length_, path );
-			   #else
-               payload_ = del_[qid]( par );
-			   #endif
-               put_data_ = NULL;
-            }
-         }
-
-         void set_payload_length(uint16_t length){
-             payload_length_ = length;
-         }
-
-         uint16_t payload_length(){
-             return payload_length_;
-         }
-
-         void reg_resource( String name, bool fast_resource, uint16_t notify_time, uint8_t resource_len, uint8_t content_type )
+         ResourceController( String name, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
          {
             name_ = name;
-            is_set_ = true;
+            methods_ = methods;
             fast_resource_ = fast_resource;
-            resource_len_ = resource_len;
-            content_type_ = content_type;
             notify_time_ = notify_time;
+            content_type_ = content_type;
             interrupt_flag_ = false;
          }
 
-         void reg_query( uint8_t qid, String name )
+         ResourceController( String name, String representation, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
          {
-            q_name_[qid] = name;
+            name_ = name;
+            representation_ = representation;
+            methods_ = methods;
+            fast_resource_ = fast_resource;
+            notify_time_ = notify_time;
+            content_type_ = content_type;
+            interrupt_flag_ = false;
          }
 
-         uint8_t has_query( char *query, size_t len )
+         template<class T, coap_status_t ( T::*TMethod ) ( uint8_t, uint8_t*, size_t, uint8_t*, uint16_t* )>
+         void reg_callback( T *obj_pnt )
          {
-            uint8_t i;
-            for( i = 1; i < CONF_MAX_RESOURCE_QUERIES; i++ )
+            del_ = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
+         }
+
+         coap_status_t execute( uint8_t method, uint8_t* input_data, size_t input_data_len, uint8_t* output_data, uint16_t* output_data_len )
+         {
+            if( del_ )
             {
-                if ( ( uint16_t ) len == q_name_[i].length() && !mystrncmp( query, q_name_[i].c_str(), len ) )
-                {
-                    return i;
-                }
+               if ( method == 3 )
+                  method = 4;
+               else if ( method == 4 )
+                  method = 8;
+               return del_( method, input_data, input_data_len, output_data, output_data_len );
             }
-            return 0;
+            else if ( representation_.length() > 0 )
+            {
+               *output_data_len = sprintf( (char*)output_data, "%s\0", representation_.c_str());
+               return CONTENT;
+            }
+            return INTERNAL_SERVER_ERROR;
          }
 
-         void set_method( uint8_t qid, uint8_t method )
-         {
-            methods_[qid] |= 1L << method;
-         }
          void set_notify_time( uint16_t notify_time )
          {
             notify_time_ = notify_time;
@@ -138,20 +92,6 @@ namespace wiselib
          void set_interrupt_flag( bool flag )
          {
             interrupt_flag_ = flag;
-         }
-         void set_put_data( uint8_t * put_data )
-         {
-            put_data_ = put_data;
-         }
-
-         void set_put_data_len( uint8_t put_data_len )
-         {
-            put_data_len_ = put_data_len;
-         }
-
-         bool is_set()
-         {
-            return is_set_;
          }
 
          char* name()
@@ -164,11 +104,19 @@ namespace wiselib
             return name_.length();
          }
 
-         uint8_t method_allowed( uint8_t qid, uint8_t method )
+         uint8_t method_allowed( uint8_t method )
          {
-            return methods_[qid] & 1L << method;
+            if ( method == 3 )
+               method = 4;
+            else if ( method == 4 )
+               method = 8;
+            return methods_ & method;
+            //return methods_ & 1L << method;
          }
-
+         uint8_t get_methods()
+         {
+            return methods_;
+         }
          uint16_t notify_time_w()
          {
             return notify_time_;
@@ -194,33 +142,16 @@ namespace wiselib
             return interrupt_flag_;
          }
 
-         char * payload()
-         {
-            return payload_;
-         }
-         uint8_t * put_data_w()
-         {
-            return put_data_;
-         }
-         uint8_t put_data_len_w()
-         {
-            return put_data_len_;
-         }
       private:
-         bool is_set_;
-         my_delegate_t del_[CONF_MAX_RESOURCE_QUERIES];
+         my_delegate_t del_;
          String name_;
-         String q_name_[CONF_MAX_RESOURCE_QUERIES];
-         uint8_t methods_[CONF_MAX_RESOURCE_QUERIES];
+         String representation_;
+         uint8_t methods_;
          uint16_t notify_time_;
          bool fast_resource_;
          uint8_t resource_len_;
          uint8_t content_type_;
          bool interrupt_flag_;
-         char *payload_;
-         uint8_t *put_data_;
-         uint8_t put_data_len_;
-         uint16_t payload_length_;
    };
 }
 #endif
