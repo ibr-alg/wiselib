@@ -1,0 +1,80 @@
+
+#ARDUINO_BOARD=atmega328
+ARDUINO_BOARD=$(BOARD)
+ARDUINO_PATH=/home/henning/repos/Arduino-rraf
+
+export MCU=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.mcu)
+export CPU_SPEED=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.f_cpu)
+export UPLOAD_SPEED=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) upload.speed)
+export UPLOAD_PROTOCOL=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) upload.protocol)
+export VARIANTS=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.variant)
+
+MONITOR_SPEED=9600
+ARDUINO_PORT=$(PORT) #/dev/ttyUSB0
+PARSE_BOARDS=$(WISELIB_PATH_TESTING)/../apps/generic_apps/arduino_parse_boards.py
+BOARDS_PATH=$(ARDUINO_PATH)/hardware/arduino/boards.txt
+PINS_PATH=$(ARDUINO_PATH)/hardware/arduino/variants/$(VARIANTS)
+WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
+SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
+ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
+
+ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
+	-I$(ETHERNET_PATH)/utility
+
+ZEROCONF_PATH=/home/henning/repos/EthernetBonjour-rraf
+
+CXX=avr-g++
+INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_PATH_STABLE) -I$(WISELIB_PATH_TESTING)
+
+FLAGS=
+LIBS=-L$(ARDUINO_PATH) -Wl,--start-group -lspi -larduino 
+ifeq ($(ARDUINO_USE_ETHERNET),1)
+	LIBS += -L$(ZEROCONF_PATH) -lzeroconf -lethernet 
+	FLAGS += -DARDUINO_USE_ETHERNET
+endif
+LIBS += -Wl,--end-group
+
+
+#BOARD=mega2560
+PARTNO=$(subst mega,m,$(ARDUINO_BOARD))
+ifeq ($(PARTNO),uno)
+	PARTNO=m328p
+endif
+
+
+CXXFLAGS=-mmcu=$(MCU) -DF_CPU=$(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
+	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums $(INCLUDE) $(LIBS) $(FLAGS) \
+	-DOSMODEL=ArduinoOsModel -DARDUINO -fno-exceptions
+
+OUTPUT = out/arduino
+
+.PHONY: build-libs build upload libarduino libzeroconf
+
+default: build-libs arduino
+#upload
+#build-libs: libarduino libzeroconf
+
+libarduino:
+	make -C $(ARDUINO_PATH)
+
+libzeroconf:
+	make -C $(ZEROCONF_PATH)
+
+arduino: ./$(APP_SRC)
+	@mkdir -p $(OUTPUT)
+	@echo "compiling..."
+	make -C $(ARDUINO_PATH) clean
+	make -C $(ARDUINO_PATH)
+	$(CXX) \
+		$(WISELIB_PATH_TESTING)/external_interface/arduino/standalone/main.cpp ./$(APP_SRC) $(CXXFLAGS) $(ADD_CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf
+	avr-strip $(OUTPUT)/$(BIN_OUT).elf
+	avr-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex
+	avr-size $(OUTPUT)/$(BIN_OUT).hex
+
+flash:
+	echo "---- PARTNO=" $(PARTNO)
+	echo "---- PORT=" $(PORT)
+	avrdude -V -p $(PARTNO) -c $(UPLOAD_PROTOCOL) -b $(UPLOAD_SPEED) -Uflash:w:$(OUTPUT)/$(BIN_OUT).hex -P$(ARDUINO_PORT)
+
+monitor:
+	screen $(ARDUINO_PORT) $(MONITOR_SPEED)
