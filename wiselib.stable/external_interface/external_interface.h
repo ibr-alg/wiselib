@@ -100,4 +100,15 @@
 #include "external_interface/feuerwhere/feuerwhere_types.h"
 #endif
 
+#ifdef ARDUINO
+#include "external_interface/arduino/arduino_os.h"
+//#include "external_interface/arduino/arduino_timer.h"
+#include "external_interface/arduino/arduino_debug.h"
+#include "external_interface/arduino/arduino_types.h"
+#include "external_interface/arduino/arduino_clock.h"
+#include "external_interface/arduino/arduino_ethernet_radio.h"
+#include "external_interface/arduino/arduino_sdcard.h"
+#include "external_interface/arduino/arduino_application.h"
+#endif
+
 #endif

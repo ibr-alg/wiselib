@@ -32,9 +32,9 @@ namespace wiselib
       typedef ArduinoOsModel OsModel;
       typedef Application_P Application;
       // --------------------------------------------------------------------
-      void init()
+      void initx(typename OsModel::AppMainParameter& amp)
       {
-         app.init();
+         app.init(amp);
       };
    private:
       Application app;
