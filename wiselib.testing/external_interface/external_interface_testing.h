@@ -124,4 +124,11 @@
 #include "external_interface/ios/ios_timer.h"
 #endif
 
+#ifdef ARDUINO
+#include "external_interface/arduino/arduino_os.h"
+#include "external_interface/arduino/arduino_debug.h"
+#include "external_interface/arduino/arduino_clock.h"
+#include "external_interface/arduino/arduino_ethernet_radio.h"
+#endif
+
 #endif
