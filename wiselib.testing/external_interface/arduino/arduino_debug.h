@@ -42,17 +42,19 @@ namespace wiselib
 
       typedef ArduinoDebug<OsModel> self_type;
       typedef self_type* self_pointer_t;
-      ArduinoDebug()
+      ArduinoDebug() : initialized_(false)
       {
-         ::Serial.begin( 9600 );
       }
       // --------------------------------------------------------------------
-      enum Restrictions { MAXLINE = 32 };
+      enum Restrictions { MAXLINE = 128 };
       // --------------------------------------------------------------------
       /**
        * Uses printf() internally.
        */
       void debug( const char* msg, ... );
+      
+   private:
+      bool initialized_;
    };
    // -----------------------------------------------------------------------
    // -----------------------------------------------------------------------
@@ -62,6 +64,11 @@ namespace wiselib
    ArduinoDebug<OsModel_P>::
    debug( const char* msg, ... )
    {
+      if(!initialized_) {
+         Serial.begin(9600);
+         initialized_ = true;
+      }
+      
       va_list fmtargs;
       char buffer[MAXLINE];
       va_start( fmtargs, msg );
@@ -69,7 +76,10 @@ namespace wiselib
       va_end( fmtargs );
 
       ::Serial.println( buffer );
-	  delay(20);
+      
+      delay(50);
+      
+      if(serialEventRun) { serialEventRun(); }
    }
 }
 

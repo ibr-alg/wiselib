@@ -3,6 +3,9 @@
 ARDUINO_BOARD=$(BOARD)
 ARDUINO_PATH=/home/henning/repos/Arduino-rraf
 
+ARDUINO_USE_RAWSD=1
+#ARDUINO_USE_SD=1
+
 export MCU=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.mcu)
 export CPU_SPEED=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.f_cpu)
 export UPLOAD_SPEED=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) upload.speed)
@@ -17,9 +20,10 @@ PINS_PATH=$(ARDUINO_PATH)/hardware/arduino/variants/$(VARIANTS)
 WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
 SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
 ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
+SD_PATH=$(ARDUINO_PATH)/libraries/SD
 
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
-	-I$(ETHERNET_PATH)/utility
+	-I$(ETHERNET_PATH)/utility -I$(SD_PATH)/utility
 
 ZEROCONF_PATH=/home/henning/repos/EthernetBonjour-rraf
 
@@ -31,6 +35,14 @@ LIBS=-L$(ARDUINO_PATH) -Wl,--start-group -lspi -larduino
 ifeq ($(ARDUINO_USE_ETHERNET),1)
 	LIBS += -L$(ZEROCONF_PATH) -lzeroconf -lethernet 
 	FLAGS += -DARDUINO_USE_ETHERNET
+endif
+ifeq ($(ARDUINO_USE_RAWSD),1)
+	LIBS += -lrawsd 
+	FLAGS += -DARDUINO_USE_RAWSD
+endif
+ifeq ($(ARDUINO_USE_SD),1)
+	LIBS += -lsd 
+	FLAGS += -DARDUINO_USE_SD
 endif
 LIBS += -Wl,--end-group
 
@@ -60,7 +72,7 @@ libarduino:
 libzeroconf:
 	make -C $(ZEROCONF_PATH)
 
-arduino: ./$(APP_SRC)
+arduino: ./$(APP_SRC) $(WISELIB_PATH_TESTING)/external_interface/arduino/standalone/main.cpp
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
 	make -C $(ARDUINO_PATH) clean

@@ -24,7 +24,7 @@ class WriteOnceStorage {
 		enum {
 			SUCCESS = ...,
 			ERR_UNSPEC = ...
-		}
+		};
 		
 		/**
 		 * Read "size" bytes into "buffer" starting from address "start".
