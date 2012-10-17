@@ -1,7 +1,7 @@
 
 #ARDUINO_BOARD=atmega328
 ARDUINO_BOARD=$(BOARD)
-ARDUINO_PATH=/home/henning/repos/Arduino-rraf
+#ARDUINO_PATH=/home/henning/repos/Arduino-rraf
 
 ARDUINO_USE_RAWSD=1
 #ARDUINO_USE_SD=1
