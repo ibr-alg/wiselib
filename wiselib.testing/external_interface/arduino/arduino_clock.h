@@ -78,21 +78,21 @@ namespace wiselib
    typename ArduinoClock < OsModel_P >::seconds_t ArduinoClock <
    OsModel_P >::seconds ( time_t cur_time )
    {
-      return ( millis() / 1000 );
+      return ( cur_time / 1000 );
    }
    // --------------------------------------------------------------------
    template < typename OsModel_P >
    typename ArduinoClock < OsModel_P >::millis_t ArduinoClock <
    OsModel_P >::milliseconds ( time_t cur_time )
    {
-      return ( millis() % 1000 );
+      return ( cur_time % 1000 );
    }
    // --------------------------------------------------------------------
    template < typename OsModel_P >
    typename ArduinoClock < OsModel_P >::micros_t ArduinoClock <
    OsModel_P >::microseconds ( time_t cur_time )
    {
-      return ( micros() % 1000 );
+      return 0; // ( micros() % 1000 );
    }
 }
 

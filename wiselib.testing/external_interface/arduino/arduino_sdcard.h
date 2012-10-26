@@ -53,29 +53,41 @@ namespace wiselib {
 				card_.init();
 			}
 			
+			int erase(address_t start_block, address_t blocks) {
+				bool r;
+				//delay(3);
+				r = card_.erase(start_block, start_block + blocks);
+				if(!r) return ERR_UNSPEC;
+				//delay(50);
+				return SUCCESS;
+			}
+			
 			/**
 			 */
 			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
 				bool r;
 				for(size_type written = 0; written < blocks; written++) {
+					//delay(3);
 					r = card_.readBlock(start_block + written, buffer + written * BLOCK_SIZE);
 					if(!r) return ERR_UNSPEC;
 				}
-				delay(50);
+				//delay(50);
 				return SUCCESS;
 			}
 			
 			/**
 			 */
 			int write(block_data_t* buffer, address_t start_block, address_t blocks) {
+				//delay(3);
 				uint8_t r = card_.writeStart(start_block, blocks);
 				if(!r) return ERR_UNSPEC;
 				for(size_type written = 0; written < blocks; written++) {
+					//delay(3);
 					r = card_.writeData(buffer + written * BLOCK_SIZE);
 					if(!r) return ERR_UNSPEC;
 				}
 				r = card_.writeStop();
-				delay(50);
+				//delay(50);
 				
 				if(!r) return ERR_UNSPEC;
 				return SUCCESS;
