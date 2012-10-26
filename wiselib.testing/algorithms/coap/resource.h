@@ -29,17 +29,37 @@
 #include "util/pstl/map_static_vector.h"
 #include "util/pstl/pair.h"
 
+struct callback_arg {
+   uint8_t method;
+   uint8_t* input_data;
+   size_t input_data_len;
+   uint8_t* output_data;
+   uint16_t* output_data_len;
+   //queries_t* uri_queries;
+};
+typedef callback_arg callback_arg_t;
+
 namespace wiselib
 {
-   template < typename String_P = StaticString>
+   template < typename String_P = StaticString >
    class ResourceController
    {
       public:
          typedef String_P String;
-         typedef delegate5<coap_status_t, uint8_t, uint8_t*, size_t, uint8_t*, uint16_t*> my_delegate_t;
+         typedef delegate1<coap_status_t, callback_arg_t* > my_delegate_t;
 
+         /*!
+          * @abstract Empty constructor
+          */
          ResourceController() {}
 
+         /*!
+          * @abstract Normal constructor, used to register resources that will have a callback
+          * @param   name  Resource name
+          * @param   methods  Allowed methods for this resource
+          * @param   fast_resource  Wether resource can respond instantly or not, used to allows piggy-baked responses
+          * @param   content_type   The content type of the resource
+          */
          ResourceController( String name, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
          {
             name_ = name;
@@ -50,6 +70,14 @@ namespace wiselib
             interrupt_flag_ = false;
          }
 
+         /*!
+          * @abstract String constructor, used to register resources that will return a saved String representation
+          * @param   name  Resource name
+          * @param   representation The string that will be returned
+          * @param   methods  Allowed methods for this resource
+          * @param   fast_resource  Wether resource can respond instantly or not, used to allows piggy-baked responses
+          * @param   content_type   The content type of the resource
+          */
          ResourceController( String name, String representation, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
          {
             name_ = name;
@@ -61,25 +89,37 @@ namespace wiselib
             interrupt_flag_ = false;
          }
 
-         template<class T, coap_status_t ( T::*TMethod ) ( uint8_t, uint8_t*, size_t, uint8_t*, uint16_t* )>
+         /*!
+          * @abstract   register a callback for this resource
+          */
+         template<class T, coap_status_t ( T::*TMethod ) ( callback_arg_t* )>
          void reg_callback( T *obj_pnt )
          {
             del_ = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
          }
 
-         coap_status_t execute( uint8_t method, uint8_t* input_data, size_t input_data_len, uint8_t* output_data, uint16_t* output_data_len )
+         /*!
+          * @abstract execute the callback function, or print the saved string
+          * @return  The CoAP status, ie CONTENT, CHANGED, etc
+          * @param   method   the method from the request
+          * @param   input_data  pointer to the input payload, in case of POST or DELETE
+          * @param   input_data_len length of input payload
+          * @param   output_data pointer to data that will be returned set as payload
+          * @param   output_data_len   length of returned data
+          */
+         coap_status_t execute( callback_arg_t* args )
          {
             if( del_ )
             {
-               if ( method == 3 )
-                  method = 4;
-               else if ( method == 4 )
-                  method = 8;
-               return del_( method, input_data, input_data_len, output_data, output_data_len );
+               if ( args->method == 3 )
+                  args->method = 4;
+               else if ( args->method == 4 )
+                  args->method = 8;
+               return del_( args );
             }
             else if ( representation_.length() > 0 )
             {
-               *output_data_len = sprintf( (char*)output_data, "%s\0", representation_.c_str());
+               *( args->output_data_len ) = sprintf( ( char* )args->output_data, "%s\0", representation_.c_str() );
                return CONTENT;
             }
             return INTERNAL_SERVER_ERROR;
@@ -111,7 +151,6 @@ namespace wiselib
             else if ( method == 4 )
                method = 8;
             return methods_ & method;
-            //return methods_ & 1L << method;
          }
          uint8_t get_methods()
          {
@@ -143,15 +182,15 @@ namespace wiselib
          }
 
       private:
-         my_delegate_t del_;
-         String name_;
-         String representation_;
-         uint8_t methods_;
-         uint16_t notify_time_;
-         bool fast_resource_;
-         uint8_t resource_len_;
-         uint8_t content_type_;
-         bool interrupt_flag_;
+         my_delegate_t del_; /// resource callback function
+         String name_; /// resource name
+         String representation_; /// resource String representation
+         uint8_t methods_; /// allowed methods
+         uint16_t notify_time_; /// notification interval for observers
+         bool fast_resource_; /// fast resource, instant response
+         uint8_t resource_len_; /// resource length, not used
+         uint8_t content_type_; /// resource content type
+         bool interrupt_flag_; /// interrupt flag, for observing purposes
    };
 }
 #endif
