@@ -73,6 +73,7 @@ namespace wiselib
                   return it->value.c_str();
                }
             }
+            return NULL;
          }
       private:
          queries_vector_t queries_;
