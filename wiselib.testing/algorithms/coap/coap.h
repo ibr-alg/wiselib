@@ -102,6 +102,12 @@
 #include <string.h>
 #include "util/pstl/vector_static.h"
 
+typedef wiselib::OSMODEL Os;
+typedef Os::TxRadio Radio;
+typedef Radio::node_id_t node_id_t;
+typedef Radio::block_data_t block_data_t;
+typedef wiselib::StaticArrayRoutingTable<Os, Os::Radio, 64> FloodingStaticMap;
+typedef wiselib::FloodingAlgorithm<Os, FloodingStaticMap, Os::Radio, Os::Debug> flooding_algorithm_t;
 typedef wiselib::ResourceController<wiselib::StaticString> resource_t;
 
 namespace wiselib
@@ -158,9 +164,9 @@ namespace wiselib
          /**
          Init function
          */
-         void init( Radio& radio, Timer& timer, Debug& debug, Clock& clock, uint16_t rand )
+         void init( flooding_algorithm_t* flooding, Timer& timer, Debug& debug, Clock& clock, uint16_t rand )
          {
-            radio_ = &radio;
+            flooding_ = flooding;
             timer_ = &timer;
             debug_ = &debug;
             clock_ = &clock;
@@ -840,6 +846,7 @@ namespace wiselib
          Timer * timer_;
          Debug * debug_;
          Clock * clock_;
+         flooding_algorithm_t* flooding_;
          uint16_t mid_; /// message id internal variable
 
          resource_vector_t resources_; /// resources vector
@@ -852,7 +859,7 @@ namespace wiselib
          uint16_t observe_counter_; /// observe counter
          Radio& radio()
          {
-            return *radio_;
+            return *flooding_;
          }
 
          Timer& timer() {
