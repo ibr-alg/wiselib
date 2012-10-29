@@ -400,12 +400,12 @@ namespace wiselib
                      case CONTENT_TYPE:
                         set_option( CONTENT_TYPE );
                         DBG_O( debug().debug( "OPTION:CONTENT TYPE" ) );
-                        content_type_ = get_int_opt_value( current_opt, opt_len );
+                        content_type_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case MAX_AGE:
                         DBG_O( debug().debug( "OPTION:MAX AGE" ) );
                         set_option( MAX_AGE );
-                        max_age_ = get_int_opt_value( current_opt, opt_len );
+                        max_age_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case PROXY_URI:
                         DBG_O( debug().debug( "OPTION:PROXY URI" ) );
@@ -416,10 +416,11 @@ namespace wiselib
                         set_option( ETAG );
                         break;
                      case URI_HOST:
-                        // based on id, not ip-literal
+                        // based on id, not ip-literal, converting ascii to node id
                         set_option( URI_HOST );
                         DBG_O( debug().debug( "OPTION:URI HOST" ) );
-                        uri_host_ = get_int_opt_value( current_opt, opt_len );
+                        uri_host_ = get_int_opt_value( current_opt, opt_len, true );
+                        DBG_O( debug().debug( "HOST: %d, %x",uri_host_, uri_host_));
                         break;
                      case LOCATION_PATH:
                         DBG_O( debug().debug( "OPTION:LOCATION PATH" ) );
@@ -428,7 +429,7 @@ namespace wiselib
                      case URI_PORT:
                         DBG_O( debug().debug( "OPTION:URI PORT" ) );
                         set_option( URI_PORT );
-                        uri_port_ = get_int_opt_value( current_opt, opt_len );
+                        uri_port_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case LOCATION_QUERY:
                         DBG_O( debug().debug( "OPTION:LOCATION QUERY" ) );
@@ -442,7 +443,7 @@ namespace wiselib
                      case OBSERVE:
                         set_option( OBSERVE );
                         DBG_O( debug().debug( "OPTION:OBSERVE" ) );
-                        observe_ = get_int_opt_value( current_opt, opt_len );
+                        observe_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case TOKEN:
                         set_option( TOKEN );
@@ -453,7 +454,7 @@ namespace wiselib
                      case ACCEPT:
                         DBG_O( debug().debug( "OPTION:ACCEPT" ) );
                         set_option( ACCEPT );
-                        accept_ = get_int_opt_value( current_opt, opt_len );
+                        accept_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case IF_MATCH:
                         DBG_O( debug().debug( "OPTION:IF MATCH" ) );
@@ -467,12 +468,11 @@ namespace wiselib
                         DBG_O( debug().debug( "OPTION:URI QUERY" ) );
                         set_option( URI_QUERY );
                         uri_queries_.add_query((char*) current_opt, opt_len);
-                        //DBG_O(debug().debug("URI QUERY: %s",uri_queries_.value_of("act")));
                         break;
                      case BLOCK2:
                         DBG_O( debug().debug( "OPTION:BLOCK2" ) );
                         set_option( BLOCK2 );
-                        block2_num_ = get_int_opt_value( current_opt, opt_len );
+                        block2_num_ = get_int_opt_value( current_opt, opt_len, false );
                         block2_more_ = ( block2_num_ & 0x08 ) >> 3;
                         block2_size_ = 16 << ( block2_num_ & 0x07 );
                         block2_offset_ = ( block2_num_ & ~0x0F ) << ( block2_num_ & 0x07 );
@@ -606,12 +606,24 @@ namespace wiselib
             return i;
          }
 
-         uint32_t get_int_opt_value( uint8_t *value, uint16_t length ) {
+         uint32_t get_int_opt_value( uint8_t *value, uint16_t length, bool hexAscii ) {
             uint32_t var = 0;
             int i = 0;
             while ( i < length ) {
-               var <<= 8;
-               var |= 0xFF & value[i++];
+               if ( hexAscii == false ) {
+                  var <<= 8;
+                  var |= 0xFF & value[i++];
+               }
+               else {
+                  var *= 16;
+                  if ( value[i] >= 0x41 && value[i] <= 0x5a )
+                     var += value[i] - 0x41 + 10;
+                  else if ( value[i] >= 0x61 && value[i] <= 0x7a )
+                     var += value[i] - 0x61 + 10;
+                  else if ( value[i] >= 0x30 && value[i] <= 0x39 )
+                     var += value[i] - 0x30;
+                  i++;
+               }
             }
             return var;
          }
