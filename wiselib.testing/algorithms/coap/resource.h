@@ -35,7 +35,7 @@ struct callback_arg {
    size_t input_data_len;
    uint8_t* output_data;
    uint16_t* output_data_len;
-   //queries_t* uri_queries;
+   queries_t* uri_queries;
 };
 typedef callback_arg callback_arg_t;
 

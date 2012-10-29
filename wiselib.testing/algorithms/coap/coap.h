@@ -343,7 +343,7 @@ namespace wiselib
                         args.input_data_len = msg.payload_len_w();
                         args.output_data = ( uint8_t* )output_data;
                         args.output_data_len = &output_data_len;
-                        //args.uri_queries = msg.uri_queries();
+                        args.uri_queries = msg.uri_queries();
                         response.set_code( resource_discovery( &args ) );
                         // set the content type
                         response.set_option( CONTENT_TYPE );
@@ -389,7 +389,7 @@ namespace wiselib
                            args.input_data_len = msg.payload_len_w();
                            args.output_data = ( uint8_t* )output_data;
                            args.output_data_len = &output_data_len;
-                           //args.uri_queries = msg.uri_queries();
+                           args.uri_queries = msg.uri_queries();
 
                            response.set_code( resources_[resource_id].execute( &args ) );
                            // set the content type
@@ -798,7 +798,7 @@ namespace wiselib
                   args.input_data_len = 0;
                   args.output_data = output_data;
                   args.output_data_len = &output_data_len;
-                  //args.uri_queries = NULL;
+                  args.uri_queries = NULL;
 
                   notification.set_code( resources_[resource_id].execute( &args ) );
                   notification.set_option( CONTENT_TYPE );
