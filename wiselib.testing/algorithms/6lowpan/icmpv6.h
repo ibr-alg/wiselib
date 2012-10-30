@@ -864,12 +864,7 @@ namespace wiselib
 						
 			//----Common message validation tests
 			//- The IP Hop Limit field has a value of 255, i.e., the packet could not possibly have been forwarded by a router.
-			//For DAR and DAC no hop-limit check
-			if( message->hop_limit() != 255
-				#ifdef LOWPAN_ROUTE_OVER
-				&& ( typecode != DUPLICATE_ADDRESS_REQUEST && typecode != DUPLICATE_ADDRESS_CONFIRMATION )
-				#endif
-				)
+			if( message->hop_limit() != 255 )
 			{
 				packet_pool_mgr_->clean_packet( message );
 				#ifdef ND_DEBUG
@@ -1235,14 +1230,6 @@ namespace wiselib
 				}
 				
 			}
-			/*
-			#ifdef LOWPAN_ROUTE_OVER
-			else if( typecode == DUPLICATE_ADDRESS_REQUEST || typecode == DUPLICATE_ADDRESS_CONFIRMATION )
-			{
-				//TODO
-			}
-			#endif
-			*/
 	//----------------  ND messages processing part END -----------------
 	//----------------  Typecode error part -----------------------------
 			else
@@ -1776,49 +1763,6 @@ namespace wiselib
 			debug().debug(" ND send NEIGHBOR_ADVERTISEMENT to: %s", dest_addr->get_address(str) );
 			#endif
 		}
-		/*
-	#ifdef LOWPAN_ROUTE_OVER
-		else if( typecode == DUPLICATE_ADDRESS_REQUEST || typecode == DUPLICATE_ADDRESS_CONFIRMATION )
-		{
-			//Overwrite the hoplimit field --> MULTIHOP_HOPLIMIT 
-			message->set_hop_limit(MULTIHOP_HOPLIMIT);
-			
-			src_addr = &(radio_ip_->interface_manager_->prefix_list[target_interface][1].ip_address);
-			
-			//Original size of the DUPLICATE_ADDRESS_CONFIRMATION and DUPLICATE_ADDRESS_REQUEST
-			length = 32;
-			
-			
-			if( typecode == DUPLICATE_ADDRESS_REQUEST )
-			{
-				//Set the Status field
-				uint8_t setter_byte = AR_SUCCESS;
-				message->set_payload( &setter_byte, 1, 4 );
-			}
-			else
-				message->set_payload( &status_for_NA_DAC, 1, 4 );
-			
-			//Set the lifetime
-			message->set_payload( &lifetime_for_NA_DA, 6 );
-			
-			//Set the registered EUI-64
-			message->set_payload( &EUI_for_DA, 8 );
-			
-			//Set the registered address
-			message->set_payload( registered_address_for_DA->addr, 16, 8 );
-			
-			#ifdef ND_DEBUG
-			char str[43];
-			if( typecode == DUPLICATE_ADDRESS_REQUEST )
-				debug().debug(" ND send DUPLICATE_ADDRESS_REQUEST to: %s", dest_addr->get_address(str) );
-			else
-				debug().debug(" ND send DUPLICATE_ADDRESS_CONFIRMATION to: %s", dest_addr->get_address(str) );
-			#endif
-		}
-	#endif
-		*/
-		
-		
 		
 		/*
 			SET the common fields
@@ -1881,7 +1825,7 @@ namespace wiselib
 		message->set_payload( &(setter_byte), 1, length++ );
 		
 		//Set the link layer address with function overload
-		message->set_payload( &link_layer_address, length + 1 );
+		message->set_payload( (uint32_t*)link_layer_address, length + 1 );
 		
 		//set the length
 		
