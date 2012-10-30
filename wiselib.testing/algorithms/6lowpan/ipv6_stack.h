@@ -151,15 +151,9 @@ namespace wiselib
 			
 			lowpan.nd_storage_.set_debug( *debug_ );
 			
-			if( radio_->id() == 0x2140 )
-				//Start ND
-				icmpv6.ND_timeout_manager_function( NULL );
-			
-			if( radio_->id() == 0x2144 )
-			{
-				lowpan.nd_storage_.is_router = true;
-				//icmpv6.ND_timeout_manager_function( NULL );
-			}
+
+			icmpv6.ND_timeout_manager_function( NULL );
+
 		}
 		
 		ICMPv6_t icmpv6; 
