@@ -35,6 +35,7 @@
 #include "external_interface/isense/isense_distance.h"
 #include "external_interface/isense/isense_com_bufferuart.h"
 #include "external_interface/isense/isense_duty_cycling.h"
+#include "external_interface/isense/isense_internal_flash.h"
 
 #include "util/serialization/endian.h"
 
@@ -68,6 +69,8 @@ namespace wiselib
       typedef iSenseDistanceModel<iSenseOsModel> Distance;
       typedef iSenseSerialComBufferUartModel<iSenseOsModel> B_Uart;
       typedef iSenseDutyCycling<iSenseOsModel> DutyCycling;
+      typedef iSenseInternalFlash<iSenseOsModel> BlockMemory;
+      
       static const Endianness endianness = WISELIB_ENDIANNESS;
 
       typedef MallocFreeAllocator<iSenseOsModel> Allocator;
@@ -76,3 +79,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

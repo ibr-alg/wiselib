@@ -48,5 +48,6 @@ class WriteOnceStorage {
 		int erase(size_type start, size_type count);
 };
 
+} // namespace
 
 // vim: set ft=cpp:
