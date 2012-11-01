@@ -16,7 +16,7 @@
 
 
 template<bool C, typename T = void>
-struct enable_if_c { typedef T type; }
+struct enable_if_c { typedef T type; };
 
 template<typename T>
 struct enable_if_c<false, T> { };
