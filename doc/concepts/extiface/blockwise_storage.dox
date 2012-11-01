@@ -11,8 +11,8 @@ class BlockwiseStorage {
 		typedef ... address_t; /// always refers to a block number
 		
 		enum {
-			BLOCK_SIZE = ...,
-			SIZE = ..., /// in blocks
+			BLOCK_SIZE = ..., ///< # of block_data_t's
+			SIZE = ..., ///< in blocks
 		};
 		
 		enum {
@@ -22,11 +22,11 @@ class BlockwiseStorage {
 		
 		/**
 		 */
-		int read(block_data_t* buffer, address_t start_block, address_t blocks);
+		int read(block_data_t* buffer, address_t block);
 		
 		/**
 		 */
-		int write(block_data_t* buffer, address_t start_blocks, address_t blocks);
+		//int write(block_data_t* buffer, address_t start_blocks, address_t blocks);
 };
 
 } // namespace

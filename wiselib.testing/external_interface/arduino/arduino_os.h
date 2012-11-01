@@ -22,6 +22,7 @@
 #include "external_interface/default_return_values.h"
 #include "external_interface/arduino/arduino_debug.h"
 #include "external_interface/arduino/arduino_clock.h"
+#include "external_interface/arduino/arduino_sdcard.h"
 #include "external_interface/arduino/arduino_ethernet_radio.h"
 
 #include "util/serialization/endian.h"
@@ -49,6 +50,7 @@ namespace wiselib
 #if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
 #endif
+	  typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };

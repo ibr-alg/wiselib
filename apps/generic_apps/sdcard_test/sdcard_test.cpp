@@ -66,5 +66,5 @@ class App {
 
 wiselib::WiselibApplication<Os, App> app;
 void application_main( Os::AppMainParameter& value ) {
-	app.initx(value);
+	app.init(value);
 }

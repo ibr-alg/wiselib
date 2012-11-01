@@ -45,6 +45,10 @@ namespace wiselib
       ArduinoDebug() : initialized_(false)
       {
       }
+
+      ArduinoDebug(bool initialized) : initialized_(initialized)
+      {
+      }
       // --------------------------------------------------------------------
       enum Restrictions { MAXLINE = 128 };
       // --------------------------------------------------------------------

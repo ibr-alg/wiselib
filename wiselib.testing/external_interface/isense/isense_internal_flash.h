@@ -17,20 +17,13 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef __ARDUINO_SDCARD_H__
-#define __ARDUINO_SDCARD_H__
+#ifndef __ISENSE_INTERNAL_FLASH_H__
+#define __ISENSE_INTERNAL_FLASH_H__
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <Arduino.h>
-#include <Sd2Card.h>
-
-#include "arduino_debug.h"
-#include "arduino_os.h"
-
-namespace wiselib { class ArduinoOsModel; }
-
-#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
+#include <isense/flash.h>
+#include <isense/platforms/jennic/jennic_flash.h>
+#include <isense/os.h>
+#include <isense/util/get_os.h>
 
 namespace wiselib {
 
@@ -39,18 +32,18 @@ namespace wiselib {
 	template<
 		typename OsModel_P
 	>
-	class ArduinoSdCard {
+	class iSenseInternalFlash {
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef size_type address_t; /// always refers to a block number
-			typedef ArduinoSdCard<OsModel> self_type;
+			typedef iSenseInternalFlash<OsModel> self_type;
 			typedef self_type* self_pointer_t;
 			
 			enum {
 				BLOCK_SIZE = 512,
-				SIZE = (1024UL * 1024UL * 1024UL / 512UL), ///< #blocks for 1GB 
+				SIZE = 6 * 128, /// in blocks
 			};
 			
 			enum {
@@ -58,65 +51,59 @@ namespace wiselib {
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
-			//ArduinoSdCard() {
-				//card_.init();
-			//}
+			enum {
+				_START_POSITION = 0x20000
+			};
 			
-			void init() {
-				card_.init();
+			iSenseInternalFlash(isense::Os& os) : os_(&os) {
+			}
+			
+			int init() {
+				return SUCCESS;
 			}
 			
 			int erase(address_t start_block, address_t blocks) {
-				bool r;
-				//delay(3);
-				r = card_.erase(start_block, start_block + blocks);
-				if(!r) return ERR_UNSPEC;
-				//delay(50);
-				return SUCCESS;
+				int sector = (_START_POSITION + BLOCK_SIZE * start_block) / 0x10000;
+				os_->debug("erasing sector %d", sector);
+				
+				// sectors 0 and 1 contain the program code, you probably
+				// dont want to erase them
+				if(sector < 2) { return ERR_UNSPEC; }
+				
+				bool r = os_->flash().erase(sector);
+				return r ? SUCCESS : ERR_UNSPEC;
 			}
 			
 			/**
 			 */
 			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
-				bool r;
-				for(size_type written = 0; written < blocks; written++) {
-					//delay(3);
-					r = card_.readBlock(start_block + written, buffer + written * BLOCK_SIZE);
-					if(!r) return ERR_UNSPEC;
+				bool r = os_->flash().read(_START_POSITION + start_block * BLOCK_SIZE, blocks * BLOCK_SIZE, buffer);
+				return r ? SUCCESS : ERR_UNSPEC;
+			}
+			
+			/**
+			 */
+			int set(block_data_t* buffer, address_t start_block, address_t blocks) {
+				if(_START_POSITION + start_block * BLOCK_SIZE < 0x20000) {
+					os_->debug("set to %ld would overwrite program!",
+							_START_POSITION + start_block * BLOCK_SIZE );
+					return ERR_UNSPEC;
 				}
-				//delay(50);
-				return SUCCESS;
+				
+				bool r = os_->flash().write(_START_POSITION + start_block * BLOCK_SIZE, blocks * BLOCK_SIZE, buffer);
+				return r ? SUCCESS : ERR_UNSPEC;
 			}
 			
 			/**
 			 */
 			int write(block_data_t* buffer, address_t start_block, address_t blocks) {
-				//delay(50);
-				uint8_t r = card_.writeStart(start_block, blocks);
-				if(!r) {
-					DBG("write(%p, st=%d, count=%d) start fail", buffer, start_block, blocks);
-					return ERR_UNSPEC;
-				}
-				for(size_type written = 0; written < blocks; written++) {
-					//delay(3);
-					r = card_.writeData(buffer + written * BLOCK_SIZE);
-					if(!r) {
-						DBG("write(%p, st=%d, count=%d) data %p fail", buffer, start_block, blocks, buffer + written * BLOCK_SIZE);
-						return ERR_UNSPEC;
-					}
-				}
-				r = card_.writeStop();
-				//delay(50);
-				
-				if(!r) {
-					DBG("write(%p, st=%d, count=%d) stop fail", buffer, start_block, blocks);
-					return ERR_UNSPEC;
-				}
+				erase(start_block, blocks);
+				set(buffer, start_block, blocks);
 				return SUCCESS;
 			}
 			
 		private:
-			Sd2Card card_;
+			isense::Os *os_;
 	};
 
 } // namespace

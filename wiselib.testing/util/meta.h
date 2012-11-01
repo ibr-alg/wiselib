@@ -2,6 +2,29 @@
 #ifndef META_H
 #define META_H
 
+// source: http://stackoverflow.com/questions/257288/is-it-possible-to-write-a-c-template-to-check-for-a-functions-existence/257382#257382
+
+#define HAS_METHOD(func, name) \
+	template<typename T, typename Sig> struct name { \
+		typedef char yes[1]; typedef char no[2]; \
+		template<typename U, U> struct type_check; \
+		template<typename C> static yes& check(type_check<Sig, &C::func>*); \
+		template<typename C> static no& check(...); \
+		static bool const value = (sizeof(check<T>(0)) == sizeof(yes)); \
+	}
+	
+
+
+template<bool C, typename T = void>
+struct enable_if_c { typedef T type; }
+
+template<typename T>
+struct enable_if_c<false, T> { };
+
+template<typename Cond, class T = void>
+struct enable_if : public enable_if_c<Cond::value, T> { };
+
+
 template<
 	size_t a,
 	size_t b
