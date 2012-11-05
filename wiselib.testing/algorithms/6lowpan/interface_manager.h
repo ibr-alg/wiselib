@@ -189,6 +189,45 @@ namespace wiselib
 			#ifdef IPv6_LAYER_DEBUG
 			debug_->debug(" Sending to INTERFACE: %i", selected_interface );
 			#endif
+			
+			//Set the source address for the actual packet if it is null
+			//    for: UDP and ICMPv6 echo messages
+			//Use the global address if it is not null
+			IPv6Packet_t *ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
+			
+			IPv6Address_t source_ip;
+			ip_packet->source_address(source_ip);
+			
+			if( source_ip == Radio_IPv6::NULL_NODE_ID )
+			{
+				bool global_address_found = false;
+				for( int i = 1; i < LOWPAN_MAX_PREFIXES; i++ )
+				{
+					if( prefix_list[selected_interface][i].ip_address != Radio_IPv6::NULL_NODE_ID )
+					{
+						ip_packet->set_source_address(prefix_list[selected_interface][i].ip_address);
+						global_address_found = true;
+						break;
+					}
+				}
+				//Use the link-local address if no global address defined
+				if( !global_address_found )
+					ip_packet->set_source_address(prefix_list[selected_interface][0].ip_address);
+			}
+			
+			/*
+				Generate checksum
+			*/
+			uint16_t checksum = ip_packet->generate_checksum();
+			if( ip_packet->next_header() == Radio_LoWPAN::UDP )
+				ip_packet->set_payload( &checksum, 6 );
+			else if( ip_packet->next_header() == Radio_LoWPAN::ICMPV6 )
+				ip_packet->set_payload( &checksum, 2 );
+			else
+				return ERR_NOTIMPL;
+			
+			
+			//Send the packet to the selected interface
 			if( selected_interface == INTERFACE_RADIO )
 				return radio_lowpan().send( receiver, packet_number, data );
 			else if( selected_interface == INTERFACE_UART )

@@ -346,7 +346,7 @@ namespace wiselib
 		* \param len Data length
 		* \param data pointer to the data
 		*/
-		uint16_t generate_checksum( uint16_t len, uint8_t* data);
+		uint16_t generate_checksum();
 		
 	private:
 		
@@ -364,8 +364,11 @@ namespace wiselib
 		typename Debug_P>
 	uint16_t
 	IPv6Packet<OsModel_P, Radio_P, Debug_P>::
-	generate_checksum( uint16_t len, uint8_t* data )
+	generate_checksum()
 	{
+		uint16_t len = length();
+		uint8_t* data = payload();
+		
 		uint32_t sum = 0;
 		
 		/* PSEUDO HEADER */
