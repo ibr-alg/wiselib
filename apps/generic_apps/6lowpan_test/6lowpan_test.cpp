@@ -52,9 +52,22 @@ public:
 		callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
 		callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 		
+		
+		//--------------------------------------------------------------------------------------
+		//					Testing part
+		//--------------------------------------------------------------------------------------
+		
 		/*
 			Test destination
 		*/
+				
+		IPv6Address_t destinationaddr;
+		
+		//Host ID of the destination
+		node_id_t ll_id = 0x2;
+		
+		//Global addressing
+		/*
 		uint8_t my_prefix[8];
 		my_prefix[0] = 0x20;
 		my_prefix[1] = 0x01;
@@ -64,51 +77,59 @@ public:
 		my_prefix[5] = 0xA0;
 		my_prefix[6] = 0xB0;
 		my_prefix[7] = 0x69;
-
-		IPv6Address_t destinationaddr;
-
-		//destinationaddr.make_it_link_local();
+		
 		destinationaddr.set_prefix( my_prefix, 64 );
-
-		node_id_t ll_id = 0x2140;
 		destinationaddr.set_long_iid(&ll_id, true);
+		*/
+		
+		//Link-local addressing
+		destinationaddr.make_it_link_local();
+		destinationaddr.set_long_iid(&ll_id, false);
 		
 		/*
 			UDP test
+			
+			For the best compression use ports between 61616 and 61631
 		*/
-		/* if( radio_->id() == 0x2140 )
+		/*
+		if( radio_->id() == 0x0 )
 		{
-			int my_number = ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
+			int my_number = ipv6_stack_.udp.add_socket( 61616, destinationaddr, callback_id );
+			
 			//ipv6_stack_.udp.print_sockets();
-			uint8_t mypayload[] = "hello :) This is a test message."
+			
+			uint8_t mypayload[] = "hello :) This is a test message.";
+			
+			//Set IPv6 header fields
+			//ipv6_stack_.udp.set_traffic_class_flow_label( 0, 42 );
+			
 			ipv6_stack_.udp.send(my_number,sizeof(mypayload),mypayload);
 		}
-		if( radio_->id() == 0x2144 )
+		if( radio_->id() == 0x1 )
 		{
-			node_id_t ll_id = 1;
-			destinationaddr.set_long_iid(&ll_id, false);
-			ipv6_stack_.udp.add_socket( 10, 10, destinationaddr, callback_id );
-		}*/
+			ipv6_stack_.udp.listen( 61616, callback_id );
+		}
+		*/
 		
 		/*
 			ICMPv6 Ping test
 		*/
-		/*
-		if( radio_->id() == 0x2144 )
+		
+		if( radio_->id() == 0x0 )
 		{
 			debug_->debug("Application layer: sending echo request");
 			ipv6_stack_.icmpv6.ping(destinationaddr);
 			//ipv6_stack_.icmpv6.ping(ipv6_stack_.ipv6.BROADCAST_ADDRESS);
 		}
-		*/
+		
 	}
 
 	// --------------------------------------------------------------------
 	void receive_radio_message( IPv6Address_t from, uint16_t len, Os::Radio::block_data_t *buf )
 	{
 		char str[43];
-		debug_->debug( "Application layer received msg at %x from ", radio_->id(), from.get_address(str) );
-		debug_->debug( " Size: %i Content: %s ", len, buf);
+		debug_->debug( "Application layer received msg at %x from %s", radio_->id(), from.get_address(str) );
+		debug_->debug( "    Size: %i Content: %s ", len, buf);
 	}
 
 	// --------------------------------------------------------------------
@@ -117,7 +138,7 @@ public:
 		if( len == 1 && buf[0] == ipv6_stack_.icmpv6.ECHO_REPLY )
 		{
 			char str[43];
-			debug_->debug( "Application layer received echo reply at %x from ", radio_->id(), from.get_address(str) );
+			debug_->debug( "Application layer received echo reply at %x from %s", radio_->id(), from.get_address(str) );
 		}
 	}
 

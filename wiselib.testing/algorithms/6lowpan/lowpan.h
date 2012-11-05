@@ -950,9 +950,9 @@ namespace wiselib
 		
 		memcpy( buffer_, data, len );
 		
-		#ifdef LoWPAN_LAYER_DEBUG
+		/*#ifdef LoWPAN_LAYER_DEBUG
 		debug().debug(" LoWPAN layer: received (len: %i)", len );
-		#endif
+		#endif*/
 		
 	 #ifdef LOWPAN_MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
@@ -1218,11 +1218,8 @@ namespace wiselib
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 6 );
 				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
 			
-				uint16_t checksum = reassembling_mgr_.ip_packet->generate_checksum( reassembling_mgr_.ip_packet->length(), reassembling_mgr_.ip_packet->payload() );
-				tmp = 0xFF & (checksum >> 8);
-				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 6 );
-				tmp = 0xFF & (checksum);
-				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
+				uint16_t checksum = reassembling_mgr_.ip_packet->generate_checksum();
+				reassembling_mgr_.ip_packet->set_payload( &checksum, 6 );
 			}
 			
 			reassembling_mgr_.ip_packet->target_interface = INTERFACE_RADIO;
@@ -1485,9 +1482,8 @@ namespace wiselib
 		}
 		else
 		{
-			//TODO: how to select between 01 and 00 (DSCP part from the traffic class yes or no)
-			//USE TF = 01, ECN and flow label in-line
-			if( true )
+			//USE TF = 01, ECN and flow label in-line (if DSCP part from the traffic class is 0)
+			if( (ip_packet->traffic_class() & 0x3F) == 0 )
 			{
 				mode = 1;
 				uint8_t ecn = (0x03 & ((ip_packet->traffic_class()) >> 6 ));

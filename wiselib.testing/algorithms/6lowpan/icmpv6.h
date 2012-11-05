@@ -694,10 +694,6 @@ namespace wiselib
 		debug().debug( "ICMPv6 layer: Send (%i) to %s", *data, destination.get_address(str) );
 		#endif
 		
-		
-		node_id_t sourceaddr;
-		sourceaddr = radio_ip().id();
-		
 		//Get a packet from the manager
 		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
 		if( packet_number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
@@ -707,7 +703,12 @@ namespace wiselib
 		
 		message->set_next_header(Radio_IP::ICMPV6);
 		message->set_hop_limit(255);
-		message->set_source_address(sourceaddr);
+		
+		//The source address will be set in the interface manager to support different interfaces and more addresses
+		//node_id_t sourceaddr;
+		//sourceaddr = radio_ip().id();
+		//message->set_source_address(sourceaddr);
+		
 		message->set_destination_address(destination);
 		message->set_flow_label(0);
 		message->set_traffic_class(0);
@@ -747,13 +748,9 @@ namespace wiselib
 				return ERR_UNSPEC;
 		}
 		
-		//Checksum calculation
-		//To calculate checksum the field has to be 0 - 2 bytes
-		//message->set_payload( &zero, 2, 2 );
-		
-		uint16_t checksum = message->generate_checksum( message->length(), message->payload() );
-		
-		message->set_payload( &checksum, 2 );
+		//Generate CHECKSUM in the interface manager because the source address will be set there
+		message->set_payload( &zero, 1, 2 );
+		message->set_payload( &zero, 1, 3 );
 		
 		//Send the packet to the IP layer
 		int result = radio_ip().send( destination, packet_number, NULL );
@@ -785,13 +782,12 @@ namespace wiselib
 		uint16_t checksum = ( data[2] << 8 ) | data[3];
 		data[2] = 0;
 		data[3] = 0;
-		if( checksum != message->generate_checksum( message->length(), data ) )
+		if( checksum != message->generate_checksum() )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
-			//debug().debug( "ICMPv6 layer: Dropped packet (checksum error), in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
+			//debug().debug( "ICMPv6 layer: Dropped packet (checksum error), in packet: %x computed: %x\n", checksum, message->generate_checksum() );
 			
-			debug().debug( "ICMPv6 layer: Checksum error, in packet: %x computed: %x\n", checksum, message->generate_checksum( message->length(), data ) );
-			
+			debug().debug( "ICMPv6 layer: Checksum error, in packet: %x computed: %x\n", checksum, message->generate_checksum() );
 			#endif
 
 			//packet_pool_mgr_->clean_packet( message );
@@ -1087,7 +1083,7 @@ namespace wiselib
 						act_pos += data[act_pos + 1] * 8;
 				}
 				
-				
+				//If this message is from the uart, this flag was set by the uart radio
 				if( message->ND_installation_message )
 				{
 					#ifdef ND_DEBUG
@@ -1350,6 +1346,14 @@ namespace wiselib
 				continue;
 			}
 			
+			if( act_nd_storage->is_border_router )
+			{
+				#ifdef ND_DEBUG
+				debug().debug(" ND manager: This is a border router on interface %i ", target_interface );
+				#endif
+				continue;
+			}
+			
 			#ifdef ND_DEBUG
 			debug().debug(" ND manager: interface %i ", target_interface );
 			#endif
@@ -1391,7 +1395,7 @@ namespace wiselib
 				*(act_nd_storage) = NDStorage_t();
 				
 				#ifdef ND_DEBUG
-				debug().debug(" ND manager: ABRO outdated, all information is deleted " );
+				debug().debug(" ND manager: ABRO outdated, all information are deleted " );
 				#endif
 			}
 			else
@@ -1772,13 +1776,7 @@ namespace wiselib
 		//Message Type
 		message->set_payload( &typecode, 1, 0 );	
 		
-		//Calculate checksum
-		//To calculate checksum the field has to be 0 - 2 bytes
-		message->set_payload( &zero, 1, 2 );
-		message->set_payload( &zero, 1, 3 );
-		
-		uint16_t checksum = message->generate_checksum( message->length(), message->payload() );
-		message->set_payload( &checksum, 2 );
+		//Generate CHECKSUM in the interface manager because the source address will be set there
 		
 		//For ND messages set the link layer destination and the interface, routing isn't needed!
 		if( ll_destination != 0 )
@@ -1824,8 +1822,8 @@ namespace wiselib
 		
 		message->set_payload( &(setter_byte), 1, length++ );
 		
-		//Set the link layer address with function overload
-		message->set_payload( (uint32_t*)link_layer_address, length + 1 );
+		//Set the link layer address with function overload.
+		message->set_payload( (uint32_t*)(&link_layer_address), length + 1 );
 		
 		//set the length
 		

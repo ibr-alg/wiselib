@@ -151,9 +151,9 @@ namespace wiselib
 			
 			lowpan.nd_storage_.set_debug( *debug_ );
 			
-
-			icmpv6.ND_timeout_manager_function( NULL );
-
+			//ND: start if it is not a border router
+			if( !lowpan.nd_storage_.is_router )
+				icmpv6.ND_timeout_manager_function( NULL );
 		}
 		
 		ICMPv6_t icmpv6; 
