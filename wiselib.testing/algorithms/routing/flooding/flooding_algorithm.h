@@ -218,11 +218,12 @@ namespace wiselib
       Message message;
       message.set_msg_id( FLOODING_MESSAGE_ID );
       message.set_node_id( radio().id() );
+      message.set_dest_id( destination );
       message.set_seq_nr( seq_nr_ );
       message.set_payload( len, data );
 
-      radio().send( radio().BROADCAST_ADDRESS, message.buffer_size(), (block_data_t*)&message );
-
+      radio().send( 0xffff, message.buffer_size(), (block_data_t*)&message );
+	debug().debug( "FloodingAlgorithm: Sent at %x %d  ", radio_->id() ,message.buffer_size());
       seq_nr_++;
       return SUCCESS;
    }
@@ -235,14 +236,17 @@ namespace wiselib
    FloodingAlgorithm<OsModel_P, RoutingTable_P, Radio_P, Debug_P>::
    receive( node_id_t from, size_t len, block_data_t *data )
    {
+	  debug().debug( "FloodingAlgorithm received radio message from %x", from );
 
       if ( from == radio().id() )
       {
 #ifdef ROUTING_FLOODING_DEBUG
    debug().debug( "FloodingAlgorithm ERROR: received radio message from myself at %u\n", radio_->id() );
-#endif
+#endif	
          return;
       }
+      
+      debug().debug( "FloodingAlgorithm ERROR: received radio message from %x", from );
 
 
       message_id_t msg_id = read<OsModel, block_data_t, message_id_t>( data );
@@ -276,9 +280,12 @@ namespace wiselib
             debug().debug( "FloodingAlgorithm: receive at %d from %d with seqnr %d (here is %d)\n",
                            radio_->id(), message->node_id(), message->seq_nr(), seq_map_[message->node_id()] );
 #endif
-
+			debug().debug( "FloodingAlgorithm: receive at %x from %x with seqnr %d (here is %d) dest:%x",
+                           radio_->id(), message->node_id(), message->seq_nr(), seq_map_[message->node_id()] ,message->dest_id() );
             // Pass message to each registered receiver.
-            notify_receivers( message->node_id(), message->payload_size(), message->payload() );
+            if ( (message->dest_id() ==  radio().BROADCAST_ADDRESS ) ||  (message->dest_id() ==  radio().id() ) ){
+				notify_receivers( message->node_id(), message->payload_size(), message->payload() );
+			}
          }
          else
          {
