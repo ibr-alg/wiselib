@@ -218,6 +218,7 @@ namespace wiselib
       Message message;
       message.set_msg_id( FLOODING_MESSAGE_ID );
       message.set_node_id( radio().id() );
+      message.set_dest_id( destination );
       message.set_seq_nr( seq_nr_ );
       message.set_payload( len, data );
 
@@ -276,9 +277,11 @@ namespace wiselib
             debug().debug( "FloodingAlgorithm: receive at %d from %d with seqnr %d (here is %d)\n",
                            radio_->id(), message->node_id(), message->seq_nr(), seq_map_[message->node_id()] );
 #endif
-
+			
             // Pass message to each registered receiver.
-            notify_receivers( message->node_id(), message->payload_size(), message->payload() );
+            if ( (message->dest_id() ==  radio().BROADCAST_ADDRESS ) ||  (message->dest_id() ==  radio().id() ) ){
+				notify_receivers( message->node_id(), message->payload_size(), message->payload() );
+			}
          }
          else
          {
