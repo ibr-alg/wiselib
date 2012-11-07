@@ -117,8 +117,13 @@ namespace wiselib {
 
         iSenseExtendedTxRadioModel(isense::Os& os)
         : os_(os) {
-            	//bool r = os_.dispatcher().add_receiver(this);
-		//os.debug("register: %d\n", r);
+#ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
+            	bool r = os_.dispatcher().add_receiver(this);
+		os.debug("register: %d\n", r);
+#else
+            	os_.dispatcher().add_receiver(this);
+#endif
+
 #ifdef ISENSE_EXTENDED_TX_RADIO_RANDOM_DELAY
             os_.srand(os_.id());
 #endif
