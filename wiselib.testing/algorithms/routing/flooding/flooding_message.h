@@ -97,7 +97,6 @@ namespace wiselib
    {
       set_msg_id( 0 );
       set_node_id( 0 );
-      set_dest_id( 0 );
       size_t len = 0;
       write<OsModel, block_data_t, size_t>(buffer + PAYLOAD_POS, len);
    }
