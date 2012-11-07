@@ -63,7 +63,11 @@ namespace wiselib {
 			//}
 			
 			void init() {
-				card_.init();
+#if ARDUINO_USE_ETHERNET
+                card_.init();
+#else
+                card_.init(0,4);
+#endif
 			}
 			
 			int erase(address_t start_block, address_t blocks) {
