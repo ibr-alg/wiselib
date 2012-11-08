@@ -148,50 +148,29 @@ namespace wiselib
 			memcpy((buffer_ + DESTINATION_ADDRESS_BYTE), destination.addr, 16);
 		}
 		
-		/** \brief Set bytes into the payload
-		* \param data byte array
+		/**
+		* \brief Set bytes into the payload
+		* \param data pointer to the first element
+		* \param shift byte shift from the beginning of the payload
 		* \param len the length of the array
-		* \param shift byte shift from the beginning of the payload
+		* The template parameter defines the type of the actual variable
+		* The endianness is handled, the data will be in the array as the little endian way
 		*/
-		void set_payload( uint8_t* data, uint16_t len = 0, int shift = 0 )
+		template<typename Type_P>
+		inline void set_payload( Type_P* data, int shift = 0, uint16_t len = 1 )
 		{
-			//Payload
-			if( len == 0 )
-				len = length();
-			
-			memcpy((buffer_ + PAYLOAD_POS + shift), data, len);
-		}
-		
-		/** \brief Set an uint16_t into the payload
-		* \param data pointer to the data
-		* \param shift byte shift from the beginning of the payload
-		*/
-		void set_payload( uint16_t* data, int shift = 0 )
-		{
-			buffer_[PAYLOAD_POS + shift] = ( *(data) >> 8 ) & 0xFF;
-			buffer_[PAYLOAD_POS + shift + 1] = ( *(data) ) & 0xFF;
-		}
-		
-		/** \brief Set an uint32_t into the payload
-		* \param data pointer to the data
-		* \param shift byte shift from the beginning of the payload
-		*/
-		void set_payload( uint32_t* data, int shift = 0 )
-		{
-			//Shifts: 24, 16, 8, 0
-			for( int i = 0; i < 8; i++ )
-				buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (32 - ((i+1)*8)) ) & 0xFF;
-		}
-		
-		/** \brief Set an uint64_t into the payload
-		* \param data pointer to the data
-		* \param shift byte shift from the beginning of the payload
-		*/
-		void set_payload( uint64_t* data, int shift = 0 )
-		{
-			//Shifts: 56, 48, 40, 32, 24, 16, 8, 0
-			for( int i = 0; i < 8; i++ )
-				buffer_[PAYLOAD_POS + shift + i] = ( *(data) >> (64 - ((i+1)*8)) ) & 0xFF;
+			for( uint16_t l = 1; l <= len; l++ )
+			{
+				for( unsigned int i = 0; i < sizeof(Type_P); i++ )
+					if( OsModel::endianness == WISELIB_LITTLE_ENDIAN )
+						buffer_[PAYLOAD_POS + shift + sizeof(Type_P) - 1 - i] = *((uint8_t*)data + i);
+					else
+						buffer_[PAYLOAD_POS + shift + i] = *((uint8_t*)data + i);
+				
+				//Next element
+				data += 1;
+				shift += sizeof(Type_P);
+			}
 		}
 		///@}
 		

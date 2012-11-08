@@ -220,9 +220,9 @@ namespace wiselib
 			*/
 			uint16_t checksum = ip_packet->generate_checksum();
 			if( ip_packet->next_header() == Radio_LoWPAN::UDP )
-				ip_packet->set_payload( &checksum, 6 );
+				ip_packet->template set_payload<uint16_t>( &checksum, 6 );
 			else if( ip_packet->next_header() == Radio_LoWPAN::ICMPV6 )
-				ip_packet->set_payload( &checksum, 2 );
+				ip_packet->template set_payload<uint16_t>( &checksum, 2 );
 			else
 				return ERR_NOTIMPL;
 			
