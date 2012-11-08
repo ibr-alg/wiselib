@@ -119,8 +119,8 @@ namespace wiselib
 			lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
 			
 			#ifdef ISENSE
-			if( radio_->set_channel( 18 ) == 18 )
-				debug_->debug( "Radio channel is set to: 18! " );
+			if( radio_->set_channel( 26 ) == 26 )
+				debug_->debug( "Radio channel is set to: 26! " );
 			else
 				debug_->debug( "Fatal error: Radio channel can't be configured! " );
 			#endif

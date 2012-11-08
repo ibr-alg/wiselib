@@ -143,7 +143,7 @@ namespace wiselib
 		*/
 		void reset_timer()
 		{
-			timer().template set_timer<self_type, &self_type::timeout>( 2000, this, (void*) received_fragments_number_ );
+			timer().template set_timer<self_type, &self_type::timeout>( 300, this, (void*) received_fragments_number_ );
 		}
 		
 		// -----------------------------------------------------------------

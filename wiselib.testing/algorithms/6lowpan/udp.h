@@ -437,6 +437,14 @@ namespace wiselib
 		if( socket_number < 0 || socket_number >= NUMBER_OF_UDP_SOCKETS || (sockets_[socket_number].callback_id == -1) )
 			return ERR_NOTIMPL;
 		
+		if( len >= LOWPAN_IP_PACKET_BUFFER_MAX_SIZE )
+		{
+			#ifdef UDP_LAYER_DEBUG
+			debug().debug( "UDP layer: Error payload too big (%i). Maximum length: %i", len, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE );
+			#endif
+			return ERR_NOTIMPL;
+		}
+		
 		if( sockets_[socket_number].remote_host == Radio_IP::NULL_NODE_ID )
 		{
 			#ifdef UDP_LAYER_DEBUG
@@ -463,7 +471,10 @@ namespace wiselib
 		message->set_next_header(Radio_IP::UDP);
 		//Maximum limit
 		message->set_hop_limit(255);
-		message->set_length(len + 8);
+		
+		//The length includes the UDP header all places
+		len = len + 8;
+		message->set_length(len);
 		
 		//The source address will be set in the interface manager to support different interfaces and more addresses
 		//ip_node_id_t sourceaddr;
@@ -476,32 +487,18 @@ namespace wiselib
 		message->set_flow_label(flow_label_);
 		message->set_traffic_class(traffic_class_);
 		
-		uint8_t tmp;
-		
 		//Construct the UDP header
 		//Local Port
-		tmp = ( sockets_[socket_number].local_port >> 8 ) & 0xFF;
-		message->set_payload( &tmp, 1, 0 );
-		
-		tmp = ( sockets_[socket_number].local_port ) & 0xFF;
-		message->set_payload( &tmp, 1, 1 );
+		message->template set_payload<uint16_t>( &(sockets_[socket_number].local_port), 0 );
 		
 		//Remote Port
-		tmp = ( sockets_[socket_number].remote_port >> 8 ) & 0xFF;
-		message->set_payload( &tmp, 1, 2 );
-		
-		tmp = ( sockets_[socket_number].remote_port ) & 0xFF;
-		message->set_payload( &tmp, 1, 3 );
+		message->template set_payload<uint16_t>( &(sockets_[socket_number].remote_port), 2 );
 		
 		//Length (payload + UDP header)
-		tmp = ( (len + 8) >> 8 ) & 0xFF;
-		message->set_payload( &tmp, 1, 4 );
-		
-		tmp = ( (len + 8) ) & 0xFF;
-		message->set_payload( &tmp, 1, 5 );
+		message->template set_payload<uint16_t>( &(len), 4 );
 		
 		//UDP payload
-		message->set_payload( data, len, 8 );
+		message->template set_payload<uint8_t>( data, 8, len );
 		
 		//Generate CHECKSUM in the interface manager because the source address will be set there
 		
@@ -531,7 +528,6 @@ namespace wiselib
 			return;
 		//data is NULL, use this pointer for the payload
 		data = message->payload();
-		
 		
 		uint16_t actual_local_port = ( data[2] << 8 ) | data[3];
 		

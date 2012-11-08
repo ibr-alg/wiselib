@@ -278,8 +278,12 @@ namespace wiselib
 		///@name Radio Concept
 		///@{
 		/**
+		* ICMP echo request sending (ping) with payload
+		* \param receiver IPv6 address of the destination
+		* \param len size of the payload
+		* \param data pointer to the first byte of the payload
 		*/
-		int send( node_id_t receiver, size_t len, block_data_t *data );
+		int send( node_id_t receiver, uint16_t len, block_data_t *data );
 		/**
 		* Callback function of the layer. This is called by the IPv6 layer.
 		* \param from The IP address of the sender
@@ -301,8 +305,7 @@ namespace wiselib
 		*/
 		int ping( node_id_t destination )
 		{
-			uint8_t data = ECHO_REQUEST;
-			return send( destination, 1, &data );
+			return send( destination, 0, NULL );
 		}
 		
 		/**
@@ -681,17 +684,19 @@ namespace wiselib
 		typename Timer_P>
 	int
 	ICMPv6<OsModel_P, Radio_IP_P, Radio_P, Debug_P, Timer_P>::
-	send( node_id_t destination, size_t len, block_data_t *data )
+	send( node_id_t destination, uint16_t len, block_data_t *data )
 	{
-		/*
-		data structure:
-		[0]: message type code
-		[1][2]: identifier for echo reply
-		[3-]: options
-		*/
+		if( len >= LOWPAN_IP_PACKET_BUFFER_MAX_SIZE )
+		{
+			#ifdef ICMPv6_LAYER_DEBUG
+			debug().debug( "ICMPv6 layer: Error payload too big (%i). Maximum length: %i", len, LOWPAN_IP_PACKET_BUFFER_MAX_SIZE );
+			#endif
+			return ERR_NOTIMPL;
+		}
+		
 		#ifdef ICMPv6_LAYER_DEBUG
 		char str[43];
-		debug().debug( "ICMPv6 layer: Send (%i) to %s", *data, destination.get_address(str) );
+		debug().debug( "ICMPv6 layer: Send echo request to %s", destination.get_address(str) );
 		#endif
 		
 		//Get a packet from the manager
@@ -713,44 +718,29 @@ namespace wiselib
 		message->set_flow_label(0);
 		message->set_traffic_class(0);
 		
-		//For most of the ICMPv6 messages but for some it has to be larger
-		message->set_length(8);
+		//Echo request header 8 bytes + payload
+		message->set_length(8 + len);
 		
 		//Message Type
-		message->set_payload( data, 1, 0 );
+		uint8_t setter_byte = ECHO_REQUEST;
+		message->template set_payload<uint8_t>( &setter_byte, 0, 1 );
 		
 		//Message Code
-		uint8_t zero = 0;
-		message->set_payload( &zero, 1, 1 );
+		setter_byte = 0;
+		message->template set_payload<uint8_t>( &setter_byte, 1, 1 );
 
-		int typecode = data[0];
-		switch(typecode){
-			case ECHO_REQUEST:
-				//Identifier
-				uint8_t id[2];
-				generate_id(id);
-				message->set_payload( id, 2, 4 );
-				
-				//Sequence Number - 0 - 2 bytes
-				//message->set_payload( &zero, 2, 6 );
-				break;
-			case ECHO_REPLY:
-				//Identifier
-				message->set_payload( data + 1, 2, 4 );
-			 
-				//Sequence Number - 0 - 2 bytes
-				//message->set_payload( &zero, 2, 6 );
-				break;
-			default:
-				#ifdef ICMPv6_LAYER_DEBUG
-				debug().debug( "ICMPv6 layer: error, incorrect message code: %i ", *data );
-				#endif
-				return ERR_UNSPEC;
-		}
+		uint8_t id[2];
+		generate_id(id);
+		
+		message->template set_payload<uint8_t>( id, 4, 2 );
+	
+		//Sequence Number - 0 - 2 bytes
+		
+		//Set the payload if it is needed
+		if( len > 0 )
+			message->template set_payload<uint8_t>( data, 8, len );
 		
 		//Generate CHECKSUM in the interface manager because the source address will be set there
-		message->set_payload( &zero, 1, 2 );
-		message->set_payload( &zero, 1, 3 );
 		
 		//Send the packet to the IP layer
 		int result = radio_ip().send( destination, packet_number, NULL );
@@ -777,8 +767,8 @@ namespace wiselib
 		if( message->next_header() != Radio_IP::ICMPV6 )
 			return;
 		//data is NULL, use this pointer for the payload
-		data = message->payload();	
-		
+		data = message->payload();
+
 		uint16_t checksum = ( data[2] << 8 ) | data[3];
 		data[2] = 0;
 		data[3] = 0;
@@ -803,15 +793,34 @@ namespace wiselib
 			char str[43];
 			debug().debug( "ICMPv6 layer: Echo request received from: %s sending echo reply.", from.get_address(str));
 			#endif
-			//Send an ECHO_REPLY
-			uint8_t reply_data[3];
-			reply_data[0] = ECHO_REPLY;
-			reply_data[1] = data[4];
-			reply_data[2] = data[5];
+
+			//Only send back the same packet
+			//Switch the addresses
+			node_id_t my_address;
+			message->destination_address( my_address );
 			
-			packet_pool_mgr_->clean_packet( message );
+			//Put the original address only if it is not a multicast one
+			//In this case just put a NULL address, the interface manager will change it
+			if( my_address.addr[0] == 0xFF )
+			{
+				my_address = IPv6Address<Radio_P, Debug_P>(0);
+			}
+			message->set_source_address(my_address);
 			
-			send( from, 3, reply_data );
+			message->set_destination_address(from);
+
+			//Change the ECHO_REQUEST to ECHO_REPLY
+			data[0] = ECHO_REPLY;
+			
+			//Delete the checksum, it will be recalculated
+			data[2] = 0;
+			data[3] = 0;
+			
+			//Send the packet to the IP layer
+			int result = radio_ip().send( from, packet_number, NULL );
+			//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
+			if( result != ROUTING_CALLED )
+				packet_pool_mgr_->clean_packet( message );
 		}
 		else if( typecode == ECHO_REPLY )
 		{
@@ -822,7 +831,7 @@ namespace wiselib
 			{
 				#ifdef ICMPv6_LAYER_DEBUG
 				char str[43];
-				debug().debug( "ICMPv6 layer: Echo reply received from: %s", from.get_address(str));
+				debug().debug( "ICMPv6 layer: Echo reply received from: %s (payload length: %i)", from.get_address(str), message->length()-8);
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				uint8_t typecode_short = (uint8_t)typecode;
@@ -1614,8 +1623,8 @@ namespace wiselib
 		message->set_flow_label(0);
 		message->set_traffic_class(0);
 		//Message Code
-		uint8_t zero = 0;
-		message->set_payload( &zero, 1, 1 );
+		//uint8_t zero = 0;
+		//message->template set_payload<uint8_t>( &zero, 1, 1 );
 		
 		
 		node_id_t* src_addr = NULL;
@@ -1654,7 +1663,7 @@ namespace wiselib
 			length = 16;
 			
 			//Set the Cur Hop Limit
-			message->set_payload( &(act_nd_storage->adv_cur_hop_limit), 1, 4 );
+			message->template set_payload<uint8_t>( &(act_nd_storage->adv_cur_hop_limit), 4 );
 			
 			//Set the M and O flags
 			uint8_t setter_byte = 0;
@@ -1662,16 +1671,16 @@ namespace wiselib
 				setter_byte |= 0x80;
 			if( act_nd_storage->adv_other_config_flag )
 				setter_byte |= 0x40;
-			message->set_payload( &(setter_byte), 1, 5 );
+			message->template set_payload<uint8_t>( &(setter_byte), 5 );
 			
 			//Set the Router Lifetime
-			message->set_payload( &(act_nd_storage->adv_default_lifetime), 6 );
+			message->template set_payload<uint16_t>( &(act_nd_storage->adv_default_lifetime), 6 );
 			
 			//Set the Reachable Time
-			message->set_payload( &(act_nd_storage->adv_reachable_time), 8 );
+			message->template set_payload<uint32_t>( &(act_nd_storage->adv_reachable_time), 8 );
 			
 			//Set the Retrans Timer
-			message->set_payload( &(act_nd_storage->adv_retrans_timer), 12 );
+			message->template set_payload<uint32_t>( &(act_nd_storage->adv_retrans_timer), 12 );
 			
 			//----------------------------------
 			//Call Options here
@@ -1711,7 +1720,8 @@ namespace wiselib
 			//4 bytes reserved
 			
 			//Set the Target Address field
-			message->set_payload( dest_addr->addr, 16, 8 );
+			message->template set_payload<uint8_t>(  dest_addr->addr, 8, 16 );
+			
 			
 			//----------------------------------
 			//Call Options here
@@ -1745,10 +1755,10 @@ namespace wiselib
 			uint8_t setter_byte = 0x60;
 			if( act_nd_storage->is_router )
 				setter_byte |= 0x80;
-			message->set_payload( &setter_byte, 1, 4 );
+			message->template set_payload<uint8_t>( &(setter_byte), 4 );
 			
 			//Set the Target Address field
-			message->set_payload( dest_addr->addr, 16, 8 );
+			message->template set_payload<uint8_t>(  dest_addr->addr, 8, 16 );
 			
 			//----------------------------------
 			//Call Options here
@@ -1774,7 +1784,7 @@ namespace wiselib
 		message->set_length( length );
 		message->set_source_address(*(src_addr));
 		//Message Type
-		message->set_payload( &typecode, 1, 0 );	
+		message->template set_payload<uint8_t>( &typecode, 0 );
 		
 		//Generate CHECKSUM in the interface manager because the source address will be set there
 		
@@ -1820,24 +1830,23 @@ namespace wiselib
 		else
 			setter_byte = SOURCE_LL_ADDRESS;
 		
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Set the link layer address with function overload.
-		message->set_payload( (uint32_t*)(&link_layer_address), length + 1 );
+		message->template set_payload<link_layer_node_id_t>( (&link_layer_address), length++ );
 		
 		//set the length
-		
 		if( sizeof( link_layer_node_id_t ) + 2 < 8 )
 		{
 			setter_byte = 1;
-			message->set_payload( &(setter_byte), 1, length++ );
+			message->template set_payload<uint8_t>( &(setter_byte), length++ );
 			//full size of this option 1*8 bytes
 			length += 6;
 		}
 		else
 		{
 			setter_byte = 2;
-			message->set_payload( &(setter_byte), 1, length++ );
+			message->template set_payload<uint8_t>( &(setter_byte), length++ );
 			//full size of this option 2*8 bytes
 			length += 14;
 		}
@@ -1892,7 +1901,7 @@ namespace wiselib
 	{
 		//set the type
 		uint8_t setter_byte = PREFIX_INFORMATION;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 // 		#ifdef ND_DEBUG
 // 		debug().debug( "ND insert prefix option (num: %i)", prefix_number );
@@ -1900,10 +1909,10 @@ namespace wiselib
 		
 		//Set the size
 		setter_byte = 4;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Prefix length
-		message->set_payload( &(radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].ip_address.prefix_length), 1, length++ );
+		message->template set_payload<uint8_t>( &(radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].ip_address.prefix_length), length++ );
 		
 		//on-link flag
 		if( radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].adv_onlink_flag )
@@ -1911,19 +1920,19 @@ namespace wiselib
 		//address conf flag
 		if( radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].adv_antonomous_flag )
 			setter_byte |= 0x40;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Valid lifetime - uint32_t
-		message->set_payload( &(radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].adv_valid_lifetime), length );
+		message->template set_payload<uint32_t>( &(radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].adv_valid_lifetime), length );
 		length += 4;
 		
 		//Prefered lifetime - uint32_t
-		message->set_payload( &(radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].adv_prefered_lifetime), length );
+		message->template set_payload<uint32_t>( &(radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].adv_prefered_lifetime), length );
 		// + 4 bytes reserved
 		length += 8;
 		
 		//Copy the prefix
-		message->set_payload( radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].ip_address.addr, 16, length );
+		message->template set_payload<uint8_t>( radio_ip_->interface_manager_->prefix_list[target_interface][prefix_number].ip_address.addr, length, 16 );
 		length += 16;
 		
 	}
@@ -1998,24 +2007,24 @@ namespace wiselib
 	{
 		//set the type
 		uint8_t setter_byte = ADDRESS_REGISTRATION;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Set the size
 		setter_byte = 2;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Set the status
-		message->set_payload( &(status), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//3 bytes reserved
 		length += 3;
 		
 		//Set the lifetime - uint16_t
-		message->set_payload( &registration_lifetime, length );
+		message->template set_payload<uint16_t>( &registration_lifetime, length );
 		length += 2;
 		
 		//Set the EUI-64
-		message->set_payload( &link_layer_address, length );
+		message->template set_payload<uint64_t>( &link_layer_address, length );
 		length += 8;
 	}
 	
@@ -2079,7 +2088,7 @@ namespace wiselib
 	{
 		//set the type
 		uint8_t setter_byte = LOWPAN_CONTEXT;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//get the context (IP) from the context manager
 		node_id_t* context = radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.get_prefix_by_number( context_id );
@@ -2089,11 +2098,11 @@ namespace wiselib
 			setter_byte = 3;
 		else
 			setter_byte = 2;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Context Lenghth
 		setter_byte = context->prefix_length;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Determinate that the context is valid for compression or not
 		if( radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[context_id].valid )
@@ -2103,24 +2112,24 @@ namespace wiselib
 		
 		//Set the CID
 		setter_byte |= context_id;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//2 bytes reserved
 		length += 2;
 		
 		//Set the valid lifetime - uint16_t
-		message->set_payload( &(radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[context_id].valid_lifetime), length );
+		message->template set_payload<uint16_t>( &(radio_ip_->interface_manager_->radio_lowpan_->context_mgr_.contexts[context_id].valid_lifetime), length );
 		length += 2;
 		
 		//Set the prefix - the option has to be multiple of 8-bytes
 		if( context->prefix_length > 64 )
 		{
-			message->set_payload( context->addr, 16, length );
+			message->template set_payload<uint8_t>( context->addr, length, 16 );
 			length += 16;
 		}
 		else
 		{
-			message->set_payload( context->addr, 8, length );
+			message->template set_payload<uint8_t>( context->addr, length, 8 );
 			length += 8;
 		}
 	}
@@ -2184,25 +2193,22 @@ namespace wiselib
 	{
 		//set the type
 		uint8_t setter_byte = AUTHORITIVE_BORDER_ROUTER;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Length of the Option
 		setter_byte = 3;
-		message->set_payload( &(setter_byte), 1, length++ );
+		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
 		//Set the version number
-		uint16_t version = act_nd_storage->border_router_version_number & 0xFFFF;
-		message->set_payload( &version, length );
-		version = act_nd_storage->border_router_version_number >> 16;
-		message->set_payload( &version, length );
+		message->template set_payload<uint32_t>( &(act_nd_storage->border_router_version_number), length );
 		length += 4;
 		
 		//Set the valid lifetime - uint16_t
-		message->set_payload( &(act_nd_storage->abro_valid_lifetime), length );
+		message->template set_payload<uint16_t>( &(act_nd_storage->abro_valid_lifetime), length );
 		length += 2;
 		
 		//Set border router's address
-		message->set_payload( act_nd_storage->border_router_address.addr, 16, length );
+		message->template set_payload<uint8_t>( act_nd_storage->border_router_address.addr, length, 16 );
 		length += 16;
 	}
 	

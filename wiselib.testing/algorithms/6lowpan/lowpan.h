@@ -760,7 +760,7 @@ namespace wiselib
 
 		//The *data has to be a constructed IPv6 package
 		IPv6Packet_t *ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
-
+		
 		//Send the package to the next hop
 		node_id_t mac_destination;
 		
@@ -1200,7 +1200,7 @@ namespace wiselib
 		if( fragment_offset != 0 )
 			real_payload_offset -= 40;
 		
-		reassembling_mgr_.ip_packet->set_payload( buffer_ + ACTUAL_SHIFT, len - ACTUAL_SHIFT, real_payload_offset );
+		reassembling_mgr_.ip_packet->template set_payload<uint8_t>( buffer_ + ACTUAL_SHIFT, real_payload_offset, len - ACTUAL_SHIFT );
 		reassembling_mgr_.received_datagram_size += len - ACTUAL_SHIFT;
 	//----------------------------------------------------------------------------------------
 	// Reassembling		END
@@ -1214,12 +1214,11 @@ namespace wiselib
 			if( reassembling_mgr_.ip_packet->next_header() == UDP )
 			{
 				//Generate CHECKSUM, set 0 to the checkum's bytes first
-				uint8_t tmp = 0;
-				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 6 );
-				reassembling_mgr_.ip_packet->set_payload( &tmp, 1, 7 );
+				uint16_t tmp = 0;
+				reassembling_mgr_.ip_packet->template set_payload<uint16_t>( &(tmp), 6 );
 			
-				uint16_t checksum = reassembling_mgr_.ip_packet->generate_checksum();
-				reassembling_mgr_.ip_packet->set_payload( &checksum, 6 );
+				tmp = reassembling_mgr_.ip_packet->generate_checksum();
+				reassembling_mgr_.ip_packet->template set_payload<uint16_t>( &(tmp), 6 );
 			}
 			
 			reassembling_mgr_.ip_packet->target_interface = INTERFACE_RADIO;
@@ -1791,14 +1790,14 @@ namespace wiselib
 				//Traffic class (ECN & DSCP)
 				packet->set_traffic_class(bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + TRAFLO_00_TRA_BYTE, TRAFLO_00_TRA_BIT, TRAFLO_00_TRA_LEN ));
 				//Flow label
-				packet->set_flow_label(bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + ACTUAL_SHIFT + TRAFLO_00_FLO_BYTE, TRAFLO_00_FLO_BIT, TRAFLO_00_FLO_LEN ));
+				packet->set_flow_label(bitwise_read<OsModel, block_data_t, uint32_t>( buffer_ + ACTUAL_SHIFT + TRAFLO_00_FLO_BYTE, TRAFLO_00_FLO_BIT, TRAFLO_00_FLO_LEN ));
 				ACTUAL_SHIFT += 4;
 				break;
 			case 1:
 				//ECN from Traffic class
 				packet->set_traffic_class((bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + TRAFLO_01_ECN_BYTE, TRAFLO_01_ECN_BIT, TRAFLO_01_ECN_LEN )) << 6);
 				//Flow Label
-				packet->set_flow_label(bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + ACTUAL_SHIFT + TRAFLO_01_FLO_BYTE, TRAFLO_01_FLO_BIT, TRAFLO_01_FLO_LEN ));
+				packet->set_flow_label(bitwise_read<OsModel, block_data_t, uint32_t>( buffer_ + ACTUAL_SHIFT + TRAFLO_01_FLO_BYTE, TRAFLO_01_FLO_BIT, TRAFLO_01_FLO_LEN ));
 				ACTUAL_SHIFT += 3;
 				break;				
 			case 2:
@@ -1923,44 +1922,40 @@ namespace wiselib
 			// C bit don't care the checksum is always elided
 			//Get the P bits
 			uint8_t P_mode = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NHC_SHIFT + NHC_P_BYTE, NHC_P_BIT, NHC_P_LEN );
-			uint8_t tmp;
+			uint16_t port;
 			switch( P_mode ){
 				case 0:
 					//Source & Destination in-line
-					packet->set_payload( buffer_ + ACTUAL_SHIFT, 4, 0 );
+					packet->template set_payload<uint8_t>( buffer_ + ACTUAL_SHIFT, 0, 4 );
 					ACTUAL_SHIFT += 4;
 					break;
 				case 1:
 					//Source in-line, Destination is 0xF0XX
 					//Source
-					packet->set_payload( buffer_ + ACTUAL_SHIFT, 2, 0 );
+					packet->template set_payload<uint8_t>( buffer_ + ACTUAL_SHIFT, 0, 2 );
 					ACTUAL_SHIFT += 2;
 					//Destination
-					tmp = 0xF0;
-					packet->set_payload( &tmp, 1, 2 );
-					packet->set_payload( buffer_ + ACTUAL_SHIFT, 1, 3 );
+					port = 0xF000 | buffer_[ACTUAL_SHIFT];
+					packet->template set_payload<uint16_t>( &port, 2, 1 );
 					ACTUAL_SHIFT++;
 					break;
 				case 2:
 					//Destination in-line, Source is 0xF0XX
 					//Source
-					tmp = 0xF0;
-					packet->set_payload( &tmp, 1, 0 );
-					packet->set_payload( buffer_ + ACTUAL_SHIFT, 1, 1 );
+					port = 0xF000 | buffer_[ACTUAL_SHIFT];
+					packet->template set_payload<uint16_t>( &port, 0, 1 );
 					ACTUAL_SHIFT++;
 					//Destination
-					packet->set_payload( buffer_ + ACTUAL_SHIFT, 2, 2 );
+					packet->template set_payload<uint8_t>( buffer_ + ACTUAL_SHIFT, 2, 2 );
 					ACTUAL_SHIFT += 2;
 					break;
 				case 3:
 					//Source & Destination 0xF0BX form
-					tmp = 0xF0;
-					packet->set_payload( &tmp, 1, 0 );
-					packet->set_payload( &tmp, 1, 2 );
-					tmp = 0xB0 | (buffer_[ACTUAL_SHIFT] >> 4);
-					packet->set_payload( &tmp, 1, 1 );
-					tmp = 0xB0 | (buffer_[ACTUAL_SHIFT] & 0x0F);
-					packet->set_payload( &tmp, 1, 3 );
+					port = 0xF0B0 | (buffer_[ACTUAL_SHIFT] >> 4);
+					packet->template set_payload<uint16_t>( &port, 0, 1 );
+
+					port = 0xF0B0 | (buffer_[ACTUAL_SHIFT] & 0x0F);
+					packet->template set_payload<uint16_t>( &port, 2, 1 );
 					ACTUAL_SHIFT++;
 					break;
 			}//Switch end
@@ -1968,10 +1963,9 @@ namespace wiselib
 		//------------------------------------
 		// LENGHT
 		//------------------------------------
-				tmp = ( packet_len - ACTUAL_SHIFT ) >> 8;
-				packet->set_payload( &tmp, 1, 4 );
-				tmp = ( packet_len - ACTUAL_SHIFT ) & 0x00FF;
-				packet->set_payload( &tmp, 1, 5 );
+
+				uint16_t final_len = packet_len - ACTUAL_SHIFT;
+				packet->template set_payload<uint16_t>( &final_len, 4, 1 );
 				
 		//NOTE Checksum will be calculated befor the notify_receivers call
 	}
