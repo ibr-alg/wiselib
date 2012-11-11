@@ -604,12 +604,13 @@ namespace wiselib
 		bool is_it_short_address( IPv6Address_t* address );
 		
 		/**
-		* Helper function to determine that the destination is the next hop
+		* Helper function to determine that the actual IP address is generated from the MAC or not
 		* It is required for the compression because if it is true, the whole IP address could be elided
 		* \param ip_packet pointer to the actual IP packet
 		* \param mac_address pointer to the next hop's MAC address
+		* \param source determinates that the source or the destination address will be compared
 		*/
-		bool is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address );
+		bool is_it_same_address( IPv6Packet_t* ip_packet, node_id_t* mac_address, bool source );
 		
 		/**
 		* Set unicast address to the ACTUAL_SHIFT position
@@ -763,7 +764,7 @@ namespace wiselib
 		
 		//Send the package to the next hop
 		node_id_t mac_destination;
-		
+
 		if( ip_packet->remote_ll_address != NULL_NODE_ID )
 			mac_destination = ip_packet->remote_ll_address;
 		else
@@ -771,7 +772,6 @@ namespace wiselib
 			if( IP_to_MAC( destination, mac_destination) != SUCCESS )
 				return ERR_UNSPEC;
 
-	
 	#ifdef LOWPAN_MESH_UNDER
 	//------------------------------------------------------------------------------------------------------------
 	//		MESH UNDER HEADER
@@ -887,7 +887,9 @@ namespace wiselib
 				payload_length = 0;
 			}
 			
-			//debug().debug("PAY LEN: %x buffer: %i %i", ACTUAL_SHIFT, buffer_[0], buffer_[1] );
+			//debug().debug("PAY LEN: %x ", ACTUAL_SHIFT );
+			//for(int i = 0; i < ACTUAL_SHIFT; i++ )
+			//	debug().debug("%i: %x", i, buffer_[i]);
 			#ifdef LOWPAN_ROUTE_OVER
 			if ( radio().send( mac_destination, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
 				return ERR_UNSPEC;
@@ -1842,7 +1844,7 @@ namespace wiselib
 				return ERR_UNSPEC;
 			
 			packet->set_source_address( address );
-		
+			
 		//------------------------------------
 		// DESTINATION
 		//------------------------------------
@@ -1998,25 +2000,32 @@ namespace wiselib
 		typename Uart_Radio_P>
 	bool
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
-	is_it_next_hop( IPv6Packet_t* ip_packet, node_id_t* mac_address )
+	is_it_same_address( IPv6Packet_t* ip_packet, node_id_t* mac_address, bool source )
 	{
 		//Copy the prefix
-		IPv6Address_t destination;
-		ip_packet->destination_address(destination);
-		
+		IPv6Address_t from_packet;
 		IPv6Address_t test_derived;
-		ip_packet->destination_address(test_derived);
-		
+		if( source )
+		{
+			ip_packet->source_address(from_packet);
+			ip_packet->source_address(test_derived);
+		}
+		else
+		{
+			ip_packet->destination_address(from_packet);
+			ip_packet->destination_address(test_derived);
+		}
+
 		//Global or local IID
 		bool global;
-		if( (destination.addr[8] & 0x02) > 0 )
+		if( (from_packet.addr[8] & 0x02) > 0 )
 			global = true;
 		else
 			global = false;
 		
 		test_derived.set_long_iid( mac_address, global );
 		
-		if( test_derived == destination )
+		if( test_derived == from_packet )
 			return true;
 		else
 			return false;
@@ -2039,6 +2048,7 @@ namespace wiselib
 		uint8_t AM_mode = 0;
 		
 		IPv6Address_t address;
+		
 		if( source )
 			packet->source_address(address);
 		else
@@ -2077,8 +2087,19 @@ namespace wiselib
 			//The whole mixing of the link_local and context based part is because the following modes are the same in both
 
 			//AM=11: address elided, if the IP destination address is derived from the actual link-layer destination address
-			//Test that the destination IP address is constructed from the destination MAC or not (1 HOP)
-			if( is_it_next_hop( packet, link_local_destination ) || *link_local_destination == BROADCAST_ADDRESS )
+			
+			bool elidable;
+			//Test that the source IP address is constructed from the source MAC or not
+			if( source )
+			{
+				node_id_t my_mac = radio_->id();
+				elidable = is_it_same_address( packet, &my_mac, true );
+			}
+			//Test that the destination IP address is constructed from the destination MAC or not
+			else
+				elidable = is_it_same_address( packet, link_local_destination, false );
+			
+			if( elidable || *link_local_destination == BROADCAST_ADDRESS )
 			{
 				//The IP can be elided because it will be reconsructed from the source MAC address
 				AM_mode = 3;
@@ -2180,14 +2201,14 @@ namespace wiselib
 				SCI_value = 0;
 			else if( source )
 				//Read the byte after the IPHC header, the source part is the upper 4 bits
-				SCI_value = (buffer_[IPHC_SHIFT + 3] >> 4);
+				SCI_value = (buffer_[IPHC_SHIFT + 2] >> 4);
 			else //destination
 			 	//destination at the lower 4 bits
-				SCI_value = (buffer_[IPHC_SHIFT + 3] & 0x0F );
+				SCI_value = (buffer_[IPHC_SHIFT + 2] & 0x0F );
 
 			//get the prefix from the context manager
 			IPv6Address_t* context_prefix = context_mgr_.get_prefix_by_number( SCI_value );
-			
+
 			//cancel if not a valid prefix
 			if( context_prefix == NULL )
 				return ERR_UNSPEC;
@@ -2211,10 +2232,12 @@ namespace wiselib
 				}
 			//link-layer source + infos from the context
 			case 3:
-				address.set_long_iid( link_local_address, false );
+				if( AC_mode == 0 )
+					address.set_long_iid( link_local_address, false );
+				else
+					address.set_long_iid( link_local_address, true );
 				break;
 		}
-		
 		return SUCCESS;
 	}
 	

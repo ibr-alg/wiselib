@@ -236,7 +236,7 @@ namespace wiselib
 		void timeout( void* old_received_size )
 		{
 			//If no new fragment since set the timer, reset the fragmentation process
-			if( receiving_ && (received_size_ == ( int )(old_received_size)) )
+			if( receiving_ && (received_size_ == ( unsigned int )(old_received_size)) )
 			{
 				receiving_ = false;
 				received_size_ = 0;

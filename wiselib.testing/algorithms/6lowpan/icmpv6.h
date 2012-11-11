@@ -150,7 +150,7 @@ namespace wiselib
 		typename Debug_P,
 		typename Timer_P>
 	class ICMPv6
-	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, typename Radio_P::size_t, typename Radio_P::block_data_t>
+	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, uint16_t, typename Radio_P::block_data_t>
 	{
 	public:
 		typedef OsModel_P OsModel;
@@ -1100,8 +1100,10 @@ namespace wiselib
 					#endif
 					packet_pool_mgr_->clean_packet( message );
 					
+					#ifdef LOWPAN_ROUTE_OVER
 					uint8_t number_target = ( 3 << 4 ) | target_interface;
 					send_RA_to_all_routers( (void*)number_target );
+					#endif
 					return;
 					
 				}
@@ -1686,7 +1688,9 @@ namespace wiselib
 			//Call Options here
 			
 			//insert ABRO
+			#ifdef LOWPAN_ROUTE_OVER
 			insert_authoritative_border_router_option( message, length, act_nd_storage );
+			#endif
 			
 			link_layer_node_id_t ll_source;
 			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
