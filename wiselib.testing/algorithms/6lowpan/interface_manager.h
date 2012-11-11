@@ -218,14 +218,16 @@ namespace wiselib
 			/*
 				Generate checksum
 			*/
-			uint16_t checksum = ip_packet->generate_checksum();
-			if( ip_packet->next_header() == Radio_LoWPAN::UDP )
-				ip_packet->template set_payload<uint16_t>( &checksum, 6 );
-			else if( ip_packet->next_header() == Radio_LoWPAN::ICMPV6 )
+			if( ((ip_packet->buffer_[42] << 8 ) | ip_packet->buffer_[43] ) == 0 && ip_packet->next_header() == Radio_LoWPAN::ICMPV6 )
+			{
+				uint16_t checksum = ip_packet->generate_checksum();
 				ip_packet->template set_payload<uint16_t>( &checksum, 2 );
-			else
-				return ERR_NOTIMPL;
-			
+			}
+			if( ((ip_packet->buffer_[46] << 8 ) | ip_packet->buffer_[47] ) == 0 && ip_packet->next_header() == Radio_LoWPAN::UDP )
+			{
+				uint16_t checksum = ip_packet->generate_checksum();
+				ip_packet->template set_payload<uint16_t>( &checksum, 6 );
+			}
 			
 			//Send the packet to the selected interface
 			if( selected_interface == INTERFACE_RADIO )

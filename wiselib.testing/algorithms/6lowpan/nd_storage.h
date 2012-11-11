@@ -627,7 +627,7 @@ namespace wiselib
 					//and the context is valid + the stored prefix matches the address' prefix
 					if( selected == LOWPAN_CONTEXTS_NUMBER &&
 						contexts[i].valid_lifetime > 0 &&
-						( memcmp( address.addr, contexts[i].prefix.addr, contexts[i].prefix.prefix_length ) == 0 ) )
+						( memcmp( address.addr, contexts[i].prefix.addr, (contexts[i].prefix.prefix_length / 8) ) == 0 ) )
 					{
 						selected = i;
 						//reset selected context's lifetime

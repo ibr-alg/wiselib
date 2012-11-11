@@ -409,7 +409,6 @@
 	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	send( node_id_t destination, size_t packet_number, block_data_t *data )
 	{
-		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
 		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
@@ -436,13 +435,15 @@
 		//Try to find the next hop
 		node_id_t next_hop;
 		uint8_t target_interface;
+		
 		int routing_result = routing_.find( destination, target_interface, next_hop );
 		//Route available, send the packet to the next hop
 		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
 			#ifdef IPv6_LAYER_DEBUG
-			char str[43];
-			debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(str), next_hop.get_address(str) );
+			char stra[43];
+			char strb[43];
+			debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(stra), next_hop.get_address(strb) );
 			#endif
 			//Send the package to the next hop
 			return interface_manager_->send_to_interface( next_hop, packet_number, NULL, target_interface );
@@ -533,20 +534,21 @@
 			message->source_address(source_ip);
 			
 			#ifdef IPv6_LAYER_DEBUG
+			link_layer_node_id_t my_mac = radio_->id();
 			char str[43];
 			if( destination_ip == BROADCAST_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s", source_ip.get_address(str) );
+				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %x", source_ip.get_address(str), my_mac );
 			else if( destination_ip == ALL_ROUTERS_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (to all routers) from %s", source_ip.get_address(str) );
+				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %x", source_ip.get_address(str), my_mac );
 			else
-				debug().debug( "IPv6 layer: Received packet (unicast) from %s", source_ip.get_address(str) );
+				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %x", source_ip.get_address(str), my_mac );
 			#endif
 			
 			//If it is not a supported transport layer, drop it
 			if( (message->next_header() != UDP) && (message->next_header() != ICMPV6) )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i)", message->next_header() );
+				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %x", message->next_header(), my_mac );
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				return;
@@ -575,6 +577,10 @@
 			char str[43];
 			debug().debug( "IPv6 layer: Packet forwarding to %s", destination.get_address(str) );
 			#endif
+			
+			//delete fields to enable routing
+			message->remote_ll_address = Radio_P::NULL_NODE_ID;
+			message->target_interface = NUMBER_OF_INTERFACES;
 			
 			if( send( destination, packet_number, NULL ) != ROUTING_CALLED )
 				packet_pool_mgr_->clean_packet( message );
