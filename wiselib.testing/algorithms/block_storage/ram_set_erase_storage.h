@@ -62,17 +62,23 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			int erase(erase_block_address_t start_block, erase_block_address_t blocks = 1) {
+			int erase(erase_block_address_t start_block) { return erase(start_block, 1); }
+			
+			int erase(erase_block_address_t start_block, erase_block_address_t blocks) {
 				memset(block_data_ + ERASE_BLOCK_SIZE * BLOCK_SIZE * start_block, 0xff, blocks * ERASE_BLOCK_SIZE * BLOCK_SIZE);
 				return SUCCESS;
 			}
 			
-			int read(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
+			int read(block_data_t* buffer, address_t start_block) { return read(buffer, start_block, 1); }
+				
+			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
 				memcpy(buffer, block_data_ + start_block * BLOCK_SIZE, blocks * BLOCK_SIZE);
 				return SUCCESS;
 			}
 			
-			int set(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
+			int set(block_data_t* buffer, address_t start_block) { return set(buffer, start_block, 1); }
+			
+			int set(block_data_t* buffer, address_t start_block, address_t blocks) {
 				memcpy(block_data_ + start_block * BLOCK_SIZE, buffer, blocks * BLOCK_SIZE);
 				return SUCCESS;
 			}

@@ -35,9 +35,9 @@ namespace wiselib {
 		template<typename T>
 		struct is_set_erase {
 			static const bool value =
-				has_read<T,  int (T::*)(typename T::block_data_t*, typename T::address_t, typename T::address_t)>::value &&
-				has_set<T,   int (T::*)(typename T::block_data_t*, typename T::address_t, typename T::address_t)>::value &&
-				has_erase<T, int (T::*)(typename T::erase_block_address_t, typename T::erase_block_address_t)>::value;
+				has_read<T,  int (T::*)(typename T::block_data_t*, typename T::address_t)>::value &&
+				has_set<T,   int (T::*)(typename T::block_data_t*, typename T::address_t)>::value &&
+				has_erase<T, int (T::*)(typename T::erase_block_address_t)>::value;
 		};
 		
 		template<bool IsSetErase, typename OsModel_P, typename Storage_P>

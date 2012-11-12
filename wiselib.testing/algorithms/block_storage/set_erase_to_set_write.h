@@ -26,18 +26,42 @@ namespace wiselib {
 	
 	template<
 		typename OsModel_P,
-		typename Storage_P
+		typename Storage_P,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class SetEraseToSetWrite : public ToSetWriteBase<OsModel_P, Storage_P> {
 		public:
 			typedef OsModel_P OsModel;
 			typedef Storage_P Storage;
+			typedef ToSetWriteBase<OsModel, Storage> Base;
+			
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum { NO_ADDRESS = (address_t)(-1) };
 			enum { BLOCK_SIZE = Storage::BLOCK_SIZE - sizeof(address_t) };
 			
+			SetEraseToSetWrite() : map_blocks_(1) {
+			}
+			
+			int init(typename Storage::self_pointer_t storage, typename Debug_P::self_pointer_t debug) {
+				debug_ = debug;
+				debug_->debug("SWS INIT");
+				
+				Base::init(storage);
+				
+				map_blocks_ = 1;
+				return init_allocation_map();
+			}
+			
+			int wipe() {
+				int r = storage().erase(0, Storage::ERASE_BLOCKS);
+				if(r != SUCCESS) { return r; }
+				map_blocks_ = 1;
+				return init_allocation_map();
+			}
+			
 			address_t create(block_data_t* buffer) {
 				address_t storage_addr = allocate_blocks(1);
+				if(storage_addr == NO_ADDRESS) { return NO_ADDRESS; }
 				int r = storage().set(buffer, storage_addr);
 				if(r != SUCCESS) { return NO_ADDRESS; }
 				return storage_addr;
@@ -152,8 +176,9 @@ namespace wiselib {
 			
 			
 			int init_allocation_map() {
-				allocate_blocks(ALLOCATION_MAP_BLOCKS);
-				return SUCCESS;
+				debug_->debug("init_allocation_map() ALLOCATION_MAP_BLOCKS = %d", ALLOCATION_MAP_BLOCKS);
+				address_t addr = allocate_blocks(ALLOCATION_MAP_BLOCKS);
+				return (addr == NO_ADDRESS) ? ERR_UNSPEC : SUCCESS;
 			}
 			
 			/**
@@ -163,10 +188,18 @@ namespace wiselib {
 				block_data_t buf[Storage::BLOCK_SIZE];
 				
 				for(address_t i=0; i<ALLOCATION_MAP_BLOCKS; i++) {
-					storage().read(buf, i);
-					address_t r = find_ones(n, buf);
-					set_zeros(buf, r, n);
-					if(r != NO_ADDRESS) { return r; }
+					int r = storage().read(buf, i);
+					if(r != SUCCESS) { return NO_ADDRESS; }
+					//debug_->debug("allocate_blocks read at %d: [%x %x %x %x ...]", i, (int)buf[0], (int)buf[1], (int)buf[2], (int)buf[3]);
+					
+					address_t pos = find_ones(n, buf);
+					if(pos == NO_ADDRESS) { continue; }
+					set_zeros(buf, pos, n);
+					
+					//debug_->debug("allocate_blocks setting at %d: [%x %x %x %x ...]", i, (int)buf[0], (int)buf[1], (int)buf[2], (int)buf[3]);
+					r = storage().set(buf, i);
+					if(r != SUCCESS) { return NO_ADDRESS; }
+					return pos;
 				}
 				return NO_ADDRESS;
 			}
@@ -198,6 +231,14 @@ namespace wiselib {
 				}
 			}
 			
+			static word_t read_word(word_t *p) {
+				block_data_t *p2 = reinterpret_cast<block_data_t*>(p);
+				word_t r = *p2;
+				p2++;
+				r |= *p2 << 8;
+				return r;
+			}
+			
 			/**
 			 */
 			static address_t find_ones(size_t n, block_data_t *buf) {
@@ -212,9 +253,10 @@ namespace wiselib {
 				
 				while(true) {
 					// find next non-null word
-					while((buf2 < buf2_end) && (*buf2 == 0)) { buf2++; }
+					while((buf2 < buf2_end) && (read_word(buf2) == 0)) { buf2++; }
 					if(buf2 >= buf2_end) { return NO_ADDRESS; }
-					word_t w = *buf2;
+					word_t w = read_word(buf2);
+					
 					while(w) {
 						address_t p = (buf2 - reinterpret_cast<word_t*>(buf)) * sizeof(word_t) * 8;
 						// forward until LSB is 1, or rest of w contains only 0s
@@ -243,10 +285,11 @@ namespace wiselib {
 					word_t ones;
 					
 					// 1. find next word ending in 1s
-					while(buf2 < buf2_end && !(*buf2 & msb<word_t>())) { buf2++; }
+					while(buf2 < buf2_end && !(read_word(buf2) & msb<word_t>())) { buf2++; }
 					if(buf2 >= buf2_end) { return NO_ADDRESS; }
 					address_t p = (buf2 - reinterpret_cast<word_t*>(buf)) * sizeof(word_t) * 8;
-					word_t w = *buf2; buf2++;
+					word_t w = read_word(buf2);
+					buf2++;
 					
 					size_t ones_end = 0;
 					while(w & msb<word_t>()) { w <<= 1; ones_end++; }
@@ -256,14 +299,14 @@ namespace wiselib {
 					// 2. next x words containing only of 1s
 					size_t min_full_words = (ones_todo / (sizeof(word_t)*8));
 					for(size_t i=0; i<min_full_words; i++, buf2++) {
-						if(*buf2 != (word_t)(-1)) {
+						if(read_word(buf2) != (word_t)(-1)) {
 							goto next_sequence_of_1s;
 						}
 					}
 					ones_todo -= (min_full_words * sizeof(word_t) * 8);
 					
 					// 3. ensure next word starting with at least y 1s
-					w = *buf2;
+					w = read_word(buf2);
 					ones = (word_t)(1 << ones_todo) - 1;
 					if((w & ones) == ones) { return p; }
 					
@@ -277,7 +320,7 @@ namespace wiselib {
 			// }}}
 			
 			size_t map_blocks_;
-			
+			typename Debug_P::self_pointer_t debug_;
 	};
 	
 } // namespace
