@@ -65,18 +65,28 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
+			/**
+			 */
+			int erase(erase_block_address_t start_block) {
+				return erase(start_block, 1);
+			}
+			
+			/// ditto.
 			int erase(erase_block_address_t start_block, erase_block_address_t blocks) {
 				//int sector = (_START_POSITION + BLOCK_SIZE * start_block) / 0x10000;
 				size_t sector = start_block + 2;
-				os_->debug("erasing sector %d", sector);
 				
 				// sectors 0 and 1 contain the program code, you probably
 				// dont want to erase them
-				if(sector < 2 || sector >= ERASE_BLOCKS) { return ERR_UNSPEC; }
+				if(sector < 2 || sector >= ERASE_BLOCKS) {
+					os_->debug("you wanted to erase hardware sector %d which i dont advise", sector);
+					return ERR_UNSPEC;
+				}
 				
 				for(size_t i = sector; i<sector+blocks; i++) {
+					//os_->debug("erasing sector %d", i);
 					bool r = os_->flash().erase(i);
-					if(r != SUCCESS) { return r; }
+					if(!r) { return ERR_UNSPEC; }
 				}
 				
 				return SUCCESS;
@@ -84,13 +94,26 @@ namespace wiselib {
 			
 			/**
 			 */
+			int read(block_data_t* buffer, address_t start_block) {
+				return read(buffer, start_block, 1);
+			}
+			
+			/// ditto.
 			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
+				//os_->debug("reading %d bytes at %x into %x",
+						//blocks * BLOCK_SIZE, _START_POSITION + start_block * BLOCK_SIZE, (int)(void*)buffer);
+				
 				bool r = os_->flash().read(_START_POSITION + start_block * BLOCK_SIZE, blocks * BLOCK_SIZE, buffer);
 				return r ? SUCCESS : ERR_UNSPEC;
 			}
 			
 			/**
 			 */
+			int set(block_data_t* buffer, address_t start_block) {
+				return set(buffer, start_block, 1);
+			}
+			
+			/// ditto.
 			int set(block_data_t* buffer, address_t start_block, address_t blocks) {
 				if(_START_POSITION + start_block * BLOCK_SIZE < 0x20000) {
 					os_->debug("set to %ld would overwrite program!",
@@ -104,6 +127,11 @@ namespace wiselib {
 			
 			/**
 			 */
+			int write(block_data_t* buffer, address_t start_block) {
+				return write(buffer, start_block, 1);
+			}
+			
+			/// ditto.
 			int write(block_data_t* buffer, address_t start_block, address_t blocks) {
 				erase(start_block, blocks);
 				set(buffer, start_block, blocks);
