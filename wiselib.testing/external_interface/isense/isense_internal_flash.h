@@ -40,10 +40,13 @@ namespace wiselib {
 			typedef size_type address_t; /// always refers to a block number
 			typedef iSenseInternalFlash<OsModel> self_type;
 			typedef self_type* self_pointer_t;
+			typedef size_type erase_block_address_t;
 			
 			enum {
 				BLOCK_SIZE = 512,
 				SIZE = 6 * 128, /// in blocks
+				ERASE_BLOCK_SIZE = 128,
+				ERASE_BLOCKS = 6,
 			};
 			
 			enum {
@@ -62,16 +65,21 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			int erase(address_t start_block, address_t blocks) {
-				int sector = (_START_POSITION + BLOCK_SIZE * start_block) / 0x10000;
+			int erase(erase_block_address_t start_block, erase_block_address_t blocks) {
+				//int sector = (_START_POSITION + BLOCK_SIZE * start_block) / 0x10000;
+				size_t sector = start_block + 2;
 				os_->debug("erasing sector %d", sector);
 				
 				// sectors 0 and 1 contain the program code, you probably
 				// dont want to erase them
-				if(sector < 2) { return ERR_UNSPEC; }
+				if(sector < 2 || sector >= ERASE_BLOCKS) { return ERR_UNSPEC; }
 				
-				bool r = os_->flash().erase(sector);
-				return r ? SUCCESS : ERR_UNSPEC;
+				for(size_t i = sector; i<sector+blocks; i++) {
+					bool r = os_->flash().erase(i);
+					if(r != SUCCESS) { return r; }
+				}
+				
+				return SUCCESS;
 			}
 			
 			/**

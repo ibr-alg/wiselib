@@ -17,39 +17,35 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-// vim: set noexpandtab ts=4 sw=4:
-
-#ifndef PC_DEBUG_H
-#define PC_DEBUG_H
-
-#include <iostream>
-#include <iomanip>
-#include <cstdarg>
-#include <cstdio>
+#ifndef TO_SET_WRITE_BASE_H
+#define TO_SET_WRITE_BASE_H
 
 namespace wiselib {
-	template<typename OsModel_P>
-	class PCDebug {
+
+	template<
+		typename OsModel_P,
+		typename Storage_P
+	>
+	class ToSetWriteBase {
 		public:
 			typedef OsModel_P OsModel;
+			typedef Storage_P Storage;
 			
-			typedef PCDebug<OsModel> self_type;
-			typedef self_type* self_pointer_t;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef typename Storage::address_t address_t;
 			
-			PCDebug() {
+			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
+			
+			int init(typename Storage::self_pointer_t storage) {
+				storage_ = storage;
+				return SUCCESS;
 			}
 			
-			void debug(const char* msg, ...) {
-				va_list fmtargs;
-				char buffer[1024];
-				va_start(fmtargs, msg);
-				vsnprintf(buffer, sizeof(buffer) - 1, msg, fmtargs);
-				va_end(fmtargs);
-				std::cout << buffer << std::endl;
-				std::cout.flush();
-			}
+		protected:
+			typename Storage::self_pointer_t storage_;
 	};
 }
 
-#endif // PC_DEBUG_H
+#endif // TO_SET_WRITE_BASE_H
 

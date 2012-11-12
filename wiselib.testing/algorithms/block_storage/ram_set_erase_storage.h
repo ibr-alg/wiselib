@@ -17,39 +17,70 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-// vim: set noexpandtab ts=4 sw=4:
-
-#ifndef PC_DEBUG_H
-#define PC_DEBUG_H
-
-#include <iostream>
-#include <iomanip>
-#include <cstdarg>
-#include <cstdio>
+#ifndef RAM_SET_ERASE_STORAGE_H
+#define RAM_SET_ERASE_STORAGE_H
 
 namespace wiselib {
-	template<typename OsModel_P>
-	class PCDebug {
+	
+	/**
+	 * \brief
+	 * 
+	 * \ingroup
+	 * 
+	 * \tparam 
+	 */
+	template<
+		typename OsModel_P
+	>
+	class RamSetEraseStorage {
+		
 		public:
 			typedef OsModel_P OsModel;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef size_type address_t; /// always refers to a block number
+			typedef size_type erase_block_address_t;
 			
-			typedef PCDebug<OsModel> self_type;
+			typedef RamSetEraseStorage<OsModel> self_type;
 			typedef self_type* self_pointer_t;
 			
-			PCDebug() {
+			enum {
+				BLOCK_SIZE = 512,
+				SIZE = 128,
+				ERASE_BLOCK_SIZE = 128,
+				ERASE_BLOCKS = 1,
+			};
+			
+			enum {
+				SUCCESS = OsModel::SUCCESS,
+				ERR_UNSPEC = OsModel::ERR_UNSPEC
+			};
+			
+			int init() {
+				//memset(block_data_, 0xff, sizeof(block_data_));
+				erase(0, ERASE_BLOCKS);
+				return SUCCESS;
 			}
 			
-			void debug(const char* msg, ...) {
-				va_list fmtargs;
-				char buffer[1024];
-				va_start(fmtargs, msg);
-				vsnprintf(buffer, sizeof(buffer) - 1, msg, fmtargs);
-				va_end(fmtargs);
-				std::cout << buffer << std::endl;
-				std::cout.flush();
+			int erase(erase_block_address_t start_block, erase_block_address_t blocks = 1) {
+				memset(block_data_ + ERASE_BLOCK_SIZE * BLOCK_SIZE * start_block, 0xff, blocks * ERASE_BLOCK_SIZE * BLOCK_SIZE);
+				return SUCCESS;
 			}
-	};
+			
+			int read(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
+				memcpy(buffer, block_data_ + start_block * BLOCK_SIZE, blocks * BLOCK_SIZE);
+				return SUCCESS;
+			}
+			
+			int set(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
+				memcpy(block_data_ + start_block * BLOCK_SIZE, buffer, blocks * BLOCK_SIZE);
+				return SUCCESS;
+			}
+		
+		private:
+			block_data_t block_data_[BLOCK_SIZE * SIZE];
+	}; // RamSetEraseStorage
 }
 
-#endif // PC_DEBUG_H
+#endif // RAM_SET_ERASE_STORAGE_H
 
