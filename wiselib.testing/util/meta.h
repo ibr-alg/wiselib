@@ -2,6 +2,23 @@
 #ifndef META_H
 #define META_H
 
+
+/**
+ * Provide for binary literals (up to 8 bits).
+ * Usage:
+ * BIN(11) --> 3
+ * BIN(01010) --> 10
+ * 
+ * (Leading zero is not required but always allowed)
+ */
+#define BIN(X) Binary< 0 ## X >::value
+
+template<unsigned long long N>
+struct Binary { enum { value = (N % 8) + 2 * Binary<N / 8>::value }; };
+template<>
+struct Binary<0> { enum { value = 0}; };
+
+
 // source: http://stackoverflow.com/questions/257288/is-it-possible-to-write-a-c-template-to-check-for-a-functions-existence/257382#257382
 
 #define HAS_METHOD(func, name) \
