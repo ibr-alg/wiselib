@@ -46,9 +46,9 @@ namespace wiselib {
 			
 			enum {
 				BLOCK_SIZE = 512,
-				SIZE = 128,
+				SIZE = 128 * 100,
 				ERASE_BLOCK_SIZE = 128,
-				ERASE_BLOCKS = 1,
+				ERASE_BLOCKS = 100,
 			};
 			
 			enum {
@@ -73,12 +73,19 @@ namespace wiselib {
 				
 			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
 				memcpy(buffer, block_data_ + start_block * BLOCK_SIZE, blocks * BLOCK_SIZE);
+            
+            //printf("read(%d, %d) -> 0x%x 0x%x 0x%x 0x%x...\n",
+                  //start_block, blocks, buffer[0], buffer[1], buffer[2], buffer[3]);
 				return SUCCESS;
 			}
 			
 			int set(block_data_t* buffer, address_t start_block) { return set(buffer, start_block, 1); }
 			
 			int set(block_data_t* buffer, address_t start_block, address_t blocks) {
+            for(size_t i=1; i < 1000000L; i++) ;
+            //printf("set(0x%x 0x%x 0x%x 0x%x..., %d, %d)\n",
+                  //buffer[0], buffer[1], buffer[2], buffer[3], start_block, blocks);
+            
 				memcpy(block_data_ + start_block * BLOCK_SIZE, buffer, blocks * BLOCK_SIZE);
 				return SUCCESS;
 			}

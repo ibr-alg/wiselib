@@ -37,11 +37,63 @@ namespace wiselib
       typedef PCClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
 
-      typedef struct timespec time_t;
-      typedef time_t value_t;
+      //typedef struct timespec time_t;
       typedef uint16_t micros_t;
       typedef uint16_t millis_t;
       typedef uint32_t seconds_t;
+      
+      class time_t {
+         public:
+            time_t() { }
+            
+            time_t(timespec& t) : timespec_(t) {
+            }
+            
+            time_t operator+(time_t& other) {
+               time_t r(*this);
+               r.timespec_.tv_sec += other.timespec_.tv_sec;
+               r.timespec_.tv_nsec += other.timespec_.tv_nsec;
+               if(r.timespec_.tv_nsec >= 1000000000L) {
+                  r.timespec_.tv_sec++; r.timespec_.tv_nsec -= 1000000000L;
+               }
+               return r;
+            }
+            
+            time_t operator-(time_t& other) {
+               time_t r(*this);
+               if(*this < other) {
+                  r.timespec_.tv_sec = 0;
+                  r.timespec_.tv_nsec = 0;
+               }
+               else {
+                  r.timespec_.tv_sec -= other.timespec_.tv_sec;
+                  r.timespec_.tv_nsec -= other.timespec_.tv_nsec;
+                  if(timespec_.tv_nsec < other.timespec_.tv_nsec) {
+                     r.timespec_.tv_sec--;
+                     r.timespec_.tv_nsec += 1000000000L;
+                  }
+               }
+               return r;
+            }
+            
+            int cmp(time_t& other) {
+               if(timespec_.tv_sec == other.timespec_.tv_sec) {
+                  return (timespec_.tv_nsec < other.timespec_.tv_nsec) ? -1 : (timespec_.tv_nsec > other.timespec_.tv_nsec);
+               }
+               return timespec_.tv_sec > other.timespec_.tv_sec ? 1 : -1;
+            }
+            
+            bool operator<(time_t& other) { return cmp(other) < 0; }
+            bool operator>(time_t& other) { return cmp(other) > 0; }
+            bool operator<=(time_t& other) { return cmp(other) <= 0; }
+            bool operator>=(time_t& other) { return cmp(other) >= 0; }
+            bool operator==(time_t& other) { return cmp(other) == 0; }
+            bool operator!=(time_t& other) { return cmp(other) != 0; }
+            
+            struct timespec timespec_;
+      };
+      
+      typedef time_t value_t;
 
       enum States
       {
@@ -79,7 +131,7 @@ namespace wiselib
    {
       time_t time;
 
-      clock_gettime( CLOCK_REALTIME, &time );
+      clock_gettime( CLOCK_REALTIME, &time.timespec_ );
       return time;
    }
 
@@ -87,21 +139,21 @@ namespace wiselib
    typename PCClockModel<OsModel_P>::micros_t PCClockModel<OsModel_P>::
    microseconds( time_t t )
    {
-      return ( t.tv_nsec / 1000 ) % 1000;
+      return ( t.timespec_.tv_nsec / 1000 ) % 1000;
    }
 
    template<typename OsModel_P>
    typename PCClockModel<OsModel_P>::millis_t PCClockModel<OsModel_P>::
    milliseconds( time_t t )
    {
-      return ( t.tv_nsec / 1000000 ) % 1000;
+      return ( t.timespec_.tv_nsec / 1000000 ) % 1000;
    }
 
    template<typename OsModel_P>
    typename PCClockModel<OsModel_P>::seconds_t PCClockModel<OsModel_P>::
    seconds( time_t t )
    {
-      return t.tv_sec;
+      return t.timespec_.tv_sec;
    }
 
 } // namespace wiselib
