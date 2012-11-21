@@ -1,6 +1,7 @@
 #include <external_interface/external_interface.h>
 #include <external_interface/arduino/arduino_sdcard.h>
 #include <external_interface/arduino/arduino_debug.h>
+#include <external_interface/arduino/arduino_clock.h>
 
 typedef wiselib::OSMODEL Os;
 
@@ -12,6 +13,7 @@ class App {
 		
 		void init(Os::AppMainParameter& value) {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
 			
 			debug_->debug( "SD Card test application running" );
 			test_sd();
@@ -55,6 +57,7 @@ class App {
 	private:
 		//static Os::Debug dbg;
 		Os::Debug::self_pointer_t debug_;
+		Os::Clock::self_pointer_t clock_;
 		
 		Os::block_data_t test_buffer_[TEST_BUFFER_SIZE];
 		Os::block_data_t verify_buffer_[TEST_BUFFER_SIZE];
