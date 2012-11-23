@@ -30,11 +30,13 @@ namespace wiselib {
 	/**
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class iSenseInternalFlash {
 		public:
 			typedef OsModel_P OsModel;
+			typedef Debug_P Debug;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef size_type address_t; /// always refers to a block number
@@ -65,6 +67,10 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
+			int init(typename Debug::self_pointer_t _) {
+				return SUCCESS;
+			}
+			
 			/**
 			 */
 			int erase(erase_block_address_t start_block) {
@@ -78,8 +84,13 @@ namespace wiselib {
 				
 				// sectors 0 and 1 contain the program code, you probably
 				// dont want to erase them
-				if(sector < 2 || sector >= ERASE_BLOCKS) {
+				if(sector < 2 || sector >= (ERASE_BLOCKS + 2)) {
 					os_->debug("you wanted to erase hardware sector %d which i dont advise", sector);
+					return ERR_UNSPEC;
+				}
+				
+				if(sector + blocks > (ERASE_BLOCKS + 2)) {
+					os_->debug("erase block range overlaps allowed area start_block=%d blocks=%d sector=%d", start_block, blocks, sector);
 					return ERR_UNSPEC;
 				}
 				
@@ -115,9 +126,17 @@ namespace wiselib {
 			
 			/// ditto.
 			int set(block_data_t* buffer, address_t start_block, address_t blocks) {
+				if(_START_POSITION + start_block * BLOCK_SIZE >= 0x80000) {
+					os_->debug("[set] effective address %ld is too large! start_block=%d blocks=%d buf=%x %x %x %x %x %x %x %x...", _START_POSITION + start_block * BLOCK_SIZE,
+							start_block, blocks,
+							buffer[0], buffer[1], buffer[2], buffer[3],
+							buffer[4], buffer[5], buffer[6], buffer[7]
+							);
+					return ERR_UNSPEC;
+					
+				}
 				if(_START_POSITION + start_block * BLOCK_SIZE < 0x20000) {
-					os_->debug("set to %ld would overwrite program!",
-							_START_POSITION + start_block * BLOCK_SIZE );
+					os_->debug("[set] writing to %ld would overwrite program!", _START_POSITION + start_block * BLOCK_SIZE );
 					return ERR_UNSPEC;
 				}
 				
