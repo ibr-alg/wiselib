@@ -48,10 +48,7 @@ namespace wiselib {
 			
 			int init(typename Storage::self_pointer_t storage, typename Debug_P::self_pointer_t debug) {
 				debug_ = debug;
-				debug_->debug("SWS INIT");
-				
 				Base::init(storage);
-				
 				// TODO: read erase block map
 				return SUCCESS;
 			}
@@ -59,32 +56,32 @@ namespace wiselib {
 			int wipe() {
 				int r = storage().erase(0, Storage::ERASE_BLOCKS);
 				if(r != SUCCESS) { return r; }
-				// TODO: clear erase block map
+				erase_block_map_.clear();
+				erase_block_map_changes_.clear();
 				return SUCCESS;
 			}
 			
 			address_t create(block_data_t* buffer) {
-				address_t storage_addr = allocate_blocks(1);
-				
-				if(storage_addr == NO_ADDRESS) { return NO_ADDRESS; }
+				address_t addr = allocate_blocks(1);
+				if(addr == NO_ADDRESS) { return NO_ADDRESS; }
 				block_data_t buf[Storage::BLOCK_SIZE];
 				memcpy(buf, buffer, BLOCK_SIZE);
 				next(buf) = NO_ADDRESS;
-				int r = storage().set(buf, storage_addr);
+				int r = storage().set(buf, physical_address(addr));
 				if(r != SUCCESS) { return NO_ADDRESS; }
-				return storage_addr;
+				return addr;
 			}
 			
 			int read(block_data_t* target, address_t block) {
 				block_data_t buf[Storage::BLOCK_SIZE];
-				int r = storage().read(buf, block);
+				int r = storage().read(buf, physical_address(block));
 				if(r != SUCCESS) { return r; }
 				
 				address_t map = next(buf);
 				if(map != NO_ADDRESS) {
 					const address_t current = last_map_entry(map); 
-					assert(current != NO_ADDRESS);
-					r = storage().read(buf, current);
+					//assert(current != NO_ADDRESS);
+					r = storage().read(buf, physical_address(current));
 					if(r != SUCCESS) { return r; }
 				}
 				
@@ -94,7 +91,7 @@ namespace wiselib {
 			
 			int set(block_data_t* buffer, address_t block) {
 				block_data_t buf[Storage::BLOCK_SIZE];
-				int r = storage().read(buf, block);
+				int r = storage().read(buf, physical_address(block));
 				if(r != SUCCESS) { return r; }
 				address_t map = next(buf);
 				
@@ -103,10 +100,15 @@ namespace wiselib {
 				if(current == NO_ADDRESS) { return ERR_UNSPEC; }
 				
 				memcpy(payload(buf), buffer, BLOCK_SIZE);
-				return storage().set(buf, current);
+				return storage().set(buf, physical_address(current));
 			}
 			
 			int write(block_data_t* buffer, address_t block) {
+				bool b;
+				return write(buffer, block, b);
+			}
+			
+			int write(block_data_t* buffer, address_t block, bool& did_gc) {
 				block_data_t buf[Storage::BLOCK_SIZE];
 				int r = storage().read(buf, physical_address(block));
 				if(r != SUCCESS) { return r; }
@@ -121,20 +123,31 @@ namespace wiselib {
 				// add new entry to map
 				address_t new_version = add_map_entry(map, buffer);
 				
-				if(new_version == NO_ADDRESS) {
-					// block redirection map full -> collect garbage
+				did_gc = false;
+				if(new_version == NO_ADDRESS) { // block redirection map full -> collect garbage
+					did_gc = true;
 					erase_block_address_t eb = erase_block(block);
-					mark_blocks_dead(eb, block, 1);
+					
+					// mark dead (as not needed anymore and not yet marked):
+					// - the latest version (last entry in map)
+					// - the (now full) map
+					// - original version of block redirecting to now full map
+					//   (will be replaced with current version without map
+					//   redirection)
+					address_t latest = last_map_entry(map);
+					mark_blocks_dead(erase_block(latest), erase_block_offset(latest), 1);
 					mark_blocks_dead(erase_block(map), erase_block_offset(map), 1);
+					mark_blocks_dead(eb, erase_block_offset(block), 1);
 					
 					r = collect_garbage(eb);
 					if(erase_block(map) != eb) {
-						r = collect_garbage(map);
+						r = collect_garbage(erase_block(map));
 						if(r != SUCCESS) { return r; }
 					}
 					memcpy(payload(buf), buffer, BLOCK_SIZE);
 					next(buf) = NO_ADDRESS;
-					r = storage().set(buf, block);
+					r = storage().set(buf, physical_address(block));
+					mark_blocks_used(erase_block(block), erase_block_offset(block), 1);
 					if(r != SUCCESS) { return r; }
 				}
 				
@@ -144,8 +157,18 @@ namespace wiselib {
 		private:
 			
 			enum {
-				VIRTUAL_ERASE_BLOCKS = Storage::ERASE_BLOCKS - 1,
-				MAP_BLOCKS = 1
+				VIRTUAL_ERASE_BLOCKS = Storage::ERASE_BLOCKS,
+				REDIRECTMAP_BLOCKS = 1,
+				
+				USEDMAP_BITS = Storage::ERASE_BLOCK_SIZE,
+				USEDMAP_BYTES = (USEDMAP_BITS + 7) / 8,
+				USEDMAP_BLOCKS = (USEDMAP_BYTES + (Storage::BLOCK_SIZE - 1)) / Storage::BLOCK_SIZE,
+				
+				DEADMAP_BITS = Storage::ERASE_BLOCK_SIZE,
+				DEADMAP_BYTES = (DEADMAP_BITS + 7) / 8,
+				DEADMAP_BLOCKS = (DEADMAP_BYTES + (Storage::BLOCK_SIZE - 1)) / Storage::BLOCK_SIZE,
+				
+				RESERVED_BLOCKS = USEDMAP_BLOCKS + DEADMAP_BLOCKS
 			};
 			
 			class EraseBlockInfo {
@@ -199,32 +222,49 @@ namespace wiselib {
 			 * leaving out all dead and unused blocks so they become free
 			 * blocks in the copy.
 			 * 
-			 * @param eb virtual erase block address
+			 * @param eb VIRTUAL erase block address
 			 */
 			int collect_garbage(erase_block_address_t eb) {
-				debug_->debug("---- garbage callect on erase block %d", eb);
+				
 				const erase_block_address_t peb = resolve_erase_block(eb);
 				const erase_block_address_t new_peb = find_free_erase_block();
+				
 				if(new_peb == NO_ADDRESS) { return ERR_UNSPEC; }
 				
-				// TODO: read dead blocks map & used blocks map
-				block_data_t dead_blocks[DEAD_BLOCKS * Storage::BLOCK_SIZE];
-				block_data_t used_blocks[USED_BLOCKS * Storage::BLOCK_SIZE];
+				block_data_t dead_blocks[DEADMAP_BLOCKS * Storage::BLOCK_SIZE];
+				block_data_t used_blocks[USEDMAP_BLOCKS * Storage::BLOCK_SIZE];
 				block_data_t buf[Storage::BLOCK_SIZE];
+				
+				for(size_t i=0; i<USEDMAP_BLOCKS; i++) {
+					storage().read(used_blocks + Storage::BLOCK_SIZE*i, erase_block_start(peb) + i);
+				}
+				for(size_t i=0; i<DEADMAP_BLOCKS; i++) {
+					storage().read(dead_blocks + Storage::BLOCK_SIZE*i, erase_block_start(peb) + USEDMAP_BLOCKS + i);
+				}
+				
+				ensure_erase_block_initialized(new_peb);
 				
 				for(size_t i=0; i<Storage::ERASE_BLOCK_SIZE; i++) {
 					if(
 							!(used_blocks[i / 8] & (1 << (i % 8))) &&
-							dead_blocks[i / 8] & (1 << (i % 8))) {
+							!!(dead_blocks[i / 8] & (1 << (i % 8)))
+					) {
 						int r = storage().read(buf, erase_block_start(peb) + i);
 						if(r != SUCCESS) { return r; }
-						r = storage().set(buf, erase_block_start(peb) + i);
+						
+						// Possible optimizations:
+						// - If block with redirection, copy the resolved
+						// final version instead
+						// - If map (can we detect that easily?), remove all
+						// entries except for the last
+						
+						r = storage().set(buf, erase_block_start(new_peb) + i);
 						if(r != SUCCESS) { return r; }
 					}
 				}
-				// TODO update the erase block map
-				// TODO: erase peb
 				
+				update_erase_block_map(eb, new_peb);
+				storage().erase(peb);
 				return SUCCESS;
 			}
 			
@@ -281,12 +321,27 @@ namespace wiselib {
 					for(; i<Storage::BLOCK_SIZE; i+=s) {
 						memcpy(info.data(), s, buf + i);
 						if(info.is_end_marker()) { goto read_erase_block_map_done; }
-						erase_block_map_[info.virtual_address()] = info.physical_address;
+						
+						if(info.virtual_address() != info.physical_address) {
+							erase_block_map_[info.virtual_address()] = info.physical_address;
+						}
 					}
 				}
 				
 			read_erase_block_map_done:
 				erase_block_map_position_ = i;
+				return SUCCESS;
+			}
+			
+			int update_erase_block_map(erase_block_address_t veb, erase_block_address_t peb) {
+				if(veb == peb) {
+					erase_block_map_.erase(veb);
+				}
+				else {
+					erase_block_map_[veb] = peb;
+				}
+				erase_block_map_changes_[veb] = peb;
+				write_erase_block_map();
 				return SUCCESS;
 			}
 			
@@ -311,17 +366,20 @@ namespace wiselib {
 					}
 					
 					EraseBlockInfo info;
-					info.set_virtual_address(i->first());
-					info.set_physical_address(i->second());
+					info.set_virtual_address(i->first);
+					info.set_physical_address(i->second);
 					memcpy(buf + erase_block_map_position_, info.data(), info.data_size());
 					erase_block_map_position_ += sizeof(EraseBlockInfo);
 				}
 				
-				r = storage().write(buf, erase_block_map_block_);
+				r = storage().set(buf, erase_block_map_block_);
 				return r;
 			}
 			
-			int update_block_map() {
+			/**
+			 * Write erase block map to storage
+			 */
+			int write_erase_block_map() {
 				int r;
 				
 				// is there enough space to just append the changes?
@@ -342,23 +400,27 @@ namespace wiselib {
 					write_erase_block_map(erase_block_map_changes_);
 					erase_block_map_changes_.clear();
 				}
+				return SUCCESS;
 			}
 			
 			address_t physical_address(address_t a) {
-				return resolve_erase_block(erase_block(a)) + erase_block_offset(a);
+				return erase_block_start(resolve_erase_block(erase_block(a))) + erase_block_offset(a);
 			}
 			
 			// }}}
 			
-			// Map Manipulation
+			// Redirecton map manipulation
 			// {{{
 			
+			/**
+			 * @param addr VIRTUAL address of first redirection map block
+			 */
 			address_t last_map_entry(address_t addr) {
 				block_data_t buf[Storage::BLOCK_SIZE];
 				int r;
 				
 				address_t last = NO_ADDRESS;
-				for(size_t i=0; i<MAP_BLOCKS; i++) {
+				for(size_t i=0; i<REDIRECTMAP_BLOCKS; i++) {
 					r = storage().read(buf, physical_address(addr + i));
 					if(r != SUCCESS) { return NO_ADDRESS; }
 					for(size_t j=0; j<Storage::BLOCK_SIZE; j+=sizeof(address_t)) {
@@ -372,38 +434,49 @@ namespace wiselib {
 			}
 			
 			/**
-			 * @param map virtual address of map block
+			 * @param map VIRTUAL address of (first) map block
 			 * @param buffer
-			 * @return virtual address of created block
+			 * @return VIRTUAL address of created block
 			 */
 			address_t add_map_entry(address_t map, block_data_t* buffer) {
 				block_data_t buf[Storage::BLOCK_SIZE];
-				memcpy(payload(buf), buffer, BLOCK_SIZE);
-				address_t a = create(buf);
+				//memcpy(payload(buf), buffer, BLOCK_SIZE);
 				
-				for(size_t i=0; i<MAP_BLOCKS; i++) {
+				address_t prev = NO_ADDRESS;
+				
+				for(size_t i=0; i<REDIRECTMAP_BLOCKS; i++) {
 					int r = storage().read(buf, physical_address(map+i));
 					if(r != SUCCESS) { return r; }
 					for(size_t j=0; j<Storage::BLOCK_SIZE; j+=sizeof(address_t)) {
 						address_t &addr = *reinterpret_cast<address_t*>(buf + j);
 						if(addr == NO_ADDRESS) {
-							addr = a;
+							addr = create(buffer);
 							r = storage().set(buf, physical_address(map+i));
 							if(r != SUCCESS) { return NO_ADDRESS; }
-							return a;
+							if(prev != NO_ADDRESS) {
+								mark_blocks_dead(erase_block(prev), erase_block_offset(prev), 1);
+							}
+							return addr;
 						}
-					}
-				}
+						prev = addr;
+					} // for j
+				} // for i
 				
 				return NO_ADDRESS;
 			}
 			
+			/**
+			 * @param addr VIRTUAL address of block to map
+			 * @return VIRTUAL address of map block
+			 */
 			address_t add_map_to(block_data_t* buf, address_t addr) {
-				address_t map = allocate_blocks(map_blocks_);
+				address_t map = allocate_blocks(REDIRECTMAP_BLOCKS);
 				if(map == NO_ADDRESS) { return NO_ADDRESS; }
 				
 				next(buf) = map;
-				storage().set(buf, addr);
+				int r;
+				r = storage().set(buf, physical_address(addr));
+				if(r != SUCCESS) { return NO_ADDRESS; }
 				return map;
 			}
 			
@@ -413,18 +486,34 @@ namespace wiselib {
 			// {{{
 			
 			/**
-			 * Returns the address of the newly allocated block
+			 * @return VIRTUAL address of fist allocated block
 			 */
 			address_t allocate_blocks(size_t n) {
+				static erase_block_address_t last_veb = 1;
 				address_t offset = NO_ADDRESS;
 				erase_block_address_t eb, veb = 0;
-				for(veb=0; (offset == NO_ADDRESS) && (veb<VIRTUAL_ERASE_BLOCKS); veb++) {
+				
+				// try last_veb first, then all EBs after it, then the one
+				// before it (this way we cycle through memory)
+				for(veb = last_veb; veb < VIRTUAL_ERASE_BLOCKS; veb++) {
 					eb = resolve_erase_block(veb);
 					offset = find_unused_blocks(eb, n);
+					if(offset != NO_ADDRESS && offset > 0 && (offset + n) <= Storage::ERASE_BLOCK_SIZE) {
+						goto offset_valid;
+					}
 				}
-				veb--;
-				if(offset == NO_ADDRESS) { return NO_ADDRESS; }
+				for(veb = 1; veb < last_veb; veb++) {
+					eb = resolve_erase_block(veb);
+					offset = find_unused_blocks(eb, n);
+					if(offset != NO_ADDRESS && offset > 0 && (offset + n) <= Storage::ERASE_BLOCK_SIZE) {
+						goto offset_valid;
+					}
+				}
 				
+				return NO_ADDRESS;
+				
+			offset_valid:
+				last_veb = veb;
 				mark_blocks_used(eb, offset, n);
 				const address_t virtual_address = erase_block_start(veb) + offset;
 				return virtual_address;
@@ -433,21 +522,24 @@ namespace wiselib {
 			/**
 			 * Find n consecutive unused blocks in the given erase block.
 			 * 
+			 * @param eb PHYSICAL address of erase block
 			 * @return Offset of the free blocks (from erase block start) or
 			 * NO_ADDRESS if no n consecutive blocks were found.
 			 */
 			address_t find_unused_blocks(erase_block_address_t eb, size_t n) {
-				ensure_erase_block_initialized(eb);
-				
 				int r;
+				r = ensure_erase_block_initialized(eb);
+				if(r != SUCCESS) { return NO_ADDRESS; }
+				
 				block_data_t buf[Storage::BLOCK_SIZE];
 				address_t map_block = n / (8 * Storage::BLOCK_SIZE);
-				r = storage().read(buf, map_block);
+				r = storage().read(buf, erase_block_start(eb) + map_block);
 				if(r != SUCCESS) { return NO_ADDRESS; }
 				return find_ones(n, buf);
 			}
 			
 			/**
+			 * @param eb VIRTUAL erase block address
 			 */
 			int mark_blocks_used(erase_block_address_t eb, address_t offset, size_t n) {
 				int r;
@@ -456,15 +548,19 @@ namespace wiselib {
 				r = storage().read(buf, map_block);
 				if(r != SUCCESS) { return NO_ADDRESS; }
 				set_zeros(buf, offset, n);
+				
 				r = storage().set(buf, map_block);
 				if(r != SUCCESS) { return NO_ADDRESS; }
 				return SUCCESS;
 			}
 			
+			/**
+			 * @param eb VIRTUAL erase block address
+			 */
 			int mark_blocks_dead(erase_block_address_t eb, address_t offset, size_t n) {
 				int r;
 				block_data_t buf[Storage::BLOCK_SIZE];
-				address_t map_block = erase_block_start(resolve_erase_block(eb)) + n / (8 * Storage::BLOCK_SIZE) + USED_BLOCKS;
+				address_t map_block = erase_block_start(resolve_erase_block(eb)) + n / (8 * Storage::BLOCK_SIZE) + USEDMAP_BLOCKS;
 				r = storage().read(buf, map_block);
 				if(r != SUCCESS) { return NO_ADDRESS; }
 				set_zeros(buf, offset, n);
@@ -473,13 +569,6 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-				// reserve this many block at start of every erase block for
-				// the used blocks map and dead blocks map.
-				enum {
-					USED_BLOCKS = ((Storage::ERASE_BLOCK_SIZE + (8 * Storage::BLOCK_SIZE) - 1) / (8 * Storage::BLOCK_SIZE)),
-					DEAD_BLOCKS = USED_BLOCKS,
-					RESERVED_BLOCKS = USED_BLOCKS + DEAD_BLOCKS
-				};
 				
 			/**
 			 * Ensure the used blocks map for erase block eb is properly set
@@ -489,6 +578,8 @@ namespace wiselib {
 			 * up.
 			 * 
 			 * Assumes polarity 1.
+			 * 
+			 * @param eb PHYSICAL address of erase block
 			 */
 			int ensure_erase_block_initialized(erase_block_address_t eb) {
 				int r;
@@ -501,7 +592,7 @@ namespace wiselib {
 				if(r != SUCCESS) { return r; }
 				if(buf[0] != 0xff) { return SUCCESS; }
 				
-				r = storage().read(buf, erase_block_start(eb) + USED_BLOCKS);
+				r = storage().read(buf, erase_block_start(eb) + USEDMAP_BLOCKS);
 				if(r != SUCCESS) { return r; }
 				if(buf[0] != 0xff) { return SUCCESS; }
 				
@@ -510,14 +601,14 @@ namespace wiselib {
 					memset(buf, 0x00, Storage::BLOCK_SIZE);
 					r = storage().set(buf, erase_block_start(eb) + offset);
 					if(r != SUCCESS) { return r; }
-					r = storage().set(buf, erase_block_start(eb) + offset + USED_BLOCKS);
+					r = storage().set(buf, erase_block_start(eb) + offset + USEDMAP_BLOCKS);
 					if(r != SUCCESS) { return r; }
 				}
 				memset(buf, 0xff, Storage::BLOCK_SIZE);
 				set_zeros(buf, 0, RESERVED_BLOCKS - (8 * Storage::BLOCK_SIZE * FULL_BLOCKS));
 				r = storage().set(buf, erase_block_start(eb) + offset);
 				if(r != SUCCESS) { return r; }
-				r = storage().set(buf, erase_block_start(eb) + offset + USED_BLOCKS);
+				r = storage().set(buf, erase_block_start(eb) + offset + USEDMAP_BLOCKS);
 				if(r != SUCCESS) { return r; }
 				return SUCCESS;
 			}
@@ -640,7 +731,6 @@ namespace wiselib {
 			
 			// }}}
 			
-			size_t map_blocks_;
 			typename Debug_P::self_pointer_t debug_;
 			EraseBlockMap erase_block_map_;
 			EraseBlockMap erase_block_map_changes_;
