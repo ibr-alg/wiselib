@@ -266,7 +266,7 @@ namespace wiselib
 				{
 					if( routers_[i].neighbor_pointer == NULL && selected_place == LOWPAN_MAX_OF_ROUTERS )
 						selected_place = i;
-					else if( routers_[i].neighbor_pointer->ip_address == *(ip_address) )
+					else if( (routers_[i].neighbor_pointer != NULL) && (routers_[i].neighbor_pointer->ip_address == *(ip_address)) )
 					{
 						routers_[i].own_registration_lifetime = own_lifetime;
 						return SUCCESS;
@@ -285,7 +285,7 @@ namespace wiselib
 					routers_[selected_place].own_registration_lifetime = own_lifetime;
 					neighbors_[neighbor_number].is_router = true;
 					#ifdef ND_DEBUG
-					debug_->debug("Adding new router' %x mem %x:",neighbors_[neighbor_number].link_layer_address, routers_[selected_place].neighbor_pointer);
+					debug_->debug("Adding new router %x mem %x:",neighbors_[neighbor_number].link_layer_address, routers_[selected_place].neighbor_pointer);
 					#endif
 					return SUCCESS;
 				}
@@ -625,13 +625,27 @@ namespace wiselib
 				{
 					//If no selected context at the moment
 					//and the context is valid + the stored prefix matches the address' prefix
+						
 					if( selected == LOWPAN_CONTEXTS_NUMBER &&
-						contexts[i].valid_lifetime > 0 &&
-						( memcmp( address.addr, contexts[i].prefix.addr, (contexts[i].prefix.prefix_length / 8) ) == 0 ) )
+						contexts[i].valid_lifetime > 0 /*&&
+						( memcmp( address.addr, contexts[i].prefix.addr, (contexts[i].prefix.prefix_length / 8) ) == 0 )*/ )
 					{
-						selected = i;
-						//reset selected context's lifetime
-						contexts[i].valid_lifetime = 0xFFFF;
+						bool okay = true;
+						for( int j = 0; j < (contexts[i].prefix.prefix_length / 8); j++ )
+							if( address.addr[j] != contexts[i].prefix.addr[j] )
+							{
+								okay = false;
+								break;
+							}
+							
+						if( okay)
+						{
+							selected = i;
+							//reset selected context's lifetime
+							contexts[i].valid_lifetime = 0xFFFF;
+						}
+						else
+							contexts[i].valid_lifetime--;
 					}
 					else
 					{

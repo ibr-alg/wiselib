@@ -135,6 +135,11 @@
 		*/
 		static const IPv6Address_t ALL_ROUTERS_ADDRESS;
 		
+		/**
+		* Solicited multicast address: FF02:0:0:0:0:1:FF00::XXXX
+		*/
+		IPv6Address_t SOLICITED_MULTICAST_ADDRESS;
+		
 		// --------------------------------------------------------------------
 		enum Restrictions {
 			MAX_MESSAGE_LENGTH = LOWPAN_IP_PACKET_BUFFER_MAX_SIZE - 40  ///< Maximal number of bytes in payload
@@ -153,6 +158,9 @@
 			timer_ = &timer;
 			packet_pool_mgr_ = p_mgr;
 			interface_manager_ = i_mgr;
+			
+			//Generate solicited_multicast address
+			SOLICITED_MULTICAST_ADDRESS.make_it_solicited_multicast(radio_->id());
 			
 			#ifdef LOWPAN_ROUTE_OVER
 			routing_.init( *timer_, *debug_, *radio_ );
@@ -353,14 +361,6 @@
 		#ifdef IPv6_LAYER_DEBUG
 		debug().debug( "IPv6 layer: initialization at %x", radio().id() );
 		//debug().debug( "IPv6 layer: MAC length: %i", sizeof(link_layer_node_id_t) );
-		
-		/*link_layer_node_id_t iid = radio().id();
-		for ( unsigned int i = 0; i < ( sizeof(link_layer_node_id_t) ); i++ )
-		{
-			uint8_t a = iid & 0xFF;
-			debug().debug( "..%i..: %x",  i, a );
-			iid = iid >> 8;
-		}*/
 
 		#ifdef LOWPAN_ROUTE_OVER
 		debug().debug( "IPv6 layer: Routing mode: ROUTE OVER");
@@ -527,7 +527,8 @@
 		
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
-		if ( destination_ip == BROADCAST_ADDRESS || ip_packet_for_this_node(&destination_ip, message->target_interface) ||
+		if ( destination_ip == BROADCAST_ADDRESS || destination_ip == SOLICITED_MULTICAST_ADDRESS ||
+			ip_packet_for_this_node(&destination_ip, message->target_interface) ||
 			( act_nd_storage != NULL && ( act_nd_storage->is_router && destination_ip == ALL_ROUTERS_ADDRESS ) ) )
 		{
 			node_id_t source_ip;
@@ -540,6 +541,8 @@
 				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %x", source_ip.get_address(str), my_mac );
 			else if( destination_ip == ALL_ROUTERS_ADDRESS )
 				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %x", source_ip.get_address(str), my_mac );
+			else if( destination_ip == SOLICITED_MULTICAST_ADDRESS )
+				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %x", source_ip.get_address(str), my_mac );
 			else
 				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %x", source_ip.get_address(str), my_mac );
 			#endif

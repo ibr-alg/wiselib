@@ -849,7 +849,7 @@ namespace wiselib
 			frag_required = true;
 		
 		uint8_t offset = 0;
-
+		int tmp = 1;
 		do {
 			if( frag_required )
 			{
@@ -888,8 +888,9 @@ namespace wiselib
 			}
 			
 			//debug().debug("PAY LEN: %x ", ACTUAL_SHIFT );
-			//for(int i = 0; i < ACTUAL_SHIFT; i++ )
-			//	debug().debug("%i: %x", i, buffer_[i]);
+			//for(int i = 0; i < 10; i++ )
+			//	debug().debug("%i-%i: %x", tmp, i,  buffer_[i]);
+			tmp++;
 			#ifdef LOWPAN_ROUTE_OVER
 			if ( radio().send( mac_destination, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
 				return ERR_UNSPEC;
@@ -1414,7 +1415,11 @@ namespace wiselib
 		if( IPHC_SHIFT != Radio::MAX_MESSAGE_LENGTH )
 		{
 			//free up "size bytes" ( 4 or 5 )
-			memmove( buffer_ + IPHC_SHIFT + header_size, buffer_ + IPHC_SHIFT, ACTUAL_SHIFT - IPHC_SHIFT );
+			for( int i = 0; i < ACTUAL_SHIFT - IPHC_SHIFT; i++ )
+				buffer_[IPHC_SHIFT + header_size + i] = buffer_[IPHC_SHIFT + i];
+			
+// 			memmove( buffer_ + IPHC_SHIFT + header_size, buffer_ + IPHC_SHIFT, ACTUAL_SHIFT - IPHC_SHIFT );
+			
 			//frag header will be at the old place of the IPHC header
 			FRAG_SHIFT = IPHC_SHIFT;
 			IPHC_SHIFT += header_size;
@@ -1657,7 +1662,11 @@ namespace wiselib
 			//Move the whole content. The IPHC header is 2 bytes, so the destination is +3 and the source is +2
 			//The size is the inserted bytes: actual position - iphc header end position
 			//void * memmove ( void * destination, const void * source, size_t num );
-			memmove( buffer_ + IPHC_SHIFT + 3, buffer_ + IPHC_SHIFT + 2, ACTUAL_SHIFT - (IPHC_SHIFT + 2) );
+			for( int i = 0; i < ACTUAL_SHIFT - (IPHC_SHIFT + 2); i++ )
+				buffer_[IPHC_SHIFT + 3 + i] = buffer_[IPHC_SHIFT + 2 + i];
+		
+// 			memmove( buffer_ + IPHC_SHIFT + 3, buffer_ + IPHC_SHIFT + 2, ACTUAL_SHIFT - (IPHC_SHIFT + 2) );
+			
 			
 			ACTUAL_SHIFT++;
 			

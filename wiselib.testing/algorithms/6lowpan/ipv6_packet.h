@@ -329,6 +329,14 @@ namespace wiselib
 		
 	private:
 		
+		/** \brief Helper function for the checksum generation
+		* \param len length of the data
+		* \param data pointer to the first byte
+		* \param sum target accumulator
+		* \param start_odd if the previous value was not full 32 bytes
+		*/
+		void checksum_serialize( uint16_t len, uint8_t* data, uint32_t& sum, bool start_odd );
+		
 		Debug& debug()
 		{ return *debug_; }
 
@@ -352,25 +360,64 @@ namespace wiselib
 		
 		/* PSEUDO HEADER */
 		//Source and Dest address
-		for( int i = 0; i < 16; i+=2 )
+		/*for( int i = 0; i < 16; i+=2 )
 		{
 			sum += buffer_[SOURCE_ADDRESS_BYTE + i] << 8;
 			sum += buffer_[SOURCE_ADDRESS_BYTE + i + 1];
 			sum += buffer_[DESTINATION_ADDRESS_BYTE + i] << 8;
 			sum += buffer_[DESTINATION_ADDRESS_BYTE + i + 1];
-		}
+		}*/
 		
-		sum += buffer_[LENGTH_BYTE] << 8;
-		sum += buffer_[LENGTH_BYTE + 1];
-		sum += buffer_[NEXT_HEADER_BYTE];
+		checksum_serialize( 16, buffer_ + SOURCE_ADDRESS_BYTE, sum, false );
+		checksum_serialize( 16, buffer_ + DESTINATION_ADDRESS_BYTE, sum, false );
+		
+		uint8_t tmp[4];
+		tmp[0] = 0;
+		tmp[1] = 0;
+		
+		//Upper-layer length
+		tmp[2] = buffer_[LENGTH_BYTE];
+		tmp[3] = buffer_[LENGTH_BYTE + 1];
+		checksum_serialize( 4, tmp, sum, false );
+		
+		//Next header
+		tmp[2] = 0;
+		tmp[3] = buffer_[NEXT_HEADER_BYTE];
+		checksum_serialize( 4, tmp, sum, false );
+		
+		//sum += buffer_[LENGTH_BYTE] << 8;
+		//sum += buffer_[LENGTH_BYTE + 1];
+		//sum += buffer_[NEXT_HEADER_BYTE];
 		
 		/* PSEUDO END */
+		
+		/* Payload */
+		checksum_serialize( len, data, sum, false );
+		
+		
+		//uint32_t --> uint16_t
+		sum = (sum & 0xFFFF) + (sum >> 16);
 	 
+		return ( sum ^ 0xFFFF );
+	}
+	
+	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P>
+	void
+	IPv6Packet<OsModel_P, Radio_P, Debug_P>::
+	checksum_serialize( uint16_t len, uint8_t* data, uint32_t& sum, bool start_odd )
+	{
+		if ((start_odd) && (len > 0))  {
+			sum += (uint16_t)*data++;
+			len--;
+		}
+		
 		while( len > 1 )
 		{
-			// 2 * uint8_t --> uint32_t
-			//sum +=  (*(data) << 8) | (*( data + 1 ));
-			//data += 2;
 			sum += ((uint16_t)*data++) << 8;
 			sum += (uint16_t)*data++;
 			len -= 2;
@@ -378,14 +425,9 @@ namespace wiselib
 		// if there is a byte left then add it (padded with zero)
 		if ( len > 0 )
 		{
-			//sum += ( *data ) << 8;
 			sum += ((uint16_t)*data++) << 8;
 		}
-		
-		//uint32_t --> uint16_t
-		sum = (sum & 0xFFFF) + (sum >> 16);
-	 
-		return ( sum ^ 0xFFFF );
 	}
+	
 }
 #endif
