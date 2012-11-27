@@ -25,9 +25,10 @@
 #ifndef PACKET_H
 #define  PACKET_H
 
+#ifdef ENABLE_URI_QUERIES
 #include "query.h"
-
 typedef wiselib::Queries<wiselib::OSMODEL, wiselib::StaticString> queries_t;
+#endif
 
 typedef enum {
    CONTENT_TYPE = 1,
@@ -125,10 +126,13 @@ typedef enum {
 
 namespace wiselib
 {
+#ifdef DEBUG_OPTION
    template<typename Debug_P>
+#endif
    class CoapPacket
    {
       public:
+#ifdef DEBUG_OPTION
          typedef Debug_P Debug;
 
          void init( Debug& debug )
@@ -143,7 +147,19 @@ namespace wiselib
             uri_path_len_ = 0;
             payload_len_ = 0;
          }
-
+#else
+         void init()
+         {
+            version_ = COAP_VERSION;
+            type_ = 0;
+            opt_count_ = 0;
+            code_ = 0;
+            mid_ = 0;
+            options_ = 0x00;
+            uri_path_len_ = 0;
+            payload_len_ = 0;
+         }
+#endif
          /**
           * Returns the version of COAP.
           * @return the version of the message.
@@ -203,11 +219,11 @@ namespace wiselib
          inline uint8_t content_type_w() {
             return content_type_;
          }
-
-         inline uint32_t max_age_w() {
-            return max_age_;
-         }
-
+         /*
+                  inline uint32_t max_age_w() {
+                     return max_age_;
+                  }
+         */
          inline uint16_t uri_host_w() {
             return uri_host_;
          }
@@ -239,11 +255,11 @@ namespace wiselib
          inline uint16_t accept_w() {
             return accept_;
          }
-
+#ifdef ENABLE_URI_QUERIES
          inline queries_t* uri_queries() {
             return &uri_queries_;
          }
-
+#endif
          inline uint32_t block2_num_w() {
             return block2_num_;
          }
@@ -294,11 +310,11 @@ namespace wiselib
          inline void set_content_type( uint8_t content_type ) {
             content_type_ = content_type;
          }
-
-         inline void set_max_age( uint32_t max_age ) {
-            max_age_ = max_age;
-         }
-
+         /*
+                  inline void set_max_age( uint32_t max_age ) {
+                     max_age_ = max_age;
+                  }
+         */
          inline void set_uri_host( uint16_t uri_host ) {
             uri_host_ = uri_host;
          }
@@ -330,11 +346,11 @@ namespace wiselib
          inline void set_accept( uint16_t accept ) {
             accept_ = accept;
          }
-
+#ifdef ENABLE_URI_QUERIES
          inline void set_uri_query( queries_t uri_queries ) {
             uri_queries_ = uri_queries;
          }
-
+#endif
          inline void set_block2_num( uint32_t block2_num ) {
             block2_num_ = block2_num;
          }
@@ -405,7 +421,7 @@ namespace wiselib
                      case MAX_AGE:
                         DBG_O( debug().debug( "OPTION:MAX AGE" ) );
                         set_option( MAX_AGE );
-                        max_age_ = get_int_opt_value( current_opt, opt_len, false );
+                        //max_age_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case PROXY_URI:
                         DBG_O( debug().debug( "OPTION:PROXY URI" ) );
@@ -420,7 +436,7 @@ namespace wiselib
                         set_option( URI_HOST );
                         DBG_O( debug().debug( "OPTION:URI HOST" ) );
                         uri_host_ = get_int_opt_value( current_opt, opt_len, true );
-                        DBG_O( debug().debug( "HOST: %d, %x",uri_host_, uri_host_));
+                        DBG_O( debug().debug( "HOST: %d, %x", uri_host_, uri_host_ ) );
                         break;
                      case LOCATION_PATH:
                         DBG_O( debug().debug( "OPTION:LOCATION PATH" ) );
@@ -467,7 +483,9 @@ namespace wiselib
                      case URI_QUERY:
                         DBG_O( debug().debug( "OPTION:URI QUERY" ) );
                         set_option( URI_QUERY );
-                        uri_queries_.add_query((char*) current_opt, opt_len);
+#ifdef ENABLE_URI_QUERIES
+                        uri_queries_.add_query( ( char* ) current_opt, opt_len );
+#endif
                         break;
                      case BLOCK2:
                         DBG_O( debug().debug( "OPTION:BLOCK2" ) );
@@ -510,7 +528,7 @@ namespace wiselib
                opt_count_ += 1;
             }
             if ( is_option( MAX_AGE ) ) {
-               buf_index += set_int_opt_value( MAX_AGE, current_delta, &buf[buf_index], max_age_ );
+               //buf_index += set_int_opt_value( MAX_AGE, current_delta, &buf[buf_index], max_age_ );
                current_delta = MAX_AGE;
                opt_count_++;
             }
@@ -556,7 +574,7 @@ namespace wiselib
                opt_count_ += 1;
             }
             //header
-            buf[0] = WISELIB_MID_COAP;
+            buf[0] = WISELIB_MID_COAP_RESP; /// personal use
             buf[1] = COAP_HEADER_VERSION_MASK & version_ << COAP_HEADER_VERSION_SHIFT;
             buf[1] |= COAP_HEADER_TYPE_MASK & type_ << COAP_HEADER_TYPE_SHIFT;
             buf[1] |= COAP_HEADER_OPT_COUNT_MASK & opt_count_ << COAP_HEADER_OPT_COUNT_SHIFT;
@@ -683,7 +701,7 @@ namespace wiselib
          uint32_t options_;
 
          uint8_t content_type_; // 1
-         uint32_t max_age_; // 2
+         //uint32_t max_age_; // 2
          //TODO...
          //size_t proxy_uri_len_; // 3
          //char *proxy_uri_; // 3
@@ -702,7 +720,9 @@ namespace wiselib
          //TODO...
          //uint8_t if_match_len_; // 13
          //uint8_t if_match_[8]; // 13
+#ifdef ENABLE_URI_QUERIES
          queries_t uri_queries_; // 15
+#endif
          // block2 17
          uint32_t block2_num_; // 17
          uint8_t block2_more_; // 17
@@ -716,12 +736,13 @@ namespace wiselib
 
          uint8_t payload_len_;
          uint8_t *payload_;
-
+#ifdef DEBUG_OPTION
          Debug * debug_;
          Debug& debug()
          {
             return *debug_;
          }
+#endif
    };
 }
 #endif
