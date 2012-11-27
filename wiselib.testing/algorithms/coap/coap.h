@@ -26,16 +26,18 @@
 #define  COAP_H
 // wiselib defines
 #define WISELIB_MID_COAP                    51
+#define WISELIB_MID_COAP_RESP               102 /// personal use
 // end of wiselib defines
 // CONFIGURATION
-#define CONF_MAX_RESOURCES                  15
-#define CONF_MAX_QUERIES                    5
-#define CONF_MAX_OBSERVERS                  5
+#define CONF_MAX_RESOURCES                  4
+#define CONF_MAX_QUERIES                    2
+#define CONF_MAX_OBSERVERS                  4
 #define CONF_MAX_MSG_LEN                    112
-#define CONF_LARGE_BUF_LEN                  1024
+#define CONF_LARGE_BUF_LEN                  256
 #define CONF_MAX_PAYLOAD_LEN                64
 #define CONF_PIGGY_BACKED                   1
-#define CONF_MAX_RETRANSMIT_SLOTS           10
+#define CONF_MAX_RETRANSMIT_SLOTS           4
+//#define ENABLE_URI_QUERIES
 
 #define CONF_COAP_RESPONSE_TIMEOUT          2
 #define CONF_COAP_RESPONSE_RANDOM_FACTOR    1.5
@@ -51,6 +53,8 @@
 #define COAP_HEADER_OPT_COUNT_SHIFT         0
 #define COAP_HEADER_LEN                     4
 // END OF CURRENT COAP DEFINES
+
+#define XBEE_SEND
 
 // DEBUG LEVEL
 //#define DEBUG_FUNCTION
@@ -124,6 +128,7 @@ namespace wiselib
          typedef Rand_P Rand;
          typedef String_P String;
 
+         typedef typename OsModel_P::Uart Uart;
          typedef typename Radio::node_id_t node_id_t;
          typedef typename Radio::size_t size_t;
          typedef typename Radio::block_data_t block_data_t;
@@ -131,17 +136,21 @@ namespace wiselib
          typedef typename Clock::time_t time_t;
 
          typedef delegate1<char *, uint8_t> my_delegate_t;
+#ifdef DEBUG_OPTION
          typedef wiselib::CoapPacket<Debug> coap_packet_t;
-
+#else
+         typedef wiselib::CoapPacket coap_packet_t;
+#endif
          typedef wiselib::vector_static<OsModel, resource_t, CONF_MAX_RESOURCES> resource_vector_t;
          typedef typename resource_vector_t::iterator resource_iterator_t;
 
          struct observer {
             uint16_t host_id;
+            uint16_t last_mid;
             uint8_t resource_id;
             uint8_t token[8];
             uint8_t token_len;
-            uint16_t last_mid;
+            uint32_t timestamp;
          };
 
          typedef struct observer observer_t;
@@ -151,8 +160,8 @@ namespace wiselib
          struct retransmit_slot {
             uint16_t host_id;
             uint16_t mid;
-            uint8_t timeout_tries;
             uint8_t size;
+            uint8_t timeout_tries;
             uint32_t timestamp;
             block_data_t packet[CONF_MAX_MSG_LEN];
          };
@@ -164,20 +173,23 @@ namespace wiselib
          /**
          Init function
          */
-         void init( flooding_algorithm_t* flooding, Timer& timer, Debug& debug, Clock& clock, uint16_t rand )
+         void init( flooding_algorithm_t* flooding, Timer& timer, Debug& debug, Clock& clock, uint16_t rand, Uart& uart )
          {
             flooding_ = flooding;
             timer_ = &timer;
             debug_ = &debug;
             clock_ = &clock;
             mid_ = rand;
+            uart_ = &uart;
             observe_counter_ = 1;
+            timer_->template set_timer<Coap, &Coap::coap_notify > ( 1000 , this, 0 );
+            timer_->template set_timer<Coap, &Coap::retransmit_loop > ( 1000 , this, 0 );
          }
 
          /**
          Add a new resource to the resource vector
          */
-         void add_resource( resource_t new_resource )
+         void add_resource( resource_t* new_resource )
          {
             if ( resources_.max_size() == resources_.size() )
             {
@@ -185,21 +197,21 @@ namespace wiselib
             }
             else
             {
-               resources_.push_back( new_resource );
+               resources_.push_back( *new_resource );
             }
          }
 
          /**
          Update a resource based on its name
          */
-         void update_resource( const char* name, resource_t updated_resource )
+         void update_resource( const char* name, resource_t* updated_resource )
          {
             DBG_F( debug().debug( "FUNCTION: update_resource" ) );
             for ( resource_iterator_t it = resources_.begin(); it != resources_.end(); it++ )
             {
                if ( !strncmp( name, it->name(), it->name_length() ) )
                {
-                  it = updated_resource;
+                  it = *updated_resource;
                   return;
                }
             }
@@ -229,12 +241,39 @@ namespace wiselib
             return mid_++;
          }
 
-         /**
-         Increase observe counter after every observe
-         */
-         void increase_observe_counter()
+         uint32_t time()
          {
-            observe_counter_++;
+            return clock_->seconds( clock_->time() );
+         }
+
+         void debug_hex( const uint8_t * payload, size_t length )
+         {
+            uart_->write( length, ( block_data_t* )payload );
+            return;
+//            uint8_t bytes_written = 0;
+//            bytes_written += sprintf( (char*)output_data + bytes_written, "DATA:" );
+//            for ( size_t i = 0; i < length; i++ )
+//            {
+//               if(payload[i]/ 16 < 10 )
+//               {
+//                  output_data[bytes_written++] = payload[i] / 16 + 0x30;
+//               }
+//               else
+//               {
+//                  output_data[bytes_written++] = payload[i] / 16 + 87;
+//               }
+//               if(payload[i] % 16 < 10)
+//               {
+//                  output_data[bytes_written++] = payload[i] % 16 + 0x30;
+//               }
+//               else
+//               {
+//                  output_data[bytes_written++] = payload[i] % 16 + 87;
+//               }
+//            }
+//            output_data[bytes_written] = '\0';
+//            debug_->debug( "%s", output_data );
+//            return;
          }
 
          /*!
@@ -243,34 +282,43 @@ namespace wiselib
           * @param   msg   CoAP message to be sent
           * @param   dest  Node ID destination
           */
-         void coap_send( coap_packet_t *msg, node_id_t *dest )
+         void coap_send( coap_packet_t *msg, node_id_t dest )
          {
             DBG_F( debug().debug( "FUNCTION: coap_send" ) );
             uint8_t data_len = msg->packet_to_buffer( buf_ );
             if ( ( msg->type_w() == CON ) )
             {
-               coap_register_con_msg( *dest, msg->mid_w(), buf_, data_len, 0 );
+               coap_register_con_msg( dest, msg->mid_w(), buf_, data_len, 0 );
             }
-            radio().send( *dest, data_len, buf_ );
-            xbee_send( dest, data_len, buf_ );
+            radio_send( dest, data_len, buf_ );
          }
 
          /*!
-          * @abstract Function to send messages to xbee, needs 3 more bytes in header, needed for our test purposes
+          * @abstract Function to send messages to radio, if XBEE_SEND is enabled, buffer needs 3 more bytes in header
           * @return  void
           * @param   dest  Node ID destination
           * @param   data_len Length of data to be sent
           * @param   buf   Buffer containing the actual CoAP message
           */
-         void xbee_send( node_id_t *dest, const uint8_t data_len, uint8_t *buf )
+         void radio_send( node_id_t dest, const uint8_t data_len, uint8_t *buf )
          {
-            DBG_F( ( debug().debug( "FUNCTION: xbee_send" ) ) );
-            block_data_t buf_arduino[CONF_MAX_MSG_LEN];
-            buf_arduino[0] = 0x7f;
-            buf_arduino[1] = 0x69;
-            buf_arduino[2] = 112;
-            memcpy( &buf_arduino[3], buf, data_len );
-            radio().send( *dest, data_len + 3, buf_arduino );
+            DBG_F( ( debug().debug( "FUNCTION: radio_send" ) ) );
+            if ( dest == radio().id() )
+            {
+               debug_hex( buf, data_len );
+            }
+            else
+            {
+               radio().send( dest, data_len, buf );
+#ifdef XBEE_SEND
+               block_data_t buf_arduino[CONF_MAX_MSG_LEN];
+               buf_arduino[0] = 0x7f;
+               buf_arduino[1] = 0x69;
+               buf_arduino[2] = 112;
+               memcpy( &buf_arduino[3], buf, data_len );
+               radio().send( dest, data_len + 3, buf_arduino );
+#endif
+            }
          }
 
          /*!
@@ -280,16 +328,22 @@ namespace wiselib
           * @param   buf   Buffer containing the incoming message
           * @param   from  Node ID of the client
           */
-         void receiver( const size_t *len, block_data_t *buf, node_id_t *from )
+         void receiver( const size_t *len, block_data_t *buf, node_id_t from )
          {
             DBG_F( ( debug().debug( "FUNCTION: receiver" ) ) );
+            //debug_hex( buf, *len);
             coap_status_t coap_error_code;
             coap_packet_t msg;
             coap_packet_t response;
             uint8_t resource_id = 0;
             uint16_t output_data_len = 0;
+#ifdef DEBUG_OPTION
             msg.init( debug() );
             response.init( debug() );
+#else
+            msg.init();
+            response.init();
+#endif
             ///memset( buf_, 0, CONF_MAX_MSG_LEN );
             coap_error_code = msg.buffer_to_packet( *len, buf );
 
@@ -349,7 +403,9 @@ namespace wiselib
                         args.input_data_len = msg.payload_len_w();
                         args.output_data = ( uint8_t* )output_data;
                         args.output_data_len = &output_data_len;
+#ifdef ENABLE_URI_QUERIES
                         args.uri_queries = msg.uri_queries();
+#endif
                         response.set_code( resource_discovery( &args ) );
                         // set the content type
                         response.set_option( CONTENT_TYPE );
@@ -384,7 +440,11 @@ namespace wiselib
                               // send the ACK
                               coap_send( &response, from );
                               // init the response again
+#ifdef DEBUG_OPTION
                               response.init( debug() );
+#else
+                              response.init();
+#endif
                               response.set_type( CON );
                               response.set_mid( coap_new_mid() );
                            }
@@ -395,8 +455,9 @@ namespace wiselib
                            args.input_data_len = msg.payload_len_w();
                            args.output_data = ( uint8_t* )output_data;
                            args.output_data_len = &output_data_len;
+#ifdef ENABLE_URI_QUERIES
                            args.uri_queries = msg.uri_queries();
-
+#endif
                            response.set_code( resources_[resource_id].execute( &args ) );
                            // set the content type
                            response.set_option( CONTENT_TYPE );
@@ -414,7 +475,7 @@ namespace wiselib
                               if ( add_observer( &msg, from, resource_id ) == true )
                               {
                                  response.set_option( OBSERVE );
-                                 response.set_observe( observe_counter_ );
+                                 response.set_observe( observe_counter_++ );
                               }
                            } // end of add observer
                         }
@@ -488,6 +549,7 @@ namespace wiselib
             {
                // error found
                response.set_code( coap_error_code );
+               response.set_mid( msg.mid_w() );
                if ( msg.type_w() == CON )
                   response.set_type( ACK );
                else
@@ -594,10 +656,9 @@ namespace wiselib
                new_entry.timeout_tries = ( CONF_COAP_RESPONSE_TIMEOUT << 4 ) | tries;
                new_entry.size = size;
                memcpy( new_entry.packet, buf, size );
-               new_entry.timestamp = clock_->seconds( clock_->time() ) + ( new_entry.timeout_tries >> 4 );
-               DBG_RET( debug().debug( "RETRANSMIT: REGISTER: %d, %d, %d", ( new_entry.timeout_tries >> 4 ), new_entry.timestamp, clock_->seconds( clock_->time() ) ) );
+               new_entry.timestamp = time() + ( new_entry.timeout_tries >> 4 );
+               //DBG_RET( debug().debug( "RETRANSMIT: REGISTER: %d, %d, %d", ( new_entry.timeout_tries >> 4 ), new_entry.timestamp, clock_->seconds( clock_->time() ) ) );
                retransmits_.push_back( new_entry );
-               timer().template set_timer<Coap, &Coap::retransmit_loop > ( 1000 * ( new_entry.timeout_tries >> 4 ), this, 0 );
                return;
             }
          }
@@ -628,32 +689,31 @@ namespace wiselib
           */
          void retransmit_loop( void* )
          {
-            DBG_F( debug().debug( "FUNCTION: retransmit_loop" ) );
+            //DBG_F( debug().debug( "FUNCTION: retransmit_loop" ) );
             uint8_t timeout_factor = 0x01;
             for( retransmit_iterator_t it = retransmits_.begin(); it != retransmits_.end(); it++ )
             {
-               DBG_RET( debug().debug( "RETRANSMIT: time:%d, now:%d", it->timestamp, clock_->seconds( clock_->time() ) ) );
-               if ( it->timestamp <= clock_->seconds( clock_->time() ) )
+               //DBG_RET( debug().debug( "RETRANSMIT: time:%d, now:%d", it->timestamp, clock_->seconds( clock_->time() ) ) );
+               if ( it->timestamp <= time() )
                {
                   it->timeout_tries += 1;
                   timeout_factor = timeout_factor << ( 0x0F & it->timeout_tries );
-                  DBG_RET( debug().debug( "RETRANSMIT: %d", 0x0F & it->timeout_tries ) );
-                  xbee_send( &it->host_id, it->size, it->packet );
-
+                  DBG_RET( debug().debug( "RETRANSMIT: %d-%x", 0x0F & it->timeout_tries, it->host_id ) );
+                  radio_send( it->host_id, it->size, it->packet );
                   if ( ( 0x0F & it->timeout_tries ) == CONF_COAP_MAX_RETRANSMIT_TRIES )
                   {
                      coap_remove_observer( it->mid );
                      coap_unregister_con_msg( it->mid );
-                     return;
+                     if ( it == retransmits_.end() )
+                        return;
                   }
                   else
                   {
-                     it->timestamp = clock_->seconds( clock_->time() ) + timeout_factor * ( it->timeout_tries >> 4 );
-                     timer().template set_timer<Coap, &Coap::retransmit_loop > ( timeout_factor * 1000 * ( it->timeout_tries >> 4 ) , this, 0 );
-                     return;
+                     it->timestamp = time() + timeout_factor * ( it->timeout_tries >> 4 );
                   }
                }
             }
+            timer().template set_timer<Coap, &Coap::retransmit_loop > ( 1000 , this, 0 );
          }
 
          /*!
@@ -687,7 +747,7 @@ namespace wiselib
           * @param   host_id  Node ID of observer
           * @param   resource_id Observed resource ID // TODO might change to name, cause id's change
           */
-         bool add_observer( coap_packet_t *msg, node_id_t *host_id, uint8_t resource_id )
+         bool add_observer( coap_packet_t *msg, node_id_t host_id, uint8_t resource_id )
          {
             DBG_F( debug().debug( "FUNCTION: add_observer" ) );
             if ( observers_.max_size() == observers_.size() )
@@ -699,7 +759,7 @@ namespace wiselib
             {
                for( observer_iterator_t it = observers_.begin(); it != observers_.end(); it++ )
                {
-                  if ( it->host_id == *host_id && it->resource_id == resource_id )
+                  if ( it->host_id == host_id && it->resource_id == resource_id )
                   {
                      //update token
                      ///memset( it->token, 0, it->token_len );
@@ -710,13 +770,14 @@ namespace wiselib
                   }
                }
                observer_t new_observer;
-               new_observer.host_id = *host_id;
+               new_observer.host_id = host_id;
                new_observer.resource_id = resource_id;
                new_observer.token_len = msg->token_len_w();
                memcpy( new_observer.token, msg->token_w(), msg->token_len_w() );
                new_observer.last_mid = msg->mid_w();
+               new_observer.timestamp = time() + resources_[resource_id].notify_time_w() ;
                observers_.push_back( new_observer );
-               timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[resource_id].notify_time_w(), this, ( void * ) resource_id );
+               //timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[resource_id].notify_time_w(), this, ( void * ) resource_id );
                DBG_OBS( debug().debug( "OBSERVE: ADDED" ) );
                return 1;
             }
@@ -727,6 +788,7 @@ namespace wiselib
           * @return  void
           * @param   mid   Message ID
           */
+
          void coap_remove_observer( uint16_t mid )
          {
             DBG_F( debug().debug( "FUNCTION: coap_remove_observer" ) );
@@ -745,35 +807,34 @@ namespace wiselib
           * @abstract Notify observers of a specific resource, because the timer triggered
           * @param   resource_id   Resource ID // TODO change to name
           */
-         void coap_notify_from_timer( void *resource_id )
-         {
-            DBG_F( debug().debug( "FUNCTION: notify from timer" ) );
-            if ( resources_[( int )resource_id].interrupt_flag_w() == true )
-            {
-               resources_[( int )resource_id].set_interrupt_flag( false );
-               return;
-            }
-            else {
-               coap_notify( ( int ) resource_id );
-            }
-         }
-
+         /*
+                  void coap_notify_from_timer( void *resource_id )
+                  {
+                     DBG_F( debug().debug( "FUNCTION: notify from timer" ) );
+                     if ( resources_[( int )resource_id].interrupt_flag_w() == true )
+                     {
+                        resources_[( int )resource_id].set_interrupt_flag( false );
+                        return;
+                     }
+                     else {
+                        coap_notify( ( int ) resource_id, false );
+                     }
+                  }
+         */
          /*!
           * @abstract Notify observers of a specific resource, because of an interupt
           * @param   name  Resource name
           */
+
          void coap_notify_from_interrupt( const char* name )
          {
             DBG_F( debug().debug( "FUNCTION: notify from interupt" ) );
-            uint8_t i = 0;
             for( resource_iterator_t it = resources_.begin(); it != resources_.end(); it++ )
             {
                if ( !strncmp( name, it->name(), it->name_length() ) )
                {
                   it->set_interrupt_flag( true );
-                  coap_notify( i );
                }
-               i++;
             }
          }
 
@@ -781,20 +842,25 @@ namespace wiselib
           * @abstract Notify observers, previous functions where higher level
           * @param   resource_id Resource ID // TODO change or change only on higher level
           */
-         void coap_notify( uint8_t resource_id )
+         void coap_notify( void* )
          {
-            DBG_F( debug().debug( "FUNCTION: notify" ) );
+            //DBG_F( debug().debug( "FUNCTION: notify" ) );
             coap_packet_t notification;
             uint8_t notification_size;
             uint16_t output_data_len;
-            ///memset( buf_, 0, CONF_MAX_MSG_LEN );
+            //memset( buf_, 0, CONF_MAX_MSG_LEN );
             for( observer_iterator_t it = observers_.begin(); it != observers_.end(); it++ )
             {
-               if( it->resource_id == resource_id )
+               if ( it->timestamp <= time() || resources_[it->resource_id].interrupt_flag_w() == true )
                {
-                  // send msg
-                  DBG_OBS( debug().debug( "OBSERVE: NOTIFY %d", resource_id ) );
+                  DBG_OBS( debug().debug( "OBSERVE: NOTIFY %d-%x", it->resource_id, it->host_id ) );
+
+                  resources_[it->resource_id].set_interrupt_flag( false );
+#ifdef DEBUG_OPTION
                   notification.init( debug() );
+#else
+                  notification.init();
+#endif
                   notification.set_type( CON );
                   notification.set_mid( coap_new_mid() );
 
@@ -804,29 +870,29 @@ namespace wiselib
                   args.input_data_len = 0;
                   args.output_data = output_data;
                   args.output_data_len = &output_data_len;
+#ifdef ENABLE_URI_QUERIES
                   args.uri_queries = NULL;
-
-                  notification.set_code( resources_[resource_id].execute( &args ) );
+#endif
+                  notification.set_code( resources_[it->resource_id].execute( &args ) );
                   notification.set_option( CONTENT_TYPE );
-                  notification.set_content_type( resources_[resource_id].content_type() );
+                  notification.set_content_type( resources_[it->resource_id].content_type() );
                   notification.set_option( TOKEN );
                   notification.set_token_len( it->token_len );
                   notification.set_token( it->token );
                   notification.set_option( OBSERVE );
-                  notification.set_observe( observe_counter_ );
+                  notification.set_observe( observe_counter_++ );
 
                   notification.set_payload( output_data );
                   notification.set_payload_len( output_data_len );
                   notification_size = notification.packet_to_buffer( buf_ );
                   coap_register_con_msg( it->host_id, notification.mid_w(), buf_, notification_size, coap_unregister_con_msg( it->last_mid ) );
                   it->last_mid = notification.mid_w();
+                  it->timestamp = time() + resources_[it->resource_id].notify_time_w() ;
 
-                  xbee_send( &it->host_id, notification_size, buf_ );
-                  timer().template set_timer<Coap, &Coap::coap_notify_from_timer > ( 1000 * resources_[( int )resource_id].notify_time_w(), this, ( void * )resource_id );
+                  radio_send( it->host_id, notification_size, buf_ );
                }
             }
-            increase_observe_counter();
-            //next notification will have greater observe option
+            timer().template set_timer<Coap, &Coap::coap_notify > ( 1000 , this, 0 );
          }
 
          /*!
@@ -847,6 +913,7 @@ namespace wiselib
          Debug * debug_;
          Clock * clock_;
          flooding_algorithm_t* flooding_;
+         Uart * uart_;
          uint16_t mid_; /// message id internal variable
 
          resource_vector_t resources_; /// resources vector
