@@ -239,11 +239,11 @@ namespace wiselib
 			addr[12] = 0xFF;
 			
 			if( sizeof( link_layer_node_id_t ) > 3 )
-				addr[13] = iid >> 16;
+				addr[13] = ( iid >> 16 ) & 0xFF;
 			else
 				addr[13] =  0x00;
-			addr[14] = iid >> 8;
-			addr[15] = iid;
+			addr[14] = ( iid >> 8 ) & 0xFF;
+			addr[15] = iid & 0xFF;
 			prefix_length = 104;
 		}
 		

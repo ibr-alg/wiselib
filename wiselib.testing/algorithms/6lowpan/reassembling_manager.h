@@ -108,7 +108,8 @@ namespace wiselib
 					datagram_size = size;
 					received_fragments_number_ = 0;
 					received_datagram_size = 0;
-					memset( rcvd_offsets_, 255, MAX_FRAGMENTS );
+					for( int i = 0; i < MAX_FRAGMENTS; i++ )
+						rcvd_offsets_[i] = 255;
 					return true;
 				}
 			}
@@ -143,7 +144,7 @@ namespace wiselib
 		*/
 		void reset_timer()
 		{
-			timer().template set_timer<self_type, &self_type::timeout>( 300, this, (void*) received_fragments_number_ );
+			timer().template set_timer<self_type, &self_type::timeout>( 75, this, (void*) received_fragments_number_ );
 		}
 		
 		// -----------------------------------------------------------------

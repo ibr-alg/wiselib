@@ -208,7 +208,6 @@ namespace wiselib
 				//If the packet completed, notify_receivers
 				if( (ip_packet->length() + 40) == received_size_ )
 				{
-					
 					receiving_ = false;
 					received_size_ = 0;
 					node_id_t from = Radio::NULL_NODE_ID;

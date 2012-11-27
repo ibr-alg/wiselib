@@ -768,11 +768,11 @@ namespace wiselib
 			return;
 		//data is NULL, use this pointer for the payload
 		data = message->payload();
-
+		
 		uint16_t checksum = ( data[2] << 8 ) | data[3];
 		data[2] = 0;
 		data[3] = 0;
-		if( checksum != message->generate_checksum() )
+		if( !(message->ND_installation_message) && checksum != message->generate_checksum() )
 		{
 			#ifdef ICMPv6_LAYER_DEBUG
 			//debug().debug( "ICMPv6 layer: Dropped packet (checksum error), in packet: %x computed: %x\n", checksum, message->generate_checksum() );
@@ -903,7 +903,7 @@ namespace wiselib
 					return;
 				}
 			#ifdef LOWPAN_ROUTE_OVER
-				else if( act_nd_storage->border_router_address == Radio_IP::NULL_NODE_ID )
+				else if( !(act_nd_storage->is_border_router) && act_nd_storage->border_router_address == Radio_IP::NULL_NODE_ID )
 				{
 					packet_pool_mgr_->clean_packet( message );
 					#ifdef ND_DEBUG
@@ -1012,7 +1012,7 @@ namespace wiselib
 						//read a lenth field from the option and skipp 8 * length octets
 						act_pos += data[act_pos + 1] * 8;
 					
-					debug().debug( "preproc shist pos: %i",data[act_pos + 1] );
+					//debug().debug( "preproc shist pos: %i",data[act_pos + 1] );
 				}
 				
 				//If the ABRO is outdated, drop the packet
@@ -1122,9 +1122,9 @@ namespace wiselib
 					return;
 				}
 			#endif
-			
+
 				act_nd_storage->neighbor_cache.update_router( &source, &ll_source, router_lifetime );
-				
+
 				//Send NS for address registration
 				send_nd_message( NEIGHBOR_SOLICITATION, &source, target_interface, ll_source );
 			}
@@ -1801,9 +1801,9 @@ namespace wiselib
 		//else
 			message->target_interface = target_interface;
 		
-// 		#ifdef ND_DEBUG
-// 		debug().debug(" ND send length: %i ", message->length() );
-// 		#endif
+ 		//#ifdef ND_DEBUG
+ 		//debug().debug(" ND send length: %i ", message->length() );
+ 		//#endif
 		
 		int result = radio_ip().send( *(dest_addr), packet_number, NULL );
 		packet_pool_mgr_->clean_packet( message );
@@ -1836,23 +1836,23 @@ namespace wiselib
 		
 		message->template set_payload<uint8_t>( &(setter_byte), length++ );
 		
-		//Set the link layer address with function overload.
-		message->template set_payload<link_layer_node_id_t>( (&link_layer_address), length++ );
+		//Set the link layer address (after the length) with function overload.
+		message->template set_payload<link_layer_node_id_t>( (&link_layer_address), length + 1 );
 		
 		//set the length
 		if( sizeof( link_layer_node_id_t ) + 2 < 8 )
 		{
 			setter_byte = 1;
-			message->template set_payload<uint8_t>( &(setter_byte), length++ );
+			message->template set_payload<uint8_t>( &(setter_byte), length );
 			//full size of this option 1*8 bytes
-			length += 6;
+			length += 7;
 		}
 		else
 		{
 			setter_byte = 2;
-			message->template set_payload<uint8_t>( &(setter_byte), length++ );
+			message->template set_payload<uint8_t>( &(setter_byte), length );
 			//full size of this option 2*8 bytes
-			length += 14;
+			length += 15;
 		}
 	}
 	

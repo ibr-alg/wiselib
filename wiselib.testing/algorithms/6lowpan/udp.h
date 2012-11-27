@@ -284,6 +284,7 @@ namespace wiselib
 		#ifdef UDP_LAYER_DEBUG
 		void print_sockets();
 		#endif
+		
 
 	private:
 		
@@ -455,7 +456,7 @@ namespace wiselib
 		
 		#ifdef UDP_LAYER_DEBUG
 		char str[43];
-		debug().debug( "UDP layer: Send to (Local Port: %i, Remote Port: %i) ", sockets_[socket_number].local_port,  sockets_[socket_number].remote_port, sockets_[socket_number].remote_host.get_address(str) );
+		debug().debug( "UDP layer: Send to [%s]:%i (Local Port: %i)", sockets_[socket_number].remote_host.get_address(str), sockets_[socket_number].remote_port,  sockets_[socket_number].local_port );
 		#endif
 		
 		//Get a packet from the manager

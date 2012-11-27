@@ -167,41 +167,128 @@ namespace wiselib
 			forwarding_table_.clear();
 			
 			
-			// TEST for: 0x2110 <--> 0x210c <--> 0x212c
+			// TEST for: 0x2120 <--> 0x2140 <--> 0x2144
+			
 			/*
-			node_id_t next_hop;
-			if( os_radio_->id() == 0x2110)
+			//Global addressing
+			uint8_t my_prefix[8];
+			my_prefix[0] = 0x20;
+			my_prefix[1] = 0x01;
+			my_prefix[2] = 0x63;
+			my_prefix[3] = 0x80;
+			my_prefix[4] = 0x70;
+			my_prefix[5] = 0xA0;
+			my_prefix[6] = 0xB0;
+			my_prefix[7] = 0x69;
+			
+			node_id_t tmp_addr;
+			tmp_addr.set_prefix( my_prefix, 64 );
+			
+			typename Radio_Os::node_id_t next_hop;
+			typename Radio_Os::node_id_t requested;
+			
+			
+			if( os_radio_->id() == 0x2120)
 			{
-				next_hop = 0x210c;
-				requested_destination_ = 0x212c;
-				ForwardingTableValue entry(next_hop, 0, 5);
-				forwarding_table_[requested_destination_] = entry;
+				next_hop = 0x2140;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				requested = 0x2144;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
 			}
 			
-			if( os_radio_->id() == 0x210c)
+			if( os_radio_->id() == 0x2140)
 			{
-				next_hop = 0x212c;
-				requested_destination_ = 0x212c;
-				ForwardingTableValue entry(next_hop, 0, 5);
-				forwarding_table_[requested_destination_] = entry;
 				
-				next_hop = 0x2110;
-				requested_destination_ = 0x2110;
-				ForwardingTableValue entry2(next_hop, 0, 5);
-				forwarding_table_[requested_destination_] = entry2;
+				next_hop = 0x2144;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				requested = 0x2144;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
+				
+				next_hop = 0x2120;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry2(tmp_addr, 0, 5, 0);
+				requested = 0x2120;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry2;
 			}
 			
-			if( os_radio_->id() == 0x212c)
+			
+			if( os_radio_->id() == 0x2144)
 			{	
-				next_hop = 0x210c;
-				requested_destination_ = 0x2110;
-				ForwardingTableValue entry(next_hop, 0, 5);
-				forwarding_table_[requested_destination_] = entry;
+				
+				next_hop = 0x2140;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				requested = 0x2120;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
 			}
-
-			
-			requested_destination_ = Radio_Link_Layer::NULL_NODE_ID;
 			*/
+			// SHAWN 1 <---> 2 <---> 4
+			/*
+			if( os_radio_->id() == 0x1)
+			{
+				next_hop = 0x2;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				requested = 0x5;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
+			}
+			
+			if( os_radio_->id() == 0x2)
+			{
+				
+				next_hop = 0x1;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				requested = 0x1;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
+				
+				next_hop = 0x4;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry2(tmp_addr, 0, 5, 0);
+				requested = 0x5;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry2;
+			}
+			
+			if( os_radio_->id() == 0x4)
+			{	
+				
+				next_hop = 0x2;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				requested = 0x1;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
+				
+				next_hop = 0x5;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry2(tmp_addr, 0, 5, 0);
+				requested = 0x5;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry2;
+			}
+			
+			if( os_radio_->id() == 0x5)
+			{	
+				
+				next_hop = 0x4;
+				tmp_addr.set_long_iid(&next_hop, true);
+				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
+				
+				requested = 0x1;
+				tmp_addr.set_long_iid(&requested, true);
+				forwarding_table_[tmp_addr] = entry;
+			}
+			*/
+			
 			//TEST END
 			
 			//************
@@ -321,7 +408,7 @@ namespace wiselib
 			if( destination == NULL_NODE_ID || (requested_destination_ == destination && failed_alive_) )
 				return NO_ROUTE_TO_HOST;
 			
-			
+			#ifdef LOWPAN_ROUTE_OVER
 			//No routing for link-local addresses
 			if( destination.is_it_link_local() )
 			{
@@ -329,6 +416,7 @@ namespace wiselib
 				target_interface = InterfaceManager_t::INTERFACE_RADIO;
 				return ROUTE_AVAILABLE;
 			}
+			#endif
 			
 		 	//Search for the next hop in the table
 		 	ForwardingTableIterator it = forwarding_table_.find( destination );
@@ -405,6 +493,8 @@ namespace wiselib
 			failed_alive_ = false;
 			
 			is_working = false;
+			
+			//print_forwarding_table();
 		}
 	
 	// ----------------------------------------------------------------------
