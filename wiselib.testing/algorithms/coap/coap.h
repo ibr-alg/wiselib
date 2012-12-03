@@ -109,7 +109,7 @@ typedef wiselib::OSMODEL Os;
 typedef Os::TxRadio Radio;
 typedef Radio::node_id_t node_id_t;
 typedef Radio::block_data_t block_data_t;
-#ifdef USE_FLOODING 
+#ifdef USE_FLOODING
 typedef wiselib::StaticArrayRoutingTable<Os, Os::Radio, 64 > FloodingStaticMap;
 typedef wiselib::FloodingAlgorithm<Os, FloodingStaticMap, Os::Radio, Os::Debug> flooding_algorithm_t;
 #endif
@@ -615,6 +615,7 @@ namespace wiselib {
          */
         void retransmit_loop(void*) {
             //DBG_F( debug().debug( "FUNCTION: retransmit_loop" ) );
+            timer().template set_timer<Coap, &Coap::retransmit_loop > (1000, this, 0);
             uint8_t timeout_factor = 0x01;
             for (retransmit_iterator_t it = retransmits_.begin(); it != retransmits_.end(); it++) {
                 //DBG_RET( debug().debug( "RETRANSMIT: time:%d, now:%d", it->timestamp, clock_->seconds( clock_->time() ) ) );
@@ -633,7 +634,6 @@ namespace wiselib {
                     }
                 }
             }
-            timer().template set_timer<Coap, &Coap::retransmit_loop > (1000, this, 0);
         }
 
         /*!
