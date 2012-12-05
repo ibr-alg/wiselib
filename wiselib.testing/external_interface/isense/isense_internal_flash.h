@@ -23,7 +23,6 @@
 #include <isense/flash.h>
 #include <isense/platforms/jennic/jennic_flash.h>
 #include <isense/os.h>
-#include <isense/util/get_os.h>
 
 namespace wiselib {
 
