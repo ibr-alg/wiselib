@@ -423,6 +423,9 @@ namespace wiselib {
                                 // set the content type
                                 response.set_option(CONTENT_TYPE);
                                 response.set_content_type(resources_[resource_id].content_type());
+                                // set max-age
+                                response.set_option(MAX_AGE);
+                                response.set_max_age(resources_[resource_id].notify_time_w());
                                 // check for blockwise response
                                 int offset = blockwise_response(&msg, &response, &output_data_len);
                                 // set the payload and length
@@ -779,6 +782,8 @@ namespace wiselib {
                     notification.set_code(resources_[it->resource_id].execute(&args));
                     notification.set_option(CONTENT_TYPE);
                     notification.set_content_type(resources_[it->resource_id].content_type());
+                    notification.set_option(MAX_AGE);
+                    notification.set_max_age(resources_[it->resource_id].notify_time_w());
                     notification.set_option(TOKEN);
                     notification.set_token_len(it->token_len);
                     notification.set_token(it->token);
