@@ -47,13 +47,13 @@ namespace wiselib
          second ( pair2.second )
       {}
 
-   //    const pair<First, Second>& operator=( const pair<First, Second>& pair2 )
-   //    {
-   //       *this.first = pair2.first;
-   //       *this.second = pair2.second;
-   //
-   //       return *this;
-   //    }
+	  const pair<First, Second>& operator=( const pair<First, Second>& pair2 )
+	  {
+		 this->first = pair2.first;
+		 this->second = pair2.second;
+   
+		 return *this;
+	  }
 
    };
    
