@@ -1,0 +1,39 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for a Message in a Convergecast
+ *
+ * This is a basic type for messages that can be used in a \ref CCast_concept "Convergecast".
+ * 
+ * A message in a convergecast can either be an initialization message to tell the node
+ * in the tree that a convergecast should start or a response message that contains
+ * the computed result of a subtree. So this message has a field CommandType
+ * that can be filled with CMD_CCINIT or CMD_CCRESPONSE.
+ *
+ * There is also a position for the ID of the convergecast so that every message
+ * can be assigned to the right convergecast.
+ *
+ * The rest can be filled with data fields as necessary. The default implementation
+ * contains one field for integer values and one for float values.
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Ccast_message_concept {
+   public:
+   
+      /**
+       * Possible message types.
+       */
+      enum CommandType
+      {
+         /// This is an initialization message.
+         CMD_CCINIT = 1,
+         /// This is a response message.
+         CMD_CCRESPONSE = 2
+      };
+};
+
+}
