@@ -51,6 +51,12 @@ namespace wiselib
       inline void set_node_id( node_id_t id )
       { write<OsModel, block_data_t, node_id_t>(buffer + NODE_ID_POS, id); }
       // --------------------------------------------------------------------
+      inline node_id_t dest_id()
+      { return read<OsModel, block_data_t, node_id_t>(buffer + DEST_ID_POS); }
+      // --------------------------------------------------------------------
+      inline void set_dest_id( node_id_t id )
+      { write<OsModel, block_data_t, node_id_t>(buffer + DEST_ID_POS, id); }
+      // --------------------------------------------------------------------
       inline seq_nr_t seq_nr()
       { return read<OsModel, block_data_t, seq_nr_t>(buffer + SEQ_NR_POS); }
       // --------------------------------------------------------------------
@@ -75,7 +81,8 @@ namespace wiselib
       enum data_positions
       {
          NODE_ID_POS = sizeof(message_id_t),
-         SEQ_NR_POS = NODE_ID_POS + sizeof(node_id_t),
+         DEST_ID_POS = NODE_ID_POS + sizeof(node_id_t),
+         SEQ_NR_POS = DEST_ID_POS + sizeof(node_id_t),
          PAYLOAD_POS = SEQ_NR_POS + sizeof(seq_nr_t)
       };
       

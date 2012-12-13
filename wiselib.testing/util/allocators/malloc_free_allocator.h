@@ -23,11 +23,6 @@
 
 #define KEEP_STATS 0
 
-template<typename pointer_t>
-void* operator new(size_t size, pointer_t ptr) {
-	return ptr.raw();
-}
-
 namespace wiselib {
 	
 /**
@@ -75,7 +70,7 @@ class MallocFreeAllocator {
 				T* p_;
 				
 			friend class MallocFreeAllocator<OsModel_P>;
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		template<typename T>
 		struct array_pointer_t : public pointer_t<T> {
@@ -94,10 +89,11 @@ class MallocFreeAllocator {
 				array_pointer_t& operator++() { ++this->p_; --elements_; return *this; }
 				array_pointer_t& operator--() { --this->p_; ++elements_; return *this; }
 				array_pointer_t operator+(size_t n) const { return array_pointer_t(this->p_ + n, elements_); }
+				array_pointer_t operator-(size_t n) const { return array_pointer_t(this->p_ - n, elements_); }
 				
 			private:
 				size_t elements_;
-		} __attribute__((__packed__));
+		}; // __attribute__((__packed__));
 		
 		MallocFreeAllocator()
 			#if KEEP_STATS
@@ -116,8 +112,9 @@ class MallocFreeAllocator {
 			#else
 				void *p = malloc(sizeof(T));
 			#endif
-			pointer_t<T> r((T*)p);
-			new(r) T;
+			//new(r) T;
+			new(p, true) T;
+			pointer_t<T> r(reinterpret_cast<T*>(p));
 			return r;
 		}
 		
@@ -127,12 +124,14 @@ class MallocFreeAllocator {
 				news_++;
 			#endif
 			#ifdef ISENSE
-				array_pointer_t<T> r(reinterpret_cast<T*>(isense::malloc(sizeof(T) * n)), n);
+				void *p = isense::malloc(sizeof(T) * n);
 			#else
-				array_pointer_t<T> r(reinterpret_cast<T*>(malloc(sizeof(T) * n)), n);
+				void *p = malloc(sizeof(T) * n);
 			#endif
+			array_pointer_t<T> r(reinterpret_cast<T*>(p), n);
 			for(typename OsModel::size_t i = 0; i < n; i++) {
-				new(pointer_t<T>(r.raw() + i)) T;
+				//new(pointer_t<T>(&(r.raw()[i]))) T;
+				new(&(reinterpret_cast<T*>(p)[i]), true) T;
 			}
 			return r;
 		}
@@ -152,11 +151,25 @@ class MallocFreeAllocator {
 		}
 		
 		template<typename T>
+		int free(T* p) {
+			#if KEEP_STATS
+				deletes_++;
+			#endif
+			p->~T();
+			#ifdef ISENSE
+				isense::free((void*)p);
+			#else
+				::free((void*)p);
+			#endif
+			return SUCCESS;
+		}
+		
+		template<typename T>
 		int free_array(array_pointer_t<T> p) {
 			#if KEEP_STATS
 				deletes_++;
 			#endif
-			#pragma warning("array freeing does not call destructors yet!!");
+			#warning("array freeing does not call destructors yet!!");
 			/*for(typename OsModel::size_t i = 0; i < n; i++) {
 				pointer_t<T>((T*)r.raw() + sizeof(T) * i)->~T();
 			}*/
@@ -164,6 +177,23 @@ class MallocFreeAllocator {
 				isense::free((void*)p.p_);
 			#else
 				::free((void*)p.p_);
+			#endif
+			return SUCCESS;
+		}
+		
+		template<typename T>
+		int free_array(T* p) {
+			#if KEEP_STATS
+				deletes_++;
+			#endif
+			#warning("array freeing does not call destructors yet!!");
+			/*for(typename OsModel::size_t i = 0; i < n; i++) {
+				pointer_t<T>((T*)r.raw() + sizeof(T) * i)->~T();
+			}*/
+			#ifdef ISENSE
+				isense::free((void*)p);
+			#else
+				::free((void*)p);
 			#endif
 			return SUCCESS;
 		}
@@ -187,10 +217,14 @@ class MallocFreeAllocator {
 		#if KEEP_STATS
 		unsigned long news_, deletes_;
 		#endif
-} __attribute__((__packed__));
+};
 
 
 } // namespace wiselib
+
+void* operator new(size_t size, void* ptr, bool _) {
+	return ptr;
+}
 
 #endif // MALLOC_FREE_ALLOCATOR_H
 

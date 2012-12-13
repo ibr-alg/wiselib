@@ -69,9 +69,9 @@ namespace wiselib {
 			void operator=(buffer_dynamic& b) {
 			}
 			
-			vector_t data_;
 			//bool virgin_;
 			size_t pos_;
+			vector_t data_;
 	};
 	
 	}

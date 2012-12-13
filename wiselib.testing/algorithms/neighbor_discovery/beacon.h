@@ -1,5 +1,24 @@
-#ifndef BEACON_H
-#define BEACON_H
+/***************************************************************************
+** This file is part of the generic algorithm library Wiselib.           **
+** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+**                                                                       **
+** The Wiselib is free software: you can redistribute it and/or modify   **
+** it under the terms of the GNU Lesser General Public License as        **
+** published by the Free Software Foundation, either version 3 of the    **
+** License, or (at your option) any later version.                       **
+**                                                                       **
+** The Wiselib is distributed in the hope that it will be useful,        **
+** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+** GNU Lesser General Public License for more details.                   **
+**                                                                       **
+** You should have received a copy of the GNU Lesser General Public      **
+** License along with the Wiselib.                                       **
+** If not, see <http://www.gnu.org/licenses/>.                           **
+***************************************************************************/
+
+#ifndef __BEACON_H__
+#define __BEACON_H__
 
 #include "neighbor.h"
 #include "protocol_settings.h"
@@ -30,13 +49,16 @@ namespace wiselib
 		typedef ProtocolPayload_Type<Os, Radio, Debug> ProtocolPayload;
 		typedef ProtocolSettings_Type<Os, Radio, Timer, Debug> ProtocolSettings;
 		typedef Protocol_Type<Os, Radio, Clock, Timer, Debug> Protocol;
-		typedef vector_static<Os, Neighbor, NB_MAX_NEIGHBORS> Neighbor_vector;
+		typedef vector_static<Os, Neighbor, ND_MAX_NEIGHBORS> Neighbor_vector;
 		typedef typename Neighbor_vector::iterator Neighbor_vector_iterator;
-		typedef vector_static<Os, ProtocolPayload, NB_MAX_REGISTERED_PROTOCOLS> ProtocolPayload_vector;
+		typedef vector_static<Os, ProtocolPayload, ND_MAX_REGISTERED_PROTOCOLS> ProtocolPayload_vector;
 		typedef typename ProtocolPayload_vector::iterator ProtocolPayload_vector_iterator;
-		typedef vector_static<Os, Protocol, NB_MAX_REGISTERED_PROTOCOLS> Protocol_vector;
+		typedef vector_static<Os, Protocol, ND_MAX_REGISTERED_PROTOCOLS> Protocol_vector;
 		typedef typename Protocol_vector::iterator Protocol_vector_iterator;
 		typedef Beacon_Type<Os, Radio, Clock, Timer, Debug> self_type;
+#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+		typedef typename Neighbor::Position Position;
+#endif
 		// --------------------------------------------------------------------
 		Beacon_Type() :
 			beacon_period					( 0 ),
@@ -123,22 +145,30 @@ namespace wiselib
 			return *this;
 		}
 		// --------------------------------------------------------------------
-#ifdef NB_DEBUG
-		void print( Debug& debug, Radio& radio )
+#ifdef DEBUG_BEACON_H
+		void print( Debug& debug, Radio& radio
+#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+				,Position& pos = Position( 0, 0, 0 )
+#endif
+				)
 		{
-			debug.debug( "-------------------------------------------------------\n");
-			debug.debug( "beacon :\n");
+			debug.debug( "-------------------------------------------------------\n" );
+			debug.debug( "Beacon : \n");
 			for ( ProtocolPayload_vector_iterator it = protocol_payloads.begin(); it != protocol_payloads.end(); ++it )
 			{
 				it->print( debug, radio );
 			}
 			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
 			{
+#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+				it->print( debug, radio, pos );
+#else
 				it->print( debug, radio );
+#endif
 			}
-			debug.debug( "beacon_period : %d\n", beacon_period );
-			debug.debug( "beacon_period_update_counter : %d\n", beacon_period_update_counter );
-			debug.debug( "-------------------------------------------------------\n");
+			debug.debug( "beacon_period (size %i) : %d\n", sizeof(beacon_period), beacon_period );
+			debug.debug( "beacon_period_update_counter (size %i) : %d\n", sizeof(beacon_period_update_counter), beacon_period_update_counter );
+			debug.debug( "-------------------------------------------------------\n" );
 		}
 #endif
 		// --------------------------------------------------------------------

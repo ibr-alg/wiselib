@@ -47,13 +47,13 @@ namespace wiselib
          second ( pair2.second )
       {}
 
-   //    const pair<First, Second>& operator=( const pair<First, Second>& pair2 )
-   //    {
-   //       *this.first = pair2.first;
-   //       *this.second = pair2.second;
-   //
-   //       return *this;
-   //    }
+	  const pair<First, Second>& operator=( const pair<First, Second>& pair2 )
+	  {
+		 this->first = pair2.first;
+		 this->second = pair2.second;
+   
+		 return *this;
+	  }
 
    };
    
@@ -62,6 +62,12 @@ namespace wiselib
    {
       return p1.first < p2.first ||
       ( !( p2.first < p1.first ) && p1.second < p2.second ); 
+   }
+   
+   template <class First, class Second>
+   inline bool operator==(const pair<First, Second>& p1, const pair<First, Second>& p2)
+   {
+      return p1.first == p2.first && p1.second == p2.second;
    }
 
 }

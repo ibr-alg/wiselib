@@ -26,6 +26,7 @@
 #include "external_interface/isense/isense_os.h"
 #include "external_interface/isense/isense_radio.h"
 #include "external_interface/isense/isense_extended_txradio.h"
+#include "external_interface/isense/isense_extended_debug.h"
 #include "external_interface/isense/isense_debug.h"
 #include "external_interface/isense/isense_extended_time.h"
 #include "external_interface/isense/isense_radio.h"
@@ -35,6 +36,7 @@
 #include "external_interface/isense/isense_com_uart.h"
 #include "external_interface/isense/isense_facet_provider.h"
 #include "external_interface/isense/isense_wiselib_application.h"
+#include "external_interface/isense/isense_duty_cycling.h"
 #endif
 
 #ifdef __SCATTERWEB__
@@ -120,6 +122,13 @@
 //#include "external_interface/ios/ios_radio.h"
 #include "external_interface/ios/ios_facet_provider.h"
 #include "external_interface/ios/ios_timer.h"
+#endif
+
+#ifdef ARDUINO
+#include "external_interface/arduino/arduino_os.h"
+#include "external_interface/arduino/arduino_debug.h"
+#include "external_interface/arduino/arduino_clock.h"
+#include "external_interface/arduino/arduino_ethernet_radio.h"
 #endif
 
 #endif

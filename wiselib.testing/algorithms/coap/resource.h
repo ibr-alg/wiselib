@@ -27,8 +27,19 @@
 
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/map_static_vector.h"
-#include "util/pstl/static_string.h"
 #include "util/pstl/pair.h"
+
+struct callback_arg {
+   uint8_t method;
+   uint8_t* input_data;
+   size_t input_data_len;
+   uint8_t* output_data;
+   uint16_t* output_data_len;
+#ifdef ENABLE_URI_QUERIES
+   queries_t* uri_queries;
+#endif
+};
+typedef callback_arg callback_arg_t;
 
 namespace wiselib
 {
@@ -37,68 +48,85 @@ namespace wiselib
    {
       public:
          typedef String_P String;
-         typedef delegate1<char *, uint8_t> my_delegate_t;
+         typedef delegate1<coap_status_t, callback_arg_t* > my_delegate_t;
 
-         void init()
-         {
-            uint8_t i;
-            is_set_ = false;
-            for( i = 0; i < CONF_MAX_RESOURCE_QUERIES; i++ )
-            {
-               methods_[i] = 0x00;
-               q_name_[i] = NULL;
-            }
-         }
+         /*!
+          * @abstract Empty constructor
+          */
+         ResourceController() {}
 
-         template<class T, char* ( T::*TMethod ) ( uint8_t )>
-         void reg_callback( T *obj_pnt, uint8_t qid )
-         {
-            del_[qid] = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
-         }
-
-         void execute( uint8_t qid, uint8_t par )
-         {
-            payload_ = NULL;
-            if( del_[qid] )
-            {
-               payload_ = del_[qid]( par );
-               put_data_ = NULL;
-            }
-         }
-
-         void reg_resource( String name, bool fast_resource, uint16_t notify_time, uint8_t resource_len, uint8_t content_type )
+         /*!
+          * @abstract Normal constructor, used to register resources that will have a callback
+          * @param   name  Resource name
+          * @param   methods  Allowed methods for this resource
+          * @param   fast_resource  Wether resource can respond instantly or not, used to allows piggy-baked responses
+          * @param   content_type   The content type of the resource
+          */
+         ResourceController( String name, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
          {
             name_ = name;
-            is_set_ = true;
+            methods_ = methods;
             fast_resource_ = fast_resource;
-            resource_len_ = resource_len;
-            content_type_ = content_type;
             notify_time_ = notify_time;
+            content_type_ = content_type;
             interrupt_flag_ = false;
          }
 
-         void reg_query( uint8_t qid, String name )
+         /*!
+          * @abstract String constructor, used to register resources that will return a saved String representation
+          * @param   name  Resource name
+          * @param   representation The string that will be returned
+          * @param   methods  Allowed methods for this resource
+          * @param   fast_resource  Wether resource can respond instantly or not, used to allows piggy-baked responses
+          * @param   content_type   The content type of the resource
+          */
+         ResourceController( String name, String representation, uint8_t methods, bool fast_resource, uint16_t notify_time, uint8_t content_type )
          {
-            q_name_[qid] = name;
+            name_ = name;
+            representation_ = representation;
+            methods_ = methods;
+            fast_resource_ = fast_resource;
+            notify_time_ = notify_time;
+            content_type_ = content_type;
+            interrupt_flag_ = false;
          }
 
-         uint8_t has_query( char *query, size_t len )
+         /*!
+          * @abstract   register a callback for this resource
+          */
+         template<class T, coap_status_t ( T::*TMethod ) ( callback_arg_t* )>
+         void reg_callback( T *obj_pnt )
          {
-            uint8_t i;
-            for( i = 1; i < CONF_MAX_RESOURCE_QUERIES; i++ )
+            del_ = my_delegate_t::template from_method<T, TMethod>( obj_pnt );
+         }
+
+         /*!
+          * @abstract execute the callback function, or print the saved string
+          * @return  The CoAP status, ie CONTENT, CHANGED, etc
+          * @param   method   the method from the request
+          * @param   input_data  pointer to the input payload, in case of POST or DELETE
+          * @param   input_data_len length of input payload
+          * @param   output_data pointer to data that will be returned set as payload
+          * @param   output_data_len   length of returned data
+          */
+         coap_status_t execute( callback_arg_t* args )
+         {
+            if( del_ )
             {
-               if ( ( uint16_t ) len == q_name_[i].length() && !strncmp( query, q_name_[i].c_str(), len ) )
-               {
-                  return i;
-               }
+               if ( args->method == 3 )
+                  args->method = 4;
+               else if ( args->method == 4 )
+                  args->method = 8;
+               return del_( args );
             }
-            return 0;
+            else if ( representation_.length() > 0 )
+            {
+               *( args->output_data_len ) = sprintf( ( char* )args->output_data, "%s\0", representation_.c_str() );
+               return CONTENT;
+            }
+            return INTERNAL_SERVER_ERROR;
          }
 
-         void set_method( uint8_t qid, uint8_t method )
-         {
-            methods_[qid] |= 1L << method;
-         }
          void set_notify_time( uint16_t notify_time )
          {
             notify_time_ = notify_time;
@@ -106,20 +134,6 @@ namespace wiselib
          void set_interrupt_flag( bool flag )
          {
             interrupt_flag_ = flag;
-         }
-         void set_put_data( uint8_t * put_data )
-         {
-            put_data_ = put_data;
-         }
-
-         void set_put_data_len( uint8_t put_data_len )
-         {
-            put_data_len_ = put_data_len;
-         }
-
-         bool is_set()
-         {
-            return is_set_;
          }
 
          char* name()
@@ -132,11 +146,18 @@ namespace wiselib
             return name_.length();
          }
 
-         uint8_t method_allowed( uint8_t qid, uint8_t method )
+         uint8_t method_allowed( uint8_t method )
          {
-            return methods_[qid] & 1L << method;
+            if ( method == 3 )
+               method = 4;
+            else if ( method == 4 )
+               method = 8;
+            return methods_ & method;
          }
-
+         uint8_t get_methods()
+         {
+            return methods_;
+         }
          uint16_t notify_time_w()
          {
             return notify_time_;
@@ -162,32 +183,16 @@ namespace wiselib
             return interrupt_flag_;
          }
 
-         char * payload()
-         {
-            return payload_;
-         }
-         uint8_t * put_data_w()
-         {
-            return put_data_;
-         }
-         uint8_t put_data_len_w()
-         {
-            return put_data_len_;
-         }
       private:
-         bool is_set_;
-         my_delegate_t del_[CONF_MAX_RESOURCE_QUERIES];
-         String name_;
-         String q_name_[CONF_MAX_RESOURCE_QUERIES];
-         uint8_t methods_[CONF_MAX_RESOURCE_QUERIES];
-         uint16_t notify_time_;
-         bool fast_resource_;
-         uint8_t resource_len_;
-         uint8_t content_type_;
-         bool interrupt_flag_;
-         char *payload_;
-         uint8_t *put_data_;
-         uint8_t put_data_len_;
+         my_delegate_t del_; /// resource callback function
+         String name_; /// resource name
+         String representation_; /// resource String representation
+         uint8_t methods_; /// allowed methods
+         uint16_t notify_time_; /// notification interval for observers
+         bool fast_resource_; /// fast resource, instant response
+         uint8_t resource_len_; /// resource length, not used
+         uint8_t content_type_; /// resource content type
+         bool interrupt_flag_; /// interrupt flag, for observing purposes
    };
 }
 #endif

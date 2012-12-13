@@ -53,8 +53,17 @@ namespace wiselib {
                 link_metric_ = lm;
             };
 
+
+	//int16 get_lqi() const
+	//{ return lqi_; };
+
+	//void set_lqi( int16 lqi )
+	//{ lqi_ = lqi; };
+
         private:
             uint16 link_metric_;
+            //int16 lqi_;
+            //int16 rssi_;
         };
         // --------------------------------------------------------------------
         typedef OsModel_P OsModel;
@@ -62,11 +71,11 @@ namespace wiselib {
         typedef iSenseExtendedTxRadioModel<OsModel> self_type;
         typedef self_type* self_pointer_t;
 
-#ifdef ISENSE_RADIO_ADDR_TYPE
+//#ifdef ISENSE_RADIO_ADDR_TYPE
         typedef ISENSE_RADIO_ADDR_TYPE node_id_t;
-#else
-        typedef uint16 node_id_t;
-#endif
+//#else
+        //typedef uint16 node_id_t;
+//#endif
         typedef uint8 block_data_t;
         typedef uint8 size_t;
         typedef uint8 message_id_t;
@@ -94,7 +103,7 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         enum SpecialNodeIds {
-            BROADCAST_ADDRESS = 0xffff, ///< All nodes in communication range
+            BROADCAST_ADDRESS = ISENSE_RADIO_BROADCAST_ADDR, //0xffff, ///< All nodes in communication range
             NULL_NODE_ID = 0 ///< Unknown/No node id
         };
         // --------------------------------------------------------------------
@@ -108,7 +117,13 @@ namespace wiselib {
 
         iSenseExtendedTxRadioModel(isense::Os& os)
         : os_(os) {
-            os_.dispatcher().add_receiver(this);
+#ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
+            	bool r = os_.dispatcher().add_receiver(this);
+		os.debug("register: %d\n", r);
+#else
+            	os_.dispatcher().add_receiver(this);
+#endif
+
 #ifdef ISENSE_EXTENDED_TX_RADIO_RANDOM_DELAY
             os_.srand(os_.id());
 #endif
@@ -128,11 +143,12 @@ namespace wiselib {
 //          os().debug( "Radio: fin at %d", t2.ms() );
 #endif
 
+		 //os().debug("isense::send(%d, %d)\n", (uint32)(id & 0xffffffff), (uint32)(len & 0xffffffff));
 #ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
-         uint8 options = isense::Radio::ISENSE_RADIO_TX_OPTION_NONE;
-         if ( id != BROADCAST_ADDRESS )
-            options |= isense::Radio::ISENSE_RADIO_TX_OPTION_ACK;
-         os().radio().send( id, len, data, options, this );
+		 uint8 options = isense::Radio::ISENSE_RADIO_TX_OPTION_NONE;
+		 if ( id != BROADCAST_ADDRESS )
+			options |= isense::Radio::ISENSE_RADIO_TX_OPTION_ACK;
+		 os().radio().send( id, len, data, options, this );
 #else
             os().radio().send(id, len, data, 0, 0);
 #endif
@@ -213,25 +229,33 @@ namespace wiselib {
             return -1;
         }
         // --------------------------------------------------------------------
-
+        //size_t reserved_bytes()
+        //{
+        //	return sizeof(message_id_t) + sizeof(size_t) + sizeof(uint16_t); <-scum support check ../internal_interface/message/message.h
+	//	OR
+	//	return sizeof(message_id_t) + sizeof(size_t);
+        //};
+        // --------------------------------------------------------------------
         int unreg_recv_callback(int idx) {
             // TODO: Implement unregister - thereby different ids for receive
             //       with and without ExtendedData must be generated
             return ERR_NOTIMPL;
         }
         // --------------------------------------------------------------------
-#ifdef ISENSE_RADIO_ADDR_TYPE
-        virtual void receive(uint8 len, const uint8 *buf,
+//#ifdef ISENSE_RADIO_ADDR_TYPE
+        virtual void receive(isense::link_layer_length_t len, const uint8 *buf,
                 ISENSE_RADIO_ADDR_TYPE src_addr, ISENSE_RADIO_ADDR_TYPE dest_addr,
                 uint16 signal_strength, uint16 signal_quality, uint8 sequence_no,
                 uint8 interface, isense::Time rx_time)
-#else
+//#else
 
-        virtual void receive(uint8 len, const uint8 *buf,
-                uint16 src_addr, uint16 dest_addr,
-                uint16 lqi, uint8 seq_no, uint8 interface)
-#endif
+        //virtual void receive(uint8 len, const uint8 *buf,
+                //uint16 src_addr, uint16 dest_addr,
+                //uint16 lqi, uint8 seq_no, uint8 interface)
+//#endif
         {
+		  //os_.fatal("RECV %d from %x len=%d\n", buf[0], src_addr, len);
+		  //os_.debug("RECV!!!\n");
             for (int i = 0; i < MAX_INTERNAL_RECEIVERS; i++) {
                 if (isense_radio_callbacks_[i])
                     isense_radio_callbacks_[i](src_addr, len, const_cast<uint8*> (buf));
@@ -239,6 +263,8 @@ namespace wiselib {
 
             ExtendedData ex;
             ex.set_link_metric(255 - signal_strength);
+            //ex.set_rssi( signal_strength );
+            //ex.set_lqi( signal_quality );
             for (int i = 0; i < MAX_EXTENDED_RECEIVERS; i++) {
                 if (isense_ext_radio_callbacks_[i])
                     isense_ext_radio_callbacks_[i](src_addr, len, const_cast<uint8*> (buf), ex);
@@ -459,6 +485,32 @@ namespace wiselib {
         else
             value = 0;
         //Another way: value=-(((-db)/6)*6);
+	//and another way:
+	//
+	//if ( db > 6 )
+	//{
+	//	value = 6;
+	//}
+	//else if ( db < -30 )
+	//{
+	//	value = -30;
+	//}
+	//else
+	//{
+	//	int8_t i = 6;
+	//	while( i >= -30 )
+	//	{
+	//		if ( ( ( i - db ) <= 3 ) && ( ( i - db ) >= 0 ) )
+	//		{
+	//			value = i;
+	//		}
+	//		else if ( ( ( i - db ) > 3 ) && ( ( i - db ) <= 6 ) )
+	//		{
+	//			value = i - 6;
+	//		}
+	//		i = i - 6;
+	//	}
+	//}
     }
 
     template<typename OsModel_P>

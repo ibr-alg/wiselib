@@ -44,6 +44,7 @@ namespace wiselib
 
       typedef iSenseClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
+	  typedef uint16_t millis_t;
 
       typedef Time_P time_t;
       // --------------------------------------------------------------------

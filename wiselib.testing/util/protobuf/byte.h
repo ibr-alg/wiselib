@@ -34,15 +34,19 @@ class Byte {
       typedef Buffer_P buffer_t;
       typedef typename Os::block_data_t block_data_t;
       
-      static void write(buffer_t& buffer, block_data_t v) {
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, block_data_t v) {
+         if(buffer == buffer_end) { return false; }
          *buffer = v;
          ++buffer;
+         return true;
       }
       
       template<typename T>
-      static void read(buffer_t& buffer, T& out) {
+      static bool read(buffer_t& buffer, buffer_t& buffer_end, T& out) {
+         if(buffer == buffer_end) { return false; }
          out = *buffer;
          ++buffer;
+         return true;
       }
 };
 

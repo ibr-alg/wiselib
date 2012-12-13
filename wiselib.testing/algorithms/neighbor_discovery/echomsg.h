@@ -28,6 +28,7 @@
 #define	ECHOMSG_H
 
 #include "pgb_payloads_ids.h"
+#include "util/serialization/simple_types.h"
 
 namespace wiselib {
 
