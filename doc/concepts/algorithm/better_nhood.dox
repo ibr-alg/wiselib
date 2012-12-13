@@ -1,0 +1,47 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for an Extended Neighborhood
+ *
+ * In addition to the basic \ref Nhood_concept "Neighborhood", this neighborhood
+ * offers the possibility to iterate over the neighbors by state, so that you
+ * can e.g. go through all neighbors that have an incoming edge.
+ *
+ * In addition, an extended neighborhood should offer methods to count the
+ * neighbors with a certain state.
+ *
+ * The main idea for this neighborhood is to use it in environments where
+ * the neighborhood has a tree structure, so that you can easily identify
+ * the root or the leafs and iterate over the children.
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Better_nhood_concept 
+   : public Nhood_concept
+{
+   public:
+  
+      /**
+       * The beginning of an iterator over all neighbors in this neighborhood
+       * that have the expected state. Note that a bidirectional conncetion
+       * should be included if you request an iterator for incoming or outgoing edges.
+       *
+       * @return An iterator over the neighbors with the requested state pointing 
+       * to the first neighbor that fits to this request.
+       */
+      iterator neighbors_begin( State );
+      
+      /**
+       * This method counts all neighbors in the neighborhood with the requested state.
+       * Note that a bidirectional conncetion should be counted, too, if you count incoming 
+       * or outgoing edges.
+       *
+       * @return The number of neighbors with this state.
+       */
+      uint16_t neighbors_count( State );
+};
+
+}
