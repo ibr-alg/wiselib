@@ -33,7 +33,7 @@ extern "C"
 
 namespace wiselib
 {
-   typedef delegate1<void, uint8_t> contiki_byte_uart_delegate_t;
+   typedef delegate2<void, uint8_t, uint8_t*> contiki_byte_uart_delegate_t;
    typedef contiki_byte_uart_delegate_t byte_uart_delegate_t;
    // -----------------------------------------------------------------------
    typedef int (*contiki_byte_uart_fp)( uint8_t );
@@ -98,7 +98,7 @@ namespace wiselib
          return SUCCESS;
       }
       // --------------------------------------------------------------------
-      template<class T, void (T::*TMethod)(block_data_t)>
+      template<class T, void (T::*TMethod)(block_data_t, uint8_t*)>
       inline int reg_read_callback( T *obj_pnt );
       // --------------------------------------------------------------------
       int unreg_recv_callback( int idx )
@@ -112,7 +112,7 @@ namespace wiselib
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
    template<class T,
-            void (T::*TMethod)( typename ContikiByteUartModel<OsModel_P>::block_data_t)>
+            void (T::*TMethod)( typename ContikiByteUartModel<OsModel_P>::block_data_t, uint8_t*)>
    int
    ContikiByteUartModel<OsModel_P>::
    reg_read_callback( T *obj_pnt )

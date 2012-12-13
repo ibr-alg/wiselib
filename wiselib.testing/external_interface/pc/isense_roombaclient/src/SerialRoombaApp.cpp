@@ -1,8 +1,8 @@
 // vim: set expandtab ts=3 sw=3:
 
 /******************************************************************************/
-#undef DEBUG
-//#define DEBUG
+//#undef DEBUG
+#define DEBUG
 /******************************************************************************/
 
 #include "SerialRoombaApp.h"
@@ -126,8 +126,10 @@ void SerialRoombaApp::handle_uart_packet( uint8 type, uint8 * buf,
     * Bytes 2-3:        UID of the destination node (uint16)
     * Bytes 4-length:   Message to be relayed to the destination node
     */
+        os().debug( "received packet");
    if ( type == Uart::MESSAGE_TYPE_CUSTOM_IN_1 && length > 4 && buf[0] == 'O' )
    {
+              os().debug( "packet is radio transmission");
       // send everything to the UID given
 	  int8 tx_power = (int8)buf[1];
       uint16 uid = (buf[2] << 8) | buf[3];
@@ -135,7 +137,9 @@ void SerialRoombaApp::handle_uart_packet( uint8 type, uint8 * buf,
       if( tx_power != 1 )
     	  os().radio().hardware_radio().set_power( -tx_power );//-tx_power is sent because of conversion problems
 
-      os().radio().send( uid, length - 4, buf + 4, 0, this );
+      os().debug( "sending message to %d", 0xffff);
+      //uid
+      os().radio().send( 0xffff, length - 4, buf + 4, 0, this );
    }
    
    if ( type == Uart::MESSAGE_TYPE_CUSTOM_IN_1 && length == 2 && buf[0] == 'T' )

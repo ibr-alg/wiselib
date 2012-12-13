@@ -25,18 +25,16 @@ namespace wiselib {
 	
 	namespace list_dynamic_impl {
 		template<
-			typename Value_P,
-			typename Allocator_P
+			typename Value_P
 		>
-		struct DoublyConnectedListNode {
-			typedef DoublyConnectedListNode<Value_P, Allocator_P> self_type;
-			typename Allocator_P::template pointer_t<self_type> next;
-			typename Allocator_P::template pointer_t<self_type> prev;
+		struct SingleConnectedListNode {
+			typedef SingleConnectedListNode<Value_P> self_type;
+			Allocator::template pointer_t<self_type> next;
 			Value_P value;
 			Value_P& data() { return value; }
 			const Value_P& data() const { return value; }
 			
-			DoublyConnectedListNode() { }
+			SingleConnectedListNode() { }
 		};
 	
 	
@@ -47,18 +45,18 @@ namespace wiselib {
 			// {{{
 			public:
 				typedef List_P List;
-				typedef typename List::Allocator Allocator;
+				//typedef typename List::Allocator Allocator;
 				typedef typename List::value_type value_type;
 				typedef typename List::node_type node_type;
 				typedef value_type& reference;
 				typedef value_type* pointer;
 				typedef list_dynamic_iterator<List> iterator_type;
 				typedef list_dynamic_iterator<List> self_type;
-				typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
-				typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
+				typedef Allocator::template pointer_t<node_type> node_pointer_t;
+				typedef Allocator::template pointer_t<self_type> self_pointer_t;
 				
-				list_dynamic_iterator() : list_(0) { }
-				list_dynamic_iterator(List& l) : list_(&l) { }
+				list_dynamic_iterator() : list_(0), node_(0) { }
+				list_dynamic_iterator(List& l) : list_(&l), node_(0) { }
 				list_dynamic_iterator(List& l, const node_pointer_t node) : list_(&l), node_(node) { }
 				list_dynamic_iterator(const self_type& other) : list_(other.list_), node_(other.node_) { }
 				
@@ -72,11 +70,6 @@ namespace wiselib {
 				
 				iterator_type& operator++() { node_ = node_->next; return *this; }
 				
-				iterator_type& operator--() {
-					if(!node_) { node_ = list_->last(); }
-					else { node_ = node_->prev; }
-					return *this;
-				}
 				bool operator==(const iterator_type& other) const {
 					return node_ == other.node_;
 				}
@@ -98,42 +91,68 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Value_P,
-		typename Allocator_P
+		typename Value_P
 	>
 	class list_dynamic {
 		public:
-			typedef list_dynamic_impl::DoublyConnectedListNode<Value_P, Allocator_P> Node_P;
+			typedef list_dynamic_impl::SingleConnectedListNode<Value_P> Node_P;
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_t;
 			typedef Value_P value_type;
 			typedef value_type& reference;
 			typedef const value_type& const_reference;
-			typedef Allocator_P Allocator;
 			typedef Node_P node_type;
-			typedef typename Allocator::template pointer_t<node_type> node_pointer_t;
-			typedef typename Allocator::template pointer_t<node_type> node_ptr_t;
-			typedef list_dynamic<OsModel_P, Value_P, Allocator_P> self_type;
-			typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
+			typedef Allocator::template pointer_t<node_type> node_pointer_t;
+			typedef Allocator::template pointer_t<node_type> node_ptr_t;
+			typedef list_dynamic<OsModel_P, Value_P> self_type;
+			typedef Allocator::template pointer_t<self_type> self_pointer_t;
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
-			list_dynamic() : allocator_(0), first_node_(0), last_node_(0), weak_(false) { };
-			list_dynamic(Allocator& alloc) : allocator_(&alloc), first_node_(0), last_node_(0), weak_(false) { };
-			list_dynamic(typename Allocator::self_pointer_t alloc) : allocator_(alloc), first_node_(0), last_node_(0), weak_(false) { };
-			list_dynamic(const list_dynamic& other) : weak_(false) { *this = other; }
+         /*
+		typedef delegate3<int, value_type, value_type, void*> comparator_t;
+			
+		template<typename T>
+		static typename T::self_pointer_t to_t_ptr(value_type a) {
+			//return *reinterpret_cast<typename T::self_pointer_t*>(&a);
+			typename T::self_pointer_t r;
+			memcpy((void*)&r, (void*)&a, sizeof(typename T::self_pointer_t));
+			return r;
+		}
+		
+		template<typename T>
+		static int ptr_cmp_comparator(value_type a, value_type b, void*) {
+			return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
+			//return reinterpret_cast<T*>(a)->cmp(*reinterpret_cast<T*>(b));
+		}
+		
+			static int obvious_comparator(value_type a, value_type b, void*) {
+				return (a < b) ? -1 : (b > a);
+			}
+         */
+			
+			list_dynamic() : first_node_(0), last_node_(0){ };
+			list_dynamic(const list_dynamic& other) { *this = other; }
+			
+			
+			int init(
+				//	comparator_t compare
+			) {
+				//compare_ = compare;
+				return 0;
+			}
 			
 			~list_dynamic() {
-				if(!weak_) {
-					clear();
-				}
+			   clear();
 			}
 			
 			list_dynamic& operator=(const self_type& other) {
 				// TODO: Implement copy-on-write
-				allocator_ = other.allocator_;
+				//compare_ = other.compare_;
 				clear();
+				first_node_ = 0;
+				last_node_ = 0;
 				for(typename self_type::const_iterator iter = other.begin(); iter != other.end(); ++iter) {
 					push_back(*iter);
 				}
@@ -151,15 +170,13 @@ namespace wiselib {
 			 * Only use if you know what you are doing! These methods are
 			 * basically a recipe for memory leaks!
 			 */
-			bool weak() const { return weak_; }
+			//bool weak() const { return weak_; }
 			
 			/**
 			 * Set/unset "weak" property.
 			 * See weak() for explanation on weakness.
 			 */
-			void set_weak(bool s) const { weak_ = s; }
-			
-			void set_allocator(Allocator& alloc) { allocator_ = &alloc; }
+			//void set_weak(bool s) const { weak_ = s; }
 			
 			iterator begin() { return iterator(*this, first_node_); }
 			iterator end() { return iterator(*this); }
@@ -183,47 +200,47 @@ namespace wiselib {
 			value_type& back() { return last_node_->value; }
 			iterator back_iterator() { return iterator(*this, last_node_); }
 			
+			/**
+			 * Insert item v *after* iter.
+			 */
 			iterator insert(iterator iter, const_reference v) {
-				node_pointer_t n = allocator_-> template allocate<node_type>();
-				n->value = v;
-				
-				iterator before(iter), after(iter);
-				--before;
-				if(before.node()) { before.node()->next = n; }
-				else { first_node_ = n; }
-				
-				if(after.node()) { after.node()->prev = n; }
-				else { last_node_ = n; }
-				
-				n->prev = before.node();
-				n->next = after.node();
-				
-				iterator new_iter(*this, n);
-				return new_iter;
+				node_pointer_t n = (iter == end()) ? insert_n(v, last_node_) : insert_n(v, iter.node());
+				return iterator(*this, n);
 			}
 			
-			node_pointer_t insert_n(const_reference v) {
-				iterator iter = end();
+			iterator insert(const_reference v) {
+				return insert(end(), v);
+			}
+			
+			node_pointer_t insert_n(const_reference v, node_ptr_t after = 0) {
+				if(!after) { after = last_node_; }
 				
-				node_pointer_t n = allocator_-> template allocate<node_type>();
+				node_pointer_t n = get_allocator().template allocate<node_type>();
 				n->value = v;
 				
-				iterator before(iter), after(iter);
-				--before;
-				if(before.node()) { before.node()->next = n; }
-				else { first_node_ = n; }
+				node_pointer_t prev = after;
+				if(prev) {
+					n->next = prev->next;
+					prev->next = n;
+				}
+				else {
+					n->next = 0;
+				}
 				
-				if(after.node()) { after.node()->prev = n; }
-				else { last_node_ = n; }
+				if(!first_node_) {
+					first_node_ = n;
+				}
 				
-				n->prev = before.node();
-				n->next = after.node();
+				if(!n->next) {
+					last_node_ = n;
+				}
 				
 				return n;
 			}
 			
 			iterator find(value_type v, void* d = 0) {
 				for(iterator i = begin(); i != end(); ++i) {
+					//if(compare_(*i, v, d) == 0) { return i; }
 					if(*i == v) { return i; }
 				}
 				return end();
@@ -243,28 +260,29 @@ namespace wiselib {
 			void pop_back() { erase(iterator(*this, last_node_)); }
 			
 			iterator erase(iterator iter) {
+				node_ptr_t prev = first_node_;
+				while(prev && prev->next != iter.node()) {
+					prev = prev->next;
+				}
+				
 				if(!iter.node()) { return iter; }
 				if(iter.node() == first_node_) { first_node_ = iter.node()->next; }
-				if(iter.node() == last_node_) { last_node_ = iter.node()->prev; }
-				if(iter.node()->next) { iter.node()->next->prev = iter.node()->prev; }
-				if(iter.node()->prev) { iter.node()->prev->next = iter.node()->next; }
+				if(iter.node() == last_node_) { last_node_ = prev; }
+				if(prev) { prev->next = iter.node()->next; }
 				
 				iterator n(*this, iter.node()->next);
-				allocator_-> template free<node_type>(iter.node());
+            	::get_allocator().template free<node_type>(iter.node());
 				return n;
 			}
 			
 			void swap(self_type& other) {
 				node_pointer_t tmp_first = first_node_, tmp_last = last_node_;
-				typename Allocator::self_pointer_t tmp_alloc = allocator_;
 				
 				first_node_ = other.first_node_;
 				last_node_ = other.last_node_;
-				allocator_ = other.allocator_;
 				
 				other.first_node_ = tmp_first;
 				other.last_node_ = tmp_last;
-				other.allocator_ = tmp_alloc;
 			}
 			
 			
@@ -277,21 +295,20 @@ namespace wiselib {
 			node_pointer_t last() const { return last_node_; }
 			
 		private:
-			typename Allocator::self_pointer_t allocator_;
 			node_pointer_t first_node_, last_node_;
-			mutable bool weak_;
+			//mutable bool weak_;
+			//comparator_t compare_;
 	};
 	
 	
 	template<
-		typename OsModel_P,
-		typename Allocator_P
+		typename OsModel_P
 	>
 	struct maplist_adaptors {
 		template<
 			typename Value_P
 		>
-		class list_dynamic : public wiselib::list_dynamic<OsModel_P, Value_P, Allocator_P> {
+		class list_dynamic : public wiselib::list_dynamic<OsModel_P, Value_P> {
 		};
 	};
 	

@@ -1,0 +1,9 @@
+
+/**
+ *
+ */
+concept Codec {
+	static block_data_t* encode(block_data_t*);
+	static block_data_t* decode(block_data_t*);
+}
+

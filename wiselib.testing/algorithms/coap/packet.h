@@ -25,8 +25,12 @@
 #ifndef PACKET_H
 #define  PACKET_H
 
-typedef enum
-{
+#ifdef ENABLE_URI_QUERIES
+#include "query.h"
+typedef wiselib::Queries<wiselib::OSMODEL, wiselib::StaticString> queries_t;
+#endif
+
+typedef enum {
    CONTENT_TYPE = 1,
    MAX_AGE = 2,
    PROXY_URI = 3,
@@ -47,24 +51,28 @@ typedef enum
    IF_NONE_MATCH = 21
 } coap_option_t;
 
-typedef enum
-{
+typedef enum {
    GET = 1,
-   POST,
-   PUT,
-   DELETE
+   POST = 2,
+   PUT = 4,
+   DELETE = 8
+} app_method_t;
+
+typedef enum {
+   COAP_GET = 1,
+   COAP_POST,
+   COAP_PUT,
+   COAP_DELETE
 } coap_method_t;
 
-typedef enum
-{
+typedef enum {
    CON,
    NON,
    ACK,
    RST
 } coap_message_type_t;
 
-typedef enum
-{
+typedef enum {
    TEXT_PLAIN = 0,
    TEXT_XML = 1,
    TEXT_CSV = 2,
@@ -89,8 +97,7 @@ typedef enum
    APPLICATION_X_OBIX_BINARY = 51
 } coap_content_type_t;
 
-typedef enum
-{
+typedef enum {
    NO_ERROR = 0,
 
    CREATED = 65,
@@ -117,13 +124,18 @@ typedef enum
    PROXYING_NOT_SUPPORTED = 165
 } coap_status_t;
 
-namespace wiselib
-{
-   class CoapPacket
-   {
+namespace wiselib {
+#ifdef DEBUG_OPTION
+
+   template<typename Debug_P>
+#endif
+   class CoapPacket {
       public:
-         void init( void )
-         {
+#ifdef DEBUG_OPTION
+         typedef Debug_P Debug;
+
+         void init( Debug& debug ) {
+            debug_ = &debug;
             version_ = COAP_VERSION;
             type_ = 0;
             opt_count_ = 0;
@@ -131,205 +143,242 @@ namespace wiselib
             mid_ = 0;
             options_ = 0x00;
             uri_path_len_ = 0;
-            uri_query_len_ = 0;
             payload_len_ = 0;
          }
-         uint8_t version_w()
-         {
+#else
+
+         void init() {
+            version_ = COAP_VERSION;
+            type_ = 0;
+            opt_count_ = 0;
+            code_ = 0;
+            mid_ = 0;
+            options_ = 0x00;
+            uri_path_len_ = 0;
+            payload_len_ = 0;
+         }
+#endif
+
+         /**
+          * Returns the version of COAP.
+          * @return the version of the message.
+          */
+         inline uint8_t version_w() {
             return version_;
          }
-         uint8_t type_w()
-         {
+
+         /**
+          * Get the type of the message.
+          * @return Confirmable (0), Non-Confirmable (1), Acknowledgement (2) or Reset (3).
+          */
+         inline uint8_t type_w() {
             return type_;
          }
-         uint8_t opt_count_w()
-         {
+
+         /**
+          * Checks if the Message is confirmable.
+          * @return
+          */
+         inline bool is_confirmable() {
+            return type_ == CON;
+         }
+
+         /**
+          * Returns the number of options in the Message.
+          * @return # of options.
+          */
+         inline uint8_t opt_count_w() {
             return opt_count_;
          }
-         uint8_t code_w()
-         {
+
+         /**
+          * Get the Code of the message.
+          * @return request (1-31) or a response (64-191), or is empty (0). All other code values are reserved.
+          */
+         inline uint8_t code_w() {
             return code_;
          }
-         uint16_t mid_w()
-         {
+
+         /**
+          * Helper Function.
+          * Checks if a Message is a Request.
+          */
+         inline bool is_request() {
+            return ( code_w() >= 1 && code_w() <= 4 );
+         }
+
+         inline uint16_t mid_w() {
             return mid_;
          }
-         uint32_t is_option( uint8_t opt )
-         {
+
+         inline uint32_t is_option( uint8_t opt ) {
             return options_ & 1L << opt;
          }
-         uint8_t content_type_w()
-         {
+
+         inline uint8_t content_type_w() {
             return content_type_;
          }
-         uint32_t max_age_w()
-         {
+
+         inline uint32_t max_age_w() {
             return max_age_;
          }
-         uint16_t uri_host_w()
-         {
+         inline uint16_t uri_host_w() {
             return uri_host_;
          }
-         uint16_t uri_port_w()
-         {
+
+         inline uint16_t uri_port_w() {
             return uri_port_;
          }
-         uint8_t uri_path_len_w()
-         {
+
+         inline uint8_t uri_path_len_w() {
             return uri_path_len_;
          }
-         char* uri_path_w()
-         {
+
+         inline char* uri_path_w() {
             return uri_path_;
          }
-         uint16_t observe_w()
-         {
+
+         inline uint16_t observe_w() {
             return observe_;
          }
-         uint8_t token_len_w()
-         {
+
+         inline uint8_t token_len_w() {
             return token_len_;
          }
-         uint8_t* token_w()
-         {
+
+         inline uint8_t* token_w() {
             return token_;
          }
-         uint16_t accept_w()
-         {
+
+         inline uint16_t accept_w() {
             return accept_;
          }
-         size_t uri_query_len_w()
-         {
-            return uri_query_len_;
+#ifdef ENABLE_URI_QUERIES
+
+         inline queries_t* uri_queries() {
+            return &uri_queries_;
          }
-         char* uri_query_w()
-         {
-            return uri_query_;
-         }
-         uint32_t block2_num_w()
-         {
+#endif
+
+         inline uint32_t block2_num_w() {
             return block2_num_;
          }
-         uint8_t block2_more_w()
-         {
+
+         inline uint8_t block2_more_w() {
             return block2_more_;
          }
-         uint16_t block2_size_w()
-         {
+
+         inline uint16_t block2_size_w() {
             return block2_size_;
          }
-         uint32_t block2_offset_w()
-         {
+
+         inline uint32_t block2_offset_w() {
             return block2_offset_;
          }
-         uint8_t payload_len_w()
-         {
+
+         inline uint8_t payload_len_w() {
             return payload_len_;
          }
-         uint8_t* payload_w()
-         {
+
+         inline uint8_t* payload_w() {
             return payload_;
          }
 
-         void set_version( uint8_t version )
-         {
+         inline void set_version( uint8_t version ) {
             version_ = version;
          }
-         void set_type( uint8_t type )
-         {
+
+         inline void set_type( uint8_t type ) {
             type_ = type;
          }
-         void set_opt_count( uint8_t opt_count )
-         {
+
+         inline void set_opt_count( uint8_t opt_count ) {
             opt_count_ = opt_count;
          }
-         void set_code( uint8_t code )
-         {
+
+         inline void set_code( uint8_t code ) {
             code_ = code;
          }
-         void set_mid( uint16_t mid )
-         {
+
+         inline void set_mid( uint16_t mid ) {
             mid_ = mid;
          }
-         void set_option( uint8_t opt )
-         {
+
+         inline void set_option( uint8_t opt ) {
             options_ |= 1L << opt;
          }
-         void set_content_type( uint8_t content_type )
-         {
+
+         inline void set_content_type( uint8_t content_type ) {
             content_type_ = content_type;
          }
-         void set_max_age( uint32_t max_age )
-         {
+
+         inline void set_max_age( uint32_t max_age ) {
             max_age_ = max_age;
          }
-         void set_uri_host( uint16_t uri_host )
-         {
+
+         inline void set_uri_host( uint16_t uri_host ) {
             uri_host_ = uri_host;
          }
-         void set_uri_port( uint16_t uri_port )
-         {
+
+         inline void set_uri_port( uint16_t uri_port ) {
             uri_port_ = uri_port;
          }
-         void set_uri_path_len( uint8_t uri_path_len )
-         {
+
+         inline void set_uri_path_len( uint8_t uri_path_len ) {
             uri_path_len_ = uri_path_len;
          }
-         void set_uri_path( char* uri_path )
-         {
+
+         inline void set_uri_path( char* uri_path ) {
             uri_path_ = uri_path;
          }
-         void set_observe( uint16_t observe )
-         {
+
+         inline void set_observe( uint16_t observe ) {
             observe_ = observe;
          }
-         void set_token_len( uint8_t token_len )
-         {
+
+         inline void set_token_len( uint8_t token_len ) {
             token_len_ = token_len;
          }
-         void set_token( uint8_t* token )
-         {
+
+         inline void set_token( uint8_t* token ) {
             memcpy( token_, token, token_len_ );
          }
-         void set_accept( uint16_t accept )
-         {
+
+         inline void set_accept( uint16_t accept ) {
             accept_ = accept;
          }
-         void set_uri_query_len( size_t uri_query_len )
-         {
-            uri_query_len_ = uri_query_len;
+#ifdef ENABLE_URI_QUERIES
+
+         inline void set_uri_query( queries_t uri_queries ) {
+            uri_queries_ = uri_queries;
          }
-         void set_uri_query( char* uri_query )
-         {
-            uri_query_ = uri_query;
-         }
-         void set_block2_num( uint32_t block2_num )
-         {
+#endif
+
+         inline void set_block2_num( uint32_t block2_num ) {
             block2_num_ = block2_num;
          }
-         void set_block2_more( uint8_t block2_more )
-         {
+
+         inline void set_block2_more( uint8_t block2_more ) {
             block2_more_ = block2_more;
          }
-         void set_block2_size( uint16_t block2_size )
-         {
+
+         inline void set_block2_size( uint16_t block2_size ) {
             block2_size_ = block2_size;
          }
-         void set_block2_offset( uint32_t block2_offset )
-         {
+
+         inline void set_block2_offset( uint32_t block2_offset ) {
             block2_offset_ = block2_offset;
          }
-         void set_payload_len( uint8_t payload_len )
-         {
+
+         inline void set_payload_len( uint8_t payload_len ) {
             payload_len_ = payload_len;
          }
-         void set_payload( uint8_t* payload )
-         {
+
+         inline void set_payload( uint8_t* payload ) {
             payload_ = payload;
          }
 
-         coap_status_t buffer_to_packet( uint8_t len, uint8_t* buf )
-         {
+         coap_status_t buffer_to_packet( uint8_t len, uint8_t* buf ) {
             //header
             version_ = ( COAP_HEADER_VERSION_MASK & buf[1] ) >> COAP_HEADER_VERSION_SHIFT;
             type_ = ( COAP_HEADER_TYPE_MASK & buf[1] ) >> COAP_HEADER_TYPE_SHIFT;
@@ -339,24 +388,19 @@ namespace wiselib
 
             //options
             uint8_t *current_opt = buf + COAP_HEADER_LEN + 1;
-            if( opt_count_ )
-            {
+            if ( opt_count_ ) {
 
                uint16_t opt_len = 0;
                uint8_t opt_index = 0;
                uint8_t current_delta = 0;
-               for ( opt_index = 0; opt_index < opt_count_; opt_index++ )
-               {
+               for ( opt_index = 0; opt_index < opt_count_; opt_index++ ) {
 
                   current_delta += current_opt[0] >> 4;
                   //get option length
-                  if ( ( 0x0F & current_opt[0] ) < 15 )
-                  {
+                  if ( ( 0x0F & current_opt[0] ) < 15 ) {
                      opt_len = 0x0F & current_opt[0];
                      current_opt += 1; //point to option value
-                  }
-                  else
-                  {
+                  } else {
                      opt_len = current_opt[1] + 15;
                      current_opt += 2; //point to option value
                   }
@@ -365,81 +409,101 @@ namespace wiselib
                      continue;
                   }
 
-                  switch ( current_delta )
-                  {
+                  switch ( current_delta ) {
                      case CONTENT_TYPE:
                         set_option( CONTENT_TYPE );
-                        content_type_ = get_int_opt_value( current_opt, opt_len );
+                        DBG_O( debug().debug( "OPTION:CONTENT TYPE" ) );
+                        content_type_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case MAX_AGE:
+                        DBG_O( debug().debug( "OPTION:MAX AGE" ) );
                         set_option( MAX_AGE );
-                        max_age_ = get_int_opt_value( current_opt, opt_len );
+                        //max_age_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case PROXY_URI:
+                        DBG_O( debug().debug( "OPTION:PROXY URI" ) );
                         set_option( PROXY_URI );
                         break;
                      case ETAG:
+                        DBG_O( debug().debug( "OPTION:ETAG" ) );
                         set_option( ETAG );
                         break;
                      case URI_HOST:
-                        // based on id, not ip-literal
+                        // based on id, not ip-literal, converting ascii to node id
                         set_option( URI_HOST );
-                        uri_host_ = get_int_opt_value( current_opt, opt_len );
+                        DBG_O( debug().debug( "OPTION:URI HOST" ) );
+                        uri_host_ = get_int_opt_value( current_opt, opt_len, true );
+                        DBG_O( debug().debug( "HOST: %d, %x", uri_host_, uri_host_ ) );
                         break;
                      case LOCATION_PATH:
+                        DBG_O( debug().debug( "OPTION:LOCATION PATH" ) );
                         set_option( LOCATION_PATH );
                         break;
                      case URI_PORT:
+                        DBG_O( debug().debug( "OPTION:URI PORT" ) );
                         set_option( URI_PORT );
-                        uri_port_ = get_int_opt_value( current_opt, opt_len );
+                        uri_port_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case LOCATION_QUERY:
+                        DBG_O( debug().debug( "OPTION:LOCATION QUERY" ) );
                         set_option( LOCATION_QUERY );
                         break;
                      case URI_PATH:
                         set_option( URI_PATH );
+                        DBG_O( debug().debug( "OPTION:URI PATH" ) );
                         merge_options( &uri_path_, &uri_path_len_, current_opt, opt_len, '/' );
                         break;
                      case OBSERVE:
                         set_option( OBSERVE );
-                        observe_ = get_int_opt_value( current_opt, opt_len );
+                        DBG_O( debug().debug( "OPTION:OBSERVE" ) );
+                        observe_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case TOKEN:
                         set_option( TOKEN );
+                        DBG_O( debug().debug( "OPTION:TOKEN" ) );
                         token_len_ = opt_len; // may fix
                         memcpy( token_, current_opt, opt_len ); // may fix
                         break;
                      case ACCEPT:
+                        DBG_O( debug().debug( "OPTION:ACCEPT" ) );
                         set_option( ACCEPT );
-                        accept_ = get_int_opt_value( current_opt, opt_len );
+                        accept_ = get_int_opt_value( current_opt, opt_len, false );
                         break;
                      case IF_MATCH:
+                        DBG_O( debug().debug( "OPTION:IF MATCH" ) );
                         set_option( IF_MATCH );
                         break;
                      case MAX_OFE:
+                        DBG_O( debug().debug( "OPTION:MAX OFE" ) );
                         set_option( MAX_OFE );
                         break;
                      case URI_QUERY:
+                        DBG_O( debug().debug( "OPTION:URI QUERY" ) );
                         set_option( URI_QUERY );
-                        merge_options( &uri_query_, &uri_query_len_, current_opt, opt_len, '&' );
+#ifdef ENABLE_URI_QUERIES
+                        uri_queries_.add_query( ( char* ) current_opt, opt_len );
+#endif
                         break;
                      case BLOCK2:
+                        DBG_O( debug().debug( "OPTION:BLOCK2" ) );
                         set_option( BLOCK2 );
-                        block2_num_ = get_int_opt_value( current_opt, opt_len );
+                        block2_num_ = get_int_opt_value( current_opt, opt_len, false );
                         block2_more_ = ( block2_num_ & 0x08 ) >> 3;
                         block2_size_ = 16 << ( block2_num_ & 0x07 );
                         block2_offset_ = ( block2_num_ & ~0x0F ) << ( block2_num_ & 0x07 );
                         block2_num_ >>= 4;
                         break;
                      case BLOCK1:
+                        DBG_O( debug().debug( "OPTION:BLOCK1" ) );
                         set_option( BLOCK1 );
                         break;
                      case IF_NONE_MATCH:
+                        DBG_O( debug().debug( "OPTION:IF NONE MATCH" ) );
                         set_option( IF_NONE_MATCH );
                         break;
                      default:
+                        DBG_O( debug().debug( "OPTION:BAD OPTION" ) );
                         return BAD_OPTION;
-
                   }
                   current_opt += opt_len; // point to next option delta
                }
@@ -451,63 +515,53 @@ namespace wiselib
             return NO_ERROR;
          }
 
-         uint8_t packet_to_buffer( uint8_t *buf )
-         {
+         uint8_t packet_to_buffer( uint8_t *buf ) {
             //options
             uint8_t current_delta = 0;
             uint8_t buf_index = COAP_HEADER_LEN + 1;
-            if ( is_option( CONTENT_TYPE ) )
-            {
+            if ( is_option( CONTENT_TYPE ) ) {
                buf_index += set_int_opt_value( CONTENT_TYPE, current_delta, &buf[buf_index], content_type_ );
                current_delta = CONTENT_TYPE;
                opt_count_ += 1;
             }
-            if ( is_option( MAX_AGE ) )
-            {
+            if ( is_option( MAX_AGE ) ) {
                buf_index += set_int_opt_value( MAX_AGE, current_delta, &buf[buf_index], max_age_ );
                current_delta = MAX_AGE;
                opt_count_++;
             }
-            if ( is_option( URI_HOST ) )
-            {
+            if ( is_option( URI_HOST ) ) {
                buf_index += set_int_opt_value( URI_HOST, current_delta, &buf[buf_index], uri_host_ );
                current_delta = URI_HOST;
                opt_count_++;
             }
-            if ( is_option( URI_PORT ) )
-            {
+            if ( is_option( URI_PORT ) ) {
                buf_index += set_int_opt_value( URI_PORT, current_delta, &buf[buf_index], uri_port_ );
                current_delta = URI_PORT;
                opt_count_++;
             }
-            if ( is_option( URI_PATH ) )
-            {
+            if ( is_option( URI_PATH ) ) {
                char seperator[] = "/";
                buf_index += split_option( URI_PATH, current_delta, &buf[buf_index], seperator );
                current_delta = URI_PATH;
             }
-            if ( is_option( OBSERVE ) )
-            {
+            if ( is_option( OBSERVE ) ) {
                buf_index += set_int_opt_value( OBSERVE, current_delta, &buf[buf_index], observe_ );
                current_delta = OBSERVE;
                opt_count_ += 1;
             }
-            if ( is_option( TOKEN ) )
-            {
+            if ( is_option( TOKEN ) ) {
                buf[buf_index++] = ( TOKEN - current_delta ) << 4 | token_len_;
                memcpy( &buf[buf_index], token_, token_len_ );
                current_delta = TOKEN;
                buf_index += token_len_;
                opt_count_ += 1;
             }
-            if ( is_option( ACCEPT ) )
-            {
+            if ( is_option( ACCEPT ) ) {
                buf_index += set_int_opt_value( ACCEPT, current_delta, &buf[buf_index], accept_ );
                current_delta = ACCEPT;
                opt_count_ += 1;
             }
-            if ( is_option( BLOCK2 ) )
-            {
+            if ( is_option( BLOCK2 ) ) {
                uint32_t block = block2_num_ << 4;
                if ( block2_more_ )
                   block |= 0x8;
@@ -517,7 +571,7 @@ namespace wiselib
                opt_count_ += 1;
             }
             //header
-            buf[0] = WISELIB_MID_COAP;
+            buf[0] = WISELIB_MID_COAP_RESP; /// personal use
             buf[1] = COAP_HEADER_VERSION_MASK & version_ << COAP_HEADER_VERSION_SHIFT;
             buf[1] |= COAP_HEADER_TYPE_MASK & type_ << COAP_HEADER_TYPE_SHIFT;
             buf[1] |= COAP_HEADER_OPT_COUNT_MASK & opt_count_ << COAP_HEADER_OPT_COUNT_SHIFT;
@@ -529,11 +583,10 @@ namespace wiselib
             return buf_index + payload_len_;
          }
       protected:
-         uint8_t add_fence_opt( uint8_t opt, uint8_t *current_delta, uint8_t *buf )
-         {
+
+         uint8_t add_fence_opt( uint8_t opt, uint8_t *current_delta, uint8_t *buf ) {
             uint8_t i = 0;
-            while ( opt - *current_delta > 15 )
-            {
+            while ( opt - *current_delta > 15 ) {
                uint8_t delta = 14 - ( *current_delta % 14 );
                set_opt_header( delta, 0, &buf[i++] );
                *current_delta += delta;
@@ -541,22 +594,19 @@ namespace wiselib
             }
             return i;
          }
-         uint8_t set_opt_header( uint8_t delta, size_t len, uint8_t *buf )
-         {
-            if ( len < 15 )
-            {
+
+         uint8_t set_opt_header( uint8_t delta, size_t len, uint8_t *buf ) {
+            if ( len < 15 ) {
                buf[0] = delta << 4 | len;
                return 1;
-            }
-            else
-            {
+            } else {
                buf[0] = delta << 4 | 0x0F;
                buf[1] = len - 15;
                return 2;
             }
          }
-         uint8_t set_int_opt_value( uint8_t opt, uint8_t current_delta, uint8_t *buf, uint32_t value )
-         {
+
+         uint8_t set_int_opt_value( uint8_t opt, uint8_t current_delta, uint8_t *buf, uint32_t value ) {
             uint8_t i = add_fence_opt( opt, &current_delta, buf );
             uint8_t start_i = i;
 
@@ -570,50 +620,54 @@ namespace wiselib
             i += set_opt_header( opt - current_delta, i - start_i, &buf[start_i] );
             return i;
          }
-         uint32_t get_int_opt_value( uint8_t *value, uint16_t length )
-         {
+
+         uint32_t get_int_opt_value( uint8_t *value, uint16_t length, bool hexAscii ) {
             uint32_t var = 0;
             int i = 0;
-            while ( i < length )
-            {
-               var <<= 8;
-               var |= 0xFF & value[i++];
+            while ( i < length ) {
+               if ( hexAscii == false ) {
+                  var <<= 8;
+                  var |= 0xFF & value[i++];
+               } else {
+                  var *= 16;
+                  if ( value[i] >= 0x41 && value[i] <= 0x5a )
+                     var += value[i] - 0x41 + 10;
+                  else if ( value[i] >= 0x61 && value[i] <= 0x7a )
+                     var += value[i] - 0x61 + 10;
+                  else if ( value[i] >= 0x30 && value[i] <= 0x39 )
+                     var += value[i] - 0x30;
+                  i++;
+               }
             }
             return var;
          }
-         static void merge_options( char **dst, size_t *dst_len, uint8_t *value, uint16_t length, char seperator )
-         {
-            if ( *dst_len > 0 )
-            {
+
+         static void merge_options( char **dst, size_t *dst_len, uint8_t *value, uint16_t length, char seperator ) {
+            if ( *dst_len > 0 ) {
                ( *dst )[*dst_len] = seperator;
                *dst_len += 1;
                memmove( ( *dst ) + ( *dst_len ), value, length );
                *dst_len += length;
-            }
-            else
-            {
+            } else {
                *dst = ( char * ) value;
                *dst_len = length;
             }
          }
-         uint8_t split_option( uint8_t opt, uint8_t current_delta, uint8_t* buf, char* seperator )
-         {
+
+         uint8_t split_option( uint8_t opt, uint8_t current_delta, uint8_t* buf, char* seperator ) {
             uint8_t index = 0;
             uint8_t buf_last = 0;
             uint8_t path_last = 0;
             uint8_t shift = 0;
-            while( index < uri_path_len_ )
-            {
-               index += strcspn( &uri_path_[index], seperator ) + 1;
+            while ( index < uri_path_len_ ) {
+               index += mystrcspn( &uri_path_[index], seperator ) + 1;
                if ( index - path_last - 1 > 15 ) // large option
                {
                   buf[buf_last] = ( opt - current_delta ) << 4 | 15;
                   buf[buf_last + 1] = index - path_last - 1 - 15;
                   memcpy( &buf[buf_last + 2], &uri_path_[path_last], index - path_last - 1 );
                   buf_last = index + ( ++shift );
-               }
-               else
-               {
+               } else {
                   buf[buf_last] = ( opt - current_delta ) << 4 | ( index - path_last - 1 );
                   memcpy( &buf[buf_last + 1], &uri_path_[path_last], index - path_last - 1 );
                   buf_last = index + shift;
@@ -624,11 +678,10 @@ namespace wiselib
             }
             return buf_last;
          }
-         uint8_t power_of_two( uint16_t num )
-         {
+
+         uint8_t power_of_two( uint16_t num ) {
             uint8_t i = 0;
-            while( num != 1 )
-            {
+            while ( num != 1 ) {
                num >>= 1;
                i++;
             }
@@ -663,8 +716,9 @@ namespace wiselib
          //TODO...
          //uint8_t if_match_len_; // 13
          //uint8_t if_match_[8]; // 13
-         size_t uri_query_len_; // 15
-         char *uri_query_; // 15
+#ifdef ENABLE_URI_QUERIES
+         queries_t uri_queries_; // 15
+#endif
          // block2 17
          uint32_t block2_num_; // 17
          uint8_t block2_more_; // 17
@@ -678,6 +732,13 @@ namespace wiselib
 
          uint8_t payload_len_;
          uint8_t *payload_;
+#ifdef DEBUG_OPTION
+         Debug * debug_;
+
+         Debug& debug() {
+            return *debug_;
+         }
+#endif
    };
 }
 #endif

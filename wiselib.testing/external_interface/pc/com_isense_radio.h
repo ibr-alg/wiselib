@@ -155,6 +155,7 @@ namespace wiselib {
 			ComISenseRadioModel,
 			&ComISenseRadioModel::uart_receive
 		>(this);
+                
 	}
 
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>
@@ -165,7 +166,7 @@ namespace wiselib {
 		sending_ = false;
 
 		packet_t p(packet_t::SUB_RADIO_GET_ADDRESS);
-		write_packet(p);
+		write_packet(p);                
 	}
 
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>
@@ -176,6 +177,7 @@ namespace wiselib {
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>
 	typename ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::node_id_t ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
 	id() {
+            id_valid_ = false;
 		if( !id_valid_ )
 		{
 			packet_t p(packet_t::SUB_RADIO_GET_ADDRESS);
@@ -224,6 +226,7 @@ namespace wiselib {
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>
 	int ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
 	send( node_id_t destination, size_t size, block_data_t* data, int8_t tx_power /*= 1*/) {
+                
 		if( ( tx_power != -30 ) && ( tx_power != -24 ) && ( tx_power != -18 ) &&
 			( tx_power != -12 ) && ( tx_power != -6 ) && ( tx_power != 0 ) && ( tx_power != 1 ) )
 		{
@@ -237,7 +240,7 @@ namespace wiselib {
 
 		p.push_header(packet_t::SUB_RADIO_OUT);
 		p.push_header(-tx_power);
-		p.push_header16(destination);
+		p.push_header16((uint16_t)destination);
 
 		p.set_data(size, data);
 
@@ -256,6 +259,7 @@ namespace wiselib {
 	int ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
 	write_packet(packet_t& p) {
 		// Block SIGALRM to avoid interrupting call of timer_handler.
+
 		sigset_t signal_set, old_signal_set;
 		if ( ( sigemptyset( &signal_set ) == -1 ) ||
 				( sigaddset( &signal_set, SIGALRM ) == -1 ) ||
@@ -263,19 +267,20 @@ namespace wiselib {
 		{
 			perror( "Failed to block SIGALRM" );
 		}
-
+                
 		send_uart(DLE);
 		send_uart(STX);
 
-		/*
-		for(size_t i=0; i<p.header_size(); i++) {
-			std::cout << "header[" << (int)i << "]=" << (int)p.header()[i] << "\n";
-		}
-		for(size_t i=0; i<p.data_size(); i++) {
-			std::cout << "data[" << (int)i << "]=" << (int)p.data()[i] << "\n";
-		}
-		*/
+		
+//		for(size_t i=0; i<p.header_size(); i++) {
+//			std::cout << "header[" << (int)i << "]=" << (int)p.header()[i] << "\n";
+//		}
+//		for(size_t i=0; i<p.data_size(); i++) {
+//			std::cout << "data[" << (int)i << "]=" << (int)p.data()[i] << "\n";
+//		}
+		
 
+                
 		for(size_t i=0; i<p.header_size(); i++) {
 			//DLE characters must be sent twice.
 			if( (uint8_t)p.header()[i] == DLE )
@@ -383,7 +388,7 @@ namespace wiselib {
 						return;
 					id_ = receiving_[3] << 8 | receiving_[4];
 					id_valid_ = true;
-					//std::cout << "--- iSense node address: 0x" << std::hex << id_ << std::dec << "\n";
+					std::cout << "--- iSense node address: 0x" << std::hex << id_ << std::dec << "\n";
 				} break;
 
 				case packet_t::SUB_RADIO_IN: {

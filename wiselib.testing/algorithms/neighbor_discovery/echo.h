@@ -43,14 +43,14 @@
 //#define DEBUG_ECHO
 //#define DEBUG_ECHO_EXTRA
 //#define DEBUG_PIGGYBACKING
-#define MAX_PG_PAYLOAD 30
-#define ECHO_MAX_NODES 60
+#define MAX_PG_PAYLOAD 48
+#define ECHO_MAX_NODES 20
 
 /**
  *	If enabled, beacons that are below certain LQI thresholds
  *	will be ignored.
  */
-#define ENABLE_LQI_THRESHOLDS
+//#define ENABLE_LQI_THRESHOLDS
 
 /**
  *	If enabled, beacons that are below certain Stability thresholds
@@ -109,27 +109,42 @@ public:
 			event_notifier_delegate_t;
 	//        typedef status_delegate_t radio_delegate_t;
 
+	//struct neighbor_entry {
+		//time_t last_echo;
+		//time_t timeout;
+		//time_t first_beacon;
+		//uint16_t last_lqi;
+		//uint16_t avg_lqi;
+		//uint8_t beacons_in_row;
+		//node_id_t id;
+		//uint32_t total_beacons;
+		//uint8_t inverse_link_assoc;
+		//uint16_t stability;
+		//bool active;
+		//bool stable;
+		//bool bidi;
+	//};
 	struct neighbor_entry {
+		node_id_t id;
+		uint32_t total_beacons;
 		time_t last_echo;
 		time_t timeout;
 		time_t first_beacon;
 		uint16_t last_lqi;
 		uint16_t avg_lqi;
-		uint8_t beacons_in_row;
-		node_id_t id;
-		uint32_t total_beacons;
-		uint8_t inverse_link_assoc;
 		uint16_t stability;
+		uint8_t beacons_in_row;
+		uint8_t inverse_link_assoc;
 		bool active;
 		bool stable;
 		bool bidi;
 	};
 
 	struct reg_alg_entry {
-		uint8_t alg_id;
 		uint8_t data[MAX_PG_PAYLOAD];
-		uint8_t size;
 		event_notifier_delegate_t event_notifier_callback;
+		uint8_t alg_id;
+		uint8_t size;
 		uint8_t events_flag;
 	};
 
@@ -160,6 +175,10 @@ public:
 	 * Actual Vector containing the nodes in the neighborhood
 	 */
 	node_info_vector_t neighborhood;
+	
+	typedef node_info_vector_t Neighbors;
+	Neighbors& topology() { return neighborhood; }
+	
 	// --------------------------------------------------------------------
 
 	enum error_codes {
@@ -479,7 +498,8 @@ public:
 		debug_ = &debug;
 		beacon_period = 1000;
 		timeout_period = 9000;
-		min_lqi_threshold = 150;
+		//min_lqi_threshold = 150;
+		min_lqi_threshold = 100;
 		max_lqi_threshold = 165;
 		max_stability_threshold = 40;
 		min_stability_threshold = 20;
@@ -570,6 +590,7 @@ private:
 	 *
 	 */
 	void say_hello(void * a) {
+		//debug().debug("say_hello()\n");
 
 
 			// Check for Neighbors that do not exist and need to be dropped
@@ -618,11 +639,13 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 			buffer[1] = 0x69;
 			buffer[2] = 110;
 
+			if(echomsg.buffer_size() > 0)
 			memcpy( buffer+3, (uint8_t *) &echomsg, echomsg.buffer_size() );
 			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size()+3, (uint8_t *) buffer);
 #else
-			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(),
-					(uint8_t *) &echomsg);
+			//debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
+			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) &echomsg);
+			//radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
 #endif
 
 			msgs_stats.echo_msg_count++;
@@ -659,7 +682,9 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 		#else
 			, typename Radio::ExtendedData const &ex) {
 		#endif
+				//debug().debug("ND::recv\n");
 		//        void receive(node_id_t from, size_t len, block_data_t * msg) {
+		//debug().debug("recv\n");
 
 #ifdef SUNSPOT_TEST
 		len-=3;
@@ -1382,6 +1407,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 	Timer * timer_;
 	Debug * debug_;
 
+public:
 	Radio& radio() {
 		return *radio_;
 	}

@@ -28,30 +28,29 @@ namespace wiselib
 {
 
    template<typename OsModel_P,
-            typename Value_P,
-            typename Allocator_P>
+            typename Value_P
+            >
    class vector_dynamic
    {
    public:
+      typedef OsModel_P OsModel;
+      
       typedef Value_P value_type;
-      typedef Allocator_P Allocator;
       typedef value_type* pointer;
       typedef value_type& reference;
 
-      typedef vector_dynamic<OsModel_P, value_type, Allocator_P> vector_type;
-      typedef vector_dynamic<OsModel_P, value_type, Allocator_P> self_type;
-      typedef typename Allocator::template pointer_t<self_type> self_pointer_t;
+      typedef vector_dynamic<OsModel_P, value_type> vector_type;
+      typedef vector_dynamic<OsModel_P, value_type> self_type;
+      typedef self_type* self_pointer_t;
 
-      typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
-
+      //typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
+      
       typedef typename OsModel_P::size_t size_type;
       typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
+      
+      typedef buffer_pointer_t iterator;
       // --------------------------------------------------------------------
-      vector_dynamic() :  size_(0), capacity_(0), buffer_(0), allocator_(0)
-      {
-      }
-      // --------------------------------------------------------------------
-      vector_dynamic(typename Allocator::self_pointer_t alloc) :  size_(0), capacity_(0), buffer_(0),allocator_(alloc)
+      vector_dynamic() :  size_(0), capacity_(0), buffer_(0)
       {
       }
       // --------------------------------------------------------------------
@@ -62,7 +61,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       ~vector_dynamic() {
          if(buffer_) {
-            allocator_->free_array(buffer_);
+            get_allocator().free_array(buffer_);
          }
       }
       
@@ -80,7 +79,7 @@ namespace wiselib
       
       void attach(buffer_pointer_t buffer, size_type size) {
          if(buffer_) {
-            allocator_->free_array(buffer_);
+            get_allocator().free_array(buffer_);
          }
          buffer_ = buffer;
          size_ = size;
@@ -88,7 +87,6 @@ namespace wiselib
       
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
-         allocator_ = vec.allocator_;
           //if(buffer_!= buffer_pointer_t()){
               clear();
               change_capacity(vec.capacity_);
@@ -117,8 +115,7 @@ namespace wiselib
       }
       */
       // --------------------------------------------------------------------
-      void set_allocator(typename Allocator::self_pointer_t alloc) { allocator_ = alloc; }
-      typename Allocator::self_pointer_t allocator() { return allocator_; }
+      
       ///@name Iterators
       ///@{
       iterator begin()
@@ -168,7 +165,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       reference back()
       {
-         return *(end() - 1);
+         return *(end() - (typename OsModel::size_t)1);
       }
       // --------------------------------------------------------------------
       pointer data()
@@ -214,11 +211,25 @@ namespace wiselib
          }
       }
       // --------------------------------------------------------------------
+      iterator insert(const value_type& x) {
+         return insert(end(), x);
+      }
+      // --------------------------------------------------------------------
+      iterator find(value_type& x) {
+         iterator iter(begin());
+         for( ; iter != end() && !(*iter == x); ++iter) {
+         }
+         return iter;
+      }
       iterator insert( iterator position, const value_type& x )
       {
          // no more elements can be inserted because vector is full
-         if ( size() == max_size() )
-            return iterator(buffer_ + size_);
+         //if ( size() == max_size() )
+            //return iterator((buffer_pointer_t)buffer_ + (typename OsModel_P::size_t)size_);
+         if(size_ >= capacity_) {
+            grow();
+         }
+         size_++;
 
          value_type cur = x, temp;
          for ( iterator it = position; it != end(); ++it )
@@ -243,8 +254,8 @@ namespace wiselib
          if ( position == end() )
             return end();
 
-         for ( iterator cur = position; cur != end(); cur++ )
-            *cur = *(cur + 1);
+         for ( iterator cur = position; cur != end(); ++cur )
+            *cur = *(cur + (typename OsModel::size_t)1);
 
          pop_back();
 
@@ -296,19 +307,19 @@ namespace wiselib
       void pack() { change_capacity(size_); }
       
       void change_capacity(size_t n) {
-         assert(allocator_!=0);
-         assert(n >= size_);
+         //assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
-            new_buffer = allocator_->template allocate_array<value_type>(n);
+            new_buffer = get_allocator().template allocate_array<value_type>(n);
          }
          
          if(buffer_) {
-            for(size_type i=0; i<size_; i++) {
+            /*for(size_type i=0; i<size_; i++) {
                new_buffer[i] = buffer_[i];
-            }
+            }*/
+            memcpy((void*)&new_buffer[0], (void*)&buffer_[0], size_);
             
-            allocator_->free_array(buffer_);
+            get_allocator().free_array(buffer_);
          }
          buffer_ = new_buffer;
          capacity_ = n;
@@ -326,11 +337,10 @@ namespace wiselib
       //size_type size_, capacity_;
       uint16_t size_, capacity_;
       buffer_pointer_t buffer_;
-      typename Allocator::self_pointer_t allocator_;
       
       //friend class bitstring_static_view<OsModel;
 
-   } __attribute__((__packed__));
+   };
 
 }
 
