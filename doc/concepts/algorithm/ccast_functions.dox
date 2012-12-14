@@ -1,0 +1,71 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Convergecast Functions
+ *
+ * This is a class with some basic functions that can be used as calculation function
+ * for a \ref CCast_concept "Convergecast".
+ * 
+ * As basic calculations, sum, average, minimum, maximum and count are implemented.
+ *
+ * The default implementation expects \ref Ccast_message_concept "ConvergecastMessages" as
+ * message type.
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Ccast_functions_concept {
+   public:
+
+      /**
+       * Type of the container that contains the buffered results from the children.
+       */
+      typedef ... Container;
+      
+      /**
+       * Type of message used in the convergecast.
+       */
+      typedef ... Message;
+      
+      /**
+       * Counts 1 for every node, so the result is 1 + number of entries in
+       * the container.
+       * 
+       * @return A message with the result that can be sent to the parent.
+       */
+      Message count(Container c, Message m);
+
+      /**
+       * Sums up the integer values of the message in the container and the own
+       * value.
+       * 
+       * @return A message with the result that can be sent to the parent.
+       */
+      Message sum(Container c, Message m); 
+  
+      /**
+       * Returns the lowest value out of the container values and the own value.
+       * 
+       * @return A message with the result that can be sent to the parent.
+       */  
+      Message min(Container c, Message m);       
+
+      /**
+       * Returns the highest value out of the container values and the own value.
+       * 
+       * @return A message with the result that can be sent to the parent.
+       */
+      Message max(Container c, Message m);
+      
+      /**
+       * Returns the average of the container values and the own value as
+       * float and the total count of nodes as integer.
+       *
+       * @return A message with the result that can be sent to the parent.
+       */      
+      Message avg(Container c, Message m);
+};
+
+}

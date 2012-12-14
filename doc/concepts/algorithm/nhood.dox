@@ -1,0 +1,55 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for a Neighborhood
+ *
+ * A neighborhood in general is a set of nodes that are somehow connected
+ * to the node that is looking at its neighborhood. The resulting structure over all
+ * the neighborhoods of the nodes in a distributed system can be seen as
+ * a graph. Depending on the semantics and the context in which the neighborhood
+ * structure is used this can e.g. be a representation of the physical network and
+ * its communication properties or a tree for a convergecast. The nodes in
+ * the neighborhood structure are represented as \ref Neighbor_concept "Neighbors".
+ * They have a property called "State" that tells the direction of the 
+ * connections in the neighborhood, which is the same as the direction
+ * of the edges in the corresponding imagined graph.
+ *
+ * This concept provides a structure to sum up all neighbors and to iterate
+ * through them.
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Nhood_concept {
+   public:
+   
+      /**
+       * Defines the type of a pointer to this neighborhood.
+       */
+      typedef ... self_pointer_t;
+
+      /**
+       * Defines the type of an iterator to iterate over the neighbors in
+       * the neighborhood.
+       */
+      typedef ... iterator;
+   
+      /**
+       * The beginning of an iterator over all neighbors in this neighborhood.
+       *
+       * @return An iterator over the neighborhood pointing to the first neighbor.
+       */
+      iterator neighbors_begin();
+      
+      /**
+       * The end of an iterator over all neighbors in this neighborhood.
+       *
+       * @return An iterator over the neighborhood pointing to the first place 
+       * after the last neighbor.
+       */
+      iterator neighbors_end();
+};
+
+}

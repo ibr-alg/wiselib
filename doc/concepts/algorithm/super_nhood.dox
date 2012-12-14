@@ -1,0 +1,71 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for a Self-Managing Neighborhood
+ *
+ * Based on the \ref Better_nhood_concept "BetterNeighborhood", this neighborhood
+ * extends the neighborhood idea and merges it with a \ref radio_concept "Radio".
+ *
+ * The basic idea for this is that the neighborhood does not have to be maintained
+ * or filled anymore. The SuperNeighborhood sees all messages that are sent and 
+ * received and builds up the neighborhood structure based upon this information. 
+ * Therefore it holds its own container that contains the neighbors.
+ *
+ * It also has the possibility to inform the user if something changes, e.g. if
+ * a new node appears in the neighborhood.
+ *
+ * There are two ideas how to implement a neighborhood management. You could use 
+ * the normal communication of the algorithm that is running and evaluate the messages
+ * that are sent by the algorithm. But you could also implement a behavior where 
+ * a beacon is sent every x seconds as a base for the neighborhood management. Theses
+ * methods could also be combined, the beacon could be used if the algorithm is quiet
+ * for a while and does not send enough messages.
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Super_nhood_concept 
+   : public Better_nhood_concept, public Radio_concept
+{
+   public:
+   
+      /**
+       * Type of the container that should be used to store the neighbors.
+       */
+      typedef ... Container;
+   
+      /**
+       * Is called as soon as a new neighbor appears. Should be implemented as a callback
+       * function so that the user can install his own method that is called if this
+       * event occurs.
+       */
+      void NewNeighbor(Neighbor neighbor);
+
+      /**
+       * Is called as soon as a neighbor disappears or can't be found anymore for a 
+       * certain period of time. Should be implemented as a callback
+       * function so that the user can install his own method that is called if this
+       * event occurs.
+       */
+      void NeighborRemoved(node_id_t id);
+
+      /**
+       * Is called as soon as a neighbor changes its properties, e.g. if the direction of 
+       * a connection changes or if the sending strength falls under a certain value. 
+       * Should be implemented as a callback function so that the user can install his own 
+       * method that is called if this event occurs.
+       */
+      void NeighborChanged(Neighbor oldProperties, Neighbor newProperties);
+   
+   private:
+      
+      /**
+       * The container with the neighbors. Should be given from outside the neighborhood
+       * system by the algorithm that uses the neighborhood.
+       */
+      Container n;
+};
+
+}
