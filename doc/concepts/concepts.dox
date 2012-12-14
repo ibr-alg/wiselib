@@ -70,6 +70,7 @@
  *    @{
  *       @defgroup routing_concept Routing
  *       @defgroup neighbourhood_discovery_concept Neighbourhood Discovery
+ *		 @defgroup ccast_concept Convergecast
  *       @defgroup topology_concept Topology Control
  *       @defgroup graph_concept Graph Algorithm
  *       @defgroup position_concept Position
