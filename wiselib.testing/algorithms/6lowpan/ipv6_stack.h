@@ -119,8 +119,8 @@ namespace wiselib
 			lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
 			
 			#ifdef ISENSE
-			if( radio_->set_channel( 26 ) == 26 )
-				debug_->debug( "Radio channel is set to: 26! " );
+			if( radio_->set_channel( 18 ) == 18 )
+				debug_->debug( "Radio channel is set to: 18! " );
 			else
 				debug_->debug( "Fatal error: Radio channel can't be configured! " );
 			#endif
@@ -151,7 +151,6 @@ namespace wiselib
 			
 			lowpan.nd_storage_.set_debug( *debug_ );
 			
-			//ND: start if it is not a border router
 			if( !lowpan.nd_storage_.is_router )
 				icmpv6.ND_timeout_manager_function( NULL );
 		}

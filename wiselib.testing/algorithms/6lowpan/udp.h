@@ -542,7 +542,7 @@ namespace wiselib
 		if( checksum != message->generate_checksum() )
 		{
 			#ifdef UDP_LAYER_DEBUG
-			debug().debug( "UDP layer: Dropped packet (checksum error)\n");
+			debug().debug( "UDP layer: Dropped packet (checksum error) in packet: %x should be: %x\n", checksum, message->generate_checksum());
 			#endif
 			packet_pool_mgr_->clean_packet( message );
 			return;
