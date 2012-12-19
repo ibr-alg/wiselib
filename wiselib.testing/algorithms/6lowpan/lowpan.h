@@ -1160,15 +1160,6 @@ namespace wiselib
 			
 			reassembling_mgr_.received_datagram_size += 40;
 			
-			//If it is a UDP packet, uncompress it
-			if( reassembling_mgr_.ip_packet->next_header() == UDP )
-			{
-				NEXT_HEADER_SHIFT += 8;
-				//NOTE if there will be other extension headers the size will be different
-				uncompress_NHC( reassembling_mgr_.ip_packet, (reassembling_mgr_.ip_packet->length() - 8) );
-				reassembling_mgr_.received_datagram_size += 8;
-			}
-			
 			//------------------------------------
 			// LENGHT
 			//------------------------------------
@@ -1178,6 +1169,15 @@ namespace wiselib
 			//else: not fragmented
 			else
 				reassembling_mgr_.ip_packet->set_length( len - ACTUAL_SHIFT + NEXT_HEADER_SHIFT );
+			
+			//If it is a UDP packet, uncompress it
+			if( reassembling_mgr_.ip_packet->next_header() == UDP )
+			{
+				NEXT_HEADER_SHIFT += 8;
+				//NOTE if there will be other extension headers the size will be different
+				uncompress_NHC( reassembling_mgr_.ip_packet, (reassembling_mgr_.ip_packet->length()) );
+				reassembling_mgr_.received_datagram_size += 8;
+			}
 		}
 	//------------------------------------------------------------------------------------------------------------
 	//		IPHC & NHC HEADER PROCESSING		END
@@ -1213,14 +1213,17 @@ namespace wiselib
 		 	reassembling_mgr_.received_datagram_size == reassembling_mgr_.datagram_size )
 		{
 			reassembling_mgr_.valid = false;
-
-			if( reassembling_mgr_.ip_packet->next_header() == UDP )
+			
+			//If the checksum was not carried in-line: recalculate it
+			if( reassembling_mgr_.ip_packet->next_header() == UDP && 
+				(reassembling_mgr_.ip_packet->buffer_[6] == 0 &&
+				reassembling_mgr_.ip_packet->buffer_[7] == 0))
 			{
 				//Generate CHECKSUM, set 0 to the checkum's bytes first
-				uint16_t tmp = 0;
-				reassembling_mgr_.ip_packet->template set_payload<uint16_t>( &(tmp), 6 );
+// 				uint16_t tmp = 0;
+// 				reassembling_mgr_.ip_packet->template set_payload<uint16_t>( &(tmp), 6 );
 			
-				tmp = reassembling_mgr_.ip_packet->generate_checksum();
+				uint16_t tmp = reassembling_mgr_.ip_packet->generate_checksum();
 				reassembling_mgr_.ip_packet->template set_payload<uint16_t>( &(tmp), 6 );
 			}
 			
@@ -1415,7 +1418,7 @@ namespace wiselib
 		if( IPHC_SHIFT != Radio::MAX_MESSAGE_LENGTH )
 		{
 			//free up "size bytes" ( 4 or 5 )
-			for( int i = 0; i < ACTUAL_SHIFT - IPHC_SHIFT; i++ )
+			for( int i = ACTUAL_SHIFT - IPHC_SHIFT - 1; i >= 0; i-- )
 				buffer_[IPHC_SHIFT + header_size + i] = buffer_[IPHC_SHIFT + i];
 			
 // 			memmove( buffer_ + IPHC_SHIFT + header_size, buffer_ + IPHC_SHIFT, ACTUAL_SHIFT - IPHC_SHIFT );
@@ -1708,9 +1711,9 @@ namespace wiselib
 		//	SET CHECKSUM
 		//------------------------------------------------------------------------------------
 		
-		//NOTE CHECKSUM elided by default
-		mode = 1;
-		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NHC_SHIFT + NHC_C_BYTE, mode, NHC_C_BIT, NHC_C_LEN );
+		//NOTE CHECKSUM does not elided by default
+		uint8_t C_mode = 0;
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NHC_SHIFT + NHC_C_BYTE, C_mode, NHC_C_BIT, NHC_C_LEN );
 				
 		//------------------------------------------------------------------------------------
 		//	SET CHECKSUM		END
@@ -1763,6 +1766,13 @@ namespace wiselib
 		//------------------------------------------------------------------------------------
 		//	SET PORTS		END
 		//------------------------------------------------------------------------------------
+		
+		//if the checksum is carried in-line
+		if( C_mode == 0 )
+		{
+			memcpy( buffer_ + ACTUAL_SHIFT, payload + 6, 2 );
+			ACTUAL_SHIFT += 2;
+		}
 		
 	}
 
@@ -1930,7 +1940,7 @@ namespace wiselib
 
 			//NHC header is 1 byte
 			ACTUAL_SHIFT++;
-			// C bit don't care the checksum is always elided
+			
 			//Get the P bits
 			uint8_t P_mode = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NHC_SHIFT + NHC_P_BYTE, NHC_P_BIT, NHC_P_LEN );
 			uint16_t port;
@@ -1970,15 +1980,25 @@ namespace wiselib
 					ACTUAL_SHIFT++;
 					break;
 			}//Switch end
-			
+		
+		//------------------------------------
+		//Checksum
+		//------------------------------------
+		uint8_t C_mode = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NHC_SHIFT + NHC_C_BYTE, NHC_C_BIT, NHC_C_LEN );
+		//Checksum in-line
+		if( C_mode == 0 )
+		{
+			packet->template set_payload<uint8_t>( buffer_ + ACTUAL_SHIFT, 6, 2 );
+			ACTUAL_SHIFT += 2;
+		}
+		//else
+		// Checksum will be calculated befor the notify_receivers call
+		
 		//------------------------------------
 		// LENGHT
 		//------------------------------------
 
-				uint16_t final_len = packet_len - ACTUAL_SHIFT;
-				packet->template set_payload<uint16_t>( &final_len, 4, 1 );
-				
-		//NOTE Checksum will be calculated befor the notify_receivers call
+		packet->template set_payload<uint16_t>( &packet_len, 4, 1 );
 	}
 	
 //-------------------------------------------------------------------------------------
