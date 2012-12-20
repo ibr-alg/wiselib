@@ -1711,7 +1711,7 @@ namespace wiselib
 		//	SET CHECKSUM
 		//------------------------------------------------------------------------------------
 		
-		//NOTE CHECKSUM does not elided by default
+		//NOTE CHECKSUM is not elided by default
 		uint8_t C_mode = 0;
 		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NHC_SHIFT + NHC_C_BYTE, C_mode, NHC_C_BIT, NHC_C_LEN );
 				
@@ -2261,9 +2261,9 @@ namespace wiselib
 				}
 			//link-layer source + infos from the context
 			case 3:
-				if( AC_mode == 0 )
-					address.set_long_iid( link_local_address, false );
-				else
+// 				if( AC_mode == 0 )
+// 					address.set_long_iid( link_local_address, false );
+// 				else
 					address.set_long_iid( link_local_address, true );
 				break;
 		}
