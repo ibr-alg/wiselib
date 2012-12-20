@@ -112,7 +112,7 @@ namespace wiselib
 			
 			node_id_t my_id = radio_lowpan_->id();
 			prefix_list[INTERFACE_RADIO][0].ip_address.make_it_link_local();
-			prefix_list[INTERFACE_RADIO][0].ip_address.set_long_iid( &my_id, false );
+			prefix_list[INTERFACE_RADIO][0].ip_address.set_long_iid( &my_id, true );
 
 
 			
@@ -122,7 +122,7 @@ namespace wiselib
 			//The 16th bit is set to 1 because this is a reserved place of the addresses
 			my_id |= 8000;
 			prefix_list[INTERFACE_UART][0].ip_address.make_it_link_local();
-			prefix_list[INTERFACE_UART][0].ip_address.set_long_iid( &my_id, false );
+			prefix_list[INTERFACE_UART][0].ip_address.set_long_iid( &my_id, true );
 			
 		}
 		
