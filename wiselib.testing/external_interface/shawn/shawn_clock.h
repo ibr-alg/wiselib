@@ -73,7 +73,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return (uint16_t)(time - int(time)) * 1000;
+         return (uint16_t)((time - int(time)) * 1000);
       }
       // --------------------------------------------------------------------
       uint32_t seconds( time_t time )
