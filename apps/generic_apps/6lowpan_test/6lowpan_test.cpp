@@ -84,7 +84,7 @@ public:
 		
 		//Link-local addressing
 		destinationaddr.make_it_link_local();
-		destinationaddr.set_long_iid(&ll_id, false);
+		destinationaddr.set_long_iid(&ll_id, true);
 		
 		/*
 			UDP test
@@ -133,7 +133,7 @@ public:
 	}
 
 	// --------------------------------------------------------------------
-	void receive_echo_reply( IPv6Address_t from, size_t len, Os::Radio::block_data_t *buf )
+	void receive_echo_reply( IPv6Address_t from, uint16_t len, Os::Radio::block_data_t *buf )
 	{
 		if( len == 1 && buf[0] == ipv6_stack_.icmpv6.ECHO_REPLY )
 		{
