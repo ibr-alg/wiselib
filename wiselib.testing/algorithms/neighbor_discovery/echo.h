@@ -491,26 +491,9 @@ public:
 	/**
 	 * \brief Initialize the module.
 	 */
-	void init(Radio& radio, Clock& clock, Timer& timer, Debug& debug) {
-		radio_ = &radio;
-		clock_ = &clock;
-		timer_ = &timer;
-		debug_ = &debug;
-		beacon_period = 1000;
-		timeout_period = 9000;
-		//min_lqi_threshold = 150;
-		min_lqi_threshold = 100;
-		max_lqi_threshold = 165;
-		max_stability_threshold = 40;
-		min_stability_threshold = 20;
-	};
-
-	/**
-	 * \brief Initialize the module.
-	 */
 	void init(Radio& radio, Clock& clock, Timer& timer, Debug& debug,
-			uint16_t beacon_pd, uint16_t timeout_pd, uint8_t min_theshold,
-			uint8_t max_threshold) {
+			uint16_t beacon_pd=1000, uint16_t timeout_pd=9000, uint8_t min_theshold=100,
+			uint8_t max_threshold=165) {
 		radio_ = &radio;
 		clock_ = &clock;
 		timer_ = &timer;
