@@ -114,12 +114,22 @@ namespace wiselib
 		enum NextHeaders
 		{
 		UDP = 17,
-		ICMPV6 = 58
-		/*TCP = 6
+		ICMPV6 = 58,
+		//TCP = 6
 		EH_HOHO = 0	//Hop by Hop
-		EH_DESTO = 60
+		/*EH_DESTO = 60
 		EH_ROUTING = 43
 		EH_FRAG = 44*/
+		};
+		
+		enum EIDvalues
+		{
+		EID_EH_HOHO = 0/*,
+		EID_EH_ROUTING = 1,
+		EID_EH_FRAG = 2,
+		EID_EH_DESTO = 3,
+		EID_EH_MOBILITY = 4,
+		EID_EH_IPV6 = 7*/
 		};
 		
 		enum SpecialNodeIds {
@@ -545,6 +555,56 @@ namespace wiselib
 		//-----------------------------------------------------------------------------------
 		
 		//-----------------------------------------------------------------------------------
+		//-------------------------IPHC EXTENSION HEADERS -----------------------------------
+		//-----------------------------------------------------------------------------------
+		/*
+		  0   1   2   3   4   5   6   7
+		+---+---+---+---+---+---+---+---+
+		| 1 | 1 | 1 | 0 |    EID    |NH |
+		+---+---+---+---+---+---+---+---+
+		*/
+		
+		enum EH_NHC_byte_shifts
+		{
+			EH_NHC_DISP_BYTE = 0,
+			EH_NHC_EID_BYTE = 0,
+			EH_NHC_NH_BYTE = 0
+		};
+		
+		enum EH_NHC_bit_shifts
+		{
+			EH_NHC_DISP_BIT = 0,
+			EH_NHC_EID_BIT = 4,
+			EH_NHC_NH_BIT = 7
+		};
+		
+		enum EH_NHC_lenghts
+		{
+			EH_NHC_DISP_LEN = 4,
+			EH_NHC_EID_LEN = 3,
+			EH_NHC_NH_LEN = 1
+		};
+		//EH NHC END
+		/**
+		* Set 1 Extension header from an IPv6 packet
+		* NOTE: It has to be called after the set_IPHC_header function!
+		* \param actual_EH_shift pointer to the actual shift position in the header
+		* \param actual_NH_value the type of the EH
+		*/
+		void set_EH_header( uint8_t* actual_EH_shift, uint8_t actual_NH_value );
+		
+		/**
+		* Extension NHC header --> EH header
+		* \param packet pointer to the target packet
+		* \return true if the there are more EHs
+		*/
+		bool uncompress_EH( IPv6Packet_t* packet , uint16_t& NEXT_HEADER_SHIFT, uint16_t& EH_LEN, bool& is_udp );
+		
+		//-----------------------------------------------------------------------------------
+		//-------------------------IPHC EXTENSION HEADERS  END-------------------------------
+		//-----------------------------------------------------------------------------------
+		
+		//-----------------------------------------------------------------------------------
 		//-------------------------NHC HEADER  ----------------------------------------------
 		//-----------------------------------------------------------------------------------
 		/*
@@ -592,7 +652,7 @@ namespace wiselib
 		* NHC header --> UDP header
 		* \param packet pointer to the target packet
 		*/
-		void uncompress_NHC( IPv6Packet_t* packet, uint16_t packet_len );
+		void uncompress_NHC( IPv6Packet_t* packet );
 		
 		//-----------------------------------------------------------------------------------
 		//-------------------------NHC HEADER  END-------------------------------------------
@@ -758,9 +818,11 @@ namespace wiselib
 	{
 		//Reset buffer_ and shifts
 		reset_buffer();
-
+		
 		//The *data has to be a constructed IPv6 package
 		IPv6Packet_t *ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
+
+		// Extension header handling - END
 		
 		//Send the package to the next hop
 		node_id_t mac_destination;
@@ -818,9 +880,36 @@ namespace wiselib
 	//		IP HEADERS
 	//------------------------------------------------------------------------------------------------------------
 		set_IPHC_header( ip_packet, &mac_destination );
+
+		//Start position: after the IPv6 header
+		uint8_t* actual_EH_shift = ip_packet->buffer_ + ip_packet->PAYLOAD_POS;
+		uint8_t actual_NH_value = ip_packet->real_next_header();
 		
-		if( ip_packet->next_header() == UDP )
+		//Limitation: all headers must be in the first fragment
+		//IPHC + the length of ALL extension headers + UDP-NHC worst case
+		if( ACTUAL_SHIFT + ( ip_packet->TRANSPORT_POS - ip_packet->PAYLOAD_POS ) + 7 > MAX_MESSAGE_LENGTH )
+		{
+			debug_->debug("6LoWPAN FATAL ERROR: Too long headers");
+			return ERR_UNSPEC;
+		}
+
+		//Extension headers
+		while( actual_NH_value != UDP && actual_NH_value != ICMPV6 )
+		{
+			set_EH_header( actual_EH_shift, actual_NH_value );
+			
+			//The Next Header is in the first byte 
+			actual_NH_value = actual_EH_shift[0];
+			//Length is in the second byte in 8-octets not including the first
+			actual_EH_shift += ( actual_EH_shift[1] + 1 ) * 8;
+		}
+
+		//UDP header NHC compression
+		if( actual_NH_value == UDP )
 			set_NHC_header( ip_packet );
+		
+		//NOTE: if ICMPv6 is used, it is copied as payload, the Next Header field which links to this
+		//was set in the set_IPHC_header or in the last set_EH_header
 	//------------------------------------------------------------------------------------------------------------
 	//		IP HEADERS			END
 	//------------------------------------------------------------------------------------------------------------
@@ -829,7 +918,7 @@ namespace wiselib
 	//		FRAGMENTATION & SENDING
 	//------------------------------------------------------------------------------------------------------------
 		//The remaining payload length
-		uint16_t payload_length = ip_packet->length();
+		uint16_t payload_length = ip_packet->transport_length();
 
 		//Pointer to the actual IP packet payload position
 		block_data_t* payload_pointer = ip_packet->payload();
@@ -887,9 +976,6 @@ namespace wiselib
 				payload_length = 0;
 			}
 			
-			//debug().debug("PAY LEN: %x ", ACTUAL_SHIFT );
-			//for(int i = 0; i < 10; i++ )
-			//	debug().debug("%i-%i: %x", tmp, i,  buffer_[i]);
 			tmp++;
 			#ifdef LOWPAN_ROUTE_OVER
 			if ( radio().send( mac_destination, ACTUAL_SHIFT, buffer_ ) != SUCCESS )
@@ -1134,13 +1220,16 @@ namespace wiselib
 	//------------------------------------------------------------------------------------------------------------
 		
 		//Used at payload copy, because the transport layer header's place has to be shifted
-		int NEXT_HEADER_SHIFT = 0;
+		uint16_t UDP_SHIFT = 0;
 		
 	//------------------------------------------------------------------------------------------------------------
 	//		IPHC & NHC HEADER PROCESSING
 	//------------------------------------------------------------------------------------------------------------
 		if( (fragment_offset == 0) && ( 0x03 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + IPHC_DISP_BYTE, IPHC_DISP_BIT, IPHC_DISP_LEN ) ))
 		{
+			
+			uint16_t NEXT_HEADER_SHIFT = 0;
+			
 			//Non fragmented packet
 			if( FRAG_SHIFT == MAX_MESSAGE_LENGTH )
 			{
@@ -1159,25 +1248,80 @@ namespace wiselib
 				return;
 			
 			reassembling_mgr_.received_datagram_size += 40;
-			
 			//------------------------------------
-			// LENGHT
+			//Extension headers
 			//------------------------------------
-			//If it is fragmented
-			if( datagram_size != 0 )
-				reassembling_mgr_.ip_packet->set_length( datagram_size - 40 );
-			//else: not fragmented
-			else
-				reassembling_mgr_.ip_packet->set_length( len - ACTUAL_SHIFT + NEXT_HEADER_SHIFT );
-			
-			//If it is a UDP packet, uncompress it
-			if( reassembling_mgr_.ip_packet->next_header() == UDP )
+			bool is_udp = false;
+			uint16_t EH_LEN = 0;
+			//Next header is compressed with NHC
+			if( reassembling_mgr_.ip_packet->real_next_header() == reassembling_mgr_.ip_packet->REAL_NH_NOT_SET )
 			{
-				NEXT_HEADER_SHIFT += 8;
-				//NOTE if there will be other extension headers the size will be different
-				uncompress_NHC( reassembling_mgr_.ip_packet, (reassembling_mgr_.ip_packet->length()) );
-				reassembling_mgr_.received_datagram_size += 8;
+				if( 30 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + NHC_DISP_BYTE, NHC_DISP_BIT, NHC_DISP_LEN ) )
+				{
+					is_udp = true;
+					reassembling_mgr_.ip_packet->set_real_next_header( UDP );
+				}
+				//EH
+				else
+				{
+					bool EHNHC = true;
+					while( EHNHC )
+						EHNHC = uncompress_EH( reassembling_mgr_.ip_packet, NEXT_HEADER_SHIFT, EH_LEN, is_udp );
+				}
 			}
+			
+			reassembling_mgr_.received_datagram_size += EH_LEN;
+			reassembling_mgr_.ip_packet->TRANSPORT_POS = NEXT_HEADER_SHIFT + reassembling_mgr_.ip_packet->PAYLOAD_POS;;
+			
+			//Next header is compressed with NHC
+			if( is_udp )
+			{
+				uncompress_NHC( reassembling_mgr_.ip_packet );
+				reassembling_mgr_.received_datagram_size += 8;
+				UDP_SHIFT += 8;
+				reassembling_mgr_.ip_packet->set_transport_next_header( UDP );
+				
+				//------------------------------------
+				// UDP LENGHT
+				//------------------------------------
+				uint16_t udp_len = 0;
+				//Fragmented
+				if( datagram_size != 0 )
+				{
+					//Full IP packet - IPv6 header - EH headers
+					udp_len = datagram_size - 40 - EH_LEN;
+					
+					reassembling_mgr_.ip_packet->set_real_length( datagram_size - 40 );
+				}
+				else
+				{
+					//len-ACTUAL_SHIFT: size of the UDP payload + 8 bytes header
+					udp_len = len - ACTUAL_SHIFT + 8;
+					
+					//IP len (+ ext headers)
+					reassembling_mgr_.ip_packet->set_real_length( udp_len + EH_LEN );
+				}
+				reassembling_mgr_.ip_packet->template set_payload<uint16_t>( &udp_len, 4, 1 );
+			}
+			else
+			{
+				//Must be ICMPv6
+				reassembling_mgr_.ip_packet->set_transport_next_header( ICMPV6 );
+				
+				//Fragmented
+				if( datagram_size != 0 )
+				{
+					reassembling_mgr_.ip_packet->set_real_length( datagram_size - 40 );
+				}
+				else
+				{
+					//ACT: end of the EH headers
+					reassembling_mgr_.ip_packet->set_real_length( len - ACTUAL_SHIFT + EH_LEN );
+				}
+			}
+			
+			// Extension header handling - END
+			
 		}
 	//------------------------------------------------------------------------------------------------------------
 	//		IPHC & NHC HEADER PROCESSING		END
@@ -1197,14 +1341,15 @@ namespace wiselib
 	// Reassembling
 	//----------------------------------------------------------------------------------------
 		//Offset in 8 octetts, if it is not fragmented the offset is 0
-		int real_payload_offset = ( fragment_offset * 8 ) + NEXT_HEADER_SHIFT;
+		int real_payload_offset = ( fragment_offset * 8 ) + UDP_SHIFT;
 		//According to the RFC: the offset starts from the beginning of the IP header
 		//If this is not the first fragment: minus 40 bytes (IP header)
 		if( fragment_offset != 0 )
 			real_payload_offset -= 40;
-		
+
 		reassembling_mgr_.ip_packet->template set_payload<uint8_t>( buffer_ + ACTUAL_SHIFT, real_payload_offset, len - ACTUAL_SHIFT );
 		reassembling_mgr_.received_datagram_size += len - ACTUAL_SHIFT;
+
 	//----------------------------------------------------------------------------------------
 	// Reassembling		END
 	//----------------------------------------------------------------------------------------
@@ -1215,7 +1360,7 @@ namespace wiselib
 			reassembling_mgr_.valid = false;
 			
 			//If the checksum was not carried in-line: recalculate it
-			if( reassembling_mgr_.ip_packet->next_header() == UDP && 
+			if( reassembling_mgr_.ip_packet->transport_next_header() == UDP && 
 				(reassembling_mgr_.ip_packet->buffer_[6] == 0 &&
 				reassembling_mgr_.ip_packet->buffer_[7] == 0))
 			{
@@ -1421,8 +1566,6 @@ namespace wiselib
 			for( int i = ACTUAL_SHIFT - IPHC_SHIFT - 1; i >= 0; i-- )
 				buffer_[IPHC_SHIFT + header_size + i] = buffer_[IPHC_SHIFT + i];
 			
-// 			memmove( buffer_ + IPHC_SHIFT + header_size, buffer_ + IPHC_SHIFT, ACTUAL_SHIFT - IPHC_SHIFT );
-			
 			//frag header will be at the old place of the IPHC header
 			FRAG_SHIFT = IPHC_SHIFT;
 			IPHC_SHIFT += header_size;
@@ -1526,11 +1669,13 @@ namespace wiselib
 		//------------------------------------------------------------------------------------
 
 		//If Next header is not UDP, full NH used
-		if( ip_packet->next_header() != UDP )
+		//EHs and UDP are encoded with an NHC header
+		if( ip_packet->real_next_header() == ICMPV6 )
 		{
 			mode = 0;
+			
 			//Copy the full next-header byte
-			buffer_[ACTUAL_SHIFT++] = ip_packet->next_header();
+			buffer_[ACTUAL_SHIFT++] = ip_packet->transport_next_header();
 		}
 		//Next header elided, NHC used
 		else
@@ -1691,6 +1836,75 @@ namespace wiselib
 		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
+	set_EH_header( uint8_t* actual_EH_shift, uint8_t actual_NH_value )
+	{
+		//Store the start point of the EH
+		uint8_t ACT_EH_SHIFT = ACTUAL_SHIFT;
+		
+		//EH NHC 1 byte
+		ACTUAL_SHIFT++;
+		//------------------------------------------------------------------------------------
+		//	Set Dispatch ( 1110 )
+		//------------------------------------------------------------------------------------
+		uint8_t mode = 14;
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + ACT_EH_SHIFT + EH_NHC_DISP_BYTE, mode, EH_NHC_DISP_BIT, EH_NHC_DISP_LEN );
+		
+		//------------------------------------------------------------------------------------
+		//	Set EID
+		//------------------------------------------------------------------------------------
+		
+		//Hop-by-hop header
+		if( actual_NH_value == EH_HOHO )
+		{
+			mode = EID_EH_HOHO;
+			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + ACT_EH_SHIFT + EH_NHC_EID_BYTE, mode, EH_NHC_EID_BIT, EH_NHC_EID_LEN );
+		}
+		else
+		{
+			debug_->debug(" 6LoWPAN FATAL ERROR: Not supported EH");
+		}
+		//Others....
+		
+		//------------------------------------------------------------------------------------
+		//	Set NH
+		//------------------------------------------------------------------------------------
+		if( actual_EH_shift[0] == ICMPV6 )
+		{
+			mode = 0;
+			buffer_[ACTUAL_SHIFT++] = ICMPV6;
+		}
+		//NH elided for NHC comprassable headers
+		else
+			mode = 1;
+		bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + ACT_EH_SHIFT + EH_NHC_NH_BYTE, mode, EH_NHC_NH_BIT, EH_NHC_NH_LEN );
+		
+		//------------------------------------------------------------------------------------
+		//	Set the length for the EH
+		//------------------------------------------------------------------------------------
+		//In IPv6: length in 8-octets not including the first
+		//In 6LoWPAN: length in octets following the length field
+		//NOTE: Pad1 and PadN could be removed here, but to remain more simple it is in the compressed packets also
+		buffer_[ACTUAL_SHIFT] = ( actual_EH_shift[1] + 1 ) * 8 - 2;//(ACTUAL_SHIFT - ACT_EH_SHIFT);
+		ACTUAL_SHIFT++;
+		
+		//------------------------------------------------------------------------------------
+		//	Set the content
+		//------------------------------------------------------------------------------------
+		//Copy the content, in the original IP packet the first 2 bytes skipped (NH + length)
+		for( int i = 0; i < ( actual_EH_shift[1] + 1 ) * 8 - 2; i++ )
+			buffer_[ACTUAL_SHIFT++] = actual_EH_shift[ 2 + i ];
+		
+	}
+	
+//-------------------------------------------------------------------------------------
+	
+	template<typename OsModel_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
+	void
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
 	set_NHC_header( IPv6Packet_t* ip_packet )
 	{
 		NHC_SHIFT = ACTUAL_SHIFT;
@@ -1832,10 +2046,11 @@ namespace wiselib
 		//------------------------------------
 		// NEXT HEADER
 		//------------------------------------
-		if( 0 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + IPHC_SHIFT + IPHC_NH_BYTE, IPHC_NH_BIT, IPHC_NH_LEN ) )
-				packet->set_next_header( buffer_[ACTUAL_SHIFT++] );
-			else
-				packet->set_next_header( UDP );
+			if( 0 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + IPHC_SHIFT + IPHC_NH_BYTE, IPHC_NH_BIT, IPHC_NH_LEN ) )
+				packet->set_real_next_header( buffer_[ACTUAL_SHIFT++] );
+			//Removed because of EH support
+			//else
+			//	packet->set_next_header( UDP );
 		//------------------------------------
 		// HOP LIMIT
 		//------------------------------------
@@ -1924,6 +2139,76 @@ namespace wiselib
 			}//else multicast
 		return SUCCESS;
 	}
+
+//--------------------------------------------------------------------------------------------
+
+	template<typename OsModel_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Uart_Radio_P>
+	bool
+	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
+	uncompress_EH( IPv6Packet_t* packet, uint16_t& NEXT_HEADER_SHIFT, uint16_t& EH_LEN, bool& is_udp )
+	{
+		
+		//Position in the IP packet
+		uint8_t EH_start_shift = NEXT_HEADER_SHIFT;
+		
+		//Read the initial byte
+		uint8_t EID_mode = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + EH_NHC_EID_BYTE, EH_NHC_EID_BIT, EH_NHC_EID_LEN );
+		
+		//if this is the first EH, set the NH value to the IP header
+		if( packet->real_next_header() == packet->REAL_NH_NOT_SET )
+		{
+			if( EID_mode == EID_EH_HOHO )
+				packet->set_real_next_header( EH_HOHO );
+		}
+		
+		uint8_t NH_mode = bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + EH_NHC_NH_BYTE, EH_NHC_NH_BIT, EH_NHC_NH_LEN );
+		ACTUAL_SHIFT++;
+		
+		//Read the next header byte if it is not NHC
+		if( NH_mode == 0 )
+			packet->buffer_[packet->PAYLOAD_POS + NEXT_HEADER_SHIFT] = buffer_[ACTUAL_SHIFT++];
+		
+		//If NH_mode is 1 it will be filled at the end
+		NEXT_HEADER_SHIFT++;
+		
+		//EH-LENGTH
+		//In IPv6: length in 8-octets not including the first
+		//In 6LoWPAN: length in octets following the length field
+		//NOTE: Pad1 and PadN could be removed here, but to remain more simple it is in the compressed packets also
+		int lowpan_len = buffer_[ACTUAL_SHIFT];
+		packet->buffer_[packet->PAYLOAD_POS + NEXT_HEADER_SHIFT++] = ((buffer_[ACTUAL_SHIFT++] + 2) / 8) - 1;
+		
+		for( int i = 0; i < lowpan_len; i++ )
+		{
+			packet->buffer_[packet->PAYLOAD_POS + NEXT_HEADER_SHIFT] = buffer_[ACTUAL_SHIFT];
+			NEXT_HEADER_SHIFT++;
+			ACTUAL_SHIFT++;			
+		}
+		
+		//Set the EH len
+		EH_LEN += NEXT_HEADER_SHIFT - EH_start_shift;
+		
+		if( NH_mode == 1 )
+		{
+			if( 30 == bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + ACTUAL_SHIFT + NHC_DISP_BYTE, NHC_DISP_BIT, NHC_DISP_LEN ))
+			{
+				is_udp = 1;
+				//Set the NH field in the IP packet's actual EH header
+				packet->buffer_[packet->PAYLOAD_POS + EH_start_shift] = UDP;
+				
+				return false;
+			}
+			//Other EH-s might be handled here
+			return true;
+		}
+		
+		return false;
+		
+	}
 	
 //--------------------------------------------------------------------------------------------
 	
@@ -1934,7 +2219,7 @@ namespace wiselib
 		typename Uart_Radio_P>
 	void
 	LoWPAN<OsModel_P, Radio_P, Debug_P, Timer_P, Uart_Radio_P>::
-	uncompress_NHC( IPv6Packet_t* packet, uint16_t packet_len )
+	uncompress_NHC( IPv6Packet_t* packet )
 	{
 			NHC_SHIFT = ACTUAL_SHIFT;
 
@@ -1994,11 +2279,7 @@ namespace wiselib
 		//else
 		// Checksum will be calculated befor the notify_receivers call
 		
-		//------------------------------------
-		// LENGHT
-		//------------------------------------
-
-		packet->template set_payload<uint16_t>( &packet_len, 4, 1 );
+		
 	}
 	
 //-------------------------------------------------------------------------------------

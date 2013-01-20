@@ -51,6 +51,9 @@ namespace wiselib
 		///Constructor
 		IPv6PacketPoolManager()
 			{
+				//No ext headers by default
+				extension_headers_size = 0;
+				
 				for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
 				{
 					packet_pool[i].valid = false;
@@ -83,6 +86,10 @@ namespace wiselib
 		
 		// -----------------------------------------------------------------
 		
+		///Size of the extension-headers for new packets
+		uint8_t extension_headers_size;
+		
+		
 		/**
 		* Get an unused packet with number
 		* \return packet number or NO_FREE_PACKET (255) if no free packet
@@ -93,7 +100,12 @@ namespace wiselib
 			{
 				if( packet_pool[i].valid == false )
 				{
+					packet_pool[i] = Packet();
 					packet_pool[i].valid = true;
+					
+					//Reserve the buffer for the extension headers
+					packet_pool[i].TRANSPORT_POS += extension_headers_size;
+					
 					return i;
 				}
 			}
@@ -107,15 +119,11 @@ namespace wiselib
 		*/
 		Packet* get_unused_packet()
 		{
-			for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
-			{
-				if( packet_pool[i].valid == false )
-				{
-					packet_pool[i].valid = true;
-					return &(packet_pool[i]);
-				}
-			}
-			return NULL;
+			uint8_t packet_number = get_unused_packet_with_number();
+			if( packet_number == NO_FREE_PACKET )
+				return NULL;
+			else
+				return &(packet_pool[packet_number]);
 		}
 		
 		/**
@@ -123,7 +131,8 @@ namespace wiselib
 		*/
 		void clean_packet_with_number( uint8_t i )
 		{
-			clean_packet( &(packet_pool[i]) );
+			//Turn it to be invalid, content will be cleaned at the next time of usage
+			packet_pool[i].valid = false;;
 		}
 		
 		/**
@@ -131,7 +140,8 @@ namespace wiselib
 		*/
 		void clean_packet( Packet* target )
 		{
-			*target = Packet();
+			//Turn it to be invalid, content will be cleaned at the next time of usage
+			target->valid = false;
 		}
 		
 		/**
