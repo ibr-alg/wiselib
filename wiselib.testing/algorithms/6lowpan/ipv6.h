@@ -34,6 +34,13 @@
 	#ifdef LOWPAN_ROUTE_OVER
 	#include "algorithms/6lowpan/simple_queryable_routing.h"
 	#endif
+	
+	//For the EH callback
+	#include "util/delegates/delegate.hpp"
+	#include "util/pstl/vector_static.h"
+	#include "util/pstl/pair.h"
+	//The max number of TLV values in the EH Hop-By-Hop
+	#define MAX_EH_HOHO_TLV 4
 
 	//Delays for the routing polling
 	#define CREATION_IN_PROGRESS_DELAY 1000
@@ -41,6 +48,33 @@
 
 	namespace wiselib
 	{
+		/**
+		* \brief Type to store registered TLVs and handlers
+		*/
+		class HOHO_TLV_t
+		{
+		public:
+			HOHO_TLV_t()
+			: type( 0 ),
+			length( 0 ),
+			callback_id( -1 )
+			{}
+			
+			/**
+			* Type of the TLV
+			*/
+			uint8_t type;
+			/**
+			* Length of the TLV
+			*/
+			uint8_t length;
+			/**
+			* Callback ID of the handler
+			*/
+			int callback_id;	  
+		};
+		
+		
 		/**
 		* \brief IPv6 layer for the 6LoWPAN implementation.
 		*
@@ -51,6 +85,11 @@
 		* There are two routing modes
 		*  - With ROUTE_OVER a radio hop is an IP hop. The routing is in the IPv6 layer.
 		*  - With MESH_UNDER an IP hop can be more radio hops. The routing is in the adaptation layer.
+		*  - The baselines of the general extension header support is implemented, but actually only the
+		*    Hop-by-Hop header is supported. Really important that all headers must be in the first 6LoWPAN
+		*    fragment which means that for instance with iSense in the worst case, the EH headers cannot be
+		*    longer than ~50 bytes.
+		*     * The Hop-by-Hop header is supported with a callback mechanism, the example usage is in a comment
 		* 
 		*/
 		template<typename OsModel_P,
@@ -95,10 +134,10 @@
 		enum NextHeaders
 		{
 			UDP = Radio_LoWPAN::UDP,
-			ICMPV6 = Radio_LoWPAN::ICMPV6
-			/*TCP = 6
+			ICMPV6 = Radio_LoWPAN::ICMPV6,
+			//TCP = 6
 			EH_HOHO = 0	//Hop by Hop
-			EH_DESTO = 60
+			/*EH_DESTO = 60
 			EH_ROUTING = 43
 			EH_FRAG = 44*/
 		};
@@ -166,6 +205,8 @@
 			routing_.init( *timer_, *debug_, *radio_ );
 			#endif
 			
+			HOHO_header_size = 0;
+			HOHO_header_padding = 0;
 			return SUCCESS;
 		}
 		
@@ -206,6 +247,177 @@
 		///@}
 		
 		InterfaceManager_t* interface_manager_;
+		
+		
+		/*
+				Extension headers
+							*/
+		
+		//---------------Hop-by-Hop--------------------------
+		//Register functions for the TLVs of the Hop by Hop header
+		//At sending and receiving these are called by the IPv6 layer
+		
+		//Type and vector to register the callback functions
+		//2 parameters: packet_number, pointer to the actual TLV
+		typedef delegate2<void, uint8_t, uint8_t*> HOHO_delegate_t;
+		typedef vector_static<OsModel, HOHO_delegate_t, MAX_EH_HOHO_TLV> HOHOCallbackVector;
+		typedef typename HOHOCallbackVector::iterator HOHOCallbackVectorIterator;
+		//vector for the registered callback functions
+		HOHOCallbackVector HOHOcallbacks;
+		
+		//Vector to store the TLVs: Type, Length, callbackID
+		typedef vector_static<OsModel, HOHO_TLV_t, MAX_EH_HOHO_TLV> HOHO_TLV_list_t;
+		typedef typename HOHO_TLV_list_t::iterator HOHO_TLV_list_Iterator;
+		//Vector to store the Type - Length - CallbackID triplets
+		HOHO_TLV_list_t HOHO_TLV_list;
+		
+		uint8_t HOHO_header_size;
+		uint8_t HOHO_header_padding;
+		
+		/**
+		* \brief Function to register TLV callbacks
+		* \param obj_pnt pointer to the type of the receiver
+		* \param type_value the type of the TLV
+		* \param length the length of the TLVs
+		*/
+		//In an "upper leyer" class --> for instance RPL
+		//Usage: TLV_callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::handle_TLV>( this, [type], [length] );
+		//the length is the length of the content! (full length - the first 2 bytes)!
+		/*       handle_TLV( uint8_t packet_number, uint8_t* data_pointer )
+			{
+				//First byte: Type (setted by the Ipv6 layer)
+				//Second byte: Length (setted by the Ipv6 layer)
+				//Content...
+				debug_->debug( "TLV handler called: Type: %i Len: %i", data_pointer[0], data_pointer[1] );
+				if(data_pointer[2] == 1 )
+					debug_->debug(" TLV has been already filled, content: %i %i", data_pointer[2], data_pointer[3] );
+				else
+				{
+					...
+				}
+			}
+		*/
+		template<class T, void (T::*TMethod)(uint8_t, uint8_t*)>
+		int HOHO_reg_recv_callback( T *obj_pnt, uint8_t type_value, uint8_t length )
+		{
+			if ( HOHOcallbacks.empty() )
+			{
+				HOHOcallbacks.assign( MAX_EH_HOHO_TLV, HOHO_delegate_t() );
+				HOHO_TLV_list.assign( MAX_EH_HOHO_TLV, HOHO_TLV_t() );
+			}
+			
+			for ( unsigned int i = 0; i < HOHOcallbacks.size(); ++i )
+			{
+				if ( HOHOcallbacks.at(i) == HOHO_delegate_t() )
+				{
+					//Register the callback function
+					HOHOcallbacks.at(i) = HOHO_delegate_t::template from_method<T, TMethod>( obj_pnt );
+					
+					HOHO_TLV_list.at(i).type = type_value;
+					HOHO_TLV_list.at(i).length = length;
+					HOHO_TLV_list.at(i).callback_id = i;
+					update_HOHO_header_size( length, true );
+					return i;
+				}
+			}
+			
+			return -1;
+		}
+		// --------------------------------------------------------------------
+		int HOHO_unreg_recv_callback( int idx )
+		{
+			//Remove from the full size
+			update_HOHO_header_size( HOHO_TLV_list.at(idx).length, false );
+			
+			//delete entries
+			HOHOcallbacks.at(idx) = HOHO_delegate_t();
+			HOHO_TLV_list.at(idx) = HOHO_TLV_t();
+			return SUCCESS;
+		}
+		// --------------------------------------------------------------------
+		/**
+		* Notify a selected registered handler
+		*/
+		void HOHO_notify_receiver( uint8_t target_receiver, uint8_t packet_number, uint8_t *data )
+		{
+			HOHOCallbackVectorIterator it = HOHOcallbacks.begin();
+			it += target_receiver;
+			
+			if ( *it != HOHO_delegate_t() )
+				(*it)( packet_number, data );
+			else
+				debug_->debug("HOHO error: unable to notify receiver %i", target_receiver);
+		}
+		
+		void update_HOHO_header_size( uint8_t length, bool add )
+		{
+			//Because in the TLV the Length is only the length of the Value part
+			length += 2;
+			
+			//At the first TLV: HOHO header 2 bytes
+			if( HOHO_header_size == 0 )
+			{
+				HOHO_header_size = 2;
+				HOHO_header_padding = 6;
+			}
+			
+			//New TLV
+			if( add )
+			{
+				//It fits into the padding
+				if( length < HOHO_header_padding )
+				{
+					HOHO_header_padding -= length;
+					HOHO_header_size += length;
+				}
+				//New 8-octet block(s) are needed
+				else
+				{
+					//Calculate the new padding size: old + new TLV sizes rounded to 8 octet units
+					uint8_t new_padding = 8 - (( HOHO_header_size - HOHO_header_padding + length ) % 8 );
+					
+					HOHO_header_size = HOHO_header_size - HOHO_header_padding + length + new_padding;
+					HOHO_header_padding = new_padding;
+				}
+			}
+			//remove TLV
+			else
+			{
+				//If this is the only TLV: switch off HOHO
+				// -2 because of the HOHO header
+				if( length == (HOHO_header_size - HOHO_header_padding - 2) )
+				{
+					HOHO_header_padding = 0;
+					HOHO_header_size = 0;
+				}
+				else
+				{
+					//Calculate the new padding size: old - new TLV sizes rounded to 8 octet units
+					uint8_t new_padding = 8 - (( HOHO_header_size - HOHO_header_padding - length ) % 8 );
+					
+					HOHO_header_size = HOHO_header_size - HOHO_header_padding - length + new_padding;
+					HOHO_header_padding = new_padding;
+				}
+			}
+			
+			//Update the size stored in the packet pool manager for new packets
+			packet_pool_mgr_->extension_headers_size = HOHO_header_size + HOHO_header_padding;
+		}
+		
+		
+		//---------------Hop-by-Hop END--------------------------
+		
+		//Implement if required...
+		//NOTE: the packetpool manager must store the size of all EHs!
+		
+		//Destination Options
+		//Routing
+		//...
+		
+		/*
+			Extension headers - END
+							*/
+		
 		
 	private:
 		
@@ -409,6 +621,93 @@
 	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	send( node_id_t destination, size_t packet_number, block_data_t *data )
 	{
+		//Get the packet pointer from the manager
+		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
+
+		// Extension header handling
+		//initially: after the IPv6 header
+		uint8_t* start_of_the_actual_EH = message->get_content() + message->PAYLOAD_POS;
+		bool EH_added = false;
+		
+		//Hop-by-Hop header
+		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		//|  Next Header  |  Hdr Ext Len  |                               |
+		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+		
+		//TLVs
+		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+		//|  Option Type  |  Opt Data Len |  Option Data
+		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+		//For routed packets, the 0th byte has been already preapred, skip the whole EH part
+		if( HOHO_header_size > 0 )
+		{
+			EH_added = true;
+			if( start_of_the_actual_EH[0] == 0 )
+			{
+				//Chain the HOHO after the IPv6 header --> Next Header = EH_HOHO
+				message->set_real_next_header( EH_HOHO );
+				
+				//HOHO next header will be set after this block
+				
+				//Because of the previous calculation it has to result an integer
+				// -1 because it is defined that it does not count the first 8-octets
+				//Hdr Ext Len
+				start_of_the_actual_EH[1] = ( (HOHO_header_size + HOHO_header_padding) / 8 ) - 1;
+				
+				uint8_t actual_TLV_shift = 2;
+				
+				//Call all registered handlers to fill in the content
+				for( HOHO_TLV_list_Iterator it = HOHO_TLV_list.begin();
+					it != HOHO_TLV_list.end();
+					++it )
+				{
+					if( it->callback_id != -1 )
+					{
+						//Set the "Option Type" and "Opt Data Len"
+						start_of_the_actual_EH[actual_TLV_shift] = it->type;
+						start_of_the_actual_EH[actual_TLV_shift+1] = it->length;
+						
+						//Call the registered handler function to fill in the content
+						HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift );
+						
+						//Shift to the end of the option +2 because of the Type and Length
+						actual_TLV_shift += it->length + 2;
+					}
+				}
+				
+				//Padding - Pad1, PadN
+				//Pad1 - if the padding is only 1 octet
+				if( HOHO_header_padding == 1 )
+				{
+					//+-+-+-+-+-+-+-+-+
+					//|       0       |
+					//+-+-+-+-+-+-+-+-+
+					start_of_the_actual_EH[actual_TLV_shift] = 0;
+				}
+				else if( HOHO_header_padding > 1 )
+				{
+					//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+					//|       1       |  Opt Data Len |  Option Data
+					//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+					start_of_the_actual_EH[actual_TLV_shift] = 1;
+					start_of_the_actual_EH[actual_TLV_shift + 1] = HOHO_header_padding - 2;
+				}
+			}
+			//Hop-by-Hop header - END
+			
+			//Other Extension headers...
+		}
+		
+		if( EH_added )
+		{
+			//Finally: set the Transport Next Header value into the last EH
+			start_of_the_actual_EH[0] = message->transport_next_header();
+		}
+		else
+		{
+			message->set_real_next_header(message->transport_next_header());
+		}
+		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
 		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
@@ -422,8 +721,6 @@
 			return interface_manager_->send_to_interface( BROADCAST_ADDRESS, packet_number, NULL, INTERFACE_RADIO );
 		}
 		
-		//Get the packet pointer from the manager
-		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		//For ND messages the destination could be specified, no routing needed
 		if( message->remote_ll_address != 0 && message->target_interface != NUMBER_OF_INTERFACES)
 			return interface_manager_->send_to_interface( destination, packet_number, NULL, message->target_interface );
@@ -437,6 +734,7 @@
 		uint8_t target_interface;
 		
 		int routing_result = routing_.find( destination, target_interface, next_hop );
+
 		//Route available, send the packet to the next hop
 		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
@@ -483,12 +781,12 @@
 			return ERR_HOSTUNREACH;
 		}
 	#endif
-		
+	
 		//In MESH UNDER the LoWPAN layer will deal with the next hop, just send the packet
 	#ifdef LOWPAN_MESH_UNDER
 		return interface_manager_->send_to_interface( destination, packet_number, NULL, INTERFACE_RADIO );
 	#endif
-		
+	
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
@@ -504,7 +802,7 @@
 	{
 		//Get the packet pointer from the manager
 		Packet *message = packet_pool_mgr_->get_packet_pointer( packet_number );
-		
+
 		if ( from == radio().id() )
 		{
 			packet_pool_mgr_->clean_packet( message );
@@ -523,7 +821,61 @@
 			packet_pool_mgr_->clean_packet( message );
 			return;
 		}
-
+		
+		// Process Extension Headers
+		if( message->real_next_header() != message->transport_next_header() )
+		{
+			//initially: after the IPv6 header
+			uint8_t* start_of_the_actual_EH = message->get_content() + message->PAYLOAD_POS;
+			
+			//Hop-by-Hop Extension Header
+			if( message->real_next_header() == EH_HOHO )
+			{
+				//Hdr Ext Len
+				uint8_t full_HOHO_len = (start_of_the_actual_EH[1] + 1) * 8;
+				
+				uint8_t actual_TLV_shift = 2;
+				
+				//Read the TLVs
+				while( actual_TLV_shift < full_HOHO_len )
+				{
+					//Break if Pad1 (T=0) or PadN (T=1) is reached
+					if( (start_of_the_actual_EH[actual_TLV_shift] == 0) ||
+						(start_of_the_actual_EH[actual_TLV_shift] == 1) )
+						break;
+					
+					//Call all registered handler to use/update the content
+					for( HOHO_TLV_list_Iterator it = HOHO_TLV_list.begin();
+					it != HOHO_TLV_list.end();
+					++it )
+					{
+						if( it->type == start_of_the_actual_EH[actual_TLV_shift] )
+						{
+							//Call the registered handler function to fill in the content
+							HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift );
+							
+							//Shift to the end of the option +2 because of the Type and Length
+							actual_TLV_shift += start_of_the_actual_EH[actual_TLV_shift+1] + 2;
+							
+							break;
+						}
+					}
+				}
+				
+				//Prepare for the next EH
+				start_of_the_actual_EH += full_HOHO_len;
+			}
+			//Other EHs here
+			else
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug_->debug("Non supported IPv6 extension header (%i), packet dropped", message->real_next_header() );
+				#endif
+				packet_pool_mgr_->clean_packet( message );
+				return;
+			}
+		}
+		// Process Extension Headers - END
 		
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
@@ -548,10 +900,10 @@
 			#endif
 			
 			//If it is not a supported transport layer, drop it
-			if( (message->next_header() != UDP) && (message->next_header() != ICMPV6) )
+			if( (message->transport_next_header() != UDP) && (message->transport_next_header() != ICMPV6) )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %x", message->next_header(), my_mac );
+				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %x", message->transport_next_header(), my_mac );
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				return;

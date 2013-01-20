@@ -96,7 +96,26 @@ namespace wiselib
 			//Version is fix 6
 			uint8_t version = 6;
 			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + VERSION_BYTE, version, VERSION_BIT, VERSION_LEN );
+		
+			//Without IPv6 extension headers
+			TRANSPORT_POS = PAYLOAD_POS;
+			transport_next_header_ = 0;
+			
+			//because HOHO is 0...
+			set_real_next_header(REAL_NH_NOT_SET);
 		}
+		
+		enum NextHeaders
+		{
+			UDP = 17,
+			ICMPV6 = 58,
+			//TCP = 6
+			EH_HOHO = 0,	//Hop by Hop
+			/*EH_DESTO = 60
+			EH_ROUTING = 43
+			EH_FRAG = 44*/
+			REAL_NH_NOT_SET = 255
+		};
 		
 		///Set debug for print_header()
 		void set_debug( Debug& debug )
@@ -118,13 +137,30 @@ namespace wiselib
 			bitwise_write<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, flow_label, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
 		}
 		
-		void set_length( uint16_t length )
+		//IMPORTANT NOTE: If there are extension headers, the layer must set the size of the
+		//transport layer payload, but the length of the extension headers must be added to the value
+		void set_transport_length( uint16_t length )
+		{
+			//Add the size of the extension headers
+			length += TRANSPORT_POS - PAYLOAD_POS;
+			//Length
+			bitwise_write<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
+		}
+		
+		void set_real_length( uint16_t length )
 		{
 			//Length
 			bitwise_write<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, length, LENGTH_BIT, LENGTH_LEN );
 		}
 		
-		void set_next_header( uint8_t next_header )
+		//This function only stores the next-header value and it will be placed by the IPv6 layer
+		void set_transport_next_header( uint8_t next_header )
+		{
+			transport_next_header_ = next_header;
+		}
+		
+		//Set a next-header value into the IPv6 header
+		void set_real_next_header( uint8_t next_header )
 		{
 			//Next Header
 			bitwise_write<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, next_header, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
@@ -149,7 +185,7 @@ namespace wiselib
 		}
 		
 		/**
-		* \brief Set bytes into the payload
+		* \brief Set bytes into the transport layer part of the payload
 		* \param data pointer to the first element
 		* \param shift byte shift from the beginning of the payload
 		* \param len the length of the array
@@ -163,9 +199,9 @@ namespace wiselib
 			{
 				for( unsigned int i = 0; i < sizeof(Type_P); i++ )
 					if( OsModel::endianness == WISELIB_LITTLE_ENDIAN )
-						buffer_[PAYLOAD_POS + shift + sizeof(Type_P) - 1 - i] = *((uint8_t*)data + i);
+						buffer_[TRANSPORT_POS + shift + sizeof(Type_P) - 1 - i] = *((uint8_t*)data + i);
 					else
-						buffer_[PAYLOAD_POS + shift + i] = *((uint8_t*)data + i);
+						buffer_[TRANSPORT_POS + shift + i] = *((uint8_t*)data + i);
 				
 				//Next element
 				data += 1;
@@ -191,12 +227,55 @@ namespace wiselib
 			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer_ + FLOW_LABEL_BYTE, FLOW_LABEL_BIT, FLOW_LABEL_LEN );
 		}
 		
-		inline uint16_t length()
+		inline uint16_t transport_length()
+		{
+			uint16_t len = bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, LENGTH_BIT, LENGTH_LEN );
+			//Correction: deduct with the length of the extension headers
+			return len - (TRANSPORT_POS - PAYLOAD_POS);
+		}
+		
+		inline uint16_t real_length()
 		{
 			return bitwise_read<OsModel, block_data_t, uint16_t>( buffer_ + LENGTH_BYTE, LENGTH_BIT, LENGTH_LEN );
 		}
 		
-		inline uint8_t next_header()
+		//NOTE This function returns the used transport layer's value!
+		inline uint8_t transport_next_header()
+		{
+			if( transport_next_header_ == 0 )
+			{
+				//If no extension headers
+				if( real_next_header() == UDP || real_next_header() == ICMPV6 )
+					transport_next_header_ = real_next_header();
+				//The transport next header field is in the first byte of the last Ext header
+				else
+				{
+					//Start: after the IPv6 header
+					uint8_t* act_place = buffer_ + PAYLOAD_POS;
+					//Iterate through the chain, the size of each EH is in the second byte
+					//It is stored in 8-octets, not including the first (+1)
+					while( act_place[0] != UDP || act_place[0] != ICMPV6 )
+					{
+						if( act_place > buffer_ + LOWPAN_IP_PACKET_BUFFER_MAX_SIZE )
+						{
+							//debug_->debug("FATAL ERROR no transport header");
+							return 255;
+						}
+						
+						TRANSPORT_POS += ( act_place[1] + 1 ) * 8;
+						act_place += ( act_place[1] + 1 ) * 8;
+					}
+					
+					//Set the start position of the transport header
+					TRANSPORT_POS += ( act_place[1] + 1 ) * 8;
+					//Store the last Next Header field
+					transport_next_header_ = act_place[0];
+				}
+			}
+			return transport_next_header_;
+		}
+		
+		inline uint8_t real_next_header()
 		{
 			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer_ + NEXT_HEADER_BYTE, NEXT_HEADER_BIT, NEXT_HEADER_LEN );
 		}
@@ -220,9 +299,10 @@ namespace wiselib
 			address.set_address(tmp_address);
 		}
 		
+		//NOTE: it returns the pointer to the start of the transport layer
 		inline block_data_t* payload()
 		{
-			return buffer_ + PAYLOAD_POS;
+			return buffer_ + TRANSPORT_POS;
 		}
 		
 		inline block_data_t* get_content()
@@ -232,7 +312,7 @@ namespace wiselib
 		
 		inline uint16_t get_content_size()
 		{
-			return length() + PAYLOAD_POS;
+			return real_length() + PAYLOAD_POS;
 		}
 		///@}
 		
@@ -244,8 +324,10 @@ namespace wiselib
 			debug().debug( "Version: %d \n", version());
 			debug().debug( "Traffic Class: %d \n", traffic_class());
 			debug().debug( "Flow Label: %d \n", flow_label());
-			debug().debug( "Length: %d \n", length());
-			debug().debug( "Next Header: %d \n", next_header());
+			debug().debug( "Real Length: %d \n", real_length());
+			debug().debug( "Transport Length: %d \n", transport_length());
+			debug().debug( "Real Next Header: %d \n", real_next_header());
+			debug().debug( "Transport Next Header: %d \n", transport_next_header());
 			debug().debug( "Hop Limit: %d \n", hop_limit());
 			
 			char str[43];
@@ -297,6 +379,12 @@ namespace wiselib
 		SOURCE_ADDRESS_LEN= 8,
 		DESTINATION_ADDRESS_LEN= 8
 		};
+		
+		///Transport-layer start position
+		uint8_t TRANSPORT_POS;
+		
+		///Saved next-header value for the transport layer
+		uint8_t transport_next_header_;
 		
 		///Buffer for the packet
 		block_data_t buffer_[LOWPAN_IP_PACKET_BUFFER_MAX_SIZE];
@@ -353,20 +441,12 @@ namespace wiselib
 	IPv6Packet<OsModel_P, Radio_P, Debug_P>::
 	generate_checksum()
 	{
-		uint16_t len = length();
+		uint16_t len = transport_length();
 		uint8_t* data = payload();
 		
 		uint32_t sum = 0;
 		
 		/* PSEUDO HEADER */
-		//Source and Dest address
-		/*for( int i = 0; i < 16; i+=2 )
-		{
-			sum += buffer_[SOURCE_ADDRESS_BYTE + i] << 8;
-			sum += buffer_[SOURCE_ADDRESS_BYTE + i + 1];
-			sum += buffer_[DESTINATION_ADDRESS_BYTE + i] << 8;
-			sum += buffer_[DESTINATION_ADDRESS_BYTE + i + 1];
-		}*/
 		
 		checksum_serialize( 16, buffer_ + SOURCE_ADDRESS_BYTE, sum, false );
 		checksum_serialize( 16, buffer_ + DESTINATION_ADDRESS_BYTE, sum, false );
@@ -384,10 +464,6 @@ namespace wiselib
 		tmp[2] = 0;
 		tmp[3] = buffer_[NEXT_HEADER_BYTE];
 		checksum_serialize( 4, tmp, sum, false );
-		
-		//sum += buffer_[LENGTH_BYTE] << 8;
-		//sum += buffer_[LENGTH_BYTE + 1];
-		//sum += buffer_[NEXT_HEADER_BYTE];
 		
 		/* PSEUDO END */
 		

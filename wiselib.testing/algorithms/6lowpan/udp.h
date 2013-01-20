@@ -284,8 +284,6 @@ namespace wiselib
 		#ifdef UDP_LAYER_DEBUG
 		void print_sockets();
 		#endif
-		
-
 	private:
 		
 		Radio_IP& radio_ip()
@@ -405,7 +403,6 @@ namespace wiselib
 		#endif
 		
 		callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::receive>( this );
-		
 		return SUCCESS;
 	}
 	// -----------------------------------------------------------------------
@@ -469,13 +466,13 @@ namespace wiselib
 			return ERR_UNSPEC;
 		
 		//Next header = 17 UDP
-		message->set_next_header(Radio_IP::UDP);
+		message->set_transport_next_header(Radio_IP::UDP);
 		//Maximum limit
 		message->set_hop_limit(255);
 		
 		//The length includes the UDP header all places
 		len = len + 8;
-		message->set_length(len);
+		message->set_transport_length(len);
 		
 		//The source address will be set in the interface manager to support different interfaces and more addresses
 		//ip_node_id_t sourceaddr;
@@ -525,7 +522,7 @@ namespace wiselib
 		IPv6Packet_t* message = packet_pool_mgr_->get_packet_pointer( packet_number );
 		
 		//If it is not an UDP packet, just drop it
-		if( message->next_header() != Radio_IP::UDP )
+		if( message->transport_next_header() != Radio_IP::UDP )
 			return;
 		//data is NULL, use this pointer for the payload
 		data = message->payload();
@@ -566,7 +563,7 @@ namespace wiselib
 					
 					(*it)( from, len, data );*/
 					
-					notify_receivers( from, message->length() - 8, data + 8 );
+					notify_receivers( from, message->transport_length() - 8, data + 8 );
 					
 					//Clean packet after processing
 					packet_pool_mgr_->clean_packet( message );

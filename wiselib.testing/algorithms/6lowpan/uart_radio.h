@@ -206,7 +206,7 @@ namespace wiselib
 			if( received_size_ >= 40 )
 			{
 				//If the packet completed, notify_receivers
-				if( (ip_packet->length() + 40) == received_size_ )
+				if( (ip_packet->real_length() + 40) == received_size_ )
 				{
 					receiving_ = false;
 					received_size_ = 0;
