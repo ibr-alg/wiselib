@@ -142,6 +142,12 @@
 			EH_FRAG = 44*/
 		};
 		
+		enum RPLReturns
+		{
+			CORRECT = 0,
+			DROP_PACKET = 1
+		};
+		
 		enum interface_IDs
 		{
 			INTERFACE_RADIO = InterfaceManager_t::INTERFACE_RADIO,
@@ -244,6 +250,11 @@
 			//NOTE now it is the Radio's link local address
 			return (interface_manager_->prefix_list[INTERFACE_RADIO][0].ip_address);
 		}
+		
+		node_id_t global_id()
+		{
+			return (interface_manager_->prefix_list[INTERFACE_RADIO][1].ip_address);
+		}
 		///@}
 		
 		InterfaceManager_t* interface_manager_;
@@ -259,7 +270,7 @@
 		
 		//Type and vector to register the callback functions
 		//2 parameters: packet_number, pointer to the actual TLV
-		typedef delegate2<void, uint8_t, uint8_t*> HOHO_delegate_t;
+		typedef delegate2<int, uint8_t, uint8_t*> HOHO_delegate_t;
 		typedef vector_static<OsModel, HOHO_delegate_t, MAX_EH_HOHO_TLV> HOHOCallbackVector;
 		typedef typename HOHOCallbackVector::iterator HOHOCallbackVectorIterator;
 		//vector for the registered callback functions
@@ -283,7 +294,7 @@
 		//In an "upper leyer" class --> for instance RPL
 		//Usage: TLV_callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::handle_TLV>( this, [type], [length] );
 		//the length is the length of the content! (full length - the first 2 bytes)!
-		/*       handle_TLV( uint8_t packet_number, uint8_t* data_pointer )
+		/*       int handle_TLV( uint8_t packet_number, uint8_t* data_pointer )
 			{
 				//First byte: Type (setted by the Ipv6 layer)
 				//Second byte: Length (setted by the Ipv6 layer)
@@ -295,9 +306,11 @@
 				{
 					...
 				}
+				
+				return CORRECT;
 			}
 		*/
-		template<class T, void (T::*TMethod)(uint8_t, uint8_t*)>
+		template<class T, int (T::*TMethod)(uint8_t, uint8_t*)>
 		int HOHO_reg_recv_callback( T *obj_pnt, uint8_t type_value, uint8_t length )
 		{
 			if ( HOHOcallbacks.empty() )
@@ -338,15 +351,18 @@
 		/**
 		* Notify a selected registered handler
 		*/
-		void HOHO_notify_receiver( uint8_t target_receiver, uint8_t packet_number, uint8_t *data )
+		int HOHO_notify_receiver( uint8_t target_receiver, uint8_t packet_number, uint8_t *data )
 		{
 			HOHOCallbackVectorIterator it = HOHOcallbacks.begin();
 			it += target_receiver;
 			
 			if ( *it != HOHO_delegate_t() )
-				(*it)( packet_number, data );
+				return (*it)( packet_number, data );
 			else
+			{
 				debug_->debug("HOHO error: unable to notify receiver %i", target_receiver);
+				return DROP_PACKET;
+			}
 		}
 		
 		void update_HOHO_header_size( uint8_t length, bool add )
@@ -418,6 +434,9 @@
 			Extension headers - END
 							*/
 		
+		#ifdef LOWPAN_ROUTE_OVER
+		Routing_t routing_;
+		#endif
 		
 	private:
 		
@@ -434,11 +453,7 @@
 		typename Debug::self_pointer_t debug_;
 		typename Timer::self_pointer_t timer_;
 		Packet_Pool_Mgr_t* packet_pool_mgr_;
-		
-		#ifdef LOWPAN_ROUTE_OVER
-		Routing_t routing_;
-		#endif
-		
+
 		/**
 		* Test every addresses of the specified interface to decide that the packet is for this node or not
 		* \param destination pointer to the destination's IP address
@@ -668,7 +683,12 @@
 						start_of_the_actual_EH[actual_TLV_shift+1] = it->length;
 						
 						//Call the registered handler function to fill in the content
-						HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift );
+						if( DROP_PACKET == HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift ))
+						{
+							debug_->debug("IPv6 layer: packet dropped in the send function because of HoHo command");
+							packet_pool_mgr_->clean_packet( message );
+							return ERR_UNSPEC;
+						}
 						
 						//Shift to the end of the option +2 because of the Type and Length
 						actual_TLV_shift += it->length + 2;
@@ -852,7 +872,12 @@
 						if( it->type == start_of_the_actual_EH[actual_TLV_shift] )
 						{
 							//Call the registered handler function to fill in the content
-							HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift );
+							if( DROP_PACKET == HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift ))
+							{
+								debug_->debug("IPv6 layer: packet dropped in the receive function because of HoHo command");
+								packet_pool_mgr_->clean_packet( message );
+								return;
+							}
 							
 							//Shift to the end of the option +2 because of the Type and Length
 							actual_TLV_shift += start_of_the_actual_EH[actual_TLV_shift+1] + 2;
