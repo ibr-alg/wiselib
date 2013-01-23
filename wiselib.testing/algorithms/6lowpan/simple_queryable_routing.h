@@ -235,7 +235,7 @@ namespace wiselib
 				next_hop = 0x2;
 				tmp_addr.set_long_iid(&next_hop, true);
 				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
-				requested = 0x5;
+				requested = 0x4;
 				tmp_addr.set_long_iid(&requested, true);
 				forwarding_table_[tmp_addr] = entry;
 			}
@@ -253,7 +253,7 @@ namespace wiselib
 				next_hop = 0x4;
 				tmp_addr.set_long_iid(&next_hop, true);
 				ForwardingTableValue entry2(tmp_addr, 0, 5, 0);
-				requested = 0x5;
+				requested = 0x4;
 				tmp_addr.set_long_iid(&requested, true);
 				forwarding_table_[tmp_addr] = entry2;
 			}
@@ -267,26 +267,8 @@ namespace wiselib
 				requested = 0x1;
 				tmp_addr.set_long_iid(&requested, true);
 				forwarding_table_[tmp_addr] = entry;
-				
-				next_hop = 0x5;
-				tmp_addr.set_long_iid(&next_hop, true);
-				ForwardingTableValue entry2(tmp_addr, 0, 5, 0);
-				requested = 0x5;
-				tmp_addr.set_long_iid(&requested, true);
-				forwarding_table_[tmp_addr] = entry2;
 			}
 			
-			if( os_radio_->id() == 0x5)
-			{	
-				
-				next_hop = 0x4;
-				tmp_addr.set_long_iid(&next_hop, true);
-				ForwardingTableValue entry(tmp_addr, 0, 5, 0);
-				
-				requested = 0x1;
-				tmp_addr.set_long_iid(&requested, true);
-				forwarding_table_[tmp_addr] = entry;
-			}
 			*/
 			
 			//TEST END
@@ -309,11 +291,11 @@ namespace wiselib
 		*/
 		void print_forwarding_table();
 		///@}
-
-	 private:
-	 	typename Timer::self_pointer_t timer_;
-		typename Radio_Os::self_pointer_t os_radio_;
-		typename Debug::self_pointer_t debug_;
+		
+		/**
+		* Forwarding Table, which stores the discovered paths
+		*/
+		ForwardingTable forwarding_table_;
 		
 		/**
 		* destination for the actual discovery
@@ -329,6 +311,12 @@ namespace wiselib
 		* Indicate that the algorithm is working
 		*/
 		bool is_working;
+
+	 private:
+	 	typename Timer::self_pointer_t timer_;
+		typename Radio_Os::self_pointer_t os_radio_;
+		typename Debug::self_pointer_t debug_;
+		
 		
 		Timer& timer()
 		{
@@ -340,10 +328,7 @@ namespace wiselib
 			return *debug_;
 		}
 		
-		/**
-		* Forwarding Table, which stores the discovered paths
-		*/
-		ForwardingTable forwarding_table_;
+		
 		
 		// --------------------------------------------------------------------
 		/** \brief The implementation of the routing algorithm
