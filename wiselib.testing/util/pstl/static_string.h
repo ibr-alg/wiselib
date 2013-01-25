@@ -126,6 +126,10 @@ namespace wiselib {
         char* c_str() {
             return buffer_;
         }
+        
+        int size() const{
+            return length_;
+        }
 
         int length() const{
             return length_;
