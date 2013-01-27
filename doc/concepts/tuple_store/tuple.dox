@@ -7,21 +7,59 @@ namespace concepts {
  */
 class Tuple_concept {
 	public:
-		typedef ... data_t;
+		typedef ... block_data_t;
 		typedef ... size_type;
+		typedef ... self_type;
+		
+		enum {
+			SIZE = ...
+		};
+		
+		Tuple_concept(const Tuple_concept&);
+		self_type& operator=(const self_type& other);
 		
 		/**
-		 * Provide read-only or read/write access to the idx'th element
-		 * of the tuple.
+		 * Deeply free any data in the given column.
+		 * The implementation should make sure that consequitive calls
+		 * to free_deep(i) for the same value of i are possible.
 		 */
-		data_t& operator[](size_type idx);
+		void free_deep(size_type col);
 		
 		/**
-		 * Return number of elements of the tuple.
+		 * Free all deeply referenced data of the tuple, usually equivalent to
+		 * calling free_deep() for all possible columns.
 		 */
-		size_type size();
+		void destruct_deep();
 		
-		bool is_wildcard(size_type idx);
+		/**
+		 * Return pointer to data at i'th column.
+		 */
+		block_data_t* get(size_type i);
+		
+		/**
+		 * Return length of data (in bytes) of data returned by get(i).
+		 */
+		size_type length(size_type i);
+		
+		/**
+		 * Set data at column i to the data pointed to by "data".
+		 * The tuple implementation is free to make either a free or shallow
+		 * copy of the data, however it can not rely on free_deep() being
+		 * called for columns set with set().
+		 */
+		void set(size_type i, block_data_t* data);
+		
+		/**
+		 * Same as set() but the tuple implementation is obliged to make deep
+		 * copy, i.e. the caller is allowed to free "data" after the call and
+		 * is responsible for calling free_deep(i) for freeing the deep copy.
+		 */
+		void set_deep(size_type i, block_data_t* data);
+		
+		/**
+		 * For compatibility with STL containers
+		 */
+		bool operator<(const self_t& other) const;
 };
 
 } // namespace

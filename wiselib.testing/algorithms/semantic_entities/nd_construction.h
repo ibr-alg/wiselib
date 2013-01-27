@@ -40,7 +40,6 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Allocator_P,
 		typename Radio_P,
 		typename FragmentingRadio_P,
 		typename Neighborhood_P,
@@ -55,7 +54,6 @@ namespace wiselib {
 			
 			typedef OsModel_P OsModel;
 			static const Endianness endianness = OsModel::endianness;
-			typedef Allocator_P Allocator;
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
 			typedef Neighborhood_P Neighborhood;
@@ -300,9 +298,9 @@ namespace wiselib {
 			void on_loose_neighbor(node_id_t neighbor) {
 				for(typename class_vector_t::iterator iter = state_.classes.begin(); iter != state_.classes.end(); ++iter) {
 					if(neighbor == iter->to_leader) {
+						debug_->debug("AD %s %x %x $$", iter->name.c_str(), iter->to_leader);
 						iter->to_leader = Radio::NULL_NODE_ID;
 						
-						debug_->debug("ARR %s 0x%x 0x0 $$", iter->name.c_str(), radio_->id());
 						
 						notify(SE_LEAVE, iter->name, iter->leader);
 					}
@@ -315,9 +313,9 @@ namespace wiselib {
 				for(typename class_vector_t::iterator iter = state_.classes.begin(); iter != state_.classes.end(); ++iter) {
 					if(iter->is_se() && iter->is_leader()) {
 						if(iter->to_leader != Radio::NULL_NODE_ID) {
-							debug_->debug("ARR %s 0x%x 0x%x $$", iter->name.c_str(), iter->to_leader);
+							debug_->debug("ARR %s %x %x $$", iter->name.c_str(), iter->to_leader);
 						}
-						debug_->debug("SE 0x%x %s%d $$", iter->id, iter->name.c_str(), iter->leader);
+						debug_->debug("SE %x %s%d $$", iter->id, iter->name.c_str(), iter->leader);
 					}
 				}
 				
@@ -361,7 +359,10 @@ namespace wiselib {
 			}
 			
 			void dbg_arrow(const char* name, node_id_t to_leader) {
-				debug_->debug("ARR %s 0x%x 0x%x $$", name, radio_->id(), to_leader);
+				debug_->debug("ARR %s %x %x $$", name, radio_->id(), to_leader);
+			}
+			void dbg_delarrow(const char* name, node_id_t to_leader) {
+				debug_->debug("AD %s %x %x $$", name, radio_->id(), to_leader);
 			}
 			
 			void new_neighbor_state(node_id_t source, State& state) {
@@ -374,15 +375,16 @@ namespace wiselib {
 							
 							
 						if(iter->name == niter->name) {
-						debug_->debug("   we: n=%s id=%d l=%d to_l=%d",
-								iter->name.c_str(), iter->id, iter->leader, iter->to_leader);
-						debug_->debug("neigh: n=%s id=%d l=%d to_l=%d",
-								niter->name.c_str(), niter->id, niter->leader, niter->to_leader);
+						//debug_->debug("   we: n=%s id=%d l=%d to_l=%d",
+						//		iter->name.c_str(), iter->id, iter->leader, iter->to_leader);
+						//debug_->debug("neigh: n=%s id=%d l=%d to_l=%d",
+						//		niter->name.c_str(), niter->id, niter->leader, niter->to_leader);
 							
 							// other SE, we open -> JOIN if lower than leader,
 							// else create
 							if(niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->leader) {
+									dbg_delarrow(iter->name.c_str(), iter->to_leader);
 									iter->to_leader = niter->id;
 									
 									dbg_arrow(iter->name.c_str(), iter->to_leader);
@@ -400,12 +402,14 @@ namespace wiselib {
 							// both open -> CREATE (max id is leader)
 							else if(!niter->is_se() && !iter->is_se()) {
 								if(iter->id > niter->id) {
+									dbg_delarrow(iter->name.c_str(), iter->to_leader);
 									iter->to_leader = iter->id;
 									dbg_arrow(iter->name.c_str(), iter->to_leader);
 									iter->leader = iter->id;
 									notify(SE_LEADER, iter->name, iter->leader);
 								}
 								else {
+									dbg_delarrow(iter->name.c_str(), iter->to_leader);
 									iter->to_leader = niter->id;
 									dbg_arrow(iter->name.c_str(), iter->to_leader);
 									iter->leader = niter->id;
@@ -418,6 +422,7 @@ namespace wiselib {
 							// new leader can emerge), else do nothing
 							else if(!niter->is_se() && iter->is_se()) {
 								if(niter->id == iter->to_leader) {
+									dbg_delarrow(iter->name.c_str(), iter->to_leader);
 									iter->to_leader = Radio::NULL_NODE_ID;
 									dbg_arrow(iter->name.c_str(), 0);
 									notify(SE_LEAVE, iter->name, iter->leader);
@@ -431,6 +436,7 @@ namespace wiselib {
 									(iter->to_leader == niter->leader)
 								) {
 									notify(SE_LEAVE, iter->name, iter->leader);
+									dbg_delarrow(iter->name.c_str(), iter->to_leader);
 									iter->leader = niter->leader;
 									iter->to_leader = source;
 									dbg_arrow(iter->name.c_str(), iter->to_leader);

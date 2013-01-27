@@ -11,7 +11,7 @@ include $(TOP)/Makefile.local
 #   flash-sky TARGET=/dev/ttyUSB1
 # 
 ifndef PORT
-   PORT=/dev/ttyUSB0
+   export PORT=/dev/ttyUSB0
 endif
 
 ###
@@ -31,6 +31,10 @@ endif
 ##
 ## Compile Application for specific OSs
 #####
+
+arduino:
+	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino arduino ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
 contiki_msb:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=msb430 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
@@ -102,6 +106,11 @@ flash-tinyos-sky:
 flash-gnode:
 	lnode-bsl -c $(PORT) -r -e -I -p out/$(BIN_OUT).hex
 
+flash-arduino:
+	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino flash ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
+monitor-arduino:
+	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino monitor ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 ###############################################################
 ##
@@ -134,7 +143,7 @@ tinyos-nodeid-gnode:
 ## Clean
 #####
 clean:
-	rm -Rf out/contiki-* out/feuerware out/isense out/pc out/scw out/shawn out/tinyos-* out/lorien-sky \
+	rm -Rf out/contiki-* out/feuerware out/isense out/pc out/scw out/shawn out/tinyos-* out/lorien-sky out/arduino \
 		obj_* symbols.* contiki-* \
 		_TOSSIMmodule.so TOSSIM.* build/ simbuild/ app.xml
 	rm -f out/*

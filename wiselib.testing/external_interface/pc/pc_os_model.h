@@ -33,15 +33,16 @@
 #include "pc_timer.h"
 #include "pc_com_uart.h"
 #include "util/serialization/endian.h"
+#include "algorithms/block_storage/ram_set_erase_storage.h"
 
 namespace wiselib {
 	class PCOsModel
 		: public DefaultReturnValues<PCOsModel>
 	{
 		public:
-	      int argc;
+			int argc;
 			const char** argv;
-
+			
 			typedef PCOsModel AppMainParameter;
 			typedef PCOsModel Os;
 			
@@ -60,6 +61,8 @@ namespace wiselib {
 			typedef PCComUartModel<PCOsModel, true> ISenseUart;
 			typedef PCComUartModel<PCOsModel, false> Uart;
 			typedef ComISenseRadioModel<PCOsModel, ISenseUart> Radio;
+			
+			typedef RamSetEraseStorage<PCOsModel> BlockMemory;
 			
 			static const Endianness endianness = WISELIB_ENDIANNESS;
 	};

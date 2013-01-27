@@ -21,6 +21,7 @@
 
 #include "external_interface/shawn/shawn_types.h"
 #include <cmath>
+#include <cstdio>
 
 namespace wiselib
 {
@@ -155,6 +156,9 @@ namespace wiselib
 
    private:
       TxPower(double);
+      
+      int value2stepnr(double v) { return v * steps_; }
+      double stepnr2value(int i) { return i * 1.0 / (double)steps_; }
 
       double value;
       int steps_;
@@ -214,27 +218,27 @@ namespace wiselib
    //------------------------------------------------------------------------
    template<typename OsModel_P>
    typename ShawnTxRadioModel<OsModel_P>::TxPower ShawnTxRadioModel<OsModel_P>::TxPower::operator++(){
-      value=static_cast<int>(value*steps_+0.5)+1.0/steps_;
+      value = stepnr2value(value2stepnr(value) + 1);
       return *this;
    }
    //------------------------------------------------------------------------
    template<typename OsModel_P>
    typename ShawnTxRadioModel<OsModel_P>::TxPower ShawnTxRadioModel<OsModel_P>::TxPower::operator++(int){
       TxPower p=*this;
-      value=static_cast<int>(value*steps_+0.5)+1.0/steps_;
+      value = stepnr2value(value2stepnr(value) + 1);
       return p;
    }
    //------------------------------------------------------------------------
    template<typename OsModel_P>
    typename ShawnTxRadioModel<OsModel_P>::TxPower ShawnTxRadioModel<OsModel_P>::TxPower::operator--(){
-      value=static_cast<int>(value*steps_+0.5)-1.0/steps_;
+      value = stepnr2value(value2stepnr(value) - 1);
       return *this;
    }
    //------------------------------------------------------------------------
    template<typename OsModel_P>
    typename ShawnTxRadioModel<OsModel_P>::TxPower ShawnTxRadioModel<OsModel_P>::TxPower::operator--(int){
       TxPower p=*this;
-      value=static_cast<int>(value*steps_+0.5)-1.0/steps_;
+      value = stepnr2value(value2stepnr(value) - 1);
       return p;
    }
    //------------------------------------------------------------------------
@@ -307,3 +311,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

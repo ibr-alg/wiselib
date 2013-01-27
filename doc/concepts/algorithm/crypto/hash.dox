@@ -1,0 +1,14 @@
+
+/**
+ * 
+ */
+concept Hash {
+	public:
+		typedef ... hash_t;
+		typedef ... block_data_t;
+
+		enum { MAX_VALUE = ... };
+
+		hash_t hash(block_data_t*);
+}
+

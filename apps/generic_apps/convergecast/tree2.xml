@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<scenario>
+<snapshot id="0">
+	<node id="101">
+		<location x="0" y="0" z="0" />
+		<tag type="int" name="radio_id" value="101" />
+	</node>
+	
+	<node id="102">
+		<location x="-5" y="-5" z="0" />
+		<tag type="int" name="radio_id" value="102" />
+		<tag type="string" name="predecessor" value="101" />
+	</node>
+	
+	<node id="103">
+		<location x="5" y="-5" z="0" />
+		<tag type="int" name="radio_id" value="103" />
+		<tag type="string" name="predecessor" value="101" />
+	</node>
+	
+	<node id="104">
+		<location x="6" y="-6" z="0" />
+		<tag type="int" name="radio_id" value="104" />
+		<tag type="string" name="predecessor" value="103" />
+	</node>
+</snapshot>
+</scenario>
