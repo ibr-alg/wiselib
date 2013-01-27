@@ -51,9 +51,6 @@ namespace wiselib
 		///Constructor
 		IPv6PacketPoolManager()
 			{
-				//No ext headers by default
-				extension_headers_size = 0;
-				
 				for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
 				{
 					packet_pool[i].valid = false;
@@ -84,11 +81,7 @@ namespace wiselib
 			return &(packet_pool[i]);
 		}
 		
-		// -----------------------------------------------------------------
-		
-		///Size of the extension-headers for new packets
-		uint8_t extension_headers_size;
-		
+		// -----------------------------------------------------------------		
 		
 		/**
 		* Get an unused packet with number
@@ -102,9 +95,6 @@ namespace wiselib
 				{
 					packet_pool[i] = Packet();
 					packet_pool[i].valid = true;
-					
-					//Reserve the buffer for the extension headers
-					packet_pool[i].TRANSPORT_POS += extension_headers_size;
 					
 					return i;
 				}
