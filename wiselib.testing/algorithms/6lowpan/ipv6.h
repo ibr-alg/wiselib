@@ -668,9 +668,6 @@
 		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
 		//|  Option Type  |  Opt Data Len |  Option Data
 		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
-		uint8_t* tmpa = message->get_content() + message->PAYLOAD_POS;
-		for(int i = 0; i < 20; i++ )
-			debug_->debug("B: %i - %x", i, tmpa[i]);
 		//If the real next header is HOHO, skip the whole EH part
 		if( message->real_next_header() != EH_HOHO )
 		{
@@ -809,12 +806,6 @@
 		{
 			message->set_real_next_header(message->transport_next_header());
 		}
-		
-		//uint8_t* tmpa = message->get_content() + message->PAYLOAD_POS;
-		for(int i = 0; i < 20; i++ )
-			debug_->debug("%i - %x", i, tmpa[i]);
-		message->set_debug( *debug_ );
-		message->print_header();
 		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
