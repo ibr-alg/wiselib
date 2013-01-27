@@ -23,6 +23,7 @@
 #define PC_DEBUG_H
 
 #include <iostream>
+#include <iomanip>
 #include <cstdarg>
 #include <cstdio>
 
@@ -37,14 +38,14 @@ namespace wiselib {
 			
 			PCDebug() {
 			}
-						
+			
 			void debug(const char* msg, ...) {
 				va_list fmtargs;
 				char buffer[1024];
 				va_start(fmtargs, msg);
 				vsnprintf(buffer, sizeof(buffer) - 1, msg, fmtargs);
 				va_end(fmtargs);
-				std::cout << buffer;
+				std::cout << buffer << std::endl;
 				std::cout.flush();
 			}
 	};

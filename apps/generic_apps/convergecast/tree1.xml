@@ -1,0 +1,93 @@
+<?xml version="1.0" ?>
+<scenario>
+<snapshot id="0">
+	<node id="1">
+		<location x="0" y="0" z="0" />
+		<tag type="int" name="radio_id" value="1" />
+	</node>
+	
+	<node id="2">
+		<location x="-5" y="-5" z="0" />
+		<tag type="int" name="radio_id" value="2" />
+		<tag type="string" name="predecessor" value="1" />
+	</node>
+	
+	<node id="3">
+		<location x="5" y="-5" z="0" />
+		<tag type="int" name="radio_id" value="3" />
+		<tag type="string" name="predecessor" value="1" />
+	</node>
+
+
+	
+	<node id="4">
+		<location x="-7" y="-10" z="0" />
+		<tag type="int" name="radio_id" value="4" />
+		<tag type="string" name="predecessor" value="2" />
+	</node>
+	
+	<node id="5">
+		<location x="-5" y="-10" z="0" />
+		<tag type="int" name="radio_id" value="5" />
+		<tag type="string" name="predecessor" value="2" />
+	</node>
+	
+	<node id="6">
+		<location x="-3" y="-10" z="0" />
+		<tag type="int" name="radio_id" value="6" />
+		<tag type="string" name="predecessor" value="2" />
+	</node>
+	
+	<node id="7">
+		<location x="4" y="-10" z="0" />
+		<tag type="int" name="radio_id" value="7" />
+		<tag type="string" name="predecessor" value="3" />
+	</node>
+	
+	<node id="8">
+		<location x="6.5" y="-10" z="0" />
+		<tag type="int" name="radio_id" value="8" />
+		<tag type="string" name="predecessor" value="3" />
+	</node>
+
+	
+	
+	<node id="9">
+		<location x="-10" y="-15" z="0" />
+		<tag type="int" name="radio_id" value="9" />
+		<tag type="string" name="predecessor" value="4" />
+	</node>
+	
+	<node id="10">
+		<location x="-7" y="-15" z="0" />
+		<tag type="int" name="radio_id" value="10" />
+		<tag type="string" name="predecessor" value="4" />
+	</node>
+	
+	<node id="11">
+		<location x="-5" y="-15" z="0" />
+		<tag type="int" name="radio_id" value="11" />
+		<tag type="string" name="predecessor" value="5" />
+	</node>
+	
+	<node id="12">
+		<location x="-3" y="-15" z="0" />
+		<tag type="int" name="radio_id" value="12" />
+		<tag type="string" name="predecessor" value="6" />
+	</node>
+	
+	<node id="13">
+		<location x="4" y="-15" z="0" />
+		<tag type="int" name="radio_id" value="13" />
+		<tag type="string" name="predecessor" value="7" />
+	</node>
+	
+	<node id="14">
+		<location x="6.5" y="-15" z="0" />
+		<tag type="int" name="radio_id" value="14" />
+		<tag type="string" name="predecessor" value="8" />
+	</node>
+	
+	
+</snapshot>
+</scenario>

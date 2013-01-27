@@ -23,14 +23,6 @@
 
 #define KEEP_STATS 0
 
-/*template<typename pointer_t>
-void* operator new(size_t size, pointer_t ptr) {
-	return ptr.raw();
-}*/
-void* operator new(size_t size, void* ptr, bool fu_isense) {
-	return ptr;
-}
-
 namespace wiselib {
 	
 /**
@@ -97,6 +89,7 @@ class MallocFreeAllocator {
 				array_pointer_t& operator++() { ++this->p_; --elements_; return *this; }
 				array_pointer_t& operator--() { --this->p_; ++elements_; return *this; }
 				array_pointer_t operator+(size_t n) const { return array_pointer_t(this->p_ + n, elements_); }
+				array_pointer_t operator-(size_t n) const { return array_pointer_t(this->p_ - n, elements_); }
 				
 			private:
 				size_t elements_;
@@ -158,11 +151,25 @@ class MallocFreeAllocator {
 		}
 		
 		template<typename T>
+		int free(T* p) {
+			#if KEEP_STATS
+				deletes_++;
+			#endif
+			p->~T();
+			#ifdef ISENSE
+				isense::free((void*)p);
+			#else
+				::free((void*)p);
+			#endif
+			return SUCCESS;
+		}
+		
+		template<typename T>
 		int free_array(array_pointer_t<T> p) {
 			#if KEEP_STATS
 				deletes_++;
 			#endif
-			#pragma warning("array freeing does not call destructors yet!!");
+			#warning("array freeing does not call destructors yet!!");
 			/*for(typename OsModel::size_t i = 0; i < n; i++) {
 				pointer_t<T>((T*)r.raw() + sizeof(T) * i)->~T();
 			}*/
@@ -170,6 +177,23 @@ class MallocFreeAllocator {
 				isense::free((void*)p.p_);
 			#else
 				::free((void*)p.p_);
+			#endif
+			return SUCCESS;
+		}
+		
+		template<typename T>
+		int free_array(T* p) {
+			#if KEEP_STATS
+				deletes_++;
+			#endif
+			#warning("array freeing does not call destructors yet!!");
+			/*for(typename OsModel::size_t i = 0; i < n; i++) {
+				pointer_t<T>((T*)r.raw() + sizeof(T) * i)->~T();
+			}*/
+			#ifdef ISENSE
+				isense::free((void*)p);
+			#else
+				::free((void*)p);
 			#endif
 			return SUCCESS;
 		}
@@ -193,10 +217,14 @@ class MallocFreeAllocator {
 		#if KEEP_STATS
 		unsigned long news_, deletes_;
 		#endif
-}; // __attribute__((__packed__));
+};
 
 
 } // namespace wiselib
+
+void* operator new(size_t size, void* ptr, bool _) {
+	return ptr;
+}
 
 #endif // MALLOC_FREE_ALLOCATOR_H
 

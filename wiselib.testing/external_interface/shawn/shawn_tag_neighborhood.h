@@ -33,6 +33,8 @@ class ShawnTagNeighborhood {
       }
       
       int init() {
+         is_root_ = true;
+
          neighbors_.clear();
          
          typedef typename shawn::World::node_iterator iter_t;
@@ -41,13 +43,22 @@ class ShawnTagNeighborhood {
          for(iter_t iter = world.begin_nodes_w(); iter != world.end_nodes_w(); ++iter) {
             shawn::TagHandle th = iter->find_tag_w("predecessor");
             
-            if(th.get()) { // if the node has a parent-tag pointing to us
+            if(th.get()) {
                shawn::StringTag* t = dynamic_cast<shawn::StringTag*>(th.get());
-               if(atoi(t->value().c_str()) == radio_->id()) {
-                  shawn::TagHandle th_addr = iter->find_tag_w("radio_id");
-                  
-                  if(th_addr.get()) { // and if the node has a radio_id
-                     shawn::IntegerTag* t_addr = dynamic_cast<shawn::IntegerTag*>(th_addr.get());
+
+               shawn::TagHandle th_addr = iter->find_tag_w("radio_id");
+               if(th_addr.get()) {
+                  shawn::IntegerTag* t_addr = dynamic_cast<shawn::IntegerTag*>(th_addr.get());
+
+                  // parent of our node
+                  if (t_addr->value() == radio_->id()){
+                     parent_ = atoi(t->value().c_str());
+                     is_root_ = false;
+                  }
+
+                  // if the node has a parent-tag pointing to us
+                  // and if the node has a radio_id
+                  if(atoi(t->value().c_str()) == radio_->id()) {
                      neighbors_.push_back(t_addr->value());
                   }
                }
@@ -70,9 +81,19 @@ class ShawnTagNeighborhood {
       Neighbors& topology() {
          return neighbors_;
       }
-   
+
+      node_id_t parent(){
+         return parent_;
+      }
+
+      bool is_root(){
+         return is_root_;
+      }
+
    private:
       Neighbors neighbors_;
+      node_id_t parent_;
+      bool is_root_;
       typename Radio::self_pointer_t radio_;
 };
 

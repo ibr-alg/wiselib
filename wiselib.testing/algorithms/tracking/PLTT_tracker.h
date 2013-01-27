@@ -20,8 +20,8 @@
 #ifndef __PLTT_TRACKER_H__
 #define __PLTT_TRACKER_H__
 
-#include "PLTT_config.h"
-#include "PLTT_message.h"
+#include "PLTT_default_values_config.h"
+#include "PLTT_source_config.h"
 
 namespace wiselib
 {
@@ -34,7 +34,6 @@ namespace wiselib
 				typename Radio_P,
 				typename Rand_P,
 				typename Clock_P,
-				typename PLTT_TrackerTrackingMetric_P,
 				typename Debug_P>
 	class PLTT_TrackerType
 	{
@@ -50,8 +49,7 @@ namespace wiselib
 		typedef PLTT_Agent_P PLTT_Agent;
 		typedef typename PLTT_Agent::AgentID AgentID;
 		typedef Timer_P Timer;
-		typedef PLTT_TrackerTrackingMetric_P PLTT_TrackerTrackingMetric;
-		typedef PLTT_TrackerType<Os, PLTT_Agent, Node, Position, IntensityNumber, Timer, Radio, Rand, Clock, PLTT_TrackerTrackingMetric, Debug> self_type;
+		typedef PLTT_TrackerType<Os, PLTT_Agent, Node, Position, IntensityNumber, Timer, Radio, Rand, Clock, Debug> self_type;
 		typedef typename Radio::node_id_t node_id_t;
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
@@ -162,7 +160,9 @@ namespace wiselib
 				tracking_metrics.inc_query_messages_send();
 				tracking_metrics.inc_query_messages_bytes_send( len + sizeof( message_id_t) + sizeof( size_t ) );
 				#endif
+				#ifdef ISENSE_PLTT_TRACKER_DEBUG_QUERY
 				debug().debug("sending agent %x", agent.get_agent_id());
+				#endif
 				#ifdef PLTT_TRACKER_TRACKING_METRICS
 				++agent_sent_counter;
 				#endif
@@ -268,9 +268,7 @@ namespace wiselib
 						agent.get_target().get_position().get_x(), agent.get_target().get_position().get_y(), agent.get_reliable_agent_id() );
 				//}
 				#endif
-
-				debug().debug( "%i,%i", agent.get_target().get_position().get_x(), agent.get_target().get_position().get_y() );
-
+				debug().debug("VIS:%i%i%i", agent.get_target().get_id(), agent.get_target().get_position().get_x(), agent.get_target().get_position().get_y() );
 				//timer().template set_timer<self_type, &self_type::send_echo>( 0, this, 0);
 
 			}
@@ -301,33 +299,33 @@ namespace wiselib
 		// -----------------------------------------------------------------------
 		void print_tracking_metrics( void* userdata = NULL )
 		{
-//			debug().debug( " TMN\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i ",
-//				clock().seconds( clock().time() ),
-//				tracking_metrics.get_echo_messages_send(),
-//				tracking_metrics.get_echo_messages_bytes_send(),
-//				tracking_metrics.get_query_messages_send(),
-//				tracking_metrics.get_query_messages_bytes_send(),
-//				messages_received,
-//				messages_bytes_received,
-//				tracking_metrics.get_echo_messages_received(),
-//				tracking_metrics.get_echo_messages_bytes_received(),
-//				tracking_metrics.get_report_messages_received(),
-//				tracking_metrics.get_report_messages_bytes_received() );
-//			debug().debug( " TMP\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i ",
-//				clock().seconds( clock().time() ),
-//				tracking_metrics_periodic.get_echo_messages_send(),
-//				tracking_metrics_periodic.get_echo_messages_bytes_send(),
-//				tracking_metrics_periodic.get_query_messages_send(),
-//				tracking_metrics_periodic.get_query_messages_bytes_send(),
-//				messages_received_periodic,
-//				messages_bytes_received_periodic,
-//				tracking_metrics_periodic.get_echo_messages_received(),
-//				tracking_metrics_periodic.get_echo_messages_bytes_received(),
-//				tracking_metrics_periodic.get_report_messages_received(),
-//				tracking_metrics_periodic.get_report_messages_bytes_received() );
-//			messages_received_periodic = 0;
-//			messages_bytes_received_periodic = 0;
-//			tracking_metrics_periodic.reset();
+			debug().debug( " TMN\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i ",
+				clock().seconds( clock().time() ),
+				tracking_metrics.get_echo_messages_send(),
+				tracking_metrics.get_echo_messages_bytes_send(),
+				tracking_metrics.get_query_messages_send(),
+				tracking_metrics.get_query_messages_bytes_send(),
+				messages_received,
+				messages_bytes_received,
+				tracking_metrics.get_echo_messages_received(),
+				tracking_metrics.get_echo_messages_bytes_received(),
+				tracking_metrics.get_report_messages_received(),
+				tracking_metrics.get_report_messages_bytes_received() );
+			debug().debug( " TMP\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%i ",
+				clock().seconds( clock().time() ),
+				tracking_metrics_periodic.get_echo_messages_send(),
+				tracking_metrics_periodic.get_echo_messages_bytes_send(),
+				tracking_metrics_periodic.get_query_messages_send(),
+				tracking_metrics_periodic.get_query_messages_bytes_send(),
+				messages_received_periodic,
+				messages_bytes_received_periodic,
+				tracking_metrics_periodic.get_echo_messages_received(),
+				tracking_metrics_periodic.get_echo_messages_bytes_received(),
+				tracking_metrics_periodic.get_report_messages_received(),
+				tracking_metrics_periodic.get_report_messages_bytes_received() );
+			messages_received_periodic = 0;
+			messages_bytes_received_periodic = 0;
+			tracking_metrics_periodic.reset();
 			timer().template set_timer<self_type, &self_type::print_tracking_metrics>( metrics_timer, this, 0 );
 		}
 		// -----------------------------------------------------------------------

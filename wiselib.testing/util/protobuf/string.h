@@ -57,31 +57,48 @@ class String {
       
       enum { WIRE_TYPE = 2 };
       
-      static void write(buffer_t& buffer, const char* v) {
-         write(buffer, v, strlen(v));
+      /*
+      //
+      // char_t(&v)[N] means: reference to a char_t[N]
+      //
+      template<typename char_t, size_t N>
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, char_t(&v)[N]) {
+         return write(buffer, buffer_end, v, N);
       }
+      */
       
+      /*
       template<typename string_t>
-      static void write(buffer_t& buffer, string_t v) {
-         write(buffer, v.data(), v.size());
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, string_t v) {
+         return write(buffer, buffer_end, v.data(), v.size());
       }
+      */
+      
       
       template<typename char_t>
-      static void write(buffer_t& buffer, const char_t* v, int_t l) {
-         intrw_t::write(buffer, l);
+      static bool write(buffer_t& buffer, buffer_t& buffer_end, const char_t* v, int_t l) {
+         if(!l) { l = strlen((const char*)v); }
+         
+         if(!intrw_t::write(buffer, buffer_end, l)) { return false; }
          for(int_t i=0; i<l; i++) {
-            byterw_t::write(buffer, v[i]);
+            if(!byterw_t::write(buffer, buffer_end, v[i])) { return false; }
          }
+         return true;
       }
       
       template<typename string_t>
-      static void read(buffer_t& buffer, string_t& out) {
+      static bool read(buffer_t& buffer, buffer_t& buffer_end, string_t& out) {
          int_t l;
-         intrw_t::read(buffer, l);
-         out.resize(out.size() + l);
+         if(!intrw_t::read(buffer, buffer_end, l)) { return false; }
+         //out.resize(out.size() + l);
          for(int_t i=0; i<l; i++) {
-            byterw_t::read(buffer, out[i]);
+            if(!byterw_t::read(buffer, buffer_end, out[i])) { return false; }
          }
+         
+         
+         out[l] = '\0';
+         
+         return true;
       }
          
    private:

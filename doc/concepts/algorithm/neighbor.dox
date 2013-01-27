@@ -1,0 +1,64 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Neighbors in a Neighborhood
+ *
+ * A neighbor represents a node in a set of nodes called \ref Nhood_concept "Neighborhood".
+ * Every node sees the nodes to which it has a connection as neighbors
+ * and is also a neighbor to these other nodes.
+ * 
+ * Every neighbor has an ID, which could e.g. be the ID of its radio.
+ *
+ * Furthermore every neighbor has a state. This tells something about the
+ * relation of this neighbor to the node that looks at its neighborhood
+ * at the moment. Depending on the context in which the neighborhood is used 
+ * this state could e.g. be a parent / child relation in a tree 
+ * or some information about the communication directions in a network.
+ * There is the possibility to choose between ingoing (IN_EDGE), 
+ * outgoing (OUT_EDGE) and bidirectional (BIDI_EDGE) connection. 
+ * For example in a tree, a neighbor with state 
+ * IN_EDGE can be seen as a parent, a neighbor with state OUT_EDGE
+ * can be seen as child. If A is the parent of B, there is a neighbor
+ * in Bs neighborhood with ID A that has state IN_EDGE.
+ *
+ * A neighbor can also give further information that is useful, e.g. its
+ * signal strength or the packet rate of its connection.
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Neighbor_concept {
+   public:
+   
+      /**
+       * Possibilities for the state of the connection to this node in the neighborhood.
+       */
+      enum State
+      {
+         /// Incoming connection.
+         IN_EDGE=1,
+         /// Outgoing connection.
+         OUT_EDGE=2,
+         /// Both incoming and outgoing connection.
+         BIDI_EDGE = IN_EDGE | OUT_EDGE
+      };
+      
+      /**
+       * Defines the type of the ID. Could be e.g. the node_id_t of the radio used.
+       */
+      typedef ... node_id_t;
+      
+      /**
+       * @return The ID of this neighbor.
+       */
+      node_id_t id();
+      
+      /**
+       * @return The state of this neighbor.
+       */
+      State state();
+};
+
+}

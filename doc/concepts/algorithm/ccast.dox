@@ -1,0 +1,127 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for a Convergecast Algorithm
+ *
+ * This is a concept for a convergecast algorithm that can be used in any application
+ * or algorithm that has parts which need to perform a convergecast.
+ *
+ * The basic idea is quite simple. The convergecast has to be started at the root of 
+ * an existing tree where every node manages the tree in a \ref Better_nhood_concept 
+ * "BetterNeighborhood". First Init-Messages are sent down until they reach the leaves, then
+ * the leaves start the calculation and return the result to the parent in a Response-Message.
+ * This process continues as usual in a convergecast until the root gets the results from
+ * its children and calculates the final result. The messages that are send are \ref Ccast_message_concept
+ * "ConvergecastMessages".
+ *
+ * The function that is used for calculation and the function that is called as the 
+ * convergecast is finished can be specified by the user with delegates. There are also
+ * some predefined basic calculations like sum or average that are contained in the class
+ * \ref Ccast_functions_concept "ConvergecastFunctions".
+ *
+ * @ingroup ccast_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class Ccast_concept
+  : public BasicAlgorithm_concept
+{
+   public:
+
+      /**
+       * Type of \ref os_concept "Os Concept" which has been set for the
+       * node.
+       */
+      typedef ... OsModel;
+       
+      /**
+       * Defines type of the radio the algorithm should use for communication.
+       */
+      typedef ... Radio;
+      
+      /**
+       * Defines type of the neighbors in the neighborhood the algorithm runs on.
+       */    
+      typedef Neighbor_P Neighbor_t;
+   
+      /**
+       * Defines type of the neighborhood the algorithm runs on.
+       */
+      typedef Neighborhood_P Neighborhood;
+   
+      /**
+       * Defines type of the container that is used as a buffer.
+       */
+      typedef Container_P Container;
+ 
+      /**
+       * Defines type of the messages sent by the convergecast. Should be 
+       * \ref Ccast_message_concept "ConvergecastMessage" or something
+       * inherited from it.
+       */
+      typedef MessageType_P Message;
+
+      /**
+       * Defines type of pointer to an instance of the convergecast.
+       */
+      typedef ... self_pointer_t;
+
+      /**
+       * This method can be used to register the method that is called for calculation.
+       * This method gets a container with the messages from the children (or an empty 
+       * container at a leaf) and an empty message filled with the right type and convergecast
+       * ID. The message that is returned should contain the final result and is sent
+       * to the parent by the convergecast.
+       */
+      template<class T, Message(T::*TMethod)( Container&, Message& )>
+      void reg_function_callback( T *obj_pnt );
+
+      /**
+       * The method registered with this mehtod is called as the convergecast is finished. 
+       * The message that is the parameter contains the final result.
+       */
+      template<class T, void(T::*TMethod)( Message& )>
+      void reg_finished_callback( T *obj_pnt );
+
+      /**
+       * If this method is called, the node starts to send convergecast init messages to the children
+       * and starts a new convergecast.
+       */
+      void startConvergecast();
+
+    private:
+    
+      /**
+       * The ID of this convergecast. The ID is necessary if several different convergecasts
+       * run at the same time. Then they can find out which messages belong to them by
+       * checking the ID. Should be set e.g. on initialization.
+       */
+      uint_8 cc_id_;
+
+      /**
+       * This method is registered at the radio and will be called every time a message
+       * comes in. Then the ID of the message is checked and if it belongs to this
+       * convergecast instance either onReceiveCall or onReceiveResponse is called, 
+       * depending on the type of the message.
+       */
+      void on_receive(node_id_t from, size_t len, block_data_t* data);
+
+      /**
+       * Called if a message to start a convergecast is received. If this node is not 
+       * a leaf, a similar message is sent to the children. Else the first calculation
+       * is performed and the result is returned to the parent.
+       */
+	  void onReceiveCall();
+		
+      /**
+       * Called if a response message from a convergecast is received. The message is saved
+       * to a buffer. If the buffer contains messages from all children, the calculation is
+       * performed based on the received messages and the own result. Then the result
+       * of the calculation is either sent to the parent or sent to the program that
+       * started the convergecast (this is the case if the node is the root).
+       */
+      void onReceiveResponse(Message message);
+};
+
+}

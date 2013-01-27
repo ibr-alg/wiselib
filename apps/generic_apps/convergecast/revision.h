@@ -1,0 +1,2 @@
+#ifndef SOFTWARE_REVISION
+#define SOFTWARE_REVISION #endif

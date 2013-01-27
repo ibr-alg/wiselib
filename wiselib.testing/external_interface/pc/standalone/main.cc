@@ -17,7 +17,7 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-
+/*
 #include <unistd.h>
 
 #include "external_interface/pc/pc_os_model.h"
@@ -39,4 +39,4 @@ int main(int argc, const char** argv) {
 	
 	return 0;
 }
-
+*/

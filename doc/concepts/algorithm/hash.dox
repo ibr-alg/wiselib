@@ -1,0 +1,23 @@
+
+namespace concepts {
+
+	/**
+	 * @brief Concept for hash algorithms
+	 * 
+	 * Hash Algorithms provide a static method that accepts a pointer to a
+	 * bunch of data to be hashed plus the number of bytes to process.
+	 */
+	concept Hash_concept {
+		typedef ... block_data_t;
+		typedef ... size_type;
+		typedef ... hash_t;
+		
+		enum { MAX_VALUE = .... };
+		
+		static hash_t hash(const block_data_t* s, size_type l);
+	};
+	
+}
+
+// vim: set ft=cpp:
+
