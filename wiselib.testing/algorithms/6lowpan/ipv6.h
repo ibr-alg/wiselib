@@ -144,8 +144,13 @@
 		
 		enum RPLReturns
 		{
+			//Return values when the content is filled out
 			CORRECT = 0,
-			DROP_PACKET = 1
+			DROP_PACKET = 1,
+			
+			//Return values for usage calls
+			INUSE = 2,
+			OUTOFUSE = 3
 		};
 		
 		enum interface_IDs
@@ -210,9 +215,7 @@
 			#ifdef LOWPAN_ROUTE_OVER
 			routing_.init( *timer_, *debug_, *radio_ );
 			#endif
-			
-			HOHO_header_size = 0;
-			HOHO_header_padding = 0;
+
 			return SUCCESS;
 		}
 		
@@ -269,8 +272,8 @@
 		//At sending and receiving these are called by the IPv6 layer
 		
 		//Type and vector to register the callback functions
-		//2 parameters: packet_number, pointer to the actual TLV
-		typedef delegate2<int, uint8_t, uint8_t*> HOHO_delegate_t;
+		//3 parameters: packet_number, pointer to the actual TLV, in-use parameter
+		typedef delegate3<int, uint8_t, uint8_t*, bool> HOHO_delegate_t;
 		typedef vector_static<OsModel, HOHO_delegate_t, MAX_EH_HOHO_TLV> HOHOCallbackVector;
 		typedef typename HOHOCallbackVector::iterator HOHOCallbackVectorIterator;
 		//vector for the registered callback functions
@@ -281,9 +284,7 @@
 		typedef typename HOHO_TLV_list_t::iterator HOHO_TLV_list_Iterator;
 		//Vector to store the Type - Length - CallbackID triplets
 		HOHO_TLV_list_t HOHO_TLV_list;
-		
-		uint8_t HOHO_header_size;
-		uint8_t HOHO_header_padding;
+				
 		
 		/**
 		* \brief Function to register TLV callbacks
@@ -292,25 +293,42 @@
 		* \param length the length of the TLVs
 		*/
 		//In an "upper leyer" class --> for instance RPL
+		//NOTE: At the moment all TLVs must be added at the sender!
+		//The handler is called two times from the send function because of performance reasons (payload copy)
+			//First: collect the needed TLVs (length) and the reserve the place --> only_usage is true!
+				//the data_pointer is NULL!!!
+				//return INUSE if it is needed
+				//return OUTOFUSE if if it is not needed
+			//Second: Fill in the content --> only_usage is false!
+				//return CORRECT if finished
+				//return DROP_PACKET and it will be dropped
 		//Usage: TLV_callback_id_ = radio_ip().template reg_recv_callback<self_type, &self_type::handle_TLV>( this, [type], [length] );
 		//the length is the length of the content! (full length - the first 2 bytes)!
-		/*       int handle_TLV( uint8_t packet_number, uint8_t* data_pointer )
+		/*       int handle_TLV( uint8_t packet_number, uint8_t* data_pointer, bool only_usage )
 			{
-				//First byte: Type (setted by the Ipv6 layer)
-				//Second byte: Length (setted by the Ipv6 layer)
-				//Content...
-				debug_->debug( "TLV handler called: Type: %i Len: %i", data_pointer[0], data_pointer[1] );
-				if(data_pointer[2] == 1 )
-					debug_->debug(" TLV has been already filled, content: %i %i", data_pointer[2], data_pointer[3] );
+				if( only_usage )
+				{
+					//...
+					return INUSE;
+				}
 				else
 				{
-					...
+					//First byte: Type (setted by the Ipv6 layer)
+					//Second byte: Length (setted by the Ipv6 layer)
+					//Content...
+					debug_->debug( "TLV handler called: Type: %i Len: %i", data_pointer[0], data_pointer[1] );
+					if(data_pointer[2] == 1 )
+						debug_->debug(" TLV has been already filled, content: %i %i", data_pointer[2], data_pointer[3] );
+					else
+					{
+						...
+					}
+					
+					return CORRECT;
 				}
-				
-				return CORRECT;
 			}
 		*/
-		template<class T, int (T::*TMethod)(uint8_t, uint8_t*)>
+		template<class T, int (T::*TMethod)(uint8_t, uint8_t*, bool)>
 		int HOHO_reg_recv_callback( T *obj_pnt, uint8_t type_value, uint8_t length )
 		{
 			if ( HOHOcallbacks.empty() )
@@ -329,7 +347,6 @@
 					HOHO_TLV_list.at(i).type = type_value;
 					HOHO_TLV_list.at(i).length = length;
 					HOHO_TLV_list.at(i).callback_id = i;
-					update_HOHO_header_size( length, true );
 					return i;
 				}
 			}
@@ -339,8 +356,6 @@
 		// --------------------------------------------------------------------
 		int HOHO_unreg_recv_callback( int idx )
 		{
-			//Remove from the full size
-			update_HOHO_header_size( HOHO_TLV_list.at(idx).length, false );
 			
 			//delete entries
 			HOHOcallbacks.at(idx) = HOHO_delegate_t();
@@ -351,13 +366,13 @@
 		/**
 		* Notify a selected registered handler
 		*/
-		int HOHO_notify_receiver( uint8_t target_receiver, uint8_t packet_number, uint8_t *data )
+		int HOHO_notify_receiver( uint8_t target_receiver, uint8_t packet_number, uint8_t *data, bool only_usage )
 		{
 			HOHOCallbackVectorIterator it = HOHOcallbacks.begin();
 			it += target_receiver;
 			
 			if ( *it != HOHO_delegate_t() )
-				return (*it)( packet_number, data );
+				return (*it)( packet_number, data, only_usage );
 			else
 			{
 				debug_->debug("HOHO error: unable to notify receiver %i", target_receiver);
@@ -365,7 +380,7 @@
 			}
 		}
 		
-		void update_HOHO_header_size( uint8_t length, bool add )
+		void update_HOHO_header_size( uint8_t length, bool add, uint8_t& HOHO_header_size, uint8_t& HOHO_header_padding )
 		{
 			//Because in the TLV the Length is only the length of the Value part
 			length += 2;
@@ -415,9 +430,6 @@
 					HOHO_header_padding = new_padding;
 				}
 			}
-			
-			//Update the size stored in the packet pool manager for new packets
-			packet_pool_mgr_->extension_headers_size = HOHO_header_size + HOHO_header_padding;
 		}
 		
 		
@@ -642,7 +654,10 @@
 		// Extension header handling
 		//initially: after the IPv6 header
 		uint8_t* start_of_the_actual_EH = message->get_content() + message->PAYLOAD_POS;
-		bool EH_added = false;
+		bool EH_added = true;
+		
+		uint8_t HOHO_header_size = 0;
+		uint8_t HOHO_header_padding = 0;
 		
 		//Hop-by-Hop header
 		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -653,14 +668,63 @@
 		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
 		//|  Option Type  |  Opt Data Len |  Option Data
 		//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
-		//For routed packets, the 0th byte has been already preapred, skip the whole EH part
-		if( HOHO_header_size > 0 )
+		uint8_t* tmpa = message->get_content() + message->PAYLOAD_POS;
+		for(int i = 0; i < 20; i++ )
+			debug_->debug("B: %i - %x", i, tmpa[i]);
+		//If the real next header is HOHO, skip the whole EH part
+		if( message->real_next_header() != EH_HOHO )
 		{
-			EH_added = true;
-			if( start_of_the_actual_EH[0] == 0 )
+			//Gather information from the registered handlers
+			bool EH_needed[HOHO_TLV_list.size()];
+			
+			uint8_t pos = 0;
+			for( HOHO_TLV_list_Iterator it = HOHO_TLV_list.begin();
+			it != HOHO_TLV_list.end();
+			++it )
 			{
+				if( it->callback_id != -1 )
+				{
+					uint8_t returned = HOHO_notify_receiver( it->callback_id, packet_number, NULL, true );
+					if( INUSE == returned )
+					{
+						EH_needed[pos] = true;
+						update_HOHO_header_size( it->length, true, HOHO_header_size, HOHO_header_padding );
+					}
+					else if( OUTOFUSE == returned )
+					{
+						EH_needed[pos] = false;
+					}
+					else
+					{
+						debug_->debug("IPv6 layer: packet dropped in the send function because of an unexpected HoHo return value");
+						packet_pool_mgr_->clean_packet( message );
+						return ERR_UNSPEC;
+					}
+				}
+				pos++;
+			}
+			
+			if( HOHO_header_size > 0 )
+			{
+				
 				//Chain the HOHO after the IPv6 header --> Next Header = EH_HOHO
 				message->set_real_next_header( EH_HOHO );
+				
+				//Move the payload in the packet to free up space for the EH headers
+				//Pointer to the end of the actual content
+				uint8_t* copy_pointer = message->get_content() + message->PAYLOAD_POS;
+				for( int i = message->transport_length() - 1; i >= 0 ; i-- )
+					copy_pointer[i + HOHO_header_size + HOHO_header_padding] = copy_pointer[i];
+				
+				//Zeros to the EH part
+				for( int i = 0; i < HOHO_header_size + HOHO_header_padding; i++ )
+					copy_pointer[i] = 0;
+				
+				//Update the real length
+				message->set_real_length( message->transport_length() + HOHO_header_size + HOHO_header_padding );
+				
+				//Set the new transport position
+				message->TRANSPORT_POS += HOHO_header_size + HOHO_header_padding;
 				
 				//HOHO next header will be set after this block
 				
@@ -672,27 +736,40 @@
 				uint8_t actual_TLV_shift = 2;
 				
 				//Call all registered handlers to fill in the content
+				uint8_t pos = 0;
 				for( HOHO_TLV_list_Iterator it = HOHO_TLV_list.begin();
 					it != HOHO_TLV_list.end();
 					++it )
 				{
-					if( it->callback_id != -1 )
+					//Call if it reported that it is needed
+					if( it->callback_id != -1 && EH_needed[pos])
 					{
 						//Set the "Option Type" and "Opt Data Len"
 						start_of_the_actual_EH[actual_TLV_shift] = it->type;
 						start_of_the_actual_EH[actual_TLV_shift+1] = it->length;
 						
 						//Call the registered handler function to fill in the content
-						if( DROP_PACKET == HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift ))
+						uint8_t returned = HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift, false );
+						if( returned == DROP_PACKET )
 						{
 							debug_->debug("IPv6 layer: packet dropped in the send function because of HoHo command");
 							packet_pool_mgr_->clean_packet( message );
 							return ERR_UNSPEC;
 						}
-						
-						//Shift to the end of the option +2 because of the Type and Length
-						actual_TLV_shift += it->length + 2;
+						if( returned == CORRECT )
+						{
+							
+							//Shift to the end of the option +2 because of the Type and Length
+							actual_TLV_shift += it->length + 2;
+						}
+						else
+						{
+							debug_->debug("IPv6 layer: packet dropped in the send function because of an unexpected HoHo return value");
+							packet_pool_mgr_->clean_packet( message );
+							return ERR_UNSPEC;
+						}
 					}
+					pos++;
 				}
 				
 				//Padding - Pad1, PadN
@@ -713,20 +790,31 @@
 					start_of_the_actual_EH[actual_TLV_shift + 1] = HOHO_header_padding - 2;
 				}
 			}
-			//Hop-by-Hop header - END
-			
-			//Other Extension headers...
+			else
+				EH_added = false;
 		}
+		//Hop-by-Hop header - END
+		
+		//Other Extension headers...
+		
 		
 		if( EH_added )
 		{
 			//Finally: set the Transport Next Header value into the last EH
 			start_of_the_actual_EH[0] = message->transport_next_header();
+			
+			
 		}
 		else
 		{
 			message->set_real_next_header(message->transport_next_header());
 		}
+		
+		//uint8_t* tmpa = message->get_content() + message->PAYLOAD_POS;
+		for(int i = 0; i < 20; i++ )
+			debug_->debug("%i - %x", i, tmpa[i]);
+		message->set_debug( *debug_ );
+		message->print_header();
 		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
@@ -872,7 +960,7 @@
 						if( it->type == start_of_the_actual_EH[actual_TLV_shift] )
 						{
 							//Call the registered handler function to fill in the content
-							if( DROP_PACKET == HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift ))
+							if( DROP_PACKET == HOHO_notify_receiver( it->callback_id, packet_number, start_of_the_actual_EH + actual_TLV_shift, false ))
 							{
 								debug_->debug("IPv6 layer: packet dropped in the receive function because of HoHo command");
 								packet_pool_mgr_->clean_packet( message );
