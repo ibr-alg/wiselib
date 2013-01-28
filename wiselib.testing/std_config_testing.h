@@ -52,7 +52,7 @@
 //#define IPv6_LAYER_DEBUG
 //#define LoWPAN_LAYER_DEBUG
 //#define UART_LAYER_DEBUG
-// #define UDP_LAYER_DEBUG
+//#define UDP_LAYER_DEBUG
 //#define ICMPv6_LAYER_DEBUG
 //#define ND_DEBUG
 
@@ -64,40 +64,6 @@
 #define ICMPv6_LAYER_DEBUG
 #define ND_DEBUG
 #endif
-
-//6LoWPAN IP packet max size
-#define LOWPAN_IP_PACKET_BUFFER_MAX_SIZE 1500
-
-//The Contexts number, it should be 16
-#define LOWPAN_CONTEXTS_NUMBER 16
-
-//Number of neighbors in the neighbor cache
-#define LOWPAN_MAX_OF_NEIGHBORS 10
-
-//Number of routers in the default routers' list
-#define LOWPAN_MAX_OF_ROUTERS 5
-
-//Number of prefixes per interface
-#define LOWPAN_MAX_PREFIXES 2
-
-//The maximum of stored mesh broadcast sequence numbers
-#define MAX_BROADCAST_SEQUENCE_NUMBERS 15
-
-//IP packet store size
-#define IP_PACKET_POOL_SIZE 2
-
-//Forwarding table size in the IPv6 layer
-#define FORWARDING_TABLE_SIZE 8
-
-//Minimum: 1, the index starts from 0 at the get_interface function!
-#define NUMBER_OF_INTERFACES 2
-
-//Number of UDP sockets in the UDP layer
-#define NUMBER_OF_UDP_SOCKETS 4
-
-//Select routing method
-#define LOWPAN_ROUTE_OVER
-//#define LOWPAN_MESH_UNDER
 
 // ---------------- Localization --------------------------------------------
 #define LOCALIZATION_DISTANCEBASED_DVHOP_DEBUG
