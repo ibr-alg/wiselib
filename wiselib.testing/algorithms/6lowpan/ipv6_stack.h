@@ -26,6 +26,8 @@
 #ifndef __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 #define __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 
+#include "config_testing.h"
+
 #include "algorithms/6lowpan/uart_radio.h"
 #include "algorithms/6lowpan/lowpan.h"
 #include "algorithms/6lowpan/interface_manager.h"
