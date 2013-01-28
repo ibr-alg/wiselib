@@ -42,6 +42,29 @@
 #define ROUTING_FLOODING_DEBUG
 #define ROUTING_STATIC_DEBUG
 
+
+// ---------------- 6LoWPAN -------------------------------------------------
+
+//Global debug for 6LoWPAN
+#define LoWPAN_DEBUG
+
+//Debug for 6LoWPAN components
+//#define IPv6_LAYER_DEBUG
+//#define LoWPAN_LAYER_DEBUG
+//#define UART_LAYER_DEBUG
+//#define UDP_LAYER_DEBUG
+//#define ICMPv6_LAYER_DEBUG
+//#define ND_DEBUG
+
+#ifdef LoWPAN_DEBUG
+#define IPv6_LAYER_DEBUG
+#define LoWPAN_LAYER_DEBUG
+#define UART_LAYER_DEBUG
+#define UDP_LAYER_DEBUG
+#define ICMPv6_LAYER_DEBUG
+#define ND_DEBUG
+#endif
+
 // ---------------- Localization --------------------------------------------
 #define LOCALIZATION_DISTANCEBASED_DVHOP_DEBUG
 #define LOCALIZATION_DISTANCEBASED_SUMDIST_DEBUG
