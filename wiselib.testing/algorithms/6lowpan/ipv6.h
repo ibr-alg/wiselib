@@ -672,7 +672,7 @@
 		if( message->real_next_header() != EH_HOHO )
 		{
 			//Gather information from the registered handlers
-			bool EH_needed[HOHO_TLV_list.size()];
+			bool EH_needed[MAX_EH_HOHO_TLV];
 			
 			uint8_t pos = 0;
 			for( HOHO_TLV_list_Iterator it = HOHO_TLV_list.begin();
