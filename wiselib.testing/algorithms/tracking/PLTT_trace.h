@@ -56,7 +56,10 @@ namespace wiselib
 			inhibited			(0),
 			target_id			(0),
 			recipient_1_id		(0),
-			recipient_2_id		(0)
+			recipient_2_id		(0),
+			send				(0),
+			target_lqi			(0),
+			target_rssi			(0)
 		{
 			max_intensity = 2;
 			for ( IntensityNumber i = 0; i < ( sizeof(max_intensity) * 8 ); i++ )
@@ -83,6 +86,9 @@ namespace wiselib
 			recipient_1_id = 0;
 			recipient_2_id = 0;
 			target_id = 0;
+			send = 0;
+			target_lqi = 0;
+			target_rssi = 0;
 		}
 		// --------------------------------------------------------------------
 		inline PLTT_TraceType( const self_type& _t )
@@ -94,6 +100,9 @@ namespace wiselib
 		{
 			de_serialize( _buff, _offset );
 			inhibited = 0;
+			send = 0;
+			target_lqi = 0;
+			target_rssi = 0;
 			max_intensity = 2;
 			for (IntensityNumber i = 0; i < ( sizeof(max_intensity) * 8 ); i++ )
 			{
@@ -186,6 +195,9 @@ namespace wiselib
 			grandparent = _t.grandparent;
 			diminish_amount = _t.diminish_amount;
 			max_intensity = _t.max_intensity;
+			send = _t.send;
+			target_lqi = _t.target_lqi;
+			target_rssi = _t.target_rssi;
 			return *this;
 		}
 		// --------------------------------------------------------------------
@@ -266,7 +278,7 @@ namespace wiselib
 			return recipient_2_id;
 		}
 		// --------------------------------------------------------------------
-		inline SecondsNumber get_inhibited()
+		inline uint8_t get_inhibited()
 		{
 			return inhibited;
 		}
@@ -291,6 +303,11 @@ namespace wiselib
 			if ( grandparent.get_id() != 0 ) { return grandparent; }
 			if ( parent.get_id() != 0 ) { return parent; }
 			return current;
+		}
+		// --------------------------------------------------------------------
+		inline uint8_t get_send()
+		{
+			return send;
 		}
 		// --------------------------------------------------------------------
 		inline void set_target_id( const NodeID& tarid )
@@ -358,6 +375,36 @@ namespace wiselib
 			recipient_2_id = r_2_id;
 		}
 		// --------------------------------------------------------------------
+		inline void set_send()
+		{
+			send = 1;
+		}
+		// --------------------------------------------------------------------
+		inline void set_send( uint8_t _s)
+		{
+			send = _s;
+		}
+		// --------------------------------------------------------------------
+		uint8_t get_target_lqi()
+		{
+			return target_lqi;
+		}
+		// --------------------------------------------------------------------
+		void set_target_lqi( uint8_t _tlqi )
+		{
+			target_lqi = _tlqi;
+		}
+		// --------------------------------------------------------------------
+		uint8_t get_target_rssi()
+		{
+			return target_rssi;
+		}
+		// --------------------------------------------------------------------
+		void set_target_rssi( uint8_t _trssi )
+		{
+			target_rssi = _trssi;
+		}
+		// --------------------------------------------------------------------
 #ifdef	DEBUG_PLTT_TRACE_H
 		inline void print( Debug& _debug, Radio& _radio )
 		{
@@ -367,12 +414,15 @@ namespace wiselib
 			_debug.debug( "diminish_amount (size %i) : %i\n", sizeof(diminish_amount), diminish_amount );
 			_debug.debug( "spread_penalty (size %i) : %i\n", sizeof(spread_penalty), spread_penalty );
 			_debug.debug( "intensity (size %i) : %i\n", sizeof(intensity), intensity );
-			_debug.debug( "max_intensity (size %ud) : %ud\n", sizeof(max_intensity), max_intensity );
+			_debug.debug( "max_intensity (size %d) : %d\n", sizeof(max_intensity), max_intensity );
 			_debug.debug( "start_time (size %i) : %i\n", sizeof(start_time), start_time );
-			_debug.debug( "target_id (size %i) : %x", sizeof(target_id), target_id );
+			_debug.debug( "target_id (size %i) : %x\n", sizeof(target_id), target_id );
 			_debug.debug( "recipient_1_id (size %i) : %i\n", sizeof(recipient_1_id), recipient_1_id );
 			_debug.debug( "recipient_2_id (size %i) : %i\n", sizeof(recipient_2_id), recipient_2_id );
 			_debug.debug( "inhibited (size %i) : %i\n", sizeof(inhibited), inhibited );
+			_debug.debug( "send (size %i) : %i\n", sizeof(send), send );
+			_debug.debug( "target_lqi (size %i) : %i\n", sizeof(target_lqi), target_lqi );
+			_debug.debug( "target_rssi (size %i) : %i\n", sizeof(target_rssi), target_rssi );
 			_debug.debug( "current, parent, grandparent : \n" );
 			current.print( _debug, _radio );
 			parent.print( _debug, _radio );
@@ -395,6 +445,9 @@ namespace wiselib
 		NodeID recipient_1_id;
 		NodeID recipient_2_id;
 		IntensityNumber max_intensity;
+		uint8_t send;
+		uint8_t target_lqi;
+		uint8_t target_rssi;
 	};
 }
 #endif

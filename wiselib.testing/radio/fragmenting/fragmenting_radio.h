@@ -416,9 +416,9 @@ namespace wiselib
 		};
 		enum reliable_radio_message_ids
 		{
-			FR_MESSAGE = 222,
-			FR_REPLY = 223,
-			FR_UNDELIVERED = 224
+			FR_MESSAGE = 14,
+			FR_REPLY = 24,
+			FR_UNDELIVERED = 34
 		};
         enum Restrictions
         {
