@@ -13,8 +13,8 @@
  */
 #define BIN(X) Binary< 0 ## X >::value
 
-template<unsigned long long N>
-struct Binary { enum { value = (N % 8) + 2 * Binary<N / 8>::value }; };
+template<unsigned long long N_>
+struct Binary { enum { value = (N_ % 8) + 2 * Binary<N_ / 8>::value }; };
 template<>
 struct Binary<0> { enum { value = 0}; };
 
@@ -28,27 +28,72 @@ struct Binary<0> { enum { value = 0}; };
 		template<typename C> static yes& check(type_check<Sig, &C::func>*); \
 		template<typename C> static no& check(...); \
 		static bool const value = (sizeof(check<T>(0)) == sizeof(yes)); \
-	}
+	};
 	
 
+#define ENABLE_IF(C, T) typename enable_if_c<C, T>::type
 
-template<bool C, typename T = void>
-struct enable_if_c { typedef T type; };
+template<bool C_, typename T = void>
+struct enable_if_c; // { typedef T type; };
 
 template<typename T>
-struct enable_if_c<false, T> { };
+struct enable_if_c<true, T> { typedef T type; };
 
 template<typename Cond, class T = void>
 struct enable_if : public enable_if_c<Cond::value, T> { };
 
+/*
+ * STATIC PRINT
+ */
+#define static_print(X) typedef StaticPrint<X> _print_ ## __LINE__
+template<int x> struct StaticPrint;
 
-template<
-	size_t a,
-	size_t b
->
-struct Max {
-	static const size_t value = a > b ? a : b;
+
+/*
+ * STATIC ASSERTIONS
+ */
+
+#define static_assert(X) typedef static_assert_test<sizeof(STATIC_ASSERT_FAILURE< X >)> _static_assert_ ## __LINE__
+
+/**
+ * Not instantiable for B = false
+ * so STATIC_ASSERT_FAILURE pops up in the error messages
+ */
+template<bool B> struct STATIC_ASSERT_FAILURE;
+template<> struct STATIC_ASSERT_FAILURE<true> { };
+template<int x> struct static_assert_test { };
+
+
+/**
+ */
+template<size_t a, size_t b>
+struct Max { static const size_t value = a > b ? a : b; };
+
+/*
+ * Calculate ceil(a / b)
+ */
+template<size_t a, size_t b>
+struct DivCeil { static const size_t value = (a + b - 1) / b; };
+
+/**
+ */
+template<size_t x, size_t base, bool lower_than_base = (x < base)>
+struct Log {
+	static const size_t value = 1 + Log< DivCeil<x, base>::value , base>::value;
 };
+
+template<size_t x, size_t base>
+struct Log<x, base, true> {
+	static const size_t value = 0;
+};
+
+template<size_t x, size_t base, bool layer0 = (x <= 1)>
+struct TreeNodes {
+	static const size_t value = x + TreeNodes< DivCeil<x, base>::value , base>::value;
+};
+
+template<size_t x, size_t base>
+struct TreeNodes<x, base, true> { static const size_t value = 1; };
 
 
 /**
@@ -79,7 +124,7 @@ template<> struct SmallUint<0x100000001LL> { typedef ::uint64_t t; };
 
 
 /**
- * Find the unisigned integer type that has exactly N bytes (if exists).
+ * Find the unisigned integer type that has exactly N_ bytes (if exists).
  */
 template<int N_> struct Uint { };
 template<> struct Uint<1> { typedef ::uint8_t t; };

@@ -3,3 +3,14 @@
 *.swp
 *.pyc
 Makefile.local
+bin/
+out/
+build/
+*.so
+*.pdf
+doxygen_output/
+Wiselib.config
+Wiselib.creator
+Wiselib.creator.user
+Wiselib.files
+Wiselib.includes

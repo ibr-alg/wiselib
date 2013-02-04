@@ -49,13 +49,22 @@ namespace wiselib
 // -----------------------------------------------------------------------
 // -----------------------------------------------------------------------
 // -----------------------------------------------------------------------
+
+#ifndef WISELIB_ALLOW_SLEEP
+   #define WISELIB_ALLOW_SLEEP false
+#endif
+
+#ifndef WISELIB_ALLOW_DOZE
+   #define WISELIB_ALLOW_DOZE false
+#endif
+
 isense::Application* application_factory( isense::Os& os )
 {
    wiselib::iSenseWiselibApplication *app =
       new wiselib::iSenseWiselibApplication( os );
 
-   os.allow_sleep( false );
-   os.allow_doze( false );
+   os.allow_sleep( true ); //WISELIB_ALLOW_SLEEP );
+   os.allow_doze( true ); //WISELIB_ALLOW_DOZE );
 
    return app;
 };

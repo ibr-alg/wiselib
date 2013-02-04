@@ -1,7 +1,4 @@
 #include <external_interface/external_interface.h>
-#include <external_interface/arduino/arduino_sdcard.h>
-#include <external_interface/arduino/arduino_debug.h>
-#include <external_interface/arduino/arduino_clock.h>
 
 typedef wiselib::OSMODEL Os;
 
@@ -9,17 +6,24 @@ class App {
 	public:
 		
 		// NOTE: this uses up a *lot* of RAM, way too much for uno!
-		enum { TEST_BUFFER_SIZE = 512 * 3 };
+		enum { TEST_BUFFER_SIZE = 512 * 4 };
 		
 		void init(Os::AppMainParameter& value) {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
+			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(value);
+			
+			sd_.init();
 			
 			debug_->debug( "SD Card test application running" );
-			test_sd();
+			//test_sd();
 			
+			state_ = 0;
+			
+			on_time(0);
 		}
 		
+		/*
 		void test_sd() {
 			// initialize test buffer
 			
@@ -53,6 +57,48 @@ class App {
 			}
 			debug_->debug("%d elements verified.", i);
 		}
+		*/
+		
+		
+		int state_;
+		void on_time(void*) {
+			enum { STATES = 2 };
+			
+			Os::BlockMemory::address_t max_addr = 128;
+			
+			switch(state_) {
+				case 0: {
+					// write a few (identical) blocks
+					
+					for(Os::size_t i=0; i<TEST_BUFFER_SIZE; i++) { test_buffer_[i] = (i & 0xff) ^ (i >> 8); }
+					int r = Os::SUCCESS;
+					
+					for(Os::BlockMemory::address_t addr = 0; addr < max_addr; addr += TEST_BUFFER_SIZE / 512) {
+						r = sd_.write(test_buffer_, addr, TEST_BUFFER_SIZE / 512);
+						if(r != Os::SUCCESS) { debug_->debug("Error %d", r); }
+					}
+					break;
+				}
+				case 1: {
+					// read dem blocks
+					
+					for(Os::BlockMemory::address_t addr = 0; addr < max_addr; addr += TEST_BUFFER_SIZE / 512) {
+						r = sd_.read(test_buffer_, 0, TEST_BUFFER_SIZE / 512);
+						if(r != Os::SUCCESS) { debug_->debug("Error %d", r); }
+					}
+					break;
+				}
+			} // switch
+			
+			unsigned long delay = 1000;
+			state_++;
+			if(state_ == STATES) {
+				state_ = 0;
+				delay = 3000;
+			}
+			
+			timer_->set_timer<App, &App::on_time>(delay, this, 0);
+		}
 		
 	private:
 		//static Os::Debug dbg;
@@ -60,9 +106,10 @@ class App {
 		Os::Clock::self_pointer_t clock_;
 		
 		Os::block_data_t test_buffer_[TEST_BUFFER_SIZE];
-		Os::block_data_t verify_buffer_[TEST_BUFFER_SIZE];
+		//Os::block_data_t verify_buffer_[TEST_BUFFER_SIZE];
 		
-		wiselib::ArduinoSdCard<Os> sd_;
+		//wiselib::ArduinoSdCard<Os> sd_;
+		Os::BlockMemory sd_;
 };
 
 //Os::Debug App::dbg = Os::Debug();

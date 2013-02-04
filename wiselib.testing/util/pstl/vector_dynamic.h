@@ -46,7 +46,8 @@ namespace wiselib
       //typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
       
       typedef typename OsModel_P::size_t size_type;
-      typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
+      //typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
+      typedef value_type* buffer_pointer_t;
       
       typedef buffer_pointer_t iterator;
       // --------------------------------------------------------------------
@@ -119,10 +120,10 @@ namespace wiselib
       ///@name Iterators
       ///@{
       iterator begin()
-      { return iterator( buffer_.raw() ); }
+      { return iterator( buffer_ ); }
       // --------------------------------------------------------------------
       iterator end()
-      { return iterator( buffer_.raw() + size_ ); }
+      { return iterator( buffer_ + size_ ); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Capacity
@@ -310,7 +311,7 @@ namespace wiselib
          //assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
-            new_buffer = get_allocator().template allocate_array<value_type>(n);
+            new_buffer = get_allocator().template allocate_array<value_type>(n) .raw();
          }
          
          if(buffer_) {

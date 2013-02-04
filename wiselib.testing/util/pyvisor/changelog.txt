@@ -1,9 +1,0 @@
-October 14th 11:24 - Fixed bug with edges being indexed by identifier instead of key (without kind of edge).
-October 14th 11:32 - Reduced the side of the node circle edges.
-October 14th 11:37 - Make the highways to be drawn on top of everything.
-October 14th 17:41 - Add options and add suport for updating nodes without telling position.
-October 15th 11:32 - Add -y option to make highways yellow.
-November 25th 10:06 - Add -o --output option to specify the output file.
-November 25th 11:12 - Add node topology size detection and adjustment.
-November 25th 13:51 - Add -p option to pick png instead of svg format.
-November 25th 14:45 - Fixing edge display (when a node updates info, its edges are removed)
