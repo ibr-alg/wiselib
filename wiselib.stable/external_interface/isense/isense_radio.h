@@ -37,6 +37,7 @@ namespace wiselib
     *
     * @tparam OsModel_P Has to implement @ref os_concept "Os concept".
     */
+   #ifdef ISENSE_ENABLE_RADIO
    template<typename OsModel_P>
    class iSenseRadioModel
       : public isense::Receiver
@@ -171,6 +172,7 @@ namespace wiselib
       isense::Os& os_;
       isense_radio_delegate_t isense_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
    };
+   #endif // ISENSE_ENABLE_RADIO
 }
 
 #endif

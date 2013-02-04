@@ -2,7 +2,7 @@
 #ifndef TUPLESTORE_H
 #define TUPLESTORE_H
 
-#include "null_dictionary.h"
+#include <util/meta.h>
 
 namespace wiselib {
 	
@@ -11,15 +11,22 @@ namespace wiselib {
 		typename TupleContainer_P,
 		typename Dictionary_P,
 		typename Debug_P,
-		::uint64_t DICTIONARY_COLUMNS_P,
+		int DICTIONARY_COLUMNS_P,
 		int (*Compare_P)(int, ::uint8_t*, int, ::uint8_t*, int)
 	>
 	class TupleStore;
 	
-	namespace {
+	namespace TupleStore_detail {
 		// iterator stuff
 			// {{{ 
 			
+			template<int COLUMNS_P, typename T1, typename T2>
+			void deep_copy(T1& t1, T2& t2) {
+				for(int i=0; i<COLUMNS_P; i++) {
+					t1.set_deep(i, t2.get(i));
+				}
+			}
+		
 			/**
 			 * TupleStore comparison function comparing by length and binary
 			 * equality of the tuple elements (similar to strcmp).
@@ -63,13 +70,13 @@ namespace wiselib {
 					enum { DICTIONARY_COLUMNS = DICTIONARY_COLUMNS_P };
 					enum { COLUMNS = Tuple::SIZE };
 					
-					Iterator() : up_to_date_(false) {
+					Iterator() : dictionary_(0), up_to_date_(false) {
 					}
 					
 					Iterator(const Iterator& other) { *this = other; }
 					
-					Iterator(const ContainerIterator& iter, const ContainerIterator& iter_end, Dictionary& dict, Tuple* query, column_mask_t mask)
-						: container_iterator_(iter), container_end_(iter_end), column_mask_(mask), dictionary_(&dict), up_to_date_(false) {
+					Iterator(const ContainerIterator& iter, const ContainerIterator& iter_end, Dictionary* dict, Tuple* query, column_mask_t mask)
+						: container_iterator_(iter), container_end_(iter_end), column_mask_(mask), dictionary_(dict), up_to_date_(false) {
 							set_query(*query, mask);
 					}
 					
@@ -81,7 +88,7 @@ namespace wiselib {
 						container_end_ = other.container_end_;
 						dictionary_ = other.dictionary_;
 						for(size_type i=0; i<COLUMNS; i++) {
-							if(DICTIONARY_COLUMNS_P & (1 << i)) {
+							if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 								query_.set(i, other.query_.get(i));
 							}
 							else {
@@ -95,12 +102,16 @@ namespace wiselib {
 					}
 					
 					Tuple& operator*() {
+						assert(dictionary_ != 0);
 						if(!up_to_date_) {
 							update_current();
 						}
 						return this->current_;
 					}
-					Tuple* operator->() { return &operator*(); }
+					Tuple* operator->() {
+						assert(dictionary_ != 0);
+						return &operator*();
+					}
 					Iterator& operator++() {
 						++(this->container_iterator_);
 						forward();
@@ -109,16 +120,20 @@ namespace wiselib {
 					}
 					
 					~Iterator() {
+						destruct();
+					}
+
+					void destruct() {
 						for(size_type i=0; i<COLUMNS; i++) {
-							if(!(DICTIONARY_COLUMNS_P & (1 << i))) {
+							if(!(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i)))) {
 								query_.free_deep(i);
 							}
 						}
 						for(size_type i=0; i<COLUMNS; i++) {
-							if(DICTIONARY_COLUMNS_P & (1 << i)) {
+							/*if(DICTIONARY_COLUMNS_P & (1 << i)) {
 								dictionary_->free_value(this->current_.get(i));
 							}
-							else {
+							else*/ {
 								this->current_.free_deep(i);
 							}
 						}
@@ -151,7 +166,9 @@ namespace wiselib {
 							bool found = true;
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(this->column_mask_ & (1 << i)) {
-									if(DICTIONARY_COLUMNS & (1 << i)) {
+									if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+										//DBG("key compare %d", i);
+										//DBG("t.get(i)=%d q.get(i)=%d", t.get(i), this->query_.get(i));
 										if(t.get(i) != this->query_.get(i)) {
 											found = false;
 											up_to_date_ = false;
@@ -159,6 +176,7 @@ namespace wiselib {
 										}
 									}
 									else {
+										//DBG("Compare_P %d", i);
 										if((*Compare_P)(i, t.get(i), t.length(i), this->query_.get(i), this->query_.length(i)) != 0) {
 											found = false;
 											up_to_date_ = false;
@@ -181,17 +199,34 @@ namespace wiselib {
 					
 					void update_current() {
 						if(this->container_iterator_ != this->container_end_) {
-							Tuple& t = *this->container_iterator_;
+							Tuple& t_ = *this->container_iterator_;
+							Tuple t;
+							
 							for(size_type i = 0; i<COLUMNS; i++) {
-								if(DICTIONARY_COLUMNS & (1 << i)) {
-									dictionary_->free_value(this->current_.get(i));
-									this->current_.set(i, dictionary_->get_value((typename Dictionary::key_type)(t.get(i))));
+								if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+									t.set(i, t_.get(i));
+								}
+								else {
+									t.set_deep(i, t_.get(i));
+								}
+							}
+							
+							for(size_type i = 0; i<COLUMNS; i++) {
+								if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+									typename Dictionary::key_type dictkey = TupleStore::to_key(t.get(i));
+									block_data_t *b = dictionary_->get_value(dictkey);
+									assert(b != 0);
+									this->current_.free_deep(i);
+									this->current_.set_deep(i, b);
+									dictionary_->free_value(b);
 								}
 								else {
 									this->current_.free_deep(i);
 									this->current_.set_deep(i, t.get(i));
 								}
 							}
+							
+							t.destruct_deep();
 						}
 						up_to_date_ = true;
 					}
@@ -215,11 +250,10 @@ namespace wiselib {
 				// }}}
 			};
 			
-			/*
+			
 			template<
 				typename OsModel_P,
 				typename TupleStore_P,
-				//int DICTIONARY_COLUMNS_P,
 				int (*Compare_P)(int, ::uint8_t*, int, ::uint8_t*, int)
 			>
 			class Iterator<OsModel_P, TupleStore_P, 0, Compare_P> {
@@ -241,26 +275,26 @@ namespace wiselib {
 					
 					Iterator(const Iterator& other) { *this = other; }
 					
-					Iterator(const ContainerIterator& iter, const ContainerIterator& iter_end, Dictionary& dict)
-						: container_iterator_(iter), container_end_(iter_end), column_mask_(0) {
-							forward();
+					Iterator(const ContainerIterator& iter, const ContainerIterator& iter_end, Tuple* query, column_mask_t mask)
+						: container_iterator_(iter), container_end_(iter_end), column_mask_(mask) {
+							set_query(*query, mask);
 					}
 					
 					Iterator& operator=(const Iterator& cother) {
+						column_mask_ = cother.column_mask_;
+						
 						Iterator& other = const_cast<Iterator&>(cother);
 						container_iterator_ = other.container_iterator_;
 						container_end_ = other.container_end_;
+						
 						query_.destruct_deep();
-						for(size_type i=0; i<COLUMNS; i++) {
-						//	query_.free_deep(i);
-							query_.set_deep(i, other.query_.get(i));
-						}
-						column_mask_ = other.column_mask_;
+						deep_copy<COLUMNS>(query_, other.query_);
+						column_mask_ = cother.column_mask_;
 						return *this;
 					}
 					
 					Tuple& operator*() {
-						return *(this->container_iterator_);
+						return this->current_;
 					}
 					Tuple* operator->() { return &operator*(); }
 					Iterator& operator++() {
@@ -271,6 +305,7 @@ namespace wiselib {
 					
 					~Iterator() {
 						query_.destruct_deep();
+						current_.destruct_deep();
 					}
 					
 					bool operator==(const Iterator& other) { return container_iterator_ == other.container_iterator_; }
@@ -278,14 +313,17 @@ namespace wiselib {
 					
 					ContainerIterator& container_iterator() { return container_iterator_; }
 					
-					void set_dictionary(Dictionary* dictionary) { }
-					
 					void set_mask(column_mask_t mask) { column_mask_ = mask; }
 					Tuple& query() { return query_; }
 					column_mask_t mask() { return column_mask_; }
+					
+					/**
+					 * makes internal copy of query
+					 */
 					void set_query(Tuple& query, column_mask_t mask) {
 						column_mask_ = mask;
-						query_ = query;
+						deep_copy<COLUMNS>(query_, query);
+						forward();
 					}
 					
 					void forward() {
@@ -296,7 +334,7 @@ namespace wiselib {
 							bool found = true;
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(this->column_mask_ & (1 << i)) {
-									if(Compare_P(i, t.get(i), t.length(i), this->query_.get(i), this->query_.length(i)) != 0) {
+									if((*Compare_P)(i, t.get(i), t.length(i), this->query_.get(i), this->query_.length(i)) != 0) {
 										found = false;
 										break;
 									}
@@ -311,35 +349,37 @@ namespace wiselib {
 						// }}}
 					}
 					
-				//private:
+					
+				private:
 					
 					ContainerIterator container_iterator_;
 					ContainerIterator container_end_;
-					Tuple query_;
+					Tuple query_, current_;
 					column_mask_t column_mask_;
 					
-				//template<
-					//typename _OsModel_P,
-					//typename _TupleContainer_P,
-					//typename _Dictionary_P,
-					//typename _Debug_P,
-					//::uint64_t _DICTIONARY_COLUMNS_P,
-					//int (*_Compare_P)(int, ::uint8_t*, int, ::uint8_t*, int)
-				//>
-				//friend class TupleStore;
+				template<
+					typename _OsModel_P,
+					typename _TupleContainer_P,
+					typename _Dictionary_P,
+					typename _Debug_P,
+					::uint64_t _DICTIONARY_COLUMNS_P,
+					int (*_Compare_P)(int, ::uint8_t*, int, ::uint8_t*, int)
+				>
+				friend class wiselib::TupleStore;
 				// }}}
 			};
-			*/
-			
-			// }}}
 	} // namespace
 	
+	/**
+	 * @tparam TupleContainer_P container for tuples. Is assumed to be unique
+	 * (i.e. a container that contains each value at most once).
+	 */
 	template<
 		typename OsModel_P,
 		typename TupleContainer_P,
 		typename Dictionary_P, // = NullDictionary<OsModel_P>,
 		typename Debug_P, // = typename OsModel_P::Debug,
-		::uint64_t DICTIONARY_COLUMNS_P, // = 0,
+		int DICTIONARY_COLUMNS_P, // = 0,
 		int (*Compare_P)(int, ::uint8_t*, int, ::uint8_t*, int) // = &datacmp
 	>
 	class TupleStore {
@@ -359,23 +399,33 @@ namespace wiselib {
 			typedef typename TupleContainer::iterator ContainerIterator;
 			typedef size_type column_mask_t;
 			
-			enum { COLUMNS = Tuple::SIZE };
+			enum {
+				COLUMNS = Tuple::SIZE,
+				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1),
+			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
-			typedef Iterator<
+			typedef TupleStore_detail::Iterator<
 				OsModel, self_type, DICTIONARY_COLUMNS, Compare_P
 			> iterator;
+			
+			TupleStore() : container_(0), dictionary_(0) {
+			}
 		
 			~TupleStore() {
+				/*
 				for(iterator iter = begin(); iter != end(); ) {
 					iter = erase(iter);
 				} // for iter
+				*/
 			} // ~TupleStore
 					
 			
-			void init(typename Debug::self_pointer_t debug) {
+			void init(Dictionary* dict, TupleContainer* container, typename Debug::self_pointer_t debug) {
 				debug_ = debug;
-				dictionary_.init(debug_);
+				//dictionary_.init(debug_);
+				dictionary_ = dict;
+				container_ = container;
 			}
 			
 			template<typename UserTuple>
@@ -383,47 +433,70 @@ namespace wiselib {
 				Tuple tmp;
 				
 				for(size_type i=0; i<COLUMNS; i++) {
-					if(DICTIONARY_COLUMNS & (1 << i)) {
-						tmp.set(i, (block_data_t*)dictionary_.insert(t.get(i)));
+					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+						typename Dictionary::key_type k = dictionary_->insert(t.get(i));
+						block_data_t *b = to_bdt(k);
+						tmp.set(i, b);
 					}
 					else {
 						tmp.set_deep(i, t.get(i));
 					}
 				}
 				
-				ContainerIterator ci = container_.insert(tmp);
-				
-				return iterator(
-						ci, container_.end(),
-						dictionary_, 0, 0
-					);
-			}
+				typename TupleContainer::size_type sz = container_->size();
+				ContainerIterator ci = container_->insert(tmp);
+				if(container_->size() == sz) {
+					// tuple is already there, dereference dictionary
+					// entries just referenced as we're not going
+					// to insert a new one.
+					for(size_type i=0; i<COLUMNS; i++) {
+						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+							dictionary_->erase(to_key(tmp.get(i)));
+						}
+						else {
+							tmp.free_deep(i);
+						}
+					}
+				}
+				return iterator(ci, container_->end(), dictionary_, 0, 0);
+			} // insert()
 			
 			iterator erase(iterator iter) {
+				assert(iter != end());
+
+				// backup query and mask
 				Tuple q = iter.query();
 				column_mask_t mask = iter.mask();
 				
+				// Be sure to have this be a (shallow) copy
+				// (i.e. t is not a reference),
+				// else it might reference a cached block memory block
+				// which might be re-used differently in the meantime
+				// due to calls to dict->erase!
+				Tuple t = *iter.container_iterator();
+
 				for(size_type i=0; i<COLUMNS; i++) {
-					if(DICTIONARY_COLUMNS & (1 << i)) {
-						dictionary_.erase((typename Dictionary::key_type)iter.container_iterator()->get(i));
-						iter.container_iterator()->set(i, 0);
+					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+						dictionary_->erase(to_key(t.get(i)));
+						t.set(i, 0);
 					}
 				}
 				
 				// deeply destruct container tuple
-				iter.container_iterator()->destruct_deep();
+				t.destruct_deep();
 				
 				// now remove tuple from the container, yielding a new iterator
-				ContainerIterator nextc = container_.erase(iter.container_iterator());
+				ContainerIterator nextc = container_->erase(iter.container_iterator());
 				iterator r = iterator(
 						nextc,
-						container_.end(),
+						container_->end(),
 						dictionary_, 0, 0
 					);
 				
+				// restore query and mask into new iterator
 				for(size_t i=0; i<COLUMNS; i++) {
 					if(mask & (1 << i)) {
-						if(DICTIONARY_COLUMNS & (1 << i)) {
+						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 							r.query_.set(i, q.get(i));
 						}
 						else {
@@ -438,7 +511,7 @@ namespace wiselib {
 			
 			iterator begin(Tuple* query = 0, column_mask_t mask = 0) {
 				iterator r;
-				r.set_dictionary(&dictionary_);
+				r.set_dictionary(dictionary_);
 				
 				int result = key_copy(r.query_, *query, mask, r.dictionary_);
 				if(result == ERR_UNSPEC) {
@@ -446,9 +519,9 @@ namespace wiselib {
 					return end();
 				}
 				else {
-					r.container_iterator_ = container_.begin();
-					r.container_end_ = container_.end();
-					r.set_dictionary(&dictionary_);
+					r.container_iterator_ = container_->begin();
+					r.container_end_ = container_->end();
+					r.set_dictionary(dictionary_);
 					r.column_mask_ = mask;
 					r.forward();
 					return r;
@@ -457,10 +530,38 @@ namespace wiselib {
 			
 			iterator end() {
 				return iterator(
-						container_.end(),
-						container_.end(),
+						container_->end(),
+						container_->end(),
 						dictionary_, 0, 0
 					);
+			}
+			
+			iterator find(Tuple& query) {
+				iterator r;
+				r.set_dictionary(dictionary_);
+				int result = key_copy(r.query_, query, MASK_ALL, r.dictionary_);
+				
+				if(result == ERR_UNSPEC) {
+					r.query_.destruct_deep();
+					return end();
+				}
+				else {
+					r.container_iterator_ = container_->find(r.query_);
+					r.container_end_ = container_->end();
+					r.set_dictionary(dictionary_);
+					r.column_mask_ = MASK_ALL;
+					r.forward();
+					return r;
+				}
+			}
+				
+			
+			size_type size() { return container_->size(); }
+			bool empty() { return container_->empty(); }
+			
+			void check() {
+				assert(container_ != 0);
+				assert(dictionary_ != 0);
 			}
 			
 		//private:
@@ -479,11 +580,11 @@ namespace wiselib {
 					// are we caring for this column at all?
 					if(mask & (1 << i)) {
 						// is it a dict column?
-						if(DICTIONARY_COLUMNS & (1 << i)) {
+						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 							key_type k = dictionary_->find(from.get(i));
 							if(k == Dictionary::NULL_KEY) { return ERR_UNSPEC; }
 							
-							to.set(i, (block_data_t*)k);
+							to.set(i, to_bdt(k));
 						}
 						else {
 							to.set_deep(i, from.get(i));
@@ -493,10 +594,167 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			TupleContainer container_;
-			Dictionary dictionary_;
+			static typename Dictionary::key_type to_key(block_data_t* bdt) {
+				static_assert(sizeof(block_data_t*) == sizeof(typename Dictionary::key_type));
+				typename Dictionary::key_type k;
+				memcpy(&k, &bdt, sizeof(block_data_t*));
+				return k;
+			}
+			
+			static block_data_t* to_bdt(typename Dictionary::key_type k) {
+				static_assert(sizeof(block_data_t*) == sizeof(typename Dictionary::key_type));
+				block_data_t *bdt;
+				memcpy(&bdt, &k, sizeof(block_data_t*));
+				return bdt;
+			}
+			
+			TupleContainer *container_;
+			Dictionary *dictionary_;
 			typename Debug::self_pointer_t debug_;
 	};
+	
+	
+	template<
+		typename OsModel_P,
+		typename TupleContainer_P,
+		typename Dictionary_P,
+		typename Debug_P,
+		int (*Compare_P)(int, ::uint8_t*, int, ::uint8_t*, int)
+	>
+	class TupleStore<OsModel_P, TupleContainer_P, Dictionary_P, Debug_P, 0, Compare_P> {
+		public:
+			typedef OsModel_P OsModel;
+			typedef Debug_P Debug;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef TupleContainer_P TupleContainer;
+			typedef Dictionary_P Dictionary;
+			typedef typename Dictionary::key_type key_type;
+			typedef typename Dictionary::mapped_type mapped_type;
+			enum { DICTIONARY_COLUMNS = 0 };
+			typedef TupleStore<OsModel, TupleContainer, Dictionary, Debug, DICTIONARY_COLUMNS, Compare_P> self_type;
+			typedef self_type* self_pointer_t;
+			typedef typename TupleContainer::value_type Tuple;
+			typedef typename TupleContainer::iterator ContainerIterator;
+			typedef size_type column_mask_t;
+			
+			enum {
+				COLUMNS = Tuple::SIZE,
+				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1),
+			};
+			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
+			
+			typedef TupleStore_detail::Iterator<
+				OsModel, self_type, DICTIONARY_COLUMNS, Compare_P
+			> iterator;
+		
+			~TupleStore() {
+			} // ~TupleStore
+					
+			
+			void init(Dictionary* dict, TupleContainer* container, typename Debug::self_pointer_t debug) {
+				debug_ = debug;
+				container_ = container;
+			}
+			
+			template<typename UserTuple>
+			iterator insert(UserTuple& t) {
+				Tuple tmp;
+				
+				TupleStore_detail::deep_copy<COLUMNS>(tmp, t);
+				
+				typename TupleContainer::size_type sz = container_->size();
+				ContainerIterator ci = container_->insert(t);
+				if(container_->size() == sz) {
+					tmp.destruct_deep();
+				}
+				
+				return iterator(ci, container_->end(), 0, 0);
+			}
+			
+			iterator erase(iterator iter) {
+				Tuple q = iter.query();
+				column_mask_t mask = iter.mask();
+				
+				// Be sure to have this be a (shallow) copy
+				// (i.e. t is not a reference),
+				// else it might reference a cached block memory block
+				// which might be re-used differently in the meantime
+				// due to calls to dict->erase!
+				Tuple t = *iter.container_iterator();
+				
+				// deeply destruct container tuple
+				t.destruct_deep();
+				
+				// now remove tuple from the container, yielding a new iterator
+				ContainerIterator nextc = container_->erase(iter.container_iterator());
+				iterator r = iterator(
+						nextc,
+						container_->end(),
+						0, 0
+					);
+				
+				/*
+				for(size_t i=0; i<COLUMNS; i++) {
+					if(mask & (1 << i)) {
+						r.query_.set_deep(i, q.get(i));
+					}
+				}
+				*/
+				TupleStore_detail::deep_copy<COLUMNS>(r.query_, q);
+				r.column_mask_ = mask;
+				r.forward();
+				return r;
+			}
+			
+			iterator begin(Tuple* query = 0, column_mask_t mask = 0) {
+				iterator r;
+				
+				for(size_type i=0; i<COLUMNS; i++) {
+					r.query_.set_deep(i, query->get(i));
+				}
+				
+				r.container_iterator_ = container_->begin();
+				r.container_end_ = container_->end();
+				r.column_mask_ = mask;
+				r.forward();
+				return r;
+			}
+			
+			iterator end() {
+				return iterator(
+						container_->end(),
+						container_->end(),
+						0, 0
+					);
+			}
+			
+			iterator find(Tuple& query) {
+				iterator r;
+				/*
+				for(size_type i=0; i<COLUMNS; i++) {
+					r.query_.set_deep(i, query.get(i));
+				}
+				*/
+				TupleStore_detail::deep_copy<COLUMNS>(r.query_, query);
+				
+				r.container_iterator_ = container_->find(r.query_);
+				r.container_end_ = container_->end();
+				r.column_mask_ = MASK_ALL;
+				r.forward();
+				return r;
+			}
+				
+			
+			size_type size() { return container_->size(); }
+			bool empty() { return container_->empty(); }
+			
+		//private:
+			
+			TupleContainer *container_;
+			typename Debug::self_pointer_t debug_;
+	};
+		
 	
 	/*
 	

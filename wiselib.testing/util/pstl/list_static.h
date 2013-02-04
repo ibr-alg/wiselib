@@ -225,7 +225,7 @@ namespace wiselib {
       /// @return iterator to node after last list element
       iterator end() const
       {
-         node_type* tmp = const_cast<node_type*> ( &data_ );
+         node_type* tmp = const_cast<node_type*> ( &nodes_[LIST_SIZE] );
          return iterator( tmp );
       }
       // --------------------------------------------------------------------

@@ -1,0 +1,52 @@
+#include "basic_algorithm.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Modular Clustering Algorithms
+ *
+ * The modular clustering algorithm concept basically implements the basic algorithm concept (and thus provides an init() and destruct() method).
+ * 
+ * There are several kinds of clustering algorithms available. Clustering algorithms consist of 3 different sections that can easily be distinguished. The \ref chd_concept "Cluster Head Decision" (CHD) , the \ref jd_concept "Join Decision" (JD) and the \ref it_concept "Iterator" (IT). All 3 sections of a clustering algorithm are implemented separately and are coordinated by a 4th module the \ref cc_concept "Core Component" (CC). The CHD uses some logic to decide which nodes will serve as cluster heads inside the network. The JD is responsible for deciding whether a node will join a nearby cluster or not. The IT keeps track of the cluster's status and it's neighbors. The CC is responsible for coordinating and initializing all other modules, registering the required callbacks and communicating with any other algorithms running simultaneously with the clustering algorithm.
+ * 
+ * The modular clustering algorithm concept is therefore as abstract as possible, to cover all kinds of possible algorithms. Thus, a clustering algorithm is supposed to provide some basic methods for interaction with other algorithms. Enable/disable are for starting/initializing/stopping an algorithm. It must also be possible to (un)register a callback method for event notifications.
+ * 
+ * @ingroup modular_clustering_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class ModularClustering_concept
+    : public BasicAlgorithm_concept
+{
+  public:
+    /** Defines the type of the cluster id (defined by node_id_t).
+    */
+    typedef ... cluster_id_t;
+    
+    enum NodeTypes{
+	UNCLUSTERED, ///< A node that has not yet formed a cluster
+	SIMPLE, ///< A node that joined a cluster
+	HEAD, ///< A node that is an elected Cluster Head
+	GATEWAY ///< A node that is located between 2 clusters
+    };
+
+    enum ClusterIds{
+	UNKNOWN_CLUSTER_HEAD ///< The cluster id of a node that has not joined any cluster
+    };
+
+    enum AlgorithmStatus{
+	FORMED, ///< the cluster is formed and stable
+	FORMING, ///< the cluster is now beeing formed
+	DISABLED ///< the clustering algorithm is disabled
+    };
+
+    enum CallbackEvents{
+	CLUSTER_HEAD_CHANGED, ///< A new cluster head was elected
+	NODE_JOINED, ///< A cluster head received a new node in cluster
+	NODE_LEFT, ///< A cluster head lost a node from cluster
+	CLUSTER_FORMED ///< A node in the outer edge of a cluster found no new nodes
+    };
+};
+
+}

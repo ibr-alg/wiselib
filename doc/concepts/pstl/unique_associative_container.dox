@@ -1,4 +1,4 @@
-#include "associative_container.h"
+#include "associative_container.dox"
 
 namespace concepts
 {
@@ -18,3 +18,5 @@ class UniqueAssociativeContainer_concept
     pair<iterator, bool> insert(value_type& t);
 };
 }
+
+// vim: set ft=cpp:

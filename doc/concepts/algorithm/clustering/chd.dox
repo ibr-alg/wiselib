@@ -1,0 +1,67 @@
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Cluster Head Decision Modules
+ *
+ * The Cluster Head Decision Component (CHD) is used to elect cluster heads
+ * based on selected parameters given by the user. By examining many
+ * clustering algorithms we can identify some generic modules that use
+ * selected parameters to elect the cluster heads. Such modules can be the
+ * Probabilistic, the Identity Based , Energy Based , Node Connectivity and
+ * K-Attribute where one or more attributes like sensor readings are used
+ * find cluster heads.
+ * 
+ * As some algorithms elect cluster heads in an almost identical way, CHD
+ * modules can be easily reused for multiple algorithms.
+ * 
+ * @ingroup chd_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class ClusterHeadDecision_concept{
+    public:
+	typedef ... OsModel;
+	
+	// os modules
+	typedef ... Radio;
+	typedef ... Debug;
+
+	typedef ... self_type;
+
+	typedef ... node_id_t;
+	typedef ... size_t;
+	typedef ... block_data_t;
+	typedef ... cluster_id_t;
+
+	/** Initialize module and pass pointers to the os modules.
+	*/
+	void init();
+
+	/** Pass any parameters needed by the module.
+	*/
+	void set_parameter1(uint8_t param1);
+	//some algorithms use more than one parameter
+
+	/** Returns if the node is a cluster head or not.
+	*/
+	bool is_cluster_head();
+
+	/** Resets module to prepare it to run the algorithm.
+	*/
+	void reset();
+	
+	/** Depending on the algorithm described decides whether the node is a cluster head and returns the decision.
+	*/
+	bool calculate_head();
+
+	/** Receives a message and uses its data if addressed to CHD.
+	*/
+	void receive(node_id_t from, size_t len, block_data_t * recvm);
+	/** Generates a new payload to be sent from the CHD module.
+	*/
+	MsgType get_payload();
+
+};
+
+}

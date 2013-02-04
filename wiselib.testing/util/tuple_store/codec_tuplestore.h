@@ -119,8 +119,9 @@ namespace wiselib {
 			
 			typedef Iterator iterator;
 			
-			void init(typename OsModel_P::Debug::self_pointer_t debug_) {
-				parent_.init(debug_);
+			template<typename DictPtr, typename ContainerPtr>
+			void init(DictPtr d, ContainerPtr c, typename OsModel_P::Debug::self_pointer_t debug_) {
+				parent_.init(d, c, debug_);
 			}
 			
 			iterator insert(Tuple& t) {
@@ -150,6 +151,8 @@ namespace wiselib {
 			}
 			
 			ParentTupleStore& parent_tuple_store() { return parent_; }
+			
+			size_type size() { return parent_.size(); }
 			
 		private:
 			static void encode_copy(Tuple& to, Tuple& from, column_mask_t mask = (column_mask_t)(-1)) {
