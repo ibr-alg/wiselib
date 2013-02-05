@@ -99,6 +99,10 @@ struct TreeNodes<x, base, true> { static const size_t value = 1; };
 /**
  * Find the smallest unsigned integer type that can represent at least
  * \ref N_ different values.
+ * 
+ * 
+ * typedef SmallUint< 300 >::t type_that_holds_300_values;
+ * 
  */
 template< unsigned long long N_>
 struct SmallUint {
