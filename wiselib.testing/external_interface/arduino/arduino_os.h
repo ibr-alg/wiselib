@@ -42,7 +42,7 @@ namespace wiselib
    public:
       typedef ArduinoOsModel AppMainParameter;
 
-      typedef unsigned int size_t;
+      typedef ::uint32_t size_t;
       typedef uint8_t block_data_t;
 
       typedef ArduinoDebug<ArduinoOsModel> Debug;
