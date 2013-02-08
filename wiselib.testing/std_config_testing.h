@@ -62,3 +62,5 @@
 // #define VIRTUAL_RADIO_DEBUG
 
 #endif
+
+// #define DEBUG_DUTY_CYCLING
