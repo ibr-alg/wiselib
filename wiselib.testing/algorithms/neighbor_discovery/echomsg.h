@@ -46,7 +46,9 @@ namespace wiselib {
         // message ids
 
         enum {
-            HELLO_MESSAGE = 42
+            HELLO_MESSAGE = 42,
+            ND_MESG = 42
+                    
         };
 
         enum data_positions {
