@@ -3,3 +3,5 @@
 *.swp
 *.pyc
 Makefile.local
+wiselib.testing/config_testing.h
+wiselib.stable/config.h
