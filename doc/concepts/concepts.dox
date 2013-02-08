@@ -37,6 +37,7 @@
  *          @defgroup callback_sensor_concept Callback Sensor
  *          @defgroup managed_sensor_concept Managed Sensor
  *       @}
+ *       @defgroup block_memory_concept Block Memory
  *    @}
  *
  *    @defgroup pstl_concepts pSTL Concepts
@@ -80,6 +81,7 @@
  *       @defgroup synchronization_concept Time Synchronization
  *       @defgroup tracking_concept Tracking
  *       @defgroup energy_preservation_concept Energy Preservation
+ *       @defgroup allocating_block_memory_concept Allocating Block Memory
  *       @defgroup clustering_concept Clustering
  *       @defgroup modular_clustering_concept Modular Clustering
  *       @{
@@ -89,6 +91,7 @@
  *          @defgroup it_concept Iterator
  *       @}
  *    @}
+ *    
  *
  * @}
  *

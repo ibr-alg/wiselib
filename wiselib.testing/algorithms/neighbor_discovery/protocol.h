@@ -191,6 +191,7 @@ namespace wiselib
 					{
 						n_ref->set_total_beacons_expected( 0 );
 					}
+#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
 					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_AVG_LQI )
 					{
 						n_ref->set_avg_LQI( 0 );
@@ -199,6 +200,8 @@ namespace wiselib
 					{
 						n_ref->set_avg_LQI_inverse( 0 );
 					}
+#endif
+#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
 					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_AVG_RSSI )
 					{
 						n_ref->set_avg_RSSI( 0 );
@@ -207,6 +210,7 @@ namespace wiselib
 					{
 						n_ref->set_avg_RSSI_inverse( 0 );
 					}
+#endif
 					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_STAB )
 					{
 						n_ref->set_link_stab_ratio( 0 );

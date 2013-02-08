@@ -148,16 +148,18 @@ namespace wiselib
 #ifdef DEBUG_BEACON_H
 		void print( Debug& debug, Radio& radio
 #ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
-				,Position& pos = Position( 0, 0, 0 )
+				,Position pos = Position( 0, 0, 0 )
 #endif
 				)
 		{
 			debug.debug( "-------------------------------------------------------\n" );
 			debug.debug( "Beacon : \n");
+			debug.debug( "serial_size : %d\n", serial_size() );
 			for ( ProtocolPayload_vector_iterator it = protocol_payloads.begin(); it != protocol_payloads.end(); ++it )
 			{
 				it->print( debug, radio );
 			}
+			debug.debug( "neighborhood size: %d\n", neighborhood.size() );
 			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
 			{
 #ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT

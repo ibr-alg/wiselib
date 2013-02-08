@@ -8,6 +8,7 @@ class TupleStore_concept : public Algorithm_concept {
 		typedef ... iterator;
 		typedef ... size_type;
 		typedef ... Tuple;
+		typedef ... column_mask_t;
 		
 		/**
 		 * Insert the given tuple into the store.
@@ -38,14 +39,14 @@ class TupleStore_concept : public Algorithm_concept {
 		iterator find(const T& t);
 		
 		/**
-		 * \return Number of tuples in the store that equal \ref t (0 or 1)
+		 * begin iteration over the TS.
+		 * If query is not 0, iteration will include only
+		 * tuples matching the given query/mask combination,
+		 * i.e. those tuples that are identical with query in the columns
+		 * defined by the bits in mask.
+		 * (E.g. mask = 1 <--> compare only tuple.get(0))
 		 */
-		template<typename T>
-		size_type count(const T& t);
-
-		/**
-		 */
-		iterator begin();
+		iterator begin(Tuple* query = 0, column_mask_t mask = 0);
 		
 		/**
 		 */

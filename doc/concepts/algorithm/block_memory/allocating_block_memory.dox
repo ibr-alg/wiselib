@@ -1,0 +1,63 @@
+
+#include "../../extiface/block_memory.dox"
+
+namespace concepts {
+	
+	/**
+	 * @ingroup allocating_block_memory_concept
+	 * @ingroup algorithm_concept
+	 * @ingroup concepts
+	 */
+	class AllocatingBlockMemory_concept
+		: public BlockMemory_concept {
+			
+		public:
+			
+			///< See reg_move_callback for details.
+			enum MoveResponse { MOVE, DISCARD, DONTCARE };
+			
+			/**
+			 * Allocate a block for use, write the contents of buffer to it
+			 * and return the allocated blocks address.
+			 * 
+			 * @return NO_ADDRESS if allocation was not possible.
+			 */
+			address_t create(block_data_t* buffer);
+			
+			/**
+			 * Register a block move callback function for defragmentation.
+			 * 
+			 * The given callback function must have the signature
+			 * 
+			 *   MoveResponse callback(block_data_t *buffer, address_t from, address_t to);
+			 * 
+			 * and will be called whenever the allocator is about to move a
+			 * block for e.g. defragmentation purposes.
+			 * 
+			 * Parameters and return value are as follows
+			 * buffer: Pointer to a buffer holding the contents of the block
+			 *         that is being moved
+			 * from:   Current address of the block
+			 * to:     Position the block will be moved to
+			 * return:
+			 *   MOVE     -> The block will be moved from $from to $to.
+			 *               No further registered callbacks will be invoked
+			 *               for this blocks move operation.
+			 *   DISCARD  -> The block will be discarded and may be used for
+			 *               future allocations. 
+			 *               No further registered callbacks will be invoked
+			 *               for this blocks move operation.
+			 *   DONTCARE -> The next registered callback in list will be
+			 *               invoked. If all callbacks return DONTCARE, the
+			 *               block will be discarded.
+			 *  
+			 * @return SUCCESS iff the registration was successfull.
+			 */
+			template<typename T, MoveResponse (T::*TMethod)(block_data_t*, address_t, address_t)>
+			int reg_move_callback(T *obj_pnt);
+	};
+	
+	
+} // namespace
+
+// vim: set ft=cpp:

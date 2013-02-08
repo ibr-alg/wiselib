@@ -123,3 +123,5 @@ class Radio_concept {
 };
 
 }
+
+// vim: set ft=cpp:

@@ -1,0 +1,99 @@
+#include "basic_algorithm.h"
+#include "util/base_classes/clustering_base.h"
+
+namespace concepts
+{
+
+/**
+ * \brief Basic Concept for Core Components
+ *
+ * This Module is used to connect and combine the other 3 modules in order to form a \ref modular_clustering_concept "Clustering Algorithm". The Core Component has to be as abstract and simple as possible in order to provide the basic interface between the clustering algorithm and the other applications as Neighborhood Discovery.
+ *
+ * At the moment each clustering algorithm implementation has its own Core Component implemented.
+ * 
+ * @ingroup cc_concept
+ * @ingroup algorithm_concepts
+ * @ingroup concepts
+ */
+class CoreComponent_concept
+    : public ClusteringBase
+{
+    public:
+	typedef ... OsModel;
+	
+	// os modules
+	typedef ... Radio;
+	typedef ... Timer;
+	typedef ... Debug;
+
+	//algorithm modules
+	/** \ref chd_concept "Cluster Head Decision" type.
+	*/
+	typedef ... HeadDecision_t;
+	/** \ref jf_concept "Join Decision" type.
+	*/
+	typedef ... JoinDecision_t;
+	/** \ref it_concept "Iterator" type
+	*/
+	typedef ... Iterator_t;
+
+	typedef ... self_type;
+
+	typedef ... node_id_t;
+	typedef ... size_t;
+	typedef ... block_data_t;
+	typedef ... cluster_id_t;
+
+	/** Initialize algorithm and pass pointers to the os modules and applications needed.
+	*/
+	void init();
+	
+	/** Sets the CHD Module.
+	*/
+	void set_cluster_head_decision(HeadDecision_t &chd);
+	/** Sets the JD Module.
+	*/
+	void set_join_decision(JoinDecision_t &jd);
+	/** Sets the Iterator Module.
+	*/
+	void set_iterator(Iterator_t &it);
+
+	/** Pass any parameters needed by the algorithm.
+	*/
+	void set_parameters(uint8_t * params);
+
+	/** Returns the parent of the node inside the cluster.
+	*/
+	node_id_t parent();
+	/** Returns the cluster id of the node or UNKNOWN_CLUSTER_HEAD.
+	*/
+	cluster_id_t cluster_id();
+	/** Returns the distance of the node to its cluster head.
+	*/
+	int hops();
+	/** Returns the type of the node inside the cluster, one of UNCLUSTERED, SIMPLE, HEAD, GATEWAY.
+	*/
+	int node_type();
+	int childs_count();
+	void childs(node_id_t * list);
+	/** Returns the status of the cluster (stable or forming) FORMING, FORMED, DISABLED.
+	*/
+	uint8_t status();
+	/** Returns if the node is a cluster head or not.
+	*/
+	bool is_cluster_head();
+
+
+	void present_neighbors();
+
+	void enable();
+	void disable();
+	void form_cluster(void * parameter);
+	void find_head(void * parameter);
+	void reform_cluster(void * parameter);
+	void wait_for_joins(void * parameter);
+
+	void receive(node_id_t from, size_t len, block_data_t * recvm);
+};
+
+}

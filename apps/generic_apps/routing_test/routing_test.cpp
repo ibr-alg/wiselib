@@ -326,10 +326,10 @@ class FloodingApplication
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
-//wiselib::WiselibApplication<Os, DsrRoutingApplication> routing_app;
+wiselib::WiselibApplication<Os, DsrRoutingApplication> routing_app;
 //wiselib::WiselibApplication<Os, DsdvRoutingApplication> routing_app;
 //wiselib::WiselibApplication<Os, TreeRoutingNdisApplication> routing_app;
-wiselib::WiselibApplication<Os, DsdvRoutingNdisApplication> routing_app;
+//wiselib::WiselibApplication<Os, DsdvRoutingNdisApplication> routing_app;
 //wiselib::WiselibApplication<Os, FloodingApplication> routing_app;
 // --------------------------------------------------------------------------
 void application_main( Os::AppMainParameter& value )

@@ -45,7 +45,9 @@ namespace wiselib
       typedef uint8_t block_data_t;
 
       typedef iSenseTimerModel<iSenseOsModel> Timer;
+#ifdef ISENSE_ENABLE_RADIO
       typedef iSenseRadioModel<iSenseOsModel> Radio;
+#endif
       typedef iSenseDebug<iSenseOsModel> Debug;
       typedef isense::Os AppMainParameter;
 

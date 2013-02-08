@@ -69,7 +69,7 @@ namespace wiselib {
             radio_ = &radio;
             timer_ = &timer;
             debug_ = &debug;
-            portNum = 110;
+            portNum = 112;
             HEADER[0] = 0x7f;
             HEADER[1] = 0x69;
             HEADER[2] = portNum;

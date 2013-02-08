@@ -27,7 +27,7 @@ OUTBIN = .
 
 pc:
 	@mkdir -p $(OUTPUT)
-	@echo "compiling..."
+	@echo "compiling..." $(BIN_OUT)
 	$(CXX) $(CXXFLAGS) $(ADD_CXXFLAGS) \
 	  $(WISELIB_PATH_TESTING)/external_interface/pc/standalone/main.cc \
 	  ./$(APP_SRC) -o $(OUTPUT)/$(BIN_OUT) $(LDFLAGS)

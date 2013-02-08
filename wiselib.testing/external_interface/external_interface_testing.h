@@ -24,12 +24,12 @@
 
 #ifdef ISENSE
 #include "external_interface/isense/isense_os.h"
-#include "external_interface/isense/isense_radio.h"
-#include "external_interface/isense/isense_extended_txradio.h"
+//#include "external_interface/isense/isense_radio.h"
+//#include "external_interface/isense/isense_extended_txradio.h"
 #include "external_interface/isense/isense_extended_debug.h"
 #include "external_interface/isense/isense_debug.h"
 #include "external_interface/isense/isense_extended_time.h"
-#include "external_interface/isense/isense_radio.h"
+//#include "external_interface/isense/isense_radio.h"
 #include "external_interface/isense/isense_timer.h"
 #include "external_interface/isense/isense_position.h"
 #include "external_interface/isense/isense_clock.h"
@@ -92,13 +92,13 @@
 #endif
 
 #ifdef PC
+#include "external_interface/pc/pc_os_model.h"
 #include "external_interface/pc/com_isense_packet.h"
 #include "external_interface/pc/com_isense_radio.h"
 #include "external_interface/pc/pc_clock.h"
 #include "external_interface/pc/pc_com_uart_file.h"
 #include "external_interface/pc/pc_debug.h"
 #include "external_interface/pc/pc_facet_provider.h"
-#include "external_interface/pc/pc_os_model.h"
 #include "external_interface/pc/pc_rand.h"
 #include "external_interface/pc/pc_timer.h"
 #include "external_interface/pc/pc_wiselib_application.h"

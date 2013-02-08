@@ -30,6 +30,7 @@
 
 namespace wiselib {
 
+#ifdef ISENSE_ENABLE_RADIO
     template<typename OsModel_P>
     class iSenseExtendedTxRadioModel
     : public isense::Receiver
@@ -530,6 +531,7 @@ namespace wiselib {
         return TxPower(os().radio().hardware_radio().power());
     }
     //-------------------------------------------------------
+#endif // ISENSE_ENABLE_RADIO
 }
 
 #endif
