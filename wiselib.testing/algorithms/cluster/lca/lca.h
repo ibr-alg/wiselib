@@ -23,9 +23,6 @@
 #include "util/delegates/delegate.hpp"
 #include "algorithms/cluster/clustering_types.h"
 #include "util/base_classes/clustering_base2.h"
-#include "algorithms/neighbor_discovery/echo.h"
-#include "algorithms/neighbor_discovery/pgb_payloads_ids.h"
-
 
 #include "algorithms/cluster/modules/chd/prob_chd.h"
 #include "algorithms/cluster/modules/jd/bfs_jd.h"
@@ -48,7 +45,7 @@ namespace wiselib {
      * LCA clustering core component.
      */
 template<typename OsModel_P, typename Radio_P, typename HeadDecision_P,
-		typename JoinDecision_P, typename Iterator_P>
+		typename JoinDecision_P, typename Iterator_P,typename Echo_P>
 class LcaCore: public ClusteringBase<OsModel_P> {
 public:
 	//TYPEDEFS
@@ -57,15 +54,15 @@ public:
 	typedef Radio_P Radio;
 	typedef typename OsModel::Timer Timer;
 	typedef typename OsModel::Debug Debug;
-	typedef typename OsModel::Rand Rand;
+	typedef typename OsModel::Rand Rand;        
 	//algorithm modules
 	typedef HeadDecision_P HeadDecision_t;
 	typedef JoinDecision_P JoinDecision_t;
 	typedef Iterator_P Iterator_t;
 	// self_type
 	typedef LcaCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P,
-			Iterator_P> self_type;
-	typedef wiselib::Echo<OsModel, Radio, Timer, Debug> nb_t;
+			Iterator_P,Echo_P> self_type;
+	typedef Echo_P nb_t;
 
 	// data types
 	typedef int cluster_level_t; //quite useless within current scheme, supported for compatibility issues
@@ -566,8 +563,9 @@ this->state_changed(MESSAGE_SENT, msg.msg_id(),						it().parent());
             // drop own messages
             if (radio().id() == from)
                 return;
-            if (!neighbor_discovery_->is_neighbor_bidi(from))
+            if (!neighbor_discovery_->is_neighbor_bidi(from)) {
                 return;
+            }
 
             // get Type of Message
             uint8_t type = *data;
