@@ -14,7 +14,7 @@ typedef Os::Uart uart_t;
       typedef wiselib::UartPacketExtractor<Os, uart_t> uart_extractor_t;
       typedef wiselib::VirtualRadioModel<Os, Os::Radio, uart_extractor_t> virtual_radio_t;
    #else
-      typedef wiselib::VirtualRadioModel<Os, Os::Radio, uart_t> virtual_radio_t;
+      typedef wiselib::VirtualRadioModel<Os, Os::TxRadio, uart_t> virtual_radio_t;
    #endif
 #endif
 
@@ -23,13 +23,16 @@ class VirtualRadioTestApplication
    public:
       void init( Os::AppMainParameter& value )
       {
-         radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+         radio_ = &wiselib::FacetProvider<Os, Os::TxRadio>::get_facet( value );
          timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
          uart_ = &wiselib::FacetProvider<Os, uart_t>::get_facet( value );
          debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
 #ifdef ISENSE
          radio_->set_channel(17);
+	Os::TxRadio::TxPower power;
+        power.set_dB(-30);
+        radio_->set_power(power);
 #endif
 
 #ifndef SHAWN
@@ -59,7 +62,7 @@ class VirtualRadioTestApplication
          Os::Radio::block_data_t message[] = "test vlinks\0";
          radio_->send( Os::Radio::BROADCAST_ADDRESS, sizeof(message), message );
 #endif
-         debug_->debug("broadcasted message at %u: '%s'\n", radio_->id(), message);
+//         debug_->debug("broadcasted message at %x: '%s'\n", radio_->id(), message);
 
          timer_->set_timer<VirtualRadioTestApplication,
                          &VirtualRadioTestApplication::start>( 5000, this, 0 );
@@ -69,14 +72,14 @@ class VirtualRadioTestApplication
          Os::Radio::size_t len,
          Os::Radio::block_data_t *buf )
       {
-         debug_->debug("received message at %u '%s' from node %d\n", radio_->id(), buf, from);
+         debug_->debug("received message at %x '%s' from node %x\n", radio_->id(), buf, from);
       }
 
    private:
 #ifndef SHAWN
       virtual_radio_t virtual_radio_;
 #endif
-      Os::Radio::self_pointer_t radio_;
+      Os::TxRadio::self_pointer_t radio_;
       Os::Timer::self_pointer_t timer_;
       Os::Debug::self_pointer_t debug_;
       uart_t::self_pointer_t uart_;

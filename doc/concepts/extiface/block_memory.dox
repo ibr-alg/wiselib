@@ -1,0 +1,45 @@
+
+#include "../basic/basic_return_values.h"
+
+namespace concepts {
+
+	/**
+	 * @ingroup block_memory_concept
+	 * @ingroup extiface_concept
+	 * @ingroup concepts
+	 */
+	class BlockMemory_concept
+		: public BasicReturnValues_concept {
+			
+		public:
+			typedef ... block_data_t;
+			typedef ... size_type;
+			typedef ... self_type;
+			typedef ... self_pointer_t;
+			typedef ... address_t;
+			
+			enum {
+				SIZE = ..., ///< in blocks
+				BLOCK_SIZE = 512, ///< size of block in byte (usable payload)
+				BUFFER_SIZE = 512, ///< size of buffers to pass to methods. Might be larger than BLOCK_SIZE for some implementations
+			};
+			
+			enum {
+				NO_ADDRSESS = ..., ///< address_t value denoting an invalid address
+			};
+			
+			/**
+			 * @return SUCCESS iff the block was read successfully
+			 */
+			int read(block_data_t* buffer, address_t addr);
+			
+			/**
+			 * @return SUCCESS iff the block was written successfully
+			 */
+			int write(block_data_t* buffer, address_t addr);
+	}
+
+
+} // namespace
+
+// vim: set ft=cpp:

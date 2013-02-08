@@ -43,8 +43,8 @@ class ExampleApplication
          debug_->debug( "Hello World from Neighbor Discovery Test Application!\n" );
 
          neighbor_discovery.init( *radio_, *clock_, *timer_, *debug_
-                    , 1000, 5000
-                    , 160, 200);
+                    , 1000, 20000
+                    , 180, 180);
          enabled = false;
 	 disable = false;
          rand_->srand(radio_->id());
@@ -104,23 +104,27 @@ class ExampleApplication
            *  CMD  NODE TIME TIME  NODE NODE  SNBH SNBH
            */
           else if ( nb_t::NEW_NB == event ) {
-              debug_->debug( "NEW_NB;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
-neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
+              debug_->debug( "NB;%x;%x" , from, radio_->id());
+           //   debug_->debug( "NEW_NB;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
+//neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
 //              debug_->debug( "NODE %d: event NEW_NB!! new neighbor added %d \n",radio_->id(), from);
           }
           else if ( nb_t::NEW_NB_BIDI == event ) {
-              debug_->debug( "NEW_NB_BIDI;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
-neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
+              debug_->debug( "NBB;%x;%x" , from, radio_->id());
+          //    debug_->debug( "NEW_NB_BIDI;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
+//neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
 //              debug_->debug( "NODE %d: event NEW_NB_BIDI!! new neighbor added %d \n",radio_->id(), from);
           }
           else if ( nb_t::DROPPED_NB == event ) {
-              debug_->debug( "DROPPED_NB;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
-neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
+              debug_->debug( "NBD;%x;%x" , from, radio_->id());
+             // debug_->debug( "DROPPED_NB;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
+//neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
 //              debug_->debug( "NODE %d: event DROPED_NB!! neighbor dropped %d \n",radio_->id(), from);
           }
           else if ( nb_t::LOST_NB_BIDI == event ) {
-              debug_->debug( "LOST_NB_BIDI;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
-neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
+              debug_->debug( "NBL;%x;%x" , from, radio_->id());
+            //  debug_->debug( "LOST_NB_BIDI;%x;Time;%d;Node;%x;neighbors;%d;bd_neighbors;%d;stability;%d" , from, clock_->seconds(clock_->time())+delay, radio_->id(),
+//neighbor_discovery.stable_nb_size(),neighbor_discovery.bidi_nb_size(),neighbor_discovery.get_node_stability());
 //              debug_->debug( "NODE %d: event LOST_NB_BIDI!! neighbor bidi com lost %d \n",radio_->id(), from);
           }
 

@@ -22,9 +22,8 @@
 
 #include "PLTT_default_values_config.h"
 #include "PLTT_source_config.h"
-
-#undef PLTT_SECURE
-#ifdef PLTT_SECURE
+#include "../../internal_interface/message/message.h"
+#ifdef CONFIG_PLTT_PRIVACY
 	#include "util/delegates/delegate.hpp"
 #endif
 
@@ -35,7 +34,7 @@ namespace wiselib
 		typename Node_P,
 		typename Timer_P,
 		typename Radio_P,
-#ifdef PLTT_SECURE
+#ifdef CONFIG_PLTT_PRIVACY
 		typename PrivacyMessage_P,
 #endif
 		typename Clock_P,
@@ -50,7 +49,7 @@ namespace wiselib
 		typedef PLTT_Trace_P PLTT_Trace;
 		typedef Timer_P Timer;
 		typedef Clock_P Clock;
-#ifdef PLTT_SECURE
+#ifdef CONFIG_PLTT_PRIVACY
 		typedef PrivacyMessage_P PrivacyMessage;
 		typedef PLTT_TargetType<Os, PLTT_Trace, Node, Timer, Radio, PrivacyMessage, Clock, Debug> self_type;
 #else
@@ -63,37 +62,53 @@ namespace wiselib
 		typedef typename Timer::millis_t millis_t;
 		typedef typename PLTT_Trace::TimesNumber TimesNumber;
 		typedef typename Radio::TxPower TxPower;
-		typedef PLTT_MessageType<Os, Radio> Message;
-#ifdef PLTT_SECURE
+		typedef Message_Type<Os, Radio, Debug> Message;
+#ifdef CONFIG_PLTT_PRIVACY
 		typedef delegate3<void, node_id_t, size_t, block_data_t*> event_notifier_delegate_t;
 #endif
-		void init( Radio& radio, Timer& timer, Clock& clock, Debug& debug )
+		void init( Radio& _radio, Timer& _timer, Clock& _clock, Debug& _debug )
 		{
-			radio_ = &radio;
-			timer_ = &timer;
-			debug_ = &debug;
-			clock_ = &clock;
+			radio_ = &_radio;
+			timer_ = &_timer;
+			debug_ = &_debug;
+			clock_ = &_clock;
 		}
+		// -----------------------------------------------------------------------
 		Node* get_self()
 		{
 			return &self;
 		}
+		// -----------------------------------------------------------------------
 		void set_self( Node _n )
 		{
 			self = _n;
 		}
 		// -----------------------------------------------------------------------
-		PLTT_TargetType()
+		PLTT_TargetType() :
+			radio_callback_id	( 0 ),
+			status				( WAITING_STATUS )
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+			,target_mini_run_times	( PLTT_TARGET_H_MINI_RUN_TIMES )
+#endif
+#ifdef CONFIG_PLTT_PRIVACY
+			,has_encrypted_id		( 0 )
+#endif
 		{}
 		// -----------------------------------------------------------------------
-		PLTT_TargetType( PLTT_Trace _t, millis_t _s, int8_t _tp )
+		PLTT_TargetType( PLTT_Trace _t, millis_t _s, millis_t _is, int8_t _tp )
 		{
 			target_trace = _t;
 			spread_milis = _s;
+			init_spread_milis = _is;
 			transmission_power_dB = _tp;
-#ifdef PLTT_SECURE
+			radio_callback_id = 0;
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+			target_mini_run_times = PLTT_TARGET_H_MINI_RUN_TIMES;
+#endif
+#ifdef CONFIG_PLTT_PRIVACY
 			has_encrypted_id = 0;
 #endif
+			status = WAITING_STATUS;
 		}
 		// -----------------------------------------------------------------------
 		~PLTT_TargetType()
@@ -102,32 +117,34 @@ namespace wiselib
 		void enable( void )
 		{
 			radio().enable_radio();
-#ifdef PLTT_TARGET_DEBUG_MISC
-			debug().debug( "PLTT_Target %x: Boot \n", self.get_id() );
+			set_status( ACTIVE_STATUS );
+#ifdef DEBUG_PLTT_TARGET_H_ENABLE
+			debug().debug( "PLTT_Target - enable %x.\n", radio().id() );
 #endif
-
-#ifdef PLTT_SECURE
-			radio_callback_id_ = radio().template reg_recv_callback<self_type, &self_type::radio_receive>( this );
-			encryption_request_daemon();
+#ifdef CONFIG_PLTT_PRIVACY
+			radio_callback_id = radio().template reg_recv_callback<self_type, &self_type::receive>( this );
+			timer().template set_timer<self_type, &self_type::encryption_request_daemon>( init_spread_milis, this, 0 );
+			//encryption_request_daemon();
 #else
 			target_trace.set_target_id( self.get_id() );
-			send_trace();
+			timer().template set_timer<self_type, &self_type::send_trace>( init_spread_milis, this, 0 );
+			//send_trace();
 #endif
 		}
 		// -----------------------------------------------------------------------
-#ifdef PLTT_SECURE
-		void radio_receive( node_id_t from, size_t len, block_data_t* data )
+#ifdef CONFIG_PLTT_PRIVACY
+		void receive( node_id_t _from, size_t _len, block_data_t* _data )
 		{
-#ifdef PLTT_TARGET_DEBUG_MISC
-			//debug().debug( "PLTT_Target %x: radio receive from %x \n", self.get_id(), from );
+#ifdef DEBUG_PLTT_TARGET_H_RECEIVE
+			debug().debug( "PLTT_Target - radio_receive %x - Received message from %x.\n", radio().id(), _from );
 #endif
-			message_id_t msg_id = *data;
+			message_id_t msg_id = *_data;
 			if	( msg_id == PRIVACY_ENCRYPTION_REPLY_ID )
 			{
-#ifdef PLTT_TARGET_DEBUG_SECURE
-				debug().debug( "PLTT_Target %x: radio receive - ID encrypted of size : %i \n", self.get_id(), len );
+#ifdef DEBUG_PLTT_TARGET_H_RECEIVE
+				debug().debug( "PLTT_Target - radio_receive %x - ID encrypted of size : %i.\n", radio().id(), _len );
 #endif
-				PrivacyMessage *encryption_privacy_message = ( PrivacyMessage* )data;
+				PrivacyMessage *encryption_privacy_message = (PrivacyMessage*)_data;
 				if ( encryption_privacy_message->request_id() == target_request_id )
 				{
 					has_encrypted_id = 1;
@@ -137,94 +154,102 @@ namespace wiselib
 			}
 		}
 		// -----------------------------------------------------------------------
-		void encryption_request_daemon( void* userdata = NULL)
+		void encryption_request_daemon( void* _userdata = NULL )
 		{
-#ifdef PLTT_TARGET_DEBUG_SECURE
-			debug().debug( "PLTT_Target %x: encryption request daemon \n", self.get_id() );
-#endif
-			if ( has_encrypted_id == 0 )
+			if ( status == ACTIVE_STATUS )
 			{
-				PrivacyMessage encryption_privacy_message;
-				encryption_privacy_message.set_msg_id( PRIVACY_ENCRYPTION_REQUEST_ID );
-				encryption_privacy_message.set_request_id( target_request_id );
-				node_id_t self_id = self.get_id();
-				block_data_t buffer[2];
-				block_data_t* buff = buffer;
-				write<Os, block_data_t, node_id_t>( buff, self_id );
-				encryption_privacy_message.set_payload( sizeof(node_id_t), buff );
-#ifdef PLTT_TARGET_DEBUG_SECURE
-				debug().debug( "PLTT_Target %x: encryption request daemon - Sending request of size : %i \n", self.get_id(), encryption_privacy_message.buffer_size() );
+#ifdef DEBUG_PLTT_TARGET_H_ENCRYPTION_REQUEST_DAEMON
+				debug().debug( "PLTT_Target - encryption_request_daemon %x - Entering.\n", radio().id() );
 #endif
-				trans_power.set_dB( transmission_power_dB );
-				radio().set_power( trans_power );
-				radio().send( Radio::BROADCAST_ADDRESS, encryption_privacy_message.buffer_size(), encryption_privacy_message.buffer() );
-				timer().template set_timer<self_type, &self_type::encryption_request_daemon>( 1000, this, 0 );
+				if ( has_encrypted_id == 0 )
+				{
+					PrivacyMessage encryption_privacy_message;
+					encryption_privacy_message.set_msg_id( PRIVACY_ENCRYPTION_REQUEST_ID );
+					encryption_privacy_message.set_request_id( target_request_id );
+					node_id_t self_id = self.get_id();
+					block_data_t buffer[10];
+					block_data_t* buff = buffer;
+					write<Os, block_data_t, node_id_t>( buff, self_id );
+					encryption_privacy_message.set_payload( sizeof(node_id_t), buff );
+#ifdef DEBUG_PLTT_TARGET_H_ENCRYPTION_REQUEST_DAEMON
+					debug().debug( "PLTT_Target - encryption_request_daemon %x - Sending request of size : %i and req_id : %i and msg_id : %i.\n", radio().id(), encryption_privacy_message.buffer_size(), encryption_privacy_message.request_id(), encryption_privacy_message.msg_id() );
+#endif
+					trans_power.set_dB( transmission_power_dB );
+					radio().set_power( trans_power );
+					radio().send( Radio::BROADCAST_ADDRESS, encryption_privacy_message.buffer_size(), encryption_privacy_message.buffer() );
+					timer().template set_timer<self_type, &self_type::encryption_request_daemon>( 1000, this, 0 );
+				}
 			}
 		}
 		// -----------------------------------------------------------------------
-		void randomize_callback( node_id_t from, size_t len, block_data_t* data )
+		void randomize_callback( node_id_t _from, size_t _len, block_data_t* _data )
 		{
-#ifdef PLTT_TARGET_DEBUG_SECURE
-			debug().debug( "PLTT_Target %x: Randomize callback \n", self.get_id() );
-#endif
-			message_id_t msg_id = *data;
-			if ( msg_id == PRIVACY_RANDOMIZE_REPLY_ID )
+			if ( status == ACTIVE_STATUS )
 			{
-#ifdef PLTT_TARGET_DEBUG_SECURE
-				debug().debug( "PLTT_Target %x: Randomize callback - ID randomized.\n", self.get_id() );
+#ifdef DEBUG_PLTT_TARGET_H_RANDOMIZE_CALLBACK
+				debug().debug( "PLTT_Target - randomize_callback %x - Entering.\n", radio().id() );
 #endif
-				randomize_privacy_message = (* ( PrivacyMessage* )data );
-				PrivacyMessage *randomize_privacy_message_ptr = &randomize_privacy_message;
-				if ( randomize_privacy_message_ptr->request_id() == target_request_id )
+				message_id_t msg_id = *_data;
+				if ( msg_id == PRIVACY_RANDOMIZE_REPLY_ID )
 				{
-#ifdef PLTT_TARGET_MINI_RUN
-					if ( target_trace.get_start_time() < target_mini_run_times )
+#ifdef DEBUG_PLTT_TARGET_H_RANDOMIZE_CALLBACK
+					debug().debug( "PLTT_Target - randomize_callback %x - ID randomized.\n", radio().id() );
+#endif
+					randomize_privacy_message = ( *( PrivacyMessage* )_data );
+					PrivacyMessage *randomize_privacy_message_ptr = &randomize_privacy_message;
+					if ( randomize_privacy_message_ptr->request_id() == target_request_id )
 					{
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+						if ( target_trace.get_start_time() < target_mini_run_times )
+						{
 #endif
-						target_trace.set_target_id( randomize_privacy_message_ptr->payload() );
-						Message message;
-						message.set_msg_id( PLTT_SECURE_SPREAD_ID );
-						block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
-						block_data_t* buff = buffer;
-						message.set_payload( target_trace.get_buffer_size(), target_trace.set_buffer_from( buff ) );
-						trans_power.set_dB( transmission_power_dB );
-						radio().set_power( trans_power );
-						radio().send( Radio::BROADCAST_ADDRESS, message.buffer_size(), (block_data_t*)&message );
-#ifdef PLTT_TARGET_DEBUG_SECURE
-						debug().debug( "PLTT_Target %x: Randomize callback - Randomized message of size : %i send.\n", self.get_id(), message.buffer_size() );
+							target_trace.set_target_id( randomize_privacy_message_ptr->payload() );
+#ifdef DEBUG_PLTT_STATS
+							debug().debug( "TAR:%d:%d:%d:%f:%f:%d\n", radio().id(),  clock().seconds( clock().time() ) * 1000 + clock().milliseconds( clock().time() ), target_trace.get_start_time(), self.get_position().get_x(), self.get_position().get_y(), transmission_power_dB );
 #endif
-						target_trace.update_start_time();
-						randomize_privacy_message_ptr->set_msg_id( PRIVACY_RANDOMIZE_REQUEST_ID );
-						timer().template set_timer<self_type, &self_type::timed_privacy_callback>( spread_milis, this, ( void* ) randomize_privacy_message_ptr );
-#ifdef PLTT_TARGET_MINI_RUN
+							Message message;
+							message.set_message_id( PLTT_PRIVACY_SPREAD_ID );
+							block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
+							block_data_t* buff = buffer;
+							message.set_payload( target_trace.serial_size(), target_trace.serialize( buff ) );
+							trans_power.set_dB( transmission_power_dB );
+#ifdef DEBUG_PLTT_TARGET_H_RANDOMIZE_CALLBACK
+							debug().debug( "PLTT_Target - randomize_callback %x - IN - Randomized message of size : %i send with %d power db and power from radio %f.\n", radio().id(), message.serial_size(), transmission_power_dB, radio().power() );
+#endif
+							radio().set_power( trans_power );
+							radio().send( Radio::BROADCAST_ADDRESS, message.serial_size(), (block_data_t*) &message );
+#ifdef DEBUG_PLTT_TARGET_H_RANDOMIZE_CALLBACK
+							debug().debug( "PLTT_Target - randomize_callback %x - OUT - Randomized message of size : %i send with %d power db and power from radio %f.\n", radio().id(), message.serial_size(), transmission_power_dB, radio().power() );
+#endif
+							target_trace.update_start_time();
+							randomize_privacy_message_ptr->set_msg_id( PRIVACY_RANDOMIZE_REQUEST_ID );
+							timer().template set_timer<self_type, &self_type::timed_privacy_callback> ( spread_milis, this, (void*)randomize_privacy_message_ptr );
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+						}
+#endif
 					}
-#endif
 				}
 			}
 		}
 		//------------------------------------------------------------------------
-		void timed_privacy_callback( void* userdata = NULL )
+		void timed_privacy_callback( void* _userdata = NULL )
 		{
-			PrivacyMessage* randomize_privacy_message_ptr = ( PrivacyMessage* ) userdata;
-#ifdef PLTT_TARGET_DEBUG_SECURE
-			debug().debug( "PLTT_Target %x: Timed privacy callback - Entering with :\n", self.get_id() );
-			debug().debug( "Message:\n");
-			debug().debug( "msg id %i\n", randomize_privacy_message_ptr->msg_id() );
-			debug().debug( "req id %x\n", randomize_privacy_message_ptr->request_id() );
-			debug().debug( "pay len %i\n", randomize_privacy_message_ptr->payload_size() );
-			for ( size_t i = 0; i < randomize_privacy_message_ptr->payload_size(); ++i )
+			if ( status == ACTIVE_STATUS )
 			{
-				debug().debug( " %i", *(randomize_privacy_message_ptr->payload()+i) );
-			}
-			debug().debug("\n");
+				PrivacyMessage* randomize_privacy_message_ptr = ( PrivacyMessage* ) _userdata;
+#ifdef DEBUG_PLTT_TARGET_H_TIMED_PRIVACY_CALLBACK
+				debug().debug( "PLTT_Target - timed_privacy_callback %x - Entering with Message: \n", radio().id() );
+				debug().debug( "message id : %i\n", randomize_privacy_message_ptr->msg_id() );
+				debug().debug( "request id : %x\n", randomize_privacy_message_ptr->request_id() );
 #endif
-			privacy_radio_callback( self.get_id(), randomize_privacy_message_ptr->buffer_size(), randomize_privacy_message_ptr->buffer()  );
+				privacy_radio_callback( self.get_id(), randomize_privacy_message_ptr->buffer_size(), randomize_privacy_message_ptr->buffer()  );
+			}
 		}
 		//------------------------------------------------------------------------
 		template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
-		uint8_t reg_privacy_radio_callback( T *obj_pnt )
+		uint8_t reg_privacy_radio_callback( T* _obj_pnt )
 		{
-			privacy_radio_callback = event_notifier_delegate_t::template from_method<T, TMethod>( obj_pnt );
+			privacy_radio_callback = event_notifier_delegate_t::template from_method<T, TMethod>( _obj_pnt );
 			return 0;
 		}
 		// -----------------------------------------------------------------------
@@ -234,50 +259,83 @@ namespace wiselib
 		}
 #else
 		// -----------------------------------------------------------------------
-		void send_trace( void* userdata = NULL)
+		void send_trace( void* _userdata = NULL)
 		{
-#ifdef PLTT_TARGET_DEBUG_SEND
-			debug().debug( "PLTT_Target %x: Send Trace \n", self.get_id() );
-#endif
-#ifdef PLTT_TARGET_MINI_RUN
-			if ( target_trace.get_start_time() < target_mini_run_times )
+			if ( status == ACTIVE_STATUS )
 			{
+#ifdef DEBUG_PLTT_TARGET_H_SEND_TRACE
+				debug().debug( "PLTT_Target - send_trace %x - Entering.\n", radio().id() );
 #endif
-				Message message;
-				message.set_msg_id( PLTT_SPREAD_ID );
-				block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
-				block_data_t* buff = buffer;
-				message.set_payload( target_trace.get_buffer_size(), target_trace.set_buffer_from( buff ) );
-				trans_power.set_dB( transmission_power_dB);
-				radio().set_power( trans_power );
-				radio().send( Radio::BROADCAST_ADDRESS, message.buffer_size(), (block_data_t*)&message );
-				target_trace.update_start_time();
-				timer().template set_timer<self_type, &self_type::send_trace>( spread_milis, this, 0 );
-#ifdef PLTT_TARGET_MINI_RUN
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+				if ( target_trace.get_start_time() < target_mini_run_times )
+				{
+#endif
+					Message message;
+					message.set_message_id( PLTT_SPREAD_ID );
+					block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
+					block_data_t* buff = buffer;
+#ifdef DEBUG_PLTT_STATS
+					debug().debug( "TAR:%d:%d:%d:%f:%f:%d\n", radio().id(),  clock().seconds( clock().time() ) * 1000 + clock().milliseconds( clock().time() ), target_trace.get_start_time(), self.get_position().get_x(), self.get_position().get_y(), transmission_power_dB );
+					//debug().debug( "TAR:%x:%d:%f:%f\n", radio().id(),  target_trace.get_start_time(), self.get_position().get_x(), self.get_position().get_y() );
+#endif
+					message.set_payload( target_trace.serial_size(), target_trace.serialize( buff ) );
+					trans_power.set_dB( transmission_power_dB );
+					radio().set_power( trans_power );
+					radio().send( Radio::BROADCAST_ADDRESS, message.serial_size(), (block_data_t*)&message );
+					//message.print( debug(), radio() );
+					//target_trace.print( debug(), radio() );
+					//debug().debug("channel : %d", radio().channel() );
+					target_trace.update_start_time();
+					timer().template set_timer<self_type, &self_type::send_trace>( spread_milis, this, 0 );
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+				}
+#endif
+#ifdef DEBUG_PLTT_TARGET_H_SEND_TRACE
+				debug().debug( "PLTT_Target - send_trace %x - Exiting.\n", radio().id() );
+#endif
 			}
-#endif
 		}
 		// -----------------------------------------------------------------------
 #endif
 		void disable( void )
 		{
-#ifdef PLTT_TARGET_DEBUG_MISC
-			debug().debug( "PLTT_Target %x: Disable \n", self.get_id() );
-#endif
-#ifdef PLTT_SECURE
+			set_status( WAITING_STATUS );
+			radio().unreg_recv_callback( radio_callback_id );
+#ifdef CONFIG_PLTT_PRIVACY
 			PrivacyMessage unregister_privacy_message;
 			unregister_privacy_message.set_msg_id( PRIVACY_UNREGISTER );
 			unregister_privacy_message.set_request_id( self.id() );
 			unregister_privacy_message.set_payload( 0, NULL );
 			privacy_radio_callback( 999, unregister_privacy_message.buffer_size(), unregister_privacy_message.buffer()  );
 #endif
-			radio().disable();
 		}
 		// -----------------------------------------------------------------------
-#ifdef PLTT_TARGET_MINI_RUN
-		void set_mini_run_times( uint8 _t )
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+		void set_mini_run_times( uint8_t _t )
 		{
 			target_mini_run_times = _t;
+		}
+#endif
+		// -----------------------------------------------------------------------
+		millis_t get_init_spread_millis()
+		{
+			return init_spread_milis;
+		}
+		// -----------------------------------------------------------------------
+		uint8_t get_status()
+		{
+			return status;
+		}
+		// -----------------------------------------------------------------------
+		void set_status( int _st )
+		{
+			status = _st;
+		}
+		// -----------------------------------------------------------------------
+#ifdef CONFIG_PLTT_PRIVACY
+		uint8_t get_has_encrypted_id()
+		{
+			return has_encrypted_id;
 		}
 #endif
 	private:
@@ -285,51 +343,61 @@ namespace wiselib
 		{
 			return *radio_;
 		}
+		// -----------------------------------------------------------------------
 		Timer& timer()
 		{
 			return *timer_;
 		}
+		// -----------------------------------------------------------------------
 		Debug& debug()
 		{
 			return *debug_;
 		}
+		// -----------------------------------------------------------------------
 		Clock& clock()
 		{
 			return *clock_;
 		}
-		Radio * radio_;
-		Timer * timer_;
-		Debug * debug_;
-		Clock * clock_;
+		// -----------------------------------------------------------------------
+		Radio* radio_;
+		Timer* timer_;
+		Debug* debug_;
+		Clock* clock_;
 		enum MessageIds
 		{
 			PLTT_SPREAD_ID = 11
-#ifdef PLTT_SECURE
-			,PLTT_SECURE_SPREAD_ID = 91,
-			PRIVACY_DECRYPTION_REQUEST_ID = 100,
+#ifdef CONFIG_PLTT_PRIVACY
+			,PLTT_PRIVACY_SPREAD_ID = 91,
 			PRIVACY_ENCRYPTION_REQUEST_ID = 110,
 			PRIVACY_RANDOMIZE_REQUEST_ID = 120,
-			PRIVACY_DECRYPTION_REPLY_ID = 130,
 			PRIVACY_ENCRYPTION_REPLY_ID = 140,
 			PRIVACY_RANDOMIZE_REPLY_ID = 150,
 			PRIVACY_UNREGISTER = 160,
 #endif
 		};
-		uint32_t radio_callback_id_;
+		enum pltt_target_status
+		{
+			ACTIVE_STATUS,
+			WAITING_STATUS,
+			PLTT_TARGET_STATUS_NUM_VALUES
+		};
+		uint32_t radio_callback_id;
         PLTT_Trace target_trace;
 		millis_t spread_milis;
+		millis_t init_spread_milis;
 		TxPower trans_power;
 		Node self;
 		int8_t transmission_power_dB;
-#ifdef PLTT_SECURE
+#ifdef CONFIG_PLTT_PRIVACY
 		uint8_t has_encrypted_id;
 		event_notifier_delegate_t privacy_radio_callback;
 		uint16_t target_request_id;
 		PrivacyMessage randomize_privacy_message;
 #endif
-#ifdef PLTT_TARGET_MINI_RUN
-		uint8_t target_mini_run_times;
+#ifdef CONFIG_PLTT_TARGET_H_MINI_RUN
+		uint32_t target_mini_run_times;
 #endif
+		uint8_t status;
 	};
 
 }

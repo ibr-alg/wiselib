@@ -54,7 +54,7 @@ namespace wiselib {
 				typedef list_dynamic_iterator<List> self_type;
 				typedef Allocator::template pointer_t<node_type> node_pointer_t;
 				typedef Allocator::template pointer_t<self_type> self_pointer_t;
-				
+
 				list_dynamic_iterator() : list_(0), node_(0) { }
 				list_dynamic_iterator(List& l) : list_(&l), node_(0) { }
 				list_dynamic_iterator(List& l, const node_pointer_t node) : list_(&l), node_(node) { }
@@ -85,9 +85,9 @@ namespace wiselib {
 	} // ns
 	
 	
-	
-	
 	/**
+	 * @brief Simply linked list with dynamic memory allocation (i.e. uses
+	 * get_allocator()).
 	 */
 	template<
 		typename OsModel_P,
@@ -110,36 +110,37 @@ namespace wiselib {
 			typedef list_dynamic_impl::list_dynamic_iterator<self_type> iterator;
 			typedef list_dynamic_impl::list_dynamic_iterator<const self_type> const_iterator;
 			
-         /*
-		typedef delegate3<int, value_type, value_type, void*> comparator_t;
-			
-		template<typename T>
-		static typename T::self_pointer_t to_t_ptr(value_type a) {
-			//return *reinterpret_cast<typename T::self_pointer_t*>(&a);
-			typename T::self_pointer_t r;
-			memcpy((void*)&r, (void*)&a, sizeof(typename T::self_pointer_t));
-			return r;
-		}
-		
-		template<typename T>
-		static int ptr_cmp_comparator(value_type a, value_type b, void*) {
-			return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
-			//return reinterpret_cast<T*>(a)->cmp(*reinterpret_cast<T*>(b));
-		}
-		
-			static int obvious_comparator(value_type a, value_type b, void*) {
-				return (a < b) ? -1 : (b > a);
+			typedef delegate3<int, value_type, value_type, void*> comparator_t;
+				
+			template<typename T>
+			static typename T::self_pointer_t to_t_ptr(value_type a) {
+				typename T::self_pointer_t r;
+				memcpy((void*)&r, (void*)&a, sizeof(typename T::self_pointer_t));
+				return r;
 			}
-         */
 			
-			list_dynamic() : first_node_(0), last_node_(0){ };
+			template<typename T>
+			static int ptr_cmp_comparator(value_type a, value_type b, void*) {
+				return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
+			}
+			
+			static int obvious_comparator(value_type a, value_type b, void*) {
+				return (a < b) ? -1 : (b < a);
+			}
+			static int string_comparator(value_type a, value_type b, void*) {
+				return strcmp((char*)a, (char*)b);
+			}
+			
+			list_dynamic() : first_node_(0), last_node_(0) {
+				compare_ = comparator_t::template from_function<self_type::obvious_comparator>();
+			};
+			
 			list_dynamic(const list_dynamic& other) { *this = other; }
 			
-			
-			int init(
-				//	comparator_t compare
-			) {
-				//compare_ = compare;
+			int init(comparator_t compare = 0) {
+				if(compare_ != 0) {
+					compare_ = compare;
+				}
 				return 0;
 			}
 			
@@ -149,7 +150,7 @@ namespace wiselib {
 			
 			list_dynamic& operator=(const self_type& other) {
 				// TODO: Implement copy-on-write
-				//compare_ = other.compare_;
+				compare_ = other.compare_;
 				clear();
 				first_node_ = 0;
 				last_node_ = 0;
@@ -158,25 +159,6 @@ namespace wiselib {
 				}
 				return *this;
 			}
-			
-			/**
-			 * If true, don't delete the internal buffer upon destruction.
-			 * Useful if you (shallow) "serialize" the string instance into some other
-			 * format and call its destructor but actually plan to cast it
-			 * back later. Normally that wouldnt be possible because the
-			 * internally buffer would get lost, if you set the object to be
-			 * "weak" in the meantime, the buffer will persist and the
-			 * reconstructed object can be used.
-			 * Only use if you know what you are doing! These methods are
-			 * basically a recipe for memory leaks!
-			 */
-			//bool weak() const { return weak_; }
-			
-			/**
-			 * Set/unset "weak" property.
-			 * See weak() for explanation on weakness.
-			 */
-			//void set_weak(bool s) const { weak_ = s; }
 			
 			iterator begin() { return iterator(*this, first_node_); }
 			iterator end() { return iterator(*this); }
@@ -240,8 +222,7 @@ namespace wiselib {
 			
 			iterator find(value_type v, void* d = 0) {
 				for(iterator i = begin(); i != end(); ++i) {
-					//if(compare_(*i, v, d) == 0) { return i; }
-					if(*i == v) { return i; }
+					if(compare_(*i, v, d) == 0) { return i; }
 				}
 				return end();
 			}
@@ -271,7 +252,7 @@ namespace wiselib {
 				if(prev) { prev->next = iter.node()->next; }
 				
 				iterator n(*this, iter.node()->next);
-            	::get_allocator().template free<node_type>(iter.node());
+				::get_allocator().template free<node_type>(iter.node());
 				return n;
 			}
 			
@@ -296,8 +277,7 @@ namespace wiselib {
 			
 		private:
 			node_pointer_t first_node_, last_node_;
-			//mutable bool weak_;
-			//comparator_t compare_;
+			comparator_t compare_;
 	};
 	
 	

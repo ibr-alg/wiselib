@@ -20,6 +20,8 @@
 #ifndef __ISENSE_INTERNAL_FLASH_H__
 #define __ISENSE_INTERNAL_FLASH_H__
 
+#if USE_INTERNAL_FLASH
+
 #include <isense/flash.h>
 #include <isense/platforms/jennic/jennic_flash.h>
 #include <isense/os.h>
@@ -162,5 +164,8 @@ namespace wiselib {
 
 } // namespace
 
-#endif // __ARDUINO_SDCARD_H__
+#endif // __ISENSE_INTERNAL_FLASH_H__
+
+#endif // USE_INTERNAL_FLASH
+
 

@@ -46,7 +46,9 @@ namespace wiselib {
 				//if(iter != (end() - (typename OsModel::size_t)1)) {
 					*iter = *(end() - (typename OsModel::size_t)1);
 				//}
+				size_type p = iter - vector_.begin();
 				vector_.pop_back();
+				iter = vector_.begin() + p;
 				return iter;
 			}
 			

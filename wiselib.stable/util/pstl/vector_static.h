@@ -144,6 +144,11 @@ namespace wiselib
             --finish_;
       }
       // --------------------------------------------------------------------
+      iterator insert( const value_type& x )
+      {
+         return insert( end(), x );
+      }
+      // --------------------------------------------------------------------
       iterator insert( iterator position, const value_type& x )
       {
          // no more elements can be inserted because vector is full
@@ -210,6 +215,15 @@ namespace wiselib
       {
          finish_ = start_;
       }
+      // --------------------------------------------------------------------
+      iterator find( const value_type& x )
+      {
+         for(iterator it = begin(); it != end(); ++it) {
+            if(*it == x) { return it; }
+         }
+         return end();
+      }
+
       ///@}
 
    protected:
@@ -221,3 +235,5 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

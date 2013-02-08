@@ -30,7 +30,7 @@
 
 namespace wiselib
 {
-
+#ifdef ISENSE_ENABLE_RADIO
    template<typename OsModel_P,
             typename Radio_P = typename OsModel_P::TxRadio,
             int TABLE_SIZE = 20>
@@ -124,6 +124,6 @@ namespace wiselib
       DistanceMap distances_;
       Radio *radio_;
    };
-
+#endif // ISENSE_ENABLE_RADIO
 }
 #endif

@@ -53,7 +53,7 @@ namespace wiselib
          va_start( fmtargs, msg );
          vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
          va_end( fmtargs );
-         printf( "%s", buffer );
+         printf( "%s\n", buffer );
       }
 
    private:

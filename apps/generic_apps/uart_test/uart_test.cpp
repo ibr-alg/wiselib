@@ -25,7 +25,7 @@ public:
       timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 
       enable();
-      timer_->set_timer<self_type, &self_type::start_test>( 2000, this, 0 );
+      //timer_->set_timer<self_type, &self_type::start_test>( 2000, this, 0 );
    }
    // -----------------------------------------------------------------------
    void enable()
@@ -36,7 +36,7 @@ public:
 
       Uart::block_data_t x[] = "123456789:\n";
       uart_->write( sizeof(x) - 1, x );
-      uart_->reg_read_callback<self_type, &self_type::receive_packet>( this );
+      //uart_->reg_read_callback<self_type, &self_type::receive_packet>( this );
    }
    // -----------------------------------------------------------------------
    void start_test( void* )
@@ -52,7 +52,7 @@ public:
    void receive_packet( size_t len, block_data_t *buf )
    {
       debug_->debug( "TestUart::received len %i, message is '%s'\n", len, buf );
-      uart_->write( len, (Uart::block_data_t*)buf );
+      //uart_->write( len, (Uart::block_data_t*)buf );
    }
 
 private:
