@@ -34,6 +34,7 @@
 #define DEBUG
 #ifdef DEBUG
 //#define DEBUG_PAYLOADS
+#define RECEIVE_DEBUG
 #endif
 
 namespace wiselib {
