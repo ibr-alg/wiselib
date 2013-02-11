@@ -39,6 +39,8 @@
 
 #include "algorithms/duty_cycling/mid_duty.h"
 
+//#define DEBUG_AND
+
 
 namespace wiselib {
 
@@ -160,6 +162,14 @@ namespace wiselib {
             duty_ = &duty;
             duty_period_ = duty_period;
             sleep_period_ = sleep_period;
+
+            //initialize random number generator
+            rand_->srand(radio_->id());
+
+            //initialize mid duty
+            mid_duty.init(*timer_, *duty_);
+            mid_duty.set_rate(duty_period_, sleep_period_);
+
         };
 
         /**
@@ -172,26 +182,21 @@ namespace wiselib {
         void enable() {
             //enable and register the radio
             radio().enable_radio();
-            recv_callback_id_ = radio().template reg_recv_callback<self_t,
-                    &self_t::receive> (this);
+            debug().debug("Called Enable %x", radio_->id());
+            recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive> (this);
 
-            //initialize random number generator
-            rand().srand(radio().id());
+            //enable the duty cycling
+            mid_duty.enable();
 
             //internal initialization
             initialization();
-
-            //initialize and enable the duty cycling
-            mid_duty.init(*timer_, *duty_);
-            mid_duty.set_rate(duty_period_, sleep_period_);
-            mid_duty.enable();
 
         }
 
         // --------------------------------------------------------------------
 
         /**
-         * Disable the exectution of the algorithm.
+         * Disable the execution of the algorithm.
          */
         void disable() {
             radio().disable_radio();
@@ -218,32 +223,28 @@ namespace wiselib {
          */
         void debug_callback(uint8_t event, node_id_t from, uint8_t len,
                 uint8_t* data) {
-            /*
-                if (self_t::NEW_PAYLOAD == event) {
-                        debug_->debug("event NEW_PAYLOAD!! \n");
-                        debug_->debug("NODE %d: new payload from %d with size %d ",
-                                        radio_->id(), from, len);
 
-                        //print payload
-                        debug_->debug(" [");
-                        for (uint8_t j = 0; j < len; j++) {
-                                debug_->debug("%d ", *(data + j));
-                        }
-                        debug_->debug("]\n");
-                } else if (self_t::NEW_PAYLOAD_BIDI == event) {
-                        debug_->debug("event NEW_PAYLOAD_BIDI!! \n");
-                        debug_->debug("NODE %d: new payload from %d (bidi) with size %d ",
-                                        radio_->id(), from, len);
-
-                        //print payload
-                        debug_->debug(" [");
-                        for (uint8_t j = 0; j < len; j++) {
-                                debug_->debug("%d ", *(data + j));
-                        }
-                        debug_->debug("]\n");
-                } else */
-
-            if (self_t::NEW_NB == event) {
+            if (self_t::NEW_PAYLOAD == event) {
+                debug_->debug("NODE %x: new payload from %x with size %d ", radio_->id(), from, len);
+#ifdef PRINT_PAYLOAD
+                //print payload
+                debug_->debug(" [");
+                for (uint8_t j = 0; j < len; j++) {
+                    debug_->debug("%d ", *(data + j));
+                }
+                debug_->debug("]\n");
+#endif
+            } else if (self_t::NEW_PAYLOAD_BIDI == event) {
+                debug_->debug("NODE %x: new payload from %x (bidi) with size %d ", radio_->id(), from, len);
+#ifdef PRINT_PAYLOAD
+                //print payload
+                debug_->debug(" [");
+                for (uint8_t j = 0; j < len; j++) {
+                    debug_->debug("%d ", *(data + j));
+                }
+                debug_->debug("]\n");
+#endif
+            } else if (self_t::NEW_NB == event) {
 #ifdef SHAWNX
                 debug_->debug(
                         "NEW_NB;%x;Time;%d; Node ;%x; has ;%d; neighbors;stability;%d\n",
@@ -282,6 +283,9 @@ namespace wiselib {
             }
         }
 
+        /**
+         * Initializes all internal parameters of the algorithm
+         */
         void initialization() {
             Imin = IMIN;
             Imax = IMAX;
@@ -347,9 +351,6 @@ namespace wiselib {
         };
 
         uint8_t register_payload_space(uint8_t payload_id) {
-
-            //  debug().debug("PAyloAd : register me payload_id=%d",payload_id);
-
 
             if (registered_apps.empty()) {
                 reg_alg_entry_t entry; // = {payload_id, 0, 0, event_notifier_delegate_t(), 0};
@@ -472,7 +473,7 @@ namespace wiselib {
         }
 
         void dc_send(void *a) {
-            send_beacon();
+            //send_beacon();
         }
 
         /**
@@ -543,7 +544,6 @@ namespace wiselib {
          * @param timer_arg
          */
         void check_consistency(void *timer_arg) {
-            //            debug().debug("B_FUNC");
             //right timer      
             long timer_version = (long) timer_arg;
             if (consistency_version_ == timer_version) {
@@ -574,7 +574,6 @@ namespace wiselib {
         }
 
         void receive(node_id_t from, size_t len, block_data_t * msg, ExData const &ex) {
-            //  debug().debug("B_FUNC");
 
             if (from == radio().id()) return;
             if (*msg != AdaptiveMesg_t::ND_MESG) return;
@@ -640,7 +639,9 @@ namespace wiselib {
                                 if ((!it->stable) || (ex.link_metric() > min_lqi_threshold)) {
                                     it->must_drop = true;
                                     if (it->stable) {
+#ifdef DEBUG_AND
                                         debug().debug("Link Drop;%x;%x", from, radio().id());
+#endif
                                     }
                                 }
                             }
@@ -693,7 +694,9 @@ namespace wiselib {
                             if ((!it->stable) || (ex.link_metric() > min_lqi_threshold)) {
                                 it->must_drop = true;
                                 if (it->stable) {
+#ifdef DEBUG_AND
                                     debug().debug("Link Drop;%x;%x", from, radio().id());
+#endif
                                 }
                             }
                         }
@@ -701,6 +704,8 @@ namespace wiselib {
                         it->last_lqi = ex.link_metric();
 #endif
                     }
+
+
 
                     is_neighbour = true;
                     it->last_mesg = clock().time();
@@ -728,7 +733,43 @@ namespace wiselib {
                 neighbours.push_back(new_node);
             }
 
-            //      debug().debug("E_FUNC");
+
+
+            uint8_t * alg_pl = mesg->payload()
+                    + mesg->nb_list_size();
+
+            for (int i = 0; i < mesg->get_pg_payloads_num(); i++) {
+
+#ifdef PRINT_PAYLOAD
+                debug().debug(" [");
+                for (uint8_t j = 1; j <= *(alg_pl + 1); j++) {
+                    debug().debug("%d ", *(alg_pl + j + 1));
+                }
+                debug().debug("]\n");
+#endif
+
+                for (reg_alg_iterator_t it = registered_apps.begin(); it
+                        != registered_apps.end(); it++) {
+
+                    if ((it->alg_id == *alg_pl)
+                            && (it->event_notifier_callback != 0)) {
+                        if ((it->events_flag & (uint8_t) NEW_PAYLOAD)
+                                == (uint8_t) NEW_PAYLOAD) {
+                            it->event_notifier_callback(NEW_PAYLOAD,
+                                    from, *(alg_pl + 1), alg_pl + 2);
+                        } else if (((it->events_flag
+                                & (uint8_t) NEW_PAYLOAD_BIDI)
+                                == (uint8_t) NEW_PAYLOAD_BIDI)
+                                && is_neighbor_bidi(from)) {
+                            it->event_notifier_callback(
+                                    NEW_PAYLOAD_BIDI, from, *(alg_pl
+                                    + 1), alg_pl + 2);
+                        }
+                    }
+                }
+
+                alg_pl += *(alg_pl + 1) + 2;
+            }
         }
 
         void clear_expired(void *a) {
@@ -775,9 +816,29 @@ namespace wiselib {
 
             last_time_sent = clock().seconds(clock().time())*1000
                     + (uint32_t) clock().milliseconds(clock().time());
+            add_pg_payload(&mesg);
+
             radio_->send(Radio::BROADCAST_ADDRESS, mesg.buffer_size(), (block_data_t *) & mesg);
+#ifdef DEBUG_AND
             debug().debug("RTS;%x;%d;%x",
                     radio().id(), mesg.msg_id(), Radio::BROADCAST_ADDRESS);
+#endif
+
+
+        }
+
+        /**
+         * Add the payloads that were set by each registered algorithm
+         * to the echo message that is going to be transmitted
+         */
+        void add_pg_payload(AdaptiveMesg_t * msg) {
+
+            for (reg_alg_iterator_t ait = registered_apps.begin(); ait
+                    != registered_apps.end(); ++ait) {
+                if (ait->size != 0) {
+                    msg->append_payload(ait->alg_id, ait->data, ait->size);
+                }
+            }
         }
 
 
