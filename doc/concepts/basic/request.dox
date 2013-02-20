@@ -11,8 +11,8 @@ namespace concepts
 class Request_concept {
     public:
 	/** Type of \ref os_concept "Os Concept" which has been set.
-        */
-        typedef ... OsModel;
+	*/
+	typedef ... OsModel;
 	/** Type of value that is returned.
 	*/
 	typedef ... value_t;

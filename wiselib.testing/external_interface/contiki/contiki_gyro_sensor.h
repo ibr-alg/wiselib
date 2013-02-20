@@ -16,75 +16,69 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_SKY_BUTTON_SENSOR__
-#define __CONTIKI_SKY_BUTTON_SENSOR__
+#ifndef CONTIKI_GYRO_SENSOR
+#define CONTIKI_GYRO_SENSOR
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
+#include "external_interface/contiki/contiki_debug.h"
+#include "external_interface/contiki/contiki_facet_provider.h"
 
 extern "C"
 {
-	#include "contiki.h" 
-	#include "dev/button-sensor.h"
+	#include "contiki.h"
+	#include "interfaces/acc-adxl345.h"
+	#include "lib/sensors.h"
 }
 
 namespace wiselib
 {
-	/** \brief Contiki Implementation of \ref request_sensor_concept "Request 
-	 *  Sensor Concept"
-	 *
-	 * Contiki implementation of the \ref request_sensor_concept "Request
-	 * Sensor Concept" ...
-	 */
 	template<typename OsModel_P>
-	class ContikiSkyButtonSensor
+	class ContikiGyroSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
-		
-		typedef ContikiSkyButtonSensor<OsModel> self_type;
+
+		typedef ContikiGyroSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
-		
-		typedef bool value_t;
-		
+
+		typedef acc_data_t value_t;
+
 		//------------------------------------------------------------------------
-		
+
 		enum ErrorCodes
 		{
 			SUCCESS = OsModel::SUCCESS,
 			ERR_UNSPEC = OsModel::ERR_UNSPEC
 		};
-		
+
 		//------------------------------------------------------------------------
-		
+
 		enum StateData
 		{
 			READY = OsModel::READY,
 			NO_VALUE = OsModel::NO_VALUE,
 			INACTIVE = OsModel::INACTIVE
 		};
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Constructor/Destructor
 		///
-		/** Default constructor
-		 *
-		 */
-		ContikiSkyButtonSensor( )
-		{
-			state_ = READY;
-			SENSORS_ACTIVATE( button_sensor );
-		}
-		
-		~ContikiSkyButtonSensor()
-		{
-			state_ = INACTIVE;
-		}
-		///
-		
+		ContikiGyroSensor( ) : state_( INACTIVE ) { }
+
 		//------------------------------------------------------------------------
-		
+
+		int init()
+		{
+			// TODO check return code
+			adxl345_init( );
+			state_ = READY;
+			return SUCCESS;
+		}
+
+		//------------------------------------------------------------------------
+
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the sensor
@@ -95,33 +89,18 @@ namespace wiselib
 		{
 			return state_;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
-		/** Returns current button status
-		 *
-		 *  \returns true, if button is pressed or false if it is currently
-		 *  released.
-		 */
-		value_t operator()( void )
-		{	
-			int button_pressed = button_sensor.value( 0 );
-			return button_pressed == 0;
-		}
-		
-		/** Disables the Sensor
-		 * 
-		 */
-		void disable()
+
+		value_t operator()()
 		{
-				SENSORS_DEACTIVATE( button_sensor );
+			return adxl345_get_acceleration( );
 		}
-		///
-		
+
 	private:
 		/// The current state
 		StateData state_;
-   };
+	};
 };
 
-#endif // __CONTIKI_SKY_BUTTON_SENSOR__
+#endif // CONTIKI_GYRO_SENSOR

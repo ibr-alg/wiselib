@@ -33,12 +33,17 @@ namespace wiselib
    public:
       typedef Value_P value_type;
       typedef value_type* pointer;
+      typedef const value_type* const_pointer;
       typedef value_type& reference;
+      typedef const value_type& const_reference;
 
       typedef vector_static<OsModel_P, value_type, VECTOR_SIZE> vector_type;
 
       typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
+      // FIXME: implement proper const_iterator
+      typedef normal_iterator<OsModel_P, pointer, vector_type> const_iterator;
 
+      typedef typename iterator::difference_type difference_type;
       typedef typename OsModel_P::size_t size_type;
       // --------------------------------------------------------------------
       vector_static()
@@ -50,6 +55,19 @@ namespace wiselib
       // --------------------------------------------------------------------
       vector_static( const vector_static& vec )
       { *this = vec; }
+      // --------------------------------------------------------------------
+      vector_static( size_type n, const value_type& value = value_type() )
+      {
+         n = VECTOR_SIZE < n ? VECTOR_SIZE : n;
+         for ( unsigned int i = 0; i < n; ++i )
+            push_back( value );
+      }
+      template <class InputIterator>
+      vector_static( InputIterator first, InputIterator last )
+      {
+         for ( unsigned int i = 0; i < VECTOR_SIZE && first != last; ++i, ++first )
+            push_back( *first++ );
+      }
       // --------------------------------------------------------------------
       ~vector_static() {}
       // --------------------------------------------------------------------
@@ -69,6 +87,12 @@ namespace wiselib
       // --------------------------------------------------------------------
       iterator end()
       { return iterator( finish_ ); }
+      // --------------------------------------------------------------------
+      const_iterator begin() const
+      { return const_iterator( start_ ); }
+      // --------------------------------------------------------------------
+      const_iterator end() const
+      { return const_iterator( finish_ ); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Capacity
@@ -103,7 +127,17 @@ namespace wiselib
          return *begin();
       }
       // --------------------------------------------------------------------
+      const_reference front() const
+      {
+         return *begin();
+      }
+      // --------------------------------------------------------------------
       reference back()
+      {
+         return *(end() - 1);
+      }
+      // --------------------------------------------------------------------
+      const_reference back() const
       {
          return *(end() - 1);
       }
@@ -171,6 +205,13 @@ namespace wiselib
       {
          for ( int i = 0; i < n; ++i )
             insert( position, x );
+      }
+      // --------------------------------------------------------------------
+      template <class InputIterator>
+      void insert( iterator position, InputIterator first, InputIterator last )
+      {
+         for ( ; first != last; ++first )
+            insert( position, *first );
       }
       // --------------------------------------------------------------------
       iterator erase( iterator position )

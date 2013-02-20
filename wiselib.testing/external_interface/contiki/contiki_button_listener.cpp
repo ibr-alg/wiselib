@@ -17,55 +17,67 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef _CONTIKI_SKY_BUTTON_LISTENER_
-#define _CONTIKI_SKY_BUTTON_LISTENER_
-
 extern "C"
 {
-#include "contiki.h"
+	#include "contiki.h"
+	#include "process.h" 
+	#include "dev/button-sensor.h"
+	#include <stdio.h>
 }
-#include "util/base_classes/sensor_callback_base.h"
-#include "util/delegates/delegate.hpp"
+
+#include "contiki_button_listener.h"
 
 namespace wiselib
 {
-	typedef delegate0<void> contiki_sky_button_delegate_t;
-	
-	void initContikiSkyButtonListening();
-	int stopContikiSkyButtonListening();
-	//---------------------------------------------------------------------------
-	void contiki_sky_button_set_receiver( 
-									contiki_sky_button_delegate_t& delegate );
-	void contiki_sky_button_delete_receiver();
-	//---------------------------------------------------------------------------
-	template<typename OsModel_P>
-	class ContikiSkyButtonListener : 
-		public SensorCallbackBase<OsModel_P, void, 5>
-	{
-	public:
-		typedef OsModel_P OsModel;
-		
-		typedef bool value_t;
-		
-		ContikiSkyButtonListener()
-		{
-		}
-		
-		void init()
-		{
-			initContikiSkyButtonListening();
-			contiki_sky_button_delegate_t delegate =
-				contiki_sky_button_delegate_t::from_method<
-					ContikiSkyButtonListener,
-					&ContikiSkyButtonListener::notify>( this );
-			contiki_sky_button_set_receiver( delegate );
-		}
-		
-		void notify()
-		{
-			this->notify_receivers();
-		}
-	};
-};
+	static contiki_button_delegate_t receiver;
 
-#endif // _CONTIKI_SKY_BUTTON_LISTENER_
+	PROCESS( button_event_process, "Button Event Listener" );
+
+	PROCESS_THREAD(button_event_process, ev, data)
+	{
+		PROCESS_EXITHANDLER( return stopContikiButtonListening() );
+		PROCESS_BEGIN();
+
+		SENSORS_ACTIVATE(button_sensor);
+
+		for ( ; ; )
+		{
+			PROCESS_WAIT_EVENT();
+
+			if( ev == sensors_event )
+			{
+				if( data == &button_sensor )
+				{
+					receiver( button_sensor.value( 0 ) );
+				}
+			}
+		}
+
+		PROCESS_END();
+	}
+
+	void initContikiButtonListening()
+	{
+		receiver = contiki_button_delegate_t();
+		process_start( &button_event_process, 0);
+	}
+
+	int stopContikiButtonListening()
+	{
+		SENSORS_DEACTIVATE(button_sensor);
+		contiki_button_delete_receiver();
+		return 0;
+	}
+
+	void contiki_button_set_receiver( contiki_button_delegate_t& d )
+	{
+		receiver = d;
+	}
+
+	void contiki_button_delete_receiver()
+	{
+		receiver = contiki_button_delegate_t();
+	}
+}
+
+// vim: noexpandtab:ts=3:sw=3

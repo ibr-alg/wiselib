@@ -16,78 +16,77 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __CONTIKI_SKY_BUTTON_SENSOR__
-#define __CONTIKI_SKY_BUTTON_SENSOR__
+#ifndef __CONTIKI_BUTTON_SENSOR__
+#define __CONTIKI_BUTTON_SENSOR__
 
 #include "external_interface/contiki/contiki_types.h"
 #include "external_interface/contiki/contiki_os.h"
 
 extern "C"
 {
-	#include "contiki.h" 
+	#include "contiki.h"
 	#include "dev/button-sensor.h"
 }
 
 namespace wiselib
 {
-	/** \brief Contiki Implementation of \ref request_sensor_concept "Request 
+	/** \brief Contiki Implementation of \ref request_sensor_concept "Request
 	 *  Sensor Concept"
 	 *
 	 * Contiki implementation of the \ref request_sensor_concept "Request
 	 * Sensor Concept" ...
 	 */
 	template<typename OsModel_P>
-	class ContikiSkyButtonSensor
+	class ContikiButtonSensor
 	{
 	public:
 		typedef OsModel_P OsModel;
-		
-		typedef ContikiSkyButtonSensor<OsModel> self_type;
+
+		typedef ContikiButtonSensor<OsModel> self_type;
 		typedef self_type* self_pointer_t;
-		
-		typedef int value_t;
-		
+
+		typedef bool value_t;
+
 		//------------------------------------------------------------------------
-		
+
 		enum ErrorCodes
 		{
 			SUCCESS = OsModel::SUCCESS,
 			ERR_UNSPEC = OsModel::ERR_UNSPEC
 		};
-		
+
 		//------------------------------------------------------------------------
-		
+
 		enum StateData
 		{
 			READY = OsModel::READY,
 			NO_VALUE = OsModel::NO_VALUE,
 			INACTIVE = OsModel::INACTIVE
 		};
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Constructor/Destructor
 		///
 		/** Default constructor
 		 *
 		 */
-		ContikiSkyButtonSensor( )
-		{
-			state_ = READY;
-			SENSORS_ACTIVATE( button_sensor );
-		}
-		
-		~ContikiSkyButtonSensor()
-		{
-			state_ = INACTIVE;
-		}
-		///
-		
+		ContikiButtonSensor() : state_( INACTIVE ) { }
+
 		//------------------------------------------------------------------------
-		
+		int init()
+		{
+			SENSORS_ACTIVATE( button_sensor );
+			state_ = READY;
+			return SUCCESS;
+		}
+		//------------------------------------------------------------------------
+
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the sensor
+		 *
+		 * Is currently always Osmodel::READY!
 		 *
 		 *  \return The current state
 		 */
@@ -95,33 +94,34 @@ namespace wiselib
 		{
 			return state_;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
+
 		/** Returns current button status
 		 *
 		 *  \returns true, if button is pressed or false if it is currently
 		 *  released.
 		 */
 		value_t operator()( void )
-		{	
-			int button_pressed = button_sensor.value( 0 );
-			return button_pressed == 0;
+		{
+			return button_sensor.value( 0 );
 		}
-		
+
 		/** Disables the Sensor
-		 * 
+		 *
 		 */
 		void disable()
 		{
-				SENSORS_DEACTIVATE( button_sensor );
+			SENSORS_DEACTIVATE( button_sensor );
 		}
 		///
-		
+
 	private:
 		/// The current state
 		StateData state_;
-   };
+	};
 };
 
-#endif // __CONTIKI_SKY_BUTTON_SENSOR__
+// vim: noexpandtab:ts=3:sw=3
+
+#endif // __CONTIKI_BUTTON_SENSOR__
