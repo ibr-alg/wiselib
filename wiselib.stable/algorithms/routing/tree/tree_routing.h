@@ -25,6 +25,15 @@
 #include "algorithms/routing/tree/tree_routing_message.h"
 #include "config.h"
 
+#ifdef CHECK_CONCEPTS
+#include <boost/concept_check.hpp>
+#include "concepts/extiface/os.h"
+#include "concepts/extiface/radio.h"
+#include "concepts/extiface/timer.h"
+#include "concepts/extiface/debug.h"
+#include "concepts/algorithm/routing.h"
+#endif
+
 namespace wiselib
 {
 
@@ -45,6 +54,12 @@ namespace wiselib
    class TreeRouting
       : public RoutingBase<OsModel_P, Radio_P>
    {
+#ifdef CHECK_CONCEPTS
+      BOOST_CONCEPT_ASSERT((concept_check::Os<OsModel_P>));
+      BOOST_CONCEPT_ASSERT((concept_check::Radio<Radio_P>));
+      BOOST_CONCEPT_ASSERT((concept_check::Timer<Timer_P>));
+      BOOST_CONCEPT_ASSERT((concept_check::Debug<Debug_P>));
+#endif
    public:
       typedef OsModel_P OsModel;
       typedef Radio_P Radio;
@@ -68,8 +83,18 @@ namespace wiselib
       {
          SUCCESS = OsModel::SUCCESS,
          ERR_UNSPEC = OsModel::ERR_UNSPEC,
+         ERR_NOMEM = OsModel::ERR_NOMEM,
+         ERR_BUSY = OsModel::ERR_BUSY,
          ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-         ERR_NETDOWN = OsModel::ERR_NETDOWN
+         ERR_NETDOWN = OsModel::ERR_NETDOWN,
+         ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
+      };
+      // --------------------------------------------------------------------
+      enum StateValues
+      {
+         READY = OsModel::READY,
+         NO_VALUE = OsModel::NO_VALUE,
+         INACTIVE = OsModel::INACTIVE
       };
       // --------------------------------------------------------------------
       enum SpecialNodeIds
@@ -98,14 +123,14 @@ namespace wiselib
       }
 
       inline int init();
-      inline int destruct();
+      inline int destroy();
 
       ///@name Routing Control
       ///@{
       /** \brief Initialization/Start Routing
       *
       *  This methods does the initilaization that requires access to the OS
-      *  (and thus can not be done in the constructor). E.g., callbacks in 
+      *  (and thus can not be done in the constructor). E.g., callbacks in
       *  task manager and radio are registered, and state variables regarding
       *  acting as gateway or ordinary node are set.
       *
@@ -117,7 +142,7 @@ namespace wiselib
       *
       *  Flooding messages in this context does not mean <i>flooding the
       *  whole network</i>. Instead, they are just local broadcast messages,
-      *  but since every node with a parent broadcasts such messages, the 
+      *  but since every node with a parent broadcasts such messages, the
       *  whole network is covere
       *
       *  \param os Reference to operating system
@@ -158,7 +183,7 @@ namespace wiselib
        *
        *  This method is called periodically with intervals defined by
        *  ::work_period_. Each connected node (the gateway and nodes that have
-       *  a parent) broadcast a message with their current hopcount, so that 
+       *  a parent) broadcast a message with their current hopcount, so that
        *  newly installed nodes can connect to the tree. If a node is not yet
        *  connected, it prints out an appropriate debug message.
        */
@@ -208,6 +233,7 @@ namespace wiselib
       node_id_t parent_;
       uint8_t hops_;
    };
+
    // -----------------------------------------------------------------------
    // -----------------------------------------------------------------------
    // -----------------------------------------------------------------------
@@ -260,7 +286,7 @@ namespace wiselib
             typename Debug_P>
    int
    TreeRouting<OsModel_P, Radio_P, Timer_P, Debug_P>::
-   destruct( void )
+   destroy( void )
    {
       return disable_radio();
    }
@@ -428,7 +454,7 @@ namespace wiselib
          if ( state_ == TrGateway )
          {
             RoutingMessage *message = reinterpret_cast<RoutingMessage*>(data);
-            notify_receivers( message->source(), message->payload_size(), message->payload() );
+            this->notify_receivers( message->source(), message->payload_size(), message->payload() );
 #ifdef ROUTING_TREE_DEBUG
             debug().debug( "TreeRouting: Routing message at Gate from %i\n", message->source() );
 #endif

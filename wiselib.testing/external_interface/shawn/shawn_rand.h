@@ -41,7 +41,7 @@ namespace wiselib
       {}
       // --------------------------------------------------------------------
       ShawnRandModel( ShawnOs& os, value_t seed )
-         : os_( &os )
+         : os_( os )
       {
          std::srand( seed );
       }

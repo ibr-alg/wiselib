@@ -14,7 +14,7 @@ namespace concepts
 class BasicReturnValues_concept
 {
    public:
-      enum
+      enum ErrorCodes
       {
          /// Default return value of success
          SUCCESS,

@@ -39,6 +39,8 @@ module TinyosWiselibGlueRadioP
       interface TossimPacket;
 #elif defined(PLATFORM_GNODE)
 	  interface PacketMetadata;
+#elif defined(PLATFORM_INGA)
+      interface ReadLqi;
 #endif
    }
 }
@@ -136,9 +138,14 @@ implementation
 	{
 		return (uint8_t) call PacketMetadata.getLqi(msg);
 	}
+#elif defined(PLATFORM_INGA)
+   uint8_t getLinkQuality(message_t *msg)
+   {
+      return (uint8_t) call ReadLqi.readLqi(msg);
+   }
 #else
   #error Radio chip not supported! Currently link quality works only \
-         for motes with CC2420 and TOSSIM.
+         for motes with CC2420, TOSSIM or the INGA sensor node.
 #endif
    // -----------------------------------------------------------------------
    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len)

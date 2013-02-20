@@ -47,6 +47,9 @@ contiki_native:
 contiki_micaz:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_atmel TARGET=micaz ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
+contiki_inga:
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_atmel TARGET=inga ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
 feuerware:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.feuerware ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
@@ -78,6 +81,9 @@ tinyos-telosb:
 tinyos-micaz:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.micaz micaz tinyos-micaz ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
+tinyos-inga:
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.inga inga tinyos-inga ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
 tinyos-tossim:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.tossim micaz sim tinyos-tossim ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
@@ -106,11 +112,16 @@ flash-tinyos-sky:
 flash-gnode:
 	lnode-bsl -c $(PORT) -r -e -I -p out/$(BIN_OUT).hex
 
+flash-inga:
+	inga_tool -d $(PORT)
+	avrdude -v -b 230400 -P $(PORT) -c avr109 -p atmega1284p -U flash:w:out/$(BIN_OUT).hex
+	
 flash-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino flash ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 monitor-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino monitor ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
 
 ###############################################################
 ##
@@ -147,3 +158,6 @@ clean:
 		obj_* symbols.* contiki-* \
 		_TOSSIMmodule.so TOSSIM.* build/ simbuild/ app.xml
 	rm -f out/*
+	find . -executable -type f -delete
+	rm *.d *.hex
+	rmdir out

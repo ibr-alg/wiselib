@@ -17,146 +17,148 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef _CONTIKI_SKY_BUTTON_LISTENER_
-#define _CONTIKI_SKY_BUTTON_LISTENER_
+#ifndef CONTIKI_GYRO_LISTENER
+#define CONTIKI_GYRO_LISTENER
 
 extern "C"
 {
-#include "contiki.h"
+	#include "contiki.h"
+	#include "interfaces/acc-adxl345.h"
 }
 #include "util/base_classes/sensor_callback_base.h"
 #include "util/delegates/delegate.hpp"
 
 namespace wiselib
 {
-	typedef delegate0<void> contiki_sky_button_delegate_t;
-	
+	typedef delegate1<void, acc_data_t> contiki_gyro_delegate_t;
+
 	//---------------------------------------------------------------------------
-	
-	void initContikiSkyButtonListening();
-	int stopContikiSkyButtonListening();
-	
+
+	void initContikiGyroListening();
+	int stopContikiGyroListening();
+
 	//---------------------------------------------------------------------------
-	
-	void contiki_sky_button_set_receiver( 
-									contiki_sky_button_delegate_t& delegate );
-	void contiki_sky_button_delete_receiver();
-	
+
+	void contiki_gyro_set_receiver( contiki_gyro_delegate_t& delegate );
+	void contiki_gyro_delete_receiver();
+
 	//---------------------------------------------------------------------------
-	
-	/** \brief Contiki Implementation of \ref callback_sensor_concept "Callback 
-	 *  sensor concept". 
-    *
-    * Contiki implementation of the \ref callback_sensor_concept "Callback 
-	 * sensor concept" This implementation let's you register for a callback 
+
+	/** \brief Contiki Implementation of \ref callback_sensor_concept "Callback
+	 *  sensor concept".
+	 *
+	 * Contiki implementation of the \ref callback_sensor_concept "Callback
+	 * sensor concept" This implementation let's you register for a callback
 	 * on an button event of contiki.
-    *
-    * @tparam OsModel_P Has to implement @ref os_concept "Os concept".
-    */ 
+	 *
+	 * @tparam OsModel_P Has to implement @ref os_concept "Os concept".
+	 */
 	template<typename OsModel_P>
-	class ContikiSkyButtonListener : 
-		public SensorCallbackBase<OsModel_P, bool, 5>
+	class ContikiGyroListener :
+		public SensorCallbackBase<OsModel_P, acc_data_t, 5>
 	{
 	public:
 		typedef OsModel_P OsModel;
-		
-		typedef bool value_t;
-		
-		typedef ContikiSkyButtonListener<OsModel_P> self_type;
+
+		typedef acc_data_t value_t;
+
+		typedef ContikiGyroListener<OsModel_P> self_type;
 		typedef self_type* self_pointer_t;
-		
+
 		// Inherited from BasicReturnValues_concept
 		enum { SUCCESS,
-					ERR_UNSPEC,
-					ERR_NOMEM,
-					ERR_BUSY,
-					ERR_NOTIMPL,
-					ERR_NETDOWN,
-					ERR_HOSTUNREACH };
-					
+				 ERR_UNSPEC,
+				 ERR_NOMEM,
+				 ERR_BUSY,
+				 ERR_NOTIMPL,
+				 ERR_NETDOWN,
+				 ERR_HOSTUNREACH };
+
 		// Inherited from BasicSensor_concept
-		enum StateData { READY = OsModel_P::READY,
-								NO_VALUE = OsModel_P::NO_VALUE,
-								INACTIVE = OsModel_P::INACTIVE };
-								
+		enum StateData { READY = OsModel::READY,
+							  NO_VALUE = OsModel::NO_VALUE,
+							  INACTIVE = OsModel::INACTIVE };
+
 		// Inherited from BasicReturnValues_concept
 		/*enum StateValues { READY = READY,
 									NO_VALUE = NO_VALUE,
 									INACTIVE = INACTIVE };
-									
+
 		enum BasicReturnValues { OK = true,
 											FAILED = false };
 		*/
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Constructor/Destructor
 		///
 		/** Constructor
 		*
 		*/
-		ContikiSkyButtonListener()
+		ContikiGyroListener()
 		{
 			currentState_ = INACTIVE;
 		}
 		///
-		
+
 		//------------------------------------------------------------------------
-		
+
 		void init()
 		{
-			initContikiSkyButtonListening();
-			contiki_sky_button_delegate_t delegate =
-				contiki_sky_button_delegate_t::from_method<
-					ContikiSkyButtonListener,
-					&ContikiSkyButtonListener::notify>( this );
-			contiki_sky_button_set_receiver( delegate );
-			
+			initContikiGyroListening();
+			contiki_gyro_delegate_t delegate =
+				contiki_gyro_delegate_t::from_method<
+					ContikiGyroListener,
+					&ContikiGyroListener::notify>( this );
+			contiki_gyro_set_receiver( delegate );
+
 			currentState_ = NO_VALUE;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
+
 		///@name Getters and Setters
 		///
 		/** Returns the current state of the listener
-		*
-		*  \return The current state
-		*/
+		 *
+		 *  \return The current state
+		 */
 		int state()
 		{
 			return currentState_;
 		}
 		///
-		
+
 		//------------------------------------------------------------------------
-		
-		/** When calling this method all following button events will be ignored. 
+
+		/** When calling this method all following button events will be ignored.
 		 * Call init to start listening again.
 		 */
 		void disable()
 		{
-			stopContikiSkyButtonListening();
+			stopContikiGyroListening();
 			currentState_ = INACTIVE;
 		}
-		
+
 		//------------------------------------------------------------------------
-		
+
 	private:
 		/** Method invoked when contiki button event occures
-		 * 
+		 *
 		 * This method will notify all receivers that a button event occured
 		 * through a callback
 		 */
-		void notify()
+		void notify( acc_data_t value )
 		{
 			currentState_ = READY;
-			this->notify_receivers( true );
+			this->notify_receivers( value );
 		}
-		
+
 		//------------------------------------------------------------------------
 		StateData currentState_;
 	};
 };
 
-#endif // _CONTIKI_SKY_BUTTON_LISTENER_
+// vim: noexpandtab:ts=3:sw=3
+
+#endif // CONTIKI_GYRO_LISTENER

@@ -99,11 +99,9 @@ public:
 	typedef typename Clock::time_t time_t;
 
 	typedef typename Radio::ExtendedData ExData;
-	typedef typename Radio::TxPower TxPower;
 
 	typedef EchoMsg<OsModel, Radio> EchoMsg_t;
 	typedef Echo<OsModel_P, Radio_P, Timer_P, Debug_P> self_t;
-	TxPower power;
 
 	typedef delegate4<void, uint8_t, node_id_t, uint8_t, uint8_t*>
 			event_notifier_delegate_t;
@@ -954,7 +952,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 //					((6 * it->stability > 5 * node_stability)
 //                                        && ( 4 * it->stability < 5 * node_stability))
 //                                        && (!it->stable)
-//                                        && 
+//                                        &&
 					it->stability > max_stability_threshold)
 //                                        && (it->stability * ((255 + it->inverse_link_assoc)/510) > max_stability_threshold))
                                 {
@@ -1059,7 +1057,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 			}
 			debug_->debug("]\n");
 		} else */
-           
+
             if (self_t::NEW_NB == event) {
 #ifdef SHAWNX
 			debug_->debug(

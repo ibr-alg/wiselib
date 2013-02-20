@@ -21,67 +21,65 @@ extern "C"
 {
 	#include "contiki.h"
 	#include "process.h" 
-	#include "dev/button-sensor.h"
+	#include "interfaces/acc-adxl345.h"
 	#include <stdio.h>
 }
 
-#include "contiki_sky_button_listener.h"
+#include "contiki_gyro_listener.h"
 
 namespace wiselib
 {
-	static contiki_sky_button_delegate_t receiver;
-	
-	PROCESS( button_event_process, "Button Event Listener" );
+	static contiki_gyro_delegate_t receiver;
+	static struct etimer gyro_timer;
 
-	PROCESS_THREAD(button_event_process, ev, data)
-	{	
-		PROCESS_EXITHANDLER( return stopContikiSkyButtonListening() );
-		PROCESS_BEGIN();
-		
-		SENSORS_ACTIVATE(button_sensor);
-		
-		while (1)
+	PROCESS( gyro_event_process, "Gyro Event Listener" );
+
+	PROCESS_THREAD(gyro_event_process, ev, data)
+	{
+		PROCESS_EXITHANDLER( return stopContikiGyroListening() );
+		PROCESS_BEGIN( );
+
+		adxl345_init( );
+		etimer_set( &gyro_timer, CLOCK_SECOND / 64);
+
+		for ( ; ; )
 		{
 			PROCESS_WAIT_EVENT();
-			
-			if( ev == sensors_event )
+
+			if( ev == PROCESS_EVENT_TIMER )
 			{
-				if(data == &button_sensor)
+				if( data == &gyro_timer )
 				{
-					printf("Call delegate");
-					bool isPressed = button_sensor.value( 0 ) == 1;
-					
-					if(isPressed)
-						printf("Is pressed");
-					
-					receiver( isPressed );
+					receiver( adxl345_get_acceleration( ) );
+					etimer_reset(&gyro_timer);
 				}
 			}
 		}
-		
+
 		PROCESS_END();
 	}
-	
-	void initContikiSkyButtonListening()
+
+	void initContikiGyroListening()
 	{
-		receiver = contiki_sky_button_delegate_t();
-		process_start( &button_event_process, 0);
+		receiver = contiki_gyro_delegate_t();
+		process_start( &gyro_event_process, 0);
 	}
-	
-	int stopContikiSkyButtonListening()
+
+	int stopContikiGyroListening()
 	{
-		SENSORS_DEACTIVATE(button_sensor);
-		contiki_sky_button_delete_receiver();
+		contiki_gyro_delete_receiver();
 		return 0;
 	}
-	
-	void contiki_sky_button_set_receiver( contiki_sky_button_delegate_t& d )
+
+	void contiki_gyro_set_receiver( contiki_gyro_delegate_t& d )
 	{
 		receiver = d;
 	}
-	
-	void contiki_sky_button_delete_receiver()
+
+	void contiki_gyro_delete_receiver()
 	{
-		receiver = contiki_sky_button_delegate_t();
+		receiver = contiki_gyro_delegate_t();
 	}
 }
+
+// vim: noexpandtab:ts=3:sw=3
