@@ -18,12 +18,13 @@
  ***************************************************************************/
 #ifndef CONNECTOR_SHAWN_RADIOMODEL_H
 #define CONNECTOR_SHAWN_RADIOMODEL_H
-
+ 
 #include "external_interface/shawn/shawn_types.h"
-
+#include "util/pstl/vector_static.h"
+ 
 namespace wiselib
 {
-
+ 
    /** \brief Shawn Implementation of \ref radio_concept "Radio concept".
     *  \ingroup radio_concept
     *  \ingroup shawn_facets
@@ -36,16 +37,27 @@ namespace wiselib
    class ShawnRadioModel
    {
    public:
-      typedef OsModel_P OsModel;
 
+      typedef OsModel_P OsModel;
+ 
       typedef ShawnRadioModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
-
+ 
       typedef ExtIfaceProcessor::node_id_t node_id_t;
       typedef ExtIfaceProcessor::block_data_t block_data_t;
       typedef ExtIfaceProcessor::size_t size_t;
       typedef ExtIfaceProcessor::message_id_t message_id_t;
-
+      typedef struct s
+      {
+             ShawnOs* object;
+             int flag;
+             int ID;
+             s()
+             {
+                 flag=0;
+             }
+      }z;
+      
       typedef delegate3<void, int, long, unsigned char*> radio_delegate_t;
       // --------------------------------------------------------------------
       enum ErrorCodes
@@ -64,6 +76,10 @@ namespace wiselib
          MAX_MESSAGE_LENGTH = 0xff   ///< Maximal number of bytes in payload
       };
       // --------------------------------------------------------------------
+      enum MAX_INTERNAL_RECEIVERS {
+         MAX_INTERNAL_RECEIVERS=40   ///Maximum number of recievers
+      };
+      // --------------------------------------------------------------------    
       ShawnRadioModel( ShawnOs& os )
          : os_(os)
       {}
@@ -87,22 +103,44 @@ namespace wiselib
       // --------------------------------------------------------------------
       template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
       int reg_recv_callback( T *obj_pnt )
-      {
-         if (os().proc->template reg_recv_callback<T, TMethod>( obj_pnt ))
-            return SUCCESS;
-
+      {            
+    if (os().proc->template reg_recv_callback<T, TMethod>( obj_pnt ))
+         return SUCCESS;
+ 
          return ERR_UNSPEC;
       }
       // --------------------------------------------------------------------
-      int unreg_recv_callback( int idx )
-      { return ERR_NOTIMPL; }
+      int unreg_recv_callback(int idx)
+      {
+          return ERR_NOTIMPL;
+      }
+
+      int register_radio(struct s& callback_struct)
+      {
+	    receivers.ID.push_back(callback_struct.ID);
+            receivers.object.push_back(callback_struct.object);
+            callback_struct.flag=1;
+
+	    return SUCCESS;
+      }
+      
+      int unregister_radio(struct s& callback_struct)
+      { 
+	if(receivers.erase(receivers.ID.find(callback_struct.ID)))
+	  return SUCCESS;
+
+	else
+	  return ERR_UNSPEC;
+	   
+      }
 
    private:
       ShawnOs& os()
       { return os_; }
       // --------------------------------------------------------------------
       ShawnOs& os_;
+      vector_static <OsModel,s,MAX_INTERNAL_RECEIVERS> receivers;
    };
 }
-
+ 
 #endif
