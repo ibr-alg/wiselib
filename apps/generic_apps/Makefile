@@ -64,7 +64,7 @@ lorien_sky:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.lorien ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 pc:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.pc WISELIB_EXIT_MAIN=$(WISELIB_EXIT_MAIN) ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.pc WISELIB_EXIT_MAIN=$(WISELIB_EXIT_MAIN) ADD_CXXFLAGS=$(ADD_CXXFLAGS) PC_CXX_FLAGS=$(PC_CXX_FLAGS)
 
 scw_msb:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.scw scw_msb ADD_CXXFLAGS=$(ADD_CXXFLAGS)

@@ -89,8 +89,15 @@ namespace wiselib {
 					}
 					else {
 						if(*p == '\\') {
-							memmove(p, p + 1, strlen(p));
-							escaped = true;
+							switch(*(p + 1)) {
+								case 'n':
+									memmove(p, p + 1, strlen(p));
+									*p = '\n';
+									break;
+								case '"':
+									escaped = true;
+									break;
+							}
 						}
 						else {
 							if(*p == '"') {
