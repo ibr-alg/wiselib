@@ -60,7 +60,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum
       {
-         CLOCKS_PER_SEC = 1000
+         CLOCKS_PER_SEC = 1024
       };
       // --------------------------------------------------------------------
       TinyOsClockModel(  )
@@ -83,12 +83,12 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return time % 1000;
+   return (double(time/1024)*1000) % 1000;
       }
       // --------------------------------------------------------------------
       uint32_t seconds( time_t time )
       {
-         return time / 1000;
+         return time / 1024;
       }
    };
 }
