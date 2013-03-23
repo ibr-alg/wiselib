@@ -3,7 +3,7 @@
 #####                        Wiselib                                    #####
 #############################################################################
 
-export WISELIB_BASE=/home/username/wiselib
+export WISELIB_BASE=/home/henning/wiselib
 export WISELIB_PATH=$(WISELIB_BASE)/wiselib.stable
 export WISELIB_PATH_TESTING=$(WISELIB_BASE)/wiselib.testing
 
@@ -15,7 +15,7 @@ export WISELIB_PATH_TESTING=$(WISELIB_BASE)/wiselib.testing
 ####
 # Main shawn directory to access header files (for instance,
 # $SHAWN_INCLUDE_DIR/src/sys/world.h)
-export SHAWN_INCLUDE_DIR=/home/username/shawn
+export SHAWN_INCLUDE_DIR=/home/wiselib/shawn
 
 ####
 # Location of Shawn libs - default (when not canged by user via ccmake) is

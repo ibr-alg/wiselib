@@ -1,5 +1,6 @@
 *.orig
 *.o
+*.d
 *.swp
 *.pyc
 Makefile.local

@@ -24,6 +24,7 @@
 
 #include <boost/detail/endian.hpp>
 #include <stdint.h>
+#include <cassert>
 
 #define _WHERESTR "...%s:%d: "
 #define _WHEREARG (&__FILE__ [ (strlen(__FILE__) < 30) ? 0 : (strlen(__FILE__) - 30)]), __LINE__

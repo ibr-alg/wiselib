@@ -23,6 +23,10 @@
 
 #define KEEP_STATS 0
 
+#ifdef ISENSE
+#include <isense/isense_memory.h>
+#endif
+
 namespace wiselib {
 	
 /**

@@ -43,10 +43,7 @@ namespace wiselib
       typedef vector_dynamic<OsModel_P, value_type> self_type;
       typedef self_type* self_pointer_t;
 
-      //typedef normal_iterator<OsModel_P, pointer, vector_type> iterator;
-      
       typedef typename OsModel_P::size_t size_type;
-      //typedef typename Allocator::template array_pointer_t<value_type> buffer_pointer_t;
       typedef value_type* buffer_pointer_t;
       
       typedef buffer_pointer_t iterator;
@@ -88,33 +85,13 @@ namespace wiselib
       
       vector_dynamic& operator=( const vector_dynamic& vec )
       {
-          //if(buffer_!= buffer_pointer_t()){
-              clear();
-              change_capacity(vec.capacity_);
-          //}
+           clear();
+           change_capacity(vec.capacity_);
           for(size_t i = 0;i < vec.size_;++i){
               buffer_[size_++] = vec[i];
           }
-          /*
-          for(int i=0; i<vec.size(); i++) {
-             assert(buffer_[i] == vec[i]);
-          }
-          */
           return *this;
       }
-      /*
-      vector_dynamic& operator=( vector_dynamic& vec )
-      {
-          if(buffer_!= buffer_pointer_t()){
-              change_capacity(0);
-              change_capacity(vec.size_);
-          }
-          for(size_t i = 0;i < vec.size_;++i){
-              buffer_[size_++] = vec[i];
-          }
-         return *this;
-      }
-      */
       // --------------------------------------------------------------------
       
       ///@name Iterators
@@ -197,9 +174,6 @@ namespace wiselib
          }
             
          buffer_[size_++] = x;
-         
-         //printf("v: %d %d\n", buffer_[0], buffer_[1]);
-//         assert(buffer_[size_ - 1] == x);
       }
       // --------------------------------------------------------------------
       void pop_back()
@@ -308,7 +282,6 @@ namespace wiselib
       void pack() { change_capacity(size_); }
       
       void change_capacity(size_t n) {
-         //assert(n >= size_);
          buffer_pointer_t new_buffer(0);
          if(n != 0) {
             new_buffer = get_allocator().template allocate_array<value_type>(n) .raw();
@@ -318,8 +291,7 @@ namespace wiselib
             /*for(size_type i=0; i<size_; i++) {
                new_buffer[i] = buffer_[i];
             }*/
-            memcpy((void*)&new_buffer[0], (void*)&buffer_[0], size_);
-            
+            memcpy((void*)&new_buffer[0], (void*)&buffer_[0], size_ * sizeof(value_type));
             get_allocator().free_array(buffer_);
          }
          buffer_ = new_buffer;
@@ -332,15 +304,9 @@ namespace wiselib
          change_capacity(n);
       }
       
-  // protected:
-     // value_type vec_[VECTOR_SIZE];
-
-      //size_type size_, capacity_;
+   protected:
       uint16_t size_, capacity_;
       buffer_pointer_t buffer_;
-      
-      //friend class bitstring_static_view<OsModel;
-
    };
 
 }

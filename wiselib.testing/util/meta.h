@@ -1,7 +1,26 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
 
 #ifndef META_H
 #define META_H
 
+#include <external_interface/external_interface.h>
 
 /**
  * Provide for binary literals (up to 8 bits).
@@ -66,34 +85,36 @@ template<int x> struct static_assert_test { };
 
 /**
  */
-template<size_t a, size_t b>
-struct Max { static const size_t value = a > b ? a : b; };
+template<unsigned long a, unsigned long b>
+struct Max { static const unsigned long value = a > b ? a : b; };
 
+template<unsigned long a, unsigned long b>
+struct Min { static const unsigned long value = a < b ? a : b; };
 /*
  * Calculate ceil(a / b)
  */
-template<size_t a, size_t b>
-struct DivCeil { static const size_t value = (a + b - 1) / b; };
+template<unsigned long a, unsigned long b>
+struct DivCeil { static const unsigned long value = (a + b - 1) / b; };
 
 /**
  */
-template<size_t x, size_t base, bool lower_than_base = (x < base)>
+template<unsigned long x, unsigned long base, bool lower_than_base = (x < base)>
 struct Log {
-	static const size_t value = 1 + Log< DivCeil<x, base>::value , base>::value;
+	static const unsigned long value = 1 + Log< DivCeil<x, base>::value , base>::value;
 };
 
-template<size_t x, size_t base>
+template<unsigned long x, unsigned long base>
 struct Log<x, base, true> {
-	static const size_t value = 0;
+	static const unsigned long value = 0;
 };
 
-template<size_t x, size_t base, bool layer0 = (x <= 1)>
+template<unsigned long x, unsigned long base, bool layer0 = (x <= 1)>
 struct TreeNodes {
-	static const size_t value = x + TreeNodes< DivCeil<x, base>::value , base>::value;
+	static const unsigned long value = x + TreeNodes< DivCeil<x, base>::value , base>::value;
 };
 
-template<size_t x, size_t base>
-struct TreeNodes<x, base, true> { static const size_t value = 1; };
+template<unsigned long x, unsigned long base>
+struct TreeNodes<x, base, true> { static const unsigned long value = 1; };
 
 
 /**
