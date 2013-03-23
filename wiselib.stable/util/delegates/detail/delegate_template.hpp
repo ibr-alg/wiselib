@@ -113,7 +113,7 @@
 
       void* obj_ptr() { return object_ptr; };
 
-	private:
+	//private:
 		
 		typedef return_type (SRUTIL_DELEGATE_CALLTYPE *stub_type)(void* object_ptr SRUTIL_DELEGATE_SEPARATOR SRUTIL_DELEGATE_PARAMS);
 

@@ -34,6 +34,13 @@
 #include "util/serialization/endian.h"
 #include "shawn_remote_uart_debug.h"
 
+#define _WHERESTR "...%s:%d "
+#define _WHEREARG (&__FILE__ [ (strlen(__FILE__) < 30) ? 0 : (strlen(__FILE__) - 30)]), __LINE__
+//#define _WHEREARG __FILE__, __LINE__
+#define DBG3(...) printf(__VA_ARGS__); fflush(stdout);
+#define DBG2(_fmt, ...) DBG3(_WHERESTR _fmt "%s\n", _WHEREARG, __VA_ARGS__)
+#define DBG(...) DBG2(__VA_ARGS__, "")
+
 namespace wiselib
 {
    extern ShawnOs shawn_os;

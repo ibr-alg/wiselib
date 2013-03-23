@@ -39,18 +39,18 @@
 #include "external_interface/isense/isense_distance.h"
 #include "external_interface/isense/isense_com_bufferuart.h"
 #include "external_interface/isense/isense_duty_cycling.h"
-#include "external_interface/isense/isense_internal_flash.h"
-#include "external_interface/isense/isense_sdcard.h"
+//#include "external_interface/isense/isense_internal_flash.h"
+//#include "external_interface/isense/isense_sdcard.h"
 
 #include "util/serialization/endian.h"
 
-#include <util/allocators/malloc_free_allocator.h>
+//#include <util/allocators/malloc_free_allocator.h>
 
-#include <isense/util/get_os.h>
 
 #if WISELIB_DISABLE_DEBUG_MESSAGES
 	#define DBG(...)
 #else
+   #include <isense/util/get_os.h>
 	#define _WHERESTR "...%s:%d: "
 	#define _WHEREARG (&__FILE__ [ (strlen(__FILE__) < 30) ? 0 : (strlen(__FILE__) - 30)]), __LINE__
 	//#define _WHEREARG __FILE__, __LINE__
@@ -100,8 +100,8 @@ namespace wiselib
 #endif
       static const Endianness endianness = WISELIB_ENDIANNESS;
 
-      typedef MallocFreeAllocator<iSenseOsModel> Allocator;
-      static Allocator allocator;
+      //typedef MallocFreeAllocator<iSenseOsModel> Allocator;
+      //static Allocator allocator;
    };
 }
 

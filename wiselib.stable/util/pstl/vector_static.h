@@ -276,5 +276,4 @@ namespace wiselib
 }
 
 #endif
-/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/
 /* vim: set ts=3 sw=3 tw=78 expandtab :*/

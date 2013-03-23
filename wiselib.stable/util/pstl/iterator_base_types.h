@@ -21,6 +21,10 @@
 
 #include <stdint.h>
 
+#ifdef __unix__
+	#include <iterator>
+#endif
+
 namespace wiselib
 {
 #ifdef __unix__

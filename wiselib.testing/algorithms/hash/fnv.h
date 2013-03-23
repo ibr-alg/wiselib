@@ -18,7 +18,7 @@ namespace wiselib {
 			
 			static hash_t hash(const block_data_t *s, size_type l) {
 				hash_t hashval = 0x811c9dc5UL;
-				hash_t magicprime = 0x1000193UL;
+				const hash_t magicprime = 0x1000193UL;
 				const block_data_t *end = s + l;
 				for( ; s != end; s++) {
 					hashval ^= *s;
@@ -43,7 +43,7 @@ namespace wiselib {
 			
 			static hash_t hash(const block_data_t *s, size_type l) {
 				hash_t hashval = 0xcbf29ce484222325ULL;
-				hash_t magicprime = 0x00000100000001b3ULL;
+				const hash_t magicprime = 0x00000100000001b3ULL;
 				const block_data_t *end = s + l;
 				for( ; s != end; s++) {
 					hashval ^= *s;

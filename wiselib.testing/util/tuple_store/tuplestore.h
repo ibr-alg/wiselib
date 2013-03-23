@@ -564,6 +564,9 @@ namespace wiselib {
 				assert(dictionary_ != 0);
 			}
 			
+			Dictionary& dictionary() { return *dictionary_; }
+			TupleContainer& container() { return *container_; }
+			
 		//private:
 			
 			/*
@@ -748,6 +751,8 @@ namespace wiselib {
 			
 			size_type size() { return container_->size(); }
 			bool empty() { return container_->empty(); }
+			
+			//Dictionary& dictionary() { return *dictionary_; }
 			
 		//private:
 			

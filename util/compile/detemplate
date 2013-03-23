@@ -18,7 +18,7 @@ depth = 0
 filename_parts = 2
 squash = True
 
-def bracedepth(line, maxdepth, braces='<>'):
+def bracedepth(line, maxdepth, braces='<>', eat = False):
 	depth = 0
 	r = ''
 	escaped = False
@@ -30,8 +30,9 @@ def bracedepth(line, maxdepth, braces='<>'):
 				not line[pos - len('operator' + braces[1]):].startswith('operator' + braces[1])):
 				depth -= 1
 			
-		if depth <= maxdepth:
-			r += c
+		if not eat:
+			if depth <= maxdepth:
+				r += c
 			
 		if not escaped and c == braces[0]:
 			if (not line[pos  - len('operator'):].startswith('operator') and
@@ -40,6 +41,10 @@ def bracedepth(line, maxdepth, braces='<>'):
 				depth += 1
 				if depth == maxdepth + 1:
 					p = pos
+					
+		if eat:
+			if depth < maxdepth or (depth == maxdepth and c != braces[1] and not escaped):
+				r += c
 			
 		if c == '-':
 			escaped = True
@@ -86,24 +91,31 @@ def highlight_errors(s):
 
 def highlight_words(s):
 	colors = {
-			' in ': 32,
-			'error:': 31,
-			'warning:': 33,
-			'undefined reference': 31,
-			'operator': 33,
-			'const': 33,
-			'char': 33,
-			'void': 33,
-			'std::': 33,
-			'ofstream': 33,
-			'basic_ostream': 33,
-			'wiselib::': 35,
-			'In instantiation': 33,
-			'required from': 32,
-			'cannot convert': 36,
-			'template': 34,
-			'->': 34,
-			'note:': 35,
+			' in ': (0, 32),
+			'error:': (0, 31),
+			'warning:': (0, 33),
+			'undefined reference': (0, 31),
+			'operator': (0, 33),
+			'const': (0, 33),
+			'char': (0, 33),
+			'void': (0, 33),
+			'std::': (0, 33),
+			'ofstream': (0, 33),
+			'basic_ostream': (0, 33),
+			'wiselib::': (0, 35),
+			'In instantiation': (0, 33),
+			'required from': (0, 32),
+			'cannot convert': (0, 36),
+			'template': (0, 34),
+			'->': (0, 34),
+			'note:': (0, 35),
+			'(': (1, 33),
+			')': (1, 33),
+			'[': (1, 32),
+			']': (1, 32),
+			#'<': (1, 33),
+			#'>': (1, 33),
+			'call will abort at runtime': (0, 31),
 	}
 	
 	r = ''
@@ -120,8 +132,10 @@ def highlight_words(s):
 					
 			if earliest is not None:
 				p = earliest
-				r += line[:p] + '\x1b[' + str(earliest_color) + 'm' + line[p:p + len(earliest_kw)] + '\x1b[m'
+				r += line[:p] + '\x1b[' + str(earliest_color[0]) + ';' + str(earliest_color[1]) + 'm' + line[p:p + len(earliest_kw)] + '\x1b[m'
 				line = line[p + len(earliest_kw):]
+				if not line:
+					r += '\n'
 			else:
 				r += line + '\n'
 				line = ''
@@ -140,11 +154,11 @@ def filter(s, cutaway, filename_parts):
 	for ns in remove_namespaces:
 		s = s.replace(ns + '::', '')
 	s = bracedepth(s, cutaway, '<>')
-	s = bracedepth(s, 0, '[]')
+	s = bracedepth(s, 0, '[]', eat=True)
 	s = shorten_filenames(s, filename_parts)
 	#s = highlight_errors(s)
 	s = highlight_words(s)
-	s = compress(s)
+	#s = compress(s)
 	return s
 		
 if __name__ == '__main__':

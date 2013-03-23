@@ -9,6 +9,7 @@
 #define _PRESCILLADICT_H
 
 #include <util/pstl/bit_array.h>
+#include <util/meta.h>
 
 namespace wiselib
 {
@@ -36,7 +37,9 @@ namespace wiselib
         typedef block_data_t* value_type;
 
         typedef typename Node::self_pointer_t node_pointer;
-        typedef node_pointer key_type;
+        //typedef node_pointer key_type;
+        typedef typename Uint<sizeof(node_pointer)>::t key_type;
+        
         typedef block_data_t* mapped_type;
 
         enum
@@ -105,7 +108,12 @@ namespace wiselib
             {
                 return *data_;
             }
-
+            
+            bool is_leaf() {
+               return children_[0] == 0 && children_[1] == 0;
+            }
+            Node* parent() { return parent_; }
+            
             /*bool unused() { return refcount_ == 0; }
                
             void increment_refcount() { refcount_++; }
@@ -125,6 +133,69 @@ namespace wiselib
         };
 
     public:
+        
+        class iterator {
+           public:
+              
+              iterator(Node* n) : node_(n) {
+                 find_first();
+                 if(node_ && node_->is_root()) {
+                    go_down();
+                 }
+                 if(node_ && node_->is_root()) {
+                    node_ = 0;
+                 }
+              }
+              
+              key_type operator*() { return reinterpret_cast<key_type>(node_); }
+              iterator& operator++() {
+                 if(node_->is_leaf()) {
+                    go_up();
+                    if(node_ && node_->is_root()) {
+                       go_down();
+                    }
+                    else if(node_ && node_->count_ == 0) {
+                       go_down();
+                    }
+                 }
+                 else {
+                    go_down();
+                 }
+                 return *this;
+              }
+              
+              bool operator==(const iterator& other) {
+                 return node_ == other.node_;
+              }
+              bool operator!=(const iterator& other) {
+                 return !(*this == other);
+              }
+                 
+              void go_up() {
+                 Node *child = node_;
+                 node_ = node_->parent();
+                 
+                 // as long coming from right, go up.
+                 while(node_ && node_->children_[1] == child) {
+                    child = node_;
+                    node_ = node_->parent();
+                 }
+              }
+              
+              void go_down() {
+                 node_ = node_->children_[1];
+                 find_first();
+              }
+              
+              void find_first() {
+                 while(node_ && node_->children_[0]) {
+                    node_ = node_->children_[0];
+                 }
+              }
+              
+           private:
+              Node *node_;
+        };
 
         //enum { NULL_KEY = 0 };
         static const key_type NULL_KEY; // = 0; // = 0;
@@ -173,7 +244,7 @@ namespace wiselib
                         new_node->count_++;
                         size_++;
             //printf("insert() a -> %p\n", new_node);
-                return new_node;
+                return reinterpret_cast<key_type>(new_node);
             } else
             {
                 current_node = current_node->children_[v[0]];
@@ -214,7 +285,7 @@ namespace wiselib
                             size_++;
                         }
             //printf("insert() b -> %p\n", new_node);
-                        return new_node;
+                        return reinterpret_cast<key_type>(new_node);
                     }
                 }
                 //debug_->debug("le cn=%x cnsi=%d si=%d", (int)current_node, (int)current_node_string_index, (int)string_index);
@@ -275,7 +346,7 @@ namespace wiselib
                 }
             //debug_->debug("f");
             //printf("insert() c -> %p\n", current_node);
-                return current_node;
+                return reinterpret_cast<key_type>(current_node);
             } else
             {
             //debug_->debug("g");
@@ -291,7 +362,7 @@ namespace wiselib
                         size_++;
 
             //printf("insert() d -> %p\n", value_rest);
-                return value_rest;
+                return reinterpret_cast<key_type>(value_rest);
             }
         } // insert()
 
@@ -337,18 +408,19 @@ namespace wiselib
             if (current_node_string_index >= current_node->data_size() && (current_node->count_ > 0))
             {
 
-                return current_node;
+                return reinterpret_cast<key_type>(current_node);
             }
 
             return NULL_KEY;
         }
 
         //void erase(DictionaryEntry* entry) {
-        void erase(key_type entry)
+        void erase(key_type entry_)
         {
            //printf("erase(%p)\n", entry);
            //fflush(stdout);
-           
+          
+          node_pointer entry = reinterpret_cast<node_pointer>(entry_); 
             node_pointer current_node = entry;
                     entry->count_--;
             if (entry->count_ > 0)
@@ -406,15 +478,13 @@ namespace wiselib
             //return count;
         }
 
-        /*
-        iterator begin() {
-                // TODO
+        iterator begin_keys() {
+           return iterator(root_);
         }
          
-        iterator end() {
-                // TODO
+        iterator end_keys() {
+           return iterator(0);
         }
-         */
 
         value_type get_copy(key_type k)
         {
@@ -425,7 +495,7 @@ namespace wiselib
 
             // first, find out height of this node and number of
             // bits on path to root.
-            node_pointer current_node = k;
+            node_pointer current_node = reinterpret_cast<node_pointer>(k);
                 //printf("current=%p\n", current_node);
                 //fflush(stdout);
             for (; !current_node->is_root(); current_node = current_node->parent_)
@@ -440,7 +510,7 @@ namespace wiselib
             // Now store path to root in a bitarray
             typename bitarray_t::self_pointer_t path = bitarray_t::make(h);
                     size_type i = 0;
-            for (current_node = k; !current_node->is_root(); current_node = current_node->parent_, i++)
+            for (current_node = reinterpret_cast<node_pointer>(k); !current_node->is_root(); current_node = current_node->parent_, i++)
             {
                 path->set(i, current_node->data_->operator[](0));
             }

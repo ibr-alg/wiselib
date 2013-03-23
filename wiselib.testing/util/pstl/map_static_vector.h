@@ -19,10 +19,10 @@
 #ifndef __UTIL_PSTL_MAP_STATIC_VECTOR__
 #define __UTIL_PSTL_MAP_STATIC_VECTOR__
 
-#include "util/pstl/iterator.h"
-#include "util/pstl/vector_static.h"
-#include "util/pstl/pair.h"
-#include "util/serialization/pstl_pair.h"
+#include <util/pstl/iterator.h>
+#include <util/pstl/vector_static.h>
+#include <util/pstl/pair.h>
+#include <util/serialization/pstl_pair.h>
 
 namespace wiselib
 {
