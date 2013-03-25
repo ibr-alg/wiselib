@@ -20,809 +20,231 @@
 #ifndef TOKEN_CONSTRUCTION_H
 #define TOKEN_CONSTRUCTION_H
 
-#include <util/pstl/list_static.h>
+#include <util/pstl/vector_dynamic.h>
 #include <util/pstl/map_static_vector.h>
-#include <util/pstl/utility.h>
-#include <util/pstl/pair.h>
-#include <util/standalone_math.h>
-#include "message_types.h"
 
 namespace wiselib {
 	
+	/**
+	 * @brief
+	 * 
+	 * @ingroup
+	 * 
+	 * @tparam 
+	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P,
-		typename Timer_P = typename OsModel_P::Timer,
-		typename Clock_P = typename OsModel_P::Clock,
-		typename Rand_P = typename OsModel_P::Rand,
-		typename Debug_P = typename OsModel_P::Debug,
-		typename TagDebug_P = typename OsModel_P::Debug,
-		typename Actuator_P = int
+		typename Radio_P = typename OsModel_P::Radio,
+		typename Timer_P = typename OsModel_P::Timer_P
 	>
 	class TokenConstruction {
+		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			
 			typedef Radio_P Radio;
-			typedef Debug_P Debug;
-			typedef TagDebug_P TagDebug;
-			typedef Timer_P Timer;
-			typedef Clock_P Clock;
-			typedef Rand_P Rand;
-			typedef Actuator_P Actuator;
-			
-			typedef TokenConstruction<OsModel, Radio, Timer, Clock, Rand, Debug, TagDebug, Actuator> self_type;
-			
-			typedef BridgeRequestMessage<Os, Radio> BridgeRequestMessageT;
-			typedef DestructDetourMessage<Os, Radio> DestructDetourMessageT;
-			typedef RenumberMessage<Os, Radio> RenumberMessageT;
-			typedef EdgeRequestMessage<Os, Radio> EdgeRequestMessageT;
-			typedef DropEdgeRequestMessage<Os, Radio> DropEdgeRequestMessageT;
-			
 			typedef typename Radio::node_id_t node_id_t;
-			typedef uint8_t position_t;
-			typedef StandaloneMath<OsModel> Math;
-			typedef typename OsModel::size_t size_t;
 			
-			enum { MSG_TOKEN = 80, MSG_BEACON, MSG_MERGE_REQUEST };
-			static const double SHORTCUT_PROBABILITY = .3;
+			typedef Timer_P Timer;
+			typedef typename Timer::millis_t millis_t;
 			
-			enum Restrictions { MAX_CHANNELS = 8, MAX_TOKEN_SIZE = Radio::MAX_MESSAGE_LENGTH };
-			enum { BEACON_INTERVAL = 100, TOKEN_STAY_INTERVAL = 5000, TOKEN_WAKEUP_BEFORE = 2000 };
-			//enum MergeState { MERGED, WAIT_FOR_SLAVE_TOKEN, WAIT_FOR_MASTER_TOKEN };
-			enum MergeState {
-				MERGED = 0,
-				
-				SLAVE_WAIT_FOR_MY_TOKEN = 0x01,
-				SLAVE_WAIT_FOR_MASTER_TOKEN = 0x02,
-				
-				MASTER_REQUEST_SENT = 0x10,
-				MASTER_WAIT_FOR_SLAVE_TOKEN = 0x11,
-				MASTER_WAIT_FOR_MY_TOKEN = 0x12,
-				MASTER_WAIT_FOR_RENUMBER = 0x13
+			typedef ::uint8_t token_count_t;
+			
+			class SemanticEntityID;
+			class SemanticEntity;
+			class State;
+			class NeighborState;
+			
+			enum Constraints {
+				MAX_NEIGHBOURS = 8
 			};
-			enum { CHANNEL_NORMAL = 0, CHANNEL_OLD = 0x01, CHANNEL_NEW = 0x02 };
 			
+			enum Timing {
+				MIN_STATE_BCAST_INTERVAL = 10000,
+				STATE_BCAST_CHECK_INTERVAL = 1000
+			};
+			
+			enum SpecialAddresses {
+				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
+				NULL_NODE_ID = Radio::NULL_NODE_ID
+			};
+			
+			class SemanticEntityID {
+				public:
+				private:
+			};
+			
+			class NeighborState {
+				private:
+					node_id_t tree_parent_;
+					node_id_t tree_root_;
+					::uint8_t tree_distance_;
+					token_count_t token_count_;
+					
+					millis_t last_updated_;
+			};
+			typedef MapStaticVector<OsModel, node_id_t, NeighborState, MAX_NEIGHBOURS> NeighborStates;
+			
+			class SemanticEntity {
+				public:
+					
+					void update_state() {
+						// sort neighbor states by key (=node id) so their
+						// order is consistent, important for next()
+						sort(neighbor_states_);
+						
+						my_state_.reset();
+						
+						::uint8_t distance = 0;
+						node_id_t parent = this->node_id();
+						node_id_t root = this->nodeid();
+						for(typename NeighborStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
+							if(iter->second.tree_root() < root) {
+								parent = iter->first;
+								root = iter->second.tree_root();
+								distance = iter->second.distance() + 1;
+							}
+							else if(iter->second.tree_root() == root && (iter->second.distance() + 1) < distance) {
+								parent = iter->first;
+								distance = iter->second.distance() + 1;
+							}
+						}
+						
+						my_state_.set_tree_distance(distance);
+						my_state_.set_tree_parent(parent);
+						my_state_.set_tree_root(root);
+						
+						// Dijkstra's Token Ring
+						
+						token_count_t l = prev_token_count_;
+						if(my_state_.is_root()) {
+							if(l == my_state_.token_count()) {
+								my_state_.set_token_count(my_state_.token_count() + 1);
+							}
+						}
+						else if(l != my_state_.token_count()) {
+							my_state_.set_token_count(l);
+						}
+					}
+					
+					node_id_t node_id() { return node_id_; }
+					
+					bool should_send(millis_t now) {
+						return my_state_.dirty() || (now + STATE_BCAST_CHECK_INTERVAL >= last_broadcast_ + MIN_STATE_BCAST_INTERVAL);
+					}
+					
+				private:
+					//SemanticEntityID id_;
+					token_count_t prev_token_count_;
+					
+					millis_t last_broadcast_;
+					node_id_t node_id_;
+					State my_state_;
+					NeighborStates neighbor_states_;
+			};
+			typedef vector_dynamic<OsModel, SemanticEntity> SemanticEntities;
+			
+			class State {
+				private:
+					node_id_t tree_parent_;
+					node_id_t tree_root_;
+					::uint8_t tree_distance_;
+					token_count_t token_count_;
+					
+					//node_id_t source_;
+					SemanticEntityID entity_;
+			};
+			typedef vector_dynamic<OsModel, State> States;
+			
+			void init() {
+				// - set up timer to make sure we broadcast our state at least
+				//   so often
+				timer_->template set_timer<self_type, &self_type::on_broadcast_state>(STATE_BCAST_CHECK_INTERVAL, this, 0);
+				
+				// - set up timer to sieve out lost neighbors
+				// - register receive callback
+			}
+			
+		
 		private:
 			
-			struct Token {
-				
-				Token() : message_type(MSG_TOKEN) {
-				}
-				
-				void init() {
-					message_type = MSG_TOKEN;
-					stay_awake = false; //true; // DEBUG
-					keepalive_ = false;
-					//period_ = TOKEN_STAY_INTERVAL;
-					nodes = 1;
-					last_seen_number_ = 0;
-					ring_id_ = Radio::NULL_NODE_ID;
-				}
-				
-				size_t length() {
-					size_t l = sizeof(Token);
-					return l;
-				}
-				
-				node_id_t ring_id() { return ring_id_; }
-				bool is_keepalive() { return keepalive_; }
-				
-				/**
-				 * Set various token infos such as increasing the
-				 * number of last seen node etc...
-				 */
-				void touch() {
-					last_seen_number_++;
-				}
-				
-				void set_renumber() {
-					renumber_ = true;
-					last_seen_number_ = 0;
-				}
-				bool renumbering() {
-					return renumber_;
-				}
-				void done_renumbering() {
-					renumber_ = false;
-					nodes = last_seen_number_;
-					last_seen_number_ = 0;
-				}
-				
-				uint32_t period() {
-					return nodes * TOKEN_STAY_INTERVAL;
-				}
-				
-				uint8_t message_type;
-				
-				uint8_t stay_awake : 1;
-				uint8_t keepalive_ : 1;
-				uint8_t renumber_ : 1;
-				
-				//uint32_t period_;
-				position_t nodes;
-				position_t last_seen_number_;
-				node_id_t ring_id_;
-				uint16_t rounds_;
-				node_id_t token_id_;
-				
-			};
-			
-			struct Channel {
-				
-				Channel() : in_(Radio::NULL_NODE_ID), out_time_(0), flags_(CHANNEL_NORMAL) {
-				}
-				
-				void init() {
-					out_time_ = 0;
-					taking_time_ = false;
-					flags_ = CHANNEL_NORMAL;
-					in_ = Radio::NULL_NODE_ID;
-					out_ = Radio::NULL_NODE_ID;
-				}
-				
-				bool used() { return in_ != Radio::NULL_NODE_ID; }
-				void erase() { in_ = Radio::NULL_NODE_ID; }
-				
-				node_id_t in() { return in_; }
-				void set_in(node_id_t i) { in_ = i; }
-				node_id_t out() { return out_; }
-				void set_out(node_id_t o) { out_ = o; }
-				//position_t number() { return number_; }
-				//void set_number(position_t n) { number_ = n; }
-				
-				bool is_new() { return flags_ & CHANNEL_NEW; }
-				bool is_old() { return flags_ & CHANNEL_OLD; }
-				
-				node_id_t in_, out_;
-				//position_t number_;
-				
-				// how long will the token be away after leaving through
-				// out()?
-				uint32_t out_time_;
-				
-				/**
-				 * New channels will not be used by keepalive tokens
-				 * 
-				 * new channels stay new as long
-				 * as no updated token period is available
-				 * (token.period() = 0)
-				 */
-				uint8_t flags_;
-				bool taking_time_;
-			};
-			
-			/// Messages
-			// {{{
-			
-			struct Message {
-				Message(uint8_t type) : message_type_(type) { }
-				uint8_t message_type_;
-			};
-			
-			struct Beacon : public Message {
-				Beacon() : Message(MSG_BEACON) { }
-				
-				node_id_t ring_id() { return ring_id_; }
-				void set_ring_id(node_id_t r) { ring_id_ = r; }
-				node_id_t ring_id_;
-			};
-			
-			struct MergeRequest : public Message {
-				MergeRequest() : Message(MSG_MERGE_REQUEST) { }
-			};
-			
-			// }}}
-			
-		public:
-			typedef Channel Channels[MAX_CHANNELS];
-			
-			TokenConstruction() {
+			/**
+			 * check whether neighbors timed out and are to be considered
+			 * dead.
+			 */
+			void check_neighbors(void*) {
+				// TODO
 			}
 			
-			int init() {
-				return OsModel::SUCCESS;
-			}
-			
-			int init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer,
-					typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug,
-					typename TagDebug::self_pointer_t tagdebug, typename Actuator::self_pointer_t actuator) {
-				radio_ = radio;
-				timer_ = timer;
-				clock_ = clock;
-				debug_ = debug;
-				tagdebug_ = tagdebug;
-				actuator_ = actuator;
+			void on_new_neighbor_state(node_id_t source, State& state) {
+				// update timing info
 				
-				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-				radio_->enable_radio();
-				
-				channel_count_ = 0;
-				
-				return OsModel::SUCCESS;
-			}
-			
-			int destruct() {
-				return OsModel::SUCCESS;
-			}
-			
-			void start_construction() {
-				actuator_->set_value(0.0);
-				actuator_->set_value(-1.0);
-				
-				debug_->debug("starting token ring construction\n");
-				//last_receive_ = clock_->seconds(clock_->time());
-				//timer_->template set_timer<self_type, &self_type::on_time>(100, this, 0);
-				
-				set_ring_id(radio_->id());
-				
-				//sending_token_.real = true;
-				//sending_token_.stay_awake = false;
-				//sending_token_.ring_id = radio_->id();
-				//sending_token_.nodes = 1;
-				
-				add_channel(radio_->id(), radio_->id(), CHANNEL_NORMAL);
-				current_channel_ = &channels_[0];
-				measure_out_time_begin_ = -1;
-				//awake_ = true;
-				wakeup();
-				//wait_for_master_ = Radio::NULL_NODE_ID;
-				//merge_state_ = MERGED;
-				
-				send_beacon();
-				
-				scheduling_send_token_ = false;
-				scheduling_wakeup_ = false;
-				
-				// create & send initial token
-				last_non_keepalive_token_.init();
-				last_non_keepalive_token_.ring_id_ = ring_id();
-				last_non_keepalive_token_.token_id_ = radio_->id();
-				set_have_token(true);
-				pass_on_token();
-			}
-			
-			/// Message sending
-			// {{{
-			
-			void send_beacon(void* _=0) {
-				if(awake()) {
-					radio_->send(Radio::BROADCAST_ADDRESS, sizeof(beacon_), (block_data_t*)&beacon_);
-				}
-				
-				timer_->template set_timer<self_type, &self_type::send_beacon>(BEACON_INTERVAL, this, 0);
-			}
-			
-			//void send_merge_request(node_id_t to) {
-				////debug_->debug("merge: send merge req %d -> %d\n", radio_->id(), to);
-				//MergeRequest msg;
-				//radio_->send(to, sizeof(msg), (block_data_t*)&msg);
-			//}
-			
-			// }}}
-			
-			
-			// }}}
-			
-			/// Message retrieval: on_receive_XXX
-			// {{{
-			
-			void on_receive(typename Radio::node_id_t source, typename Radio::size_t len, typename Radio::block_data_t* data) {
-				if(len < 1) { return; }
-				
-				switch(data[0]) {
-					case MSG_BEACON:
-						{
-							if(!awake()) { return; }
-							//debug_->debug("recv beacon %d->%d\n", source, radio_->id());
-							Beacon beacon;
-							memcpy(&beacon, data, sizeof(beacon));
-							on_receive_beacon(source, beacon);
-						}
-						break;
-						
-					//case MSG_MERGE_REQUEST:
-						//{
-							////debug_->debug("merge: recv merge request %d->%d\n", source, radio_->id());
-							//MergeRequest merge_request;
-							//memcpy(&merge_request, data, sizeof(merge_request));
-							//on_receive_merge_request(source, merge_request);
-						//}
-						//break;
-						
-					case MSG_TOKEN:
-						{
-							//debug_->debug("recv token %d->%d\n", source, radio_->id());
-							on_receive_token(source, *reinterpret_cast<Token*>(data));
-						}
-						break;
-				}
-				
-				last_receive_ = clock_->seconds(clock_->time());
-			}
-			
-			void on_receive_beacon(node_id_t source, Beacon& beacon) {
-				if(beacon.ring_id() == ring_id()) {
-					// possible shortcut
-					if(rand_->operator()() <= SHORTCUT_PROBABILITY * Rand::RANDOM_MAX) {
-						//token_add_shortcut_option(ring_id(), beacon.ring_id());
-					}
-				}
-				
-				else if(ring_id() < beacon.ring_id() && have_token()) {
-					set_have_token(false);
-					debug_->debug("sending token for join %d -> %d T%d\n", radio_->id(), source, last_non_keepalive_token_.token_id_);
-					radio_->send(source, last_non_keepalive_token_.length(), (block_data_t*)&last_non_keepalive_token_);
-					add_channel(source, source, CHANNEL_NEW);
-					start_stay_awake();
-				}
-				
-				// ring with smaller id found, request its token
-				//else if(ring_id() > beacon.ring_id()) {
-					//start_stay_awake();
-					////send_merge_request(source);
-					////merge_state_ = MASTER_REQUEST_SENT;
-					////merge_partner_ = source;
-				//}
-			}
-			
-			//void on_receive_merge_request(node_id_t source, MergeRequest& merge_request) {
-				//merge_state_ = SLAVE_WAIT_FOR_MY_TOKEN;
-				//merge_partner_ = source;
-				
-				////if(have_token() && !received_token().is_surrogate()) {
-					////debug_->debug("merge: %d trustfully giving his token to %d!\n", radio_->id(), merge_partner_);
-					
-					////set_have_token(false);
-					////radio_->send(merge_partner_, received_token().length(), (block_data_t*)&received_token());
-					////merge_state_ = SLAVE_WAIT_FOR_MASTER_TOKEN;
-				////}
-			//}
-			
-			void on_receive_token(node_id_t source, Token& token) {
-				if(token.is_keepalive()) {
-					on_receive_keepalive_token(source, token);
-				}
-				else {
-					on_receive_regular_token(source, token);
-				}
-			}
-
-			void measure_channel_time(node_id_t source, Token& token) {
-				debug_->debug("%d measure_channel_time chan=(%d %d), src=%d, begin=%d, now=%d\n",
-						radio_->id(), current_channel_->in(), current_channel_->out(),
-						source, measure_out_time_begin_, now());
-				
-				if(measure_out_time_begin_ != -1) {
-				current_channel_->out_time_ = now() - measure_out_time_begin_;
-				}
-			}
-			
-			void on_receive_regular_token(node_id_t source, Token& token) {
-				if(!awake()) {
-					debug_->debug("%d overslept a regular token!!!!\n", radio_->id());
+				if(!entities_.contains(state.entity())) {
 					return;
 				}
 				
-				//debug_->debug("on_receive_regular_token() %d->%d\n", source, radio_->id());
-				token.touch();
-				
-				debug_->debug("recv token: %d @%d -> %d @%d  keepalive=%d T%d%s\n", source, token.ring_id_, radio_->id(), ring_id(), token.is_keepalive(), token.token_id_, token.renumbering() ? "R" : "");
-				
-				
-				
-				if(token.ring_id_ == ring_id()) {
-					//abort_keepalive();
-				}
-				else {
-					node_id_t new_ring_id = Math::max(ring_id(), token.ring_id());
-					//token.ring_id_ = new_ring_id;
-					set_ring_id(new_ring_id);
-				}
-				
-				node_id_t new_ring_id = Math::max(ring_id(), token.ring_id());
-				
-				if(!find_channel_by_in(source)) {
-					debug_->debug("%d adding double channel for %d\n", radio_->id(), source);
-					add_channel(source, source, CHANNEL_NEW);
-					start_stay_awake();
-					
-					if(!token.renumbering()) {
-						//debug_->debug("%d starting renumbering on T%d\n", radio_->id(), token.token_id_);
-						token.set_renumber();
-						renumbering_in_ = source;
-					}
-					
-					// is this our new "real" token? 
-					if(token.ring_id_ >= ring_id()) {
-						measure_channel_time(source, token);
-						
-						schedule_send_token(TOKEN_STAY_INTERVAL);
-						
-						set_have_token(true);
-						last_non_keepalive_token_ = token;
-					}
-					else {
-						// TODO: next time the "real" token is being send
-						// to the newly created channel make sure
-						// to send a keepalive to the "old" channel as well!
-						// (doesn't change anything regarding wake-times, but
-						// makes it easier to detect token loss)
-						// 
-						// TODO: how do we detect token loss when the token
-						// was lost during "exploration" of a new channel?
-						// (the "new" nodes are in stay_awake and we
-						// don't know when to expect the token back)
-					}
-					last_non_keepalive_token_.ring_id_ = new_ring_id;
-					set_ring_id(new_ring_id);
-					
-				}
-				else {
-					//if(measure_out_time_) {
-						//debug_->debug("measured out_time channel: %p (%d %d). now=%d begin=%d result=%d T%d",
-								//measure_out_time_channel_, measure_out_time_channel_->in(), measure_out_time_channel_->out(),
-								//now(), measure_out_time_begin_,now() - measure_out_time_begin_, token.token_id_);
-						//measure_out_time_channel_->out_time_ = now() - measure_out_time_begin_;
-						//measure_out_time_ = false;
-					//}
-					measure_channel_time(source, token);
-					
-					select_channels(source);
-						
-					if(current_channel_->out_time_ == 0 || token.renumbering()) {
-						//debug_->debug("%d starting time measurement for ch %p (%d %d) T%d\n", radio_->id(), current_channel_, current_channel_->in(), current_channel_->out(), token.token_id_);
-						//measure_out_time_ = true;
-						//measure_out_time_channel_ = current_channel_;
-						//measure_out_time_begin_ = now() + TOKEN_STAY_INTERVAL;
-							//clock_->seconds(clock_->clock()) * 1000 + clock_->milliseconds(clock_->clock());
-						start_stay_awake();
-						schedule_send_token(TOKEN_STAY_INTERVAL);
-					}
-					else {
-						stop_stay_awake();
-						schedule_send_token(TOKEN_STAY_INTERVAL);
-						if(current_channel_->out() == radio_->id()) {
-							start_stay_awake();
-						}
-						else {
-							schedule_wakeup(TOKEN_STAY_INTERVAL + current_channel_->out_time_ - TOKEN_WAKEUP_BEFORE);
-						}
-						//timer_->template set_timer<self_type, &self_type::expect_token>(current_channel_->out_time_ - TOKEN_WAKEUP_BEFORE, this, 0);
-					}
-					
-					if(source == renumbering_in_ && token.renumbering()) {
-						token.done_renumbering();
-						make_new_channels_old();
-					}
-					
-					set_have_token(true);
-					token.ring_id_ = new_ring_id;
-					last_non_keepalive_token_ = token;
-					set_ring_id(new_ring_id);
-				}
-				
-				//debug_channels();
-				
-				//debug_->debug("%d select_channel(%d) = %p\n", radio_->id(), source, current_channel_);
-				
-				if(!expect_token_active_) {
-					debug_->debug("ERROR: not expecting anything!\n");
-				}
-			}
-
-			uint32_t now() {
-				return clock_->seconds(clock_->time()) * 1000
-					+ clock_->milliseconds(clock_->time());
-			}
-				
-			void on_receive_keepalive_token(node_id_t source, Token& token) {
-				if(!awake()) {
-					//debug_->debug("%d overslept a regular token!!!!\n", radio_->id());
-					return;
-				}
-				
-				start_stay_awake();
-				if(have_token()) { return; }
-				
-				//debug_->debug("KEEPALIVE from %d-> %d will wake up in %d again.\n", source, radio_->id(), token.period() - TOKEN_WAKEUP_BEFORE);
-				//if(expect_token_active_) {
-					//debug_->debug("ERROR: expecting twice?!\n");
-				//}
-				//expect_token_active_ = true;
-				//timer_->template set_timer<self_type, &self_type::expect_token>(token.period() - TOKEN_WAKEUP_BEFORE, this, 0);
-				//set_have_token(false);
-				schedule_send_token(TOKEN_STAY_INTERVAL);
+				SemanticEntity &se = entities_[state.entity()];
+				copy_state(se.neighbor_states()[source], state);
 			}
 			
-			
-			void schedule_send_token(uint32_t interval) {
-				if(scheduling_send_token_) { return; }
-				
-				debug_->debug("%d scheduling token send in %d\n", radio_->id(), interval);
-				scheduling_send_token_ = true;
-				timer_->template set_timer<self_type, &self_type::pass_on_token>(interval, this, 0);
+			void on_lost_neighbor(SemanticEntity &se, node_id_t neighbor) {
+				se.update_state();
 			}
-
-			void schedule_wakeup(uint32_t interval) {
-				if(scheduling_wakeup_) { return; }
-				
-				debug_->debug("%d scheduling wakeup in %d\n", radio_->id(), interval);
-				scheduling_wakeup_ = true;
-				timer_->template set_timer<self_type, &self_type::expect_token>(interval, this, 0);
-			}
-			
 			
 			/**
-			 * Wake up node for token retrieval & schedule passing on (& going
-			 * back to sleep) of the token
+			 * Receive a token (=state from logical predecessor node),
+			 * decide whether to just forward or actually process it.
 			 */
-			void expect_token(void* = 0) {
-				debug_->debug("scheduled wakeup: %d\n", radio_->id());
-				scheduling_wakeup_ = false;
-				wakeup();
+			void on_receive_token(node_id_t from) {
+				// if from parent
+				//   on_process_token()
+				// else if from last child
+				//   forward_token(se.state.parent)
+				// else
+				//   forward_token(next child)
 			}
-
-			void pass_on_token(void* = 0) {
-				debug_->debug("%d pass_on_token() T%d%s have=%d\n", radio_->id(), last_non_keepalive_token_.token_id_, last_non_keepalive_token_.renumbering() ? "R" : "", have_token());
-				scheduling_send_token_ = false;
-				
-				if(!have_token() && !current_keepalive_channel_) {
-					debug_->debug("pass_on_token(): %d dont have a token and no keepalive channel!!\n", radio_->id());
-					return;
-				}
-	
-				node_id_t to;
-				
-				last_non_keepalive_token_.ring_id_ = ring_id();
-				
-				Token send = last_non_keepalive_token_;
-				if(have_token()) {
-					to = current_channel_->out();
-					if(to != radio_->id()) {
-						measure_out_time_begin_ = now();
-					}
-				}
-				else {
-					to = current_keepalive_channel_->out();
-					send.keepalive_ = true;
-				}
-				debug_->debug("pass_on_token %d->%d keepalive=%d\n", radio_->id(), to, send.is_keepalive());
-				
-				set_have_token(false);
-				if(to == radio_->id()) {
-					on_receive(to, send.length(), (typename Radio::block_data_t*)&send);
-				}
-				else {
-					radio_->send(to, send.length(), (block_data_t*)&send);
-					sleep();
-				}
-			}
-
-			void update_awake_actuator() {
-				if(stay_awake_) {
-					actuator_->set_value(2.0);
-				}
-				else if(awake_) {
-					actuator_->set_value(0.0); // red
-				}
-				else {
-					actuator_->set_value(-1.0); // grey
-				}
-			}
-
-			void wakeup() {
-				debug_->debug("%d wakeup\n", radio_->id());
-				awake_ = true;
-				update_awake_actuator();
-			}
-			void sleep() {
-				if(!stay_awake_) {
-					debug_->debug("%d sleep\n", radio_->id());
-					awake_ = false;
-					actuator_->set_value((double)awake_ - 1);
-				}
-				else {
-					debug_->debug("%d not sleeping because its in stay-awake\n", radio_->id());
-				}
-				update_awake_actuator();
-			}
-			bool awake() { return awake_; }
 			
-			void start_stay_awake() {
-				debug_->debug("%d start stay awake\n", radio_->id());
-				stay_awake_ = true;
-				wakeup();
-				update_awake_actuator();
-			}
-			void stop_stay_awake() {
-				debug_->debug("%d end stay awake\n", radio_->id());
-				stay_awake_ = false;
-				update_awake_actuator();
-			}
-			bool staying_awake() { return stay_awake_; }
-			
-			void set_ring_id(node_id_t id) { beacon_.set_ring_id(id); }
-			node_id_t ring_id() { return beacon_.ring_id(); }
-			
-			void set_have_token(bool have) {
-				debug_->debug("%d set_have_token(%d)\n", radio_->id(), have);
-				have_token_ = have;
-				if(have_token_) {
-					tagdebug_->debug("%d T%d.", radio_->id(), last_non_keepalive_token_.ring_id());
+			void on_process_token() {
+				se.prev_token_count_ = token.token_count();
+				se.update_state();
+				if(se.has_token()) {
+					// update timing info
+					// be awake
 				}
-				else {
-					tagdebug_->debug("%d    .", radio_->id());
+				if(se.state().dirty()) {
+					// send out state to first child
 				}
 			}
 			
-			void select_channels(node_id_t source) {
-				bool found = false, found_keepalive = false;
-				for(Channel* ch=&channels_[0]; ch < &channels_[MAX_CHANNELS]; ch++) {
-					if(ch->used() && ch->in() == source) {
-						if(!ch->is_old()) {
-							measure_out_time_begin_ = -1;
-							current_channel_ = ch;
-							found = true;
-						}
-						if(!ch->is_new()) {
-							current_keepalive_channel_ = ch;
-							found_keepalive = true;
-						}
-						if(found && found_keepalive) {
-							break;
-						}
-					}
-				}
-				if(!found) {
-					debug_->debug("%d couldnt find channel for source %d!\n", radio_->id(), source);
-				}
-			}
-
-			bool have_token() { return have_token_; }
-			
-		private:
 			/**
-			 * CHANNEL_NEXT: add channel so that its out port will be next in
-			 * line.
+			 * Given a state received from a neighbor and a ref to a slot to
+			 * store it, update the info in the slot to match the received
+			 * state.
 			 */
-			Channel* add_channel(node_id_t in, node_id_t out, uint8_t flags) {
-				debug_->debug("%d add_channel(%d, %d)\n", radio_->id(), in, out);
-				if(current_channel_) {
-				debug_->debug("%d former current ch: (%d %d)\n", radio_->id(), current_channel_->in(),
-						current_channel_->out());
-				}
-				//measure_out_time_ = false;
-				Channel *ch;
-				
-				// if there is a this/this channel, remove it
-				for(ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
-					if(ch->in() == radio_->id() && ch->out() == radio_->id()) {
-						ch->erase();
-						channel_count_--;
-						break;
-					}
-				}
-				
-				if(channel_count_ == 0) {
-					ch = &channels_[0];
-					ch->set_in(in);
-					ch->set_out(out);
-					ch->out_time_ = 0;
-				}
-				else {
-					node_id_t out_tmp = Radio::NULL_NODE_ID;
-					
-					ch = current_channel_;
-					
-					out_tmp = ch->out();
-					ch->set_out(out);
-					ch->out_time_ = 0;
-					
-					ch = next_free_channel(ch);
-					
-					if(!ch) {
-						debug_->debug("!!!!!!!!!!!! no space left for new channel!!\n");
-					}
-				
-					ch->set_in(in);
-					ch->set_out(out_tmp);
-					//ch->out_time_ = 0;
-					
-					// ensure, new current channel has the same out()
-					// value as previous (so time measurements make sense)
-					current_channel_ = ch;
-					debug_->debug("%d new current ch: (%d %d)\n", radio_->id(), current_channel_->in(),
-							current_channel_->out());
-				}
-				ch->flags_ = flags;
-				channel_count_++;
-				
-				return ch;
+			void copy_state(NeighborState& to, State& from) {
+				// TODO
 			}
-
-			void debug_channels() {
-				debug_->debug("channels on %d:\n", radio_->id());
-				for(int i=0; i<MAX_CHANNELS; i++) {
-					if(channels_[i].used()) {
-						debug_->debug("[%d] %4d %4d %x\n", i, channels_[i].in(), channels_[i].out(), channels_[i].flags_);
+			
+			/*
+			 * Send out our current state to our neighbors.
+			 */
+			void on_broadcast_state(void*) {
+				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					if(iter->should_send(now())) {
+						radio_->send(BROADCAST_ADDRESS, iter->message_size(), iter->message());
 					}
-				}
-			}
-
-			void make_new_channels_old() {
-				Channel *ch;
-				for(ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
-					if(ch->is_old()) {
-						ch->flags_ &= ~CHANNEL_OLD;
-						ch->erase();
-					}
-					ch->flags_ &= ~CHANNEL_NEW;
 				}
 			}
 			
-			Channel* find_channel_by_in(node_id_t in) {
-				for(Channel *ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
-					if(ch->used() && ch->in() == in) { return ch; }
-				}
-				return 0;
+			millis_t now() {
+				return timer_->millis() + 1000 * timer_->seconds();
 			}
 			
-			Channel* next_used_channel(Channel* ch) {
-				Channel *end = ch;
-				ch++;
-				while(!ch->used() && ch != end) {
-					ch++;
-					if(ch >= channels_ + MAX_CHANNELS) { ch = channels_; }
-				}
-				return ch;
-			}
-			
-			Channel* next_free_channel(Channel* ch) {
-				Channel *end = ch;
-				ch++;
-				while(ch->used() && ch != end) {
-					ch++;
-					if(ch >= channels_ + MAX_CHANNELS) { ch = channels_; }
-				}
-				return ch;
-			}
-
-			typename Radio::self_pointer_t radio_;
 			typename Timer::self_pointer_t timer_;
-			typename Clock::self_pointer_t clock_;
-			typename Debug::self_pointer_t debug_;
-			typename TagDebug::self_pointer_t tagdebug_;
-			typename Rand::self_pointer_t rand_;
-			typename Actuator::self_pointer_t actuator_;
-			
-			Token last_non_keepalive_token_;
-			
-			Channel *current_channel_, *current_keepalive_channel_;
-			Channels channels_;
-			size_t channel_count_;
-			
-			Beacon beacon_;
-			
-			bool awake_;
-			bool stay_awake_;
-			bool have_token_;
-			bool merge_slave_;
-			bool merge_master_;
-			bool expect_token_active_;
-			bool scheduling_send_token_;
-			bool scheduling_wakeup_;
-			
-			//node_id_t merge_partner_;
-			MergeState merge_state_;
-			node_id_t renumbering_in_;
-			
-			uint32_t last_receive_;
-			
-			bool measure_out_time_;
-			Channel *measure_out_time_channel_;
-			uint32_t measure_out_time_begin_;
+			SemanticEntities entities_;
+		
 	}; // TokenConstruction
 }
 
