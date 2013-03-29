@@ -983,25 +983,54 @@
 		
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
-		if ( destination_ip == BROADCAST_ADDRESS || destination_ip == SOLICITED_MULTICAST_ADDRESS ||
-			ip_packet_for_this_node(&destination_ip, message->target_interface) ||
-			( act_nd_storage != NULL && ( act_nd_storage->is_router && destination_ip == ALL_ROUTERS_ADDRESS ) ) )
+// 		if ( destination_ip == BROADCAST_ADDRESS || destination_ip == SOLICITED_MULTICAST_ADDRESS ||
+// 			ip_packet_for_this_node(&destination_ip, message->target_interface) ||
+// 			( act_nd_storage != NULL && ( act_nd_storage->is_router && destination_ip == ALL_ROUTERS_ADDRESS ) ) )
+
+		//Get all multicast and unicast, check for all interfaces instead of only the source
+		if( ( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 ) ||
+			ip_packet_for_this_node(&destination_ip, INTERFACE_RADIO) || 
+			ip_packet_for_this_node(&destination_ip, INTERFACE_UART) )
 		{
 			node_id_t source_ip;
 			message->source_address(source_ip);
 			
-			#ifdef IPv6_LAYER_DEBUG
+			
 			link_layer_node_id_t my_mac = radio_->id();
 			char str[43];
 			if( destination_ip == BROADCAST_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG
 				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %x", source_ip.get_address(str), my_mac );
+				#endif
+			}
 			else if( destination_ip == ALL_ROUTERS_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG	
 				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %x", source_ip.get_address(str), my_mac );
+				#endif
+			}
 			else if( destination_ip == SOLICITED_MULTICAST_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG	
 				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %x", source_ip.get_address(str), my_mac );
+				#endif
+			}
+			else if( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 )
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug().debug( "IPv6 layer: Received packet non-supported multicast from %s at %x", source_ip.get_address(str), my_mac );
+				#endif
+				
+				packet_pool_mgr_->clean_packet( message );
+				return;
+			}
 			else
+			{
+				#ifdef IPv6_LAYER_DEBUG	
 				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %x", source_ip.get_address(str), my_mac );
-			#endif
+				#endif
+			}
 			
 			//If it is not a supported transport layer, drop it
 			if( (message->transport_next_header() != UDP) && (message->transport_next_header() != ICMPV6) )
@@ -1062,7 +1091,9 @@
 		for ( int i = 0; i < LOWPAN_MAX_PREFIXES; i++)
 		{
 			if( interface_manager_->prefix_list[target_interface][i].ip_address == *(destination) )
+			{
 				return true;
+			}
 		}
 		return false;
 	}
