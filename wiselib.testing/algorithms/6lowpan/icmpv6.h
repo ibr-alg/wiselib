@@ -1370,7 +1370,7 @@ namespace wiselib
 				#ifdef ND_DEBUG
 				debug().debug(" ND manager: This is a border router on interface %i ", target_interface );
 				#endif
-				continue;
+// 				continue;
 			}
 			
 			#ifdef ND_DEBUG
