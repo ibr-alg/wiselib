@@ -112,7 +112,7 @@ namespace wiselib {
 #if( ISENSE_RADIO_ADDRESS_LENGTH == 16 )
         enum Restrictions {
             MAX_MESSAGE_LENGTH = 116 ///< Maximal number of bytes in payload
-        }
+        };
 #else //ISENSE_RADIO_ADDRESS_LENGTH == 64
         enum Restrictions {
             MAX_MESSAGE_LENGTH = 104 ///< Maximal number of bytes in payload
