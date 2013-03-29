@@ -171,6 +171,34 @@ namespace wiselib
 				addr[8] &= 0xFD;
 		}
 		
+		// --------------------------------------------------------------------
+		/** \brief Function to set a long hostID from a MAC address, used for automatic address configuration
+		* \param iid_ pointer to the MAC address
+		* \param global flag to indicate that global bit (U bit) has to be used or not
+		*/
+		link_layer_node_id_t get_iid()
+		{
+			link_layer_node_id_t iid = 0;
+			
+			for ( unsigned int i = ( sizeof(link_layer_node_id_t) ); i > 0 ; i-- )
+			{
+				iid = iid << 8;
+				
+				//Delete the U bit if required
+				if( (sizeof(link_layer_node_id_t) == 8) && (i == 8))
+				{
+					iid |= addr[8] & 0xFD;
+				}
+				else
+				{
+					iid |= addr[16-i];
+				}
+				
+			}
+			
+			return iid;
+		}
+		
 		//NOTE this is not used at the moment
 		/** \brief Function to set a short hostID, provided by the PAN coordinator
 		* \param iid the received id
