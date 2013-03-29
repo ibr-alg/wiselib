@@ -108,10 +108,17 @@ namespace wiselib {
             NULL_NODE_ID = 0 ///< Unknown/No node id
         };
         // --------------------------------------------------------------------
-
+	
+#if( ISENSE_RADIO_ADDRESS_LENGTH == 16 )
         enum Restrictions {
             MAX_MESSAGE_LENGTH = 116 ///< Maximal number of bytes in payload
+        }
+#else //ISENSE_RADIO_ADDRESS_LENGTH == 64
+        enum Restrictions {
+            MAX_MESSAGE_LENGTH = 104 ///< Maximal number of bytes in payload
         };
+#endif
+
         // --------------------------------------------------------------------
         class TxPower;
         // --------------------------------------------------------------------
