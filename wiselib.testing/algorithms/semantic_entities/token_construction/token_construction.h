@@ -23,6 +23,9 @@
 #include <util/pstl/vector_dynamic.h>
 #include <util/pstl/map_static_vector.h>
 
+#include "token_construction_message.h"
+#include "semantic_entity.h"
+
 namespace wiselib {
 	
 	/**
@@ -40,20 +43,25 @@ namespace wiselib {
 	class TokenConstruction {
 		
 		public:
+			typedef TokenConstruction<
+				OsModel_P,
+				Radio_P,
+				Timer_P
+			> self_type;
+			typedef self_type* self_pointer_t;
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
-			
 			typedef Timer_P Timer;
 			typedef typename Timer::millis_t millis_t;
-			
 			typedef ::uint8_t token_count_t;
+			typedef TokenConstructionMessage<OsModel, Radio> Message;
+			typedef SemanticEntity<OsModel> SemanticEntityT;
 			
 			class SemanticEntityID;
-			class SemanticEntity;
 			class State;
 			class NeighborState;
 			
@@ -71,6 +79,10 @@ namespace wiselib {
 				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
+			enum SpecialValues {
+				npos = (size_type)(-1)
+			};
+			
 			class SemanticEntityID {
 				public:
 				private:
@@ -84,7 +96,7 @@ namespace wiselib {
 					millis_t last_scheduled_beacon_;
 			};
 			
-			typedef vector_dynamic<OsModel, SemanticEntity> SemanticEntities;
+			typedef vector_dynamic<OsModel, SemanticEntityT> SemanticEntities;
 			
 			class State {
 				private:
@@ -98,7 +110,10 @@ namespace wiselib {
 			};
 			typedef vector_dynamic<OsModel, State> States;
 			
-			void init() {
+			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer) {
+				radio_ = radio;
+				timer_ = timer;
+				
 				// - set up timer to make sure we broadcast our state at least
 				//   so often
 				timer_->template set_timer<self_type, &self_type::on_broadcast_state>(STATE_BCAST_CHECK_INTERVAL, this, 0);
@@ -114,18 +129,23 @@ namespace wiselib {
 			 * Send out our current state to our neighbors.
 			 */
 			void on_broadcast_state(void*) {
+				Message msg;
+				
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
-					if(iter->should_send(now())) {
-						radio_->send(BROADCAST_ADDRESS, iter->message_size(), iter->message());
-						iter->set_clean();
-					}
+					msg.add_entity(*iter);
+					//if(iter->should_send(now())) {
+					iter->set_clean();
+					//}
 				}
+				
+				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 			}
 			
 			/**
-			 * 
+			 * Called by the radio when any packet is received.
 			 */
 			void on_receive(node_id_t from, size_type len, block_data_t* data) {
+				// TODO: check message type
 				Message &msg = reinterpret_cast<Message&>(*data);
 				
 				for(typename Message::entity_iterator iter = msg.begin_entities(); iter != msg.end_entities(); ++iter) {
@@ -133,9 +153,9 @@ namespace wiselib {
 					// In any case, update the tree state from our neigbour
 					process_neighbor_tree_state(from, *iter);
 					
-					// For the token decide whether we are the direct
-					// successor in the ring or we need to forward the token
-					SemanticEntity &se = entities_[state.entity()];
+					// For the token count decide whether we are the direct
+					// successor in the ring or we need to forward
+					SemanticEntityT &se = entities_[iter->entity()];
 					if(from == se.parent()) {
 						process_token(from, *iter);
 					}
@@ -156,12 +176,13 @@ namespace wiselib {
 					return;
 				}
 				
-				SemanticEntity &se = entities_[state.entity()];
+				SemanticEntityT &se = entities_[state.entity()];
 				copy_state(se.neighbor_states()[source], state);
 			}
 			
 			void process_token(node_id_t source, typename Message::State& state) {
-				se.prev_token_count_ = token.token_count();
+				SemanticEntityT &se = entities_[state.entity()];
+				se.prev_token_count_ = state.token_count();
 				se.update_state();
 				if(se.has_token()) {
 					// update timing info
@@ -180,7 +201,7 @@ namespace wiselib {
 				// TODO
 			}
 			
-			void on_lost_neighbor(SemanticEntity &se, node_id_t neighbor) {
+			void on_lost_neighbor(SemanticEntityT &se, node_id_t neighbor) {
 				se.update_state();
 			}
 			
@@ -197,11 +218,13 @@ namespace wiselib {
 				return timer_->millis() + 1000 * timer_->seconds();
 			}
 			
+			
+			typename Radio::self_pointer_t radio_;
 			typename Timer::self_pointer_t timer_;
 			SemanticEntities entities_;
 			
 			/// Timing.
-			NeighborInfos neighbor_infos_;
+			//NeighborInfos neighbor_infos_;
 			millis_t window_size_;
 		
 	}; // TokenConstruction

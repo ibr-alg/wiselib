@@ -39,11 +39,36 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
-		
+			
+			enum Restrictions {
+				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
+			};
+			
+			class State {
+				public:
+					// TODO
+				private:
+			};
+			
+			template<typename SE>
+			void add_entity(SE& se) {
+				// TODO
+			}
+			
+			block_data_t* data() {
+				return data_;
+			}
+			
+			size_type size() {
+				// TODO
+				return 0;
+			}
+			
 		private:
+			
+			block_data_t data_[MAX_MESSAGE_LENGTH];
 		
 	}; // TokenConstructionMessage
 }
