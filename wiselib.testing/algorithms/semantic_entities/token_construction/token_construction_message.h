@@ -61,18 +61,12 @@ namespace wiselib {
 			};
 			
 			enum {
-				ENTITY_SIZE = SemanticEntity::DESCRIPTION_SIZE
-			};
-			
-			class State {
-				public:
-					// TODO
-				private:
+				ENTITY_SIZE = sizeof(typename SemanticEntity::State)
 			};
 			
 			void add_entity(SemanticEntity& se) {
 				// TODO
-				se.write_description(entity_description(entity_count()));
+				wiselib::write<OsModel>(entity_description(entity_count()), se);
 				set_entity_count(entity_count() + 1);
 			}
 			
@@ -91,12 +85,12 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_ENTITY_COUNT, c);
 			}
 			
-		private:
-		
 			block_data_t* entity_description(entity_count_t i) {
 				return data_ + POS_ENTITIES + ENTITY_SIZE * i;
 			}
 			
+		private:
+		
 			block_data_t data_[MAX_MESSAGE_LENGTH];
 		
 	}; // TokenConstructionMessage

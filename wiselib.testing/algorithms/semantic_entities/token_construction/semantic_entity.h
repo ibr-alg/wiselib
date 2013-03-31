@@ -41,36 +41,105 @@ namespace wiselib {
 	>
 	class SemanticEntity {
 		public:
+			typedef SemanticEntity<OsModel_P, Radio_P, Clock_P> self_type;
+				
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef ::uint8_t token_count_t;
+			typedef ::uint8_t distance_t;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef Clock_P Clock;
 			typedef typename Clock::millis_t millis_t;
 			
+			class TreeState;
+			class TokenState;
+			
 			enum Restrictions { MAX_NEIGHBORS = 8 };
 			
+			/*
 			enum {
-				DESCRIPTION_SIZE = TODO
-			}
+				DESCRIPTION_SIZE = sizeof(SemanticEntityId) + sizeof(TreeState) + sizeof(TokenState)
+			};
+			*/
 			
 			class TreeState {
 				public:
+					void reset() {
+						// TODO
+					}
+					
+					node_id_t parent() { return parent_; }
+					void set_parent(node_id_t p) {
+						parent_ = p;
+					}
+					
+					node_id_t root() { return root_; }
+					void set_root(node_id_t r) {
+						root_ = r;
+					}
+					
+					distance_t distance() { return distance_; }
+					void set_distance(distance_t s) {
+						distance_ = s;
+					}
+					
 				private:
+					node_id_t parent_;
+					node_id_t root_;
+					distance_t distance_;
 			};
 			typedef MapStaticVector<OsModel, node_id_t, TreeState, MAX_NEIGHBORS> TreeStates;
 			
 			class TokenState {
 				public:
+					token_count_t token_count() { return token_count_; }
+					void set_token_count(token_count_t c) { token_count_ = c; }
+					
+					void increment_token_count() {
+						token_count_++;
+					}
+					
 				private:
+					token_count_t token_count_;
 			};
 			
-			SemanticEntity() : id_() {
+			class State {
+				public:
+					State() {
+					}
+					
+					State(const SemanticEntityId& id) : id_(id) {
+					}
+					
+					SemanticEntityId& id() { return id_; }
+					
+					token_count_t token_count() { return token_state_.token_count(); }
+					node_id_t root() { return tree_state_.root(); }
+					distance_t distance() { return tree_state_.distance(); }
+					
+					bool dirty() {
+						// TODO
+					}
+					
+					bool has_token() {
+						// TODO
+					}
+					
+				private:
+					TreeState tree_state_;
+					TokenState token_state_;
+					SemanticEntityId id_;
+					
+				friend self_type;
+			};
+			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
+			
+			SemanticEntity() {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : id_(id) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -78,28 +147,27 @@ namespace wiselib {
 			}
 			
 			SemanticEntity& operator=(const SemanticEntity& other) {
-				tree_state_ = other.tree_state_;
-				token_state_ = other.token_state_;
+				state_ = other.state_;
 				prev_token_state_ = other.prev_token_state_;
 				neighbor_states_ = other.neighbor_states_;
 				round_length_ = other.round_length_;
 				token_forwards_ = other.token_forwards_;
-				id_ = other.id_;
 				return *this;
 			}
 		
-			void update_state() {
+			void update_state(node_id_t mynodeid) {
 				// {{{
 				// sort neighbor states by key (=node id) so their
 				// order is consistent, important for next()
-				sort(neighbor_states_);
-				tree_state_.reset();
+				// TODO: sort(neighbor_states_);
+				
+				state_.tree_state_.reset();
 				
 				::uint8_t distance = 0;
-				node_id_t parent = this->node_id();
-				node_id_t root = this->nodeid();
-				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
-					if(iter->second.ree_root() < root) {
+				node_id_t parent = mynodeid;
+				node_id_t root = mynodeid;
+				for(typename States::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
+					if(iter->second.root() < root) {
 						parent = iter->first;
 						root = iter->second.root();
 						distance = iter->second.distance() + 1;
@@ -110,20 +178,20 @@ namespace wiselib {
 					}
 				}
 				
-				tree_state_.set_distance(distance);
-				tree_state_.set_parent(parent);
-				tree_state_.set_root(root);
+				state_.tree_state_.set_distance(distance);
+				state_.tree_state_.set_parent(parent);
+				state_.tree_state_.set_root(root);
 				
 				// Dijkstra's Token Ring
 				
 				token_count_t l = prev_token_state_.token_count();
-				if(tree_state_.is_root()) {
-					if(l == token_state_.token_count()) {
-						token_state_.increment_token_count();
+				if(state_.tree_state_.root() == mynodeid) {
+					if(l == state_.token_state_.token_count()) {
+						state_.token_state_.increment_token_count();
 					}
 				}
-				else if(l != token_state_.token_count()) {
-					token_state_.set_token_count(l);
+				else if(l != state_.token_state_.token_count()) {
+					state_.token_state_.set_token_count(l);
 				}
 				// }}}
 			}
@@ -136,23 +204,47 @@ namespace wiselib {
 				// TODO: mark states as clean
 			}
 			
-			SemanticEntityId& id() { return id_; }
+			SemanticEntityId& id() { return state_.id(); }
+			node_id_t parent() { return state_.tree_state_.parent(); }
 			
-			bool operator==(SemanticEntity& other) { return id_ == other.id_; }
-			bool operator<(SemanticEntity& other) { return id_ < other.id_; }
-			
-			void write_description(block_data_t* data) {
+			State& neighbor_state(node_id_t id) {
 				// TODO
 			}
 			
-		private:
+			/**
+			 * Return length of ordered list of childs.
+			 */
+			size_type childs() {
+				// TODO: return number of childs
+			}
 			
-			TreeState tree_state_;
-			TokenState token_state_;
+			/**
+			 * Return position of child in ordered list of childs.
+			 */
+			size_type find_child(node_id_t id) {
+				// TODO
+			}
+			
+			State& child_state(size_type idx) {
+				// TODO
+			}
+			
+			node_id_t child_address(size_type idx) {
+				// TODO
+			}
+			
+			bool has_token() { return state_.has_token(); }
+			State& state() { return state_; }
+			
+			bool operator==(SemanticEntity& other) { return id() == other.id(); }
+			bool operator<(SemanticEntity& other) { return id() < other.id(); }
+			
+		private:
+			State state_;
 			
 			// Cached states from other nodes
 			TokenState prev_token_state_; // just the token value of previous
-			TreeStates neighbor_states_; // node_id => TreeState
+			States neighbor_states_; // node_id => TreeState
 			
 			// Timings
 			millis_t round_length_;
@@ -161,9 +253,43 @@ namespace wiselib {
 			// token)
 			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			
-			SemanticEntityId id_;
 			
 	}; // SemanticEntity
+	
+	
+	
+	template<
+		typename OsModel_P,
+		int Endianess_P,
+		typename BlockData_P
+	>
+	struct Serialization<OsModel_P, Endianess_P, BlockData_P, SemanticEntity<OsModel_P> > {
+		typedef OsModel_P OsModel;
+		typedef BlockData_P block_data_t;
+		typedef SemanticEntity<OsModel_P> SemanticEntityT;
+		typedef typename SemanticEntityT::TreeState TreeState;
+		typedef typename SemanticEntityT::TokenState TokenState;
+		
+		static void read(block_data_t *data, SemanticEntityT& value) {
+			wiselib::read<OsModel>(data, value.id_); data += sizeof(SemanticEntityId);
+			wiselib::read<OsModel>(data, value.tree_state_); data += sizeof(TreeState);
+			wiselib::read<OsModel>(data, value.token_state_); data += sizeof(TokenState);
+		}
+		
+		static void write(block_data_t *data, SemanticEntityT& value) {
+			wiselib::write<OsModel>(data, value.id_); data += sizeof(SemanticEntityId);
+			wiselib::write<OsModel>(data, value.tree_state_); data += sizeof(TreeState);
+			wiselib::write<OsModel>(data, value.token_state_); data += sizeof(TokenState);
+		}
+		
+		template<
+			typename _OsModel_P,
+			typename _Radio_P,
+			typename _Clock_P
+		>
+		friend class SemanticEntity;
+	};
+	
 }
 
 #endif // SEMANTIC_ENTITY_H

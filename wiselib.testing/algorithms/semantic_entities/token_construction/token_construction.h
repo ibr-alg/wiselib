@@ -60,10 +60,11 @@ namespace wiselib {
 			typedef Timer_P Timer;
 			typedef typename Timer::millis_t millis_t;
 			typedef ::uint8_t token_count_t;
-			typedef TokenConstructionMessage<OsModel, Radio> Message;
 			typedef SemanticEntity<OsModel> SemanticEntityT;
+			typedef typename SemanticEntityT::State State;
+			typedef TokenConstructionMessage<OsModel, SemanticEntityT, Radio> Message;
 			
-			class State;
+			//class State;
 			class NeighborState;
 			
 			enum Constraints {
@@ -92,17 +93,7 @@ namespace wiselib {
 			
 			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
 			
-			class State {
-				private:
-					node_id_t tree_parent_;
-					node_id_t tree_root_;
-					::uint8_t tree_distance_;
-					token_count_t token_count_;
-					
-					//node_id_t source_;
-					SemanticEntityId entity_;
-			};
-			typedef vector_dynamic<OsModel, State> States;
+			//typedef vector_dynamic<OsModel, State> States;
 			
 			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer) {
 				radio_ = radio;
@@ -114,15 +105,23 @@ namespace wiselib {
 				
 				// - set up timer to sieve out lost neighbors
 				// - register receive callback
+				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 			}
 			
 			void add_entity(const SemanticEntityId& id) {
-				//SemanticEntityT se(id);
-				entities_.push_back(id);
+				entities_.push_back(id); // implicit cast for the win ;p
 			}
 			
 		
 		private:
+			
+			void push_caffeine() {
+				// TODO: Make sure we are not sleeping
+			}
+			
+			void pop_caffeine() {
+				// TODO: if nobody forces us to be awake anymore, go to sleep
+			}
 			
 			/**
 			 * Send out our current state to our neighbors.
@@ -139,7 +138,22 @@ namespace wiselib {
 					//}
 				}
 				
+				push_caffeine();
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				pop_caffeine();
+				
+				timer_->template set_timer<self_type, &self_type::on_broadcast_state>(STATE_BCAST_CHECK_INTERVAL, this, 0);
+			}
+			
+			
+			SemanticEntityT& find_entity(SemanticEntityId& id, bool& found) {
+				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					if(iter->id() == id) {
+						found = true;
+						return *iter;
+					}
+				}
+				found = false;
 			}
 			
 			/**
@@ -149,42 +163,50 @@ namespace wiselib {
 				// TODO: check message type
 				Message &msg = reinterpret_cast<Message&>(*data);
 				
-				for(typename Message::entity_iterator iter = msg.begin_entities(); iter != msg.end_entities(); ++iter) {
+				//for(typename Message::entity_iterator iter = msg.begin_entities(); iter != msg.end_entities(); ++iter) {
+				for(size_type i = 0; i < msg.entity_count(); i++) {
+					typename SemanticEntityT::State s;
+					wiselib::read<OsModel>(msg.entity_description(i), s);
 					
 					// In any case, update the tree state from our neigbour
-					process_neighbor_tree_state(from, *iter);
+					process_neighbor_tree_state(from, s);
 					
 					// For the token count decide whether we are the direct
 					// successor in the ring or we need to forward
-					SemanticEntityT &se = entities_[iter->entity()];
+					bool found;
+					SemanticEntityT &se = find_entity(s.id(), found);
 					if(from == se.parent()) {
-						process_token(from, *iter);
+						process_token(from, s);
 					}
 					else {
 						size_type idx = se.find_child(from);
 						assert(idx != npos);
 						
 						if(idx == se.childs() - 1) { forward_token(se.parent()); }
-						else { forward_token(se.child(idx + 1)); }
+						else { forward_token(se.child_address(idx + 1)); }
 					}
 				}
 			}
 			
-			void process_neighbor_tree_state(node_id_t source, typename Message::State& state) {
-				// update timing info
-				
-				if(!entities_.contains(state.entity())) {
-					return;
-				}
-				
-				SemanticEntityT &se = entities_[state.entity()];
-				copy_state(se.neighbor_states()[source], state);
+			void forward_token(node_id_t to) {
+				// TODO
 			}
 			
-			void process_token(node_id_t source, typename Message::State& state) {
-				SemanticEntityT &se = entities_[state.entity()];
-				se.prev_token_count_ = state.token_count();
-				se.update_state();
+			void process_neighbor_tree_state(node_id_t source, State& state) {
+				// update timing info
+				
+				bool found;
+				SemanticEntityT &se = find_entity(state.id(), found);
+				if(!found) { return; }
+				
+				//TODO: copy_state(se.neighbor_states()[source], state);
+			}
+			
+			void process_token(node_id_t source, State& state) {
+				bool found;
+				SemanticEntityT &se = find_entity(state.id(), found);
+				se.set_prev_token_count(state.token_count());
+				se.update_state(radio_->id());
 				if(se.has_token()) {
 					// update timing info
 					// be awake
