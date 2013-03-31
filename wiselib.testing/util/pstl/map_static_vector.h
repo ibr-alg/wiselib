@@ -60,7 +60,7 @@ namespace wiselib
       ~MapStaticVector()
       {}
       // --------------------------------------------------------------------
-      MapStaticVector& operator=( MapStaticVector& map )
+      MapStaticVector& operator=( const MapStaticVector& map )
       {
          vector_type::clear();
          for ( iterator it = map.begin(); it != map.end(); ++it )

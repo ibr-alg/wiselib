@@ -20,6 +20,10 @@
 #ifndef TOKEN_CONSTRUCTION_MESSAGE_H
 #define TOKEN_CONSTRUCTION_MESSAGE_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
+#include <util/serialization/serialization.h>
+
 namespace wiselib {
 	
 	/**
@@ -31,6 +35,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename SemanticEntity_P,
 		typename Radio_P
 	>
 	class TokenConstructionMessage {
@@ -41,9 +46,22 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
+			typedef ::uint8_t entity_count_t;
+			typedef SemanticEntity_P SemanticEntity;
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
+			};
+			
+			enum Positions {
+				POS_MESSAGE_ID = 0,
+				POS_ENTITY_COUNT = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_ENTITIES = POS_ENTITY_COUNT + sizeof(entity_count_t)
+			};
+			
+			enum {
+				ENTITY_SIZE = SemanticEntity::DESCRIPTION_SIZE
 			};
 			
 			class State {
@@ -52,9 +70,10 @@ namespace wiselib {
 				private:
 			};
 			
-			template<typename SE>
-			void add_entity(SE& se) {
+			void add_entity(SemanticEntity& se) {
 				// TODO
+				se.write_description(entity_description(entity_count()));
+				set_entity_count(entity_count() + 1);
 			}
 			
 			block_data_t* data() {
@@ -62,11 +81,21 @@ namespace wiselib {
 			}
 			
 			size_type size() {
-				// TODO
-				return 0;
+				return POS_ENTITIES + ENTITY_SIZE * entity_count();
+			}
+			
+			entity_count_t entity_count() {
+				return wiselib::read<OsModel, block_data_t, entity_count_t>(data_ + POS_ENTITY_COUNT);
+			}
+			void set_entity_count(entity_count_t c) {
+				wiselib::write<OsModel>(data_ + POS_ENTITY_COUNT, c);
 			}
 			
 		private:
+		
+			block_data_t* entity_description(entity_count_t i) {
+				return data_ + POS_ENTITIES + ENTITY_SIZE * i;
+			}
 			
 			block_data_t data_[MAX_MESSAGE_LENGTH];
 		

@@ -40,6 +40,10 @@ namespace wiselib
       typedef self_type* self_pointer_t;
 
       typedef double time_t;
+	  typedef ::uint16_t micros_t;
+	  typedef ::uint16_t millis_t;
+	  typedef ::uint32_t seconds_t;
+	  
       // --------------------------------------------------------------------
       enum
       {
@@ -66,17 +70,17 @@ namespace wiselib
          return os().proc->owner().world().current_time();
       }
       // --------------------------------------------------------------------
-      uint16_t microseconds( time_t time )
+      micros_t microseconds( time_t time )
       {
          return 0;
       }
       // --------------------------------------------------------------------
-      uint16_t milliseconds( time_t time )
+      millis_t milliseconds( time_t time )
       {
          return (uint16_t)((time - int(time)) * 1000);
       }
       // --------------------------------------------------------------------
-      uint32_t seconds( time_t time )
+      seconds_t seconds( time_t time )
       {
          return (uint32_t)time;
       }

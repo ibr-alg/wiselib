@@ -36,6 +36,7 @@ Allocator& get_allocator();
 #include <algorithms/hash/fnv.h>
 
 #include <algorithms/semantic_entities/token_construction/token_construction.h>
+#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 
 typedef Tuple<Os> TupleT;
@@ -69,7 +70,7 @@ class ExampleApplication
 			
 			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
 			
-			init_ts();
+			//init_ts();
 			init_tc();
 			
 			
@@ -103,6 +104,12 @@ class ExampleApplication
 		
 		void init_tc() {
 			token_construction_.init(radio_, timer_);
+			
+			for(size_t i = 0; i < 4; i++) {
+				if((radio_->id() >> i) & 0x01) {
+					token_construction_.add_entity(SemanticEntityId(1, i));
+				}
+			}
 		}
 		
 		void hashes() {

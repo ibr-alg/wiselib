@@ -22,9 +22,11 @@
 
 #include <util/pstl/vector_dynamic.h>
 #include <util/pstl/map_static_vector.h>
+#include <util/pstl/list_dynamic.h>
 
 #include "token_construction_message.h"
 #include "semantic_entity.h"
+#include "semantic_entity_id.h"
 
 namespace wiselib {
 	
@@ -61,7 +63,6 @@ namespace wiselib {
 			typedef TokenConstructionMessage<OsModel, Radio> Message;
 			typedef SemanticEntity<OsModel> SemanticEntityT;
 			
-			class SemanticEntityID;
 			class State;
 			class NeighborState;
 			
@@ -83,20 +84,13 @@ namespace wiselib {
 				npos = (size_type)(-1)
 			};
 			
-			class SemanticEntityID {
-				public:
-				private:
-					::uint32_t value_;
-					::uint8_t rule_;
-			};
-			
 			class NeighborInfo {
 				private:
 					millis_t last_life_sign_;
 					millis_t last_scheduled_beacon_;
 			};
 			
-			typedef vector_dynamic<OsModel, SemanticEntityT> SemanticEntities;
+			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
 			
 			class State {
 				private:
@@ -106,7 +100,7 @@ namespace wiselib {
 					token_count_t token_count_;
 					
 					//node_id_t source_;
-					SemanticEntityID entity_;
+					SemanticEntityId entity_;
 			};
 			typedef vector_dynamic<OsModel, State> States;
 			
@@ -122,6 +116,11 @@ namespace wiselib {
 				// - register receive callback
 			}
 			
+			void add_entity(const SemanticEntityId& id) {
+				//SemanticEntityT se(id);
+				entities_.push_back(id);
+			}
+			
 		
 		private:
 			
@@ -131,7 +130,9 @@ namespace wiselib {
 			void on_broadcast_state(void*) {
 				Message msg;
 				
+				DBG("---");
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					DBG("add_entity %d.%d", iter->id().rule(), iter->id().value());
 					msg.add_entity(*iter);
 					//if(iter->should_send(now())) {
 					iter->set_clean();

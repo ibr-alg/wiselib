@@ -37,10 +37,9 @@ namespace wiselib
       typedef PCClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
 
-      //typedef struct timespec time_t;
-      typedef uint16_t micros_t;
-      typedef uint16_t millis_t;
-      typedef uint32_t seconds_t;
+	  typedef ::uint16_t micros_t;
+	  typedef ::uint16_t millis_t;
+	  typedef ::uint32_t seconds_t;
       
       class time_t {
          public:

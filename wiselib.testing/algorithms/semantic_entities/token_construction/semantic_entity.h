@@ -23,6 +23,7 @@
 #include <util/pstl/vector_static.h>
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/algorithm.h>
+#include "semantic_entity_id.h"
 
 namespace wiselib {
 	
@@ -51,6 +52,10 @@ namespace wiselib {
 			
 			enum Restrictions { MAX_NEIGHBORS = 8 };
 			
+			enum {
+				DESCRIPTION_SIZE = TODO
+			}
+			
 			class TreeState {
 				public:
 				private:
@@ -61,6 +66,27 @@ namespace wiselib {
 				public:
 				private:
 			};
+			
+			SemanticEntity() : id_() {
+			}
+			
+			SemanticEntity(const SemanticEntityId& id) : id_(id) {
+			}
+			
+			SemanticEntity(const SemanticEntity& other) {
+				*this = other;
+			}
+			
+			SemanticEntity& operator=(const SemanticEntity& other) {
+				tree_state_ = other.tree_state_;
+				token_state_ = other.token_state_;
+				prev_token_state_ = other.prev_token_state_;
+				neighbor_states_ = other.neighbor_states_;
+				round_length_ = other.round_length_;
+				token_forwards_ = other.token_forwards_;
+				id_ = other.id_;
+				return *this;
+			}
 		
 			void update_state() {
 				// {{{
@@ -110,6 +136,15 @@ namespace wiselib {
 				// TODO: mark states as clean
 			}
 			
+			SemanticEntityId& id() { return id_; }
+			
+			bool operator==(SemanticEntity& other) { return id_ == other.id_; }
+			bool operator<(SemanticEntity& other) { return id_ < other.id_; }
+			
+			void write_description(block_data_t* data) {
+				// TODO
+			}
+			
 		private:
 			
 			TreeState tree_state_;
@@ -125,6 +160,8 @@ namespace wiselib {
 			// vector of pairs: (time-offs from token recv, sender of forward
 			// token)
 			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
+			
+			SemanticEntityId id_;
 			
 	}; // SemanticEntity
 }
