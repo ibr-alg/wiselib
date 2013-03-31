@@ -8,8 +8,6 @@
 
 
 #include "external_interface/external_interface.h"
-#include "algorithms/6lowpan/ipv6_address.h"
-
 #include "algorithms/6lowpan/ipv6_stack.h"
 
 #ifdef SHAWN
@@ -29,6 +27,7 @@ typedef Os::Uart Uart;
 typedef wiselib::IPv6Stack<Os, Radio, Os::Debug, Os::Timer, Uart> IPv6_stack_t;
 
 typedef wiselib::IPv6Address<Radio, Os::Debug> IPv6Address_t;
+typedef wiselib::UDPSocket<IPv6Address_t> UDPSocket_t;
 
 class lowpanApp
 {
@@ -64,7 +63,7 @@ public:
 		IPv6Address_t destinationaddr;
 		
 		//Host ID of the destination
-		node_id_t ll_id = 0x2;
+		node_id_t ll_id = 0x2110;
 		
 		//Global addressing
 		/*
@@ -91,44 +90,44 @@ public:
 			
 			For the best compression use ports between 61616 and 61631
 		*/
-		/*
-		if( radio_->id() == 0x0 )
+		
+		if( radio_->id() == 0x210c )
 		{
-			int my_number = ipv6_stack_.udp.add_socket( 61616, destinationaddr, callback_id );
-			
-			//ipv6_stack_.udp.print_sockets();
-			
 			uint8_t mypayload[] = "hello :) This is a test message.";
 			
 			//Set IPv6 header fields
 			//ipv6_stack_.udp.set_traffic_class_flow_label( 0, 42 );
 			
-			ipv6_stack_.udp.send(my_number,sizeof(mypayload),mypayload);
+			// local port, remote port, remote address
+			UDPSocket_t my_socket = UDPSocket_t( 8092, 8091, destinationaddr ); 
+			ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
 		}
-		if( radio_->id() == 0x1 )
+		if( radio_->id() == 0x2110 )
 		{
-			ipv6_stack_.udp.listen( 61616, callback_id );
+			ipv6_stack_.udp.listen( 8091, callback_id );
+			//ipv6_stack_.udp.print_sockets();
 		}
-		*/
+		
 		
 		/*
 			ICMPv6 Ping test
 		*/
-		
+		/*
 		if( radio_->id() == 0x0 )
 		{
 			debug_->debug("Application layer: sending echo request");
 			ipv6_stack_.icmpv6.ping(destinationaddr);
 			//ipv6_stack_.icmpv6.ping(ipv6_stack_.ipv6.BROADCAST_ADDRESS);
 		}
+		*/
 		
 	}
 
 	// --------------------------------------------------------------------
-	void receive_radio_message( IPv6Address_t from, uint16_t len, Os::Radio::block_data_t *buf )
+	void receive_radio_message( UDPSocket_t socket, uint16_t len, Os::Radio::block_data_t *buf )
 	{
 		char str[43];
-		debug_->debug( "Application layer received msg at %x from %s", radio_->id(), from.get_address(str) );
+		debug_->debug( "Application layer received msg at %x from %s", radio_->id(), socket.remote_host.get_address(str) );
 		debug_->debug( "    Size: %i Content: %s ", len, buf);
 	}
 

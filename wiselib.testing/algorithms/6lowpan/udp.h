@@ -34,24 +34,23 @@ namespace wiselib
 {
 	/** \brief Type for the UDP sockets
 	*/
-	template<typename Radio_IP_P>
+	template<typename IPv6_Addr_t>
 	class UDPSocket
 	{
 		public:
-			typedef Radio_IP_P Radio_IP;
-			typedef typename Radio_IP::node_id_t node_id_t;
+			typedef IPv6_Addr_t node_id_t;
 			
 			// -----------------------------------------------------------------
 			UDPSocket()
 			: local_port( 0 ),
 			remote_port( 0 ),
-			remote_host( Radio_IP::NULL_NODE_ID ),
+			remote_host( IPv6_Addr_t() ),
 			callback_id( -1 )
 			{}
 			
 			// -----------------------------------------------------------------
 			
-			UDPSocket(uint16_t local_port, uint16_t remote_port, node_id_t remote_host, int callback_id)
+			UDPSocket(uint16_t local_port, uint16_t remote_port, node_id_t remote_host, int callback_id = -1)
 			: local_port( local_port ),
 			remote_port( remote_port ),
 			remote_host( remote_host ),
@@ -73,7 +72,27 @@ namespace wiselib
 			/**
 			* Callback ID of the user application
 			*/
-			int callback_id;	  
+			int callback_id;
+
+			/** \brief operator== compares only the host addresses to enable self message tests
+			*/
+			bool operator==(const UDPSocket<node_id_t>& b)
+			{
+				//If every byte is equal, return true
+				if( remote_host == b.remote_host )
+				{
+					return true;
+				}
+				return false;
+			}
+			
+			/** \brief operator!= compares only the host addresses to enable self message tests
+			*/
+			bool operator!=(const UDPSocket<node_id_t>& b)
+			{
+				return !( *this == b );
+			}
+
 	};
 	
 	// --------------------------------------------------------------------
@@ -94,7 +113,7 @@ namespace wiselib
 		typename Radio_P,
 		typename Debug_P>
 	class UDP
-	: public RadioBase<OsModel_P, wiselib::IPv6Address<Radio_P, Debug_P>, uint16_t, typename Radio_P::block_data_t>
+	: public RadioBase<OsModel_P, wiselib::UDPSocket< IPv6Address<Radio_P, Debug_P> >, uint16_t, typename Radio_P::block_data_t>
 	{
 	public:
 		typedef OsModel_P OsModel;
@@ -108,13 +127,6 @@ namespace wiselib
 		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
 		typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
 		
-		typedef UDPSocket<Radio_IP> Socket_t;
-		
-		/**
-		* The number of the Socket in the sockets_ array is the address type
-		*/
-		typedef int node_id_t;
-		
 		/**
 		* The ip_node_id_t is an ipv6 address
 		*/
@@ -123,7 +135,15 @@ namespace wiselib
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::message_id_t message_id_t;
+
+
+		typedef UDPSocket<ip_node_id_t> Socket_t;
 		
+		/**
+		* The addressing is based on the UDP sockets
+		*/
+		typedef Socket_t node_id_t;
+
 		// --------------------------------------------------------------------
 		enum ErrorCodes
 		{
@@ -192,9 +212,10 @@ namespace wiselib
 		void receive( ip_node_id_t from, size_t packet_number, block_data_t *data );
 		/**
 		*/
-		ip_node_id_t id()
+		Socket_t id()
 		{
-			return radio_ip().id();
+			Socket_t my_id = Socket_t( 0, 0, radio_ip().id(), -1 );
+			return my_id;
 		}
 		///@}
 		
@@ -220,13 +241,9 @@ namespace wiselib
 		}
 		
 		/** 
-		* Add a datagram socket
-		* \param remote_port the port of the remote host
-		* \param remote_host the IPv6 address of the remote host
-		* \param callback_id the callback_id of the application
-		* \param local_port (optional) this port will be used in the UDP header as the Source Port
-		* \return the number of the socket
+		* Add a datagram socket --> SEND METHOD CHANGED
 		*/
+		/*
 		int add_socket( uint16_t remote_port, ip_node_id_t remote_host, int callback_id, uint16_t local_port = 0 )
 		{
 			for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
@@ -235,29 +252,36 @@ namespace wiselib
 					sockets_[i] = Socket_t(local_port, remote_port, remote_host, callback_id );
 					return i;
 				}
-			return -1;
+			return -1;	
 		}
+		*/
 		
 		/** 
 		* Add a listening datagram socket
 		* \param local_port the number of the opened port
 		* \param callback_id the callback_id of the application
+		* \param remote_port listen for traffic only from this port
+		* \param remote_host listen for traffic only from this host
 		* \return the number of the socket
 		*/
-		int listen( uint16_t local_port, int callback_id )
+		int listen( uint16_t local_port, int callback_id, uint16_t remote_port = 0, ip_node_id_t* remote_host = NULL )
 		{
 			for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 				if( sockets_[i].callback_id == -1 )
-				{	
-					sockets_[i] = Socket_t(local_port, 0, Radio_IP::NULL_NODE_ID, callback_id );
+				{
+					ip_node_id_t tmp = Radio_IP::NULL_NODE_ID;
+					if( remote_host != NULL )
+						tmp = *remote_host;
+
+					sockets_[i] = Socket_t(local_port, remote_port, tmp, callback_id );
 					return i;
 				}
 				return -1;
 		}
 		
 		/** 
-		* Delete a datagram socket
-		* \param socket_number the number of the socket (returned at opening/adding)
+		* Delete listening datagram socket
+		* \param socket_number the number of the socket (returned at opening)
 		*/
 		void delete_socket( int socket_number )
 		{
@@ -430,10 +454,10 @@ namespace wiselib
 		typename Debug_P>
 	int
 	UDP<OsModel_P, Radio_IP_P, Radio_P, Debug_P>::
-	send( node_id_t socket_number, uint16_t len, block_data_t *data )
+	send( node_id_t socket, uint16_t len, block_data_t *data )
 	{
-		if( socket_number < 0 || socket_number >= NUMBER_OF_UDP_SOCKETS || (sockets_[socket_number].callback_id == -1) )
-			return ERR_NOTIMPL;
+//		if( socket_number < 0 || socket_number >= NUMBER_OF_UDP_SOCKETS || (sockets_[socket_number].callback_id == -1) )
+//			return ERR_NOTIMPL;
 		
 		if( len >= LOWPAN_IP_PACKET_BUFFER_MAX_SIZE )
 		{
@@ -443,17 +467,17 @@ namespace wiselib
 			return ERR_NOTIMPL;
 		}
 		
-		if( sockets_[socket_number].remote_host == Radio_IP::NULL_NODE_ID )
+		if( socket.remote_host == Radio_IP::NULL_NODE_ID )
 		{
 			#ifdef UDP_LAYER_DEBUG
-			debug().debug( "UDP layer: Error, a listening socket cannot be used for sending!" );
+			debug().debug( "UDP layer: Error, target must be specified!" );
 			#endif
 			return ERR_UNSPEC;
 		}
 		
 		#ifdef UDP_LAYER_DEBUG
 		char str[43];
-		debug().debug( "UDP layer: Send to [%s]:%i (Local Port: %i)", sockets_[socket_number].remote_host.get_address(str), sockets_[socket_number].remote_port,  sockets_[socket_number].local_port );
+		debug().debug( "UDP layer: Send to [%s]:%i (Local Port: %i)", socket.remote_host.get_address(str), socket.remote_port,  socket.local_port );
 		#endif
 		
 		//Get a packet from the manager
@@ -479,7 +503,7 @@ namespace wiselib
 		//sourceaddr = radio_ip().id();
 		//message->set_source_address(sourceaddr);
 		
-		message->set_destination_address(sockets_[socket_number].remote_host);
+		message->set_destination_address(socket.remote_host);
 		
 		//use the stored values (default: 0)
 		message->set_flow_label(flow_label_);
@@ -487,10 +511,10 @@ namespace wiselib
 		
 		//Construct the UDP header
 		//Local Port
-		message->template set_payload<uint16_t>( &(sockets_[socket_number].local_port), 0 );
+		message->template set_payload<uint16_t>( &(socket.local_port), 0 );
 		
 		//Remote Port
-		message->template set_payload<uint16_t>( &(sockets_[socket_number].remote_port), 2 );
+		message->template set_payload<uint16_t>( &(socket.remote_port), 2 );
 		
 		//Length (payload + UDP header)
 		message->template set_payload<uint16_t>( &(len), 4 );
@@ -502,7 +526,7 @@ namespace wiselib
 		
 		//Send the packet to the IP layer
 		//data stored in the pool, pass just the number of the packet
-		int result = radio_ip().send( sockets_[socket_number].remote_host, packet_number, NULL );
+		int result = radio_ip().send( socket.remote_host, packet_number, NULL );
 		//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
 		if( result != ROUTING_CALLED )
 			packet_pool_mgr_->clean_packet( message );
@@ -529,9 +553,7 @@ namespace wiselib
 		
 		uint16_t actual_local_port = ( data[2] << 8 ) | data[3];
 		
-		#ifdef UDP_LAYER_DEBUG
 		uint16_t actual_remote_port = ( data[0] << 8 ) | data[1];
-		#endif
 		
 		uint16_t checksum = ( data[6] << 8 ) | data[7];
 		data[6] = 0;
@@ -548,7 +570,9 @@ namespace wiselib
 		
 		for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 		{
-			if( sockets_[i].local_port == actual_local_port )
+			if( (sockets_[i].local_port == actual_local_port) &&
+			    (sockets_[i].remote_port == 0 || sockets_[i].remote_port == actual_remote_port) &&
+			    (sockets_[i].remote_host == Radio_IP::NULL_NODE_ID || sockets_[i].remote_host == from) )
 				{
 					#ifdef UDP_LAYER_DEBUG
 					char str[43];
@@ -563,7 +587,7 @@ namespace wiselib
 					
 					(*it)( from, len, data );*/
 					
-					notify_receivers( from, message->transport_length() - 8, data + 8 );
+					notify_receivers( sockets_[i], message->transport_length() - 8, data + 8 );
 					
 					//Clean packet after processing
 					packet_pool_mgr_->clean_packet( message );
@@ -574,7 +598,7 @@ namespace wiselib
 		
 		#ifdef UDP_LAYER_DEBUG
 		char str[43];
-		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from ", actual_local_port, actual_remote_port, from.get_address(str));
+		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from %s", actual_local_port, actual_remote_port, from.get_address(str));
 		#endif
 		packet_pool_mgr_->clean_packet( message );
 	}
