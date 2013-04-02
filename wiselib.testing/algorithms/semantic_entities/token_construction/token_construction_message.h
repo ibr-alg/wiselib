@@ -64,12 +64,13 @@ namespace wiselib {
 			enum Positions {
 				POS_MESSAGE_ID = 0,
 				POS_REASON = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_ENTITY_COUNT = POS_MESSAGE_ID + sizeof(reason_t),
+				POS_ENTITY_COUNT = POS_REASON + sizeof(reason_t),
 				POS_ENTITIES = POS_ENTITY_COUNT + sizeof(entity_count_t)
 			};
 			
 			enum Reasons {
 				REASON_REGULAR_BCAST = 0,
+				REASON_DIRTY_BCAST = 1
 			};
 			
 			enum {
@@ -80,7 +81,7 @@ namespace wiselib {
 				set_entity_count(0);
 			}
 			
-			void add_entity(SemanticEntity& se) {
+			void add_entity_state(typename SemanticEntity::State& se) {
 				// TODO
 				assert(size() + ENTITY_SIZE < MAX_MESSAGE_LENGTH);
 				if(size() + ENTITY_SIZE >= MAX_MESSAGE_LENGTH) {
@@ -91,12 +92,20 @@ namespace wiselib {
 				set_entity_count(entity_count() + 1);
 			}
 			
+			void get_entity_state(entity_count_t i, typename SemanticEntity::State& se) {
+				wiselib::read<OsModel>(entity_description(i), se);
+			}
+			
 			block_data_t* data() {
 				return data_;
 			}
 			
 			size_type size() {
 				return POS_ENTITIES + ENTITY_SIZE * entity_count();
+			}
+			
+			message_id_t type() {
+				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID);
 			}
 			
 			entity_count_t entity_count() {
@@ -113,11 +122,10 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_REASON, c);
 			}
 			
+		private:
 			block_data_t* entity_description(entity_count_t i) {
 				return data_ + POS_ENTITIES + ENTITY_SIZE * i;
 			}
-			
-		private:
 		
 			block_data_t data_[MAX_MESSAGE_LENGTH];
 		

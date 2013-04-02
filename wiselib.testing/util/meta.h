@@ -71,8 +71,12 @@ template<int x> struct StaticPrint;
 /*
  * STATIC ASSERTIONS
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
 #define static_assert(X) typedef static_assert_test<sizeof(STATIC_ASSERT_FAILURE< X >)> _static_assert_ ## __LINE__
+
+#pragma GCC diagnostic pop
 
 /**
  * Not instantiable for B = false

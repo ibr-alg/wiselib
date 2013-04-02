@@ -77,8 +77,10 @@ namespace wiselib {
 			};
 			
 			enum Timing {
+				/// Guarantee to broadcast in this fixed inverval
 				REGULAR_BCAST_INTERVAL = 10000,
-				STATE_BCAST_CHECK_INTERVAL = 1000
+				/// Check in this interval whether state is dirty and broadcast it if so
+				DIRTY_BCAST_INTERVAL = 100,
 			};
 			
 			enum SpecialAddresses {
@@ -92,17 +94,20 @@ namespace wiselib {
 			
 			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
 			
-			typedef TimingController<self_type> TimingControllerT;
+			typedef TimingController<OsModel, Radio, Timer, Clock, REGULAR_BCAST_INTERVAL, MAX_NEIGHBOURS> TimingControllerT;
 			
 			//typedef vector_dynamic<OsModel, State> States;
 			
-			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer) {
+			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock) {
 				radio_ = radio;
 				timer_ = timer;
+				clock_ = clock;
+				caffeine_level_ = 0;
 				
 				// - set up timer to make sure we broadcast our state at least
 				//   so often
 				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
+				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
 				
 				// - set up timer to sieve out lost neighbors
 				// - register receive callback
@@ -117,11 +122,17 @@ namespace wiselib {
 		private:
 			
 			void push_caffeine() {
-				// TODO: Make sure we are not sleeping
+				if(caffeine_level_ == 0) {
+					radio_->enable_radio();
+				}
+				caffeine_level_++;
 			}
 			
 			void pop_caffeine() {
-				// TODO: if nobody forces us to be awake anymore, go to sleep
+				caffeine_level_--;
+				if(caffeine_level_ == 0) {
+					radio_->disable_radio();
+				}
 			}
 			
 			/**
@@ -132,8 +143,8 @@ namespace wiselib {
 				msg.set_reason(Message::REASON_REGULAR_BCAST);
 				
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
-					msg.add_entity(*iter);
-					iter->set_clean();
+					msg.add_entity_state(iter->state());
+					iter->state().set_clean();
 				}
 				
 				push_caffeine();
@@ -143,8 +154,40 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
 			}
 			
+			/**
+			 * Send out our current state to our neighbors if it is considered
+			 * dirty.
+			 */
+			void on_dirty_broadcast_state(void*) {
+				Message msg;
+				msg.set_reason(Message::REASON_DIRTY_BCAST);
+				
+				//DBG("id=%02d on_dirty_broadcast_state", radio_->id());
+				
+				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					if(iter->state().dirty()) {
+				//		DBG("id=%02d on_dirty_broadcast_state sending se %d.%08x", radio_->id(), iter->id().rule(), iter->id().value());
+						msg.add_entity_state(iter->state());
+						iter->state().set_clean();
+					}
+				}
+				
+				if(msg.entity_count()) {
+					DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
+				
+					push_caffeine();
+					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+					pop_caffeine();
+				
+				}
+				
+				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
+			}
+			
 			
 			SemanticEntityT& find_entity(SemanticEntityId& id, bool& found) {
+				//DBG("@%d: find_entity %d.%08x", radio_->id(), id.rule(), id.value());
+						
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					if(iter->id() == id) {
 						found = true;
@@ -159,16 +202,19 @@ namespace wiselib {
 			 * Called by the radio when any packet is received.
 			 */
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				
 				// TODO: check message type
 				Message &msg = reinterpret_cast<Message&>(*data);
 				update_timing_info(from, msg); 
 				
+				//DBG("%d recv from %d type=%d reason=%d count=%d", radio_->id(), from, msg.type(), msg.reason(), msg.entity_count());
+				
 				//for(typename Message::entity_iterator iter = msg.begin_entities(); iter != msg.end_entities(); ++iter) {
 				for(size_type i = 0; i < msg.entity_count(); i++) {
 					typename SemanticEntityT::State s;
-					bool found;
+					msg.get_entity_state(i, s);
 					
-					wiselib::read<OsModel>(msg.entity_description(i), s);
+					bool found;
 					SemanticEntityT &se = find_entity(s.id(), found);
 					if(!found) { continue; }
 					
@@ -209,11 +255,13 @@ namespace wiselib {
 			}
 			
 			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
+				//DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d", radio_->id(), source, se.id().rule(), se.id().value());
 				// TODO: update timing info
 				
 				se.neighbor_state(source) = state.tree();
-				// TODO XXX recalculate tree state, schedule additional
+				// TODO  recalculate tree state, schedule additional
 				// broadcast if smth. changed?
+				se.update_state(radio_->id());
 			}
 			
 			void process_token(node_id_t source, State& state) {
@@ -256,6 +304,7 @@ namespace wiselib {
 			typename Clock::self_pointer_t clock_;
 			SemanticEntities entities_;
 			TimingControllerT timing_controller_;
+			size_type caffeine_level_;
 			
 	}; // TokenConstruction
 }

@@ -32,31 +32,35 @@ namespace wiselib {
 	 * @tparam 
 	 */
 	template<
-		typename TokenConstruction_P
+		typename OsModel_P,
+		typename Radio_P = typename OsModel_P::Radio,
+		typename Timer_P = typename OsModel_P::Timer,
+		typename Clock_P = typename OsModel_P::Clock,
+		long REGULAR_BCAST_INTERVAL_P = 10000,
+		long MAX_NEIGHBORS_P = 16
 	>
 	class TimingController {
 		
 		public:
-			typedef TokenConstruction_P TokenConstruction;
-			typedef typename TokenConstruction::OsModel OsModel;
+			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef typename TokenConstruction::Clock Clock;
+			typedef Clock_P Clock;
 			typedef typename Clock::time_t time_t;
 			typedef typename Clock::millis_t millis_t;
-			typedef typename TokenConstruction::Radio Radio;
+			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
-			
-			enum {
-				REGULAR_BCAST_INTERVAL = TokenConstruction::REGULAR_BCAST_INTERVAL
-			};
 			
 			enum HitType {
 				HIT_CLOSE, HIT_STABLE, HIT_FAR
 			};
 			
+			enum Timings {
+				REGULAR_BCAST_INTERVAL = REGULAR_BCAST_INTERVAL_P
+			};
+			
 			/// Some fractions (in percent)
-			enum {
+			enum TimingFractions {
 				/**
 				 * 1/x window size in which a hit is considered close.
 				 * E.g. CLOSE_HIT_WINDOW = 4 --> hit in 1/4 of current window
@@ -75,8 +79,7 @@ namespace wiselib {
 			};
 			
 			enum Restrictions {
-				MAX_NEIGHBORS = TokenConstruction::MAX_NEIGHBORS,
-				
+				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
 				MIN_REGULAR_BCAST_WINDOW_SIZE = 100,
 				MAX_REGULAR_BCAST_WINDOW_SIZE = REGULAR_BCAST_INTERVAL
 			};
@@ -103,7 +106,7 @@ namespace wiselib {
 						case HIT_STABLE:
 							update_expectation(t.regular_expected(), hit, ALPHA_STABLE);
 							break;
-						case HIT_CLOSE:
+						case HIT_FAR:
 							grow_window(t.regular_window_size(), MAX_REGULAR_BCAST_WINDOW_SIZE);
 							update_expectation(t.regular_expected(), hit, ALPHA_FAR);
 							break;
@@ -133,7 +136,7 @@ namespace wiselib {
 			
 			HitType hit_type(time_t hit, time_t expected, millis_t window_size) {
 				time_t diff_t = (hit > expected) ? (hit - expected) : (expected - hit);
-				millis_t diff_m  = clock_->millis(diff_t);
+				millis_t diff_m  = clock_->milliseconds(diff_t);
 				
 				if(diff_m < window_size * CLOSE_HIT_WINDOW / 100) {
 					return HIT_CLOSE;

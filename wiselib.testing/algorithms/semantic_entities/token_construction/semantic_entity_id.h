@@ -20,6 +20,9 @@
 #ifndef SEMANTIC_ENTITY_ID_H
 #define SEMANTIC_ENTITY_ID_H
 
+#include <external_interface/external_interface.h>
+#include <util/serialization/serialization.h>
+
 namespace wiselib {
 	
 	/**
@@ -30,7 +33,7 @@ namespace wiselib {
 	class SemanticEntityId {
 		public:
 			typedef ::uint32_t Value;
-			typedef ::uint8_t Rule;
+			typedef ::uint32_t Rule;
 			
 			/**
 			 * Create the invalid SE id.
@@ -48,13 +51,54 @@ namespace wiselib {
 				return rule_ < other.rule_ || (rule_ == other.rule_ && value_ < other.value_);
 			}
 			
-			Value value() { return value_; }
-			Rule rule() { return rule_; }
+			Value value() const { return value_; }
+			Rule rule() const { return rule_; }
 			
 		private:
 			Value value_;
 			Rule rule_;
+			
+		template<
+			typename OsModel_,
+			Endianness Endianness_,
+			typename BlockData_,
+			typename T
+		>
+		friend class Serialization;
+		
 	}; // SemanticEntityId
+	
+	
+	/*
+	template<
+		typename OsModel_P,
+		Endianness Endianness_P,
+		typename BlockData_P
+	>
+	struct Serialization<OsModel_P, Endianness_P, BlockData_P, SemanticEntityId> {
+		typedef OsModel_P OsModel;
+		typedef BlockData_P block_data_t;
+		typedef typename SemanticEntityId::Rule Rule;
+		typedef typename SemanticEntityId::Value Value;
+		typedef typename OsModel::size_t size_type;
+		
+		static size_type write(block_data_t *data, SemanticEntityId& value) {
+			wiselib::write<OsModel>(data, value.rule_); data += sizeof(Rule);
+			wiselib::write<OsModel>(data, value.value_); data += sizeof(Value);
+			
+			DBG("writing SE ID r=%d v=%d %02x %02x %02x %02x %02x");
+			return sizeof(Rule) + sizeof(Value);
+		}
+		
+		static SemanticEntityId read(block_data_t *data) {
+			DBG("reading SE ID !!!");
+			SemanticEntityId value;
+			wiselib::read<OsModel>(data, value.rule_); data += sizeof(Rule);
+			wiselib::read<OsModel>(data, value.value_); data += sizeof(Value);
+			return value;
+		}
+	};
+	*/
 }
 
 #endif // SEMANTIC_ENTITY_ID_H
