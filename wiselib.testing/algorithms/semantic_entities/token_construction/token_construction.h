@@ -24,9 +24,10 @@
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/list_dynamic.h>
 
-#include "token_construction_message.h"
 #include "semantic_entity.h"
 #include "semantic_entity_id.h"
+#include "timing_controller.h"
+#include "token_construction_message.h"
 
 namespace wiselib {
 	
@@ -40,7 +41,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Radio_P = typename OsModel_P::Radio,
-		typename Timer_P = typename OsModel_P::Timer_P
+		typename Timer_P = typename OsModel_P::Timer,
+		typename Clock_P = typename OsModel_P::Clock
 	>
 	class TokenConstruction {
 		
@@ -48,7 +50,8 @@ namespace wiselib {
 			typedef TokenConstruction<
 				OsModel_P,
 				Radio_P,
-				Timer_P
+				Timer_P,
+				Clock_P
 			> self_type;
 			typedef self_type* self_pointer_t;
 			
@@ -58,7 +61,9 @@ namespace wiselib {
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef Timer_P Timer;
-			typedef typename Timer::millis_t millis_t;
+			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			
 			typedef ::uint8_t token_count_t;
 			typedef SemanticEntity<OsModel> SemanticEntityT;
 			typedef typename SemanticEntityT::State State;
@@ -72,7 +77,7 @@ namespace wiselib {
 			};
 			
 			enum Timing {
-				MIN_STATE_BCAST_INTERVAL = 10000,
+				REGULAR_BCAST_INTERVAL = 10000,
 				STATE_BCAST_CHECK_INTERVAL = 1000
 			};
 			
@@ -85,13 +90,9 @@ namespace wiselib {
 				npos = (size_type)(-1)
 			};
 			
-			class NeighborInfo {
-				private:
-					millis_t last_life_sign_;
-					millis_t last_scheduled_beacon_;
-			};
-			
 			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
+			
+			typedef TimingController<self_type> TimingControllerT;
 			
 			//typedef vector_dynamic<OsModel, State> States;
 			
@@ -101,7 +102,7 @@ namespace wiselib {
 				
 				// - set up timer to make sure we broadcast our state at least
 				//   so often
-				timer_->template set_timer<self_type, &self_type::on_broadcast_state>(STATE_BCAST_CHECK_INTERVAL, this, 0);
+				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
 				
 				// - set up timer to sieve out lost neighbors
 				// - register receive callback
@@ -126,23 +127,20 @@ namespace wiselib {
 			/**
 			 * Send out our current state to our neighbors.
 			 */
-			void on_broadcast_state(void*) {
+			void on_regular_broadcast_state(void*) {
 				Message msg;
+				msg.set_reason(Message::REASON_REGULAR_BCAST);
 				
-				DBG("---");
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
-					DBG("add_entity %d.%d", iter->id().rule(), iter->id().value());
 					msg.add_entity(*iter);
-					//if(iter->should_send(now())) {
 					iter->set_clean();
-					//}
 				}
 				
 				push_caffeine();
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				pop_caffeine();
 				
-				timer_->template set_timer<self_type, &self_type::on_broadcast_state>(STATE_BCAST_CHECK_INTERVAL, this, 0);
+				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
 			}
 			
 			
@@ -154,27 +152,31 @@ namespace wiselib {
 					}
 				}
 				found = false;
+				return *reinterpret_cast<SemanticEntityT*>(0);
 			}
 			
 			/**
 			 * Called by the radio when any packet is received.
 			 */
-			void on_receive(node_id_t from, size_type len, block_data_t* data) {
+			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				// TODO: check message type
 				Message &msg = reinterpret_cast<Message&>(*data);
+				update_timing_info(from, msg); 
 				
 				//for(typename Message::entity_iterator iter = msg.begin_entities(); iter != msg.end_entities(); ++iter) {
 				for(size_type i = 0; i < msg.entity_count(); i++) {
 					typename SemanticEntityT::State s;
+					bool found;
+					
 					wiselib::read<OsModel>(msg.entity_description(i), s);
+					SemanticEntityT &se = find_entity(s.id(), found);
+					if(!found) { continue; }
 					
 					// In any case, update the tree state from our neigbour
-					process_neighbor_tree_state(from, s);
+					process_neighbor_tree_state(from, s, se);
 					
 					// For the token count decide whether we are the direct
 					// successor in the ring or we need to forward
-					bool found;
-					SemanticEntityT &se = find_entity(s.id(), found);
 					if(from == se.parent()) {
 						process_token(from, s);
 					}
@@ -185,21 +187,33 @@ namespace wiselib {
 						if(idx == se.childs() - 1) { forward_token(se.parent()); }
 						else { forward_token(se.child_address(idx + 1)); }
 					}
+				} // for se
+			} // on_receive()
+			
+			/**
+			 * Record the current time for reception of the given packet,
+			 * update timing expectations.
+			 */
+			void update_timing_info(node_id_t source, Message& msg) {
+				time_t now = clock_->time();
+				switch(msg.reason()) {
+					case Message::REASON_REGULAR_BCAST: {
+						timing_controller_.regular_broadcast(source, now);
+						break;
+					}
 				}
-			}
+			} // update_timing_info()
 			
 			void forward_token(node_id_t to) {
 				// TODO
 			}
 			
-			void process_neighbor_tree_state(node_id_t source, State& state) {
-				// update timing info
+			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
+				// TODO: update timing info
 				
-				bool found;
-				SemanticEntityT &se = find_entity(state.id(), found);
-				if(!found) { return; }
-				
-				//TODO: copy_state(se.neighbor_states()[source], state);
+				se.neighbor_state(source) = state.tree();
+				// TODO XXX recalculate tree state, schedule additional
+				// broadcast if smth. changed?
 			}
 			
 			void process_token(node_id_t source, State& state) {
@@ -237,19 +251,12 @@ namespace wiselib {
 				// TODO
 			}
 			
-			millis_t now() {
-				return timer_->millis() + 1000 * timer_->seconds();
-			}
-			
-			
 			typename Radio::self_pointer_t radio_;
 			typename Timer::self_pointer_t timer_;
+			typename Clock::self_pointer_t clock_;
 			SemanticEntities entities_;
+			TimingControllerT timing_controller_;
 			
-			/// Timing.
-			//NeighborInfos neighbor_infos_;
-			millis_t window_size_;
-		
 	}; // TokenConstruction
 }
 
