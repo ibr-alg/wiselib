@@ -113,7 +113,7 @@ namespace wiselib
 			timer_ = &timer;
 			uart_ = &uart;
 			
-			debug_->debug( "IPv6 stack init: %x", radio_->id());
+			debug_->debug( "IPv6 stack init: %llx", (radio_->id()));
 			
 			packet_pool_mgr.init( *debug_ );
 			
