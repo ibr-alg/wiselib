@@ -1399,7 +1399,7 @@ namespace wiselib
 			if( ip_address == ip_broadcast || ip_address == ip_all_routers )
 				mac_address = BROADCAST_ADDRESS;
 			else
-				mac_address = ( ip_address.addr[14] << 8 ) | ip_address.addr[15];
+				mac_address = ip_address.get_iid();
 		}
 		return SUCCESS;
 	}
