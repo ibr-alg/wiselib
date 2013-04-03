@@ -163,7 +163,7 @@ namespace wiselib
 				packet_pool_mgr_->clean_packet( ip_packet );
 				
 				#ifdef LoWPAN_LAYER_DEBUG
-				debug().debug(" Reassembling manager: fragment collection timeot for packet: %i from %x.", ip_packet_number, frag_sender );
+				debug().debug(" Reassembling manager: fragment collection timeot for packet: %i from %llx.", ip_packet_number, (long long unsigned)frag_sender );
 				#endif
 			}
 		}

@@ -423,7 +423,7 @@ namespace wiselib
 				
 				#ifdef LOWPAN_MESH_UNDER
 				#ifdef LoWPAN_LAYER_DEBUG
-				debug().debug("Routing working on: %x", requested_destination_);
+				debug().debug("Routing working on: %llx", (long long unsigned)requested_destination_);
 				#endif
 				#endif
 				
