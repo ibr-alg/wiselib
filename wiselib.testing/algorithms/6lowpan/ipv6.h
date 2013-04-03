@@ -215,6 +215,9 @@
 			#ifdef LOWPAN_ROUTE_OVER
 			routing_.init( *timer_, *debug_, *radio_ );
 			#endif
+			
+			flow_label_ = 0;
+			traffic_class_ = 0;
 
 			return SUCCESS;
 		}
@@ -262,6 +265,16 @@
 		
 		InterfaceManager_t* interface_manager_;
 		
+		/**
+		* Set traffic class and flow label values, which will be used in the further packets
+		* \param traffic_class 8 bits traffic class field
+		* \param flow_label 20 bits flow label field (upper bits will not be used)
+		*/
+		void set_traffic_class_flow_label( uint8_t traffic_class = 0, uint32_t flow_label = 0 )
+		{
+			traffic_class_ = traffic_class;
+			flow_label_ = flow_label;
+		}
 		
 		/*
 				Extension headers
@@ -481,6 +494,12 @@
 		void routing_polling( void* p_number );
 		#endif
 		
+		/**
+		* Traffic class & Flow label storage
+		*/
+		uint8_t traffic_class_;
+		uint32_t flow_label_;
+		
 	};
 	
 	
@@ -598,7 +617,7 @@
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: initialization at %x", radio().id() );
+		debug().debug( "IPv6 layer: initialization at %llx", (long long unsigned)(radio().id()) );
 		//debug().debug( "IPv6 layer: MAC length: %i", sizeof(link_layer_node_id_t) );
 
 		#ifdef LOWPAN_ROUTE_OVER
@@ -807,6 +826,10 @@
 			message->set_real_next_header(message->transport_next_header());
 		}
 		
+		//use the stored values (default: 0)
+		message->set_flow_label(flow_label_);
+		message->set_traffic_class(traffic_class_);
+		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
 		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
@@ -981,6 +1004,8 @@
 		}
 		// Process Extension Headers - END
 		
+// 		debug().debug( "IPv6 flow_label: %i, traffic_class: %i\n", message->flow_label(), message->traffic_class());
+		
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
 // 		if ( destination_ip == BROADCAST_ADDRESS || destination_ip == SOLICITED_MULTICAST_ADDRESS ||
@@ -1001,25 +1026,25 @@
 			if( destination_ip == BROADCAST_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %x", source_ip.get_address(str), my_mac );
+				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			else if( destination_ip == ALL_ROUTERS_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG	
-				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %x", source_ip.get_address(str), my_mac );
+				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			else if( destination_ip == SOLICITED_MULTICAST_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG	
-				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %x", source_ip.get_address(str), my_mac );
+				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			else if( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Received packet non-supported multicast from %s at %x", source_ip.get_address(str), my_mac );
+				debug().debug( "IPv6 layer: Received packet non-supported multicast from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 				
 				packet_pool_mgr_->clean_packet( message );
@@ -1028,7 +1053,7 @@
 			else
 			{
 				#ifdef IPv6_LAYER_DEBUG	
-				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %x", source_ip.get_address(str), my_mac );
+				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			
@@ -1036,7 +1061,7 @@
 			if( (message->transport_next_header() != UDP) && (message->transport_next_header() != ICMPV6) )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %x", message->transport_next_header(), my_mac );
+				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %llx", message->transport_next_header(), (long long unsigned)my_mac );
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				return;

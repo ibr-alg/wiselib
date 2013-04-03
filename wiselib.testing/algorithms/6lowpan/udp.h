@@ -288,14 +288,11 @@ namespace wiselib
 		}
 		
 		/**
-		* Set traffic class and flow label values, which will be used in the further packets
-		* \param traffic_class 8 bits traffic class field
-		* \param flow_label 20 bits flow label field (upper bits will not be used)
+		* Only for compatibility
 		*/
 		void set_traffic_class_flow_label( uint8_t traffic_class = 0, uint32_t flow_label = 0 )
 		{
-			traffic_class_ = traffic_class;
-			flow_label_ = flow_label;
+			radio_ip().set_traffic_class_flow_label( traffic_class, flow_label );
 		}
 		
 		/**
@@ -326,13 +323,6 @@ namespace wiselib
 		* Callback ID
 		*/
 		int callback_id_;
-		
-		/**
-		* Traffic class & Flow label storage
-		*/
-		uint8_t traffic_class_;
-		uint32_t flow_label_;
-		
 	};
 	
 	
@@ -502,8 +492,8 @@ namespace wiselib
 		message->set_destination_address(socket.remote_host);
 		
 		//use the stored values (default: 0)
-		message->set_flow_label(flow_label_);
-		message->set_traffic_class(traffic_class_);
+// 		message->set_flow_label(flow_label_);
+// 		message->set_traffic_class(traffic_class_);
 		
 		//Construct the UDP header
 		//Local Port
@@ -575,15 +565,14 @@ namespace wiselib
 					debug().debug( "UDP layer: Received packet (Local Port: %i, Remote Port: %i) from %s", actual_local_port, actual_remote_port, from.get_address(str));
 					#endif
 					
-					//debug().debug( "UDP flow_label: %i, traffic_class: %i\n", message->flow_label(), message->traffic_class());
-					
 					//TODO notify just the subscribed application for the socket
 					/*CallbackVectorIterator it = callbacks_.begin();
 					it = it + sockets_[i].callback_id;
 					
 					(*it)( from, len, data );*/
 					
-					notify_receivers( sockets_[i], message->transport_length() - 8, data + 8 );
+					Socket_t tmp = Socket_t( actual_local_port, actual_remote_port, from, -1 ); 
+					notify_receivers( tmp, message->transport_length() - 8, data + 8 );
 					
 					//Clean packet after processing
 					packet_pool_mgr_->clean_packet( message );

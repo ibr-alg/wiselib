@@ -43,8 +43,12 @@ public:
 		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet( value );
-
-		debug_->debug( "Booting with ID: %x\n", radio_->id());
+		
+		#ifdef ISENSE
+		debug_->debug( "Booting with ID: %llx, radio channel: %i\n", (long long unsigned)(radio_->id()), radio_->set_channel( 18 ));
+		#elif
+		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
+		#endif
 		
 		ipv6_stack_.init(*radio_, *debug_, *timer_, *uart_);
 		
@@ -96,7 +100,7 @@ public:
 			uint8_t mypayload[] = "hello :) This is a test message.";
 			
 			//Set IPv6 header fields
-			//ipv6_stack_.udp.set_traffic_class_flow_label( 0, 42 );
+// 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
 			
 			// local_port, remote_port, remote_host
 			UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
@@ -113,6 +117,7 @@ public:
 		/*
 			ICMPv6 Ping test
 		*/
+		
 		/*
 		if( radio_->id() == 0x0 )
 		{
@@ -131,7 +136,7 @@ public:
 		if( socket != ipv6_stack_.udp.id() )
 		{
 			char str[43];
-			debug_->debug( "Application layer received msg at %x from %s", radio_->id(), socket.remote_host.get_address(str) );
+			debug_->debug( "Application layer received msg at %llx from %s", (long long unsigned)(radio_->id()), socket.remote_host.get_address(str) );
 			debug_->debug( "    Size: %i Content: %s ", len, buf);
 		}
 	}
@@ -142,7 +147,7 @@ public:
 		if( len == 1 && buf[0] == ipv6_stack_.icmpv6.ECHO_REPLY )
 		{
 			char str[43];
-			debug_->debug( "Application layer received echo reply at %x from %s", radio_->id(), from.get_address(str) );
+			debug_->debug( "Application layer received echo reply at %llx from %s", (long long unsigned)(radio_->id()), from.get_address(str) );
 		}
 	}
 
