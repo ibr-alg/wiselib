@@ -44,10 +44,10 @@ namespace wiselib {
 			SemanticEntityId(Rule r, Value v) : value_(v), rule_(r) {
 			}
 			
-			bool operator==(SemanticEntityId& other) {
+			bool operator==(const SemanticEntityId& other) {
 				return value_ == other.value_ && rule_ == other.rule_;
 			}
-			bool operator<(SemanticEntityId& other) {
+			bool operator<(const SemanticEntityId& other) {
 				return rule_ < other.rule_ || (rule_ == other.rule_ && value_ < other.value_);
 			}
 			

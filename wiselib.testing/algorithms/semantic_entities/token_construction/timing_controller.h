@@ -114,6 +114,9 @@ namespace wiselib {
 				} // if contains source
 			} // regular_broadcast()
 			
+			void dirty_broadcast(node_id_t source, time_t hit) {
+			}
+			
 			void token_forward(node_id_t source, time_t hit) {
 				// TODO
 			}

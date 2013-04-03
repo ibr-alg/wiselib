@@ -17,6 +17,18 @@ fi
 
 case $1 in
 	mount)
+		echo -------- WARNING! ---------
+		echo This script can very easily damage the state of your virtual
+		echo machine to uselessness.
+		echo Use it *only* when your VM has been propely shut down,
+		echo "that is, freezing it ('save state') is NOT ENOUGH!"
+		echo
+		echo Even then use this as your OWN RISK! Dont work without backups!
+		echo ---------------------------
+		echo
+		echo Press return if you still want to go on, ctrl-c otherwise.
+		read
+		
 		echo $VDFUSE $VMDK_PATH $MOUNTPOINT_VMDK
 		$VDFUSE $VMDK_PATH $MOUNTPOINT_VMDK
 		echo mount -t $PARTITION_FS -o loop $PARTITION_PATH $MOUNTPOINT_PARTITION

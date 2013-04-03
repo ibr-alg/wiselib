@@ -44,7 +44,7 @@ namespace wiselib {
 		typename SemanticEntity_P,
 		typename Radio_P
 	>
-	class TokenConstructionMessage {
+	class StateUpdateMessage {
 		
 		public:
 			typedef OsModel_P OsModel;
@@ -74,10 +74,12 @@ namespace wiselib {
 			};
 			
 			enum {
+				MESSAGE_TYPE = 0x77,
 				ENTITY_SIZE = sizeof(typename SemanticEntity::State)
 			};
 			
-			TokenConstructionMessage() {
+			StateUpdateMessage() {
+				set_type(MESSAGE_TYPE);
 				set_entity_count(0);
 			}
 			
@@ -96,16 +98,12 @@ namespace wiselib {
 				wiselib::read<OsModel>(entity_description(i), se);
 			}
 			
-			block_data_t* data() {
-				return data_;
-			}
-			
-			size_type size() {
-				return POS_ENTITIES + ENTITY_SIZE * entity_count();
-			}
-			
 			message_id_t type() {
 				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID);
+			}
+			
+			void set_type(message_id_t t) {
+				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, t);
 			}
 			
 			entity_count_t entity_count() {
@@ -120,6 +118,14 @@ namespace wiselib {
 			}
 			void set_reason(reason_t c) {
 				wiselib::write<OsModel>(data_ + POS_REASON, c);
+			}
+			
+			block_data_t* data() {
+				return data_;
+			}
+			
+			size_type size() {
+				return POS_ENTITIES + ENTITY_SIZE * entity_count();
 			}
 			
 		private:

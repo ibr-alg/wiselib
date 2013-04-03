@@ -125,6 +125,9 @@ namespace wiselib {
 			 */
 			class State {
 				public:
+					typedef SemanticEntity::TokenState TokenState;
+					typedef SemanticEntity::TreeState TreeState;
+					
 					State() : dirty_(true) {
 					}
 					
@@ -176,10 +179,6 @@ namespace wiselib {
 					
 					bool dirty() const { return dirty_; }
 					void set_clean() { dirty_ = false; }
-					
-					bool has_token() {
-						// TODO
-					}
 					
 					const TreeState& tree() { return tree_state_; }
 					const TokenState& token() { return token_state_; }
@@ -264,7 +263,7 @@ namespace wiselib {
 						state().increment_count();
 					}
 				}
-				else if(l != state_.token().count()) {
+				else {
 					state().set_count(l);
 				}
 				
@@ -298,7 +297,7 @@ namespace wiselib {
 			 * Return length of ordered list of childs.
 			 */
 			size_type childs() {
-				// TODO: return number of childs
+				return childs_.size();
 			}
 			
 			/**
@@ -309,18 +308,19 @@ namespace wiselib {
 			}
 			
 			State& child_state(size_type idx) {
-				// TODO
+				return neighbor_states_[childs_[idx]];
 			}
 			
 			node_id_t child_address(size_type idx) {
-				// TODO
+				return childs_[idx];
 			}
+			
+			// TODO: at some point we have to actually fill childs_ ;)
 			
 			State& state() { return state_; }
 			const TreeState& tree() { return state_.tree(); }
 			const TokenState& token() { return state_.token(); }
 			
-			bool has_token() { return state_.has_token(); }
 			bool dirty() { return state_.dirty(); }
 			
 			bool operator==(SemanticEntity& other) { return id() == other.id(); }
@@ -339,6 +339,7 @@ namespace wiselib {
 			// vector of pairs: (time-offs from token recv, sender of forward
 			// token)
 			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
+			vector_static<OsModel, node_id_t, MAX_NEIGHBORS> childs_;
 			
 			
 	}; // SemanticEntity

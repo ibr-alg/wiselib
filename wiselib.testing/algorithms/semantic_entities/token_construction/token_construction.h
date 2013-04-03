@@ -27,7 +27,8 @@
 #include "semantic_entity.h"
 #include "semantic_entity_id.h"
 #include "timing_controller.h"
-#include "token_construction_message.h"
+#include "state_update_message.h"
+#include "token_state_forward_message.h"
 
 namespace wiselib {
 	
@@ -60,17 +61,24 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
 			typedef Timer_P Timer;
 			typedef Clock_P Clock;
 			typedef typename Clock::time_t time_t;
 			
 			typedef ::uint8_t token_count_t;
 			typedef SemanticEntity<OsModel> SemanticEntityT;
+			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
 			typedef typename SemanticEntityT::State State;
-			typedef TokenConstructionMessage<OsModel, SemanticEntityT, Radio> Message;
+			typedef typename State::TokenState TokenState;
+			//typedef TokenConstructionMessage<OsModel, SemanticEntityT, Radio> Message;
+			typedef StateUpdateMessage<OsModel, SemanticEntityT, Radio> StateUpdateMessageT;
+			typedef TokenStateForwardMessage<OsModel, typename State::TokenState, Radio> TokenStateForwardMessageT;
 			
-			//class State;
-			class NeighborState;
+			enum MessageTypes {
+				MESSAGE_TYPE_STATE_UPDATE = StateUpdateMessageT::MESSAGE_TYPE,
+				MESSAGE_TYPE_TOKEN_STATE_FORWARD = TokenStateForwardMessageT::MESSAGE_TYPE
+			};
 			
 			enum Constraints {
 				MAX_NEIGHBOURS = 8
@@ -92,9 +100,37 @@ namespace wiselib {
 				npos = (size_type)(-1)
 			};
 			
-			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
-			
 			typedef TimingController<OsModel, Radio, Timer, Clock, REGULAR_BCAST_INTERVAL, MAX_NEIGHBOURS> TimingControllerT;
+			
+			class PacketInfo {
+				public:
+					static PacketInfo* create(time_t received, node_id_t from, typename Radio::size_t len, block_data_t* data) {
+						PacketInfo *r = reinterpret_cast<PacketInfo*>(
+							::get_allocator().template allocate_array<block_data_t>(sizeof(PacketInfo) + len).raw()
+						);
+						r->received_ = received;
+						r->from_ = from;
+						r->len_ = len;
+						memcpy(r->data_, data, len);
+						return r;
+					}
+					
+					void destroy() {
+						::get_allocator().template free_array(reinterpret_cast<block_data_t*>(this));
+					}
+					
+					time_t& received() { return received_; }
+					node_id_t& from() { return from_; }
+					typename Radio::size_t& length() { return len_; }
+					block_data_t *data() { return data_; }
+				
+				private:
+					time_t received_;
+					typename Radio::size_t len_;
+					node_id_t from_;
+					block_data_t data_[0];
+			};
+			
 			
 			//typedef vector_dynamic<OsModel, State> States;
 			
@@ -139,8 +175,8 @@ namespace wiselib {
 			 * Send out our current state to our neighbors.
 			 */
 			void on_regular_broadcast_state(void*) {
-				Message msg;
-				msg.set_reason(Message::REASON_REGULAR_BCAST);
+				StateUpdateMessageT msg;
+				msg.set_reason(StateUpdateMessageT::REASON_REGULAR_BCAST);
 				
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					msg.add_entity_state(iter->state());
@@ -159,8 +195,8 @@ namespace wiselib {
 			 * dirty.
 			 */
 			void on_dirty_broadcast_state(void*) {
-				Message msg;
-				msg.set_reason(Message::REASON_DIRTY_BCAST);
+				StateUpdateMessageT msg;
+				msg.set_reason(StateUpdateMessageT::REASON_DIRTY_BCAST);
 				
 				//DBG("id=%02d on_dirty_broadcast_state", radio_->id());
 				
@@ -185,9 +221,7 @@ namespace wiselib {
 			}
 			
 			
-			SemanticEntityT& find_entity(SemanticEntityId& id, bool& found) {
-				//DBG("@%d: find_entity %d.%08x", radio_->id(), id.rule(), id.value());
-						
+			SemanticEntityT& find_entity(const SemanticEntityId& id, bool& found) {
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					if(iter->id() == id) {
 						found = true;
@@ -202,57 +236,97 @@ namespace wiselib {
 			 * Called by the radio when any packet is received.
 			 */
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
-				
-				// TODO: check message type
-				Message &msg = reinterpret_cast<Message&>(*data);
-				update_timing_info(from, msg); 
-				
-				//DBG("%d recv from %d type=%d reason=%d count=%d", radio_->id(), from, msg.type(), msg.reason(), msg.entity_count());
-				
-				//for(typename Message::entity_iterator iter = msg.begin_entities(); iter != msg.end_entities(); ++iter) {
-				for(size_type i = 0; i < msg.entity_count(); i++) {
-					typename SemanticEntityT::State s;
-					msg.get_entity_state(i, s);
-					
-					bool found;
-					SemanticEntityT &se = find_entity(s.id(), found);
-					if(!found) { continue; }
-					
-					// In any case, update the tree state from our neigbour
-					process_neighbor_tree_state(from, s, se);
-					
-					// For the token count decide whether we are the direct
-					// successor in the ring or we need to forward
-					if(from == se.parent()) {
-						process_token(from, s);
-					}
-					else {
-						size_type idx = se.find_child(from);
-						assert(idx != npos);
-						
-						if(idx == se.childs() - 1) { forward_token(se.parent()); }
-						else { forward_token(se.child_address(idx + 1)); }
-					}
-				} // for se
-			} // on_receive()
-			
-			/**
-			 * Record the current time for reception of the given packet,
-			 * update timing expectations.
-			 */
-			void update_timing_info(node_id_t source, Message& msg) {
 				time_t now = clock_->time();
-				switch(msg.reason()) {
-					case Message::REASON_REGULAR_BCAST: {
-						timing_controller_.regular_broadcast(source, now);
+				PacketInfo *p = PacketInfo::create(now, from, len, data);
+				timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
+			}
+			
+			void on_receive_task(void *p) {
+				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
+				time_t now = packet_info->received();
+				const node_id_t &from = packet_info->from();
+				//const typename Radio::size_t& len = packet_info->length();
+				block_data_t *data = packet_info->data();
+				
+				message_id_t msgtype = wiselib::read<OsModel, block_data_t, message_id_t>(data);
+				
+				switch(msgtype) {
+					case MESSAGE_TYPE_STATE_UPDATE: {
+						StateUpdateMessageT &msg = reinterpret_cast<StateUpdateMessageT&>(*data);
+						switch(msg.reason()) {
+							case StateUpdateMessageT::REASON_REGULAR_BCAST:
+								timing_controller_.regular_broadcast(from, now);
+								break;
+							case StateUpdateMessageT::REASON_DIRTY_BCAST:
+								timing_controller_.dirty_broadcast(from, now);
+								break;
+						}
+						
+						for(size_type i = 0; i < msg.entity_count(); i++) {
+							typename SemanticEntityT::State s;
+							msg.get_entity_state(i, s);
+							
+							bool found;
+							SemanticEntityT &se = find_entity(s.id(), found);
+							if(!found) { continue; }
+							
+							// In any case, update the tree state from our neigbour
+							process_neighbor_tree_state(from, s, se);
+							
+							// For the token count decide whether we are the direct
+							// successor in the ring or we need to forward
+							on_receive_token_state(s.token(), se, from);
+						} // for se
+						break;
+					} // MESSAGE_TYPE_STATE_UPDATE
+					
+					case MESSAGE_TYPE_TOKEN_STATE_FORWARD: {
+						TokenStateForwardMessageT &msg = reinterpret_cast<TokenStateForwardMessageT&>(*data);
+						bool found;
+						SemanticEntityT &se = find_entity(msg.entity_id(), found);
+						if(found) {
+							on_receive_token_state(msg.token_state(), se, from);
+						}
 						break;
 					}
-				}
-			} // update_timing_info()
+				} // switch(msgtype)
+				
+				packet_info->destroy();
+			} // on_receive_task()
 			
-			void forward_token(node_id_t to) {
-				// TODO
+			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from) {
+				if(from == se.parent()) {
+					process_token_state(se, s, from);
+				}
+				else {
+					size_type idx = se.find_child(from);
+					assert(idx != npos);
+					if(idx == se.childs() - 1) {
+						DBG("fwd to parent");
+						forward_token_state(se.id(), s, from, se.parent());
+					}
+					else {
+						DBG("fwd to child");
+						forward_token_state(se.id(), s, from, se.child_address(idx + 1));
+					}
+				}
 			}
+			
+			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to) {
+				DBG("fwd token state %d -> %d via %d", from, to, radio_->id());
+				TokenStateForwardMessageT msg;
+				msg.set_from(from);
+				msg.set_entity_id(se_id);
+				msg.set_token_state(s);
+				radio_->send(to, msg.size(), msg.data());
+			}
+			
+			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from) {
+				DBG("process token state at %d", radio_->id());
+				se.set_prev_token_count(s.count());
+				se.update_state(radio_->id());
+			}
+			
 			
 			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
 				//DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d", radio_->id(), source, se.id().rule(), se.id().value());
@@ -262,20 +336,6 @@ namespace wiselib {
 				// TODO  recalculate tree state, schedule additional
 				// broadcast if smth. changed?
 				se.update_state(radio_->id());
-			}
-			
-			void process_token(node_id_t source, State& state) {
-				bool found;
-				SemanticEntityT &se = find_entity(state.id(), found);
-				se.set_prev_token_count(state.token_count());
-				se.update_state(radio_->id());
-				if(se.has_token()) {
-					// update timing info
-					// be awake
-				}
-				if(se.state().dirty()) {
-					// send out state to first child
-				}
 			}
 			
 			/**
@@ -288,15 +348,6 @@ namespace wiselib {
 			
 			void on_lost_neighbor(SemanticEntityT &se, node_id_t neighbor) {
 				se.update_state();
-			}
-			
-			/**
-			 * Given a state received from a neighbor and a ref to a slot to
-			 * store it, update the info in the slot to match the received
-			 * state.
-			 */
-			void copy_state(NeighborState& to, State& from) {
-				// TODO
 			}
 			
 			typename Radio::self_pointer_t radio_;
