@@ -264,16 +264,12 @@ namespace wiselib
 		* \param remote_host listen for traffic only from this host
 		* \return the number of the socket
 		*/
-		int listen( uint16_t local_port, int callback_id, uint16_t remote_port = 0, ip_node_id_t* remote_host = NULL )
+		int listen( uint16_t local_port, int callback_id, uint16_t remote_port = 0, ip_node_id_t remote_host = Radio_IP::NULL_NODE_ID )
 		{
 			for( int i = 0; i < NUMBER_OF_UDP_SOCKETS; i++ )
 				if( sockets_[i].callback_id == -1 )
 				{
-					ip_node_id_t tmp = Radio_IP::NULL_NODE_ID;
-					if( remote_host != NULL )
-						tmp = *remote_host;
-
-					sockets_[i] = Socket_t(local_port, remote_port, tmp, callback_id );
+					sockets_[i] = Socket_t(local_port, remote_port, remote_host, callback_id );
 					return i;
 				}
 				return -1;
@@ -598,7 +594,7 @@ namespace wiselib
 		
 		#ifdef UDP_LAYER_DEBUG
 		char str[43];
-		debug().debug( "UDP layer: Received packet but no open socket for it! \n		(Local Port: %i, Remote Port: %i) from %s", actual_local_port, actual_remote_port, from.get_address(str));
+		debug().debug( "UDP layer: Received packet but no open socket for it! (Local Port: %i, Remote Port: %i) from %s", actual_local_port, actual_remote_port, from.get_address(str));
 		#endif
 		packet_pool_mgr_->clean_packet( message );
 	}

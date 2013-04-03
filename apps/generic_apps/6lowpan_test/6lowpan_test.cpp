@@ -63,7 +63,7 @@ public:
 		IPv6Address_t destinationaddr;
 		
 		//Host ID of the destination
-		node_id_t ll_id = 0x2110;
+		node_id_t ll_id = 0x2140;
 		
 		//Global addressing
 		/*
@@ -91,20 +91,21 @@ public:
 			For the best compression use ports between 61616 and 61631
 		*/
 		
-		if( radio_->id() == 0x210c )
+		if( radio_->id() == 0x2144 )
 		{
 			uint8_t mypayload[] = "hello :) This is a test message.";
 			
 			//Set IPv6 header fields
 			//ipv6_stack_.udp.set_traffic_class_flow_label( 0, 42 );
 			
-			// local port, remote port, remote address
-			UDPSocket_t my_socket = UDPSocket_t( 8092, 8091, destinationaddr ); 
+			// local_port, remote_port, remote_host
+			UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
 			ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
 		}
-		if( radio_->id() == 0x2110 )
+		if( radio_->id() == 0x2140 )
 		{
-			ipv6_stack_.udp.listen( 8091, callback_id );
+			//local_port, registered UDP callback ID, [remote_port], [remote_host]
+			ipv6_stack_.udp.listen( 61617, callback_id );
 			//ipv6_stack_.udp.print_sockets();
 		}
 		
@@ -126,9 +127,13 @@ public:
 	// --------------------------------------------------------------------
 	void receive_radio_message( UDPSocket_t socket, uint16_t len, Os::Radio::block_data_t *buf )
 	{
-		char str[43];
-		debug_->debug( "Application layer received msg at %x from %s", radio_->id(), socket.remote_host.get_address(str) );
-		debug_->debug( "    Size: %i Content: %s ", len, buf);
+		//Drop the messages from this node --> only the IP addresses are compared
+		if( socket != ipv6_stack_.udp.id() )
+		{
+			char str[43];
+			debug_->debug( "Application layer received msg at %x from %s", radio_->id(), socket.remote_host.get_address(str) );
+			debug_->debug( "    Size: %i Content: %s ", len, buf);
+		}
 	}
 
 	// --------------------------------------------------------------------
