@@ -89,6 +89,8 @@ namespace wiselib {
 				REGULAR_BCAST_INTERVAL = 10000,
 				/// Check in this interval whether state is dirty and broadcast it if so
 				DIRTY_BCAST_INTERVAL = 100,
+				/// How long to stay awake when we have the token
+				ACTIVITY_PERIOD = 1000,
 			};
 			
 			enum SpecialAddresses {
@@ -157,18 +159,26 @@ namespace wiselib {
 		
 		private:
 			
-			void push_caffeine() {
+			void push_caffeine(void* = 0) {
 				if(caffeine_level_ == 0) {
 					radio_->enable_radio();
 				}
 				caffeine_level_++;
 			}
 			
-			void pop_caffeine() {
+			void pop_caffeine(void* = 0) {
 				caffeine_level_--;
 				if(caffeine_level_ == 0) {
 					radio_->disable_radio();
 				}
+			}
+			
+			void start_being_active(void* = 0) {
+				push_caffeine();
+			}
+			
+			void stop_being_active(void* = 0) {
+				pop_caffeine();
 			}
 			
 			/**
@@ -275,7 +285,7 @@ namespace wiselib {
 							
 							// For the token count decide whether we are the direct
 							// successor in the ring or we need to forward
-							on_receive_token_state(s.token(), se, from);
+							on_receive_token_state(s.token(), se, from, now);
 						} // for se
 						break;
 					} // MESSAGE_TYPE_STATE_UPDATE
@@ -285,7 +295,7 @@ namespace wiselib {
 						bool found;
 						SemanticEntityT &se = find_entity(msg.entity_id(), found);
 						if(found) {
-							on_receive_token_state(msg.token_state(), se, from);
+							on_receive_token_state(msg.token_state(), se, from, now);
 						}
 						break;
 					}
@@ -294,35 +304,35 @@ namespace wiselib {
 				packet_info->destroy();
 			} // on_receive_task()
 			
-			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from) {
+			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from, time_t receive_time) {
 				if(from == se.parent()) {
-					DBG("processing because it came from parent");
-					process_token_state(se, s, from);
+					//DBG("processing because it came from parent");
+					process_token_state(se, s, from, receive_time);
 				}
 				else {
 					size_type idx = se.find_child(from);
 					assert(idx != npos);
 					if(idx == se.childs() - 1) {
 						if(radio_->id() == se.root()) {
-							DBG("processing at root");
+							//DBG("processing at root");
 							// we are root -> do not forward to parent but
 							// process token ourselves!
-							process_token_state(se, s, from);
+							process_token_state(se, s, from, receive_time);
 						}
 						else {
-							DBG("fwd to parent");
+							//DBG("fwd to parent");
 							forward_token_state(se.id(), s, from, se.parent());
 						}
 					}
 					else {
-						DBG("fwd to child");
+						//DBG("fwd to child");
 						forward_token_state(se.id(), s, from, se.child_address(idx + 1));
 					}
 				}
 			}
 			
 			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to) {
-				DBG("fwd token state %d -> %d via %d", from, to, radio_->id());
+				//DBG("fwd token state %d -> %d via %d", from, to, radio_->id());
 				TokenStateForwardMessageT msg;
 				msg.set_from(from);
 				msg.set_entity_id(se_id);
@@ -330,10 +340,20 @@ namespace wiselib {
 				radio_->send(to, msg.size(), msg.data());
 			}
 			
-			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from) {
-				DBG("process token state at %d", radio_->id());
+			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, time_t receive_time) {
+				//DBG("process token state at %d", radio_->id());
 				se.set_prev_token_count(s.count());
-				se.update_state(radio_->id());
+				//se.update_state(radio_->id());
+				if(se.is_active(radio_->id())) {
+					timing_controller_.activating_token(receive_time);
+					time_t processing_time = clock_->time() - receive_time;
+					timer_->template set_timer<self_type, &self_type::pass_on_token>(ACTIVITY_PERIOD - processing_time, this, (void*)&se);
+				}
+			}
+			
+			void pass_on_token(void* se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				// XXX
 			}
 			
 			

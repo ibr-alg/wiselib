@@ -140,7 +140,7 @@ namespace wiselib {
 					//TreeState& tree() { return tree_state_; }
 					//TokenState& token() { return token_state_; }
 					
-					token_count_t token_count() const { return token_state_.count(); }
+					token_count_t count() const { return token_state_.count(); }
 					node_id_t parent() const { return tree_state_.parent(); }
 					node_id_t root() const { return tree_state_.root(); }
 					distance_t distance() const { return tree_state_.distance(); }
@@ -265,8 +265,23 @@ namespace wiselib {
 				state().set_parent(parent);
 				state().set_root(root);
 				
-				// Dijkstra's Token Ring
-				//
+				// }}}
+			}
+			
+			/**
+			 * @return true iff the token state defines this node as active.
+			 */
+			bool is_active(node_id_t mynodeid) {
+				token_count_t l = prev_token_state_.count();
+				return ((tree().root() == mynodeid) && (l == token().count())) || (l != state().count());
+			}
+			
+			/**
+			 * Update the internal token state with the previously received
+			 * one such that this node will not be considered active anymore
+			 * if it was before.
+			 */
+			void update_token_state(node_id_t mynodeid) {
 				token_count_t l = prev_token_state_.count();
 				if(tree().root() == mynodeid) {
 					if(l == token().count()) {
@@ -276,10 +291,6 @@ namespace wiselib {
 				else {
 					state().set_count(l);
 				}
-				
-				print_state(mynodeid);
-				
-				// }}}
 			}
 			
 			void print_state(node_id_t mynodeid) {
@@ -299,6 +310,7 @@ namespace wiselib {
 			SemanticEntityId& id() { return state_.id(); }
 			node_id_t parent() { return state_.tree().parent(); }
 			node_id_t root() { return state_.tree().root(); }
+			token_count_t count() { return state_.token().count(); }
 			
 			TreeState& neighbor_state(node_id_t id) {
 				return neighbor_states_[id];

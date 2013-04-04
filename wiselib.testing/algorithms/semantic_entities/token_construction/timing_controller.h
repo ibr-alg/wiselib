@@ -115,9 +115,14 @@ namespace wiselib {
 			} // regular_broadcast()
 			
 			void dirty_broadcast(node_id_t source, time_t hit) {
+				// We don't wake up for dirty state broadcasts
 			}
 			
 			void token_forward(node_id_t source, time_t hit) {
+				// TODO
+			}
+			
+			void activating_token(time_t hit) {
 				// TODO
 			}
 		
