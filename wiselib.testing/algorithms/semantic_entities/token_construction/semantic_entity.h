@@ -61,17 +61,14 @@ namespace wiselib {
 			class TokenState;
 			
 			enum Restrictions { MAX_NEIGHBORS = 8 };
-			//enum { MAX_NODE_ID =  };
+			enum SpecialValues { npos = (size_type)(-1) };
 			
-			/*
-			enum {
-				DESCRIPTION_SIZE = sizeof(SemanticEntityId) + sizeof(TreeState) + sizeof(TokenState)
-			};
-			*/
+			typedef vector_static<OsModel, node_id_t, MAX_NEIGHBORS> Childs;
 			
 			/**
 			 */
 			class TreeState {
+				// {{{
 				public:
 					TreeState() : parent_(0), root_(std::numeric_limits<node_id_t>::max()), distance_(-1) {
 					}
@@ -100,12 +97,14 @@ namespace wiselib {
 					node_id_t root_;
 					//distance_t distance_;
 					::uint32_t distance_;
+				// }}}
 			};
 			typedef MapStaticVector<OsModel, node_id_t, TreeState, MAX_NEIGHBORS> TreeStates;
 			
 			/**
 			 */
 			class TokenState {
+				// {{{
 				public:
 					TokenState() : token_count_(0) {
 					}
@@ -119,11 +118,13 @@ namespace wiselib {
 					
 				private:
 					token_count_t token_count_;
+				// }}}
 			};
 			
 			/**
 			 */
 			class State {
+				// {{{
 				public:
 					typedef SemanticEntity::TokenState TokenState;
 					typedef SemanticEntity::TreeState TreeState;
@@ -194,6 +195,8 @@ namespace wiselib {
 				
 				template<typename OsModel_, Endianness Endianness_, typename BlockData_, typename T_>
 				friend class Serialization;
+				
+				// }}}
 			};
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
 			
@@ -223,18 +226,25 @@ namespace wiselib {
 			 */
 			void update_state(node_id_t mynodeid) {
 				// {{{
-				// sort neighbor states by key (=node id) so their
-				// order is consistent, important for next()
-				// TODO: sort(neighbor_states_);
 				
-				state_.tree_state_.reset();
+				// Fill child list from neighbors and sort
+				// 
+				childs_.clear();
+				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
+					if(iter->second.parent() == mynodeid) {
+						if(childs_.find(iter->first) != childs_.end()) {
+							childs_.push_back(iter->first);
+						}
+					}
+				}
+				sort(childs_.begin(), childs_.end());
 				
+				// Update tree state
+				// 
 				::uint8_t distance = -1;
 				node_id_t parent = mynodeid;
 				node_id_t root = mynodeid;
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
-					//DBG("@%d: neigh %d root=%d neigh.parent=%d neigh.root=%d neigh.dist=%d", mynodeid, iter->first, root, iter->second.parent(),
-							//iter->second.root(), iter->second.distance());
 					if(iter->second.root() < root) {
 						parent = iter->first;
 						root = iter->second.root();
@@ -256,7 +266,7 @@ namespace wiselib {
 				state().set_root(root);
 				
 				// Dijkstra's Token Ring
-				
+				//
 				token_count_t l = prev_token_state_.count();
 				if(tree().root() == mynodeid) {
 					if(l == token().count()) {
@@ -288,6 +298,7 @@ namespace wiselib {
 			
 			SemanticEntityId& id() { return state_.id(); }
 			node_id_t parent() { return state_.tree().parent(); }
+			node_id_t root() { return state_.tree().root(); }
 			
 			TreeState& neighbor_state(node_id_t id) {
 				return neighbor_states_[id];
@@ -305,6 +316,9 @@ namespace wiselib {
 			 */
 			size_type find_child(node_id_t id) {
 				// TODO
+				typename Childs::iterator it = childs_.find(id);
+				if(it == childs_.end()) { return npos; }
+				return it - childs_.begin();
 			}
 			
 			State& child_state(size_type idx) {
@@ -339,7 +353,7 @@ namespace wiselib {
 			// vector of pairs: (time-offs from token recv, sender of forward
 			// token)
 			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
-			vector_static<OsModel, node_id_t, MAX_NEIGHBORS> childs_;
+			Childs childs_;
 			
 			
 	}; // SemanticEntity

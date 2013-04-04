@@ -296,14 +296,23 @@ namespace wiselib {
 			
 			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from) {
 				if(from == se.parent()) {
+					DBG("processing because it came from parent");
 					process_token_state(se, s, from);
 				}
 				else {
 					size_type idx = se.find_child(from);
 					assert(idx != npos);
 					if(idx == se.childs() - 1) {
-						DBG("fwd to parent");
-						forward_token_state(se.id(), s, from, se.parent());
+						if(radio_->id() == se.root()) {
+							DBG("processing at root");
+							// we are root -> do not forward to parent but
+							// process token ourselves!
+							process_token_state(se, s, from);
+						}
+						else {
+							DBG("fwd to parent");
+							forward_token_state(se.id(), s, from, se.parent());
+						}
 					}
 					else {
 						DBG("fwd to child");
