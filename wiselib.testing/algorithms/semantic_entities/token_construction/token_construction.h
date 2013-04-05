@@ -204,7 +204,7 @@ namespace wiselib {
 			 * Send out our current state to our neighbors if it is considered
 			 * dirty.
 			 */
-			void on_dirty_broadcast_state(void*) {
+			void on_dirty_broadcast_state(void* = 0) {
 				StateUpdateMessageT msg;
 				msg.set_reason(StateUpdateMessageT::REASON_DIRTY_BCAST);
 				
@@ -353,6 +353,8 @@ namespace wiselib {
 			
 			void pass_on_token(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				se.update_token_state(radio_->id());
+				on_dirty_broadcast_state();
 				// XXX
 			}
 			
