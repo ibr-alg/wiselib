@@ -21,6 +21,10 @@
 #ifndef __WISELIB_UTIL_PSTL_LIST_DYNAMIC_H
 #define __WISELIB_UTIL_PSTL_LIST_DYNAMIC_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
+#include <util/delegates/delegate.hpp>
+
 namespace wiselib {
 	
 	namespace list_dynamic_impl {
