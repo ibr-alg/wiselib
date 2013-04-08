@@ -102,7 +102,7 @@ namespace wiselib {
 				npos = (size_type)(-1)
 			};
 			
-			typedef TimingController<OsModel, Radio, Timer, Clock, REGULAR_BCAST_INTERVAL, MAX_NEIGHBOURS> TimingControllerT;
+			typedef TimingController<OsModel, SemanticEntityId, Radio, Timer, Clock, REGULAR_BCAST_INTERVAL, MAX_NEIGHBOURS> TimingControllerT;
 			
 			class PacketInfo {
 				public:
@@ -348,6 +348,7 @@ namespace wiselib {
 					timing_controller_.activating_token(receive_time);
 					time_t processing_time = clock_->time() - receive_time;
 					timer_->template set_timer<self_type, &self_type::pass_on_token>(ACTIVITY_PERIOD - processing_time, this, (void*)&se);
+					push_caffeine();
 				}
 			}
 			
@@ -355,9 +356,8 @@ namespace wiselib {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				se.update_token_state(radio_->id());
 				on_dirty_broadcast_state();
-				// XXX
+				pop_caffeine();
 			}
-			
 			
 			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
 				//DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d", radio_->id(), source, se.id().rule(), se.id().value());

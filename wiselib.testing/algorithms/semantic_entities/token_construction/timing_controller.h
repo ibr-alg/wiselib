@@ -33,11 +33,13 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename SemanticEntityId_P,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Clock_P = typename OsModel_P::Clock,
 		long REGULAR_BCAST_INTERVAL_P = 10000,
-		long MAX_NEIGHBORS_P = 16
+		long MAX_NEIGHBORS_P = 16,
+		long MAX_ENTITIES_P = 8
 	>
 	class TimingController {
 		
@@ -45,6 +47,8 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef SemanticEntityId_P SemanticEntityId;
+			typedef Timer_P Timer;
 			typedef Clock_P Clock;
 			typedef typename Clock::time_t time_t;
 			typedef typename Clock::millis_t millis_t;
@@ -80,38 +84,66 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
-				MIN_REGULAR_BCAST_WINDOW_SIZE = 100,
+				MAX_ENTITIES = MAX_ENTITIES_P,
+				MIN_WINDOW_SIZE = 100,
 				MAX_REGULAR_BCAST_WINDOW_SIZE = REGULAR_BCAST_INTERVAL
 			};
 			
-			class TimingInfo {
+			class RegularEvent {
+				// {{{
 				public:
-					time_t& regular_expected() { return regular_expected_; }
-					millis_t& regular_window_size() { return regular_window_size_; }
+					RegularEvent() : interval_(1000), window_(1000), hits_(0) {
+					}
+					
+					void hit(time_t t, typename Clock::self_pointer_t clock) {
+						time_t new_interval = clock->milliseconds((t + interval_) - expected_);
+						switch(hit_type(t, clock)) {
+							case HIT_CLOSE:
+								window_ /= 2;
+								if(window_ < MIN_WINDOW_SIZE) { window_ = MIN_WINDOW_SIZE; }
+								update_interval(new_interval, ALPHA_CLOSE);
+								break;
+							case HIT_STABLE:
+								update_interval(new_interval, ALPHA_STABLE);
+								break;
+							case HIT_FAR:
+								window_ *= 2;
+								if(window_ > interval_) { window_ = interval_; }
+								update_interval(new_interval, ALPHA_FAR);
+								break;
+						}
+						
+						expected_ += interval_;
+					}
 					
 				private:
-					time_t regular_expected_;
-					millis_t regular_window_size_;
+					HitType hit_type(time_t t, typename Clock::self_pointer_t clock_) {
+						time_t diff_t = (t > expected_) ? (t - expected_) : (expected_ - t);
+						//millis_t diff_m  = clock_->milliseconds(diff_t);
+						
+						if(diff_t < window_ * CLOSE_HIT_WINDOW / 100) { return HIT_CLOSE; }
+						else if(diff_t < window_ * STABLE_HIT_WINDOW / 100) { return HIT_STABLE; }
+						else { return HIT_FAR; }
+					}
+					
+					void update_interval(time_t new_interval, ::uint8_t alpha) {
+						if(hits_ < 3) {
+							interval_ = new_interval;
+						}
+						else {
+							interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
+						}
+					}
+			
+					time_t expected_;
+					time_t interval_;
+					time_t window_;
+					size_type hits_;
+				// }}}
 			};
 			
 			void regular_broadcast(node_id_t source, time_t hit) {
-				if(timings_.contains(source)) {
-					TimingInfo &t = timings_[source];
-					HitType h = hit_type(hit, t.regular_expected(), t.regular_window_size());
-					switch(h) {
-						case HIT_CLOSE:
-							shrink_window(t.regular_window_size(), MIN_REGULAR_BCAST_WINDOW_SIZE);
-							update_expectation(t.regular_expected(), hit, ALPHA_CLOSE);
-							break;
-						case HIT_STABLE:
-							update_expectation(t.regular_expected(), hit, ALPHA_STABLE);
-							break;
-						case HIT_FAR:
-							grow_window(t.regular_window_size(), MAX_REGULAR_BCAST_WINDOW_SIZE);
-							update_expectation(t.regular_expected(), hit, ALPHA_FAR);
-							break;
-					}
-				} // if contains source
+				state_updates_[source].hit(hit, clock_);
 			} // regular_broadcast()
 			
 			void dirty_broadcast(node_id_t source, time_t hit) {
@@ -122,45 +154,18 @@ namespace wiselib {
 				// TODO
 			}
 			
-			void activating_token(time_t hit) {
-				// TODO
+			void activating_token(SemanticEntityId entity, time_t hit) {
+				activating_tokens_[entity].hit(hit, clock_);
 			}
 		
 		private:
+		
 			
-			void shrink_window(millis_t& window, millis_t minimum) {
-				window /= 2;
-				if(window < minimum) { window = minimum; }
-			}
-			
-			void grow_window(millis_t& window, millis_t maximum) {
-				window *= 2;
-				if(window > maximum) { window = maximum; }
-			}
-			
-			void update_expectation(time_t& expected, time_t hit, uint8_t alpha) {
-				expected = (expected * (100 - alpha) + hit * alpha) / 100;
-			}
-			
-			HitType hit_type(time_t hit, time_t expected, millis_t window_size) {
-				time_t diff_t = (hit > expected) ? (hit - expected) : (expected - hit);
-				millis_t diff_m  = clock_->milliseconds(diff_t);
-				
-				if(diff_m < window_size * CLOSE_HIT_WINDOW / 100) {
-					return HIT_CLOSE;
-				}
-				else if(diff_m < window_size * STABLE_HIT_WINDOW / 100) {
-					return HIT_STABLE;
-				}
-				else {
-					return HIT_FAR;
-				}
-			}
-			
-			MapStaticVector<OsModel, node_id_t, TimingInfo, MAX_NEIGHBORS> timings_;
+			MapStaticVector<OsModel, node_id_t, RegularEvent, MAX_NEIGHBORS> state_updates_;
+			MapStaticVector<OsModel, SemanticEntityId, RegularEvent, MAX_ENTITIES> activating_tokens_;
 			
 			typename Clock::self_pointer_t clock_;
-			
+			typename Timer::self_pointer_t timer_;
 	}; // TimingController
 }
 
