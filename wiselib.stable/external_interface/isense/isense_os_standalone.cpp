@@ -63,8 +63,15 @@ isense::Application* application_factory( isense::Os& os )
    wiselib::iSenseWiselibApplication *app =
       new wiselib::iSenseWiselibApplication( os );
 
-   os.allow_sleep( true ); //WISELIB_ALLOW_SLEEP );
-   os.allow_doze( true ); //WISELIB_ALLOW_DOZE );
+#if WISELIB_ALLOW_SLEEP
+   #warning "------------- ALLOWING NODE SLEEP! --------------"
+#endif
+#if WISELIB_ALLOW_DOZE
+   #warning "------------- ALLOWING NODE DOZE! --------------"
+#endif
+
+   os.allow_sleep( WISELIB_ALLOW_SLEEP );
+   os.allow_doze( WISELIB_ALLOW_DOZE );
 
    return app;
 };
