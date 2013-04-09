@@ -273,7 +273,12 @@ namespace wiselib {
 			 */
 			bool is_active(node_id_t mynodeid) {
 				token_count_t l = prev_token_state_.count();
-				return ((tree().root() == mynodeid) && (l == token().count())) || (l != state().count());
+				if(tree().root() == mynodeid) {
+					return l == token().count();
+				}
+				else {
+					return l < token().count();
+				}
 			}
 			
 			/**
@@ -331,6 +336,24 @@ namespace wiselib {
 				typename Childs::iterator it = childs_.find(id);
 				if(it == childs_.end()) { return npos; }
 				return it - childs_.begin();
+			}
+			
+			size_type add_child(node_id_t id) {
+				childs_.push_back(id);
+				
+				// find place where id actually belongs
+				size_type idx;
+				for(idx = 0; idx < childs_.size() - 1 && childs_[idx] < id; idx++) {
+				}
+				
+				// if its before the last place, shift everything
+				if(idx < childs_.size() - 1) {
+					for(size_type i = childs_.size() - 2; i >= idx; i--) {
+						childs_[i + 1] = childs_[i];
+					}
+					childs_[idx] = id;
+				}
+				return idx;
 			}
 			
 			State& child_state(size_type idx) {

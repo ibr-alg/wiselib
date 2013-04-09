@@ -147,6 +147,11 @@ namespace wiselib {
 				// }}}
 			};
 			
+			void init(typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock) {
+				timer_ = timer;
+				clock_ = clock;
+			}
+			
 			void regular_broadcast(node_id_t source, time_t hit) {
 				state_updates_[source].hit(hit, clock_);
 			} // regular_broadcast()

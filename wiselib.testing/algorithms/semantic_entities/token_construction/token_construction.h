@@ -146,6 +146,8 @@ namespace wiselib {
 				clock_ = clock;
 				caffeine_level_ = 0;
 				
+				timing_controller_.init(timer_, clock_);
+				
 				push_caffeine();
 				
 				// - set up timer to make sure we broadcast our state at least
@@ -254,6 +256,8 @@ namespace wiselib {
 			 * Called by the radio when any packet is received.
 			 */
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				if(caffeine_level_ <= 0) { return; }
+				
 				time_t now = clock_->time();
 				PacketInfo *p = PacketInfo::create(now, from, len, data);
 				timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
@@ -263,6 +267,7 @@ namespace wiselib {
 			 * Called indirectly by on_receive to escape interrupt context.
 			 */
 			void on_receive_task(void *p) {
+				
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				time_t now = packet_info->received();
 				const node_id_t &from = packet_info->from();
@@ -326,7 +331,11 @@ namespace wiselib {
 				}
 				else {
 					size_type idx = se.find_child(from);
-					assert(idx != npos);
+					//assert(idx != npos);
+					if(idx == npos) {
+						idx = se.add_child(from);
+					}
+					
 					if(idx == se.childs() - 1) {
 						if(radio_->id() == se.root()) {
 							//DBG("processing at root");
@@ -382,7 +391,9 @@ namespace wiselib {
 			 */
 			void pass_on_token(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				assert(se.is_active(radio_->id()));
 				se.update_token_state(radio_->id());
+				assert(!se.is_active(radio_->id()));
 				on_dirty_broadcast_state();
 				DBG("node %d pop pass_on_token", radio_->id());
 				pop_caffeine();
