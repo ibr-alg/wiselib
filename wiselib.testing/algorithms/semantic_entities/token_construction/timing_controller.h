@@ -52,6 +52,7 @@ namespace wiselib {
 			typedef Clock_P Clock;
 			typedef typename Clock::time_t time_t;
 			typedef typename Clock::millis_t millis_t;
+			typedef ::uint32_t abs_millis_t;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
 			
@@ -116,6 +117,10 @@ namespace wiselib {
 						expected_ += interval_;
 					}
 					
+					time_t window() { return window_; }
+					time_t interval() { return interval_; }
+					time_t expected() { return expected_; }
+					
 				private:
 					HitType hit_type(time_t t, typename Clock::self_pointer_t clock_) {
 						time_t diff_t = (t > expected_) ? (t - expected_) : (expected_ - t);
@@ -154,12 +159,20 @@ namespace wiselib {
 				// TODO
 			}
 			
-			void activating_token(SemanticEntityId entity, time_t hit) {
+			void activating_token(const SemanticEntityId& entity, time_t hit) {
 				activating_tokens_[entity].hit(hit, clock_);
+			}
+			
+			template<typename T, void (T::*TMethod)(void*)>
+			void schedule_wakeup_for_activating_token(const SemanticEntityId& entity, T *obj) {
+				abs_millis_t delta = absolute_millis(activating_tokens_[entity].expected() - activating_tokens_[entity].window() - clock_->time());
+				timer_->template set_timer<T, TMethod>(delta, obj, 0);
 			}
 		
 		private:
-		
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
 			
 			MapStaticVector<OsModel, node_id_t, RegularEvent, MAX_NEIGHBORS> state_updates_;
 			MapStaticVector<OsModel, SemanticEntityId, RegularEvent, MAX_ENTITIES> activating_tokens_;

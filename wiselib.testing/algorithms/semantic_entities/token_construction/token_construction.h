@@ -46,8 +46,10 @@ namespace wiselib {
 		typename Clock_P = typename OsModel_P::Clock
 	>
 	class TokenConstruction {
-		
 		public:
+			// Typedefs & Enums
+			// {{{
+			
 			typedef TokenConstruction<
 				OsModel_P,
 				Radio_P,
@@ -65,6 +67,7 @@ namespace wiselib {
 			typedef Timer_P Timer;
 			typedef Clock_P Clock;
 			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
 			
 			typedef ::uint8_t token_count_t;
 			typedef SemanticEntity<OsModel> SemanticEntityT;
@@ -104,7 +107,10 @@ namespace wiselib {
 			
 			typedef TimingController<OsModel, SemanticEntityId, Radio, Timer, Clock, REGULAR_BCAST_INTERVAL, MAX_NEIGHBOURS> TimingControllerT;
 			
+			// }}}
+			
 			class PacketInfo {
+				// {{{
 				public:
 					static PacketInfo* create(time_t received, node_id_t from, typename Radio::size_t len, block_data_t* data) {
 						PacketInfo *r = reinterpret_cast<PacketInfo*>(
@@ -131,16 +137,16 @@ namespace wiselib {
 					typename Radio::size_t len_;
 					node_id_t from_;
 					block_data_t data_[0];
+				// }}}
 			};
-			
-			
-			//typedef vector_dynamic<OsModel, State> States;
 			
 			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock) {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
 				caffeine_level_ = 0;
+				
+				push_caffeine();
 				
 				// - set up timer to make sure we broadcast our state at least
 				//   so often
@@ -156,14 +162,13 @@ namespace wiselib {
 				entities_.push_back(id); // implicit cast for the win ;p
 			}
 			
-		
 		private:
-			
 			void push_caffeine(void* = 0) {
 				if(caffeine_level_ == 0) {
 					radio_->enable_radio();
 				}
 				caffeine_level_++;
+				DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
 			}
 			
 			void pop_caffeine(void* = 0) {
@@ -171,18 +176,12 @@ namespace wiselib {
 				if(caffeine_level_ == 0) {
 					radio_->disable_radio();
 				}
-			}
-			
-			void start_being_active(void* = 0) {
-				push_caffeine();
-			}
-			
-			void stop_being_active(void* = 0) {
-				pop_caffeine();
+				DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
 			}
 			
 			/**
 			 * Send out our current state to our neighbors.
+			 * Also set up timer to do this again in REGULAR_BCAST_INTERVAL.
 			 */
 			void on_regular_broadcast_state(void*) {
 				StateUpdateMessageT msg;
@@ -193,8 +192,10 @@ namespace wiselib {
 					iter->state().set_clean();
 				}
 				
+				DBG("node %d push on_reg_broadcast", radio_->id());
 				push_caffeine();
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				DBG("node %d pop on_reg_broadcast", radio_->id());
 				pop_caffeine();
 				
 				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
@@ -203,6 +204,7 @@ namespace wiselib {
 			/**
 			 * Send out our current state to our neighbors if it is considered
 			 * dirty.
+			 * Also set up a timer to do this again in DIRTY_BCAST_INTERVAL.
 			 */
 			void on_dirty_broadcast_state(void* = 0) {
 				StateUpdateMessageT msg;
@@ -221,8 +223,10 @@ namespace wiselib {
 				if(msg.entity_count()) {
 					DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
 				
+					DBG("node %d push on_dirty_broadcast", radio_->id());
 					push_caffeine();
 					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+					DBG("node %d pop on_dirty_broadcast", radio_->id());
 					pop_caffeine();
 				
 				}
@@ -230,7 +234,11 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
 			}
 			
-			
+			/**
+			 * Find a semantic entity by id.
+			 * Return via @a found whether an entity has been found.
+			 * If @a found is true, the returned reference is valid.
+			 */
 			SemanticEntityT& find_entity(const SemanticEntityId& id, bool& found) {
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					if(iter->id() == id) {
@@ -251,6 +259,9 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
 			}
 			
+			/**
+			 * Called indirectly by on_receive to escape interrupt context.
+			 */
 			void on_receive_task(void *p) {
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				time_t now = packet_info->received();
@@ -304,6 +315,10 @@ namespace wiselib {
 				packet_info->destroy();
 			} // on_receive_task()
 			
+			/**
+			 * Called by on_receive_task when a token state change is to be
+			 * handled.
+			 */
 			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from, time_t receive_time) {
 				if(from == se.parent()) {
 					//DBG("processing because it came from parent");
@@ -331,6 +346,10 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 * Forward token state to another node (calleb by
+			 * on_receive_token_state).
+			 */
 			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to) {
 				//DBG("fwd token state %d -> %d via %d", from, to, radio_->id());
 				TokenStateForwardMessageT msg;
@@ -340,23 +359,34 @@ namespace wiselib {
 				radio_->send(to, msg.size(), msg.data());
 			}
 			
+			/**
+			 * Process token state change relevant to us (called by on_receive_token_state).
+			 */
 			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, time_t receive_time) {
 				//DBG("process token state at %d", radio_->id());
 				se.set_prev_token_count(s.count());
 				//se.update_state(radio_->id());
 				if(se.is_active(radio_->id())) {
-					timing_controller_.activating_token(receive_time);
-					time_t processing_time = clock_->time() - receive_time;
+					timing_controller_.activating_token(se.id(), receive_time);
+					abs_millis_t processing_time = absolute_millis(clock_->time() - receive_time);
+					
+					// Wake up and schedule going back to sleep
+					//push_caffeine(); // we should already have the caffeine
+					//from the push_caffeine call triggered by pass_on_token
 					timer_->template set_timer<self_type, &self_type::pass_on_token>(ACTIVITY_PERIOD - processing_time, this, (void*)&se);
-					push_caffeine();
 				}
 			}
 			
+			/**
+			 * Called by timeout at the end of an activity period.
+			 */
 			void pass_on_token(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				se.update_token_state(radio_->id());
 				on_dirty_broadcast_state();
+				DBG("node %d pop pass_on_token", radio_->id());
 				pop_caffeine();
+				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::push_caffeine>(se.id(), this);
 			}
 			
 			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
@@ -379,6 +409,10 @@ namespace wiselib {
 			
 			void on_lost_neighbor(SemanticEntityT &se, node_id_t neighbor) {
 				se.update_state();
+			}
+			
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
 			}
 			
 			typename Radio::self_pointer_t radio_;
