@@ -175,8 +175,11 @@ public:
 	node_info_vector_t neighborhood;
 	
 	typedef node_info_vector_t Neighbors;
-	Neighbors& topology() { return neighborhood; }
-	
+		
+      Neighbors& topology() {
+         return neighborhood;
+      }
+
 	// --------------------------------------------------------------------
 
 	enum error_codes {
@@ -666,6 +669,10 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 				//debug().debug("ND::recv\n");
 		//        void receive(node_id_t from, size_t len, block_data_t * msg) {
 		//debug().debug("recv\n");
+             if (status_ != SEARCHING) {
+                     return;
+              }
+
 
 #ifdef SUNSPOT_TEST
 		len-=3;
@@ -1057,7 +1064,7 @@ debug().debug("TEST: id: %d stability: %d size of list of neighbors: %d\n",read<
 			}
 			debug_->debug("]\n");
 		} else */
-
+         if (status_ != SEARCHING) return;
             if (self_t::NEW_NB == event) {
 #ifdef SHAWNX
 			debug_->debug(
