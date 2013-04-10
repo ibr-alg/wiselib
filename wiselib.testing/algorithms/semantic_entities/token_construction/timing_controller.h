@@ -21,6 +21,7 @@
 #define TIMING_CONTROLLER_H
 
 #include <util/pstl/map_static_vector.h>
+#include "semantic_entity.h"
 
 namespace wiselib {
 	
@@ -55,6 +56,7 @@ namespace wiselib {
 			typedef ::uint32_t abs_millis_t;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
+			typedef SemanticEntity<OsModel> SemanticEntityT;
 			
 			enum HitType {
 				HIT_CLOSE, HIT_STABLE, HIT_FAR
@@ -169,9 +171,9 @@ namespace wiselib {
 			}
 			
 			template<typename T, void (T::*TMethod)(void*)>
-			void schedule_wakeup_for_activating_token(const SemanticEntityId& entity, T *obj) {
-				abs_millis_t delta = absolute_millis(activating_tokens_[entity].expected() - activating_tokens_[entity].window() - clock_->time());
-				timer_->template set_timer<T, TMethod>(delta, obj, 0);
+			void schedule_wakeup_for_activating_token(SemanticEntityT& entity, T *obj) {
+				abs_millis_t delta = absolute_millis(activating_tokens_[entity.id()].expected() - activating_tokens_[entity.id()].window() - clock_->time());
+				timer_->template set_timer<T, TMethod>(delta, obj, (void*)&entity);
 			}
 		
 		private:

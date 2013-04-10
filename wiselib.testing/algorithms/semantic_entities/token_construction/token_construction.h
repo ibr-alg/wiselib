@@ -148,7 +148,7 @@ namespace wiselib {
 				
 				timing_controller_.init(timer_, clock_);
 				
-				push_caffeine();
+				//push_caffeine();
 				
 				// - set up timer to make sure we broadcast our state at least
 				//   so often
@@ -161,7 +161,12 @@ namespace wiselib {
 			}
 			
 			void add_entity(const SemanticEntityId& id) {
-				entities_.push_back(id); // implicit cast for the win ;p
+				//entities_.push_back(id); // implicit cast for the win ;p
+				entities_.push_back(SemanticEntityT(id));
+				bool found;
+				SemanticEntityT &se = find_entity(id, found);
+				assert(found);
+				
 			}
 			
 		private:
@@ -377,27 +382,81 @@ namespace wiselib {
 				//se.update_state(radio_->id());
 				if(se.is_active(radio_->id())) {
 					timing_controller_.activating_token(se.id(), receive_time);
-					abs_millis_t processing_time = absolute_millis(clock_->time() - receive_time);
+					//abs_millis_t processing_time = absolute_millis(clock_->time() - receive_time);
 					
-					// Wake up and schedule going back to sleep
-					//push_caffeine(); // we should already have the caffeine
-					//from the push_caffeine call triggered by pass_on_token
-					timer_->template set_timer<self_type, &self_type::pass_on_token>(ACTIVITY_PERIOD - processing_time, this, (void*)&se);
+					begin_activity((void*)&se);
 				}
 			}
 			
 			/**
+			 * Wake the node up in order to wait for an activity generating
+			 * token from the given SE.
+			 */
+			void begin_wait_for_token(SemanticEntityT& se) {
+				se.begin_wait_for_token();
+				DBG("node %d push begin wait for token", radio_->id());
+				push_caffeine();
+			}
+			
+			/// ditto.
+			void begin_wait_for_token(void* se_) {
+				begin_wait_for_token(*reinterpret_cast<SemanticEntityT*>(se_));
+			}
+			
+			void end_wait_for_token(void* se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				if(se.waiting_for_token()) {
+					se.end_wait_for_token();
+					DBG("node %d pop end wait for token", radio_->id());
+					pop_caffeine();
+				}
+			}
+			
+			void check_entity_active(SemanticEntityT& se) {
+				if(se.is_active(radio_->id())) {
+					DBG("node %d push externally induced begin activity", radio_->id());
+					push_caffeine();
+					timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
+				}
+			}
+				
+			void begin_activity(void* se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				if(se.is_active(radio_->id())) {
+					// We are already in an activity phase for this SE
+					// that means there are frequent updates (eg. due to a
+					// topology change), aid faster stabilization by
+					// eating up this change and just continuing with the
+					// running activity phase as planned
+					return;
+				}
+				
+				DBG("node %d push token induced begin activity", radio_->id());
+				push_caffeine();
+				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
+			}
+			
+			
+			/**
 			 * Called by timeout at the end of an activity period.
 			 */
-			void pass_on_token(void* se_) {
+			void end_activity(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				assert(se.is_active(radio_->id()));
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
+				
+				// it might be the case that our activity period started
+				// before us waking up to wait for the token.
+				// In that case we will wake up in the middle of the activity
+				// period to listen for the token, so make sure to end this
+				// here in case (end_wait_for_token will just do nothing if
+				// not currently waiting).
+				se.end_wait_for_token();
 				on_dirty_broadcast_state();
-				DBG("node %d pop pass_on_token", radio_->id());
+				DBG("node %d pop end activity", radio_->id());
 				pop_caffeine();
-				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::push_caffeine>(se.id(), this);
+				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
 			}
 			
 			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
