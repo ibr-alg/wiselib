@@ -32,6 +32,8 @@ namespace wiselib {
 
         iSenseDutyCycling(isense::Os& os)
         : os_(os) {
+            os_.allow_sleep(false);
+            os_.allow_doze(false);
         };
 
         ~iSenseDutyCycling() {
