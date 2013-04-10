@@ -97,12 +97,13 @@ namespace wiselib {
          * Sets the timers for sleep and wakeup.
          */
         void set_sleep() {
-            if ((sleep_period_ > 0) && (wake_up_period_ > 0)) {
-                timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_, this, (void *) 0);
-            }
+
             if ((sleep_period_ == 0) && (wake_up_period_ == 0)) {
                 timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (10000, this, (void *) 1);
             } else {
+                if ((sleep_period_ > 0) && (wake_up_period_ > 0)) {
+                    timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_, this, (void *) 0);
+                }
                 timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_ + sleep_period_, this, (void *) 1);
             }
         }
