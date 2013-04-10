@@ -166,6 +166,8 @@ namespace wiselib {
             //initialize random number generator
             rand_->srand(radio_->id());
 
+            enabled_ = false;
+
             //initialize mid duty
             mid_duty.init(*timer_, *duty_);
             mid_duty.set_rate(duty_period_, sleep_period_);
@@ -180,9 +182,9 @@ namespace wiselib {
          * 
          */
         void enable() {
+            enabled_ = true;
             //enable and register the radio
             radio().enable_radio();
-            debug().debug("Called Enable %x", radio_->id());
             recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive> (this);
 
             //enable the duty cycling
@@ -199,6 +201,7 @@ namespace wiselib {
          * Disable the execution of the algorithm.
          */
         void disable() {
+            enabled_ = false;
             radio().disable_radio();
             radio().template unreg_recv_callback(recv_callback_id_);
         }
@@ -223,6 +226,7 @@ namespace wiselib {
          */
         void debug_callback(uint8_t event, node_id_t from, uint8_t len,
                 uint8_t* data) {
+            if (!enabled_)return;
 
             if (self_t::NEW_PAYLOAD == event) {
                 debug_->debug("NODE %x: new payload from %x with size %d ", radio_->id(), from, len);
@@ -574,7 +578,7 @@ namespace wiselib {
         }
 
         void receive(node_id_t from, size_t len, block_data_t * msg, ExData const &ex) {
-
+            if (!enabled_) return;
             if (from == radio().id()) return;
             if (*msg != AdaptiveMesg_t::ND_MESG) return;
 
@@ -806,6 +810,7 @@ namespace wiselib {
          * Sends a new ND beacon.
          */
         void send_beacon() {
+            if (!enabled_)return;
             AdaptiveMesg_t mesg;
             for (iterator_t it = neighbours.begin();
                     it != neighbours.end(); it++) {
@@ -846,7 +851,7 @@ namespace wiselib {
 
         uint8_t recv_callback_id_;
         bool radio_enabled_;
-
+        bool enabled_;
 
         time_t time_elapsed_;
         uint32_t timeout_;
