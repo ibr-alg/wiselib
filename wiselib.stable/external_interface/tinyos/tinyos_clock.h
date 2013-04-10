@@ -60,7 +60,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum
       {
-         CLOCKS_PER_SEC = 1000
+         CLOCKS_PER_SEC = 1024
       };
       // --------------------------------------------------------------------
       TinyOsClockModel(  )
@@ -83,14 +83,35 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return time % 1000;
+         return ticks_to_milliseconds(time % 1024);
       }
       // --------------------------------------------------------------------
       uint32_t seconds( time_t time )
       {
-         return time / 1000;
+         return time / CLOCKS_PER_SEC;
+      }
+      
+   private:
+      uint16_t ticks_to_milliseconds(uint16_t x) {
+         // 
+         // What this actually calculates is ceil((1000.0 / 1024.0) * x).
+         // 
+         // However we want to avoid the necessity for floating point
+         // operations and a naive implementation like ((x * 1000) / 1024),
+         // will often cut off the high bits.
+         // The following transformation might still loose some, but only
+         // if ticks is >= MAXINT - 85 (which hopefully is unlikely enough).
+         // 
+         //   ceil((1000.0 / 1024.0) * x)
+         // = x - floor((3.0*x) / 128.0)
+         // = x - floor(x / 128) - floor(x / 128 + 1/3) - floor(x / 128 + 2/3)
+         // = x - floor(x / 128) - floor((x + 42.66..) / 128) - floor((x + 85.33..) / 128)
+         // = x - floor(x / 128) - floor((x + 42) / 128) - floor((x + 85) / 128)
+         // = x - (x >> 7) - ((x + 42) >> 7) - ((x + 85) >> 7
+         return x - (x >> 7) - ((x + 42) >> 7) - ((x + 85) >> 7);
       }
    };
 }
 
 
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/
