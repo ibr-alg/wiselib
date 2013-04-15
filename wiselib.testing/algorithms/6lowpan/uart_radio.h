@@ -30,6 +30,14 @@
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
 #include "algorithms/6lowpan/nd_storage.h"
 
+//SLIP special characters
+#define SLIP_END 0xC0 //0300
+#define SLIP_ESC 0xDB //0333
+#define SLIP_ESC_END 0xDC //0334
+#define SLIP_ESC_ESC 0xDD //0335
+
+#define SLIP_FRAGMENT_SIZE 1500
+
 namespace wiselib
 {
 	/** \brief Class for the uart communication
@@ -53,7 +61,11 @@ namespace wiselib
 		typedef typename Radio::node_id_t node_id_t;
 		
 		typedef typename Uart::block_data_t block_data_t;
-		typedef typename Uart::size_t size_t;
+	#ifdef ISENSE
+		typedef typename Uart::uart_packet_length_t uart_packet_length_t;
+	#else
+		typedef typename Uart::size_t uart_packet_length_t;
+	#endif
 		
 		typedef UartRadio<OsModel, Radio, Debug, Timer, Uart> self_type;
 		typedef self_type* self_pointer_t;
@@ -118,6 +130,7 @@ namespace wiselib
 			
 			receiving_ = false;
 			received_size_ = 0;
+			received_ip_size_ = 0;
 			ip_packet = NULL;
 			return SUCCESS;
 		}
@@ -142,19 +155,74 @@ namespace wiselib
 		* \param data not used
 		* \return error codes
 		*/
-		int send( size_t packet_number, block_data_t* data )
+		int send( uint8_t packet_number, block_data_t* data )
 		{
 			#ifdef UART_LAYER_DEBUG
-			debug_->debug( "Uart: Sending... size_t: %i", sizeof(size_t) );
+			debug_->debug( "Uart: Sending... " );
 			#endif
 			
-			IPv6Packet_t* send_ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
-
-			int result = (uart_->write( send_ip_packet->get_content_size(), send_ip_packet->get_content() ));
+			block_data_t sending_buffer[SLIP_FRAGMENT_SIZE];
 			
-			if( result == SUCCESS )
-				debug_->debug( "Uart: SUCCESS" );
-			return result;
+			IPv6Packet_t* send_ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
+			
+			uint8_t* packet_pointer = send_ip_packet->get_content();
+			uint16_t packet_size = send_ip_packet->get_content_size();
+			uint16_t actual_packet_shift = 0;
+			uint16_t actual_fragment_shift = 0;
+			
+			sending_buffer[actual_fragment_shift++] = SLIP_END;
+			
+			//do
+			//{
+				//If this is not the first fragment, reset the fragment_shift counter
+				//if( actual_packet_shift != 0 )
+				//	actual_fragment_shift = 0;
+				
+				//Copy the bytes into the buffer
+				for( int i = 0; i < SLIP_FRAGMENT_SIZE; i++ )
+				{
+					if( actual_packet_shift < packet_size )
+					{
+						//Add the next byte to the buffer
+						//If it was an END or an ESC then add the escape character
+						if( packet_pointer[actual_packet_shift] == SLIP_END )
+						{
+							sending_buffer[actual_fragment_shift++] = SLIP_ESC;
+							sending_buffer[actual_fragment_shift++] = SLIP_ESC_END;
+						}
+						else if( packet_pointer[actual_packet_shift] == SLIP_ESC )
+						{
+							sending_buffer[actual_fragment_shift++] = SLIP_ESC;
+							sending_buffer[actual_fragment_shift++] = SLIP_ESC_ESC;
+						}
+						else
+							sending_buffer[actual_fragment_shift++] = packet_pointer[actual_packet_shift];
+						
+						//From the IP packet, only 1 byte was added
+						actual_packet_shift++;
+					}
+					//Content copied, add the last END character
+					else
+					{
+// 						debug_->debug( "Uart: content copied, end of IP packet" );
+						sending_buffer[actual_fragment_shift++] = SLIP_END;
+						break;
+					}
+				}
+				
+				
+				int result = uart_->write( actual_fragment_shift, sending_buffer );
+			
+				if( result != SUCCESS )
+					return result;
+				
+// 				#ifdef UART_LAYER_DEBUG
+// 				debug_->debug( "Uart: fragment sent size: %i", actual_fragment_shift );
+// 				#endif
+				
+			//}while( actual_packet_shift < send_ip_packet->get_content_size() );
+			
+			return SUCCESS;
 		}
 		
 		// -----------------------------------------------------------------------
@@ -164,24 +232,39 @@ namespace wiselib
 		* \param len the size of the received array
 		* \param buf the pointer to the data
 		*/
-		void receive_packet( size_t len, block_data_t *buf )
+		void receive_packet( uart_packet_length_t len, block_data_t *buf )
 		{
 			#ifdef UART_LAYER_DEBUG
 			debug_->debug( "Uart: received len %i", len );
 			#endif
 			
 			
-			if( buf[0] == 0xcf && receiving_ == false )
+			if( buf[0] == SLIP_END && receiving_ == false )
 			{
-				#ifdef UART_LAYER_DEBUG
-				debug_->debug( "Uart: ND config received for interface %i", buf[1] );
-				#endif
-				saved_target_interface = buf[1];
-				buf = buf + 2;
-				len -= 2;
+				if( buf[1] == 0xcf )
+				{
+					#ifdef UART_LAYER_DEBUG
+					debug_->debug( "Uart: ND config received for interface %i", buf[2] );
+					#endif
+					saved_target_interface = buf[2];
+					//Skip: END, 0xCF, interfaceID
+					buf = buf + 3;
+					len -= 3;
+				}
+				else
+				{
+					#ifdef UART_LAYER_DEBUG
+					debug_->debug( "Uart: IPv6 via SLIP");
+					#endif
+					//Skip: END
+					buf = buf + 1;
+					len -= 1;
+				}
 			}
 			
-			timer().template set_timer<self_type, &self_type::timeout>( 4000, this, (void*) (received_size_ + len) );
+			//Handle lost fragments
+			timer().template set_timer<self_type, &self_type::timeout>( 1000, this, (void*) (received_size_ + len) );
+			received_size_ += len;
 			
 			//If this is a new packet, get a new free packet for it
 			if( receiving_ == false )
@@ -194,21 +277,46 @@ namespace wiselib
 					return;
 				
 				ip_packet = packet_pool_mgr_->get_packet_pointer( packet_number );
+// 				debug_->debug( "Uart: New packet");
 			}
 			
 			
 			//Copy the arrived part
-			memcpy( ip_packet->buffer_ + received_size_, buf, len );
+			for( int i = 0; i < len; i++ )
+			{
+				//Handle the escaped characters
+				if( buf[i] == SLIP_ESC )
+				{
+					if( buf[i+1] == SLIP_ESC_END )
+					{
+						ip_packet->buffer_[received_ip_size_++] = SLIP_END;
+					}
+					else if( buf[i+1] == SLIP_ESC_ESC )
+					{
+						ip_packet->buffer_[received_ip_size_++] = SLIP_ESC;
+					}
+					i++;
+				}
+				//this is the end of the IP packet
+				else if( buf[i] == SLIP_END )
+				{
+					//Not really good solution... Should work with the WISEBED
+// 					debug_->debug( "Uart: IPv6 END");
+					break;
+				}
+				else
+					ip_packet->buffer_[received_ip_size_++] = buf[i];
+			}
 			
-			received_size_ += len;
 			
 			//If the header arrived, we can get the length
-			if( received_size_ >= 40 )
+			if( received_ip_size_ >= 40 )
 			{
 				//If the packet completed, notify_receivers
-				if( (ip_packet->real_length() + 40) == received_size_ )
+				if( (ip_packet->real_length() + 40) == received_ip_size_ )
 				{
 					receiving_ = false;
+					received_ip_size_ = 0;
 					received_size_ = 0;
 					node_id_t from = Radio::NULL_NODE_ID;
 					//Set the ND installation messsage type
@@ -222,7 +330,10 @@ namespace wiselib
 						ip_packet->target_interface = INTERFACE_UART;
 					ip_packet = NULL;
 					notify_receivers( from, packet_number, NULL );
+// 					debug_->debug( "Uart: IPv6 pushed up");
 				}
+// 				else
+// 					debug_->debug( "Uart: IPv6 size? %d vs %d", ip_packet->real_length() + 40, received_ip_size_);
 			}
 		}
 		
@@ -235,10 +346,12 @@ namespace wiselib
 		void timeout( void* old_received_size )
 		{
 			//If no new fragment since set the timer, reset the fragmentation process
+// 			debug_->debug(" Uart radio: Timeout called! rec %i, new: %i old: %i", receiving_, received_size_, ( unsigned int )(old_received_size));
 			if( receiving_ && (received_size_ == ( unsigned int )(old_received_size)) )
 			{
 				receiving_ = false;
 				received_size_ = 0;
+				received_ip_size_ = 0;
 				packet_pool_mgr_->clean_packet( ip_packet );
 				ip_packet = NULL;
 				
@@ -263,6 +376,7 @@ namespace wiselib
 		bool receiving_;
 		uint8_t saved_target_interface;
 		uint16_t received_size_;
+		uint16_t received_ip_size_;
 		IPv6Packet_t* ip_packet;
 		uint8_t packet_number;
 		
