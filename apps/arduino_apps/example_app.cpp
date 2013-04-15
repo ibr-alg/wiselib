@@ -18,7 +18,7 @@ class ExampleApplication
 {
 public:
    // --------------------------------------------------------------------
-   void init()
+   void init(Os::AppMainParameter& amp)
    {
       Os::EthernetRadio::block_data_t message[] = "Test\0";
 
@@ -43,15 +43,15 @@ public:
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, ExampleApplication> example_app;
 // --------------------------------------------------------------------------
-int main( )
+int main(Os::AppMainParameter& amp)
 {
    init();
-
+   
 #if defined(USBCON)
    USBDevice.attach();
 #endif
-
-   example_app.init();
+   
+   example_app.init(amp);
    return 0;
 }
 
