@@ -18,7 +18,7 @@
 namespace wiselib {
 
     template <typename OsModel_P>
-    class iSenseDutyCycling {
+    class iSenseDutyCycling : public isense::SleepHandler {
     public:
 
         typedef OsModel_P OsModel;
@@ -32,27 +32,40 @@ namespace wiselib {
 
         iSenseDutyCycling(isense::Os& os)
         : os_(os) {
-            os_.allow_sleep(false);
             os_.allow_doze(false);
+            os_.add_sleep_handler(this);
         };
 
         ~iSenseDutyCycling() {
         };
 
-        void sleep() {
+        /**
+         * Called before going to sleep.
+         * @return true if the node can go sleep.
+         */
+        bool stand_by() {
 #ifdef DEBUG_DUTY_CYCLING
             os_.debug("duty:sleep");
 #endif
+            return true;
+        }
+
+        /**
+         * Called when waking up.
+         * @param state previous state.
+         */
+        void wake_up(bool state) {
+#ifdef DEBUG_DUTY_CYCLING
+            os_.debug("duty:wake");
+#endif                     
+        }
+
+        void sleep() {
             os_.allow_sleep(true);
-            os_.allow_doze(true);
         }
 
         void wake() {
-#ifdef DEBUG_DUTY_CYCLING
-            os_.debug("duty:wake");
-#endif
             os_.allow_sleep(false);
-            os_.allow_doze(false);
         }
 
     private:
