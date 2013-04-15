@@ -32,9 +32,6 @@
 #define PERIOD 1000
 #define MESG_THRESHOLD 2
 
-#define DUTY_PERIOD 500
-#define DUTY_RATE 30
-
 #ifndef SHAWN        
 typedef uint8_t lqi_t;
 #else

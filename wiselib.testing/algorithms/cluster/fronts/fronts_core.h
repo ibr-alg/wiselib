@@ -59,8 +59,8 @@ namespace wiselib {
      * Fronts clustering core component.
      */
     template<typename OsModel_P, typename Radio_P, typename HeadDecision_P,
-    typename JoinDecision_P, typename Iterator_P,typename Echo_P>
-    class FrontsCore : public ClusteringBase<OsModel_P> {
+    typename JoinDecision_P, typename Iterator_P, typename Echo_P>
+    class FrontsCore : public ClusteringBase<OsModel_P>{
     public:
         //TYPEDEFS
         typedef OsModel_P OsModel;
@@ -76,8 +76,8 @@ namespace wiselib {
         typedef Iterator_P Iterator_t;
 
         // self type
-        typedef FrontsCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P,Echo_P> self_type;
-	typedef Echo_P nb_t;
+        typedef FrontsCore<OsModel_P, Radio_P, HeadDecision_P, JoinDecision_P, Iterator_P, Echo_P> self_type;
+        typedef Echo_P nb_t;
 
         // data types
         typedef typename Radio::node_id_t node_id_t;
