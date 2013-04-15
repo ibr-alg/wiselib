@@ -20,6 +20,8 @@ typedef Os::Radio::node_id_t node_id_t;
 
 #ifdef SHAWN
 typedef wiselib::ShawnTestbedserviceUartModel<wiselib::OSMODEL> Uart;
+#elif defined ( ISENSE )
+typedef Os::Large_Uart Uart;
 #else
 typedef Os::Uart Uart;
 #endif
@@ -44,17 +46,28 @@ public:
 		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet( value );
 		
-		#ifdef ISENSE
-		debug_->debug( "Booting with ID: %llx, radio channel: %i\n", (long long unsigned)(radio_->id()), radio_->set_channel( 18 ));
-		#elif
-		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
+	#ifdef ISENSE
+
+		uint8_t uart_size = 8;
+		//For the SLIP support the extended addressing is needed on the UART
+		#ifdef ISENSE_ENABLE_UART_16BIT
+			uart_size = 16;
 		#endif
+	// --> Set the Radio Chanel in this line
+		debug_->debug( "Booting with ID: %llx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 18 ), 8*sizeof(radio_->id()), uart_size);
+	#else
+		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
+	#endif
 		
 		ipv6_stack_.init(*radio_, *debug_, *timer_, *uart_);
 		
 		callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
 		callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 		
+// --> The Neighbor Discovery can be started with this line, it MUST be enabled for the SLIP communication
+		//ipv6_stack_.icmpv6.ND_timeout_manager_function( NULL );
+		
+// --> for the border router the IPv6_SLIP MUST be defined in the lowpan_config.h
 		
 		//--------------------------------------------------------------------------------------
 		//					Testing part

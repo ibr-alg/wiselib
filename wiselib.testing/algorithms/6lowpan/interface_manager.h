@@ -315,7 +315,7 @@ namespace wiselib
 		{
 			//Use the radio's MAC for the UART
 			//The 16th bit is set to 1 because this is a reserved place of the addresses 
-			my_id |= 8000;
+			my_id |= 0x8000;
 		}
 		
 		
