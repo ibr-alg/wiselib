@@ -50,23 +50,25 @@ namespace wiselib {
             duty_ = &duty;
 
             sleep_period_ = 0;
-            wake_up_period_ = 0;
+            wake_up_period_ = 1000;
+            duty_->sleep();
+            timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (100, this, (void *) 1);
         }
 
-        /**
-         * Starts Cycling.
-         */
-        void enable() {
-            timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (10000, this, (void *) 1);
-        }
+        //        /**
+        //         * Starts Cycling.
+        //         */
+        //        void enable() {
+        //            timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (10000, this, (void *) 1);
+        //        }
 
-        /**
-         * Stops Cycling.
-         */
-        void disable() {
-            sleep_period_ = 0;
-            wake_up_period_ = 0;
-        }
+        //        /**
+        //         * Stops Cycling.
+        //         */
+        //        void disable() {
+        //            sleep_period_ = 0;
+        //            wake_up_period_ = 0;
+        //        }
 
         /**
          * Set the rate of duty cycling.
@@ -94,21 +96,6 @@ namespace wiselib {
         }
 
         /**
-         * Sets the timers for sleep and wakeup.
-         */
-        void set_sleep() {
-
-            if ((sleep_period_ == 0) && (wake_up_period_ == 0)) {
-                timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (10000, this, (void *) 1);
-            } else {
-                if ((sleep_period_ > 0) && (wake_up_period_ > 0)) {
-                    timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_, this, (void *) 0);
-                }
-                timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_ + sleep_period_, this, (void *) 1);
-            }
-        }
-
-        /**
          * Called to change the state of the node.
          * @param action 0 sends the node to sleep, 1 wakes the node up.
          */
@@ -117,7 +104,8 @@ namespace wiselib {
                 duty_->sleep();
             } else {
                 duty_->wake();
-                set_sleep();
+                timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_ + sleep_period_, this, (void *) 1);
+                timer_->set_timer<MidDutyCycling, &MidDutyCycling::change_sleep > (wake_up_period_, this, (void *) 0);
             }
         }
 
