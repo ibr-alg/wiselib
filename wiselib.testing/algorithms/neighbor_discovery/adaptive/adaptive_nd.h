@@ -153,7 +153,7 @@ namespace wiselib {
         };
 
         void init(Radio& radio, Clock& clock, Timer& timer, Debug& debug,
-                Rand& rand, Duty& duty, uint32_t duty_period = 500, uint32_t sleep_period = 0) {
+                Rand& rand, Duty& duty, uint32_t duty_period = 500, uint32_t duty_rate = 0) {
             radio_ = &radio;
             clock_ = &clock;
             timer_ = &timer;
@@ -161,7 +161,9 @@ namespace wiselib {
             rand_ = &rand;
             duty_ = &duty;
             duty_period_ = duty_period;
-            sleep_period_ = sleep_period;
+            duty_rate_ = duty_rate;
+            sleep_period_ = duty_period_ - duty_rate_ * (duty_period_ / 100);
+
 
             //initialize random number generator
             rand_->srand(radio_->id());
@@ -170,7 +172,7 @@ namespace wiselib {
 
             //initialize mid duty
             mid_duty.init(*timer_, *duty_);
-            mid_duty.set_rate(duty_period_, sleep_period_);
+            mid_duty.set_rate(duty_period_, duty_rate_);
 
         };
 
@@ -188,7 +190,7 @@ namespace wiselib {
             recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive> (this);
 
             //enable the duty cycling
-            mid_duty.enable();
+            //            mid_duty.enable();
 
             //internal initialization
             initialization();
@@ -477,7 +479,7 @@ namespace wiselib {
         }
 
         void dc_send(void *a) {
-            //send_beacon();
+            send_beacon();
         }
 
         /**
@@ -581,7 +583,7 @@ namespace wiselib {
             if (!enabled_) return;
             if (from == radio().id()) return;
             if (*msg != AdaptiveMesg_t::ND_MESG) return;
-
+          
 #ifdef AND
             debug().debug("AND;%x;from;%x", radio().id(), from);
 #endif
@@ -824,10 +826,10 @@ namespace wiselib {
             add_pg_payload(&mesg);
 
             radio_->send(Radio::BROADCAST_ADDRESS, mesg.buffer_size(), (block_data_t *) & mesg);
-#ifdef DEBUG_AND
+            //#ifdef DEBUG_AND
             debug().debug("RTS;%x;%d;%x",
                     radio().id(), mesg.msg_id(), Radio::BROADCAST_ADDRESS);
-#endif
+            //#endif
 
 
         }
@@ -873,6 +875,7 @@ namespace wiselib {
         uint16_t node_stability_prv;
 
         uint32_t duty_period_;
+        uint32_t duty_rate_;
         uint32_t sleep_period_;
 
 
