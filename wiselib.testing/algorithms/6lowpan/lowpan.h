@@ -1807,14 +1807,9 @@ namespace wiselib
 		if( CID_mode == 1 )
 		{
 			//The CID byte follows the IPHC header, so one byte should be free there
-			//Move the whole content. The IPHC header is 2 bytes, so the destination is +3 and the source is +2
-			//The size is the inserted bytes: actual position - iphc header end position
-			//void * memmove ( void * destination, const void * source, size_t num );
-			for( int i = 0; i < ACTUAL_SHIFT - (IPHC_SHIFT + 2); i++ )
-				buffer_[IPHC_SHIFT + 3 + i] = buffer_[IPHC_SHIFT + 2 + i];
-		
-// 			memmove( buffer_ + IPHC_SHIFT + 3, buffer_ + IPHC_SHIFT + 2, ACTUAL_SHIFT - (IPHC_SHIFT + 2) );
-			
+			//Move the whole content after the IPHC header (2 bytes)
+			for( int i = ACTUAL_SHIFT; i >= IPHC_SHIFT + 2; i-- )
+				buffer_[IPHC_SHIFT + i] = buffer_[IPHC_SHIFT + i -1];
 			
 			ACTUAL_SHIFT++;
 			
