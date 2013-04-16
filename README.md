@@ -1,5 +1,5 @@
 Introduction
-*********************
+=====================
 
 The Wiselib is an algorithm library for sensor networks. It contains
 various algorithm classes (for instance, localization or routing) that
@@ -30,7 +30,7 @@ loading an algorithm in your application.
 
 
 Folder Structure
-*********************
+=====================
 
 There are basically three kinds of folders. First, the Wiselib code in
 wiselib.stable and wiselib.testing (which only contains algorithms,
@@ -92,7 +92,7 @@ Roomba.
 doc
 -------------------
 
-Main sources for doxygen documentation. Contains concept descriptions
+Main sources for `doxygen` documentation. Contains concept descriptions
 and main doxygen pages. To create doygen documentation, just run:
-  * doxygen Doxyfile
+ doxygen Doxyfile
 in Wiselib's root folder.
