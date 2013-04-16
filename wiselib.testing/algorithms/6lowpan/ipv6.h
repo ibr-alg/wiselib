@@ -830,6 +830,11 @@
 		message->set_flow_label(flow_label_);
 		message->set_traffic_class(traffic_class_);
 		
+		//For ND messages the destination could be specified, no routing needed
+		if( message->target_interface != NUMBER_OF_INTERFACES &&
+			( message->remote_ll_address != 0 || message->target_interface == INTERFACE_UART ))
+			return interface_manager_->send_to_interface( destination, packet_number, NULL, message->target_interface );
+		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
 		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
@@ -842,11 +847,6 @@
 			//Broadcast the packet via the radio
 			return interface_manager_->send_to_interface( BROADCAST_ADDRESS, packet_number, NULL, INTERFACE_RADIO );
 		}
-		
-		//For ND messages the destination could be specified, no routing needed
-		if( message->remote_ll_address != 0 && message->target_interface != NUMBER_OF_INTERFACES)
-			return interface_manager_->send_to_interface( destination, packet_number, NULL, message->target_interface );
-			
 		
 	#ifdef LOWPAN_ROUTE_OVER
 		//In the route over mode, every hop is an IP hop
@@ -863,7 +863,10 @@
 			#ifdef IPv6_LAYER_DEBUG
 			char stra[43];
 			char strb[43];
-			debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(stra), next_hop.get_address(strb) );
+			if( target_interface == INTERFACE_UART ) //there is not really a "next" hop with UART
+				debug().debug( "IPv6 layer: Send to %s via UART", destination.get_address(stra) );
+			else
+				debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(stra), next_hop.get_address(strb) );
 			#endif
 			//Send the package to the next hop
 			return interface_manager_->send_to_interface( next_hop, packet_number, NULL, target_interface );
@@ -980,13 +983,13 @@
 								packet_pool_mgr_->clean_packet( message );
 								return;
 							}
-							
-							//Shift to the end of the option +2 because of the Type and Length
-							actual_TLV_shift += start_of_the_actual_EH[actual_TLV_shift+1] + 2;
-							
 							break;
 						}
 					}
+					
+					//Shift to the end of the option +2 because of the Type and Length
+					//Do this for all TLV, without the need of any registered handler
+					actual_TLV_shift += start_of_the_actual_EH[actual_TLV_shift+1] + 2;
 				}
 				
 				//Prepare for the next EH
@@ -1021,8 +1024,10 @@
 			message->source_address(source_ip);
 			
 			
+			#ifdef IPv6_LAYER_DEBUG
 			link_layer_node_id_t my_mac = radio_->id();
 			char str[43];
+			#endif
 			if( destination_ip == BROADCAST_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG

@@ -110,6 +110,8 @@ namespace wiselib
 					received_datagram_size = 0;
 					for( int i = 0; i < MAX_FRAGMENTS; i++ )
 						rcvd_offsets_[i] = 255;
+					
+					reset_timer();
 					return true;
 				}
 			}
@@ -129,10 +131,8 @@ namespace wiselib
 				if( rcvd_offsets_[i] == offset )
 					return false;
 			
-			rcvd_offsets_[received_fragments_number_++] = offset;
-				
 			//This is a new fragment, save the offset
-			reset_timer();
+			rcvd_offsets_[received_fragments_number_++] = offset;
 			
 			return true;
 		}
@@ -144,20 +144,20 @@ namespace wiselib
 		*/
 		void reset_timer()
 		{
-			timer().template set_timer<self_type, &self_type::timeout>( 75, this, (void*) received_fragments_number_ );
+			timer().template set_timer<self_type, &self_type::timeout>( LOWPAN_REASSEMBLING_TIMEOUT, this, (void*) datagram_tag );
 		}
 		
 		// -----------------------------------------------------------------
 		
 		/**
 		* If the timer expired this function is called.
-		* If there are no new fragments since the start of the timer, the reassembling process is canceled
+		* If the same reassebling is still in the system, the reassembling process is canceled
 		*/
-		void timeout( void* old_received_fragments_number_ )
+		void timeout( void* old_datagram_tag_ )
 		{
 			//If no new fragment since set the timer, reset the fragmentation process
 			if( valid && (received_datagram_size < datagram_size) &&
-			 (received_fragments_number_ == ( int )(old_received_fragments_number_)) )
+			 (datagram_tag == ( int )(old_datagram_tag_)) )
 			{
 				valid = false;
 				packet_pool_mgr_->clean_packet( ip_packet );

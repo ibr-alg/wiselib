@@ -470,9 +470,13 @@ namespace wiselib
 			//The simple implementation
 			node_id_t next_hop = requested_destination_;
 			
-			
+			//If this is a border-router and there is no predefined route for an address, then send it to the UART
+#ifdef IPv6_SLIP
+			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_UART);
+#else
 			ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_RADIO);
-			//ForwardingTableValue entry(next_hop, 0, 5, InterfaceManager_t::INTERFACE_UART);
+#endif
+
 			forwarding_table_[requested_destination_] = entry;
 			
 			failed_alive_ = false;
