@@ -23,7 +23,6 @@
 #include "external_interface/isense/isense_clock.h"
 #include "external_interface/isense/isense_com_bufferuart.h"
 #include "external_interface/isense/isense_com_uart.h"
-#include "external_interface/isense/isense_com_uart_largepackets.h"
 #include "external_interface/isense/isense_debug.h"
 #include "external_interface/isense/isense_distance.h"
 #include "external_interface/isense/isense_duty_cycling.h"
@@ -90,7 +89,6 @@ namespace wiselib
       typedef iSenseRandModel<iSenseOsModel> Rand;
       typedef iSenseTimerModel<iSenseOsModel> Timer;
       typedef iSenseSerialComUartModel<iSenseOsModel> Uart;
-      typedef iSenseSerialComUartModelLargePackets<iSenseOsModel> Large_Uart;
       typedef iSenseSerialComBufferUartModel<iSenseOsModel> B_Uart;
       typedef iSenseDutyCycling<iSenseOsModel> DutyCycling;
 
