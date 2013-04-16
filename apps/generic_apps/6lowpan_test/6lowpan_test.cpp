@@ -3,6 +3,8 @@
 * Author: Daniel Gehberger - GSoC 2012 - 6LoWPAN project
 *
 * Test application for the IPv6 stack
+* 
+* Serial Line IP PC side: https://github.com/GDanii/Wiselib-TunSLIP6
 *
 */
 
@@ -21,7 +23,9 @@ typedef Os::Radio::node_id_t node_id_t;
 #ifdef SHAWN
 typedef wiselib::ShawnTestbedserviceUartModel<wiselib::OSMODEL> Uart;
 #elif defined ( ISENSE )
-typedef Os::Large_Uart Uart;
+//In case of iSense use the large packet uart --> uint16 for packet length
+#include "external_interface/isense/isense_com_uart_largepackets.h"
+typedef wiselib::iSenseSerialComUartModelLargePackets<Os> Uart;
 #else
 typedef Os::Uart Uart;
 #endif

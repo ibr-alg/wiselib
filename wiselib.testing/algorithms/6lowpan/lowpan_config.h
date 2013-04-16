@@ -53,7 +53,7 @@
 #define NUMBER_OF_UDP_SOCKETS 4
 
 //Enable the Router Solicitation messages on the UART interface
-#define IPv6_SLIP
+// #define IPv6_SLIP
 
 //Select routing method
 #define LOWPAN_ROUTE_OVER
