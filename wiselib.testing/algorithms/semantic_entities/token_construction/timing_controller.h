@@ -95,11 +95,13 @@ namespace wiselib {
 			class RegularEvent {
 				// {{{
 				public:
-					RegularEvent() : interval_(1000), window_(1000), hits_(0) {
+					RegularEvent() : expected_(0), interval_(1000), window_(1000), hits_(0) {
 					}
 					
 					void hit(time_t t, typename Clock::self_pointer_t clock) {
-						time_t new_interval = clock->milliseconds((t + interval_) - expected_);
+						time_t new_interval = t + interval_;
+						//if(new_interval == time
+						
 						switch(hit_type(t, clock)) {
 							case HIT_CLOSE:
 								window_ /= 2;
@@ -117,11 +119,28 @@ namespace wiselib {
 						}
 						
 						expected_ += interval_;
+						hits_++;
 					}
 					
 					time_t window() { return window_; }
 					time_t interval() { return interval_; }
 					time_t expected() { return expected_; }
+					
+					time_t prev_expected(time_t t) {
+						time_t r = expected_ - interval_;
+						while(r + interval_ <= t) {
+							r += interval_;
+						}
+						return r;
+					}
+					
+					time_t next_expected(time_t t) {
+						time_t r = expected_;
+						while(r <= t) {
+							r += interval_;
+						}
+						return r;
+					}
 					
 				private:
 					HitType hit_type(time_t t, typename Clock::self_pointer_t clock_) {
@@ -134,12 +153,22 @@ namespace wiselib {
 					}
 					
 					void update_interval(time_t new_interval, ::uint8_t alpha) {
-						if(hits_ < 3) {
+						assert(new_interval > time_t(0));
+						if(new_interval < window_) { new_interval = window_; }
+						
+						if(hits_ < 2) {
 							interval_ = new_interval;
 						}
 						else {
 							interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
 						}
+						
+						check_invariant();
+					}
+					
+					void check_invariant() {
+						assert(window_ > time_t(0));
+						assert(interval_ >= window_);
 					}
 			
 					time_t expected_;
@@ -172,11 +201,33 @@ namespace wiselib {
 			
 			template<typename T, void (T::*TMethod)(void*)>
 			void schedule_wakeup_for_activating_token(SemanticEntityT& entity, T *obj) {
-				abs_millis_t delta = absolute_millis(activating_tokens_[entity.id()].expected() - activating_tokens_[entity.id()].window() - clock_->time());
+				DBG("schedule wakeup");
+				print_time(clock_->time());
+				print_time(
+					activating_tokens_[entity.id()].expected()
+				);
+				print_time(
+					activating_tokens_[entity.id()].next_expected(clock_->time())
+				);
+				print_time(
+					activating_tokens_[entity.id()].next_expected(clock_->time())
+					- clock_->time()
+				);
+				abs_millis_t delta = absolute_millis(
+					activating_tokens_[entity.id()].next_expected(clock_->time())
+					- clock_->time()
+				);
+						
+				DBG("scheduling wakeup in %d ms", delta);
+				
 				timer_->template set_timer<T, TMethod>(delta, obj, (void*)&entity);
 			}
 		
 		private:
+			void print_time(const time_t& t) {
+				DBG("%d.%03ds", clock_->seconds(t), clock_->milliseconds(t));
+			}
+			
 			abs_millis_t absolute_millis(const time_t& t) {
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
 			}

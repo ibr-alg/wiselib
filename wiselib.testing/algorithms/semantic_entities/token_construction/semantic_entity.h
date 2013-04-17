@@ -201,10 +201,10 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
 			
 			
-			SemanticEntity() : waiting_for_token_(false), awake_(false) {
+			SemanticEntity() : awake_(false) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), waiting_for_token_(false), awake_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), awake_(false) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -216,35 +216,22 @@ namespace wiselib {
 				prev_token_state_ = other.prev_token_state_;
 				neighbor_states_ = other.neighbor_states_;
 				token_forwards_ = other.token_forwards_;
-				waiting_for_token_ = other.waiting_for_token_;
+				awake_ = other.awake_;
 				return *this;
 			}
 			
 			
-			// TODO:
-			// rethink entity states a little
-			// entity can be in one of these states:
-			// 
-			// sleeping -- i.e. token state is stable, caffeine off
-			// waiting -- token count stable, caffeine on
-			// active -- token increasing, caffeine on
-			// early_bird -- token increasing, caffeine on
-			// 
-			// how should we model this? two bools? a state variable?
-			// can there be other states?
 			
-			void begin_wait_for_token() {
-				waiting_for_token_ = true;
-			}
 			
-			void end_wait_for_token() {
-				waiting_for_token_ = false;
-			}
-			
-			bool waiting_for_token() {
-				return waiting_for_token_;
-			}
-			
+			/**
+			 * Being awake (in contrast to active) means that currently a unit
+			 * of caffeine is allocated.
+			 * Note that being awake is independent from being active:
+			 * A node can be only awake (waiting for a token),
+			 * only active (got the token before awake phase when it was awake
+			 * for another reason), neither (just sleeping) or both (active in
+			 * the duty cycling sense).
+			 */
 			bool is_awake() {
 				return awake_;
 			}
@@ -312,7 +299,7 @@ namespace wiselib {
 			 */
 			bool is_active(node_id_t mynodeid) {
 				token_count_t l = prev_token_state_.count();
-				DBG("is_active(%d) root=%d prevcount=%d mycount=%d", mynodeid, tree().root(), l, token().count());
+				//DBG("is_active(%d) root=%d prevcount=%d mycount=%d", mynodeid, tree().root(), l, token().count());
 				if(tree().root() == mynodeid) {
 					return l == token().count();
 				}
@@ -341,7 +328,7 @@ namespace wiselib {
 			void print_state(node_id_t mynodeid) {
 				DBG("node %d SE %d.%08x", mynodeid, id().rule(), id().value());
 				DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
-				DBG(" count=%d", token().count());
+				DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
 			
 			void set_prev_token_count(token_count_t ptc) {
@@ -426,7 +413,7 @@ namespace wiselib {
 			// token)
 			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			Childs childs_;
-			bool waiting_for_token_;
+			bool awake_;
 	}; // SemanticEntity
 	
 	
