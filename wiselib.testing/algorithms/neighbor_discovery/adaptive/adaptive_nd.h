@@ -153,7 +153,7 @@ namespace wiselib {
         };
 
         void init(Radio& radio, Clock& clock, Timer& timer, Debug& debug,
-                Rand& rand, Duty& duty, uint32_t duty_period = 500, uint32_t sleep_period = 0) {
+                Rand& rand, Duty& duty, uint32_t duty_period = 500, uint32_t duty_rate = 0) {
             radio_ = &radio;
             clock_ = &clock;
             timer_ = &timer;
@@ -161,14 +161,18 @@ namespace wiselib {
             rand_ = &rand;
             duty_ = &duty;
             duty_period_ = duty_period;
-            sleep_period_ = sleep_period;
+            duty_rate_ = duty_rate;
+            sleep_period_ = duty_period_ - duty_rate_ * (duty_period_ / 100);
+
 
             //initialize random number generator
             rand_->srand(radio_->id());
 
+            enabled_ = false;
+
             //initialize mid duty
             mid_duty.init(*timer_, *duty_);
-            mid_duty.set_rate(duty_period_, sleep_period_);
+            mid_duty.set_rate(duty_period_, duty_rate_);
 
         };
 
@@ -180,13 +184,13 @@ namespace wiselib {
          * 
          */
         void enable() {
+            enabled_ = true;
             //enable and register the radio
             radio().enable_radio();
-            debug().debug("Called Enable %x", radio_->id());
             recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive> (this);
 
             //enable the duty cycling
-            mid_duty.enable();
+            //            mid_duty.enable();
 
             //internal initialization
             initialization();
@@ -199,6 +203,7 @@ namespace wiselib {
          * Disable the execution of the algorithm.
          */
         void disable() {
+            enabled_ = false;
             radio().disable_radio();
             radio().template unreg_recv_callback(recv_callback_id_);
         }
@@ -223,6 +228,7 @@ namespace wiselib {
          */
         void debug_callback(uint8_t event, node_id_t from, uint8_t len,
                 uint8_t* data) {
+            if (!enabled_)return;
 
             if (self_t::NEW_PAYLOAD == event) {
                 debug_->debug("NODE %x: new payload from %x with size %d ", radio_->id(), from, len);
@@ -473,7 +479,7 @@ namespace wiselib {
         }
 
         void dc_send(void *a) {
-            //send_beacon();
+            send_beacon();
         }
 
         /**
@@ -574,10 +580,10 @@ namespace wiselib {
         }
 
         void receive(node_id_t from, size_t len, block_data_t * msg, ExData const &ex) {
-
+            if (!enabled_) return;
             if (from == radio().id()) return;
             if (*msg != AdaptiveMesg_t::ND_MESG) return;
-
+          
 #ifdef AND
             debug().debug("AND;%x;from;%x", radio().id(), from);
 #endif
@@ -806,6 +812,7 @@ namespace wiselib {
          * Sends a new ND beacon.
          */
         void send_beacon() {
+            if (!enabled_)return;
             AdaptiveMesg_t mesg;
             for (iterator_t it = neighbours.begin();
                     it != neighbours.end(); it++) {
@@ -819,10 +826,10 @@ namespace wiselib {
             add_pg_payload(&mesg);
 
             radio_->send(Radio::BROADCAST_ADDRESS, mesg.buffer_size(), (block_data_t *) & mesg);
-#ifdef DEBUG_AND
+            //#ifdef DEBUG_AND
             debug().debug("RTS;%x;%d;%x",
                     radio().id(), mesg.msg_id(), Radio::BROADCAST_ADDRESS);
-#endif
+            //#endif
 
 
         }
@@ -846,7 +853,7 @@ namespace wiselib {
 
         uint8_t recv_callback_id_;
         bool radio_enabled_;
-
+        bool enabled_;
 
         time_t time_elapsed_;
         uint32_t timeout_;
@@ -868,6 +875,7 @@ namespace wiselib {
         uint16_t node_stability_prv;
 
         uint32_t duty_period_;
+        uint32_t duty_rate_;
         uint32_t sleep_period_;
 
 

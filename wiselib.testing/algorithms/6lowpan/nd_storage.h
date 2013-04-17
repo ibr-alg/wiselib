@@ -285,7 +285,7 @@ namespace wiselib
 					routers_[selected_place].own_registration_lifetime = own_lifetime;
 					neighbors_[neighbor_number].is_router = true;
 					#ifdef ND_DEBUG
-					debug_->debug("Adding new router %x mem %x:",neighbors_[neighbor_number].link_layer_address, routers_[selected_place].neighbor_pointer);
+					debug_->debug("Adding new router %llx mem %x:",(long long unsigned)(neighbors_[neighbor_number].link_layer_address), routers_[selected_place].neighbor_pointer);
 					#endif
 					return SUCCESS;
 				}
@@ -504,19 +504,21 @@ namespace wiselib
 		{
 			char str[43];
 			debug_->debug(" ND storage contents: is_router: %i,adv_retrans_timer: %i, adv_cur_hop_limit: %i, adv_default_lifetime: %i", is_router, adv_retrans_timer, adv_cur_hop_limit, adv_default_lifetime );
+			debug_->debug(" ND max neighbors: %i, max def. routers: %i", LOWPAN_MAX_OF_NEIGHBORS, LOWPAN_MAX_OF_ROUTERS );
 			for( int i = 0; i < LOWPAN_MAX_OF_NEIGHBORS; i++ )
 			{
 				NeighborCacheEntryType_t* tmp = neighbor_cache.get_neighbor( i );
-				debug_->debug("   ND N.Cache(%i): status: %i, is_router: %i, lifetime: %i, IP %s, ll address %x ", i, tmp->status, tmp->is_router, tmp->lifetime, tmp->ip_address.get_address(str), (uint16_t)(tmp->link_layer_address) );
+				if( tmp->status != NeighborCacheEntryType_t::GARBAGECOLLECTIBLE )
+					debug_->debug("   ND N.Cache(%i): status: %i, is_router: %i, lifetime: %i, IP %s, ll address %llx ", i, tmp->status, tmp->is_router, tmp->lifetime, tmp->ip_address.get_address(str), (long long unsigned)(tmp->link_layer_address) );
 			}
 			
 			for( int i = 0; i < LOWPAN_MAX_OF_ROUTERS; i++ )
 			{
 				DefaultRouterEntryType_t* tmp = neighbor_cache.get_router( i );
 				if( tmp->own_registration_lifetime > 0 )
-					debug_->debug("   ND Def.Router(%i): ll address of the N.Cache pair: %x, lifetime: %i ", i, (uint16_t)tmp->neighbor_pointer->link_layer_address, tmp->own_registration_lifetime );
-				else
-					debug_->debug("   ND Def.Router(%i): ll address of the N.Cache pair: -, lifetime: %i ", i, tmp->own_registration_lifetime );
+					debug_->debug("   ND Def.Router(%i): ll address of the N.Cache pair: %llx, lifetime: %i ", i, (long long unsigned)tmp->neighbor_pointer->link_layer_address, tmp->own_registration_lifetime );
+// 				else
+// 					debug_->debug("   ND Def.Router(%i): ll address of the N.Cache pair: -, lifetime: %i ", i, tmp->own_registration_lifetime );
 			}
 		}
 		#endif
