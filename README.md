@@ -63,7 +63,7 @@ apps
 -------------------
 
 apps/generic_apps
-=======================
+-------------------
 
 Contains examples of standalone Wiselib applications with an own
 application_main method. These apps can be used to write a whole
@@ -71,18 +71,18 @@ application once, and compile it for different platforms just by
 changing the make target.
 
 iapps
-=========
+-------------------
 
 Examples of Wiselib integration in native iSense applications.
 
 shawn_apps
-==============
+-------------------
 
 Examples of Wiselib integration in Shawn processors. Note that the
 Wiselib module in shawn.svn/src/apps must be enabled!
 
 pc_apps
-===========
+-------------------
 
 Run Wiselib application on PC - examples for ordinary appplications
 (with an iSense node attached to the PC, the PC can participate in a
