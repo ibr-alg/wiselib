@@ -55,16 +55,22 @@ namespace wiselib {
             };
 
 
-	//int16 get_lqi() const
-	//{ return lqi_; };
+	int16 get_lqi() const
+	{ return lqi_; };
 
-	//void set_lqi( int16 lqi )
-	//{ lqi_ = lqi; };
+	void set_lqi( int16 lqi )
+	{ lqi_ = lqi; };
+
+	int16 get_rssi() const
+	{ return rssi_; };
+
+	void set_rssi( int16 rssi )
+	{ rssi_ = rssi; };
 
         private:
             uint16 link_metric_;
-            //int16 lqi_;
-            //int16 rssi_;
+            int16 lqi_;
+            int16 rssi_;
         };
         // --------------------------------------------------------------------
         typedef OsModel_P OsModel;
@@ -271,8 +277,8 @@ namespace wiselib {
 
             ExtendedData ex;
             ex.set_link_metric(255 - signal_strength);
-            //ex.set_rssi( signal_strength );
-            //ex.set_lqi( signal_quality );
+            ex.set_rssi( signal_strength );
+            ex.set_lqi( signal_quality );
             for (int i = 0; i < MAX_EXTENDED_RECEIVERS; i++) {
                 if (isense_ext_radio_callbacks_[i])
                     isense_ext_radio_callbacks_[i](src_addr, len, const_cast<uint8*> (buf), ex);
