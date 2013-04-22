@@ -287,7 +287,7 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 						beacon.set_SCLD( SCLD );
-						debug().debug("SCLD:%x:%d:%d\n",radio().id(), SCLD, nv.size() );
+						//debug().debug("SCLD:%x:%d:%d\n",radio().id(), SCLD, nv.size() );
 #endif
 #ifdef					CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 						beacon.set_position( position );
@@ -298,7 +298,7 @@ namespace wiselib
 						{
 							beacon.q_sort_neigh_active_con( 0, beacon.get_neighborhood_ref()->size() - 1 );
 						}
-						debug().debug("BEAC:%x:%d:%d:%d,\n", radio().id(), Radio::MAX_MESSAGE_LENGTH, nv.size(), beacon.serial_size() );
+						//debug().debug("BEAC:%x:%d:%d:%d,\n", radio().id(), Radio::MAX_MESSAGE_LENGTH, nv.size(), beacon.serial_size() );
 #endif
 						block_data_t buff[Radio::MAX_MESSAGE_LENGTH];
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
@@ -1107,15 +1107,15 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void set_beacon_period( millis_t _bp )
 		{
-			millis_t old_beacon_period = beacon_period;
+//			millis_t old_beacon_period = beacon_period;
 			beacon_period =_bp;
-			if ( old_beacon_period != beacon_period )
-			{
-				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
-				{
-					pit->get_event_notifier_callback()( ProtocolSettings::BEACON_PERIOD_UPDATE, 0, 0, NULL );
-				}
-			}
+//			if ( old_beacon_period != beacon_period )
+//			{
+//				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
+//				{
+//					pit->get_event_notifier_callback()( ProtocolSettings::BEACON_PERIOD_UPDATE, 0, 0, NULL );
+//				}
+//			}
 		}
 		// --------------------------------------------------------------------
 		int8_t get_transmission_power_dB()
@@ -1125,15 +1125,15 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void set_transmission_power_dB( int8_t _tp_dB )
 		{
-			int8_t old_transmission_power_dB = transmission_power_dB;
+//			int8_t old_transmission_power_dB = transmission_power_dB;
 			transmission_power_dB = _tp_dB;
-			if ( old_transmission_power_dB != transmission_power_dB )
-			{
-				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
-				{
-					pit->get_event_notifier_callback()( ProtocolSettings::TRANS_DB_UPDATE, 0, 0, NULL );
-				}
-			}
+//			if ( old_transmission_power_dB != transmission_power_dB )
+//			{
+//				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
+//				{
+//					pit->get_event_notifier_callback()( ProtocolSettings::TRANS_DB_UPDATE, 0, 0, NULL );
+//				}
+//			}
 		}
 		// --------------------------------------------------------------------
 		uint8_t get_protocol_max_payload_size()
