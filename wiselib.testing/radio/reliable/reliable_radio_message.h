@@ -78,7 +78,7 @@ namespace wiselib
 			return destination;
 		}
 		// --------------------------------------------------------------------
-		uint32_t get_counter()
+		uint8_t get_counter()
 		{
 			return counter;
 		}
@@ -88,7 +88,7 @@ namespace wiselib
 			counter = counter + 1;
 		}
 		// --------------------------------------------------------------------
-		void set_counter( uint32_t _c )
+		void set_counter( uint8_t _c )
 		{
 			counter = _c;
 		}
@@ -129,9 +129,11 @@ namespace wiselib
 		block_data_t* serialize( block_data_t* _buff, size_t _offset = 0 )
 		{
 			size_t MSG_ID_POS = 0;
-			size_t DATA_LEN_POS = MSG_ID_POS + sizeof(uint32_t);
+			size_t COUNTER_POS = MSG_ID_POS + sizeof(uint32_t);
+			size_t DATA_LEN_POS = COUNTER_POS + sizeof(uint8_t);
 			size_t DATA_POS = DATA_LEN_POS + sizeof(size_t);
 			write<Os, block_data_t, uint32_t>( _buff + MSG_ID_POS + _offset,  message_id );
+			write<Os, block_data_t, uint8_t>( _buff + COUNTER_POS + _offset, counter );
 			write<Os, block_data_t, size_t>( _buff + DATA_LEN_POS + _offset, payload_size );
 			memcpy( _buff + DATA_POS + _offset, payload, payload_size );
 			return _buff;
@@ -140,9 +142,11 @@ namespace wiselib
 		void de_serialize( block_data_t* _buff, size_t _offset = 0 )
 		{
 			size_t MSG_ID_POS = 0;
-			size_t DATA_LEN_POS = MSG_ID_POS + sizeof(uint32_t);
+			size_t COUNTER_POS = MSG_ID_POS + sizeof(uint32_t);
+			size_t DATA_LEN_POS = COUNTER_POS + sizeof(uint8_t);
 			size_t DATA_POS = DATA_LEN_POS + sizeof(size_t);
 			message_id = read<Os, block_data_t, uint32_t>( _buff + MSG_ID_POS + _offset );
+			counter = read<Os, block_data_t, uint8_t>( _buff + COUNTER_POS + _offset );
 			payload_size = read<Os, block_data_t, size_t>( _buff + DATA_LEN_POS + _offset );
 			memcpy( payload, _buff + DATA_POS + _offset, payload_size );
 		}
@@ -150,7 +154,8 @@ namespace wiselib
 		size_t serial_size()
 		{
 			size_t MSG_ID_POS = 0;
-			size_t DATA_LEN_POS = MSG_ID_POS + sizeof(uint32_t);
+			size_t COUNTER_POS = MSG_ID_POS + sizeof(uint32_t);
+			size_t DATA_LEN_POS = COUNTER_POS + sizeof(uint8_t);
 			size_t DATA_POS = DATA_LEN_POS + sizeof(size_t);
 			return DATA_POS + payload_size;
 		}
@@ -176,7 +181,7 @@ namespace wiselib
 		// --------------------------------------------------------------------
 	private:
 		uint32_t message_id;
-		uint32_t counter;
+		uint8_t counter;
 		block_data_t payload[Radio::MAX_MESSAGE_LENGTH];
 		size_t payload_size;
 		node_id_t destination;
