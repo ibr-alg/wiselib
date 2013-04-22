@@ -1111,10 +1111,9 @@ namespace wiselib
 			beacon_period =_bp;
 			if ( old_beacon_period != beacon_period )
 			{
-				uint8_t events_flag = events_flag | ProtocolSettings::BEACON_PERIOD_UPDATE;
 				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 				{
-					pit->get_event_notifier_callback()( events_flag, 0, 0, NULL );
+					pit->get_event_notifier_callback()( ProtocolSettings::BEACON_PERIOD_UPDATE, 0, 0, NULL );
 				}
 			}
 		}
@@ -1130,10 +1129,9 @@ namespace wiselib
 			transmission_power_dB = _tp_dB;
 			if ( old_transmission_power_dB != transmission_power_dB )
 			{
-				uint8_t events_flag = events_flag | ProtocolSettings::TRANS_DB_UPDATE;
 				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 				{
-					pit->get_event_notifier_callback()( events_flag, 0, 0, NULL );
+					pit->get_event_notifier_callback()( ProtocolSettings::TRANS_DB_UPDATE, 0, 0, NULL );
 				}
 			}
 		}

@@ -22,7 +22,7 @@
 
 #include "ATP_source_config.h"
 #include "ATP_default_values_config.h"
-#include "../../internal_interface/message/message.h"
+#include "../../../internal_interface/message/message.h"
 
 namespace wiselib
 {
