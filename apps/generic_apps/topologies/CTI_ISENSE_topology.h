@@ -11,7 +11,7 @@ Position get_node_info( Radio* _radio )
 	}
 	else if ( _radio->id() == 0xca3)
 	{
-		return Position( 28, 18, 1 );
+		return Position( 28, 20, 1 );
 	}
 	else if ( _radio->id() == 0x1b77 )
 	{
@@ -29,21 +29,26 @@ Position get_node_info( Radio* _radio )
 	{
 		return Position( 28, 18, 1 );
 	}
-	else if ( _radio->id() == 0x0180)
+	else if ( _radio->id() == 0x9979)
 	{
-		return Position( 11, 4, 1 );
+		return Position( 19, 4, 0 );
 	}
 	else if ( _radio->id() == 0x153d)
 	{
-		return Position( 11, 4, 1 );
+		return Position( 20, 5, 1 );
 	}
-	else if ( _radio->id() == 0x9979)
+	else if ( _radio->id() == 0x1515)
 	{
-		return Position( 20, 0, 0 );
+		return Position( 20, 11, 0 );
+	}
+	else if ( _radio->id() == 0x0180)
+	{
+		return Position( 17, 0, 1 );
 	}
 	else if ( _radio->id() == 0x0181)
 	{
-		return Position( 12, 2, 0 );
+		return Position( 15, 0, 0 );
 	}
+
 	return Position( 0, 0, 0 );
 }
