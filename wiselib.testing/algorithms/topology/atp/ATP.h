@@ -87,9 +87,9 @@ namespace wiselib
 		// -----------------------------------------------------------------------
 		void enable( void )
 		{
-#ifdef DEBUG_ATP_H_ENABLE
+//#ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Entering.\n", radio().id() );
-#endif
+//#endif
 			radio().enable_radio();
 			set_status( ACTIVE_STATUS );
 #ifndef CONFIG_ATP_H_RANDOM_BOOT
@@ -98,28 +98,27 @@ namespace wiselib
 			millis_t r = rand()() % random_enable_timer_range;
 			timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
 #endif
-#ifdef DEBUG_ATP_H_ENABLE
+//#ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Exiting.\n", radio().id() );
-#endif
+//#endif
 		}
 		// -----------------------------------------------------------------------
 		void SCL_enable_task( void* _userdata = NULL )
 		{
 			if ( status == ACTIVE_STATUS )
 			{
-#ifdef DEBUG_ATP_H_NEIGHBOR_DISCOVERY_ENABLE_TASK
+#ifdef DEBUG_ATP_H_ATP_SERVICE
 				debug().debug( "ATP - SCL_enable_task %x - Entering.\n", radio().id() );
 #endif
 				block_data_t buff[100];
 				ProtocolPayload pp( SCL::ATP_PROTOCOL_ID, 0, buff );
-				//uint8_t events_flag	= 	ProtocolSettings::NEW_NB|
-				//						ProtocolSettings::UPDATE_NB|
-				//						ProtocolSettings::NEW_PAYLOAD|
-				//						ProtocolSettings::LOST_NB|
-				//						ProtocolSettings::TRANS_DB_UPDATE|
-				//						ProtocolSettings::BEACON_PERIOD_UPDATE|
-				//						ProtocolSettings::NB_REMOVED;
-				uint8_t events_flag = 0;
+				uint8_t events_flag	= 	ProtocolSettings::NEW_NB|
+										ProtocolSettings::UPDATE_NB|
+										ProtocolSettings::NEW_PAYLOAD|
+										ProtocolSettings::LOST_NB|
+										ProtocolSettings::TRANS_DB_UPDATE|
+										ProtocolSettings::BEACON_PERIOD_UPDATE|
+										ProtocolSettings::NB_REMOVED;
 				ProtocolSettings ps(
 #ifdef CONFIG_ATP_H_LQI_FILTERING
 						255, 0, 255, 0,
@@ -152,13 +151,13 @@ namespace wiselib
 					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #endif
-#ifdef DEBUG_ATP_H_NEIGHBOR_DISCOVERY_ENABLE_TASK
+#ifdef DEBUG_ATP_H_ATP_SERVICE
 					debug().debug("MILLIS:%d:%d:%d", convergence_time,  monitoring_phases,  convergence_time/monitoring_phases);
 #endif
 					monitoring_phase_counter = monitoring_phase_counter + 1;
 					timer().template set_timer<self_type, &self_type::ATP_service> ( convergence_time/monitoring_phases, this, 0 );
 				}
-#ifdef DEBUG_ATP_H_NEIGHBOR_DISCOVERY_ENABLE_TASK
+#ifdef DEBUG_ATP_H_ATP_SERVICE
 				debug().debug( "ATP - SCL_enable_task - Exiting.\n" );
 #endif
 			}
@@ -211,7 +210,7 @@ namespace wiselib
 				}
 				for ( Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i )
 				{
-					//if ( i->get_active() == 1 )
+					if ( i->get_active() == 1 )
 					{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 						debug().debug( "NB:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
@@ -257,17 +256,21 @@ namespace wiselib
 				}
 #endif
 				monitoring_phase_counter = monitoring_phase_counter + 1;
-				if ( monitoring_phase_counter < monitoring_phases )
+				if ( monitoring_phase_counter <= monitoring_phases )
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service> ( convergence_time/monitoring_phases, this, 0 );
 				}
+#ifdef CONFIG_ATP_H_DISABLE_SCL
 				else
 				{
 					ATP_service_disable();
+					scl().set_beacon_period( 500 );
 				}
+#endif
 			}
 		}
 		// -----------------------------------------------------------------------
+#ifdef CONFIG_ATP_H_DISABLE_SCL
 		void ATP_service_disable( void* _userdata = NULL )
 		{
 			if ( status == ACTIVE_STATUS )
@@ -281,6 +284,7 @@ namespace wiselib
 #endif
 			}
 		}
+#endif
 		// -----------------------------------------------------------------------
 		void disable( void )
 		{
@@ -290,51 +294,51 @@ namespace wiselib
 		// -----------------------------------------------------------------------
 		void events_callback( uint8_t _event, node_id_t _from, size_t _len, uint8_t* _data )
 		{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//			debug().debug( "ATP - events_callback %x - Entering.\n", radio().id() );
-//#endif
-//			if ( _event & ProtocolSettings::NEW_NB )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//			debug().debug( "ATP - events_callback %x - NEW_NB.\n", radio().id() );
-//#endif
-//			}
-//			else if ( _event & ProtocolSettings::UPDATE_NB )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//			debug().debug( "ATP - events_callback %x - UPDATE_NB.\n", radio().id() );
-//#endif
-//			}
-//			else if ( _event & ProtocolSettings::NEW_PAYLOAD )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//			debug().debug( "ATP - events_callback %x - NEW_PAYLOAD.\n", radio().id() );
-//#endif
-//			}
-//			else if ( _event & ProtocolSettings::LOST_NB )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//				debug().debug( "ATP - events_callback %x - LOST_NB %x.\n", radio().id(), _from );
-//#endif
-//			}
-//			else if ( _event & ProtocolSettings::NB_REMOVED )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//				debug().debug( "ATP - events_callback %x - NB_REMOVED %x.\n", radio().id(), _from );
-//#endif
-//			}
-//			else if ( _event & ProtocolSettings::TRANS_DB_UPDATE )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//				debug().debug( "ATP - events_callback %x - TRANS_DB_UPDATE %x.\n", radio().id(), _from );
-//#endif
-//			}
-//			else if ( _event & ProtocolSettings::BEACON_PERIOD_UPDATE )
-//			{
-//#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
-//				debug().debug( "ATP - events_callback %x - BEACON_PERIOD_UPDATE %x.\n", radio().id(), _from );
-//#endif
-//			}
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+			debug().debug( "ATP - events_callback %x - Entering.\n", radio().id() );
+#endif
+			if ( _event & ProtocolSettings::NEW_NB )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+			debug().debug( "ATP - events_callback %x - NEW_NB.\n", radio().id() );
+#endif
+			}
+			else if ( _event & ProtocolSettings::UPDATE_NB )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+			debug().debug( "ATP - events_callback %x - UPDATE_NB.\n", radio().id() );
+#endif
+			}
+			else if ( _event & ProtocolSettings::NEW_PAYLOAD )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+			debug().debug( "ATP - events_callback %x - NEW_PAYLOAD.\n", radio().id() );
+#endif
+			}
+			else if ( _event & ProtocolSettings::LOST_NB )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+				debug().debug( "ATP - events_callback %x - LOST_NB %x.\n", radio().id(), _from );
+#endif
+			}
+			else if ( _event & ProtocolSettings::NB_REMOVED )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+				debug().debug( "ATP - events_callback %x - NB_REMOVED %x.\n", radio().id(), _from );
+#endif
+			}
+			else if ( _event & ProtocolSettings::TRANS_DB_UPDATE )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+				debug().debug( "ATP - events_callback %x - TRANS_DB_UPDATE %x.\n", radio().id(), _from );
+#endif
+			}
+			else if ( _event & ProtocolSettings::BEACON_PERIOD_UPDATE )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+				debug().debug( "ATP - events_callback %x - BEACON_PERIOD_UPDATE %x.\n", radio().id(), _from );
+#endif
+			}
 		}
 		// -----------------------------------------------------------------------
 		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, SCL& scl )

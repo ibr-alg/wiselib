@@ -87,9 +87,7 @@ namespace wiselib
 			beacon_period						( ND_BEACON_PERIOD ),
 			transmission_power_dB				( ND_TRANSMISSION_POWER_DB ),
 			protocol_max_payload_size			( ND_MAX_PROTOCOL_PAYLOAD_SIZE ),
-//			transmission_power_dB_strategy		( FIXED_TRANSM ),
 			protocol_max_payload_size_strategy	( FIXED_PAYLOAD_SIZE ),
-//			beacon_period_strategy				( FIXED_PERIOD ),
 			relax_millis						( ND_RELAX_MILLIS ),
 			nd_daemon_period					( ND_DAEMON_PERIOD )
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
@@ -189,6 +187,18 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void events_callback( uint8_t _event, node_id_t _node_id, size_t _len, uint8_t* _data )
 		{
+			if ( _event & ProtocolSettings::TRANS_DB_UPDATE )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+				debug().debug( "NB - events_callback %x - TRANS_DB_UPDATE %x.\n", radio().id(), _node_id );
+#endif
+			}
+			else if ( _event & ProtocolSettings::BEACON_PERIOD_UPDATE )
+			{
+#ifdef DEBUG_ATP_H_EVENTS_CALLBACK
+				debug().debug( "NB - events_callback %x - BEACON_PERIOD_UPDATE %x.\n", radio().id(), _node_id );
+#endif
+			}
 		}
 		// --------------------------------------------------------------------
 		void send( node_id_t _dest, size_t _len, block_data_t* _data, message_id_t _msg_id )
@@ -218,6 +228,7 @@ namespace wiselib
 			if ( get_status() == ACTIVE_STATUS )
 			{
 				Protocol* p_ptr = get_protocol_ref( ND_PROTOCOL_ID );
+				Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID );
 				if ( p_ptr != NULL )
 				{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
@@ -287,9 +298,9 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 						beacon.set_SCLD( SCLD );
-						//debug().debug("SCLD:%x:%d:%d\n",radio().id(), SCLD, nv.size() );
+
 #endif
-#ifdef					CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 						beacon.set_position( position );
 #endif
 						beacon.set_neighborhood( nv, radio().id() );
@@ -298,9 +309,21 @@ namespace wiselib
 						{
 							beacon.q_sort_neigh_active_con( 0, beacon.get_neighborhood_ref()->size() - 1 );
 						}
-						//debug().debug("BEAC:%x:%d:%d:%d,\n", radio().id(), Radio::MAX_MESSAGE_LENGTH, nv.size(), beacon.serial_size() );
+						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d\n",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
 #endif
 						block_data_t buff[Radio::MAX_MESSAGE_LENGTH];
+						Message empty_message;
+						size_t available_bytes = Radio::MAX_MESSAGE_LENGTH - empty_message.serial_size();
+						if ( beacon.serial_size() > available_bytes )
+						{
+							debug().debug("SERIAL_BEAC_PRE:%x:%d:%d", radio().id(), available_bytes, beacon.serial_size() );
+							size_t items_to_pop = beacon.get_neighborhood_ref()->size() - ( ( available_bytes - ( beacon.serial_size() - ( n->serial_size() * beacon.get_neighborhood_ref()->size() ) ) ) / n->serial_size() );
+							for ( size_t i = 0; i < items_to_pop; i++ )
+							{
+								beacon.get_neighborhood_ref()->pop_back();
+							}
+							debug().debug("SERIAL_BEAC_POST:%x:%d:%d", radio().id(), available_bytes, beacon.serial_size() );
+						}
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 						debug().debug( "NeighborDiscovery - beacons - Sending beacon.\n" );
@@ -1107,15 +1130,21 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void set_beacon_period( millis_t _bp )
 		{
-//			millis_t old_beacon_period = beacon_period;
+			millis_t old_beacon_period = beacon_period;
 			beacon_period =_bp;
-//			if ( old_beacon_period != beacon_period )
-//			{
-//				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
-//				{
-//					pit->get_event_notifier_callback()( ProtocolSettings::BEACON_PERIOD_UPDATE, 0, 0, NULL );
-//				}
-//			}
+			if ( old_beacon_period != beacon_period )
+			{
+				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
+				{
+					uint8_t events_flag = 0;
+					events_flag = events_flag | ProtocolSettings::BEACON_PERIOD_UPDATE;
+					events_flag = pit->get_protocol_settings_ref()->get_events_flag() & events_flag;
+					if ( events_flag != 0 )
+					{
+						pit->get_event_notifier_callback()( events_flag, radio().id(), 0, NULL );
+					}
+				}
+			}
 		}
 		// --------------------------------------------------------------------
 		int8_t get_transmission_power_dB()
@@ -1125,15 +1154,21 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void set_transmission_power_dB( int8_t _tp_dB )
 		{
-//			int8_t old_transmission_power_dB = transmission_power_dB;
+			int8_t old_transmission_power_dB = transmission_power_dB;
 			transmission_power_dB = _tp_dB;
-//			if ( old_transmission_power_dB != transmission_power_dB )
-//			{
-//				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
-//				{
-//					pit->get_event_notifier_callback()( ProtocolSettings::TRANS_DB_UPDATE, 0, 0, NULL );
-//				}
-//			}
+			if ( old_transmission_power_dB != transmission_power_dB )
+			{
+				for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
+				{
+					uint8_t events_flag = 0;
+					events_flag = events_flag | ProtocolSettings::TRANS_DB_UPDATE;
+					events_flag = pit->get_protocol_settings_ref()->get_events_flag() & events_flag;
+					if ( events_flag != 0 )
+					{
+						pit->get_event_notifier_callback()(events_flag, radio().id(), 0, NULL );
+					}
+				}
+			}
 		}
 		// --------------------------------------------------------------------
 		uint8_t get_protocol_max_payload_size()
