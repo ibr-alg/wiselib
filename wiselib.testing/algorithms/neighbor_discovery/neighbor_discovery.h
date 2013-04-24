@@ -227,8 +227,7 @@ namespace wiselib
 #endif
 			if ( get_status() == ACTIVE_STATUS )
 			{
-				Protocol* p_ptr = get_protocol_ref( ND_PROTOCOL_ID );
-				Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID );
+				Protocol* p_ptr = get_protocol_ref( ND_PROTOCOL_ID );;
 				if ( p_ptr != NULL )
 				{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
@@ -309,20 +308,27 @@ namespace wiselib
 						{
 							beacon.q_sort_neigh_active_con( 0, beacon.get_neighborhood_ref()->size() - 1 );
 						}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
+						Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID )
 						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d\n",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
+#endif
 #endif
 						block_data_t buff[Radio::MAX_MESSAGE_LENGTH];
 						Message empty_message;
 						size_t available_bytes = Radio::MAX_MESSAGE_LENGTH - empty_message.serial_size();
 						if ( beacon.serial_size() > available_bytes )
 						{
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 							debug().debug("SERIAL_BEAC_PRE:%x:%d:%d", radio().id(), available_bytes, beacon.serial_size() );
+#endif
 							size_t items_to_pop = beacon.get_neighborhood_ref()->size() - ( ( available_bytes - ( beacon.serial_size() - ( n->serial_size() * beacon.get_neighborhood_ref()->size() ) ) ) / n->serial_size() );
 							for ( size_t i = 0; i < items_to_pop; i++ )
 							{
 								beacon.get_neighborhood_ref()->pop_back();
 							}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 							debug().debug("SERIAL_BEAC_POST:%x:%d:%d", radio().id(), available_bytes, beacon.serial_size() );
+#endif
 						}
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS

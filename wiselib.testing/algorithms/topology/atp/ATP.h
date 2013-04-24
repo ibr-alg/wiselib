@@ -87,9 +87,9 @@ namespace wiselib
 		// -----------------------------------------------------------------------
 		void enable( void )
 		{
-//#ifdef DEBUG_ATP_H_ENABLE
+#ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Entering.\n", radio().id() );
-//#endif
+#endif
 			radio().enable_radio();
 			set_status( ACTIVE_STATUS );
 #ifndef CONFIG_ATP_H_RANDOM_BOOT
@@ -98,9 +98,9 @@ namespace wiselib
 			millis_t r = rand()() % random_enable_timer_range;
 			timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
 #endif
-//#ifdef DEBUG_ATP_H_ENABLE
+#ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Exiting.\n", radio().id() );
-//#endif
+#endif
 		}
 		// -----------------------------------------------------------------------
 		void SCL_enable_task( void* _userdata = NULL )
