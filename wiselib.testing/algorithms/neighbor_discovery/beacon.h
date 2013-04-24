@@ -64,6 +64,9 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 			SCLD							( 0 ),
 #endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			TP								( 0 ),
+#endif
 			beacon_period					( 0 ),
 			beacon_period_update_counter	( 0 )
 		{}
@@ -139,43 +142,6 @@ namespace wiselib
 			}
 		}
 		// --------------------------------------------------------------------
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_CONNECTIVITY_FILTERING
-		void q_sort_neigh_active_con( int8_t _left, int8_t _right )
-		{
-			int8_t i = _left;
-			int8_t j = _right;
-			Neighbor tmp;
-			Neighbor pivot = neighborhood[ ( _left + _right ) / 2 ];
-			while (i <= j)
-			{
-				while ( neighborhood[i].get_active_connectivity() < pivot.get_active_connectivity() )
-				{
-					i++;
-				}
-				while ( neighborhood[j].get_active_connectivity() > pivot.get_active_connectivity() )
-				{
-					j--;
-				}
-				if ( i <= j )
-				{
-					tmp = neighborhood[i];
-					neighborhood[i] = neighborhood[j];
-					neighborhood[j] = tmp;
-					i++;
-					j--;
-				}
-			};
-			if ( _left < j )
-			{
-				q_sort_neigh_active_con( _left, j );
-			}
-			if ( i < _right )
-			{
-				q_sort_neigh_active_con( i, _right);
-			}
-		}
-#endif
-		// --------------------------------------------------------------------
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 		uint8_t get_SCLD()
 		{
@@ -185,6 +151,18 @@ namespace wiselib
 		void set_SCLD( uint8_t _s)
 		{
 			SCLD = _s;
+		}
+#endif
+		// --------------------------------------------------------------------
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+		void set_TP( int8_t _TP )
+		{
+			TP = _TP;
+		}
+		// --------------------------------------------------------------------
+		int8_t get_TP()
+		{
+			return TP;
 		}
 #endif
 		// --------------------------------------------------------------------
@@ -204,6 +182,9 @@ namespace wiselib
 		{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 			SCLD = _b.SCLD;
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			TP = _b.TP;
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 			position = _b.position;
@@ -365,6 +346,9 @@ namespace wiselib
 	private:
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 		uint8_t SCLD;
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+		int8_t TP;
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;

@@ -255,6 +255,8 @@ namespace wiselib
 						beacon.set_beacon_period( bp );
 						beacon.set_beacon_period_update_counter( n->get_beacon_period_update_counter() );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_SMALL_PAYLOAD
+						Neighbor_vector nv_SCL;
+						Neighbor_vector nv_non_SCL;
 						Neighbor_vector nv;
 						uint8_t SCLD=0;
 						for ( Neighbor_vector_iterator i = p_ptr->get_neighborhood_ref()->begin(); i != p_ptr->get_neighborhood_ref()->end(); ++i )
@@ -283,15 +285,39 @@ namespace wiselib
 #endif
 								)
 							{
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 								if ( i->get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
 								{
 									SCLD++;
+									nv_SCL.push_back( *i );
 								}
-#endif
-								nv.push_back( *i );
+								else
+								{
+									nv_non_SCL.push_back( *i );
+								}
 							}
 						}
+						if (nv_SCL.size() > 0 )
+						{
+							q_sort_neigh_active_con( 0, nv_SCL.size(), nv_SCL );
+						}
+						if ( nv_non_SCL.size() > 0 )
+						{
+							q_sort_neigh_active_con( 0, nv_non_SCL.size(), nv_non_SCL );
+						}
+						for ( Neighbor_vector_iterator i = nv_SCL.begin(); i != nv_SCL.end(); ++i )
+						{
+							nv.push_back( *i );
+						}
+						for ( Neighbor_vector_iterator i = nv_non_SCL.begin(); i != nv_non_SCL.end(); ++i )
+						{
+							nv.push_back( *i );
+						}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
+							for ( Neighbor_vector_iterator i = nv.begin(); i != nv.end(); ++i )
+							{
+								i->print( debug(), radio() );
+							}
+#endif
 #else
 						Neighbor_vector nv = p_ptr->get_neighborhood();
 #endif
@@ -303,16 +329,6 @@ namespace wiselib
 						beacon.set_position( position );
 #endif
 						beacon.set_neighborhood( nv, radio().id() );
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_CONNECTIVITY_FILTERING
-						if ( beacon.get_neighborhood_ref()->size() > 0 )
-						{
-							beacon.q_sort_neigh_active_con( 0, beacon.get_neighborhood_ref()->size() - 1 );
-						}
-#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
-						Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID )
-						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d\n",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
-#endif
-#endif
 						block_data_t buff[Radio::MAX_MESSAGE_LENGTH];
 						Message empty_message;
 						size_t available_bytes = Radio::MAX_MESSAGE_LENGTH - empty_message.serial_size();
@@ -330,6 +346,16 @@ namespace wiselib
 							debug().debug("SERIAL_BEAC_POST:%x:%d:%d", radio().id(), available_bytes, beacon.serial_size() );
 #endif
 						}
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_CONNECTIVITY_FILTERING
+						if ( beacon.get_neighborhood_ref()->size() > 0 )
+						{
+							q_sort_neigh_active_con( 0, beacon.get_neighborhood_ref()->size() - 1, *( beacon.get_neighborhood_ref() ) );
+						}
+//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
+						Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID );
+						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d\n",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
+//#endif
+#endif
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 						debug().debug( "NeighborDiscovery - beacons - Sending beacon.\n" );
@@ -1202,6 +1228,42 @@ namespace wiselib
 			relax_millis = _nbdp;
 		}
 		// --------------------------------------------------------------------
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_CONNECTIVITY_FILTERING
+		void q_sort_neigh_active_con( int8_t _left, int8_t _right, Neighbor_vector& _neighborhood )
+		{
+			int8_t i = _left;
+			int8_t j = _right;
+			Neighbor tmp;
+			Neighbor pivot = _neighborhood[ ( _left + _right ) / 2 ];
+			while (i <= j)
+			{
+				while ( _neighborhood[i].get_active_connectivity() < pivot.get_active_connectivity() )
+				{
+					i++;
+				}
+				while ( _neighborhood[j].get_active_connectivity() > pivot.get_active_connectivity() )
+				{
+					j--;
+				}
+				if ( i <= j )
+				{
+					tmp = _neighborhood[i];
+					_neighborhood[i] = _neighborhood[j];
+					_neighborhood[j] = tmp;
+					i++;
+					j--;
+				}
+			};
+			if ( _left < j )
+			{
+				q_sort_neigh_active_con( _left, j, _neighborhood );
+			}
+			if ( i < _right )
+			{
+				q_sort_neigh_active_con( i, _right, _neighborhood);
+			}
+		}
+#endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS_DAEMON
 		void nd_metrics_daemon( void* user_data = NULL )
 		{
