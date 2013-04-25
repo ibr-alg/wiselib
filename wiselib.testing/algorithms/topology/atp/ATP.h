@@ -28,7 +28,7 @@ namespace wiselib
 {
 	template<	typename Os_P,
 				typename Radio_P,
-				typename SCL_P,
+				typename ASCL_P,
 				typename Timer_P,
 				typename Rand_P,
 				typename Clock_P,
@@ -42,7 +42,7 @@ namespace wiselib
 		typedef Rand_P Rand;
 		typedef typename Rand::rand_t rand_t;
 		typedef Debug_P Debug;
-		typedef SCL_P SCL;
+		typedef ASCL_P ASCL;
 		typedef Timer_P Timer;
 		typedef Clock_P Clock;
 		typedef typename Radio::node_id_t node_id_t;
@@ -54,19 +54,19 @@ namespace wiselib
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Clock::time_t time_t;
 		typedef Message_Type<Os, Radio, Debug> Message;
-		typedef ATP_Type<Os, Radio, SCL, Timer, Rand, Clock, Debug> self_type;
-		typedef typename SCL::ProtocolSettings ProtocolSettings;
-		typedef typename SCL::Neighbor Neighbor;
-		typedef typename SCL::ProtocolPayload ProtocolPayload;
-		typedef typename SCL::Protocol Protocol;
-		typedef typename SCL::Protocol_vector Protocol_vector;
-		typedef typename SCL::Protocol_vector_iterator Protocol_vector_iterator;
-		typedef typename SCL::Beacon Beacon;
-		typedef typename SCL::Neighbor_vector Neighbor_vector;
-		typedef typename SCL::Neighbor_vector_iterator Neighbor_vector_iterator;
-		typedef typename SCL::ProtocolPayload_vector ProtocolPayload_vector;
-		typedef typename SCL::ProtocolPayload_vector_iterator ProtocolPayload_vector_iterator;
-		typedef wiselib::ATP_Type<Os, Radio, SCL, Timer, Rand, Clock, Debug> ATP;
+		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug> self_type;
+		typedef typename ASCL::ProtocolSettings ProtocolSettings;
+		typedef typename ASCL::Neighbor Neighbor;
+		typedef typename ASCL::ProtocolPayload ProtocolPayload;
+		typedef typename ASCL::Protocol Protocol;
+		typedef typename ASCL::Protocol_vector Protocol_vector;
+		typedef typename ASCL::Protocol_vector_iterator Protocol_vector_iterator;
+		typedef typename ASCL::Beacon Beacon;
+		typedef typename ASCL::Neighbor_vector Neighbor_vector;
+		typedef typename ASCL::Neighbor_vector_iterator Neighbor_vector_iterator;
+		typedef typename ASCL::ProtocolPayload_vector ProtocolPayload_vector;
+		typedef typename ASCL::ProtocolPayload_vector_iterator ProtocolPayload_vector_iterator;
+		typedef wiselib::ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug> ATP;
 		// -----------------------------------------------------------------------
 		ATP_Type() :
 			radio_callback_id						( 0 ),
@@ -111,7 +111,7 @@ namespace wiselib
 				debug().debug( "ATP - SCL_enable_task %x - Entering.\n", radio().id() );
 #endif
 				block_data_t buff[100];
-				ProtocolPayload pp( SCL::ATP_PROTOCOL_ID, 0, buff );
+				ProtocolPayload pp( ASCL::ATP_PROTOCOL_ID, 0, buff );
 				uint8_t events_flag	= 	ProtocolSettings::NEW_NB|
 										ProtocolSettings::UPDATE_NB|
 										ProtocolSettings::NEW_PAYLOAD|
@@ -127,13 +127,13 @@ namespace wiselib
 						255, 0, 255, 0,
 #endif
 				100, 90, 100, 90, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::MEAN_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
-				scl(). template register_protocol<self_type, &self_type::events_callback>( SCL::ATP_PROTOCOL_ID, ps, this  );
+				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
 				debug().debug("RAND_DB:%x:%i\n", radio().id(), transmission_power_dB );
 #endif
 				scl().set_transmission_power_dB( transmission_power_dB );
-				Protocol* prot_ref = scl().get_protocol_ref( SCL::ATP_PROTOCOL_ID );
+				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 				if ( prot_ref != NULL )
 				{
 					scl().enable();
@@ -167,7 +167,7 @@ namespace wiselib
 		{
 			if ( status == ACTIVE_STATUS )
 			{
-				Protocol* prot_ref = scl().get_protocol_ref( SCL::ATP_PROTOCOL_ID );
+				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
@@ -341,7 +341,7 @@ namespace wiselib
 			}
 		}
 		// -----------------------------------------------------------------------
-		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, SCL& scl )
+		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, ASCL& scl )
 		{
 			_radio = &radio;
 			_timer = &timer;
@@ -382,7 +382,7 @@ namespace wiselib
 			return *_clock;
 		}
 		// -----------------------------------------------------------------------
-		SCL& scl()
+		ASCL& scl()
 		{
 			return *_scl;
 		}
@@ -392,7 +392,7 @@ namespace wiselib
 		Debug* _debug;
 		Rand* _rand;
 		Clock* _clock;
-		SCL* _scl;
+		ASCL* _scl;
 		enum atp_status
 		{
 			ACTIVE_STATUS,
