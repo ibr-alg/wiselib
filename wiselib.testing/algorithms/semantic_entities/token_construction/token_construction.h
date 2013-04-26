@@ -89,11 +89,11 @@ namespace wiselib {
 			
 			enum Timing {
 				/// Guarantee to broadcast in this fixed inverval
-				REGULAR_BCAST_INTERVAL = 10000,
+				REGULAR_BCAST_INTERVAL = 100000,
 				/// Check in this interval whether state is dirty and broadcast it if so
-				DIRTY_BCAST_INTERVAL = 100,
+				DIRTY_BCAST_INTERVAL = 1000,
 				/// How long to stay awake when we have the token
-				ACTIVITY_PERIOD = 1000,
+				ACTIVITY_PERIOD = 10000,
 			};
 			
 			enum SpecialAddresses {
@@ -168,8 +168,11 @@ namespace wiselib {
 				assert(found);
 				
 				begin_wait_for_token(se);
+				
+				DBG("node %d SE %d.%d. active=%d", radio_->id(), id.rule(), id.value(), se.is_active(radio_->id()));
 				if(se.is_active(radio_->id())) {
-					timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
+					begin_activity(se);
+					//timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
 				}
 			}
 			
@@ -180,7 +183,7 @@ namespace wiselib {
 			  
 			             )  )  )
 			            (  (  (
-			     
+			
 			          |---------|
 			          |         |--.
 			          |         |  |
@@ -195,7 +198,7 @@ namespace wiselib {
 			 */
 			void push_caffeine(void* = 0) {
 				if(caffeine_level_ == 0) {
-					DBG("node %d radio on", radio_->id());
+					DBG("node %d on 1", radio_->id());
 					radio_->enable_radio();
 				}
 				caffeine_level_++;
@@ -207,7 +210,7 @@ namespace wiselib {
 			void pop_caffeine(void* = 0) {
 				caffeine_level_--;
 				if(caffeine_level_ == 0) {
-					DBG("node %d radio off", radio_->id());
+					DBG("node %d on 0", radio_->id());
 					radio_->disable_radio();
 				}
 				//DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
@@ -415,18 +418,12 @@ namespace wiselib {
 			 * Process token state change relevant to us (called by on_receive_token_state).
 			 */
 			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, time_t receive_time) {
-				//DBG("++++++++ process token state at %d", radio_->id());
 				bool active_before = se.is_active(radio_->id());
-				
 				se.set_prev_token_count(s.count());
-				//se.update_state(radio_->id());
 				if(se.is_active(radio_->id()) && !active_before) {
-					DBG("+++++++ node %d SE becoming active!", radio_->id());
-					
+					DBG("node %d SE %d.%d active=1 because of token!", radio_->id(), se.id().rule(), se.id().value());
 					timing_controller_.activating_token(se.id(), receive_time);
-					//abs_millis_t processing_time = absolute_millis(clock_->time() - receive_time);
-					
-					begin_activity((void*)&se);
+					begin_activity(se);
 				}
 			}
 			
@@ -436,7 +433,7 @@ namespace wiselib {
 			 */
 			void begin_wait_for_token(SemanticEntityT& se) {
 				if(!se.is_awake()) {
-					DBG("node %d push begin wait for token", radio_->id());
+					DBG("node %d SE %d.%d awake=1", radio_->id(), se.id().rule(), se.id().value());
 					se.set_awake(true);
 					push_caffeine();
 				}
@@ -451,34 +448,21 @@ namespace wiselib {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				if(se.is_awake()) {
 					se.set_awake(false);
-					DBG("node %d pop end wait for token", radio_->id());
+					DBG("node %d SE %d.%d awake=0", radio_->id(), se.id().rule(), se.id().value());
 					pop_caffeine();
 				}
 			}
 			
-			void check_entity_active(SemanticEntityT& se) {
-				if(se.is_active(radio_->id())) {
-					DBG("node %d push externally induced begin activity", radio_->id());
-					push_caffeine();
-					timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
-				}
-			}
-				
+			/**
+			 */
 			void begin_activity(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
-				//if(se.is_active(radio_->id())) {
-					//// We are already in an activity phase for this SE
-					//// that means there are frequent updates (eg. due to a
-					//// topology change), aid faster stabilization by
-					//// eating up this change and just continuing with the
-					//// running activity phase as planned
-					//return;
-				//}
-				
-				DBG("node %d push token induced begin activity", radio_->id());
 				push_caffeine();
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
 			}
+			
+			/// ditto.
+			void begin_activity(SemanticEntityT& se) { begin_activity((void*)&se); }
 			
 			
 			/**
@@ -502,29 +486,38 @@ namespace wiselib {
 				// not currently waiting).
 				end_wait_for_token(se_);
 				on_dirty_broadcast_state();
-				DBG("node %d pop end activity", radio_->id());
+				//DBG("node %d pop end activity", radio_->id());
 				pop_caffeine();
 				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
 				se.print_state(radio_->id());
 			}
 			
+			/// ditto.
+			void end_activity(SemanticEntityT& se) { end_activity((void*)&se); }
+			
 			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
 				//DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d", radio_->id(), source, se.id().rule(), se.id().value());
-				// TODO: update timing info
-				
 				se.neighbor_state(source) = state.tree();
-				// TODO  recalculate tree state, schedule additional
-				// broadcast if smth. changed?
+				bool active_before = se.is_active(radio_->id());
 				se.update_state(radio_->id());
+				
+				if(se.is_active(radio_->id()) && !active_before) {
+					DBG("node %d SE %d.%d active=1 because of tree change!", radio_->id(), se.id().rule(), se.id().value());
+					begin_activity(se);
+				}
+				else if(!se.is_active(radio_->id()) && active_before) {
+					DBG("node %d SE %d.%d active=0 because of tree change!", radio_->id(), se.id().rule(), se.id().value());
+					end_activity(se);
+				}
 			}
 			
 			/**
 			 * check whether neighbors timed out and are to be considered
 			 * dead.
 			 */
-			void check_neighbors(void*) {
-				// TODO
-			}
+			//void check_neighbors(void*) {
+				//// TODO
+			//}
 			
 			void on_lost_neighbor(SemanticEntityT &se, node_id_t neighbor) {
 				se.update_state();

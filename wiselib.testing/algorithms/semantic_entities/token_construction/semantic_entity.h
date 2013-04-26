@@ -299,7 +299,6 @@ namespace wiselib {
 			 */
 			bool is_active(node_id_t mynodeid) {
 				token_count_t l = prev_token_state_.count();
-				//DBG("is_active(%d) root=%d prevcount=%d mycount=%d", mynodeid, tree().root(), l, token().count());
 				if(tree().root() == mynodeid) {
 					return l == token().count();
 				}
@@ -326,9 +325,9 @@ namespace wiselib {
 			}
 			
 			void print_state(node_id_t mynodeid) {
-				DBG("node %d SE %d.%08x", mynodeid, id().rule(), id().value());
-				DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
-				DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
+				DBG("node %d SE %d.%d active=%d awake=%d", mynodeid, id().rule(), id().value(), is_active(mynodeid), is_awake());
+				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
+				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
 			
 			void set_prev_token_count(token_count_t ptc) {

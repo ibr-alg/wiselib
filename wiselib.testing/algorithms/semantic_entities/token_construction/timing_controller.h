@@ -202,17 +202,6 @@ namespace wiselib {
 			template<typename T, void (T::*TMethod)(void*)>
 			void schedule_wakeup_for_activating_token(SemanticEntityT& entity, T *obj) {
 				DBG("schedule wakeup");
-				print_time(clock_->time());
-				print_time(
-					activating_tokens_[entity.id()].expected()
-				);
-				print_time(
-					activating_tokens_[entity.id()].next_expected(clock_->time())
-				);
-				print_time(
-					activating_tokens_[entity.id()].next_expected(clock_->time())
-					- clock_->time()
-				);
 				abs_millis_t delta = absolute_millis(
 					activating_tokens_[entity.id()].next_expected(clock_->time())
 					- clock_->time()
