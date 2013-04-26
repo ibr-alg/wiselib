@@ -70,7 +70,10 @@ def make_figure():
 			setp(ax, yticklabels=[])
 		else:
 			ax = plt.subplot(len(nodes), 1, i + 1, sharex=first_ax)
-		setp(ax.get_yticklabels(), visible = False)
+			setp(ax.get_xticklabels(), visible = False)
+			ax.spines['bottom'].set_visible(False)
+			ax.spines['top'].set_visible(False)
+		#setp(ax.get_yticklabels(), visible = False)
 
 		#plt.axis('off')
 		if 'on' in node:
