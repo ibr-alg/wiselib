@@ -49,8 +49,11 @@ def parse(f):
 			if v is not None:
 				if k not in nodes[name]: nodes[name][k] = {'t': [], 'v': []}
 				
-				nodes[name][k]['t'].append(t)
-				nodes[name][k]['v'].append(int(v))
+				try: int(v)
+				except ValueError: pass
+				else:
+					nodes[name][k]['t'].append(t)
+					nodes[name][k]['v'].append(int(v))
 
 def make_figure():
 	global fig
@@ -103,7 +106,7 @@ def make_figure():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 13))
+	last_ax.set_xlim((-1, 43))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())

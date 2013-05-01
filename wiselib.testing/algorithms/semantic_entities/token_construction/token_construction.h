@@ -267,8 +267,30 @@ namespace wiselib {
 					pop_caffeine();
 				
 				}
+				else {
+					//DBG("id=%02d on_dirty_broadcast_state: nothing to send!", radio_->id());
+				}
+					
 				
 				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
+			}
+			
+			void pass_on_state(SemanticEntityT& se) {
+				StateUpdateMessageT msg;
+				msg.set_reason(StateUpdateMessageT::REASON_PASS_TOKEN);
+				msg.add_entity_state(se.state());
+				// TODO: we should be sure this is delivered before marking
+				// the SE clean!
+				// 
+				// Idea: SE holds state count (i.e. revision number of the
+				// state), add that to msg, when receiving ack for current
+				// revision, flag as clean. re-send in dirty-bcast-interval
+				// until clean
+				// 
+				se.state().set_clean();
+				push_caffeine();
+				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				pop_caffeine();
 			}
 			
 			/**
@@ -323,7 +345,8 @@ namespace wiselib {
 								timing_controller_.regular_broadcast(from, now);
 								break;
 							case StateUpdateMessageT::REASON_DIRTY_BCAST:
-								timing_controller_.dirty_broadcast(from, now);
+							case StateUpdateMessageT::REASON_PASS_TOKEN:
+								//timing_controller_.dirty_broadcast(from, now);
 								break;
 						}
 						
@@ -421,11 +444,18 @@ namespace wiselib {
 			 */
 			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, time_t receive_time) {
 				bool active_before = se.is_active(radio_->id());
+				size_type prev_count = se.prev_token_count();
 				se.set_prev_token_count(s.count());
 				if(se.is_active(radio_->id()) && !active_before) {
-					DBG("node %d SE %d.%d active=1 because of token!", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d SE %d.%d active=1 // because of token", radio_->id(), se.id().rule(), se.id().value());
 					timing_controller_.activating_token(se.id(), receive_time);
 					begin_activity(se);
+				}
+				else {
+					DBG("node %d SE %d.%d active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d // token didnt do anything",
+							radio_->id(), se.id().rule(), se.id().value(), se.is_active(radio_->id()), active_before,
+							prev_count, se.prev_token_count(), se.count(), se.is_root(radio_->id())
+					);
 				}
 			}
 			
@@ -489,7 +519,7 @@ namespace wiselib {
 				// here in case (end_wait_for_token will just do nothing if
 				// not currently waiting).
 				
-				on_dirty_broadcast_state();
+				pass_on_state(se);
 				bool scheduled = timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
 				
 				if(scheduled) {
