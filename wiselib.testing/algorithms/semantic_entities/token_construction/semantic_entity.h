@@ -242,7 +242,7 @@ namespace wiselib {
 			
 		
 			/**
-			 * Recalculate current internal state.
+			 * Recalculate current internal tree state.
 			 * @param mynodeid id of this node.
 			 */
 			void update_state(node_id_t mynodeid) {
@@ -286,6 +286,8 @@ namespace wiselib {
 				state().set_parent(parent);
 				state().set_root(root);
 				
+				got_token_ = false;
+				
 				// }}}
 			}
 			
@@ -308,6 +310,19 @@ namespace wiselib {
 			}
 			
 			/**
+			 * @return true iff we received a token since the last call to
+			 * update_token_state.
+			 * That is, if set_prev_token_Count was called since then.
+			 * Note that this might or might not mean that is_active is true:
+			 * The token info is not necessarily activating, OTOH activation
+			 * can occur by a change in the tree state, which will always
+			 * reset got_token() to false.
+			 */
+			bool got_token() {
+				return got_token_;
+			}
+			
+			/**
 			 * Update the internal token state with the previously received
 			 * one such that this node will not be considered active anymore
 			 * if it was before.
@@ -322,6 +337,7 @@ namespace wiselib {
 				else {
 					state().set_count(l);
 				}
+				got_token_ = false;
 			}
 			
 			void print_state(node_id_t mynodeid) {
@@ -331,10 +347,12 @@ namespace wiselib {
 			}
 			
 			void set_prev_token_count(token_count_t ptc) {
+				got_token_ = true;
 				prev_token_state_.set_count(ptc);
 			}
 			
 			void set_clean() {
+				got_token_ = false;
 				// TODO: mark states as clean
 			}
 			
@@ -413,6 +431,7 @@ namespace wiselib {
 			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			Childs childs_;
 			bool awake_;
+			bool got_token_;
 	}; // SemanticEntity
 	
 	

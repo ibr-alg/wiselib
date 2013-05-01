@@ -169,7 +169,7 @@ namespace wiselib {
 				
 				begin_wait_for_token(se);
 				
-				DBG("node %d SE %d.%d. active=%d", radio_->id(), id.rule(), id.value(), se.is_active(radio_->id()));
+				DBG("node %d SE %d.%d active=%d", radio_->id(), id.rule(), id.value(), se.is_active(radio_->id()));
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
 					//timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
@@ -199,7 +199,7 @@ namespace wiselib {
 			void push_caffeine(void* = 0) {
 				if(caffeine_level_ == 0) {
 					DBG("node %d on 1", radio_->id());
-					radio_->enable_radio();
+					//radio_->enable_radio();
 				}
 				caffeine_level_++;
 				//DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
@@ -211,7 +211,7 @@ namespace wiselib {
 				caffeine_level_--;
 				if(caffeine_level_ == 0) {
 					DBG("node %d on 0", radio_->id());
-					radio_->disable_radio();
+					//radio_->disable_radio();
 				}
 				//DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
 			}
@@ -291,7 +291,10 @@ namespace wiselib {
 			 * Called by the radio when any packet is received.
 			 */
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
-				if(caffeine_level_ <= 0) { return; }
+				if(caffeine_level_ <= 0) {
+					DBG("------ %d didnt hear msg from %d type %d", radio_->id(), from, (int)data[0]);
+					return;
+				}
 				
 				time_t now = clock_->time();
 				PacketInfo *p = PacketInfo::create(now, from, len, data);
@@ -302,7 +305,6 @@ namespace wiselib {
 			 * Called indirectly by on_receive to escape interrupt context.
 			 */
 			void on_receive_task(void *p) {
-				
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				time_t now = packet_info->received();
 				const node_id_t &from = packet_info->from();
@@ -370,9 +372,9 @@ namespace wiselib {
 			 * handled.
 			 */
 			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from, time_t receive_time) {
-				//DBG("+++++ recv token state");
+				DBG("+++++ recv token state me=%d from=%d", radio_->id(), from);
 				if(from == se.parent()) {
-					//DBG("+++++ processing because it came from parent");
+					DBG("+++++ processing because it came from parent");
 					process_token_state(se, s, from, receive_time);
 				}
 				else {
@@ -384,18 +386,18 @@ namespace wiselib {
 					
 					if(idx == se.childs() - 1) {
 						if(radio_->id() == se.root()) {
-							//DBG("+++++ processing at root");
+							DBG("+++++ processing at root");
 							// we are root -> do not forward to parent but
 							// process token ourselves!
 							process_token_state(se, s, from, receive_time);
 						}
 						else {
-							//DBG("++++++ fwd to parent");
+							DBG("++++++ fwd to parent");
 							forward_token_state(se.id(), s, from, se.parent());
 						}
 					}
 					else {
-						//DBG("++++++ fwd to child");
+						DBG("++++++ fwd to child");
 						forward_token_state(se.id(), s, from, se.child_address(idx + 1));
 					}
 				}
@@ -406,7 +408,7 @@ namespace wiselib {
 			 * on_receive_token_state).
 			 */
 			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to) {
-				//DBG("+++++++ fwd token state %d -> %d via %d", from, to, radio_->id());
+				DBG("+++++++ fwd token state %d -> %d via %d", from, to, radio_->id());
 				TokenStateForwardMessageT msg;
 				msg.set_from(from);
 				msg.set_entity_id(se_id);
@@ -471,6 +473,8 @@ namespace wiselib {
 			void end_activity(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
+				//bool got_token = se.got_token();
+				
 				// we can not assert the below as begin_activity() might have
 				// been called at initialization for keeping us awake at the
 				// beginning!
@@ -484,11 +488,20 @@ namespace wiselib {
 				// period to listen for the token, so make sure to end this
 				// here in case (end_wait_for_token will just do nothing if
 				// not currently waiting).
-				end_wait_for_token(se_);
+				
 				on_dirty_broadcast_state();
-				//DBG("node %d pop end activity", radio_->id());
-				pop_caffeine();
-				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
+				bool scheduled = timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
+				
+				if(scheduled) {
+					end_wait_for_token(se_);
+					pop_caffeine();
+				}
+				else {
+					// the timing controller refused to schedule the waking up
+					// for us, so lets just not go to sleep
+					DBG("node %d staying awake for another round on behalf of %d.%d", radio_->id(), se.id().rule(), se.id().value());
+				}
+				
 				se.print_state(radio_->id());
 			}
 			

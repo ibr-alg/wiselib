@@ -40,7 +40,7 @@ def parse(f):
 		name = get_value('node')
 		se = get_value('SE')
 		if se is not None:
-			name += ':' + se
+			name += ':' + se.rstrip('.')
 		if name not in nodes:
 			nodes[name] = {}
 		
@@ -63,37 +63,49 @@ def make_figure():
 	
 	i = 0
 	first_ax = None
-	for name, node in nodes.items():
+	last_ax = None
+	
+	def namesort(kva, kvb):
+		for a, b in zip(kva[0], kvb[0]):
+			if a != b: return cmp(a, b)
+		return cmp(len(kva[0]), len(kvb[0]))
+	
+	for name, node in sorted(nodes.items(), cmp=namesort):
 		if first_ax is None:
 			ax = plt.subplot(len(nodes), 1, i + 1)
 			first_ax = ax
-			setp(ax, yticklabels=[])
 		else:
 			ax = plt.subplot(len(nodes), 1, i + 1, sharex=first_ax)
-			setp(ax.get_xticklabels(), visible = False)
-			ax.spines['bottom'].set_visible(False)
-			ax.spines['top'].set_visible(False)
-		#setp(ax.get_yticklabels(), visible = False)
+			
+		ax.spines['bottom'].set_visible(False)
+		ax.spines['top'].set_visible(False)
+		#ax.spines['left'].set_visible(False)
+		#ax.spines['right'].set_visible(False)
+		setp(ax.get_xticklabels(), visible = False)
+		ax.get_yaxis().set_visible(False)
+		ax.get_xaxis().set_tick_params(size=0)
+		last_ax = ax
 
-		#plt.axis('off')
 		if 'on' in node:
-			r, = ax.plot(node['on']['t'], node['on']['v'], 'b-', label='on',
-					drawstyle='steps-post')
+			r, = ax.plot(node['on']['t'], node['on']['v'], 'b-', label='on', drawstyle='steps-post')
 			property_styles['on'] = r
 		if 'awake' in node:
-			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r--', label='awake',
-					drawstyle='steps-post')
+			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r--', label='awake', drawstyle='steps-post')
 			property_styles['awake'] = r
 		if 'active' in node:
-			r, = ax.plot(node['active']['t'], node['active']['v'], 'k:', label='active',
-					drawstyle='steps-post')
+			r, = ax.plot(node['active']['t'], node['active']['v'], 'k:', label='active', drawstyle='steps-post')
 			property_styles['active'] = r
 		
-		ax.set_ylim((-0.1, 1.1))
-		#ax.legend()
-		ax.set_title(name)
+		#ax.set_title(name)
+		pos = list(ax.get_position().bounds)
+		fig.text(pos[0] - 0.01, pos[1], name, fontsize = 8,
+				horizontalalignment = 'right')
 		i += 1
 			
+	last_ax.spines['bottom'].set_visible(True)
+	last_ax.set_xlim((-1, 13))
+	setp(last_ax.get_xticklabels(), visible = True)
+	
 	kv = list(property_styles.items())
 	fig.legend(tuple(x[1] for x in kv), tuple(x[0] for x in kv))
 	

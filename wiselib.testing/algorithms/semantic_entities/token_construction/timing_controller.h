@@ -142,6 +142,14 @@ namespace wiselib {
 						return r;
 					}
 					
+					/**
+					 * @return true iff this event is still in an early state.
+					 * 
+					 * That is, it can not be assumed to yield useful
+					 * next_expected() values yet.
+					 */
+					bool early() { return hits_ <= 2; }
+					
 				private:
 					HitType hit_type(time_t t, typename Clock::self_pointer_t clock_) {
 						time_t diff_t = (t > expected_) ? (t - expected_) : (expected_ - t);
@@ -156,7 +164,7 @@ namespace wiselib {
 						assert(new_interval > time_t(0));
 						if(new_interval < window_) { new_interval = window_; }
 						
-						if(hits_ < 2) {
+						if(early()) {
 							interval_ = new_interval;
 						}
 						else {
@@ -199,17 +207,34 @@ namespace wiselib {
 				activating_tokens_[entity].hit(hit, clock_);
 			}
 			
+			/**
+			 * @return true if a wakeup was scheduled, false else.
+			 * The false-case will occur when the wakeup would be scheduled
+			 * with 0ms delay in which case the caller should do whatever he
+			 * wants done himself directly.
+			 */
 			template<typename T, void (T::*TMethod)(void*)>
-			void schedule_wakeup_for_activating_token(SemanticEntityT& entity, T *obj) {
+			bool schedule_wakeup_for_activating_token(SemanticEntityT& entity, T *obj) {
 				DBG("schedule wakeup");
-				abs_millis_t delta = absolute_millis(
-					activating_tokens_[entity.id()].next_expected(clock_->time())
-					- clock_->time()
-				);
-						
-				DBG("scheduling wakeup in %d ms", delta);
 				
-				timer_->template set_timer<T, TMethod>(delta, obj, (void*)&entity);
+				abs_millis_t delta;
+				RegularEvent &event = activating_tokens_[entity.id()];
+				
+				if(event.early()) {
+					// event is still in the early configuration phase,
+					// lets be awake the whole time so we can do some initial
+					// timing measurements.
+					DBG("staying awake");
+					return false;
+				}
+				else {
+					delta = absolute_millis(
+						event.next_expected(clock_->time()) - clock_->time()
+					);
+					DBG("scheduling wakeup in %d ms", delta);
+					timer_->template set_timer<T, TMethod>(delta, obj, (void*)&entity);
+					return true;
+				}
 			}
 		
 		private:
