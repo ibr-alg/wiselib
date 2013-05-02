@@ -106,7 +106,7 @@ def make_figure():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 43))
+	last_ax.set_xlim((-1, 501))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())

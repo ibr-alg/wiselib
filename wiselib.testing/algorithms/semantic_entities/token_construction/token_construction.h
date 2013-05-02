@@ -198,7 +198,7 @@ namespace wiselib {
 			 */
 			void push_caffeine(void* = 0) {
 				if(caffeine_level_ == 0) {
-					DBG("node %d on 1", radio_->id());
+					DBG("node %d on 1 t=%d", radio_->id(), absolute_millis(clock_->time()));
 					//radio_->enable_radio();
 				}
 				caffeine_level_++;
@@ -210,7 +210,7 @@ namespace wiselib {
 			void pop_caffeine(void* = 0) {
 				caffeine_level_--;
 				if(caffeine_level_ == 0) {
-					DBG("node %d on 0", radio_->id());
+					DBG("node %d on 0 t=%d", radio_->id(), absolute_millis(clock_->time()));
 					//radio_->disable_radio();
 				}
 				//DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
@@ -447,14 +447,15 @@ namespace wiselib {
 				size_type prev_count = se.prev_token_count();
 				se.set_prev_token_count(s.count());
 				if(se.is_active(radio_->id()) && !active_before) {
-					DBG("node %d SE %d.%d active=1 // because of token", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d SE %d.%d active=1 t=%d // because of token", radio_->id(), se.id().rule(), se.id().value(), absolute_millis(clock_->time()));
 					timing_controller_.activating_token(se.id(), receive_time);
 					begin_activity(se);
 				}
 				else {
-					DBG("node %d SE %d.%d active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d // token didnt do anything",
+					DBG("node %d SE %d.%d active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // token didnt do anything",
 							radio_->id(), se.id().rule(), se.id().value(), se.is_active(radio_->id()), active_before,
-							prev_count, se.prev_token_count(), se.count(), se.is_root(radio_->id())
+							prev_count, se.prev_token_count(), se.count(), se.is_root(radio_->id()),
+							absolute_millis(clock_->time())
 					);
 				}
 			}
@@ -465,7 +466,7 @@ namespace wiselib {
 			 */
 			void begin_wait_for_token(SemanticEntityT& se) {
 				if(!se.is_awake()) {
-					DBG("node %d SE %d.%d awake=1", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d SE %d.%d awake=1 t=%d", radio_->id(), se.id().rule(), se.id().value(), absolute_millis(clock_->time()));
 					se.set_awake(true);
 					push_caffeine();
 				}
@@ -480,7 +481,7 @@ namespace wiselib {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				if(se.is_awake()) {
 					se.set_awake(false);
-					DBG("node %d SE %d.%d awake=0", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d SE %d.%d awake=0 t=%d", radio_->id(), se.id().rule(), se.id().value(), absolute_millis(clock_->time()));
 					pop_caffeine();
 				}
 			}
@@ -545,11 +546,11 @@ namespace wiselib {
 				se.update_state(radio_->id());
 				
 				if(se.is_active(radio_->id()) && !active_before) {
-					DBG("node %d SE %d.%d active=1 because of tree change!", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d SE %d.%d active=1 t=%d // because of tree change!", radio_->id(), se.id().rule(), se.id().value(), absolute_millis(clock_->time()));
 					begin_activity(se);
 				}
 				else if(!se.is_active(radio_->id()) && active_before) {
-					DBG("node %d SE %d.%d active=0 because of tree change!", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d SE %d.%d active=0 t=%d // because of tree change!", radio_->id(), se.id().rule(), se.id().value(), absolute_millis(clock_->time()));
 					end_activity(se);
 				}
 			}

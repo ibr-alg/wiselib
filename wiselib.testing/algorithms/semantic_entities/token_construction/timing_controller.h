@@ -204,6 +204,7 @@ namespace wiselib {
 			}
 			
 			void activating_token(const SemanticEntityId& entity, time_t hit) {
+				DBG("received activating token for %d.%d", entity.rule(), entity.value());
 				activating_tokens_[entity].hit(hit, clock_);
 			}
 			
