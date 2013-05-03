@@ -10,6 +10,8 @@ import io
 from matplotlib import rc
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
+
+
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
@@ -17,7 +19,7 @@ rc('text', usetex=True)
 fig = None
 nodes = {}
 
-properties = ('on', 'awake', 'active')
+properties = ('on', 'awake', 'active', 'window', 'interval')
 
 def parse(f):
 	global nodes
@@ -55,7 +57,65 @@ def parse(f):
 					nodes[name][k]['t'].append(t)
 					nodes[name][k]['v'].append(int(v))
 
-def make_figure():
+def fig_timings():
+	global fig
+	global nodes
+	
+	fig = plt.figure(figsize=(8, 40))
+	#fig.subplots_adjust(
+	
+	property_styles = {}
+	
+	i = 0
+	first_ax = None
+	last_ax = None
+	
+	def namesort(kva, kvb):
+		for a, b in zip(kva[0], kvb[0]):
+			if a != b: return cmp(a, b)
+		return cmp(len(kva[0]), len(kvb[0]))
+	
+	for name, node in sorted(nodes.items(), cmp=namesort):
+		if first_ax is None:
+			ax = plt.subplot(len(nodes), 1, i + 1)
+			first_ax = ax
+		else:
+			ax = plt.subplot(len(nodes), 1, i + 1, sharex=first_ax)
+			
+		ax.spines['bottom'].set_visible(False)
+		ax.spines['top'].set_visible(False)
+		#ax.spines['left'].set_visible(False)
+		#ax.spines['right'].set_visible(False)
+		setp(ax.get_xticklabels(), visible = False)
+		#ax.get_yaxis().set_visible(False)
+		ax.get_xaxis().set_tick_params(size=0)
+		last_ax = ax
+
+		if 'window' in node:
+			r, = ax.plot(node['window']['t'], node['window']['v'], 'b-', label='window', drawstyle='steps-post')
+			property_styles['window'] = r
+		if 'interval' in node:
+			r, = ax.plot(node['interval']['t'], node['interval']['v'], 'r-', label='interval', drawstyle='steps-post')
+			property_styles['interval'] = r
+		
+		ax.set_title(name)
+		#pos = list(ax.get_position().bounds)
+		#fig.text(pos[0] - 0.01, pos[1], name, fontsize = 8,
+				#horizontalalignment = 'right')
+		i += 1
+			
+	last_ax.spines['bottom'].set_visible(True)
+	last_ax.set_xlim((-1, 901))
+	setp(last_ax.get_xticklabels(), visible = True)
+	
+	kv = list(property_styles.items())
+	fig.legend(tuple(x[1] for x in kv), tuple(x[0] for x in kv))
+	
+	fig.savefig('timings.pdf') #, bbox_inches='tight', pad_inches=.1)
+	#plt.show()
+	
+	
+def fig_duty_cycle():
 	global fig
 	global nodes
 	
@@ -93,7 +153,7 @@ def make_figure():
 			r, = ax.plot(node['on']['t'], node['on']['v'], 'b-', label='on', drawstyle='steps-post')
 			property_styles['on'] = r
 		if 'awake' in node:
-			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r--', label='awake', drawstyle='steps-post')
+			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r-', label='awake', drawstyle='steps-post')
 			property_styles['awake'] = r
 		if 'active' in node:
 			r, = ax.plot(node['active']['t'], node['active']['v'], 'k:', label='active', drawstyle='steps-post')
@@ -112,7 +172,7 @@ def make_figure():
 	kv = list(property_styles.items())
 	fig.legend(tuple(x[1] for x in kv), tuple(x[0] for x in kv))
 	
-	fig.savefig('plot.pdf', bbox_inches='tight') #, pad_inches=.1)
+	fig.savefig('duty_cycle.pdf', bbox_inches='tight') #, pad_inches=.1)
 	#plt.show()
 	
 
@@ -171,6 +231,10 @@ node 1:1.1 on 0
 """
 
 #parse(io.StringIO(s))
+print("parsing data...")
 parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log.txt', 'r'))
-make_figure()
+#print("duty cycle graph...")
+#fig_duty_cycle()
+print("timings graph...")
+fig_timings()
 

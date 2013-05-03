@@ -62,8 +62,15 @@ namespace wiselib {
 				HIT_CLOSE, HIT_STABLE, HIT_FAR
 			};
 			
+			/**
+			 * Scales all intervals for easier testing with shawn.
+			 */
+			enum {
+				TIMESCALE = 10
+			};
+			
 			enum Timings {
-				REGULAR_BCAST_INTERVAL = REGULAR_BCAST_INTERVAL_P
+				REGULAR_BCAST_INTERVAL = REGULAR_BCAST_INTERVAL_P * TIMESCALE
 			};
 			
 			/// Some fractions (in percent)
@@ -88,54 +95,56 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
 				MAX_ENTITIES = MAX_ENTITIES_P,
-				MIN_WINDOW_SIZE = 100,
+				MIN_WINDOW_SIZE = 100 * TIMESCALE,
 				MAX_REGULAR_BCAST_WINDOW_SIZE = REGULAR_BCAST_INTERVAL
 			};
 			
 			class RegularEvent {
 				// {{{
 				public:
-					RegularEvent() : expected_(0), interval_(1000), window_(1000), hits_(0) {
+					RegularEvent() : last_encounter_(0), interval_(1000 * TIMESCALE), window_(1000 * TIMESCALE), hits_(0) {
 					}
 					
-					void hit(time_t t, typename Clock::self_pointer_t clock) {
-						time_t new_interval = t + interval_;
+					void hit(time_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
+						time_t new_interval = t - last_encounter_;
 						//if(new_interval == time
+						
+						DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu",
+								mynodeid, window_, t, expected());
 						
 						switch(hit_type(t, clock)) {
 							case HIT_CLOSE:
+								DBG("------ Close hit, halving window");
 								window_ /= 2;
 								if(window_ < MIN_WINDOW_SIZE) { window_ = MIN_WINDOW_SIZE; }
 								update_interval(new_interval, ALPHA_CLOSE);
 								break;
 							case HIT_STABLE:
+								DBG("------ stable hit");
 								update_interval(new_interval, ALPHA_STABLE);
 								break;
 							case HIT_FAR:
+								DBG("------ far hit, doubling window");
+								DBG("------- HIT window before double %llu", window_);
 								window_ *= 2;
+								DBG("------- HIT window after double %llu", window_);
 								if(window_ > interval_) { window_ = interval_; }
 								update_interval(new_interval, ALPHA_FAR);
 								break;
 						}
 						
-						expected_ += interval_;
 						hits_++;
+						DBG("------- HIT id %u current window new: %llu", mynodeid, window_);
+						last_encounter_ = t;
 					}
 					
+					time_t last_encounter() { return last_encounter_; }
 					time_t window() { return window_; }
 					time_t interval() { return interval_; }
-					time_t expected() { return expected_; }
-					
-					time_t prev_expected(time_t t) {
-						time_t r = expected_ - interval_;
-						while(r + interval_ <= t) {
-							r += interval_;
-						}
-						return r;
-					}
+					time_t expected() { return last_encounter_ + interval_; }
 					
 					time_t next_expected(time_t t) {
-						time_t r = expected_;
+						time_t r = last_encounter_;
 						while(r <= t) {
 							r += interval_;
 						}
@@ -152,7 +161,7 @@ namespace wiselib {
 					
 				private:
 					HitType hit_type(time_t t, typename Clock::self_pointer_t clock_) {
-						time_t diff_t = (t > expected_) ? (t - expected_) : (expected_ - t);
+						time_t diff_t = (t > expected()) ? (t - expected()) : (expected() - t);
 						//millis_t diff_m  = clock_->milliseconds(diff_t);
 						
 						if(diff_t < window_ * CLOSE_HIT_WINDOW / 100) { return HIT_CLOSE; }
@@ -179,7 +188,7 @@ namespace wiselib {
 						assert(interval_ >= window_);
 					}
 			
-					time_t expected_;
+					time_t last_encounter_;
 					time_t interval_;
 					time_t window_;
 					size_type hits_;
@@ -191,9 +200,10 @@ namespace wiselib {
 				clock_ = clock;
 			}
 			
-			void regular_broadcast(node_id_t source, time_t hit) {
-				state_updates_[source].hit(hit, clock_);
+			void regular_broadcast(node_id_t source, time_t hit, node_id_t mynodeid) {
+				state_updates_[source].hit(hit, clock_, mynodeid);
 			} // regular_broadcast()
+			
 			
 			void dirty_broadcast(node_id_t source, time_t hit) {
 				// We don't wake up for dirty state broadcasts
@@ -203,9 +213,16 @@ namespace wiselib {
 				// TODO
 			}
 			
-			void activating_token(const SemanticEntityId& entity, time_t hit) {
+			void activating_token(const SemanticEntityId& entity, time_t hit, node_id_t mynodeid) {
 				DBG("received activating token for %d.%d", entity.rule(), entity.value());
-				activating_tokens_[entity].hit(hit, clock_);
+				activating_tokens_[entity].hit(hit, clock_, mynodeid);
+			}
+			
+			abs_millis_t activating_token_window(const SemanticEntityId& entity) {
+				return absolute_millis(activating_tokens_[entity].window());
+			}
+			abs_millis_t activating_token_interval(const SemanticEntityId& entity) {
+				return absolute_millis(activating_tokens_[entity].interval());
 			}
 			
 			/**

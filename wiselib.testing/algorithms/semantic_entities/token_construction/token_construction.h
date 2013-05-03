@@ -342,7 +342,7 @@ namespace wiselib {
 						StateUpdateMessageT &msg = reinterpret_cast<StateUpdateMessageT&>(*data);
 						switch(msg.reason()) {
 							case StateUpdateMessageT::REASON_REGULAR_BCAST:
-								timing_controller_.regular_broadcast(from, now);
+								timing_controller_.regular_broadcast(from, now, radio_->id());
 								break;
 							case StateUpdateMessageT::REASON_DIRTY_BCAST:
 							case StateUpdateMessageT::REASON_PASS_TOKEN:
@@ -447,8 +447,12 @@ namespace wiselib {
 				size_type prev_count = se.prev_token_count();
 				se.set_prev_token_count(s.count());
 				if(se.is_active(radio_->id()) && !active_before) {
-					DBG("node %d SE %d.%d active=1 t=%d // because of token", radio_->id(), se.id().rule(), se.id().value(), absolute_millis(clock_->time()));
-					timing_controller_.activating_token(se.id(), receive_time);
+					timing_controller_.activating_token(se.id(), receive_time, radio_->id());
+					DBG("node %d SE %d.%d window %u interval %u active 1 // because of token",
+							radio_->id(), se.id().rule(), se.id().value(),
+							timing_controller_.activating_token_window(se.id()),
+							timing_controller_.activating_token_interval(se.id())
+					);
 					begin_activity(se);
 				}
 				else {
