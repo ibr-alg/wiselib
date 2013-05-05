@@ -159,6 +159,7 @@ namespace wiselib {
 					
 					void set_parent(node_id_t r) {
 						if(r != tree_state_.parent()) {
+							DBG("// treestatechange parent %d -> %d", tree_state_.parent(), r);
 							tree_state_.set_parent(r);
 							dirty_ = true;
 						}
@@ -166,6 +167,7 @@ namespace wiselib {
 					
 					void set_root(node_id_t r) {
 						if(r != tree_state_.root()) {
+							DBG("// treestatechange root %d -> %d", tree_state_.root(), r);
 							tree_state_.set_root(r);
 							dirty_ = true;
 						}
@@ -173,6 +175,7 @@ namespace wiselib {
 					
 					void set_distance(distance_t d) {
 						if(d != tree_state_.distance()) {
+							DBG("// treestatechange distance %d -> %d", tree_state_.distance(), d);
 							tree_state_.set_distance(d);
 							dirty_ = true;
 						}
@@ -286,6 +289,9 @@ namespace wiselib {
 				state().set_parent(parent);
 				state().set_root(root);
 				
+				DBG("node %d SE %d.%d distance %d parent %d root %d",
+						mynodeid, id().rule(), id().value(), state().distance(), state().parent(), state().root());
+				
 				got_token_ = false;
 				
 				// }}}
@@ -348,8 +354,8 @@ namespace wiselib {
 			}
 			
 			
-			void print_state(node_id_t mynodeid) {
-				DBG("node %d SE %d.%d active=%d awake=%d", mynodeid, id().rule(), id().value(), is_active(mynodeid), is_awake());
+			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
+				DBG("node %d SE %d.%d active=%d awake=%d count=%d t=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid), is_awake(), count(), t, comment);
 				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
 				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
@@ -424,8 +430,6 @@ namespace wiselib {
 			node_id_t child_address(size_type idx) {
 				return childs_[idx];
 			}
-			
-			// TODO: at some point we have to actually fill childs_ ;)
 			
 			State& state() { return state_; }
 			const TreeState& tree() { return state_.tree(); }
