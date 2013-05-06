@@ -61,7 +61,10 @@ namespace wiselib {
 			class TokenState;
 			
 			enum Restrictions { MAX_NEIGHBORS = 8 };
-			enum SpecialValues { npos = (size_type)(-1) };
+			enum SpecialValues {
+				npos = (size_type)(-1),
+				NULL_NODE_ID = Radio::NULL_NODE_ID
+			};
 			
 			typedef vector_static<OsModel, node_id_t, MAX_NEIGHBORS> Childs;
 			
@@ -256,7 +259,8 @@ namespace wiselib {
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
 					if(iter->second.parent() == mynodeid) {
-						if(childs_.find(iter->first) != childs_.end()) {
+						DBG("// %d found child %d", mynodeid, iter->first)
+						if(childs_.find(iter->first) == childs_.end()) {
 							childs_.push_back(iter->first);
 						}
 					}
@@ -420,6 +424,9 @@ namespace wiselib {
 					}
 					childs_[idx] = id;
 				}
+				
+				assert(find_child(id) == idx);
+				
 				return idx;
 			}
 			
@@ -428,6 +435,9 @@ namespace wiselib {
 			}
 			
 			node_id_t child_address(size_type idx) {
+				if(idx >= childs_.size()) {
+					return NULL_NODE_ID;
+				}
 				return childs_[idx];
 			}
 			

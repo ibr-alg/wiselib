@@ -76,7 +76,7 @@ namespace wiselib {
 			
 			enum {
 				MESSAGE_TYPE = 0x77,
-				ENTITY_SIZE = sizeof(typename SemanticEntity::State)
+				ENTITY_SIZE = sizeof(typename SemanticEntity::State) + sizeof(node_id_t)
 			};
 			
 			StateUpdateMessage() {
@@ -84,19 +84,26 @@ namespace wiselib {
 				set_entity_count(0);
 			}
 			
-			void add_entity_state(typename SemanticEntity::State& se) {
+			void add_entity_state(SemanticEntity& se) {
 				// TODO
 				assert(size() + ENTITY_SIZE < MAX_MESSAGE_LENGTH);
 				if(size() + ENTITY_SIZE >= MAX_MESSAGE_LENGTH) {
 					DBG("message full! current pos_ent=%d count=%d ent sz=%d maxlen=%d", POS_ENTITIES, entity_count(), ENTITY_SIZE, MAX_MESSAGE_LENGTH);
 				}
 				//DBG("writing ent desc to %p end=%p", entity_description(entity_count()), data_ + MAX_MESSAGE_LENGTH);
-				wiselib::write<OsModel>(entity_description(entity_count()), se);
+				wiselib::write<OsModel>(entity_description(entity_count()), se.state());
+				
+				node_id_t a = se.child_address(0);
+				wiselib::write<OsModel>(entity_description(entity_count()) + sizeof(typename SemanticEntity::State), a);
 				set_entity_count(entity_count() + 1);
 			}
 			
 			void get_entity_state(entity_count_t i, typename SemanticEntity::State& se) {
 				wiselib::read<OsModel>(entity_description(i), se);
+			}
+			
+			node_id_t get_entity_first_child(entity_count_t i) {
+				return wiselib::read<OsModel, block_data_t, node_id_t>(entity_description(i) + sizeof(typename SemanticEntity::State));
 			}
 			
 			message_id_t type() {

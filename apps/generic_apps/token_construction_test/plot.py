@@ -18,13 +18,22 @@ rc('text', usetex=True)
 
 fig = None
 parents = {}
-nodes = {}
+gnodes = {}
 
 properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count')
 
+def getnodes(namepattern):
+	global gnodes
+	nodes = dict(
+			(k, v) for (k, v) in gnodes.items() if re.match(namepattern, k)
+	)
+	return nodes
+	
+
 def parse(f):
-	global nodes, parents
-	nodes = {}
+	global gnodes, parents
+	gnodes = {}
+	nodes = gnodes
 	parents = {}
 	t = 0
 	
@@ -69,11 +78,45 @@ def parse(f):
 					nodes[name][k]['t'].append(t)
 					nodes[name][k]['v'].append(int(v))
 
-def fig_count():
+def fig_count_onegraph(namepattern = '*'):
 	global fig
-	global nodes
+	nodes = getnodes(namepattern)
 	
-	fig = plt.figure(figsize=(8, 40))
+	fig = plt.figure()
+	#fig.subplots_adjust(
+	
+	property_styles = {}
+	
+	i = 0
+	first_ax = None
+	last_ax = None
+	
+	def namesort(kva, kvb):
+		for a, b in zip(kva[0], kvb[0]):
+			if a != b: return cmp(a, b)
+		return cmp(len(kva[0]), len(kvb[0]))
+	
+	ax = plt.subplot(111)
+	for name, node in sorted(nodes.items(), cmp=namesort):
+		if 'count' in node:
+			r, = ax.plot(node['count']['t'], node['count']['v'], label='count ' + name, drawstyle='steps-post')
+			property_styles['count ' + name] = r
+		
+			
+	ax.set_xlim((600, 901))
+	ax.grid()
+	
+	kv = list(property_styles.items())
+	fig.legend(tuple(x[1] for x in kv), tuple(x[0] for x in kv))
+	
+	fig.savefig('counts_onegraph.pdf') #, bbox_inches='tight', pad_inches=.1)
+	#plt.show()
+	
+def fig_count(namepattern = '*'):
+	global fig
+	nodes = getnodes(namepattern)
+	
+	fig = plt.figure(figsize=(8, len(nodes)))
 	#fig.subplots_adjust(
 	
 	property_styles = {}
@@ -96,6 +139,7 @@ def fig_count():
 			
 		ax.spines['bottom'].set_visible(False)
 		ax.spines['top'].set_visible(False)
+		ax.grid()
 		#ax.spines['left'].set_visible(False)
 		#ax.spines['right'].set_visible(False)
 		setp(ax.get_xticklabels(), visible = False)
@@ -114,7 +158,7 @@ def fig_count():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 901))
+	last_ax.set_xlim((600, 901))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -125,7 +169,8 @@ def fig_count():
 	
 def fig_timings():
 	global fig
-	global nodes
+	global gnodes
+	nodes = gnodes
 	
 	fig = plt.figure(figsize=(8, 40))
 	#fig.subplots_adjust(
@@ -184,11 +229,11 @@ def fig_timings():
 	#plt.show()
 	
 	
-def fig_duty_cycle():
+def fig_duty_cycle(namepattern = '*'):
 	global fig
-	global nodes
+	nodes = getnodes(namepattern)
 	
-	fig = plt.figure()
+	fig = plt.figure(figsize=(8, 0.3 * len(nodes)))
 	#fig.subplots_adjust(
 	
 	property_styles = {}
@@ -225,7 +270,7 @@ def fig_duty_cycle():
 			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r-', label='awake', drawstyle='steps-post')
 			property_styles['awake'] = r
 		if 'active' in node:
-			r, = ax.plot(node['active']['t'], node['active']['v'], 'k:', label='active', drawstyle='steps-post')
+			r, = ax.plot(node['active']['t'], node['active']['v'], 'k-', label='active', drawstyle='steps-post')
 			property_styles['active'] = r
 		
 		#ax.set_title(name)
@@ -234,7 +279,7 @@ def fig_duty_cycle():
 				horizontalalignment = 'right')
 		i += 1
 			
-	last_ax.spines['bottom'].set_visible(True)
+	#last_ax.spines['bottom'].set_visible(True)
 	last_ax.set_xlim((-1, 901))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
@@ -245,61 +290,6 @@ def fig_duty_cycle():
 	#plt.show()
 	
 
-s = """
------ BEGIN ITERATION 0
-node 1 awake 1
-node 2 awake 1
-node 3 awake 0
-node 1 active 1
-node 3:1.1 awake 0
-node 3:1.2 awake 0
-node 1 on 1
-node 3:1.1 awake 0
-node 3:1.2 on 0
-node 1:1.1 active 1
------ BEGIN ITERATION 1
-node 1 awake 0
-node 2 active 1
-node 3 awake 1
-node 1 active 0
-node 3:1.1 on 1
-node 3:1.2 active 0
-node 1:1.1 active 1
------ BEGIN ITERATION 2
-node 1 awake 1
-node 2 active 0
-node 3 on 1
-node 1 active 1
-node 3:1.1 awake 0
-node 3:1.2 active 1
-node 1:1.1 active 0
------ BEGIN ITERATION 3
-node 1 awake 1
-node 2 awake 1
-node 3 on 0
-node 1 active 1
-node 3:1.1 awake 0
-node 3:1.2 awake 0
-node 1:1.1 active 1
------ BEGIN ITERATION 4
-node 1 awake 0
-node 2 active 1
-node 3 awake 1
-node 1 active 0
-node 3:1.1 awake 1
-node 3:1.2 on 0
-node 1:1.1 active 1
------ BEGIN ITERATION 5
-node 1 awake 1
-node 2 active 0
-node 3 awake 1
-node 1 active 1
-node 3:1.1 awake 0
-node 3:1.2 active 1
-node 1:1.1 on 0
-"""
-
-#parse(io.StringIO(s))
 print("parsing data...")
 parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log.txt', 'r'))
 
@@ -309,9 +299,9 @@ for k, v in parents.items():
 		print("  " + src + " -> " + tgt)
 
 print("duty cycle graph...")
-fig_duty_cycle()
+fig_duty_cycle(r'.*:1\.2')
 print("timings graph...")
 fig_timings()
 print("counts graph...")
-fig_count()
+fig_count_onegraph(r'.*:1\.2')
 

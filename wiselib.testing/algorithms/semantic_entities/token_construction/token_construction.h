@@ -158,6 +158,11 @@ namespace wiselib {
 				// - set up timer to sieve out lost neighbors
 				// - register receive callback
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+				
+				
+				// keep node alive for debugging
+				//push_caffeine();
+				caffeine_level_ = 100;
 			}
 			
 			void add_entity(const SemanticEntityId& id) {
@@ -228,7 +233,7 @@ namespace wiselib {
 				msg.set_reason(StateUpdateMessageT::REASON_REGULAR_BCAST);
 				
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
-					msg.add_entity_state(iter->state());
+					msg.add_entity_state(*iter);
 					iter->state().set_clean();
 				}
 				
@@ -255,7 +260,7 @@ namespace wiselib {
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					if(iter->state().dirty()) {
 				//		DBG("id=%02d on_dirty_broadcast_state sending se %d.%08x", radio_->id(), iter->id().rule(), iter->id().value());
-						msg.add_entity_state(iter->state());
+						msg.add_entity_state(*iter);
 						iter->state().set_clean();
 					}
 				}
@@ -281,7 +286,7 @@ namespace wiselib {
 			void pass_on_state(SemanticEntityT& se) {
 				StateUpdateMessageT msg;
 				msg.set_reason(StateUpdateMessageT::REASON_PASS_TOKEN);
-				msg.add_entity_state(se.state());
+				msg.add_entity_state(se);
 				// TODO: we should be sure this is delivered before marking
 				// the SE clean!
 				// 
@@ -366,9 +371,12 @@ namespace wiselib {
 							
 							se.print_state(radio_->id(), now(), "tree state update");
 							
-							// For the token count decide whether we are the direct
-							// successor in the ring or we need to forward
-							on_receive_token_state(s.token(), se, from, t_recv);
+							// If we are the first child, token state update
+							// from parent is interesting for us here.
+							// If we are not first child we will receive it as
+							// a token state forward!
+							// 
+							on_receive_token_state(se, msg, i, t_recv, from);
 							
 							se.print_state(radio_->id(), now(), "token state update/forward");
 							
@@ -383,7 +391,7 @@ namespace wiselib {
 						bool found;
 						SemanticEntityT &se = find_entity(msg.entity_id(), found);
 						if(found) {
-							on_receive_token_state(msg.token_state(), se, from, t_recv);
+							on_receive_token_state(se, msg, t_recv, from);
 							se.print_state(radio_->id(), now(), "token state forward");
 						}
 						break;
@@ -398,47 +406,79 @@ namespace wiselib {
 			} // on_receive_task()
 			
 			/**
-			 * Called by on_receive_task when a token state change is to be
-			 * handled.
+			 * Called by on_receive_task when a token state change has been
+			 * received.
+			 * Decides to either ignore, forward or process the token.
 			 */
-			void on_receive_token_state(TokenState s, SemanticEntityT& se, node_id_t from, time_t receive_time) {
-				DBG("+++++ recv token state me=%d from=%d", radio_->id(), from);
+			void on_receive_token_state(SemanticEntityT& se, const TokenState& token_state, time_t t, node_id_t from) {
 				if(from == se.parent()) {
-					DBG("+++++ processing because it came from parent");
-					process_token_state(se, s, from, receive_time);
+					DBG("node %d SE %d.%d // processing token from parent %d", radio_->id(), se.id().rule(), se.id().value(), from);
+					process_token_state(se, token_state, from, t);
 				}
 				else {
-					size_type idx = se.find_child(from);
-					//assert(idx != npos);
-					if(idx == npos) {
-						idx = se.add_child(from);
+					size_type child_index = se.find_child(from);
+					if(child_index == npos) {
+						DBG("node %d SE %d.%d // token sender %d is neither child or parent", radio_->id(), se.id().rule(), se.id().value(), from);
+						return;
 					}
 					
-					if(idx == se.childs() - 1) {
+					if(child_index == se.childs() - 1) { // from last child
 						if(radio_->id() == se.root()) {
-							DBG("+++++ processing at root");
-							// we are root -> do not forward to parent but
-							// process token ourselves!
-							process_token_state(se, s, from, receive_time);
+							DBG("node %d SE %d.%d // processing token from last child %d at root", radio_->id(), se.id().rule(), se.id().value(), from);
+							process_token_state(se, token_state, from, t);
 						}
 						else {
-							DBG("++++++ fwd to parent");
-							forward_token_state(se.id(), s, from, se.parent());
+							DBG("node %d SE %d.%d // fwd token from last child %d to parent %d", radio_->id(), se.id().rule(), se.id().value(), from, se.parent());
+							forward_token_state(se.id(), token_state, from, se.parent());
 						}
 					}
 					else {
-						DBG("++++++ fwd to child");
-						forward_token_state(se.id(), s, from, se.child_address(idx + 1));
+						DBG("node %d SE %d.%d // fwd token from child %d to next child %d", radio_->id(), se.id().rule(), se.id().value(), from, se.child_address(child_index + 1));
+						forward_token_state(se.id(), token_state, from, se.child_address(child_index + 1));
 					}
 				}
-			}
+			} // on_receive_token_state()
+			
+			/// ditto.
+			void on_receive_token_state(SemanticEntityT& se, StateUpdateMessageT& msg, size_type index, time_t t, node_id_t from) {
+				typename SemanticEntityT::State s;
+				msg.get_entity_state(index, s);
+				
+				if(
+					(from == se.parent() && msg.get_entity_first_child(index) == radio_->id()) ||
+					(from != se.parent())) {
+					DBG("node %d SE %d.%d // recv token via state update from %d", radio_->id(), se.id().rule(), se.id().value(), from);
+					on_receive_token_state(se, s.token(), t, from);
+				}
+			} // on_receive_token_state()
+			
+			/// ditto.
+			void on_receive_token_state(SemanticEntityT& se, TokenStateForwardMessageT& msg, time_t t, node_id_t from) {
+				DBG("node %d SE %d.%d // recv token via forward from %d", radio_->id(), se.id().rule(), se.id().value(), from);
+				on_receive_token_state(se, msg.token_state(), t, from);
+			} // on_receive_token_state()
+			
 			
 			/**
 			 * Forward token state to another node (calleb by
 			 * on_receive_token_state).
 			 */
 			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to) {
-				DBG("+++++++ fwd token state %d -> %d via %d", from, to, radio_->id());
+				
+				// <DEBUG>
+				
+				DBG("+++++++ fwd token state %d.%d %d -> %d via %d childs follow", se_id.rule(), se_id.value(), from, to, radio_->id());
+				
+				
+				bool found;
+				SemanticEntityT& se = find_entity(se_id, found);
+				
+				for(size_type i = 0; i < se.childs(); i++) {
+					DBG("+++++++ %d: %d", i, se.child_address(i));
+				}
+				
+				// </DEBUG>
+				
 				TokenStateForwardMessageT msg;
 				msg.set_from(from);
 				msg.set_entity_id(se_id);
@@ -501,7 +541,7 @@ namespace wiselib {
 			/**
 			 */
 			void begin_activity(void* se_) {
-				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				//SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				push_caffeine();
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
 			}
@@ -542,6 +582,7 @@ namespace wiselib {
 				else {
 					// the timing controller refused to schedule the waking up
 					// for us, so lets just not go to sleep
+					pop_caffeine(); // pop activity caffeine (wait-for-token caff still on stack)
 					DBG("// node %d staying awake for another round on behalf of %d.%d", radio_->id(), se.id().rule(), se.id().value());
 				}
 				
