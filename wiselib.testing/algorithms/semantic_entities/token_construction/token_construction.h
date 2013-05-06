@@ -284,7 +284,7 @@ namespace wiselib {
 			}
 			
 			void pass_on_state(SemanticEntityT& se) {
-				StateUpdateMessageT msg;
+				StateMessageT msg;
 				msg.set_reason(StateUpdateMessageT::REASON_PASS_TOKEN);
 				msg.add_entity_state(se);
 				// TODO: we should be sure this is delivered before marking
