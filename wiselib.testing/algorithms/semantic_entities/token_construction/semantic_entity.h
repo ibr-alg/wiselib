@@ -160,28 +160,43 @@ namespace wiselib {
 						dirty_ = true;
 					}
 					
-					void set_parent(node_id_t r) {
+					/**
+					 * @return true if value was actually changed.
+					 */
+					bool set_parent(node_id_t r) {
 						if(r != tree_state_.parent()) {
 							DBG("// treestatechange parent %d -> %d", tree_state_.parent(), r);
 							tree_state_.set_parent(r);
 							dirty_ = true;
+							return true;
 						}
+						return false;
 					}
 					
-					void set_root(node_id_t r) {
+					/**
+					 * @return true if value was actually changed.
+					 */
+					bool set_root(node_id_t r) {
 						if(r != tree_state_.root()) {
 							DBG("// treestatechange root %d -> %d", tree_state_.root(), r);
 							tree_state_.set_root(r);
 							dirty_ = true;
+							return true;
 						}
+						return false;
 					}
 					
-					void set_distance(distance_t d) {
+					/**
+					 * @return true if value was actually changed.
+					 */
+					bool set_distance(distance_t d) {
 						if(d != tree_state_.distance()) {
 							DBG("// treestatechange distance %d -> %d", tree_state_.distance(), d);
 							tree_state_.set_distance(d);
 							dirty_ = true;
+							return true;
 						}
+						return false;
 					}
 					
 					bool dirty() const { return dirty_; }
@@ -250,14 +265,21 @@ namespace wiselib {
 			/**
 			 * Recalculate current internal tree state.
 			 * @param mynodeid id of this node.
+			 * @return true iff the state actually changed.
 			 */
-			void update_state(node_id_t mynodeid) {
+			bool update_state(node_id_t mynodeid) {
 				// {{{
 				
 				// Fill child list from neighbors and sort
 				// 
+				if(neighbor_states_.size() == 0) {
+					DBG("// node %d has no neighbors!", mynodeid);
+				}
+				
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
+					DBG("node %d SE %d.%d neighbor %d neighbor_parent %d",
+							mynodeid, id().rule(), id().value(), iter->first, iter->second.parent());
 					if(iter->second.parent() == mynodeid) {
 						DBG("// %d found child %d", mynodeid, iter->first)
 						if(childs_.find(iter->first) == childs_.end()) {
@@ -289,14 +311,20 @@ namespace wiselib {
 					parent = mynodeid;
 				}
 				
-				state().set_distance(distance);
-				state().set_parent(parent);
-				state().set_root(root);
+				bool changed = false;
+				
+				// don't use something like "changed = changed || state().set_xxx()" here!
+				// short circuit evaluation will kill you!
+				bool c_a = state().set_distance(distance);
+				bool c_b = state().set_parent(parent);
+				bool c_c = state().set_root(root);
+				changed = changed || c_a || c_b || c_c;
 				
 				DBG("node %d SE %d.%d distance %d parent %d root %d",
 						mynodeid, id().rule(), id().value(), state().distance(), state().parent(), state().root());
 				
 				got_token_ = false;
+				return changed;
 				
 				// }}}
 			}
@@ -359,7 +387,10 @@ namespace wiselib {
 			
 			
 			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
-				DBG("node %d SE %d.%d active=%d awake=%d count=%d t=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid), is_awake(), count(), t, comment);
+				DBG("node %d SE %d.%d active=%d awake=%d count=%d t=%d parent=%d root=%d distance=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid),
+						is_awake(), count(), t,
+						tree().parent(), tree().root(), tree().distance(),
+						comment);
 				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
 				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
@@ -370,6 +401,20 @@ namespace wiselib {
 			
 			token_count_t prev_token_count() {
 				return prev_token_state_.count();
+			}
+			
+			
+			/**
+			 * Where should the token information be sent to after
+			 * we processed it?
+			 * Note this is different from forwarding a token we received but
+			 * dont process!
+			 */
+			node_id_t next_token_node() {
+				if(childs() > 0) {
+					return childs_[0];
+				}
+				return tree().parent();
 			}
 			
 			void set_prev_token_count(token_count_t ptc) {

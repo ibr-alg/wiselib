@@ -41,7 +41,7 @@ def parse(f):
 		def get_value(s):
 			m = re.search(r'\b' + s + r'\s*(=|\s)\s*([^= ]+)', line)
 			if m is None: return None
-			return m.group(2)
+			return m.group(2).strip()
 		
 		m = re.match('-+ BEGIN ITERATION (\d+)', line)
 		if m is not None:
@@ -229,7 +229,7 @@ def fig_timings():
 	#plt.show()
 	
 	
-def fig_duty_cycle(namepattern = '*'):
+def fig_duty_cycle(namepattern = '.*'):
 	global fig
 	nodes = getnodes(namepattern)
 	
@@ -242,12 +242,21 @@ def fig_duty_cycle(namepattern = '*'):
 	first_ax = None
 	last_ax = None
 	
-	def namesort(kva, kvb):
+	def nodesort(kva, kvb):
 		for a, b in zip(kva[0], kvb[0]):
 			if a != b: return cmp(a, b)
 		return cmp(len(kva[0]), len(kvb[0]))
 	
-	for name, node in sorted(nodes.items(), cmp=namesort):
+	def sesort(pa, pb):
+		a = pa[0]
+		b = pb[0]
+		if ':' in a and ':' not in b: return 1
+		if ':' in b and ':' not in a: return -1
+		#if ':' not in a: return cmp(a, b)
+		return cmp(tuple(reversed(a.split(':'))), tuple(reversed(b.split(':'))))
+		#return cmp(a[a.find(':') + 1:], b[b.find(':') + 1:])
+		
+	for name, node in sorted(nodes.items(), cmp=sesort):
 		if first_ax is None:
 			ax = plt.subplot(len(nodes), 1, i + 1)
 			first_ax = ax
@@ -296,10 +305,10 @@ parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_tes
 for k, v in parents.items():
 	print(k + ":")
 	for src, tgt in v.items():
-		print("  " + src + " -> " + tgt)
+		print ("  " + src + " -> " + tgt)
 
 print("duty cycle graph...")
-fig_duty_cycle(r'.*:1\.2')
+fig_duty_cycle() #r'.*:1\.2')
 print("timings graph...")
 fig_timings()
 print("counts graph...")

@@ -67,6 +67,10 @@ namespace wiselib {
 			};
 			
 			TokenStateMessage() {
+				init();
+			}
+			
+			void init() {
 				set_type(MESSAGE_TYPE);
 			}
 			
@@ -98,7 +102,7 @@ namespace wiselib {
 				return wiselib::read<OsModel, block_data_t, TokenState>(data_ + POS_TOKEN_STATE);
 			}
 			
-			void set_token_state(TokenState& s) {
+			void set_token_state(const TokenState& s) {
 				wiselib::write<OsModel>(data_ + POS_TOKEN_STATE, s);
 			}
 			

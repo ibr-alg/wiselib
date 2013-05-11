@@ -27,8 +27,15 @@
 #include "semantic_entity.h"
 #include "semantic_entity_id.h"
 #include "timing_controller.h"
-#include "state_update_message.h"
-#include "token_state_forward_message.h"
+
+#include "state_message.h"
+
+/*
+ * TODO
+ * - If SE's tree state changes, resend token to next in ring! (as ring
+ *   probably has changed as well!)
+ */
+
 
 namespace wiselib {
 	
@@ -74,13 +81,16 @@ namespace wiselib {
 			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
 			typedef typename SemanticEntityT::State State;
 			typedef typename State::TokenState TokenState;
-			//typedef TokenConstructionMessage<OsModel, SemanticEntityT, Radio> Message;
-			typedef StateUpdateMessage<OsModel, SemanticEntityT, Radio> StateUpdateMessageT;
-			typedef TokenStateForwardMessage<OsModel, typename State::TokenState, Radio> TokenStateForwardMessageT;
+			typedef typename State::TreeState TreeState;
+			
+			typedef StateMessage<OsModel, SemanticEntityT, Radio> StateMessageT;
+			typedef typename StateMessageT::TreeStateMessageT TreeStateMessageT;
+			typedef typename StateMessageT::TokenStateMessageT TokenStateMessageT;
 			
 			enum MessageTypes {
-				MESSAGE_TYPE_STATE_UPDATE = StateUpdateMessageT::MESSAGE_TYPE,
-				MESSAGE_TYPE_TOKEN_STATE_FORWARD = TokenStateForwardMessageT::MESSAGE_TYPE
+				MESSAGE_TYPE_STATE = StateMessageT::MESSAGE_TYPE,
+				MESSAGE_TYPE_TREE_STATE = TreeStateMessageT::MESSAGE_TYPE,
+				MESSAGE_TYPE_TOKEN_STATE = TokenStateMessageT::MESSAGE_TYPE,
 			};
 			
 			enum Constraints {
@@ -92,6 +102,7 @@ namespace wiselib {
 				REGULAR_BCAST_INTERVAL = 100000,
 				/// Check in this interval whether state is dirty and broadcast it if so
 				DIRTY_BCAST_INTERVAL = 1000,
+				AWAKE_BCAST_INTERVAL = 1000,
 				/// How long to stay awake when we have the token
 				ACTIVITY_PERIOD = 10000,
 			};
@@ -153,7 +164,8 @@ namespace wiselib {
 				// - set up timer to make sure we broadcast our state at least
 				//   so often
 //				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
-				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
+				//timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
+				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 				
 				// - set up timer to sieve out lost neighbors
 				// - register receive callback
@@ -229,8 +241,8 @@ namespace wiselib {
 			 * Also set up timer to do this again in REGULAR_BCAST_INTERVAL.
 			 */
 			void on_regular_broadcast_state(void*) {
-				StateUpdateMessageT msg;
-				msg.set_reason(StateUpdateMessageT::REASON_REGULAR_BCAST);
+				TreeStateMessageT msg;
+				msg.set_reason(TreeStateMessageT::REASON_REGULAR_BCAST);
 				
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					msg.add_entity_state(*iter);
@@ -252,8 +264,8 @@ namespace wiselib {
 			 * Also set up a timer to do this again in DIRTY_BCAST_INTERVAL.
 			 */
 			void on_dirty_broadcast_state(void* = 0) {
-				StateUpdateMessageT msg;
-				msg.set_reason(StateUpdateMessageT::REASON_DIRTY_BCAST);
+				TreeStateMessageT msg;
+				msg.set_reason(TreeStateMessageT::REASON_DIRTY_BCAST);
 				
 				//DBG("id=%02d on_dirty_broadcast_state", radio_->id());
 				
@@ -283,10 +295,51 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
 			}
 			
-			void pass_on_state(SemanticEntityT& se) {
+			void on_awake_broadcast_state(void* = 0) {
+				if(caffeine_level_ > 0) {
+				
+					TreeStateMessageT msg;
+					msg.set_reason(TreeStateMessageT::REASON_DIRTY_BCAST);
+					
+					//DBG("id=%02d on_dirty_broadcast_state", radio_->id());
+					
+					for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+						//if(iter->state().dirty()) {
+					//		DBG("id=%02d on_dirty_broadcast_state sending se %d.%08x", radio_->id(), iter->id().rule(), iter->id().value());
+							msg.add_entity_state(*iter);
+							iter->state().set_clean();
+						//}
+					}
+					
+					if(msg.entity_count()) {
+						//DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
+					
+						//DBG("node %d push on_dirty_broadcast", radio_->id());
+						push_caffeine();
+						radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+						//DBG("node %d pop on_dirty_broadcast", radio_->id());
+						pop_caffeine();
+					
+					}
+					else {
+						//DBG("id=%02d on_dirty_broadcast_state: nothing to send!", radio_->id());
+					}
+				}
+				
+				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
+			}
+			
+			/**
+			 * Pass on complete state for given SE.
+			 * That is, token info and tree state for the SE.
+			 */
+			void pass_on_state(SemanticEntityT& se, bool set_clean = true) {
 				StateMessageT msg;
-				msg.set_reason(StateUpdateMessageT::REASON_PASS_TOKEN);
-				msg.add_entity_state(se);
+				//msg.set_reason(StateMessageT::REASON_PASS_TOKEN);
+				msg.tree().set_reason(TreeStateMessageT::REASON_PASS_TOKEN);
+				msg.tree().add_entity_state(se);
+				msg.token().set_entity_id(se.id());
+				msg.token().set_token_state(se.token());
 				// TODO: we should be sure this is delivered before marking
 				// the SE clean!
 				// 
@@ -295,9 +348,12 @@ namespace wiselib {
 				// revision, flag as clean. re-send in dirty-bcast-interval
 				// until clean
 				// 
-				se.state().set_clean();
+				if(set_clean) {
+					se.state().set_clean();
+				}
 				push_caffeine();
-				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				radio_->send(se.next_token_node(), msg.size(), msg.data());
 				pop_caffeine();
 			}
 			
@@ -344,56 +400,22 @@ namespace wiselib {
 				message_id_t msgtype = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				switch(msgtype) {
-					case MESSAGE_TYPE_STATE_UPDATE: {
-						//DBG("+++++ msg state update");
-						
-						StateUpdateMessageT &msg = reinterpret_cast<StateUpdateMessageT&>(*data);
-						switch(msg.reason()) {
-							case StateUpdateMessageT::REASON_REGULAR_BCAST:
-								timing_controller_.regular_broadcast(from, t_recv, radio_->id());
-								break;
-							case StateUpdateMessageT::REASON_DIRTY_BCAST:
-							case StateUpdateMessageT::REASON_PASS_TOKEN:
-								//timing_controller_.dirty_broadcast(from, now);
-								break;
-						}
-						
-						for(size_type i = 0; i < msg.entity_count(); i++) {
-							typename SemanticEntityT::State s;
-							msg.get_entity_state(i, s);
-							
-							bool found;
-							SemanticEntityT &se = find_entity(s.id(), found);
-							if(!found) { continue; }
-							
-							// In any case, update the tree state from our neigbour
-							process_neighbor_tree_state(from, s, se);
-							
-							se.print_state(radio_->id(), now(), "tree state update");
-							
-							// If we are the first child, token state update
-							// from parent is interesting for us here.
-							// If we are not first child we will receive it as
-							// a token state forward!
-							// 
-							on_receive_token_state(se, msg, i, t_recv, from);
-							
-							se.print_state(radio_->id(), now(), "token state update/forward");
-							
-						} // for se
+					case MESSAGE_TYPE_STATE: {
+						StateMessageT &msg = reinterpret_cast<StateMessageT&>(*data);
+						on_receive_tree_state(msg.tree(), from, t_recv);
+						on_receive_token_state(msg.token(), from, t_recv);
 						break;
-					} // MESSAGE_TYPE_STATE_UPDATE
+					}
 					
-					case MESSAGE_TYPE_TOKEN_STATE_FORWARD: {
-						//DBG("+++++ msg token state fwd");
-						
-						TokenStateForwardMessageT &msg = reinterpret_cast<TokenStateForwardMessageT&>(*data);
-						bool found;
-						SemanticEntityT &se = find_entity(msg.entity_id(), found);
-						if(found) {
-							on_receive_token_state(se, msg, t_recv, from);
-							se.print_state(radio_->id(), now(), "token state forward");
-						}
+					case MESSAGE_TYPE_TREE_STATE: {
+						TreeStateMessageT &msg = reinterpret_cast<TreeStateMessageT&>(*data);
+						on_receive_tree_state(msg, from, t_recv);
+						break;
+					}
+					
+					case MESSAGE_TYPE_TOKEN_STATE: {
+						TokenStateMessageT &msg = reinterpret_cast<TokenStateMessageT&>(*data);
+						on_receive_token_state(msg, from, t_recv);
 						break;
 					}
 					
@@ -405,11 +427,103 @@ namespace wiselib {
 				packet_info->destroy();
 			} // on_receive_task()
 			
+			void on_receive_tree_state(TreeStateMessageT& msg, node_id_t from, time_t t_recv) {
+				switch(msg.reason()) {
+					case TreeStateMessageT::REASON_REGULAR_BCAST:
+						timing_controller_.regular_broadcast(from, t_recv, radio_->id());
+						break;
+					case TreeStateMessageT::REASON_DIRTY_BCAST:
+						//timing_controller_.dirty_broadcast(from, now);
+						break;
+				}
+				
+				
+				
+				for(size_type i = 0; i < msg.entity_count(); i++) {
+					TreeState s = msg.get_entity_state(i);
+					SemanticEntityId sid = msg.get_entity_id(i);
+					
+					bool found;
+					SemanticEntityT &se = find_entity(sid, found);
+					if(!found) { continue; }
+					
+					// In any case, update the tree state from our neigbour
+					bool changed = process_neighbor_tree_state(from, s, se);
+					if(changed) {
+						// if the tree changed due to ths, resend token
+						// information as the ring has changed
+						pass_on_state(se, false);
+					}
+					
+					DBG("node %d SE %d.%d t=%d // tree state update from %d",
+							radio_->id(), se.id().rule(), se.id().value(),
+							now(), from);
+					se.print_state(radio_->id(), now(), "tree state update");
+					
+					// If we are the first child, token state update
+					// from parent is interesting for us here.
+					// If we are not first child we will receive it as
+					// a token state forward!
+					// 
+					//on_receive_token_state(se, msg, i, t_recv, from);
+					
+					//se.print_state(radio_->id(), now(), "token state update/forward");
+				} // for se
+			}
+			
+			void on_receive_token_state(TokenStateMessageT& msg, node_id_t from, time_t t_recv) {
+				DBG("on_receive_token_state node %d", radio_->id());
+				
+				bool found;
+				SemanticEntityT &se = find_entity(msg.entity_id(), found);
+				if(!found) {
+					DBG("on_receive_token_state node %d // se %d.%d not found", radio_->id(),
+							msg.entity_id().rule(), msg.entity_id().value());
+					return;
+				}
+				
+				TokenState s = msg.token_state();
+				
+				if(from == se.parent()) {
+					DBG("node %d SE %d.%d // processing token from parent %d", radio_->id(), se.id().rule(), se.id().value(), from);
+					process_token_state(se, s, from, t_recv);
+				}
+				else {
+					size_type child_index = se.find_child(from);
+					if(child_index == npos) {
+						DBG("node %d SE %d.%d // [!] token sender %d is neither child or parent", radio_->id(), se.id().rule(), se.id().value(), from);
+						DBG("node %d SE %d.%d parent %d", radio_->id(), se.id().rule(), se.id().value(), se.parent());
+						for(size_type i = 0; i < se.childs(); i++) {
+							DBG("node %d SE %d.%d childidx %d child %d", radio_->id(), se.id().rule(), se.id().value(), i, se.child_address(i));
+						}
+						return;
+					}
+					
+					if(child_index == se.childs() - 1) { // from last child
+						if(radio_->id() == se.root()) {
+							DBG("node %d SE %d.%d // processing token from last child %d at root", radio_->id(), se.id().rule(), se.id().value(), from);
+							process_token_state(se, s, from, t_recv);
+						}
+						else {
+							DBG("node %d SE %d.%d // fwd token from last child %d to parent %d", radio_->id(), se.id().rule(), se.id().value(), from, se.parent());
+							forward_token_state(se.id(), s, from, se.parent());
+						}
+					}
+					else { // from a not-last child
+						DBG("node %d SE %d.%d // fwd token from child %d to next child %d", radio_->id(), se.id().rule(), se.id().value(), from, se.child_address(child_index + 1));
+						forward_token_state(se.id(), s, from, se.child_address(child_index + 1));
+					}
+				}
+				
+				se.print_state(radio_->id(), now(), "token state forward");
+			}
+			
 			/**
 			 * Called by on_receive_task when a token state change has been
 			 * received.
 			 * Decides to either ignore, forward or process the token.
 			 */
+			/*
 			void on_receive_token_state(SemanticEntityT& se, const TokenState& token_state, time_t t, node_id_t from) {
 				if(from == se.parent()) {
 					DBG("node %d SE %d.%d // processing token from parent %d", radio_->id(), se.id().rule(), se.id().value(), from);
@@ -457,6 +571,7 @@ namespace wiselib {
 				DBG("node %d SE %d.%d // recv token via forward from %d", radio_->id(), se.id().rule(), se.id().value(), from);
 				on_receive_token_state(se, msg.token_state(), t, from);
 			} // on_receive_token_state()
+			*/
 			
 			
 			/**
@@ -479,8 +594,8 @@ namespace wiselib {
 				
 				// </DEBUG>
 				
-				TokenStateForwardMessageT msg;
-				msg.set_from(from);
+				TokenStateMessageT msg;
+				//msg.set_from(from);
 				msg.set_entity_id(se_id);
 				msg.set_token_state(s);
 				radio_->send(to, msg.size(), msg.data());
@@ -592,11 +707,14 @@ namespace wiselib {
 			/// ditto.
 			void end_activity(SemanticEntityT& se) { end_activity((void*)&se); }
 			
-			void process_neighbor_tree_state(node_id_t source, State& state, SemanticEntityT& se) {
+			/**
+			 * @return if internal tree change actually has been changed.
+			 */
+			bool process_neighbor_tree_state(node_id_t source, TreeState& state, SemanticEntityT& se) {
 				//DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d", radio_->id(), source, se.id().rule(), se.id().value());
-				se.neighbor_state(source) = state.tree();
+				se.neighbor_state(source) = state;
 				bool active_before = se.is_active(radio_->id());
-				se.update_state(radio_->id());
+				bool r = se.update_state(radio_->id());
 				
 				if(se.is_active(radio_->id()) && !active_before) {
 					DBG("node %d SE %d.%d active=1 t=%d // because of tree change!", radio_->id(), se.id().rule(), se.id().value(), now());
@@ -606,6 +724,7 @@ namespace wiselib {
 					DBG("node %d SE %d.%d active=0 t=%d // because of tree change!", radio_->id(), se.id().rule(), se.id().value(), now());
 					end_activity(se);
 				}
+				return r;
 			}
 			
 			/**

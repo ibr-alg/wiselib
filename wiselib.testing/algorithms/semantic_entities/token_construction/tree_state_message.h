@@ -65,20 +65,25 @@ namespace wiselib {
 				POS_MESSAGE_ID = 0,
 				POS_REASON = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_ENTITY_COUNT = POS_REASON + sizeof(reason_t),
-				POS_ENTITIES = POS_ENTITY_COUNT + sizeof(entity_count_t)
+				POS_ENTITIES = POS_ENTITY_COUNT + sizeof(entity_count_t),
 			};
 			
 			enum Reasons {
 				REASON_REGULAR_BCAST = 0,
-				REASON_DIRTY_BCAST = 1
+				REASON_DIRTY_BCAST = 1,
+				REASON_PASS_TOKEN = 2
 			};
 			
 			enum {
 				MESSAGE_TYPE = 0x77,
-				ENTITY_SIZE = sizeof(typename SemanticEntity::TreeState)
+				ENTITY_SIZE = sizeof(typename SemanticEntity::TreeState) + sizeof(SemanticEntityId)
 			};
 			
 			TreeStateMessage() {
+				init();
+			}
+			
+			void init() {
 				set_type(MESSAGE_TYPE);
 				set_entity_count(0);
 			}
@@ -92,13 +97,16 @@ namespace wiselib {
 				//DBG("writing ent desc to %p end=%p", entity_description(entity_count()), data_ + MAX_MESSAGE_LENGTH);
 				wiselib::write<OsModel>(entity_description(entity_count()), se.tree());
 				
-				node_id_t a = se.child_address(0);
-				wiselib::write<OsModel>(entity_description(entity_count()) + sizeof(typename SemanticEntity::State), a);
+				wiselib::write<OsModel>(entity_description(entity_count()) + sizeof(typename SemanticEntity::TreeState), se.id());
 				set_entity_count(entity_count() + 1);
 			}
 			
-			void get_entity_state(entity_count_t i, typename SemanticEntity::TreeState& se) {
-				wiselib::read<OsModel>(entity_description(i), se);
+			typename SemanticEntity::TreeState get_entity_state(entity_count_t i) {
+				return wiselib::read<OsModel, block_data_t, typename SemanticEntity::TreeState>(entity_description(i));
+			}
+			
+			SemanticEntityId get_entity_id(entity_count_t i) {
+				return wiselib::read<OsModel, block_data_t, SemanticEntityId>(entity_description(i) + sizeof(typename SemanticEntity::TreeState));
 			}
 			
 			message_id_t type() {

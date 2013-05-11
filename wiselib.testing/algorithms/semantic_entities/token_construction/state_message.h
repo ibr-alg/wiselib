@@ -61,15 +61,19 @@ namespace wiselib {
 			
 			enum {
 				POS_MESSAGE_ID = 0,
-				POS_TREE_STATE_MESSAGE = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_TOKEN_STATE_MESSAGE = POS_TREE_STATE_MESSAGE + TreeStateMessageT::POS_END,
-				POS_END = POS_TOKEN_STATE_MESSAGE + TokenStateMessageT::POS_END
+				POS_TOKEN_STATE_MESSAGE = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_TREE_STATE_MESSAGE = POS_TOKEN_STATE_MESSAGE + TokenStateMessageT::POS_END,
+				//POS_END = POS_TOKEN_STATE_MESSAGE + TokenStateMessageT::POS_END
 			};
 			
 			StateMessage() {
+				init();
+			}
+			
+			void init() {
 				set_type(MESSAGE_TYPE);
-				token().set_type(TokenStateMessageT::MESSAGE_TYPE);
-				tree().set_type(TreeStateMessageT::MESSAGE_TYPE);
+				token().init();
+				tree().init();
 			}
 			
 			message_id_t type() {
@@ -86,6 +90,14 @@ namespace wiselib {
 			
 			TreeStateMessageT& tree() {
 				return reinterpret_cast<TreeStateMessageT&>(data_[POS_TREE_STATE_MESSAGE]);
+			}
+			
+			block_data_t* data() {
+				return data_;
+			}
+			
+			size_type size() {
+				return token().size() + tree().size();
 			}
 		
 		private:
