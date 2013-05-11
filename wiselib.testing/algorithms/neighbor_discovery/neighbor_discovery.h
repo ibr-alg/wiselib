@@ -88,7 +88,6 @@ namespace wiselib
 			transmission_power_dB				( ND_TRANSMISSION_POWER_DB ),
 			protocol_max_payload_size			( ND_MAX_PROTOCOL_PAYLOAD_SIZE ),
 			protocol_max_payload_size_strategy	( FIXED_PAYLOAD_SIZE ),
-			relax_millis						( ND_RELAX_MILLIS ),
 			nd_daemon_period					( ND_DAEMON_PERIOD )
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 			,messages_received					( 0 ),
@@ -101,7 +100,7 @@ namespace wiselib
 			corrupted_bytes_received			( 0 ),
 			avg_corrupted_byte_size_received	( 0 ),
 			clock_paradox_message_drops			( 0 ),
-			counter								( 0 )
+			metrics_counter								( 0 )
 #endif
 		{};
 		// --------------------------------------------------------------------
@@ -170,10 +169,10 @@ namespace wiselib
 			radio().enable_radio();
 			recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive>( this );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
-			debug().debug("%x:%i:%d:%d:%d:%d:R\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period, relax_millis, ND_STATS_DURATION );
+			debug().debug("%x:%i:%d:%d:%d:R\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period, ND_STATS_DURATION );
 			timer().template set_timer<self_t, &self_t::beacons> ( rand()() % get_beacon_period(), this, 0 );
 #else
-			debug().debug("%x:%i:%d:%d:%d:%d:N\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period, relax_millis, ND_STATS_DURATION );
+			debug().debug("%x:%i:%d:%d:%d:N\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period,  ND_STATS_DURATION );
 			beacons();
 #endif
 			nd_daemon();
@@ -353,7 +352,7 @@ namespace wiselib
 						}
 //#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 						Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID );
-						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d\n",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
+						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
 //#endif
 #endif
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
@@ -427,6 +426,8 @@ namespace wiselib
 #endif
 #endif
 #endif
+
+                                        
 					for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 					{
 						uint8_t found_flag = 0;
@@ -464,7 +465,7 @@ namespace wiselib
 								}
 								if ( beacon.get_beacon_period() == nit->get_beacon_period() )
 								{
-									if ( dead_time < beacon.get_beacon_period() + relax_millis )
+									if ( dead_time < beacon.get_beacon_period() + beacon.get_beacon_period()/2 )
 									{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										debug().debug( "NeighborDiscovery - receive - Neighbor %x is on time same as advertised for protocol %i with dead_time : %d.\n", _from, pit->get_protocol_id(), dead_time );
@@ -505,7 +506,7 @@ namespace wiselib
 								}
 								else
 								{
-									if ( dead_time < beacon.get_beacon_period() + relax_millis )
+									if ( dead_time < beacon.get_beacon_period() + beacon.get_beacon_period()/2 )
 									{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										debug().debug( "NeighborDiscovery - receive - Neighbor %x is on time same as advertised for protocol %i with dead_time : %d.\n", _from, pit->get_protocol_id(), dead_time );
@@ -893,7 +894,7 @@ namespace wiselib
 						{
 							dead_time = clock().seconds( current_time ) * 1000 - clock().seconds( nit->get_last_beacon() ) * 1000 + clock().milliseconds( current_time ) - clock().milliseconds( nit->get_last_beacon() );
 						}
-						if ( ( dead_time > nit->get_beacon_period() + relax_millis ) && ( nit->get_id() != radio().id() ) )
+						if ( ( dead_time > nit->get_beacon_period() + nit->get_beacon_period()/2 ) && ( nit->get_id() != radio().id() ) )
 						{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
 							debug().debug("NeighborDiscovery-nb_daemon %x - Teasing node %x.", radio().id(), nit->get_id() );
@@ -1207,27 +1208,7 @@ namespace wiselib
 		{
 			return protocol_max_payload_size;
 		}
-		// --------------------------------------------------------------------
-		millis_t get_relax_millis()
-		{
-			return relax_millis;
-		}
-		// --------------------------------------------------------------------
-		void set_relax_millis( millis_t _rm )
-		{
-			relax_millis = _rm;
-		}
-		// --------------------------------------------------------------------
-		millis_t get_nd_daemon_period()
-		{
-			return nd_daemon_period;
-		}
-		// --------------------------------------------------------------------
-		void set_nd_daemon_period( millis_t _nbdp )
-		{
-			relax_millis = _nbdp;
-		}
-		// --------------------------------------------------------------------
+                // --------------------------------------------------------------------
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_CONNECTIVITY_FILTERING
 		void q_sort_neigh_active_con( int8_t _left, int8_t _right, Neighbor_vector& _neighborhood )
 		{
@@ -1278,16 +1259,16 @@ namespace wiselib
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_METRICS_DAEMON
 			debug().debug("NeighborDiscovery - nd_metrics_daemon - Breakpoint 2.\n" );
 #endif
-			if ( p != NULL )
-			{
+
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
-				p->print( debug(), radio(), position );
+			debug().debug( "AGGR:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+
 #else
-				p->print( debug(), radio() );
+			debug().debug( "AGGR:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
-			}
-			debug().debug( "AGGR:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+
 										radio().id(),
+                                                                                metrics_counter,
 										p->get_neighborhood_ref()->size() - 1,
 										p->get_neighborhood_active_size() - 1,
 										messages_received,
@@ -1299,11 +1280,18 @@ namespace wiselib
 										corrupted_messages_received,
 										corrupted_bytes_received,
 										avg_corrupted_byte_size_received,
-										clock_paradox_message_drops );
+										clock_paradox_message_drops
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
+                                                                                ,position.get_x()
+                                                                                ,position.get_y()
+#endif
+                                
+                                                                                );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_METRICS_DAEMON
 			debug().debug("NeighborDiscovery - nd_metrics_daemon - Exiting.\n" );
 #endif
-			disable();
+                        metrics_counter++;
+			timer().template set_timer<self_t, &self_t::nd_metrics_daemon> ( ND_STATS_DURATION, this, 0 );
 		}
 #endif
 		// --------------------------------------------------------------------
@@ -1393,9 +1381,8 @@ namespace wiselib
 		Protocol_vector protocols;
 		size_t protocol_max_payload_size;
 		uint8_t protocol_max_payload_size_strategy;
-		millis_t relax_millis;
 		millis_t nd_daemon_period;
-#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+//#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 		uint32_t messages_received;
 		uint32_t bytes_received;
 		uint32_t avg_bytes_size_received;
@@ -1406,7 +1393,7 @@ namespace wiselib
 		uint32_t corrupted_bytes_received;
 		uint32_t avg_corrupted_byte_size_received;
 		uint32_t clock_paradox_message_drops;
-#endif
+//#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;
 #endif
@@ -1415,7 +1402,7 @@ namespace wiselib
         Timer * timer_;
         Debug * debug_;
         Rand * rand_;
-        uint32_t counter;
+        uint32_t metrics_counter;
     };
 }
 #endif
