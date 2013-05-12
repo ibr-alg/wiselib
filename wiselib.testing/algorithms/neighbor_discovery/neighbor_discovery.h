@@ -168,12 +168,20 @@ namespace wiselib
 			set_status( ACTIVE_STATUS );
 			radio().enable_radio();
 			recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive>( this );
+#ifdef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
+			beacon_scheduler();
+#else
+			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( rand()() % get_beacon_period(), this, 0 );
+#endif
+#else
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
 			debug().debug("%x:%i:%d:%d:%d:R\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period, ND_STATS_DURATION );
 			timer().template set_timer<self_t, &self_t::beacons> ( rand()() % get_beacon_period(), this, 0 );
 #else
 			debug().debug("%x:%i:%d:%d:%d:N\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period,  ND_STATS_DURATION );
 			beacons();
+#endif
 #endif
 			nd_daemon();
 		};
@@ -217,6 +225,14 @@ namespace wiselib
 			bytes_send = bytes_send + message.serial_size() + sizeof( size_t ) + sizeof( node_id_t );
 			avg_bytes_size_send = bytes_send / messages_send;
 #endif
+		}
+		// --------------------------------------------------------------------
+		void beacon_scheduler( void* _data = NULL )
+		{
+			millis_t bp = get_beacon_period();
+			uint32_t backoff_beacon_period = rand()()%bp - 50;
+			timer().template set_timer<self_t &self_t::beacons>( backoff_beacon_period, this, 0 );
+			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
 		}
 		// --------------------------------------------------------------------
 		void beacons( void* _data = NULL )
@@ -355,7 +371,9 @@ namespace wiselib
 						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
 //#endif
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
+#endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 						debug().debug( "NeighborDiscovery - beacons - Sending beacon.\n" );
 #endif
