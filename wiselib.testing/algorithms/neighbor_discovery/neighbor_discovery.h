@@ -230,8 +230,8 @@ namespace wiselib
 		void beacon_scheduler( void* _data = NULL )
 		{
 			millis_t bp = get_beacon_period();
-			uint32_t backoff_beacon_period = rand()()%bp - 50;
-			timer().template set_timer<self_t &self_t::beacons>( backoff_beacon_period, this, 0 );
+			uint32_t backoff_beacon_period = rand()() % bp - 50;
+			timer().template set_timer<self_t, &self_t::beacons>( backoff_beacon_period, this, 0 );
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
 		}
 		// --------------------------------------------------------------------
@@ -371,13 +371,14 @@ namespace wiselib
 						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
 //#endif
 #endif
-#ifndef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
+
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
-#endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 						debug().debug( "NeighborDiscovery - beacons - Sending beacon.\n" );
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
 						timer().template set_timer<self_t, &self_t::beacons> ( bp, this, 0 );
+#endif
 					}
 					else
 					{
