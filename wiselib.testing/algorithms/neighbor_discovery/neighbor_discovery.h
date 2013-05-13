@@ -100,11 +100,8 @@ namespace wiselib
 			corrupted_bytes_received			( 0 ),
 			avg_corrupted_byte_size_received	( 0 ),
 			clock_paradox_message_drops			( 0 ),
-<<<<<<< HEAD
 			metrics_counter						( 0 )
-=======
-			metrics_counter								( 0 )
->>>>>>> scl_atp_adm
+
 #endif
 		{};
 		// --------------------------------------------------------------------
@@ -174,15 +171,12 @@ namespace wiselib
 			recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive>( this );
 #ifdef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
-<<<<<<< HEAD
-			beacon_scheduler();
-#else
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( rand()() % get_beacon_period(), this, 0 );
+#else
+			beacon_scheduler();
 #endif
 #else
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
-=======
->>>>>>> scl_atp_adm
 			debug().debug("%x:%i:%d:%d:%d:R\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period, ND_STATS_DURATION );
 			timer().template set_timer<self_t, &self_t::beacons> ( rand()() % get_beacon_period(), this, 0 );
 #else
@@ -453,11 +447,6 @@ namespace wiselib
 #endif
 #endif
 
-<<<<<<< HEAD
-
-=======
-                                        
->>>>>>> scl_atp_adm
 					for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 					{
 						uint8_t found_flag = 0;
@@ -1238,7 +1227,7 @@ namespace wiselib
 		{
 			return protocol_max_payload_size;
 		}
-                // --------------------------------------------------------------------
+		// --------------------------------------------------------------------
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_CONNECTIVITY_FILTERING
 		void q_sort_neigh_active_con( int8_t _left, int8_t _right, Neighbor_vector& _neighborhood )
 		{
@@ -1275,6 +1264,7 @@ namespace wiselib
 			}
 		}
 #endif
+		// --------------------------------------------------------------------
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS_DAEMON
 		void nd_metrics_daemon( void* user_data = NULL )
 		{
@@ -1298,7 +1288,7 @@ namespace wiselib
 #endif
 
 										radio().id(),
-                                                                                metrics_counter,
+										metrics_counter,
 										p->get_neighborhood_ref()->size() - 1,
 										p->get_neighborhood_active_size() - 1,
 										messages_received,
@@ -1312,19 +1302,14 @@ namespace wiselib
 										avg_corrupted_byte_size_received,
 										clock_paradox_message_drops
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
-                                                                                ,position.get_x()
-                                                                                ,position.get_y()
+										,position.get_x()
+										,position.get_y()
 #endif
-<<<<<<< HEAD
-
-=======
-                                
->>>>>>> scl_atp_adm
                                                                                 );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_METRICS_DAEMON
 			debug().debug("NeighborDiscovery - nd_metrics_daemon - Exiting.\n" );
 #endif
-                        metrics_counter++;
+			metrics_counter++;
 			timer().template set_timer<self_t, &self_t::nd_metrics_daemon> ( ND_STATS_DURATION, this, 0 );
 		}
 #endif
