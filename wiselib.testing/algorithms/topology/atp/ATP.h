@@ -277,7 +277,7 @@ namespace wiselib
 			if ( status == ACTIVE_STATUS )
 			{
 				debug().debug( "ATP - ATP_service_disable %x - Entering.", radio().id() );
-				messaging().enable(ASCL::ATP_PROTOCOL_ID);
+				//messaging().enable(ASCL::ATP_PROTOCOL_ID);
 #ifdef DEBUG_ATP_H_ATP_SERVICE_DISABLE
 				scl().disable();
 #endif
@@ -348,7 +348,7 @@ namespace wiselib
 			_rand = &rand;
 			_clock = &clock;
 			_scl = &scl;
-                        _messaging = &messaging;
+            _messaging = &messaging;
 		}
 		// -----------------------------------------------------------------------
 		void set_status( int _st )
