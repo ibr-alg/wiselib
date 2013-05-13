@@ -33,7 +33,7 @@ namespace wiselib
 				typename Rand_P,
 				typename Clock_P,
 				typename Debug_P,
-                                typename Messaging_P
+				typename Messaging_P
 			>
 	class ATP_Type
 	{
@@ -46,7 +46,7 @@ namespace wiselib
 		typedef ASCL_P ASCL;
 		typedef Timer_P Timer;
 		typedef Clock_P Clock;
-                typedef Messaging_P Messaging;
+		typedef Messaging_P Messaging;
 		typedef typename Radio::node_id_t node_id_t;
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
@@ -277,7 +277,7 @@ namespace wiselib
 			if ( status == ACTIVE_STATUS )
 			{
 				debug().debug( "ATP - ATP_service_disable %x - Entering.", radio().id() );
-                                messaging().enable(ASCL::ATP_PROTOCOL_ID);
+				messaging().enable(ASCL::ATP_PROTOCOL_ID);
 #ifdef DEBUG_ATP_H_ATP_SERVICE_DISABLE
 				scl().disable();
 #endif
@@ -386,9 +386,11 @@ namespace wiselib
 		{
 			return *_scl;
 		}
-                Messaging& messaging(){
-                        return *_messaging;
-                }
+		// -----------------------------------------------------------------------
+		Messaging& messaging()
+		{
+			return *_messaging;
+		}
 		// -----------------------------------------------------------------------
 		Radio* _radio;
 		Timer* _timer;
@@ -396,7 +398,7 @@ namespace wiselib
 		Rand* _rand;
 		Clock* _clock;
 		ASCL* _scl;
-                Messaging* _messaging;
+		Messaging* _messaging;
 		enum atp_status
 		{
 			ACTIVE_STATUS,
