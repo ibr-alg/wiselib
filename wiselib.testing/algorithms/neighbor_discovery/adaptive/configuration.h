@@ -27,8 +27,8 @@
 
 #define MAX_PG_PAYLOAD 30
 
-#define IMIN 2
-#define IMAX 8
+#define IMIN 500 //change based on ND_RELAX_MILLIS
+#define IMAX 3000
 #define PERIOD 1000
 #define MESG_THRESHOLD 2
 

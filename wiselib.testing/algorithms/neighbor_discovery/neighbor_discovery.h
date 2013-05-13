@@ -100,7 +100,11 @@ namespace wiselib
 			corrupted_bytes_received			( 0 ),
 			avg_corrupted_byte_size_received	( 0 ),
 			clock_paradox_message_drops			( 0 ),
+<<<<<<< HEAD
 			metrics_counter						( 0 )
+=======
+			metrics_counter								( 0 )
+>>>>>>> scl_atp_adm
 #endif
 		{};
 		// --------------------------------------------------------------------
@@ -170,12 +174,15 @@ namespace wiselib
 			recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive>( this );
 #ifdef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
+<<<<<<< HEAD
 			beacon_scheduler();
 #else
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( rand()() % get_beacon_period(), this, 0 );
 #endif
 #else
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RAND_STARTUP
+=======
+>>>>>>> scl_atp_adm
 			debug().debug("%x:%i:%d:%d:%d:R\n", radio().id(), transmission_power_dB, beacon_period, nd_daemon_period, ND_STATS_DURATION );
 			timer().template set_timer<self_t, &self_t::beacons> ( rand()() % get_beacon_period(), this, 0 );
 #else
@@ -446,7 +453,11 @@ namespace wiselib
 #endif
 #endif
 
+<<<<<<< HEAD
 
+=======
+                                        
+>>>>>>> scl_atp_adm
 					for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 					{
 						uint8_t found_flag = 0;
@@ -1304,7 +1315,11 @@ namespace wiselib
                                                                                 ,position.get_x()
                                                                                 ,position.get_y()
 #endif
+<<<<<<< HEAD
 
+=======
+                                
+>>>>>>> scl_atp_adm
                                                                                 );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_METRICS_DAEMON
 			debug().debug("NeighborDiscovery - nd_metrics_daemon - Exiting.\n" );
@@ -1401,7 +1416,7 @@ namespace wiselib
 		size_t protocol_max_payload_size;
 		uint8_t protocol_max_payload_size_strategy;
 		millis_t nd_daemon_period;
-#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+//#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 		uint32_t messages_received;
 		uint32_t bytes_received;
 		uint32_t avg_bytes_size_received;
@@ -1412,7 +1427,7 @@ namespace wiselib
 		uint32_t corrupted_bytes_received;
 		uint32_t avg_corrupted_byte_size_received;
 		uint32_t clock_paradox_message_drops;
-#endif
+//#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;
 #endif
