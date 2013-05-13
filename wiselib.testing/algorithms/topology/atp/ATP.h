@@ -32,7 +32,8 @@ namespace wiselib
 				typename Timer_P,
 				typename Rand_P,
 				typename Clock_P,
-				typename Debug_P
+				typename Debug_P,
+                                typename Messaging_P
 			>
 	class ATP_Type
 	{
@@ -45,6 +46,7 @@ namespace wiselib
 		typedef ASCL_P ASCL;
 		typedef Timer_P Timer;
 		typedef Clock_P Clock;
+                typedef Messaging_P Messaging;
 		typedef typename Radio::node_id_t node_id_t;
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
@@ -54,7 +56,7 @@ namespace wiselib
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Clock::time_t time_t;
 		typedef Message_Type<Os, Radio, Debug> Message;
-		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug> self_type;
+		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug,Messaging> self_type;
 		typedef typename ASCL::ProtocolSettings ProtocolSettings;
 		typedef typename ASCL::Neighbor Neighbor;
 		typedef typename ASCL::ProtocolPayload ProtocolPayload;
@@ -66,7 +68,6 @@ namespace wiselib
 		typedef typename ASCL::Neighbor_vector_iterator Neighbor_vector_iterator;
 		typedef typename ASCL::ProtocolPayload_vector ProtocolPayload_vector;
 		typedef typename ASCL::ProtocolPayload_vector_iterator ProtocolPayload_vector_iterator;
-		typedef wiselib::ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug> ATP;
 		// -----------------------------------------------------------------------
 		ATP_Type() :
 			radio_callback_id						( 0 ),
@@ -142,13 +143,13 @@ namespace wiselib
 							debug().debug("COORD:%d:%d:%f:%f\n", monitoring_phases, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-							debug().debug("COORD:%d:%x:%d:%d\n", monitoring_phases, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
+							debug().debug("COORD:%d:%x:%d:%d", monitoring_phases, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #endif
 #ifdef DEBUG_ATP_H_ATP_SERVICE
@@ -172,7 +173,7 @@ namespace wiselib
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 				if ( prot_ref->get_neighborhood_active_size() < SCLD_MIN )
 				{
@@ -217,8 +218,8 @@ namespace wiselib
 						debug().debug( "NB:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), i->get_id(),i->get_position().get_x(), i->get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
-						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), i->get_position().get_x(), i->get_position().get_y() );
+						debug().debug( "NB:%d:%x:%x:%d:%d", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
+						debug().debug( "NB:%d:%x:%x:%d:%d", monitoring_phase_counter, radio().id(), i->get_id(), i->get_position().get_x(), i->get_position().get_y() );
 					}
 #endif
 				}
@@ -229,7 +230,7 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
+					debug().debug( "LOCAL_MINIMUM:%d:%x:%d", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 				}
 				else if (prot_ref->get_neighborhood_active_size() > SCLD_MAX )
@@ -238,7 +239,7 @@ namespace wiselib
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug( "LOCAL_MAXIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
+					debug().debug( "LOCAL_MAXIMUM:%d:%x:%d", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 				}
 #endif
@@ -264,7 +265,7 @@ namespace wiselib
 				else
 				{
 					ATP_service_disable();
-					scl().set_beacon_period( 500 );
+					//scl().set_beacon_period( 500 );
 				}
 #endif
 			}
@@ -275,12 +276,10 @@ namespace wiselib
 		{
 			if ( status == ACTIVE_STATUS )
 			{
+				debug().debug( "ATP - ATP_service_disable %x - Entering.", radio().id() );
+                                messaging().enable(ASCL::ATP_PROTOCOL_ID);
 #ifdef DEBUG_ATP_H_ATP_SERVICE_DISABLE
-				debug().debug( "ATP - ATP_service_disable %x - Entering.\n", radio().id() );
-#endif
 				scl().disable();
-#ifdef DEBUG_ATP_H_ATP_SERVICE_DISABLE
-				debug().debug( "ATP - ATP_service_disable %x - Exiting.\n", radio().id() );
 #endif
 			}
 		}
@@ -341,7 +340,7 @@ namespace wiselib
 			}
 		}
 		// -----------------------------------------------------------------------
-		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, ASCL& scl )
+		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, ASCL& scl ,Messaging& messaging)
 		{
 			_radio = &radio;
 			_timer = &timer;
@@ -349,6 +348,7 @@ namespace wiselib
 			_rand = &rand;
 			_clock = &clock;
 			_scl = &scl;
+                        _messaging = &messaging;
 		}
 		// -----------------------------------------------------------------------
 		void set_status( int _st )
@@ -386,6 +386,9 @@ namespace wiselib
 		{
 			return *_scl;
 		}
+                Messaging& messaging(){
+                        return *_messaging;
+                }
 		// -----------------------------------------------------------------------
 		Radio* _radio;
 		Timer* _timer;
@@ -393,6 +396,7 @@ namespace wiselib
 		Rand* _rand;
 		Clock* _clock;
 		ASCL* _scl;
+                Messaging* _messaging;
 		enum atp_status
 		{
 			ACTIVE_STATUS,
