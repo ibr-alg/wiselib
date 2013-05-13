@@ -85,11 +85,11 @@ namespace wiselib {
 			}
 			
 			TokenStateMessageT& token() {
-				return reinterpret_cast<TokenStateMessageT&>(data_[POS_TOKEN_STATE_MESSAGE]);
+				return *reinterpret_cast<TokenStateMessageT*>(data_ + POS_TOKEN_STATE_MESSAGE);
 			}
 			
 			TreeStateMessageT& tree() {
-				return reinterpret_cast<TreeStateMessageT&>(data_[POS_TREE_STATE_MESSAGE]);
+				return *reinterpret_cast<TreeStateMessageT*>(data_ + POS_TREE_STATE_MESSAGE);
 			}
 			
 			block_data_t* data() {
@@ -97,7 +97,14 @@ namespace wiselib {
 			}
 			
 			size_type size() {
-				return token().size() + tree().size();
+				return POS_TOKEN_STATE_MESSAGE + token().size() + tree().size();
+			}
+			
+			void check() {
+				DBG("// sizeof(StateMessage::message_id_t) = %d", sizeof(message_id_t));
+				assert(type() == MESSAGE_TYPE);
+				tree().check();
+				token().check();
 			}
 		
 		private:

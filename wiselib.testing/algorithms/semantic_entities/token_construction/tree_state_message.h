@@ -139,6 +139,11 @@ namespace wiselib {
 				return POS_ENTITIES + ENTITY_SIZE * entity_count();
 			}
 			
+			void check() {
+				DBG("// sizeof(TreeStateMessage::message_id_t) = %d", sizeof(message_id_t));
+				assert(type() == MESSAGE_TYPE);
+			}
+			
 		private:
 			block_data_t* entity_description(entity_count_t i) {
 				return data_ + POS_ENTITIES + ENTITY_SIZE * i;

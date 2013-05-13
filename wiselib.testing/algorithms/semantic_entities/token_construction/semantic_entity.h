@@ -76,6 +76,19 @@ namespace wiselib {
 					TreeState() : parent_(0), root_(std::numeric_limits<node_id_t>::max()), distance_(-1) {
 					}
 					
+					TreeState(const TreeState& other) {
+						*this = other;
+					}
+					
+					TreeState& operator=(const TreeState& other) {
+						DBG("TreeState::op=() other: parent=%d root=%d distance=%d", other.parent_,
+								other.root_, other.distance_);
+						parent_ = other.parent_;
+						root_ = other.root_;
+						distance_ = other.distance_;
+						return *this;
+					}
+					
 					void reset() {
 						// TODO
 					}
@@ -278,8 +291,8 @@ namespace wiselib {
 				
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
-					DBG("node %d SE %d.%d neighbor %d neighbor_parent %d",
-							mynodeid, id().rule(), id().value(), iter->first, iter->second.parent());
+					DBG("node %d SE %d.%d neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
+							mynodeid, id().rule(), id().value(), iter->first, iter->second.parent(), iter->second.root(), iter->second.distance());
 					if(iter->second.parent() == mynodeid) {
 						DBG("// %d found child %d", mynodeid, iter->first)
 						if(childs_.find(iter->first) == childs_.end()) {
@@ -295,6 +308,10 @@ namespace wiselib {
 				node_id_t parent = mynodeid;
 				node_id_t root = mynodeid;
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
+					if(iter->second.parent() == mynodeid) {
+						continue;
+					}
+					
 					if(iter->second.root() < root) {
 						parent = iter->first;
 						root = iter->second.root();
@@ -475,9 +492,9 @@ namespace wiselib {
 				return idx;
 			}
 			
-			State& child_state(size_type idx) {
-				return neighbor_states_[childs_[idx]];
-			}
+			//State& child_state(size_type idx) {
+				//return neighbor_states_[childs_[idx]];
+			//}
 			
 			node_id_t child_address(size_type idx) {
 				if(idx >= childs_.size()) {

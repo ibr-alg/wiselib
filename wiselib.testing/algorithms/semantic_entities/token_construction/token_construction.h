@@ -30,6 +30,8 @@
 
 #include "state_message.h"
 
+#include <util/debugging.h>
+
 /*
  * TODO
  * - If SE's tree state changes, resend token to next in ring! (as ring
@@ -50,7 +52,8 @@ namespace wiselib {
 		typename OsModel_P,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
-		typename Clock_P = typename OsModel_P::Clock
+		typename Clock_P = typename OsModel_P::Clock,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class TokenConstruction {
 		public:
@@ -61,7 +64,8 @@ namespace wiselib {
 				OsModel_P,
 				Radio_P,
 				Timer_P,
-				Clock_P
+				Clock_P,
+				Debug_P
 			> self_type;
 			typedef self_type* self_pointer_t;
 			
@@ -75,6 +79,7 @@ namespace wiselib {
 			typedef Clock_P Clock;
 			typedef typename Clock::time_t time_t;
 			typedef ::uint32_t abs_millis_t;
+			typedef Debug_P Debug;
 			
 			typedef ::uint8_t token_count_t;
 			typedef SemanticEntity<OsModel> SemanticEntityT;
@@ -151,10 +156,11 @@ namespace wiselib {
 				// }}}
 			};
 			
-			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock) {
+			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug) {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
+				debug_ = debug;
 				caffeine_level_ = 0;
 				
 				timing_controller_.init(timer_, clock_);
@@ -353,7 +359,20 @@ namespace wiselib {
 				}
 				push_caffeine();
 				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				radio_->send(se.next_token_node(), msg.size(), msg.data());
+				DBG("// %d sending complete state of %d.%d to %d verify se: %d.%d",
+						radio_->id(), se.id().rule(), se.id().value(), se.next_token_node(),
+						msg.tree().get_entity_id(0).rule(),
+						msg.tree().get_entity_id(0).value()
+						);
+				
+				debug_buffer<OsModel, 16>(debug_, msg.data(), msg.size());
+				
+				if(se.next_token_node() != radio_->id()) {
+					radio_->send(se.next_token_node(), msg.size(), msg.data());
+				}
+				else {
+					DBG("// would send to self -> ignoring");
+				}
 				pop_caffeine();
 			}
 			
@@ -394,27 +413,36 @@ namespace wiselib {
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				time_t t_recv = packet_info->received();
 				const node_id_t &from = packet_info->from();
-				//const typename Radio::size_t& len = packet_info->length();
+				const typename Radio::size_t& len = packet_info->length();
 				block_data_t *data = packet_info->data();
 				
 				message_id_t msgtype = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				switch(msgtype) {
 					case MESSAGE_TYPE_STATE: {
+						DBG("// %d recv complete state from %d", radio_->id(), from);
+						
+						debug_buffer<OsModel, 16>(debug_, data, len);
+						
 						StateMessageT &msg = reinterpret_cast<StateMessageT&>(*data);
+						msg.check();
 						on_receive_tree_state(msg.tree(), from, t_recv);
 						on_receive_token_state(msg.token(), from, t_recv);
 						break;
 					}
 					
 					case MESSAGE_TYPE_TREE_STATE: {
+						DBG("// %d recv tree state from %d", radio_->id(), from);
 						TreeStateMessageT &msg = reinterpret_cast<TreeStateMessageT&>(*data);
+						msg.check();
 						on_receive_tree_state(msg, from, t_recv);
 						break;
 					}
 					
 					case MESSAGE_TYPE_TOKEN_STATE: {
+						DBG("// %d recv token state from %d", radio_->id(), from);
 						TokenStateMessageT &msg = reinterpret_cast<TokenStateMessageT&>(*data);
+						msg.check();
 						on_receive_token_state(msg, from, t_recv);
 						break;
 					}
@@ -428,6 +456,7 @@ namespace wiselib {
 			} // on_receive_task()
 			
 			void on_receive_tree_state(TreeStateMessageT& msg, node_id_t from, time_t t_recv) {
+				
 				switch(msg.reason()) {
 					case TreeStateMessageT::REASON_REGULAR_BCAST:
 						timing_controller_.regular_broadcast(from, t_recv, radio_->id());
@@ -440,8 +469,12 @@ namespace wiselib {
 				
 				
 				for(size_type i = 0; i < msg.entity_count(); i++) {
+					
 					TreeState s = msg.get_entity_state(i);
 					SemanticEntityId sid = msg.get_entity_id(i);
+					
+					DBG("node %d // recv se tree state from %d SE %d.%d parent %d",
+							radio_->id(), from, sid.rule(), sid.value(), s.parent());
 					
 					bool found;
 					SemanticEntityT &se = find_entity(sid, found);
@@ -711,7 +744,7 @@ namespace wiselib {
 			 * @return if internal tree change actually has been changed.
 			 */
 			bool process_neighbor_tree_state(node_id_t source, TreeState& state, SemanticEntityT& se) {
-				//DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d", radio_->id(), source, se.id().rule(), se.id().value());
+				DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d neigh.parent=%d", radio_->id(), source, se.id().rule(), se.id().value(), state.parent());
 				se.neighbor_state(source) = state;
 				bool active_before = se.is_active(radio_->id());
 				bool r = se.update_state(radio_->id());
@@ -753,7 +786,7 @@ namespace wiselib {
 			SemanticEntities entities_;
 			TimingControllerT timing_controller_;
 			size_type caffeine_level_;
-			
+			typename Debug::self_pointer_t debug_;
 	}; // TokenConstruction
 }
 

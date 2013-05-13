@@ -103,7 +103,7 @@ class ExampleApplication
 		#pragma GCC diagnostic pop
 		
 		void init_tc() {
-			token_construction_.init(radio_, timer_, clock_);
+			token_construction_.init(radio_, timer_, clock_, debug_);
 			
 			for(size_t i = 0; i < 4; i++) {
 				if((radio_->id() >> i) & 0x01) {

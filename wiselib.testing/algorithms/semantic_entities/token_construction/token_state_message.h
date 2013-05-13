@@ -59,8 +59,8 @@ namespace wiselib {
 			
 			enum Positions {
 				POS_MESSAGE_ID = 0,
-				POS_FROM = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_ENTITY_ID = POS_FROM + sizeof(node_id_t),
+				//POS_FROM = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_ENTITY_ID = POS_MESSAGE_ID + sizeof(message_id_t), //POS_FROM + sizeof(node_id_t),
 				POS_TOKEN_STATE = POS_ENTITY_ID + sizeof(SemanticEntityId),
 				
 				POS_END = POS_TOKEN_STATE + sizeof(TokenState)
@@ -114,6 +114,10 @@ namespace wiselib {
 				return POS_END;
 			}
 			
+			void check() {
+				DBG("// sizeof(TokenStateMessage::message_id_t) = %d", sizeof(message_id_t));
+				assert(type() == MESSAGE_TYPE);
+			}
 		
 		private:
 			block_data_t data_[MAX_MESSAGE_LENGTH];
