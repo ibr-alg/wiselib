@@ -230,10 +230,18 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void beacon_scheduler( void* _data = NULL )
 		{
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACON_SCHEDULER
+			debug().debug("NeighborDiscovery - beacon_scheduler - Entering scheduler\n", radio().id() );
+#endif
 			millis_t bp = get_beacon_period();
-			uint32_t backoff_beacon_period = rand()() % bp - 50;
+			uint32_t backoff_beacon_period = rand()() % ( bp - 50 );
+			time_t current_time = clock().time();
+			debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
 			timer().template set_timer<self_t, &self_t::beacons>( backoff_beacon_period, this, 0 );
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACON_SCHEDULER
+			debug().debug("NeighborDiscovery - beacon_scheduler - Exiting scheduler\n", radio().id() );
+#endif
 		}
 		// --------------------------------------------------------------------
 		void beacons( void* _data = NULL )
@@ -367,10 +375,13 @@ namespace wiselib
 						{
 							q_sort_neigh_active_con( 0, beacon.get_neighborhood_ref()->size() - 1, *( beacon.get_neighborhood_ref() ) );
 						}
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
 						Protocol* p_ptr_atp = get_protocol_ref( ATP_PROTOCOL_ID );
-						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size() );
-//#endif
+						time_t current_time = clock().time();
+						debug().debug("SCLD:%x:[%d:%d] - %d:%d:%d:%d:%d:%d",radio().id(), Radio::MAX_MESSAGE_LENGTH, beacon.serial_size(), nv.size(), SCLD, p_ptr_atp->get_neighborhood_active_size(), p_ptr->get_neighborhood_active_size(),
+																			clock().seconds( current_time ),
+																			clock().milliseconds( current_time ) );
+#endif
 #endif
 
 						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
