@@ -28,10 +28,10 @@
 #define MAX_PG_PAYLOAD 30
 
 #define IMIN 1000 //change based on ND_RELAX_MILLIS
-#define IMAX 2000
+#define IMAX 3000
 #define PERIOD 1000
 #define I_STEP 100
-#define MESG_THRESHOLD 2
+
 
 #ifndef SHAWN        
 typedef uint8_t lqi_t;

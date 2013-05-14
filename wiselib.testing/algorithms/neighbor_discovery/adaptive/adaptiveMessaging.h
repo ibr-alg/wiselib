@@ -65,6 +65,7 @@ namespace wiselib {
             bool updated;
             int8_t trust_counter;
             int8_t trust_counter_inverse;
+            bool active;
         };
 
         typedef struct node_info node_info_t;
@@ -121,6 +122,9 @@ namespace wiselib {
             _protocolID = protocolID;
             //internal initialization
             initialization();
+            
+            Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
+            prot_ref->get_protocol_settings_ref()->set_min_link_stab_ratio_threshold(0);
         }
 
         // --------------------------------------------------------------------
@@ -147,13 +151,13 @@ namespace wiselib {
             Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
             for (Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i) {
                 if (i->get_active() == 1) {
-                    debug().debug("Node:%x:Neighbor:%x:is_active", radio().id(), i->get_id());
+                    debug().debug("Node:%x:Neighbor:%x:is_active\n", radio().id(), i->get_id());
                     add_neighbor(i->get_id(), i->get_trust_counter(), i->get_trust_counter_inverse());
                 }
             }
 
 #ifdef STATISTICS_ADM_INTERVAL_CHANGES
-            debug().debug("ADM:I_:set:%d", I_);
+            debug().debug("ADM:I_:set:%d\n", I_);
 #endif
             timer().template set_timer<self_t, &self_t::check_period>(20 * I_, this, (void *) 0);
         };
@@ -164,6 +168,7 @@ namespace wiselib {
             neighbor.updated = true;
             neighbor.trust_counter = trust_counter;
             neighbor.trust_counter_inverse = trust_counter_inverse;
+            neighbor.active = true;
             neighbours.push_back(neighbor);
         }
 
@@ -175,11 +180,11 @@ namespace wiselib {
 #elif defined TRICKLE_ADAPTATION
             I_ = 2 * I_ > IMAX ? IMAX : 2 * I_;
 #else 
-#warning "There is no strategy defined for change I_"            
+#warning "There is no strategy defined for change I_\n"            
 #endif
             scl_->set_beacon_period(I_);
 #ifdef STATISTICS_ADM_INTERVAL_CHANGES
-            debug().debug("ADM:I_:increase:%d", I_);
+            debug().debug("ADM:I_:increase:%d\n", I_);
 #endif
         }
 
@@ -189,11 +194,11 @@ namespace wiselib {
 #elif defined TRICKLE_ADAPTATION
             I_ = IMIN; //TRICKLE
 #else
-#warning "There is no strategy defined for change I_"            
+#warning "There is no strategy defined for change I_\n"            
 #endif
             scl_->set_beacon_period(I_);
 #ifdef STATISTICS_ADM_INTERVAL_CHANGES
-            debug().debug("ADM:I_:decrease:%d", I_);
+            debug().debug("ADM:I_:decrease:%d\n", I_);
 #endif            
         }
 
@@ -213,14 +218,14 @@ namespace wiselib {
                 increase_interval();
             }
 
-            debug().debug("ADM:check_period:%d", rate_changes_count);
-            rate_changes_count++;
-
-            if (rate_changes_count > 10) {
-                debug().debug("ADM:I_:%d:locked:%d", I_, rate_changes_count);
-            } else {
+//            debug().debug("ADM:check_period:%d\n", rate_changes_count);
+//            rate_changes_count++;
+//
+//            if (rate_changes_count > 10) {
+//                debug().debug("ADM:I_:%d:locked:%d\n", I_, rate_changes_count);
+//            } else {
                 timer().template set_timer<self_t, &self_t::check_period>(20 * I_, this, (void *) 0);
-            }
+//            }
         }
 
         /**
@@ -232,20 +237,21 @@ namespace wiselib {
             for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
                 it->updated = false;
             }
+            size_t C_SCLD=0;
             int diff_new = 0, diff_old = 0, diff_inverse_new = 0, diff_inverse_old = 0, new_count = 0, drop_count = 0;
             //TODO: stabilize using mean values and stdevs <<-- inverse (ie. UP inc beaconing /  k% diff to average / count changed)
+            Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
             if (neighbours.size() > 0) {
-                Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
-                for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
+                for (Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i) {
                     bool found = false;
-                    for (Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i) {
-                        //                    if (i->get_active() == 1) {
+                    for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
+                        //                        if (i->get_active() == 1) {
                         if (it->id == i->get_id()) {
                             found = true;
 #ifdef DEBUG_ADM_NODE_CHANGES
-                            debug().debug("Node:%x:Neighbor:%x:%d->%d:%d->%d", radio().id(), i->get_id(), it->trust_counter, i->get_trust_counter(), it->trust_counter_inverse, i->get_trust_counter_inverse());
+                            debug().debug("Node:%x:Neighbor:%x:%d->%d:%d->%d\n", radio().id(), i->get_id(), it->trust_counter, i->get_trust_counter(), it->trust_counter_inverse, i->get_trust_counter_inverse());
 #endif
-
+                            
                             diff_old += it->trust_counter;
                             diff_new += i->get_trust_counter();
                             diff_inverse_old += it->trust_counter_inverse;
@@ -254,57 +260,69 @@ namespace wiselib {
                             it->trust_counter = i->get_trust_counter();
                             it->trust_counter_inverse = i->get_trust_counter_inverse();
                             it->updated = true;
+                            
+                            if (i->get_trust_counter_inverse()>=3){
+                                C_SCLD++;
+                            }
                         }
+                        //                        }
+//#ifdef ADM_CHECK_FOR_NEW
+//                        if (!found) {
+//#ifdef DEBUG_ADM_NODE_CHANGES
+//                            debug().debug("Node:%x:Neighbor:%x:new\n", radio().id(), i->get_id());
+//#endif                          
+//                            new_count++;
+//                            add_neighbor(i->get_id(), i->get_trust_counter(), i->get_trust_counter_inverse());
+//                            new_state = INCONSISTENCY;
+//                        }
+//#endif
                     }
-#ifdef ADM_CHECK_FOR_NEW
-                    if (!found) {
-#ifdef DEBUG_ADM_NODE_CHANGES
-                        debug().debug("Node:%x:Neighbor:%x:new", radio().id(), i->get_id());
-#endif                          
-                        new_count++;
-                        add_neighbor(i->get_id(), i->get_trust_counter(), i->get_trust_counter_inverse());
-                        new_state = INCONSISTENCY;
-                    }
-#endif
-                    //                    }
                 }
 
-#ifdef ADM_CHECK_FOR_DROPPED
-                for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
-                    if (!it->updated) {
-#ifdef DEBUG_ADM_NODE_CHANGES
-                        debug().debug("Node:%x:Neighbor:%x:dropped", radio().id(), it->id);
-#endif
-                        drop_count++;
-                        new_state = INCONSISTENCY;
-                        neighbours.erase(it);
-                        it--;
-                    }
-                }
-#endif
-                if ((diff_new < diff_old) || (diff_inverse_new < diff_inverse_old) || (new_count < drop_count)) {
+//#ifdef ADM_CHECK_FOR_DROPPED
+//                for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
+//                    if (!it->updated) {
+//#ifdef DEBUG_ADM_NODE_CHANGES
+//                        debug().debug("Node:%x:Neighbor:%x:dropped\n", radio().id(), it->id);
+//#endif
+//                        drop_count++;
+//                        new_state = INCONSISTENCY;
+//                        neighbours.erase(it);
+//                        it--;
+//                    }
+//                }
+//#endif
+                
+//                if ((diff_new < diff_old) || (diff_inverse_new < diff_inverse_old) || (new_count < drop_count)) {
+//                    new_state = INCONSISTENCY;
+//                } else {
+//                    new_state = CONSISTENCY;
+//                }
+                debug().debug("Node:%x:C_SCLD:%d->%d\n", radio().id(), neighbours.size(),C_SCLD);
+                if (C_SCLD!=neighbours.size()) {
                     new_state = INCONSISTENCY;
                 } else {
                     new_state = CONSISTENCY;
                 }
-                debug().debug("Node:%x:diff:%d->%d", radio().id(), diff_old, diff_new);
-                debug().debug("Node:%x:diff_inverse:%d->%d", radio().id(), diff_inverse_old, diff_inverse_new);
-                debug().debug("Node:%x:count:%d:%d", radio().id(), new_count, drop_count);
+
+                debug().debug("Node:%x:diff:%d->%d\n", radio().id(), diff_old, diff_new);
+                debug().debug("Node:%x:diff_inverse:%d->%d\n", radio().id(), diff_inverse_old, diff_inverse_new);
+                debug().debug("Node:%x:count:%d:%d\n", radio().id(), new_count, drop_count);
 
                 state_ = new_state;
 #ifdef DEBUG_ADM_CONSISTENCY
-                debug().debug("Node:%x:Consistency:%d", radio().id(), state_);
+                debug().debug("Node:%x:Consistency:%d\n", radio().id(), state_);
 #endif
             } else {
                 state_ = INCONSISTENCY;
             }
 
-
+            prot_ref->print(debug(), radio());
 
         }
 
         bool enabled_;
-        
+
         uint8_t rate_changes_count;
 
         uint16_t I_;

@@ -143,17 +143,17 @@ namespace wiselib
 							debug().debug("COORD:%d:%d:%f:%f\n", monitoring_phases, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-							debug().debug("COORD:%d:%x:%d:%d", monitoring_phases, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
+							debug().debug("COORD:%d:%x:%d:%d\n", monitoring_phases, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #endif
 #ifdef DEBUG_ATP_H_ATP_SERVICE
-					debug().debug("MILLIS:%d:%d:%d", convergence_time,  monitoring_phases,  convergence_time/monitoring_phases);
+					debug().debug("MILLIS:%d:%d:%d\n", convergence_time,  monitoring_phases,  convergence_time/monitoring_phases);
 #endif
 					monitoring_phase_counter = monitoring_phase_counter + 1;
 					timer().template set_timer<self_type, &self_type::ATP_service> ( convergence_time/monitoring_phases, this, 0 );
@@ -173,7 +173,7 @@ namespace wiselib
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("CON:%d:%x:%d:%d:%i:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), prot_ref->get_neighborhood_active_size(), prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, convergence_time, monitoring_phases, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 				if ( prot_ref->get_neighborhood_active_size() < SCLD_MIN )
 				{
@@ -218,8 +218,8 @@ namespace wiselib
 						debug().debug( "NB:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), i->get_id(),i->get_position().get_x(), i->get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-						debug().debug( "NB:%d:%x:%x:%d:%d", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
-						debug().debug( "NB:%d:%x:%x:%d:%d", monitoring_phase_counter, radio().id(), i->get_id(), i->get_position().get_x(), i->get_position().get_y() );
+						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
+						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), i->get_position().get_x(), i->get_position().get_y() );
 					}
 #endif
 				}
@@ -230,7 +230,7 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug( "LOCAL_MINIMUM:%d:%x:%d", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
+					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 				}
 				else if (prot_ref->get_neighborhood_active_size() > SCLD_MAX )
@@ -239,7 +239,7 @@ namespace wiselib
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug( "LOCAL_MAXIMUM:%d:%x:%d", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
+					debug().debug( "LOCAL_MAXIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  prot_ref->get_neighborhood_active_size() );
 #endif
 				}
 #endif
@@ -276,8 +276,8 @@ namespace wiselib
 		{
 			if ( status == ACTIVE_STATUS )
 			{
-				debug().debug( "ATP - ATP_service_disable %x - Entering.", radio().id() );
-				//messaging().enable(ASCL::ATP_PROTOCOL_ID);
+				debug().debug( "ATP - ATP_service_disable %x - Entering.\n", radio().id() );
+				messaging().enable(ASCL::ATP_PROTOCOL_ID);
 #ifdef DEBUG_ATP_H_ATP_SERVICE_DISABLE
 				scl().disable();
 #endif

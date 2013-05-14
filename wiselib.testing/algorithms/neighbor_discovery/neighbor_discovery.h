@@ -236,7 +236,9 @@ namespace wiselib
 			millis_t bp = get_beacon_period();
 			uint32_t backoff_beacon_period = rand()() % ( bp - 50 );
 			time_t current_time = clock().time();
-			debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+//			debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
+#endif
 			timer().template set_timer<self_t, &self_t::beacons>( backoff_beacon_period, this, 0 );
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACON_SCHEDULER
