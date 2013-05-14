@@ -569,7 +569,8 @@ namespace wiselib
 			debug.debug( "active (size %i) : %d\n", sizeof(active), active );
 			debug.debug( "-------------------------------------------------------\n" );
 #else
-			if ( ( radio.id() != id ) && ( active ) )
+//			if ( ( radio.id() != id ) && ( active ) )
+                        if ( ( radio.id() != id ) )
 			{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_SHAWN
