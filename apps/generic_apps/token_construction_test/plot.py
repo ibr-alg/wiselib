@@ -43,25 +43,40 @@ def parse(f):
 			if m is None: return None
 			return m.group(2).strip()
 		
+		# strip off comments
+		
+		origline = line
+		comment_idx = line.find('//')
+		if comment_idx != -1: line = line[:comment_idx]
+		
+		# is this a begin iteration line?
+		
 		m = re.match('-+ BEGIN ITERATION (\d+)', line)
 		if m is not None:
 			t = int(m.group(1))
-			
-		if 'node' not in line:
-			continue
 		
+		# which node is this line about?
+		
+		if 'node' not in line: continue
 		name = nodename = get_value('node')
+		if name is None:
+			print ("[!!!] nodename is none in line: " + origline)
+		
+		# is it also about a SE?
+		
 		se = get_value('SE')
-		if se is not None:
-			name += ':' + se.rstrip('.')
-		if name not in nodes:
-			nodes[name] = {}
-			
+		if se is not None: name += ':' + se.rstrip('.')
+		if name not in nodes: nodes[name] = {}
+		
+		# update SE graph
+		
 		parent = get_value('parent')
 		if parent is not None and se is not None:
 			if se not in parents:
 				parents[se] = {}
 			parents[se][nodename] = parent
+			
+		# track other properties
 		
 		for k in properties:
 			v = get_value(k)

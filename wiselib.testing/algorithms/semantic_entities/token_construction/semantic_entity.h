@@ -81,7 +81,7 @@ namespace wiselib {
 					}
 					
 					TreeState& operator=(const TreeState& other) {
-						DBG("TreeState::op=() other: parent=%d root=%d distance=%d", other.parent_,
+						DBG("// TreeState::op=() other: parent=%d root=%d distance=%d", other.parent_,
 								other.root_, other.distance_);
 						parent_ = other.parent_;
 						root_ = other.root_;
