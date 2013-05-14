@@ -19,7 +19,7 @@ typedef uint16_t TimesNumber;
 typedef uint8 SecondsNumber;
 typedef uint32 AgentID;
 typedef wiselib::NeighborDiscovery_Type<Os, Radio, Clock, Timer, Rand, Debug> NeighborDiscovery;
-typedef wiselib::AdaptiveMessaging<Os, Radio, Timer, Debug, Rand,NeighborDiscovery> AdaptiveMessaging_t;
+typedef wiselib::AdaptiveMessaging<Os, Radio, Timer, Debug, Rand, NeighborDiscovery> AdaptiveMessaging_t;
 typedef wiselib::ATP_Type<Os, Radio, NeighborDiscovery, Timer, Rand, Clock, Debug, AdaptiveMessaging_t> ATP;
 
 NeighborDiscovery* neighbor_discovery;
@@ -37,7 +37,7 @@ void application_main(Os::AppMainParameter& value) {
     neighbor_discovery = new NeighborDiscovery();
     adm = new AdaptiveMessaging_t();
     neighbor_discovery->init(*wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_);
-    adm->init(*wiselib_radio_, *wiselib_clock_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_,*neighbor_discovery);
+    adm->init(*wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *neighbor_discovery);
     atp.init(*wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery, *adm);
     atp.enable();
 }
