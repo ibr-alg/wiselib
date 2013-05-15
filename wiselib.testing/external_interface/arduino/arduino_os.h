@@ -24,7 +24,7 @@
 #include "external_interface/arduino/arduino_clock.h"
 #include "external_interface/arduino/arduino_sdcard.h"
 #include "external_interface/arduino/arduino_ethernet_radio.h"
-
+#include "external_interface/arduino/arduino_bluetooth_radio.h"
 #include "util/serialization/endian.h"
 
 namespace wiselib
@@ -49,6 +49,9 @@ namespace wiselib
       typedef ArduinoClock<ArduinoOsModel> Clock;
 #if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
+#endif
+#if ARDUINO_USE_BLUETOOTH
+      typedef ArduinoBluetoothRadio<ArduinoOsModel> BluetoothRadio;
 #endif
 	  typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
 
