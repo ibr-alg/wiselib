@@ -755,7 +755,12 @@ namespace wiselib
 								( new_neighbor.get_link_stab_ratio() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_threshold() ) &&
 								( new_neighbor.get_link_stab_ratio() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_threshold() ) &&
 								( new_neighbor.get_link_stab_ratio_inverse() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_inverse_threshold() ) &&
-								( new_neighbor.get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() ) )
+								( new_neighbor.get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() )
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+								&& ( new_neighbor.get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
+								( new_neighbor.get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
+#endif
+					)
 						{
 							new_neighbor.set_active();
 							if ( found_flag == 1 )
@@ -1056,6 +1061,10 @@ namespace wiselib
 									( nit->get_link_stab_ratio() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_threshold() ) &&
 									( nit->get_link_stab_ratio_inverse() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_inverse_threshold() ) &&
 									( nit->get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() )
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+								&&	( nit->get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
+									( nit->get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
+#endif
 								)
 							{
 								nit->set_active();

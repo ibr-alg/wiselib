@@ -118,8 +118,12 @@ namespace wiselib {
          * 
          * 
          */
-        void enable(uint8_t protocolID) {
+        void enable(uint8_t protocolID, uint16_t _SCLD_MAX, uint16_t _SCLD_MIN, uint32_t _monitoring_phase_counter)
+        {
             enabled_ = true;
+            SCLD_MAX = _SCLD_MAX;
+            SCLD_MIN = _SCLD_MIN;
+            monitoring_phase_counter = _monitoring_phase_counter;
             _protocolID = protocolID;
             //internal initialization
             initialization();
@@ -288,7 +292,9 @@ namespace wiselib {
 
 
                 //check condition 1
-                if (cur_scld >= init_scld) {
+                //if (cur_scld >= init_scld) {
+
+                if (cur_scld >= SCLD_MIN) {
                     if (cur_avg_inverse_trust >= prev_avg_inverse_trust) {
                         new_state = CONSISTENCY;
                     } else {
@@ -342,6 +348,10 @@ namespace wiselib {
         Debug * debug_;
         Rand * rand_;
         ASCL * scl_;
+
+		uint16_t SCLD_MAX;
+		uint16_t SCLD_MIN;
+		uint32_t monitoring_phase_counter;
 
         Radio& radio() {
             return *radio_;

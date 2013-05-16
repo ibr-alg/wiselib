@@ -268,6 +268,7 @@ namespace wiselib
 					//scl().set_beacon_period( 500 );
 				}
 #endif
+				prot_ref->print( debug(), radio() );
 			}
 		}
 		// -----------------------------------------------------------------------
@@ -277,7 +278,7 @@ namespace wiselib
 			if ( status == ACTIVE_STATUS )
 			{
 				debug().debug( "ATP - ATP_service_disable %x - Entering.\n", radio().id() );
-				messaging().enable(ASCL::ATP_PROTOCOL_ID);
+				messaging().enable(ASCL::ATP_PROTOCOL_ID, SCLD_MAX, SCLD_MIN, monitoring_phase_counter);
 #ifdef DEBUG_ATP_H_ATP_SERVICE_DISABLE
 				scl().disable();
 #endif
