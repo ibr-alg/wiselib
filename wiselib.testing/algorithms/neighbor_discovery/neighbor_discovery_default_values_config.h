@@ -2,9 +2,9 @@
 //#define ND_MAX_NEIGHBORS 500 //shawn setting
 #define ND_MAX_NEIGHBORS 25
 #define ND_MAX_REGISTERED_PROTOCOLS 2
-#define ND_BEACON_PERIOD 500
+#define ND_BEACON_PERIOD 1000
 #define ND_TRANSMISSION_POWER_DB -30
-#define ND_DAEMON_PERIOD 250
+#define ND_DAEMON_PERIOD 500
 
 //benchmark settings
 #define ND_STATS_DURATION 5000

@@ -153,7 +153,7 @@ namespace wiselib
 									events_flag,
 									ProtocolSettings::RATIO_DIVIDER,
 									ND_RATIO_DIVIDER,
-									ProtocolSettings::MEAN_DEAD_TIME_PERIOD,
+									ProtocolSettings::NEW_DEAD_TIME_PERIOD,
 									ND_OLD_DEAD_TIME_PERIOD_WEIGHT,
 									ND_NEW_DEAD_TIME_PERIOD_WEIGHT,
 									ProtocolSettings::R_NR_WEIGHTED,
@@ -469,16 +469,16 @@ namespace wiselib
 						{
 							if ( _from == nit->get_id() )
 							{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 								if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 								{
 								debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is known for protocol %i.\n", radio().id(), _from, pit->get_protocol_id() );
 								}
-//#endif
+#endif
 								update_neighbor_it = nit;
 								found_flag = 1;
 								dead_time_res = clock().seconds( current_time ) * 1000 - clock().seconds( nit->get_last_beacon() ) * 1000 + clock().milliseconds( current_time ) - clock().milliseconds( nit->get_last_beacon() );
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 								if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 								{
 								if ( clock().milliseconds( current_time ) == 0 )
@@ -486,15 +486,15 @@ namespace wiselib
 									debug().debug( "NeighborDiscovery - receive %x - Clock paradox possibility from: %x - %d:%d minus %d:%d.\n", radio().id(), _from, clock().seconds( current_time ), clock().seconds( nit->get_last_beacon() ), clock().milliseconds( current_time ), clock().milliseconds( nit->get_last_beacon() ) );
 								}
 								}
-//#endif
+#endif
 								if ( dead_time_res < 0 )
 								{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 									if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 									{
 									debug().debug( "NeighborDiscovery - receive %x - Clock paradox from: %x - %d:%d minus %d:%d.\n", radio().id(), _from, clock().seconds( current_time ), clock().seconds( nit->get_last_beacon() ), clock().milliseconds( current_time ), clock().milliseconds( nit->get_last_beacon() ) );
 									}
-//#endif
+#endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 									clock_paradox_message_drops++;
 #endif
@@ -508,22 +508,22 @@ namespace wiselib
 								{
 									if ( dead_time < beacon.get_beacon_period() + beacon.get_beacon_period()/2 )
 									{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 										{
 										debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is on time same as advertised for protocol %i with dead_time : %d.\n", radio().id(), _from, pit->get_protocol_id(), dead_time );
 										}
-//#endif
+#endif
 										new_neighbor = *nit;
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 										{
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
@@ -536,22 +536,22 @@ namespace wiselib
 									}
 									else
 									{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 										{
 										debug().debug( "NeighborDiscovery - receive %x - Neighbor %x was late same as advertised for protocol %i with dead_time : %d.\n", radio().id(), _from, pit->get_protocol_id(), dead_time );
 										}
-//#endif
+#endif
 										new_neighbor = *nit;
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( ( dead_time / nit->get_beacon_period() ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 										{
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
@@ -567,22 +567,22 @@ namespace wiselib
 								{
 									if ( dead_time < beacon.get_beacon_period() + beacon.get_beacon_period()/2 )
 									{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 										{
 										debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is on time same as advertised for protocol %i with dead_time : %d.\n", radio().id(), _from, pit->get_protocol_id(), dead_time );
 										}
-//#endif
+#endif
 										new_neighbor = *nit;
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 										{
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
@@ -596,39 +596,39 @@ namespace wiselib
 									else
 									{
 //#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
-										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
+										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID )/* && ( radio().id() == 0x96f4 )*/ )
 										{
 										debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is late and not as advertised for protocol %id with dead_time : %d.\n", radio().id(), _from, pit->get_protocol_id(), dead_time );
 										}
 //#endif
 										//TODO overflow here.
-										uint32_t last_beacon_period_update = beacon.get_beacon_period_update_counter() * beacon.get_beacon_period();
+										//uint32_t last_beacon_period_update = beacon.get_beacon_period_update_counter() * beacon.get_beacon_period();
 										millis_t approximate_beacon_period = 0;
 										if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::NEW_DEAD_TIME_PERIOD )
 										{
 											approximate_beacon_period = beacon.get_beacon_period();
 										}
-										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::OLD_DEAD_TIME_PERIOD )
-										{
-											approximate_beacon_period = nit->get_beacon_period();
-										}
-										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::MEAN_DEAD_TIME_PERIOD )
-										{
-											approximate_beacon_period = ( beacon.get_beacon_period() + nit->get_beacon_period() ) / 2;
-										}
-										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::WEIGHTED_MEAN_DEAD_TIME_PERIOD )
-										{
-											approximate_beacon_period = ( beacon.get_beacon_period() * pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() + nit->get_beacon_period() * pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() ) / ( pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() + pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() );
-										}
-										uint32_t dead_time_messages_lost = ( dead_time - last_beacon_period_update ) * approximate_beacon_period;
+//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::OLD_DEAD_TIME_PERIOD )
+//										{
+//											approximate_beacon_period = nit->get_beacon_period();
+//										}
+//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::MEAN_DEAD_TIME_PERIOD )
+//										{
+//											approximate_beacon_period = ( beacon.get_beacon_period() + nit->get_beacon_period() ) / 2;
+//										}
+//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::WEIGHTED_MEAN_DEAD_TIME_PERIOD )
+//										{
+//											approximate_beacon_period = ( beacon.get_beacon_period() * pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() + nit->get_beacon_period() * pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() ) / ( pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() + pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() );
+//										}
+										uint32_t dead_time_messages_lost = ( dead_time/* - last_beacon_period_update*/ ) / approximate_beacon_period;
 										new_neighbor = *nit;
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
-										new_neighbor.inc_total_beacons_expected( ( dead_time_messages_lost + beacon.get_beacon_period_update_counter() ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
+										new_neighbor.inc_total_beacons_expected( /*(*/ dead_time_messages_lost /*+ beacon.get_beacon_period_update_counter() )*/ * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
 //#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
-										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
+										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 										{
-										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
+										debug().debug( "LSR:%x:%x:%d:%d:%d:%d:%d\n", radio().id(), new_neighbor.get_id(), dead_time_messages_lost, beacon.get_beacon_period(), nit->get_beacon_period(), dead_time, pit->resolve_beacon_weight( _from ), new_neighbor.get_total_beacons_expected() );
 										}
 //#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
@@ -649,12 +649,12 @@ namespace wiselib
 #endif
 						if ( found_flag == 0 )
 						{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 							{
 							debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is unknown for protocol %i.\n", radio().id(), _from, pit->get_protocol_id() );
 							}
-//#endif
+#endif
 							new_neighbor.set_id( _from );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 							new_neighbor.set_position( beacon.get_position() );
@@ -681,22 +681,22 @@ namespace wiselib
 						{
 							if ( radio().id() == nit->get_id() )
 							{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 								if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 								{
 								debug().debug( "NeighborDiscovery - receive %x - 1- Neighbor %x was aware of node for protocol %i nn %d - [%d:%d] [%d:%d].\n", radio().id(), _from, pit->get_protocol_id(), new_neighbor.get_id(), new_neighbor.get_link_stab_ratio(), new_neighbor.get_link_stab_ratio_inverse(), new_neighbor.get_trust_counter(), new_neighbor.get_trust_counter_inverse() );
 								}
-//#endif
+#endif
 								inverse_found_flag = 1;
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 								new_neighbor.inc_trust_counter_inverse();
 #endif
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 								if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 								{
 								debug().debug( "NeighborDiscovery - receive %x - 2 - Neighbor %x was aware of node for protocol %i nn %d - [%d:%d] [%d:%d].\n", radio().id(), _from, pit->get_protocol_id(), new_neighbor.get_id(), new_neighbor.get_link_stab_ratio(), new_neighbor.get_link_stab_ratio_inverse(), new_neighbor.get_trust_counter(), new_neighbor.get_trust_counter_inverse() );
 								}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 								if ( new_neighbor.get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
 								{
@@ -708,12 +708,12 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 									new_neighbor.set_avg_LQI_inverse( nit->get_avg_LQI() );
 #endif
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 									if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
 									{
 									debug().debug( "NeighborDiscovery - receive %x - Neighbor %x was aware of node for protocol %i nn %d INCREASING INVERSE- [%d:%d] [%d:%d].\n", radio().id(), _from, pit->get_protocol_id(), new_neighbor.get_id(), new_neighbor.get_link_stab_ratio(), new_neighbor.get_link_stab_ratio_inverse(), new_neighbor.get_trust_counter(), new_neighbor.get_trust_counter_inverse() );
 									}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 								}
 #endif
@@ -723,18 +723,19 @@ namespace wiselib
 						{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 							new_neighbor.dec_trust_counter_inverse();
-							if ( new_neighbor.get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
-							{
-#endif
-								new_neighbor.set_link_stab_ratio_inverse( 0 );
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-								new_neighbor.set_avg_RSSI_inverse( 0 );
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-								new_neighbor.set_avg_LQI_inverse( 0 );
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-							}
+
+//							if ( new_neighbor.get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
+//							{
+//#endif
+//								new_neighbor.set_link_stab_ratio_inverse( 0 );
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
+//								new_neighbor.set_avg_RSSI_inverse( 0 );
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
+//								new_neighbor.set_avg_LQI_inverse( 0 );
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+//							}
 #endif
 						}
 						uint8_t events_flag = 0;
@@ -990,10 +991,10 @@ namespace wiselib
 #endif
 							nit->inc_total_beacons_expected( dead_time / nit->get_beacon_period() * ( pit->resolve_lost_beacon_weight( nit->get_id() ) ) );
 							nit->update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
-							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) && ( radio().id() == 0x96f4 ) )
+//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
+							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
-								debug().debug( "LSRD:%x:%x:%d", radio().id(), nit->get_id(), nit->get_total_beacons_expected() );
+								debug().debug( "LSRD1:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
 //#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
@@ -1003,34 +1004,38 @@ namespace wiselib
 								nit->dec_trust_counter_inverse();
 							}
 #endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-							if ( nit->get_trust_counter() < ND_TRUST_COUNTER_THRESHOLD )
+							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
-#endif
-								nit->set_link_stab_ratio( 0 );
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-								nit->set_avg_LQI( 0 );
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-								nit->set_avg_RSSI( 0 );
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+								debug().debug( "LSRD2:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-							if ( nit->get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
-							{
-#endif
-								nit->set_link_stab_ratio_inverse( 0 );
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-								nit->set_avg_LQI_inverse( 0 );
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-								nit->set_avg_RSSI_inverse( 0 );
-#endif
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-							}
-#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+//							if ( nit->get_trust_counter() < ND_TRUST_COUNTER_THRESHOLD )
+//							{
+//#endif
+//								nit->set_link_stab_ratio( 0 );
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
+//								nit->set_avg_LQI( 0 );
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
+//								nit->set_avg_RSSI( 0 );
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+//							}
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+//							if ( nit->get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
+//							{
+//#endif
+//								nit->set_link_stab_ratio_inverse( 0 );
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
+//								nit->set_avg_LQI_inverse( 0 );
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
+//								nit->set_avg_RSSI_inverse( 0 );
+//#endif
+//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+//							}
+//#endif
 							nit->set_beacon_period( nit->get_beacon_period() );
 							nit->set_last_beacon( current_time );
 							uint8_t events_flag = 0;
