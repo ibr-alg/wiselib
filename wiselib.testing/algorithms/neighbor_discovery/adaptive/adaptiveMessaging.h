@@ -278,7 +278,7 @@ namespace wiselib {
 
                 prev_neighbours = prot_ref->get_neighborhood();
 
-                uint8_t cur_avg_inverse_trust = diff_inverse_new / cur_scld;
+                uint8_t cur_avg_inverse_trust = diff_inverse_new / init_scld;
 
                 debug().debug("Node:%x:scld:%d->%d->%d\n", radio().id(), init_scld, prev_scld, cur_scld);
                 //                debug().debug("Node:%x:diff:%d->%d\n", radio().id(), diff_old, diff_new);
