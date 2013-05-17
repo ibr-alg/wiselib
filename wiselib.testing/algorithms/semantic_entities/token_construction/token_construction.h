@@ -255,10 +255,10 @@ namespace wiselib {
 					iter->state().set_clean();
 				}
 				
-				//DBG("node %d push on_reg_broadcast", radio_->id());
+				DBG("node %d // push on_reg_broadcast", radio_->id());
 				push_caffeine();
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				//DBG("node %d pop on_reg_broadcast", radio_->id());
+				DBG("node %d // pop on_reg_broadcast", radio_->id());
 				pop_caffeine();
 				
 				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
@@ -286,10 +286,10 @@ namespace wiselib {
 				if(msg.entity_count()) {
 					//DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
 				
-					//DBG("node %d push on_dirty_broadcast", radio_->id());
+					DBG("node %d // push on_dirty_broadcast_state", radio_->id());
 					push_caffeine();
 					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-					//DBG("node %d pop on_dirty_broadcast", radio_->id());
+					DBG("node %d // pop on_dirty_broadcast_state", radio_->id());
 					pop_caffeine();
 				
 				}
@@ -320,10 +320,10 @@ namespace wiselib {
 					if(msg.entity_count()) {
 						//DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
 					
-						//DBG("node %d push on_dirty_broadcast", radio_->id());
+						DBG("node %d // push on_awake_broadcast_state", radio_->id());
 						push_caffeine();
 						radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-						//DBG("node %d pop on_dirty_broadcast", radio_->id());
+						DBG("node %d // pop on_awake_broadcast_state", radio_->id());
 						pop_caffeine();
 					
 					}
@@ -357,6 +357,7 @@ namespace wiselib {
 				if(set_clean) {
 					se.state().set_clean();
 				}
+				DBG("node %d // push pass_on_state SE %d.%d set_clean %d", radio_->id(), se.id().rule(), se.id().value(), set_clean);
 				push_caffeine();
 				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				DBG("// %d sending complete state of %d.%d to %d verify se: %d.%d",
@@ -373,6 +374,7 @@ namespace wiselib {
 				else {
 					DBG("// would send to self -> ignoring");
 				}
+				DBG("node %d // pop pass_on_state SE %d.%d set_clean %d", radio_->id(), se.id().rule(), se.id().value(), set_clean);
 				pop_caffeine();
 			}
 			
@@ -668,6 +670,7 @@ namespace wiselib {
 				if(!se.is_awake()) {
 					DBG("node %d SE %d.%d awake=1 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
 					se.set_awake(true);
+					DBG("node %d // push begin_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					push_caffeine();
 				}
 			}
@@ -682,6 +685,7 @@ namespace wiselib {
 				if(se.is_awake()) {
 					se.set_awake(false);
 					DBG("node %d SE %d.%d awake=0 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
+					DBG("node %d // pop end_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					pop_caffeine();
 				}
 			}
@@ -689,7 +693,8 @@ namespace wiselib {
 			/**
 			 */
 			void begin_activity(void* se_) {
-				//SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				DBG("node %d // push begin_activity SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 				push_caffeine();
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
 			}
@@ -711,7 +716,7 @@ namespace wiselib {
 				// beginning!
 				//assert(se.is_active(radio_->id()));
 				se.update_token_state(radio_->id());
-				//assert(!se.is_active(radio_->id()));
+				assert(!se.is_active(radio_->id()));
 				
 				// it might be the case that our activity period started
 				// before us waking up to wait for the token.
@@ -725,11 +730,13 @@ namespace wiselib {
 				
 				if(scheduled) {
 					end_wait_for_token(se_);
-					pop_caffeine();
+					DBG("node %d // pop end_activity SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
+					pop_caffeine(); // also pop activity caffeine
 				}
 				else {
 					// the timing controller refused to schedule the waking up
 					// for us, so lets just not go to sleep
+					DBG("node %d // pop end_activity2 SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					pop_caffeine(); // pop activity caffeine (wait-for-token caff still on stack)
 					DBG("// node %d staying awake for another round on behalf of %d.%d", radio_->id(), se.id().rule(), se.id().value());
 				}
@@ -745,8 +752,9 @@ namespace wiselib {
 			 */
 			bool process_neighbor_tree_state(node_id_t source, TreeState& state, SemanticEntityT& se) {
 				DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d neigh.parent=%d", radio_->id(), source, se.id().rule(), se.id().value(), state.parent());
-				se.neighbor_state(source) = state;
 				bool active_before = se.is_active(radio_->id());
+				
+				se.neighbor_state(source) = state;
 				bool r = se.update_state(radio_->id());
 				
 				if(se.is_active(radio_->id()) && !active_before) {
