@@ -234,7 +234,7 @@ def fig_timings():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 101))
+	last_ax.set_xlim((-1, 801))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -322,8 +322,8 @@ for k, v in parents.items():
 	for src, tgt in v.items():
 		print ("  " + src + " -> " + tgt)
 
-#print("duty cycle graph...")
-#fig_duty_cycle() #r'.*:1\.2')
+print("duty cycle graph...")
+fig_duty_cycle() #r'.*:1\.2')
 print("timings graph...")
 fig_timings()
 #print("counts graph...")

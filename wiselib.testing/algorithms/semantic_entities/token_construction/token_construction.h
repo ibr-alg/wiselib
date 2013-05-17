@@ -475,12 +475,13 @@ namespace wiselib {
 					TreeState s = msg.get_entity_state(i);
 					SemanticEntityId sid = msg.get_entity_id(i);
 					
-					DBG("node %d // recv se tree state from %d SE %d.%d parent %d",
-							radio_->id(), from, sid.rule(), sid.value(), s.parent());
-					
 					bool found;
 					SemanticEntityT &se = find_entity(sid, found);
 					if(!found) { continue; }
+					
+					DBG("node %d // on_recv_tree_state se tree state from %d SE %d.%d parent %d active (before) %d",
+							radio_->id(), from, sid.rule(), sid.value(), s.parent(), se.is_active(radio_->id()));
+					
 					
 					// In any case, update the tree state from our neigbour
 					bool changed = process_neighbor_tree_state(from, s, se);
@@ -694,6 +695,12 @@ namespace wiselib {
 			 */
 			void begin_activity(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				// begin_activity might have been called at beginning
+				// and then again (during the actual activity)
+				if(se.in_activity_phase()) { return; }
+				se.begin_activity_phase();
+				
 				DBG("node %d // push begin_activity SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 				push_caffeine();
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
@@ -708,6 +715,15 @@ namespace wiselib {
 			 */
 			void end_activity(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				// end_activity might have already been called during this
+				// activity period (e.g. because of a tree change,
+				// so make sure we actually need to do something
+				// (which should be the case only iff the se is active)
+				//if(!se.is_active(radio_->id())) {
+				
+				if(!se.in_activity_phase()) { return; }
+				se.end_activity_phase();
 				
 				//bool got_token = se.got_token();
 				
@@ -726,10 +742,11 @@ namespace wiselib {
 				// not currently waiting).
 				
 				pass_on_state(se);
+				assert(!se.is_active(radio_->id()));
 				bool scheduled = timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
 				
 				if(scheduled) {
-					end_wait_for_token(se_);
+					end_wait_for_token(se_); // will pop waiting caff
 					DBG("node %d // pop end_activity SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					pop_caffeine(); // also pop activity caffeine
 				}
@@ -751,7 +768,7 @@ namespace wiselib {
 			 * @return if internal tree change actually has been changed.
 			 */
 			bool process_neighbor_tree_state(node_id_t source, TreeState& state, SemanticEntityT& se) {
-				DBG("proc neigh tree state @%d neigh=%d se.id=%d.%d neigh.parent=%d", radio_->id(), source, se.id().rule(), se.id().value(), state.parent());
+				DBG("node %d // proc neigh tree state neigh=%d se.id=%d.%d neigh.parent=%d active(before)=%d", radio_->id(), source, se.id().rule(), se.id().value(), state.parent(), se.is_active(radio_->id()));
 				bool active_before = se.is_active(radio_->id());
 				
 				se.neighbor_state(source) = state;
