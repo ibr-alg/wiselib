@@ -983,12 +983,12 @@ namespace wiselib
 #endif
 							nit->inc_total_beacons_expected( dead_time / nit->get_beacon_period() * ( pit->resolve_lost_beacon_weight( nit->get_id() ) ) );
 							nit->update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
 							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
 								debug().debug( "LSRD1:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 							for ( uint16_t b = 0; b < ( dead_time / nit->get_beacon_period() ); b++ )
 							{
@@ -996,12 +996,12 @@ namespace wiselib
 								nit->dec_trust_counter_inverse();
 							}
 #endif
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
 							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
 								debug().debug( "LSRD2:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
-//#endif
+#endif
 							nit->set_beacon_period( nit->get_beacon_period() );
 							nit->set_last_beacon( current_time );
 							uint8_t events_flag = 0;
