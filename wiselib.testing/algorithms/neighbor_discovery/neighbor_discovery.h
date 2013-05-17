@@ -608,22 +608,22 @@ namespace wiselib
 										{
 											approximate_beacon_period = beacon.get_beacon_period();
 										}
-//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::OLD_DEAD_TIME_PERIOD )
-//										{
-//											approximate_beacon_period = nit->get_beacon_period();
-//										}
-//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::MEAN_DEAD_TIME_PERIOD )
-//										{
-//											approximate_beacon_period = ( beacon.get_beacon_period() + nit->get_beacon_period() ) / 2;
-//										}
-//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::WEIGHTED_MEAN_DEAD_TIME_PERIOD )
-//										{
-//											approximate_beacon_period = ( beacon.get_beacon_period() * pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() + nit->get_beacon_period() * pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() ) / ( pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() + pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() );
-//										}
-										uint32_t dead_time_messages_lost = ( dead_time/* - last_beacon_period_update*/ ) / approximate_beacon_period;
+										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::OLD_DEAD_TIME_PERIOD )
+										{
+											approximate_beacon_period = nit->get_beacon_period();
+										}
+										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::MEAN_DEAD_TIME_PERIOD )
+										{
+											approximate_beacon_period = ( beacon.get_beacon_period() + nit->get_beacon_period() ) / 2;
+										}
+										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::WEIGHTED_MEAN_DEAD_TIME_PERIOD )
+										{
+											approximate_beacon_period = ( beacon.get_beacon_period() * pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() + nit->get_beacon_period() * pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() ) / ( pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() + pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() );
+										}
+										uint32_t dead_time_messages_lost = dead_time / approximate_beacon_period;
 										new_neighbor = *nit;
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
-										new_neighbor.inc_total_beacons_expected( /*(*/ dead_time_messages_lost /*+ beacon.get_beacon_period_update_counter() )*/ * ( pit->resolve_lost_beacon_weight( _from ) ) );
+										new_neighbor.inc_total_beacons_expected( ( dead_time_messages_lost + 1 ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
 //#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
@@ -723,19 +723,6 @@ namespace wiselib
 						{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 							new_neighbor.dec_trust_counter_inverse();
-
-//							if ( new_neighbor.get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
-//							{
-//#endif
-//								new_neighbor.set_link_stab_ratio_inverse( 0 );
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-//								new_neighbor.set_avg_RSSI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-//								new_neighbor.set_avg_LQI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							}
 #endif
 						}
 						uint8_t events_flag = 0;
@@ -755,7 +742,12 @@ namespace wiselib
 								( new_neighbor.get_link_stab_ratio() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_threshold() ) &&
 								( new_neighbor.get_link_stab_ratio() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_threshold() ) &&
 								( new_neighbor.get_link_stab_ratio_inverse() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_inverse_threshold() ) &&
-								( new_neighbor.get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() ) )
+								( new_neighbor.get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() )
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+							&&	( new_neighbor.get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
+								( new_neighbor.get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
+#endif
+							)
 						{
 							new_neighbor.set_active();
 							if ( found_flag == 1 )
@@ -1004,37 +996,11 @@ namespace wiselib
 								nit->dec_trust_counter_inverse();
 							}
 #endif
+//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
 							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
 								debug().debug( "LSRD2:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							if ( nit->get_trust_counter() < ND_TRUST_COUNTER_THRESHOLD )
-//							{
-//#endif
-//								nit->set_link_stab_ratio( 0 );
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-//								nit->set_avg_LQI( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-//								nit->set_avg_RSSI( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							}
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							if ( nit->get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
-//							{
-//#endif
-//								nit->set_link_stab_ratio_inverse( 0 );
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-//								nit->set_avg_LQI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-//								nit->set_avg_RSSI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							}
 //#endif
 							nit->set_beacon_period( nit->get_beacon_period() );
 							nit->set_last_beacon( current_time );
@@ -1056,6 +1022,10 @@ namespace wiselib
 									( nit->get_link_stab_ratio() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_threshold() ) &&
 									( nit->get_link_stab_ratio_inverse() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_inverse_threshold() ) &&
 									( nit->get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() )
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
+							&&		( nit->get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
+									( nit->get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
+#endif
 								)
 							{
 								nit->set_active();
