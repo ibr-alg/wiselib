@@ -303,7 +303,7 @@ namespace wiselib
 #endif
 					}
 				}
-				else if ( prot_ref->get_neighborhood_active_size() > SCLD_MIN )
+				else if ( prot_ref->get_neighborhood_active_size()  > SCLD_MIN )
 				{
 					uint32_t old_beacon_period = beacon_period;
 #ifdef CONFIG_ATP_H_FLEXIBLE_DB
