@@ -32,13 +32,6 @@
 
 #include <util/debugging.h>
 
-/*
- * TODO
- * - If SE's tree state changes, resend token to next in ring! (as ring
- *   probably has changed as well!)
- */
-
-
 namespace wiselib {
 	
 	/**
@@ -190,7 +183,8 @@ namespace wiselib {
 				SemanticEntityT &se = find_entity(id, found);
 				assert(found);
 				
-				begin_wait_for_token(se);
+				//begin_wait_for_token(se);
+				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
 				
 				DBG("node %d SE %d.%d active=%d t=%d", radio_->id(), id.rule(), id.value(), se.is_active(radio_->id()), now());
 				if(se.is_active(radio_->id())) {
@@ -234,12 +228,17 @@ namespace wiselib {
 			 */
 			void pop_caffeine(void* = 0) {
 				DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
+				assert(caffeine_level_ > 0);
 				caffeine_level_--;
+				
 				if(caffeine_level_ == 0) {
 					DBG("node %d on 0 t=%d", radio_->id(), now());
 					//radio_->disable_radio();
 				}
 				DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
+				
+				
+				assert(caffeine_level_ >= 100);
 			}
 			
 			/**
@@ -542,12 +541,12 @@ namespace wiselib {
 						}
 						else {
 							DBG("node %d SE %d.%d // fwd token from last child %d to parent %d", radio_->id(), se.id().rule(), se.id().value(), from, se.parent());
-							forward_token_state(se.id(), s, from, se.parent());
+							forward_token_state(se.id(), s, from, se.parent(), t_recv);
 						}
 					}
 					else { // from a not-last child
 						DBG("node %d SE %d.%d // fwd token from child %d to next child %d", radio_->id(), se.id().rule(), se.id().value(), from, se.child_address(child_index + 1));
-						forward_token_state(se.id(), s, from, se.child_address(child_index + 1));
+						forward_token_state(se.id(), s, from, se.child_address(child_index + 1), t_recv);
 					}
 				}
 				
@@ -614,15 +613,17 @@ namespace wiselib {
 			 * Forward token state to another node (calleb by
 			 * on_receive_token_state).
 			 */
-			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to) {
+			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to, time_t t_recv) {
+				bool found;
+				SemanticEntityT& se = find_entity(se_id, found);
+				
+				
+				timing_controller_.token_forward(se_id, from, t_recv, radio_->id());
 				
 				// <DEBUG>
 				
 				DBG("+++++++ fwd token state %d.%d %d -> %d via %d childs follow", se_id.rule(), se_id.value(), from, to, radio_->id());
 				
-				
-				bool found;
-				SemanticEntityT& se = find_entity(se_id, found);
 				
 				for(size_type i = 0; i < se.childs(); i++) {
 					DBG("+++++++ %d: %d", i, se.child_address(i));
@@ -635,6 +636,11 @@ namespace wiselib {
 				msg.set_entity_id(se_id);
 				msg.set_token_state(s);
 				radio_->send(to, msg.size(), msg.data());
+				end_wait_for_token_forward(se, from);
+				
+				timing_controller_.template schedule_wakeup_for_token_forward<
+					self_type, &self_type::begin_wait_for_token_forward
+				>(se, from, this);
 			}
 			
 			/**
@@ -663,17 +669,34 @@ namespace wiselib {
 				}
 			}
 			
+			void begin_wait_for_token_forward(void* se_) {
+				SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
+				DBG("node %d // push begin_wait_for_token_forward SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
+				push_caffeine();
+			}
+			
+			void end_wait_for_token_forward(SemanticEntityT& se, node_id_t from) {
+				if(timing_controller_.end_wait_for_token_forward(se, from)) {
+					DBG("node %d // pop end_wait_for_token_forward SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
+					pop_caffeine();
+				}
+			}
+			
 			/**
 			 * Wake the node up in order to wait for an activity generating
 			 * token from the given SE.
 			 */
 			void begin_wait_for_token(SemanticEntityT& se) {
+				/*
 				if(!se.is_awake()) {
 					DBG("node %d SE %d.%d awake=1 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
 					se.set_awake(true);
 					DBG("node %d // push begin_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					push_caffeine();
 				}
+				*/
+				DBG("node %d // push begin_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
+				push_caffeine();
 			}
 			
 			/// ditto.
@@ -683,12 +706,17 @@ namespace wiselib {
 			
 			void end_wait_for_token(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
-				if(se.is_awake()) {
-					se.set_awake(false);
-					DBG("node %d SE %d.%d awake=0 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
+				if(timing_controller_.end_wait_for_token(se)) {
 					DBG("node %d // pop end_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					pop_caffeine();
 				}
+				
+				/*
+				if(se.is_awake()) {
+					se.set_awake(false);
+					DBG("node %d SE %d.%d awake=0 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
+				}
+				*/
 			}
 			
 			/**

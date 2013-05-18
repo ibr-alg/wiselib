@@ -4,7 +4,7 @@ import re
 
 d = {}
 caff = {}
-tmax = 571000
+tmax = 285000
 
 def parse(f):
 	global d
@@ -59,8 +59,12 @@ def output():
 	global d
 	
 	for node, d2 in d.items():
+		
+		def fnnamecmp(a, b):
+			return cmp(tuple(reversed(a[0].split('_'))), tuple(reversed(b[0].split('_'))))
+		
 		print '\n%d: caffeine = %s' % (node, caff[node])
-		for name, pp in d2.items():
+		for name, pp in sorted(d2.items(), cmp = fnnamecmp):
 			print '   %-40s %5d %5d' % (name, pp[0], pp[1])
 			
 parse(open('log.txt', 'r'))
