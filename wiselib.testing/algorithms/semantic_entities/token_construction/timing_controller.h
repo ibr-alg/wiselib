@@ -180,13 +180,15 @@ namespace wiselib {
 						if(waiting_timer_set_) { return true; }
 						
 						if(early()) {
+							waiting_ = true;
 							return false;
 						}
 						begin_waiting_callback_ = begin_waiting_callback_t::template from_method<T, TMethod>(obj);
 						waiting_timer_set_ = true;
 						
 						abs_millis_t delta;
-						delta = absolute_millis(clock, next_expected(clock->time()) - clock->time());
+						delta = absolute_millis(clock, next_expected(clock->time()) - clock->time() - window_);
+						DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
 						timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, userdata);
 						return true;
 					}

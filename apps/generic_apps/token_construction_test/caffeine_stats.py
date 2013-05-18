@@ -1,10 +1,15 @@
 #!/usr/bin/env python2
 
 import re
+import sys
 
 d = {}
 caff = {}
-tmax = 285000
+tmax = None #285000
+
+if len(sys.argv) > 1:
+	tmax = int(sys.argv[1])
+	print "cropping at tmax=" + str(tmax)
 
 def parse(f):
 	global d
@@ -34,7 +39,7 @@ def parse(f):
 		if c is not None and n is not None:
 			caff[int(n)] = c
 			
-		if t >= tmax:
+		if tmax is not None and t >= tmax:
 			print 'tmax=' + str(tmax) + ' reached. t=' + str(t)
 			break
 	

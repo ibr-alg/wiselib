@@ -173,7 +173,7 @@ namespace wiselib {
 				
 				// keep node alive for debugging
 				//push_caffeine();
-				caffeine_level_ = 100;
+				caffeine_level_ = 0;
 			}
 			
 			void add_entity(const SemanticEntityId& id) {
@@ -184,7 +184,9 @@ namespace wiselib {
 				assert(found);
 				
 				//begin_wait_for_token(se);
-				timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
+				if(!timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this)) {
+					begin_wait_for_token(se);
+				}
 				
 				DBG("node %d SE %d.%d active=%d t=%d", radio_->id(), id.rule(), id.value(), se.is_active(radio_->id()), now());
 				if(se.is_active(radio_->id())) {
@@ -238,7 +240,7 @@ namespace wiselib {
 				DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
 				
 				
-				assert(caffeine_level_ >= 100);
+				//assert(caffeine_level_ >= 100);
 			}
 			
 			/**
@@ -398,7 +400,7 @@ namespace wiselib {
 			 */
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				if(caffeine_level_ <= 0) {
-					DBG("------ %d didnt hear msg from %d type %d", radio_->id(), from, (int)data[0]);
+					DBG("node %d t=%d // [!] didnt hear msg from %d type %d (%x)", radio_->id(), now(), from, (int)data[0], (int)data[0]);
 					return;
 				}
 				
@@ -622,11 +624,11 @@ namespace wiselib {
 				
 				// <DEBUG>
 				
-				DBG("+++++++ fwd token state %d.%d %d -> %d via %d childs follow", se_id.rule(), se_id.value(), from, to, radio_->id());
+				DBG("node %d // fwd token state %d.%d %d -> %d via %d childs follow", radio_->id(), se_id.rule(), se_id.value(), from, to, radio_->id());
 				
 				
 				for(size_type i = 0; i < se.childs(); i++) {
-					DBG("+++++++ %d: %d", i, se.child_address(i));
+					DBG("node %d // child %d: %d", radio_->id(), i, se.child_address(i));
 				}
 				
 				// </DEBUG>
@@ -636,11 +638,19 @@ namespace wiselib {
 				msg.set_entity_id(se_id);
 				msg.set_token_state(s);
 				radio_->send(to, msg.size(), msg.data());
+				
+				DBG("node %d // fwd token state end wait", radio_->id());
 				end_wait_for_token_forward(se, from);
 				
-				timing_controller_.template schedule_wakeup_for_token_forward<
+				DBG("node %d // fwd token state schedule next wait", radio_->id());
+				bool scheduled = timing_controller_.template schedule_wakeup_for_token_forward<
 					self_type, &self_type::begin_wait_for_token_forward
 				>(se, from, this);
+				
+				if(!scheduled) {
+					// timing controller says to do it now
+					begin_wait_for_token_forward(&se);
+				}
 			}
 			
 			/**
@@ -771,6 +781,7 @@ namespace wiselib {
 				
 				pass_on_state(se);
 				assert(!se.is_active(radio_->id()));
+				DBG("node %d t=%d // scheduling wakeup", radio_->id(), now());
 				bool scheduled = timing_controller_.template schedule_wakeup_for_activating_token<self_type, &self_type::begin_wait_for_token>(se, this);
 				
 				if(scheduled) {
