@@ -100,6 +100,7 @@ namespace wiselib
 			corrupted_bytes_received			( 0 ),
 			avg_corrupted_byte_size_received	( 0 ),
 			clock_paradox_message_drops			( 0 ),
+			bytes_received_periodic				( 0 ),
 			metrics_counter						( 0 )
 
 #endif
@@ -1044,6 +1045,14 @@ namespace wiselib
 						}
 					}
 				}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+				if ( bytes_received_periodic > 6250 )
+				{
+					bytes_received_periodic = bytes_received - bytes_received_periodic;
+					debug().debug("BR:%x:%d:%d", radio().id(), bytes_received_periodic, bytes_received );
+					bytes_received_periodic = bytes_received;
+				}
+#endif
 				timer().template set_timer<self_t, &self_t::nd_daemon> ( nd_daemon_period, this, 0 );
 			}
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
@@ -1463,6 +1472,7 @@ namespace wiselib
 		uint32_t corrupted_bytes_received;
 		uint32_t avg_corrupted_byte_size_received;
 		uint32_t clock_paradox_message_drops;
+		uint32_t bytes_received_periodic;
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;

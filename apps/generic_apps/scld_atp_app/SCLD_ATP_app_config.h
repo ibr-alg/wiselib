@@ -1,1 +1,1 @@
-#define SCLD_ATP_CHANNEL 20
+#define SCLD_ATP_CHANNEL 26
