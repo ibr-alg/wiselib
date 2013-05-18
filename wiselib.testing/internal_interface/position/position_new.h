@@ -17,6 +17,9 @@
 ** If not, see <http://www.gnu.org/licenses/>.                           **
 ***************************************************************************/
 
+//#define POSITION_FLOAT_DEBUG
+#define POSITION_INT_DEBUG
+
 namespace wiselib
 {
 	#ifndef __POSITION3D___
@@ -35,7 +38,10 @@ namespace wiselib
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::size_t size_t;
 		typedef Position3DType<Os, Radio, CoordinatesNumber, Debug> self_type;
-		Position3DType()
+		Position3DType() :
+			x	( 0 ),
+			y	( 0 ),
+			z	( 0 )
 		{}
 		Position3DType( CoordinatesNumber _x, CoordinatesNumber _y, CoordinatesNumber _z)
 		{
@@ -119,7 +125,13 @@ namespace wiselib
 		}
 		inline void print( Debug& debug, Radio& radio )
 		{
+#ifdef POSITION_FLOAT_DEBUG
+			debug.debug("Position3D (size %i) : ( %f, %f, %f )", sizeof(x) + sizeof(y) + sizeof(z), x, y, z);
+#endif
+#ifdef POSITION_INT_DEBUG
 			debug.debug("Position3D (size %i) : ( %d, %d, %d )", sizeof(x) + sizeof(y) + sizeof(z), x, y, z);
+#endif
+
 		}
 	private:
 		CoordinatesNumber x, y, z;
@@ -142,7 +154,9 @@ namespace wiselib
 		typedef typename Radio_P::block_data_t block_data_t;
 		typedef typename Radio_P::size_t size_t;
 		typedef Position2DType<Os, Radio, CoordinatesNumber, Debug> self_type;
-		Position2DType()
+		Position2DType() :
+			x	( 0 ),
+			y	( 0 )
 		{}
 		Position2DType( const CoordinatesNumber& _x, const CoordinatesNumber _y, const CoordinatesNumber _z = 1)
 		{
@@ -216,7 +230,12 @@ namespace wiselib
 		}
 		inline void print( Debug& _debug, Radio& _radio )
 		{
+#ifdef POSITION_FLOAT_DEBUG
+			_debug.debug("Position2D (size %i) : ( %f, %f )\n", sizeof(x) + sizeof(y), x, y );
+#endif
+#ifdef POSITION_INT_DEBUG
 			_debug.debug("Position2D (size %i) : ( %d, %d )\n", sizeof(x) + sizeof(y), x, y );
+#endif
 		}
 	private:
 		CoordinatesNumber x, y;

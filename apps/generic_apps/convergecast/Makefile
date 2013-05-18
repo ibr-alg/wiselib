@@ -16,8 +16,8 @@ all: shawn
 export APP_SRC=convergecast_example_app.cpp
 export BIN_OUT=convergecast_example_app
 
-include $(WISELIB_PATH)/../apps/generic_apps/Makefile.local
-include $(WISELIB_GENERIC_APPS)/Makefile
+include ../Makefile.local
+include ../Makefile
 
 tubs-hallway:
 	@echo "----- Building Tubs Hallway Application ------"

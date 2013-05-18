@@ -1,10 +1,10 @@
 Introduction
-*********************
+=====================
 
 The Wiselib is an algorithm library for sensor networks. It contains
 various algorithm classes (for instance, localization or routing) that
-can be compiled for several sensor network platforms such as iSense or
-Contiki, or the sensor network simulator Shawn. It is completely
+can be compiled for several sensor network platforms such as [iSense](http://www.coalesenses.com/index.php?page=isense-devices) or
+[Contiki](http://www.contiki-os.org/), or the sensor network simulator [Shawn](https://www.itm.uni-luebeck.de/ShawnWiki/index.php/Main_Page). It is completely
 written in C++, and uses templates in the same way as Boost and
 CGAL. This makes it possible to write generic and platform independent
 code that is very efficiently compiled for the various platforms.
@@ -30,13 +30,13 @@ loading an algorithm in your application.
 
 
 Folder Structure
-*********************
+=====================
 
 There are basically three kinds of folders. First, the Wiselib code in
-wiselib.stable and wiselib.testing (which only contains algorithms,
+`wiselib.stable` and `wiselib.testing` (which only contains algorithms,
 but no stand-alone applications). Second, examples of how to integrate
-Wiselib algorithms in own applications (applications, iapps,
-shawn_apps). Third, the sandbox with some test code (e.g., comparison
+Wiselib algorithms in own applications (`applications`, `iapps`,
+`shawn_apps`). Third, the sandbox with some test code (e.g., comparison
 of virtual inheritence with pure template solutions).
 
 
@@ -62,27 +62,23 @@ external interfaces, internal interfaces, and util.
 apps
 -------------------
 
-apps/generic_apps
-.................
+### apps/generic_apps
 
 Contains examples of standalone Wiselib applications with an own
 application_main method. These apps can be used to write a whole
 application once, and compile it for different platforms just by
 changing the make target.
 
-iapps
-...................
+### apps/iapps
 
 Examples of Wiselib integration in native iSense applications.
 
-shawn_apps
-...................
+### apps/shawn_apps
 
 Examples of Wiselib integration in Shawn processors. Note that the
 Wiselib module in shawn.svn/src/apps must be enabled!
 
-pc_apps
-...................
+### apps/pc_apps
 
 Run Wiselib application on PC - examples for ordinary appplications
 (with an iSense node attached to the PC, the PC can participate in a
@@ -92,7 +88,7 @@ Roomba.
 doc
 -------------------
 
-Main sources for doxygen documentation. Contains concept descriptions
+Main sources for `doxygen` documentation. Contains concept descriptions
 and main doxygen pages. To create doygen documentation, just run:
-  * doxygen Doxyfile
+ doxygen Doxyfile
 in Wiselib's root folder.
