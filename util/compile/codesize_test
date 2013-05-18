@@ -1,0 +1,287 @@
+#!/usr/bin/env python2
+
+import subprocess
+import os, stat
+import json
+
+config = {}
+defaultconfig = json.loads('''
+		{
+			"compile_platforms": [
+				"tinyos-telosb", "tinyos-micaz",
+				"contiki_micaz", "contiki_sky", "pc",
+				"isense", "isense.5148",
+				"openwrt", "arduino"
+			],
+			"compile_variants": [
+				{ "name": "default" }
+			],
+			"include_paths": [
+				"/home/henning/repos/wiselib/wiselib.testing/",
+				"/home/henning/repos/wiselib/wiselib.stable/",
+				"../../../../wiselib.testing/",
+				"../../../../wiselib.stable/",
+				"/Developer/git/wiselib/wiselib.testing/",
+				"/Developer/git/wiselib/wiselib.stable/"
+			],
+			"compile_flags": "",
+			"use_detemplate": true,
+			"detemplate_path": "/home/henning/bin/detemplate",
+			"logfile_path": "codesize_test.log",
+			"binary_name": "example_app"
+		}
+''')
+				
+
+def load_config(s):
+	global config
+	config = json.loads(s)
+
+def get_config(path):
+	global config
+	global defaultconfig
+	print '--------------', path, '---------------'
+	print 'conf=', repr(config)
+	print 'def=', repr(defaultconfig)
+	try:
+		return get_config_from(path, config)
+	except KeyError:
+		return get_config_from(path, defaultconfig)
+
+def get_config_from(path, c):
+	if type(path) == str:
+		path = path.split('/')
+	o = c
+	print "o=", type(o), repr(o), o
+	for p in path:
+		print "p=", type(p), repr(p)
+		o = o[p]
+		print "o=", type(o), repr(o), o
+	return o
+
+
+use_detemplate = get_config('use_detemplate')
+detemplate = [get_config('detemplate_path')]
+
+log = open(get_config('logfile_path'), 'w')
+
+# (rom, ram)
+def grep_table(platform, out):
+	for line in out.readlines():
+		log.write(line)
+		log.flush()
+		if platform['elf'] in line:
+			s = line.split(None, 5)
+			if len(s) != 6: continue
+			text, data, bss, dec, hx, fname = s
+			if fname.strip() != platform['elf'].strip():
+				continue
+			rom = int(text)
+			ram = int(data) + int(bss)
+			log.write(out.read())
+			log.flush()
+			return (rom, ram)
+	return (-1, -1)
+
+binary = get_config('binary_name')
+
+platforms = {
+	'tinyos-telosb': dict(
+		name = 'tinyos-telosb',
+		elf = 'build/telosb/main.exe',
+	#	elf = 'out/tinyos-telosb/tuple_store_codesize_test.elf',
+		malloc = False,
+		mem = 256,
+		chunks = 32,
+		size_getter = grep_table,
+		size_command = 'msp430-size',
+	),
+	'tinyos-micaz': dict(
+		name = 'tinyos-micaz',
+		elf = 'build/micaz/main.exe',
+	#	elf = 'out/tinyos-micaz/tuple_store_codesize_test.elf',
+		malloc = False,
+		mem = 256,
+		chunks = 32,
+		size_getter = grep_table,
+		size_command = 'avr-size',
+	),
+	'contiki_micaz': dict(
+		name = 'contiki_micaz',
+		elf = 'out/contiki-micaz/%s.elf' % binary,
+		malloc = False,
+		mem = 256,
+		chunks = 32,
+		size_getter = grep_table,
+		size_command = 'avr-size',
+	),
+	'contiki_sky': dict(
+		name = 'contiki_sky',
+		elf = 'out/contiki-sky/%s.elf' % binary,
+		malloc = False,
+		mem = 256,
+		chunks = 32,
+		size_getter = grep_table,
+		size_command = 'msp430-size',
+	),
+	'pc': dict(
+		name = 'pc',
+		elf = 'out/pc/%s' % binary,
+		malloc = True,
+		size_getter = grep_table,
+		size_command = 'size',
+	),
+	'isense': dict(
+		name = 'isense',
+		elf = 'out/isense/%s.elf' % binary,
+		malloc = True,
+		size_getter = grep_table,
+		size_command = 'ba-elf-size',
+	),
+	'isense.5148': dict(
+		name = 'isense.5148',
+		elf = 'out/isense/%s.elf' % binary,
+		malloc = True,
+		size_getter = grep_table,
+		size_command = '/opt/ba-elf-ba2/bin/ba-elf-size',
+	),
+}
+
+compile_platforms = get_config('compile_platforms')
+configurations = []
+conf_pretty = []
+
+for variant in get_config('compile_variants'):
+	name = variant.get('name', 'default')
+	flags = variant.get('flags', '')
+	configurations.append(flags)
+	conf_pretty.append(name)
+
+def clean():
+	subprocess.call(["make", "clean"])
+	subprocess.call(['rm', '-Rf', 'out'] )
+	subprocess.call(['rm', '-Rf', 'build'])
+
+def mkflags(platform, configuration):
+	f = ''
+	f += get_config('compile_flags')
+	if configuration:
+		f += configuration
+	for ip in get_config('include_paths'):
+		f += ' -I' + ip + ' '
+	return f
+
+def compile(platform, configuration):
+	global detemplate
+	global use_detemplate
+	
+	clean()
+	log.write("------------\n")
+	log.write(" ".join(["make", platform['name'], "ADD_CXXFLAGS=\"" + mkflags(platform, configuration) + "\""])
+			+ '\n')
+	log.write("------------\n")
+	print " ".join(["make", platform['name'], "ADD_CXXFLAGS=\"" + mkflags(platform, configuration) + "\""]) 
+	log.flush()
+	
+	#import locale
+	#locale.setlocale(locale.LC_ALL, 'C')
+	
+	makecmd = ["make", platform['name'], "ADD_CXXFLAGS=\"" + mkflags(platform, configuration) + "\""]
+	if use_detemplate:
+		p = subprocess.Popen(makecmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) #, env={'LANG': 'C'})
+		pd = subprocess.Popen(detemplate, stdin = p.stdout)
+		r = p.wait()
+		pd.wait()
+	else:
+		p = subprocess.Popen(makecmd)
+		r = p.wait()
+		
+	
+	log.write("returncode: %d\n" % r)
+	log.flush()
+	if r == 0:
+		#rom, ram = platform['size_getter'](platform, p.stdout)
+		rom, ram = platform['size_getter'](platform, subprocess.Popen([platform['size_command'], platform['elf']],
+			stdout=subprocess.PIPE).stdout)
+		return rom, ram
+	return -1, -1
+
+codesizes = []
+
+for p in compile_platforms:
+	platform = platforms[p]
+	row = dict(platform = platform, sizes = [])
+	row['tara'] = compile(platform, '') #compile_nothing(platform)
+	for conf in configurations:
+		r = compile(platform, conf)
+		row['sizes'].append(r)
+	codesizes.append(row)
+
+
+
+def print_latex():
+	print " " * 20,
+	print "  & %-15s" % conf_pretty[0],
+	for conf in conf_pretty[1:]:
+		print " & %-15s" % conf,
+	print " \\\\"
+
+	for cs in codesizes:
+		print "%20s " % cs['platform']['name'],
+		tara_broken = (cs['tara'][0] == -1)
+		if tara_broken:
+			cs['tara'] = (0, 0)
+	
+		for sz in cs['sizes']:
+			print " & %5s / %5s  " % (
+				'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
+				'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
+			),
+		print " \\\\"
+
+
+print
+print
+print " " * 20,
+for conf in conf_pretty:
+	print "%-15s" % conf,
+print "%-15s" % 'empty',
+print
+
+print "Absolute values + Tara"
+for cs in codesizes:
+	print "%20s " % cs['platform']['name'],
+	for sz in cs['sizes'] + [cs['tara']]:
+		print "%5s/%5s    " % (
+			'err' if sz[0] == -1 else sz[0],
+			'err' if sz[1] == -1 else sz[1]
+		),
+	print
+
+
+print "Relative values:"
+for cs in codesizes:
+	print "%20s " % cs['platform']['name'],
+	tara_broken = (cs['tara'][0] == -1)
+	if tara_broken:
+		cs['tara'] = (0, 0)
+	for sz in cs['sizes']:
+		print "%5s/%5s    " % (
+			'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
+			'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
+		),
+	if tara_broken:
+		print "(tara err, abs values shown)",
+	print
+
+
+print
+print "----------"
+print
+print_latex()
+print
+print
+
+log.close()
+
+# vim: set ts=3 sw=3 tw=285 noexpandtab :
