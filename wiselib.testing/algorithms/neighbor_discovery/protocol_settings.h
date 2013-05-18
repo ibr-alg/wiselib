@@ -43,13 +43,13 @@ namespace wiselib
 		typedef ProtocolSettings_Type<Os, Radio, Timer, Debug> self_type;
 		// --------------------------------------------------------------------
 		ProtocolSettings_Type()	:
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 			max_avg_LQI_threshold 					( ND_MAX_AVG_LQI_THRESHOLD ),
 			min_avg_LQI_threshold 					( ND_MIN_AVG_LQI_THRESHOLD ),
 			max_avg_LQI_inverse_threshold 			( ND_MAX_AVG_LQI_INVERSE_THRESHOLD ),
 			min_avg_LQI_inverse_threshold 			( ND_MIN_AVG_LQI_INVERSE_THRESHOLD ),
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 			max_avg_RSSI_threshold 					( ND_MAX_AVG_RSSI_THRESHOLD ),
 			min_avg_RSSI_threshold 					( ND_MIN_AVG_RSSI_THRESHOLD ),
 			max_avg_RSSI_inverse_threshold 			( ND_MAX_AVG_RSSI_INVERSE_THRESHOLD ),
@@ -60,10 +60,6 @@ namespace wiselib
 			max_link_stab_ratio_inverse_threshold	( ND_MAX_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
 			min_link_stab_ratio_inverse_threshold	( ND_MIN_LINK_STAB_RATIO_INVERSE_THRESHOLD ),
 			events_flag								( NEW_NB | UPDATE_NB | NEW_PAYLOAD | LOST_NB | TRANS_DB_UPDATE | BEACON_PERIOD_UPDATE | NB_REMOVED ),
-			proposed_transmission_power_dB			( ND_PROPOSED_TRANSMISSION_POWER_DB ),
-			proposed_transmission_power_dB_weight	( ND_PROPOSED_TRANSMISSION_POWER_DB_WEIGHT ),
-			proposed_beacon_period					( ND_PROPOSED_BEACON_PERIOD ),
-			proposed_beacon_period_weight			( ND_PROPOSED_BEACON_PERIOD_WEIGHT ),
 			overflow_strategy						( RATIO_DIVIDER ),
 			ratio_divider							( ND_RATIO_DIVIDER ),
 			dead_time_strategy						( MEAN_DEAD_TIME_PERIOD ),
@@ -75,13 +71,13 @@ namespace wiselib
 		{}
 		// --------------------------------------------------------------------
 		ProtocolSettings_Type(
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 								uint8_t _maxLQI,
 								uint8_t _minLQI,
 								uint8_t _maxLQI_in,
 								uint8_t _minLQI_in,
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 								uint8_t _maxRSSI,
 								uint8_t _minRSSI,
 								uint8_t _maxRSSI_in,
@@ -92,10 +88,6 @@ namespace wiselib
 								uint8_t _maxlsr_in,
 								uint8_t _minlsr_in,
 								uint8_t _ef,
-								int8_t _tp_dB,
-								uint8_t _tp_dB_w,
-								millis_t _pb,
-								uint8_t _pb_w,
 								uint16_t _ofs,
 								uint32_t _rd,
 								uint8_t _dt_s,
@@ -106,13 +98,13 @@ namespace wiselib
 								uint32_t _lb_w,
 								ProtocolPayload _pp )
 		{
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 			max_avg_LQI_threshold = _maxLQI;
 			min_avg_LQI_threshold = _minLQI;
 			max_avg_LQI_inverse_threshold = _maxLQI_in;
 			min_avg_LQI_inverse_threshold = _minLQI_in;
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 			max_avg_RSSI_threshold = _maxRSSI;
 			min_avg_RSSI_threshold = _minRSSI;
 			max_avg_RSSI_inverse_threshold = _maxRSSI_in;
@@ -123,10 +115,6 @@ namespace wiselib
 			max_link_stab_ratio_inverse_threshold = _maxlsr_in;
 			min_link_stab_ratio_inverse_threshold = _minlsr_in,
 			events_flag = _ef;
-			proposed_transmission_power_dB = _tp_dB;
-			proposed_transmission_power_dB_weight = _tp_dB_w;
-			proposed_beacon_period = _pb;
-			proposed_beacon_period_weight = _pb_w;
 			overflow_strategy = _ofs;
 			ratio_divider = _rd;
 			dead_time_strategy = _dt_s;
@@ -141,7 +129,7 @@ namespace wiselib
 		~ProtocolSettings_Type()
 		{}
 		// --------------------------------------------------------------------
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 		uint8_t get_max_avg_LQI_threshold()
 		{
 			return max_avg_LQI_threshold;
@@ -183,7 +171,7 @@ namespace wiselib
 		}
 #endif
 		// --------------------------------------------------------------------
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 		uint8_t get_max_avg_RSSI_threshold()
 		{
 			return max_avg_RSSI_threshold;
@@ -273,46 +261,6 @@ namespace wiselib
 		void set_events_flag( uint8_t _ef )
 		{
 			events_flag = _ef;
-		}
-		// --------------------------------------------------------------------
-		int8_t get_proposed_transmission_power_dB()
-		{
-			return proposed_transmission_power_dB;
-		}
-		// --------------------------------------------------------------------
-		void set_proposed_transmission_power_dB( int8_t _tp_dB )
-		{
-			proposed_transmission_power_dB = _tp_dB;
-		}
-		// --------------------------------------------------------------------
-		uint8_t get_proposed_transmission_power_dB_weight()
-		{
-			return proposed_transmission_power_dB_weight;
-		}
-		// --------------------------------------------------------------------
-		void set_proposed_transmission_power_dB_weight( uint8_t _tp_dB_w )
-		{
-			proposed_transmission_power_dB_weight = _tp_dB_w;
-		}
-		// --------------------------------------------------------------------
-		millis_t get_proposed_beacon_period()
-		{
-			return proposed_beacon_period;
-		}
-		// --------------------------------------------------------------------
-		void set_proposed_beacon_period( millis_t _pbp )
-		{
-			proposed_beacon_period = _pbp;
-		}
-		// --------------------------------------------------------------------
-		uint8_t get_proposed_beacon_period_weight()
-		{
-			return proposed_beacon_period_weight;
-		}
-		// --------------------------------------------------------------------
-		void set_proposed_beacon_period_weight( uint8_t _pbp_w )
-		{
-			proposed_beacon_period_weight = _pbp_w;
 		}
 		// --------------------------------------------------------------------
 		uint16_t get_overflow_strategy()
@@ -430,13 +378,13 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		ProtocolSettings_Type& operator=( const ProtocolSettings_Type& _psett )
 		{
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 			max_avg_LQI_threshold = _psett.max_avg_LQI_threshold;
 			min_avg_LQI_threshold = _psett.min_avg_LQI_threshold;
 			max_avg_LQI_inverse_threshold = _psett.max_avg_LQI_inverse_threshold;
 			min_avg_LQI_inverse_threshold = _psett.min_avg_LQI_inverse_threshold;
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 			max_avg_RSSI_threshold = _psett.max_avg_RSSI_threshold;
 			min_avg_RSSI_threshold = _psett.min_avg_RSSI_threshold;
 			max_avg_RSSI_inverse_threshold = _psett.max_avg_RSSI_inverse_threshold;
@@ -447,10 +395,6 @@ namespace wiselib
 			max_link_stab_ratio_inverse_threshold = _psett.max_link_stab_ratio_inverse_threshold;
 			min_link_stab_ratio_inverse_threshold = _psett.min_link_stab_ratio_inverse_threshold;
 			events_flag = _psett.events_flag;
-			proposed_transmission_power_dB = _psett.proposed_transmission_power_dB;
-			proposed_transmission_power_dB_weight = _psett.proposed_transmission_power_dB_weight;
-			proposed_beacon_period = _psett.proposed_beacon_period;
-			proposed_beacon_period_weight = _psett.proposed_beacon_period_weight;
 			overflow_strategy = _psett.overflow_strategy;
 			ratio_divider = _psett.ratio_divider;
 			dead_time_strategy	= _psett.dead_time_strategy;
@@ -468,13 +412,13 @@ namespace wiselib
 		{
 			_debug.debug( "-------------------------------------------------------\n" );
 			_debug.debug( "ProtocolSettings : \n");
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 			_debug.debug( "max_avg_LQI_threshold (size %i) : %d\n", sizeof(max_avg_LQI_threshold), max_avg_LQI_threshold );
 			_debug.debug( "min_avg_LQI_threshold (size %i) : %d\n", sizeof(min_avg_LQI_threshold), min_avg_LQI_threshold );
 			_debug.debug( "max_avg_LQI_inverse_threshold (size %i) : %d\n", sizeof(max_avg_LQI_inverse_threshold), max_avg_LQI_inverse_threshold );
 			_debug.debug( "min_avg_LQI_inverse_threshold (size %i) : %d\n", sizeof(min_avg_LQI_inverse_threshold),min_avg_LQI_inverse_threshold );
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 			_debug.debug( "max_avg_RSSI_threshold (size %i) : %d\n", sizeof(max_avg_RSSI_threshold), max_avg_RSSI_threshold );
 			_debug.debug( "min_avg_RSSI_threshold (size %i) : %d\n", sizeof(min_avg_RSSI_threshold), min_avg_RSSI_threshold );
 			_debug.debug( "max_avg_RSSI_inverse_threshold (size %i) : %d\n", sizeof(max_avg_RSSI_inverse_threshold), max_avg_RSSI_inverse_threshold );
@@ -485,10 +429,6 @@ namespace wiselib
 			_debug.debug( "max_link_stab_ratio_inverse_threshold (size %i) : %d\n", sizeof(max_link_stab_ratio_inverse_threshold), max_link_stab_ratio_inverse_threshold );
 			_debug.debug( "min_link_stab_ratio_inverse_threshold (size %i) : %d\n", sizeof(min_link_stab_ratio_inverse_threshold), min_link_stab_ratio_inverse_threshold );
 			_debug.debug( "events_flag (size %i) : %d\n", sizeof(events_flag), events_flag );
-			_debug.debug( "proposed transmission_power_dB (size %i) : %i\n", sizeof(proposed_transmission_power_dB), proposed_transmission_power_dB );
-			_debug.debug( "proposed transmission_power_dB_weight (size %i) : %d\n", sizeof(proposed_transmission_power_dB_weight), proposed_transmission_power_dB_weight );
-			_debug.debug( "proposed_beacon_period (size %i) : %d\n", sizeof(proposed_beacon_period), proposed_beacon_period );
-			_debug.debug( "proposed_beacon_period_weight (size %i) : %d\n", sizeof(proposed_beacon_period_weight), proposed_beacon_period_weight );
 			_debug.debug( "overflow_strategy (size %i) : %d\n", sizeof(overflow_strategy), overflow_strategy );
 			_debug.debug( "ratio_divider (size %i) : %d\n", sizeof(ratio_divider), ratio_divider );
 			_debug.debug( "dead_time_strategy (size %i) : %d\n", sizeof(dead_time_strategy), dead_time_strategy );
@@ -497,7 +437,6 @@ namespace wiselib
 			_debug.debug( "ratio_normalization_strategy (size %i) : %d\n", sizeof(ratio_normalization_strategy), ratio_normalization_strategy );
 			_debug.debug( "beacon_weight (size %i) : %d\n", sizeof(beacon_weight), beacon_weight );
 			_debug.debug( "lost_beacon_weight (size %i) : %d\n", sizeof(lost_beacon_weight), lost_beacon_weight );
-			_debug.debug( "min_required_beacons (size %i) : %d\n", sizeof(min_required_beacons), min_required_beacons );
 			protocol_payload.print( _debug, _radio );
 			_debug.debug( "-------------------------------------------------------\n" );
 		}
@@ -543,13 +482,13 @@ namespace wiselib
 			R_NR_STRATEGY_NUM_VALUES
 		};
 	private:
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 		uint8_t max_avg_LQI_threshold;
 		uint8_t min_avg_LQI_threshold;
 		uint8_t max_avg_LQI_inverse_threshold;
 		uint8_t min_avg_LQI_inverse_threshold;
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 		uint8_t max_avg_RSSI_threshold;
 		uint8_t min_avg_RSSI_threshold;
 		uint8_t max_avg_RSSI_inverse_threshold;
@@ -560,10 +499,6 @@ namespace wiselib
 		uint8_t max_link_stab_ratio_inverse_threshold;
 		uint8_t min_link_stab_ratio_inverse_threshold;
 		uint8_t events_flag;
-		int8_t proposed_transmission_power_dB;
-		uint8_t proposed_transmission_power_dB_weight;
-		millis_t proposed_beacon_period;
-		uint8_t proposed_beacon_period_weight;
 		uint16_t overflow_strategy;
 		uint32_t ratio_divider;
 		uint8_t dead_time_strategy;

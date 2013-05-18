@@ -1,5 +1,5 @@
-#ifndef RELIABLE_RADIO_H
-#define	RELIABLE_RADIO_H
+#ifndef __FRAGMENTING_RADIO_H__
+#define	__FRAGMENTING_RADIO_H__
 
 #include "util/pstl/vector_static.h"
 #include "util/delegates/delegate.hpp"

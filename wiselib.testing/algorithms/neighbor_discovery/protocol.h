@@ -52,7 +52,7 @@ namespace wiselib
 		typedef typename ProtocolPayload_vector::iterator ProtocolPayload_vector_iterator;
 		typedef delegate4<void, uint8_t, node_id_t, size_t, uint8_t*> event_notifier_delegate_t;
 		typedef Protocol_Type<Os, Radio, Clock, Timer, Debug> self_type;
-#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		typedef typename Neighbor::Position Position;
 #endif
 		// --------------------------------------------------------------------
@@ -191,7 +191,7 @@ namespace wiselib
 					{
 						n_ref->set_total_beacons_expected( 0 );
 					}
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_LQI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_AVG_LQI )
 					{
 						n_ref->set_avg_LQI( 0 );
@@ -201,7 +201,7 @@ namespace wiselib
 						n_ref->set_avg_LQI_inverse( 0 );
 					}
 #endif
-#ifdef CONFIG_NEIBHBOR_DISCOVERY_H_RSSI_FILTERING
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 					if ( p_ref->get_overflow_strategy() & ProtocolSettings::RESET_AVG_RSSI )
 					{
 						n_ref->set_avg_RSSI( 0 );
@@ -272,7 +272,7 @@ namespace wiselib
 		// --------------------------------------------------------------------
 #ifdef DEBUG_PROTOCOL_H
 		void print( Debug& _debug, Radio& _radio
-#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 				,Position _pos = Position( 0, 0, 0 )
 #endif
 				)
@@ -286,7 +286,7 @@ namespace wiselib
 #endif
 			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
 			{
-#ifdef NEIGHBOR_DISCOVERY_COORD_SUPPORT
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 				it->print( _debug, _radio, _pos );
 #else
 				it->print( _debug, _radio );

@@ -37,7 +37,8 @@ namespace wiselib
 		typedef typename Radio::block_data_t block_data_t;
 		typedef ProtocolPayload_Type<Os, Radio, Debug> self_type;
 	public:
-		ProtocolPayload_Type()
+		ProtocolPayload_Type() :
+			payload_size	( 0 )
 		{}
 		// --------------------------------------------------------------------
 		ProtocolPayload_Type( uint8_t _pid, size_t _ps, block_data_t* _pd, size_t _offset = 0 )

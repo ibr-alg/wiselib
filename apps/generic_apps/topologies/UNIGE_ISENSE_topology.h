@@ -76,6 +76,7 @@ Position get_node_info( Radio* _radio )
 	{
 		return Position( 0, 59, 15 );
 	}
+	//basestation 04
 	else if ( _radio->id() == 0x96e0 )
 	{
 		return Position( 38, 35, 22 );
