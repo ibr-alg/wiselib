@@ -81,7 +81,7 @@ namespace wiselib {
 					}
 					
 					TreeState& operator=(const TreeState& other) {
-						DBG("TreeState::op=() other: parent=%d root=%d distance=%d", other.parent_,
+						DBG("// TreeState::op=() other: parent=%d root=%d distance=%d", other.parent_,
 								other.root_, other.distance_);
 						parent_ = other.parent_;
 						root_ = other.root_;
@@ -235,10 +235,10 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
 			
 			
-			SemanticEntity() : awake_(false) {
+			SemanticEntity() : awake_(false), activity_phase_(false) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), awake_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), awake_(false), activity_phase_(false) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -251,6 +251,7 @@ namespace wiselib {
 				neighbor_states_ = other.neighbor_states_;
 				token_forwards_ = other.token_forwards_;
 				awake_ = other.awake_;
+				activity_phase_ = other.activity_phase_;
 				return *this;
 			}
 			
@@ -363,6 +364,18 @@ namespace wiselib {
 					return l > token().count();
 				}
 			}
+			
+			/**
+			 * @return true iff the entity is currently in an activity phase.
+			 * That is, when is_active() is true, the token construction will
+			 * sooner or later start an activity phase (involving setting up
+			 * timers). This manages a bool variable to track if that has
+			 * already hpappened or not.
+			 */
+			bool in_activity_phase() { return activity_phase_; }
+			void begin_activity_phase() { activity_phase_ = true; }
+			void end_activity_phase() { activity_phase_ = false; }
+					
 			
 			/**
 			 * @return true iff we received a token since the last call to
@@ -525,6 +538,7 @@ namespace wiselib {
 			Childs childs_;
 			bool awake_;
 			bool got_token_;
+			bool activity_phase_;
 	}; // SemanticEntity
 	
 	
