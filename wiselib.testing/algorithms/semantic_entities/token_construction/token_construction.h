@@ -174,6 +174,8 @@ namespace wiselib {
 				// keep node alive for debugging
 				//push_caffeine();
 				caffeine_level_ = 0;
+				
+				on_regular_broadcast_state();
 			}
 			
 			void add_entity(const SemanticEntityId& id) {
@@ -247,7 +249,7 @@ namespace wiselib {
 			 * Send out our current state to our neighbors.
 			 * Also set up timer to do this again in REGULAR_BCAST_INTERVAL.
 			 */
-			void on_regular_broadcast_state(void*) {
+			void on_regular_broadcast_state(void *_= 0) {
 				TreeStateMessageT msg;
 				msg.set_reason(TreeStateMessageT::REASON_REGULAR_BCAST);
 				
@@ -461,9 +463,24 @@ namespace wiselib {
 			void on_receive_tree_state(TreeStateMessageT& msg, node_id_t from, time_t t_recv) {
 				
 				switch(msg.reason()) {
-					case TreeStateMessageT::REASON_REGULAR_BCAST:
+					case TreeStateMessageT::REASON_REGULAR_BCAST: {
 						timing_controller_.regular_broadcast(from, t_recv, radio_->id());
+						end_wait_for_regular_broadcast(from);
+						//timing_controller_.end_wait_for_regular_broadcast(from);
+						bool scheduled = timing_controller_.template schedule_wakeup_for_regular_broadcast<
+							self_type, &self_type::begin_wait_for_regular_broadcast
+						>(from, this);
+						if(!scheduled) {
+							
+							void *v;
+							memcpy(&v, &from, min(sizeof(node_id_t), sizeof(void*)));
+							
+							DBG("node %d // staying awake for regular_broadcast from %d",
+									radio_->id(), from);
+							begin_wait_for_regular_broadcast(v);
+						}
 						break;
+					}
 					case TreeStateMessageT::REASON_DIRTY_BCAST:
 						//timing_controller_.dirty_broadcast(from, now);
 						break;
@@ -556,63 +573,7 @@ namespace wiselib {
 			}
 			
 			/**
-			 * Called by on_receive_task when a token state change has been
-			 * received.
-			 * Decides to either ignore, forward or process the token.
-			 */
-			/*
-			void on_receive_token_state(SemanticEntityT& se, const TokenState& token_state, time_t t, node_id_t from) {
-				if(from == se.parent()) {
-					DBG("node %d SE %d.%d // processing token from parent %d", radio_->id(), se.id().rule(), se.id().value(), from);
-					process_token_state(se, token_state, from, t);
-				}
-				else {
-					size_type child_index = se.find_child(from);
-					if(child_index == npos) {
-						DBG("node %d SE %d.%d // token sender %d is neither child or parent", radio_->id(), se.id().rule(), se.id().value(), from);
-						return;
-					}
-					
-					if(child_index == se.childs() - 1) { // from last child
-						if(radio_->id() == se.root()) {
-							DBG("node %d SE %d.%d // processing token from last child %d at root", radio_->id(), se.id().rule(), se.id().value(), from);
-							process_token_state(se, token_state, from, t);
-						}
-						else {
-							DBG("node %d SE %d.%d // fwd token from last child %d to parent %d", radio_->id(), se.id().rule(), se.id().value(), from, se.parent());
-							forward_token_state(se.id(), token_state, from, se.parent());
-						}
-					}
-					else {
-						DBG("node %d SE %d.%d // fwd token from child %d to next child %d", radio_->id(), se.id().rule(), se.id().value(), from, se.child_address(child_index + 1));
-						forward_token_state(se.id(), token_state, from, se.child_address(child_index + 1));
-					}
-				}
-			} // on_receive_token_state()
-			
-			/// ditto.
-			void on_receive_token_state(SemanticEntityT& se, StateUpdateMessageT& msg, size_type index, time_t t, node_id_t from) {
-				typename SemanticEntityT::State s;
-				msg.get_entity_state(index, s);
-				
-				if(
-					(from == se.parent() && msg.get_entity_first_child(index) == radio_->id()) ||
-					(from != se.parent())) {
-					DBG("node %d SE %d.%d // recv token via state update from %d", radio_->id(), se.id().rule(), se.id().value(), from);
-					on_receive_token_state(se, s.token(), t, from);
-				}
-			} // on_receive_token_state()
-			
-			/// ditto.
-			void on_receive_token_state(SemanticEntityT& se, TokenStateForwardMessageT& msg, time_t t, node_id_t from) {
-				DBG("node %d SE %d.%d // recv token via forward from %d", radio_->id(), se.id().rule(), se.id().value(), from);
-				on_receive_token_state(se, msg.token_state(), t, from);
-			} // on_receive_token_state()
-			*/
-			
-			
-			/**
-			 * Forward token state to another node (calleb by
+			 * Forward token state to another node (called by
 			 * on_receive_token_state).
 			 */
 			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to, time_t t_recv) {
@@ -697,14 +658,6 @@ namespace wiselib {
 			 * token from the given SE.
 			 */
 			void begin_wait_for_token(SemanticEntityT& se) {
-				/*
-				if(!se.is_awake()) {
-					DBG("node %d SE %d.%d awake=1 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
-					se.set_awake(true);
-					DBG("node %d // push begin_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
-					push_caffeine();
-				}
-				*/
 				DBG("node %d // push begin_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 				push_caffeine();
 			}
@@ -720,13 +673,6 @@ namespace wiselib {
 					DBG("node %d // pop end_wait_for_token SE %d.%d", radio_->id(), se.id().rule(), se.id().value());
 					pop_caffeine();
 				}
-				
-				/*
-				if(se.is_awake()) {
-					se.set_awake(false);
-					DBG("node %d SE %d.%d awake=0 t=%d", radio_->id(), se.id().rule(), se.id().value(), now());
-				}
-				*/
 			}
 			
 			/**
@@ -802,6 +748,22 @@ namespace wiselib {
 			
 			/// ditto.
 			void end_activity(SemanticEntityT& se) { end_activity((void*)&se); }
+			
+			void begin_wait_for_regular_broadcast(void *from_) {
+				
+				node_id_t n;
+				memcpy(&n, &from_, min(sizeof(node_id_t), sizeof(void*)));
+				DBG("node %d // push begin_wait_for_regular_broadcast %d", radio_->id(), n);
+				
+				push_caffeine();
+			}
+			
+			void end_wait_for_regular_broadcast(node_id_t from) {
+				if(timing_controller_.end_wait_for_regular_broadcast(from)) {
+					DBG("node %d // pop end_wait_for_regular_broadcast %d", radio_->id(), from);
+					pop_caffeine();
+				}
+			}
 			
 			/**
 			 * @return if internal tree change actually has been changed.

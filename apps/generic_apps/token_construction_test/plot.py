@@ -323,9 +323,9 @@ for k, v in parents.items():
 		print ("  " + src + " -> " + tgt)
 
 print("duty cycle graph...")
-#fig_duty_cycle() #r'.*:1\.2')
+fig_duty_cycle() #r'.*:1\.2')
 print("timings graph...")
-#fig_timings()
+fig_timings()
 #print("counts graph...")
 #fig_count_onegraph(r'.*:1\.2')
 

@@ -136,7 +136,7 @@ namespace wiselib {
 						}
 						
 						hits_++;
-						DBG("------- HIT id %u current window new: %llu", mynodeid, window_);
+						DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
 						last_encounter_ = t;
 					}
 					
@@ -177,9 +177,13 @@ namespace wiselib {
 							typename Timer::self_pointer_t timer,
 							T* obj, void* userdata
 					) {
-						if(waiting_timer_set_) { return true; }
+						if(waiting_timer_set_) {
+							DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
+							return true;
+						}
 						
 						if(early()) {
+							DBG("t=%d // EARLY! hits=%d userdata=%p", absolute_millis(clock, clock->time()), hits_, userdata);
 							waiting_ = true;
 							return false;
 						}
@@ -270,29 +274,33 @@ namespace wiselib {
 				clock_ = clock;
 			}
 			
+			/// Regular broadcast.
+			
 			void regular_broadcast(node_id_t source, time_t hit, node_id_t mynodeid) {
-				state_updates_[source].hit(hit, clock_, mynodeid);
+				regular_broadcasts_[source].hit(hit, clock_, mynodeid);
 			} // regular_broadcast()
 			
+			template<typename T, void (T::*TMethod)(void*)>
+			bool schedule_wakeup_for_regular_broadcast(node_id_t from, T* obj) {
+				RegularEvent &event = regular_broadcasts_[from];
+				return event.template start_waiting_timer<T, TMethod>(clock_, timer_, obj, (void*)from);
+			}
+			
+			bool end_wait_for_regular_broadcast(node_id_t from) {
+				RegularEvent &event = regular_broadcasts_[from];
+				return event.end_waiting();
+			}
+			
+			/// Dirty broadcast.
 			
 			void dirty_broadcast(node_id_t source, time_t hit) {
 				// We don't wake up for dirty state broadcasts
 			}
 			
+			/// Token forward.
+			
 			void token_forward(const SemanticEntityId& entity, node_id_t source, time_t hit, node_id_t mynodeid) {
 				token_forwards_[make_pair(source, entity)].hit(hit, clock_, mynodeid);
-			}
-			
-			void activating_token(const SemanticEntityId& entity, time_t hit, node_id_t mynodeid) {
-				DBG("received activating token for %d.%d", entity.rule(), entity.value());
-				activating_tokens_[entity].hit(hit, clock_, mynodeid);
-			}
-			
-			abs_millis_t activating_token_window(const SemanticEntityId& entity) {
-				return absolute_millis(activating_tokens_[entity].window());
-			}
-			abs_millis_t activating_token_interval(const SemanticEntityId& entity) {
-				return absolute_millis(activating_tokens_[entity].interval());
 			}
 			
 			template<typename T, void (T::*TMethod)(void*)>
@@ -306,6 +314,20 @@ namespace wiselib {
 				return event.end_waiting();
 			}
 			
+			/// Activating token.
+			
+			void activating_token(const SemanticEntityId& entity, time_t hit, node_id_t mynodeid) {
+				DBG("received activating token for %d.%d", entity.rule(), entity.value());
+				activating_tokens_[entity].hit(hit, clock_, mynodeid);
+			}
+			
+			abs_millis_t activating_token_window(const SemanticEntityId& entity) {
+				return absolute_millis(activating_tokens_[entity].window());
+			}
+			abs_millis_t activating_token_interval(const SemanticEntityId& entity) {
+				return absolute_millis(activating_tokens_[entity].interval());
+			}
+			
 			/**
 			 * @return true if a wakeup was scheduled, false else.
 			 * The false-case will occur when the wakeup would be scheduled
@@ -316,30 +338,6 @@ namespace wiselib {
 			bool schedule_wakeup_for_activating_token(SemanticEntityT& entity, T *obj) {
 				RegularEvent &event = activating_tokens_[entity.id()];
 				return event.template start_waiting_timer<T, TMethod>(clock_, timer_, obj, (void*)&entity);
-				
-				
-				/*	
-				DBG("schedule wakeup");
-				
-				abs_millis_t delta;
-				RegularEvent &event = activating_tokens_[entity.id()];
-				
-				if(event.early()) {
-					// event is still in the early configuration phase,
-					// lets be awake the whole time so we can do some initial
-					// timing measurements.
-					DBG("staying awake");
-					return false;
-				}
-				else {
-					delta = absolute_millis(
-						event.next_expected(clock_->time()) - clock_->time()
-					);
-					DBG("scheduling wakeup in %d ms", delta);
-					timer_->template set_timer<T, TMethod>(delta, obj, (void*)&entity);
-					return true;
-				}
-				*/
 			}
 			
 			bool end_wait_for_token(SemanticEntityT& se) {
@@ -357,9 +355,10 @@ namespace wiselib {
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
 			}
 			
-			MapStaticVector<OsModel, node_id_t, RegularEvent, MAX_NEIGHBORS> state_updates_;
+			//MapStaticVector<OsModel, node_id_t, RegularEvent, MAX_NEIGHBORS> state_updates_;
 			MapStaticVector<OsModel, SemanticEntityId, RegularEvent, MAX_ENTITIES> activating_tokens_;
-			MapStaticVector<OsModel, pair<node_id_t, SemanticEntityId>, RegularEvent, MAX_ENTITIES> token_forwards_;
+			MapStaticVector<OsModel, pair<node_id_t, SemanticEntityId>, RegularEvent, MAX_ENTITIES * MAX_NEIGHBORS> token_forwards_;
+			MapStaticVector<OsModel, node_id_t, RegularEvent, MAX_NEIGHBORS> regular_broadcasts_;
 			
 			typename Clock::self_pointer_t clock_;
 			typename Timer::self_pointer_t timer_;
