@@ -16,7 +16,7 @@ def parse(f):
 	global tmax
 	global caff
 	
-	caff_re = r'.*node (\d+)\s*//\s*(push|pop)\s+(.*)$'
+	caff_re = r'.*node (\d+).*//\s*(push|pop)\s+(.*)$'
 	t = 0
 	for line in f:
 		origline = line

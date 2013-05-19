@@ -27,6 +27,7 @@
 #include <util/pstl/algorithm.h>
 #include <util/serialization/serialization.h>
 
+#include "regular_event.h"
 #include "semantic_entity_id.h"
 
 namespace wiselib {
@@ -41,11 +42,13 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Radio_P = typename OsModel_P::Radio,
-		typename Clock_P = typename OsModel_P::Clock
+		typename Clock_P = typename OsModel_P::Clock,
+		typename Timer_P = typename OsModel_P::Timer,
+		int MAX_NEIGHBORS_P = 8
 	>
 	class SemanticEntity {
 		public:
-			typedef SemanticEntity<OsModel_P, Radio_P, Clock_P> self_type;
+			typedef SemanticEntity<OsModel_P, Radio_P, Clock_P, Timer_P, MAX_NEIGHBORS_P> self_type;
 				
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
@@ -56,17 +59,21 @@ namespace wiselib {
 			typedef typename Radio::node_id_t node_id_t;
 			typedef Clock_P Clock;
 			typedef typename Clock::millis_t millis_t;
+			typedef typename Clock::time_t time_t;
+			typedef Timer_P Timer;
+			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			
 			class TreeState;
 			class TokenState;
 			
-			enum Restrictions { MAX_NEIGHBORS = 8 };
+			enum Restrictions { MAX_NEIGHBORS = MAX_NEIGHBORS_P };
 			enum SpecialValues {
 				npos = (size_type)(-1),
 				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
 			typedef vector_static<OsModel, node_id_t, MAX_NEIGHBORS> Childs;
+			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> TokenForwards;
 			
 			/**
 			 */
@@ -76,42 +83,20 @@ namespace wiselib {
 					TreeState() : parent_(0), root_(std::numeric_limits<node_id_t>::max()), distance_(-1) {
 					}
 					
-					TreeState(const TreeState& other) {
-						*this = other;
-					}
-					
-					TreeState& operator=(const TreeState& other) {
-						DBG("// TreeState::op=() other: parent=%d root=%d distance=%d", other.parent_,
-								other.root_, other.distance_);
-						parent_ = other.parent_;
-						root_ = other.root_;
-						distance_ = other.distance_;
-						return *this;
-					}
-					
-					void reset() {
-						// TODO
-					}
+					TreeState(const TreeState& other) { *this = other; }
 					
 					node_id_t parent() const { return parent_; }
-					void set_parent(node_id_t p) {
-						parent_ = p;
-					}
+					void set_parent(node_id_t p) { parent_ = p; }
 					
 					node_id_t root() const { return root_; }
-					void set_root(node_id_t r) {
-						root_ = r;
-					}
+					void set_root(node_id_t r) { root_ = r; }
 					
 					distance_t distance() const { return distance_; }
-					void set_distance(distance_t s) {
-						distance_ = s;
-					}
+					void set_distance(distance_t s) { distance_ = s; }
 					
 				private:
 					node_id_t parent_;
 					node_id_t root_;
-					//distance_t distance_;
 					::uint32_t distance_;
 				// }}}
 			};
@@ -224,7 +209,7 @@ namespace wiselib {
 					SemanticEntityId id_;
 					bool dirty_;
 					
-				template<typename OsModel_, typename Radio_, typename Clock_>
+				template<typename OsModel_, typename Radio_, typename Clock_, typename Timer_, int MAX_NEIGHBORS_>
 				friend class SemanticEntity;
 				
 				template<typename OsModel_, Endianness Endianness_, typename BlockData_, typename T_>
@@ -234,28 +219,28 @@ namespace wiselib {
 			};
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
 			
+			/// Ctors.
 			
-			SemanticEntity() : awake_(false), activity_phase_(false) {
+			SemanticEntity() : activity_phase_(false) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), awake_(false), activity_phase_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
 				*this = other;
 			}
 			
-			SemanticEntity& operator=(const SemanticEntity& other) {
-				state_ = other.state_;
-				prev_token_state_ = other.prev_token_state_;
-				neighbor_states_ = other.neighbor_states_;
-				token_forwards_ = other.token_forwards_;
-				awake_ = other.awake_;
-				activity_phase_ = other.activity_phase_;
-				return *this;
-			}
-			
-			
+			/**
+			 * @return true iff the entity is currently in an activity phase.
+			 * That is, when is_active() is true, the token construction will
+			 * sooner or later start an activity phase (involving setting up
+			 * timers). This manages a bool variable to track if that has
+			 * already hpappened or not.
+			 */
+			bool in_activity_phase() { return activity_phase_; }
+			void begin_activity_phase() { activity_phase_ = true; }
+			void end_activity_phase() { activity_phase_ = false; }
 			
 			
 			/**
@@ -268,14 +253,15 @@ namespace wiselib {
 			 * the duty cycling sense).
 			 */
 			bool is_awake() {
-				return awake_;
+				if(activating_token_.waiting()) {
+					return true;
+				}
+				for(typename TokenForwards::iterator it = token_forwards_.begin(); it != token_forwards_.end(); ++it) {
+					if(it->second.waiting()) { return true; }
+				}
+				return false;
 			}
 			
-			void set_awake(bool a) {
-				awake_ = a;
-			}
-			
-		
 			/**
 			 * Recalculate current internal tree state.
 			 * @param mynodeid id of this node.
@@ -290,6 +276,8 @@ namespace wiselib {
 					DBG("// node %d has no neighbors!", mynodeid);
 				}
 				
+				Childs oldchilds = childs_;
+				
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
 					DBG("node %d SE %d.%d neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
@@ -302,6 +290,36 @@ namespace wiselib {
 					}
 				}
 				sort(childs_.begin(), childs_.end());
+				
+				
+				// did we loose children?
+				
+				DBG("node %d // SE %d.%d child list begin old=%d new=%d this=%p", mynodeid, id().rule(), id().value(), oldchilds.size(), childs_.size(), this);
+				typename Childs::iterator i_new = childs_.begin();
+				for(typename Childs::iterator i_old = oldchilds.begin(); i_old != oldchilds.end(); ++i_old) {
+					DBG("node %d // SE %d.%d old child %d this=%p", mynodeid, id().rule(), id().value(), *i_old, this);
+					if(i_new != childs_.end()) {
+						DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
+					}
+						
+					while(i_new != childs_.end() && *i_new < *i_old) {
+						i_new++;
+						if(i_new != childs_.end()) {
+							DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
+						}
+					}
+					if(i_new == childs_.end() || *i_new != *i_old) {
+						DBG("node %d // SE %d.%d LOST CHILD %d", mynodeid, id().rule(), id().value(), *i_old);
+						// lost child *i_old
+						cancel_timers(*i_old);
+					}
+				}
+				if(i_new != childs_.end()) { ++i_new; }
+				for(; i_new != childs_.end(); ++i_new) {
+					DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
+				}
+				DBG("node %d // SE %d.%d child list end this=%p", mynodeid, id().rule(), id().value(), this);
+				
 				
 				// Update tree state
 				// 
@@ -341,7 +359,6 @@ namespace wiselib {
 				DBG("node %d SE %d.%d distance %d parent %d root %d",
 						mynodeid, id().rule(), id().value(), state().distance(), state().parent(), state().root());
 				
-				got_token_ = false;
 				return changed;
 				
 				// }}}
@@ -366,31 +383,6 @@ namespace wiselib {
 			}
 			
 			/**
-			 * @return true iff the entity is currently in an activity phase.
-			 * That is, when is_active() is true, the token construction will
-			 * sooner or later start an activity phase (involving setting up
-			 * timers). This manages a bool variable to track if that has
-			 * already hpappened or not.
-			 */
-			bool in_activity_phase() { return activity_phase_; }
-			void begin_activity_phase() { activity_phase_ = true; }
-			void end_activity_phase() { activity_phase_ = false; }
-					
-			
-			/**
-			 * @return true iff we received a token since the last call to
-			 * update_token_state.
-			 * That is, if set_prev_token_Count was called since then.
-			 * Note that this might or might not mean that is_active is true:
-			 * The token info is not necessarily activating, OTOH activation
-			 * can occur by a change in the tree state, which will always
-			 * reset got_token() to false.
-			 */
-			bool got_token() {
-				return got_token_;
-			}
-			
-			/**
 			 * Update the internal token state with the previously received
 			 * one such that this node will not be considered active anymore
 			 * if it was before.
@@ -405,7 +397,6 @@ namespace wiselib {
 				else {
 					state().set_count(l);
 				}
-				got_token_ = false;
 			}
 			
 			/**
@@ -413,16 +404,6 @@ namespace wiselib {
 			 */
 			bool is_root(node_id_t mynodeid) {
 				return tree().root() == mynodeid;
-			}
-			
-			
-			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
-				DBG("node %d SE %d.%d active=%d awake=%d count=%d t=%d parent=%d root=%d distance=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid),
-						is_awake(), count(), t,
-						tree().parent(), tree().root(), tree().distance(),
-						comment);
-				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
-				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
 			
 			void set_count(token_count_t c) {
@@ -448,12 +429,10 @@ namespace wiselib {
 			}
 			
 			void set_prev_token_count(token_count_t ptc) {
-				got_token_ = true;
 				prev_token_state_.set_count(ptc);
 			}
 			
 			void set_clean() {
-				got_token_ = false;
 				state_.set_clean();
 				// TODO: mark states as clean
 			}
@@ -478,36 +457,15 @@ namespace wiselib {
 			 * Return position of child in ordered list of childs.
 			 */
 			size_type find_child(node_id_t id) {
+				return find_child(id, childs_);
+			}
+			
+			static size_type find_child(node_id_t id, Childs& childs) {
 				// TODO
-				typename Childs::iterator it = childs_.find(id);
-				if(it == childs_.end()) { return npos; }
-				return it - childs_.begin();
+				typename Childs::iterator it = childs.find(id);
+				if(it == childs.end()) { return npos; }
+				return it - childs.begin();
 			}
-			
-			size_type add_child(node_id_t id) {
-				childs_.push_back(id);
-				
-				// find place where id actually belongs
-				size_type idx;
-				for(idx = 0; idx < childs_.size() - 1 && childs_[idx] < id; idx++) {
-				}
-				
-				// if its before the last place, shift everything
-				if(idx < childs_.size() - 1) {
-					for(size_type i = childs_.size() - 2; i >= idx && i != npos; i--) {
-						childs_[i + 1] = childs_[i];
-					}
-					childs_[idx] = id;
-				}
-				
-				assert(find_child(id) == idx);
-				
-				return idx;
-			}
-			
-			//State& child_state(size_type idx) {
-				//return neighbor_states_[childs_[idx]];
-			//}
 			
 			node_id_t child_address(size_type idx) {
 				if(idx >= childs_.size()) {
@@ -525,7 +483,75 @@ namespace wiselib {
 			bool operator==(SemanticEntity& other) { return id() == other.id(); }
 			bool operator<(SemanticEntity& other) { return id() < other.id(); }
 			
+			void erase_neighbor(node_id_t neighbor) {
+				neighbor_states_.erase(neighbor);
+				cancel_timers(neighbor);
+			}
+			
+			/// Timing.
+			
+			void learn_activating_token(typename Clock::self_pointer_t clock, node_id_t mynodeid, time_t hit) {
+				activating_token_.hit(hit, clock, mynodeid);
+			}
+			
+			template<typename T, void (T::*BeginWaiting)(void*), void (T::*EndWaiting)(void*)>
+			void schedule_activating_token(
+					typename Clock::self_pointer_t clock,
+					typename Timer::self_pointer_t timer,
+					T* obj, void* userdata = 0
+			) {
+				activating_token_.template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
+			}
+			
+			void end_wait_for_activating_token() {
+				activating_token_.end_waiting();
+			}
+			
+			
+			void learn_token_forward(typename Clock::self_pointer_t clock, node_id_t mynodeid, node_id_t from, time_t hit) {
+				token_forwards_[from].hit(hit, clock, mynodeid);
+			}
+			
+			template<typename T, void (T::*BeginWaiting)(void*), void (T::*EndWaiting)(void*)>
+			void schedule_token_forward(
+					typename Clock::self_pointer_t clock,
+					typename Timer::self_pointer_t timer,
+					T* obj, node_id_t from, void* userdata = 0
+			) {
+				DBG("// scheduling token_forward from %d SE %d.%d", from, id().rule(), id().value());
+				token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
+			}
+			
+			void end_wait_for_token_forward(node_id_t from) {
+				token_forwards_[from].end_waiting();
+			}
+			
+			
+			/// Debugging.
+			
+			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
+				DBG("node %d SE %d.%d active=%d awake=%d count=%d t=%d parent=%d root=%d distance=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid),
+						is_awake(), count(), t,
+						tree().parent(), tree().root(), tree().distance(),
+						comment);
+				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
+				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
+			}
+			
+			
 		private:
+			
+			void cancel_timers(node_id_t n) {
+				if(token_forwards_.contains(n)) {
+					token_forwards_[n].cancel();
+				}
+			}
+			
+			/// Timing.
+			
+			TokenForwards token_forwards_;
+			RegularEventT activating_token_;
+			
 			State state_;
 			
 			// Cached states from other nodes
@@ -534,10 +560,8 @@ namespace wiselib {
 			
 			// vector of pairs: (time-offs from token recv, sender of forward
 			// token)
-			vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
+			//vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			Childs childs_;
-			bool awake_;
-			bool got_token_;
 			bool activity_phase_;
 	}; // SemanticEntity
 	

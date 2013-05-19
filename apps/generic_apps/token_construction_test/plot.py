@@ -19,6 +19,7 @@ rc('text', usetex=True)
 fig = None
 parents = {}
 gnodes = {}
+nhood = set()
 
 properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count')
 
@@ -67,6 +68,11 @@ def parse(f):
 		se = get_value('SE')
 		if se is not None: name += ':' + se.rstrip('.')
 		if name not in nodes: nodes[name] = {}
+		
+		# update nhood
+		neighbor = get_value('neighbor')
+		if neighbor is not None:
+			nhood.add((nodename, neighbor))
 		
 		# update SE graph
 		
@@ -321,6 +327,8 @@ for k, v in parents.items():
 	print(k + ":")
 	for src, tgt in v.items():
 		print ("  " + src + " -> " + tgt)
+
+print nhood
 
 print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
