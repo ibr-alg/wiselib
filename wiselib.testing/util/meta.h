@@ -183,5 +183,12 @@ struct RemovePointer { typedef T t; };
 template<typename T>
 struct RemovePointer<T*> { typedef T t; };
 
+
+/**
+ * Calculate length of a string constant at compile time.
+ */
+template<size_t N>
+size_t strlen_compiletime(const char (&)[N]) { return N - 1; }
+
 #endif // META_H
 

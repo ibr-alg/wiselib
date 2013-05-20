@@ -17,18 +17,27 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef PROJECTION_INFO_H
-#define PROJECTION_INFO_H
+#ifndef SEMANTIC_ENTITIES_OFFICE1_H
+#define SEMANTIC_ENTITIES_OFFICE1_H
+
+#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 namespace wiselib {
 	
-	class ProjectionInfoBase {
-		public:
-			enum TypeInfo {
-				IGNORE = 0, INTEGER = 1, FLOAT = 2, STRING = 3
-			};
-	};
-	
+	template<
+		typename TokenConstruction,
+		typename node_id_t
+	>
+	void add_entities(TokenConstruction& tc, node_id_t id) {
+		const int rule = 1;
+		
+		
+		
+		switch(id) {
+			case 0:
+				tc.add_entity(SemanticEntityId(rule, 
+		
+	}
 	
 	/**
 	 * @brief
@@ -38,77 +47,20 @@ namespace wiselib {
 	 * @tparam 
 	 */
 	template<
-		typename OsModel_P,
-		int COLUMNS_P = 16
+		typename OsModel_P
 	>
-	class ProjectionInfo : public ProjectionInfoBase {
-		public:
-			enum { COLUMNS = COLUMNS_P };
-			
-		private:
-			enum { COLUMN_BYTES = (COLUMNS + 3) / 4 };
+	class SemanticEntitiesOffice1 {
 		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			
-			ProjectionInfo() {
-			}
-			
-			template<typename T>
-			ProjectionInfo(T v) {
-				memset(columns_, 0, sizeof(columns_));
-				size_type i = 0;
-				while(v && i < COLUMN_BYTES) {
-					columns_[i] = v & 0xff;
-					v >>= 8;
-				}
-			}
-			
-			/**
-			 * Return the number of not-ignored columns.
-			 */
-			size_type columns() {
-				size_type r = 0;
-				for(size_type i = 0; i < COLUMN_BYTES; i++) {
-					block_data_t b = columns_[i];
-					for( ; b != 0; b >>= 2) {
-						if((b & 0x3) != IGNORE) { r++; }
-					}
-				}
-				return r;
-			}
-			
-			int type(size_type col) {
-				return (columns_[col / 4] >> ((col % 4) * 2)) & 0x3;
-			}
-			
-			/*
-			 * Return the type of given column as seen by the parent operator.
-			 */
-			int result_type(size_type col) {
-				size_type j = 0;
-				size_type i = -1;
-				while(i != col) {
-					while(type(j) == IGNORE) { j++; }
-					i++;
-					j++;
-				}
-				j--;
-				return type(j);
-			}
-			
-			// feststellung:
-			// - wir brauchen wahrscheinlich nie mehr als 16 variablen,
-			//   dementsprechend wird eine row nie breiter als 16 columns!
 		
 		private:
-			
-			block_data_t columns_[COLUMN_BYTES];
 		
-	}; // ProjectionInfo
+	}; // SemanticEntitiesOffice1
 }
 
-#endif // PROJECTION_INFO_H
+#endif // SEMANTIC_ENTITIES_OFFICE1_H
+
 

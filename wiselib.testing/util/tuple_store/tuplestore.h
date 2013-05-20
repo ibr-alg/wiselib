@@ -368,6 +368,8 @@ namespace wiselib {
 				friend class wiselib::TupleStore;
 				// }}}
 			};
+			
+		// }}}
 	} // namespace
 	
 	/**

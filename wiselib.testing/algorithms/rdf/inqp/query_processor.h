@@ -64,6 +64,8 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef INQPQueryProcessor<OsModel_P, TupleStore_P, Hash_P, Dictionary_P, Translator_P, ReverseTranslator_P, Value_P, MAX_QUERIES_P> self_type;
+			typedef self_type* self_pointer_t;
+			
 			typedef Value_P Value;
 			typedef TupleStore_P TupleStoreT;
 			typedef Dictionary_P Dictionary;
@@ -142,8 +144,15 @@ namespace wiselib {
 					DBG("no intermediate result callback!");
 				}
 			}
+			
+			void execute_all() {
+				for(typename Queries::iterator it = queries_.begin(); it != queries_.end(); ++it) {
+					execute(it->second);
+				}
+			}
+				
 
-			void execute(Query *query, int id) {
+			void execute(Query *query, int id = 0) {
 				assert(query->ready());
 				DBG("executing query @%d", id);
 				query->build_tree();
@@ -265,10 +274,16 @@ namespace wiselib {
 				q->init(this, qid);
 				if(queries_.size() >= queries_.capacity()) {
 					assert(false && "queries full, clean them up from time to time!");
-					
 				}
 				queries_[qid] = q;
 				return q;
+			}
+			
+			void add_query(query_id_t qid, Query* query) {
+				if(queries_.size() >= queries_.capacity()) {
+					assert(false && "queries full, clean them up from time to time!");
+				}
+				queries_[qid] = query;
 			}
 			
 			Dictionary& dictionary() { return tuple_store_->dictionary(); }

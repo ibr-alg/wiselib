@@ -83,32 +83,31 @@ namespace wiselib {
 			void hit(time_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
 				time_t new_interval = t - last_encounter_;
 				
-				DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu",
-						mynodeid, window_, t, expected());
+				//DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu", mynodeid, window_, t, expected());
 				
 				switch(hit_type(t, clock)) {
 					case HIT_CLOSE:
-						DBG("------ Close hit, halving window");
+						//DBG("------ Close hit, halving window");
 						window_ /= 2;
 						if(window_ < MIN_WINDOW_SIZE) { window_ = MIN_WINDOW_SIZE; }
 						update_interval(new_interval, ALPHA_CLOSE);
 						break;
 					case HIT_STABLE:
-						DBG("------ stable hit");
+						//DBG("------ stable hit");
 						update_interval(new_interval, ALPHA_STABLE);
 						break;
 					case HIT_FAR:
-						DBG("------ far hit, doubling window");
-						DBG("------- HIT window before double %llu", window_);
+						//DBG("------ far hit, doubling window");
+						//DBG("------- HIT window before double %llu", window_);
 						window_ *= 2;
-						DBG("------- HIT window after double %llu", window_);
+						//DBG("------- HIT window after double %llu", window_);
 						if(window_ > interval_) { window_ = interval_; }
 						update_interval(new_interval, ALPHA_FAR);
 						break;
 				}
 				
 				hits_++;
-				DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
+				//DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
 				last_encounter_ = t;
 			}
 			
@@ -148,7 +147,7 @@ namespace wiselib {
 					T* obj, void* userdata = 0
 			) {
 				if(waiting_timer_set_) {
-					DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
+					//DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
 					return true;
 				}
 				
@@ -167,7 +166,7 @@ namespace wiselib {
 					
 					abs_millis_t delta;
 					delta = absolute_millis(clock, next_expected(clock->time()) - clock->time() - window_);
-					DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
+					//DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, 0);
 				}
 				return true;
@@ -190,10 +189,10 @@ namespace wiselib {
 			
 			void cancel() {
 				if(!end_waiting()) {
-					DBG("// cancel without end_waiting_callback");
+					//DBG("// cancel without end_waiting_callback");
 					cancel_ = true;
 				}
-				DBG("// cancelled without end_waiting_callback");
+				//DBG("// cancelled without end_waiting_callback");
 			}
 			
 			bool waiting() { return waiting_; }
@@ -208,7 +207,7 @@ namespace wiselib {
 				waiting_timer_set_ = false;
 				if(!waiting_) {
 					if(cancel_) {
-						DBG("// begin_waiting: net executing because cancel");
+						//DBG("// begin_waiting: net executing because cancel");
 						waiting_ = false;
 						cancel_ = false;
 					}

@@ -21,7 +21,8 @@ parents = {}
 gnodes = {}
 nhood = set()
 
-properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count')
+properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count', 'node',
+		'SE', 'parent', 'neighbor', 't', 'fwd_window', 'fwd_interval', 'fwd_from')
 
 def getnodes(namepattern):
 	global gnodes
@@ -30,6 +31,11 @@ def getnodes(namepattern):
 	)
 	return nodes
 	
+
+re_begin_iteration = re.compile('-+ BEGIN ITERATION (\d+)')
+re_properties = {}
+for p in properties:
+	re_properties[p] = re.compile(r'\b' + p + r'\s*(=|\s)\s*([^= ]+)')
 
 def parse(f):
 	global gnodes, parents
@@ -40,7 +46,8 @@ def parse(f):
 	
 	for line in f:
 		def get_value(s):
-			m = re.search(r'\b' + s + r'\s*(=|\s)\s*([^= ]+)', line)
+			#m = re.search(r'\b' + s + r'\s*(=|\s)\s*([^= ]+)', line)
+			m = re.search(re_properties[s], line)
 			if m is None: return None
 			return m.group(2).strip()
 		
@@ -52,7 +59,7 @@ def parse(f):
 		
 		# is this a begin iteration line?
 		
-		m = re.match('-+ BEGIN ITERATION (\d+)', line)
+		m = re.match(re_begin_iteration, line)
 		if m is not None:
 			t = int(m.group(1))
 		
@@ -62,6 +69,9 @@ def parse(f):
 		name = nodename = get_value('node')
 		if name is None:
 			print ("[!!!] nodename is none in line: " + origline)
+		
+		try: t = int(get_value('t')) / 1000
+		except: pass
 		
 		# is it also about a SE?
 		
@@ -82,22 +92,34 @@ def parse(f):
 				parents[se] = {}
 			parents[se][nodename] = parent
 			
+		# forwards
+		
+		fwd_window = get_value('fwd_window')
+		if fwd_window is not None:
+			fwd_interval = get_value('fwd_interval')
+			if 'forward' not in nodes[name]: nodes[name]['forward'] = {'t': np.array((),dtype=np.int32), 'v': [np.array((),
+				dtype=np.int32), np.array((), dtype=np.int32)]}
+			nodes[name]['forward']['t'] = np.append(nodes[name]['forward']['t'], t)
+			nodes[name]['forward']['v'][0] = np.append(nodes[name]['forward']['v'][0], int(fwd_window))
+			nodes[name]['forward']['v'][1] = np.append(nodes[name]['forward']['v'][1], int(fwd_interval))
+		
 		# track other properties
 		
 		for k in properties:
 			v = get_value(k)
 			if v is not None:
-				if k not in nodes[name]: nodes[name][k] = {'t': [], 'v': []}
+				if k not in nodes[name]: nodes[name][k] = {'t': np.array((),
+					dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 				
-				try:
-					t = float(get_value('t')) / 1000.0
-				except: pass
+				#try:
+					#t = float(get_value('t')) / 1000.0
+				#except: pass
 				
 				try: int(v)
 				except ValueError: pass
 				else:
-					nodes[name][k]['t'].append(t)
-					nodes[name][k]['v'].append(int(v))
+					nodes[name][k]['t'] = np.append(nodes[name][k]['t'], t)
+					nodes[name][k]['v'] = np.append(nodes[name][k]['v'], int(v))
 
 def fig_count_onegraph(namepattern = '*'):
 	global fig
@@ -193,7 +215,7 @@ def fig_timings():
 	global gnodes
 	nodes = gnodes
 	
-	fig = plt.figure(figsize=(8, 40))
+	fig = plt.figure(figsize=(16, 40))
 	#fig.subplots_adjust(
 	
 	property_styles = {}
@@ -240,7 +262,7 @@ def fig_timings():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 801))
+	last_ax.set_xlim((-1, 1601))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -254,7 +276,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	global fig
 	nodes = getnodes(namepattern)
 	
-	fig = plt.figure(figsize=(8, 0.3 * len(nodes)))
+	fig = plt.figure(figsize=(16, 0.3 * len(nodes)))
 	#fig.subplots_adjust(
 	
 	property_styles = {}
@@ -310,7 +332,7 @@ def fig_duty_cycle(namepattern = '.*'):
 		i += 1
 			
 	#last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 901))
+	last_ax.set_xlim((-1, 1801))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())

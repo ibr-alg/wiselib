@@ -37,7 +37,11 @@ Allocator& get_allocator();
 
 #include <algorithms/semantic_entities/token_construction/token_construction.h>
 #include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
+#include <algorithms/semantic_entities/token_construction/inqp_rule_processor.h>
 
+#include <algorithms/rdf/inqp/query_processor.h>
+
+#include "semantics_office1.h"
 
 typedef Tuple<Os> TupleT;
 typedef wiselib::list_dynamic<Os, TupleT> TupleList;
@@ -46,6 +50,14 @@ typedef wiselib::PrescillaDictionary<Os> Dictionary;
 typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 
 typedef wiselib::TokenConstruction<Os, Os::Radio, Os::Timer> TC;
+
+typedef wiselib::INQPQueryProcessor<Os, TS> QueryProcessor;
+typedef QueryProcessor::Hash Hash;
+typedef QueryProcessor::Query Query;
+typedef QueryProcessor::GPS GPS;
+typedef QueryProcessor::C Coll;
+typedef wiselib::ProjectionInfo<Os> Projection;
+typedef wiselib::InqpRuleProcessor<Os, QueryProcessor, TC> RuleProcessor;
 
 
 class ExampleApplication
@@ -70,24 +82,57 @@ class ExampleApplication
 			
 			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
 			
-			//init_ts();
-			init_tc();
+			dictionary.init(debug_);
+			ts.init(&dictionary, &container, debug_);
+			token_construction_.init(radio_, timer_, clock_, debug_);
+			query_processor_.init(&ts, timer_);
+			rule_processor_.init(&query_processor_, &token_construction_);
+			rule_processor_.node_id_ = radio_->id();
 			
-			
-			/*
-			if(radio_->id() == 0) {
-				debug_->debug("---- I AM THE SINK! ----\n");
-				timer_->set_timer<ExampleApplication, &ExampleApplication::be_sink>(1000, this, 0);
-			}
-			else {
-				be();
-			}
-			*/
+			initial_semantics(ts, radio_->id()); // included from semantics_XXX.h
+			create_rules();
+			rule_processor_.execute_all();
 		}
 		
-		Dictionary dictionary;
-		TupleContainer container;
-		TS ts;
+		
+		Query q1;
+		Coll collect1;
+		GPS gps1;
+		
+		#define STRHASH(X) Hash::hash((const block_data_t*)(X), strlen_compiletime(X))
+		
+		void create_rules() {
+			/*
+			TupleT q;
+			q.set(1, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>");
+			<http://spitfire-project.eu/sensor/foo>  <http://spitfire-project.eu/foi/Room_12> .
+			*/
+			
+			/*
+			 * Add rule 1: (* <...#featureOfInterest> X)
+			 */
+			uint8_t qid = 1;
+			q1.init(&query_processor_, qid);
+			q1.set_expected_operators(2);
+			
+			collect1.init(
+					&q1, 2 /* opid */, 0 /* parent */, 0 /* parent port */,
+					Projection((long)BIN(11))
+					);
+			q1.add_operator(&collect1);
+			
+			gps1.init(
+					&q1, 1 /* op id */, 2 /* parent */, 0 /* parent port */,
+					Projection((long)BIN(110000)),
+					false, true, false,
+					0, STRHASH("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>"), 0
+					);
+			q1.add_operator<GPS>(&gps1);
+			
+			rule_processor_.add_rule(qid, &q1);
+		}
+		
+		/*
 		
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -121,7 +166,11 @@ class ExampleApplication
 				DBG("%-20s %08x", *s, Hash::hash((block_data_t*)*s, strlen(*s)));
 			}
 		}
+		*/
 		
+		Dictionary dictionary;
+		TupleContainer container;
+		TS ts;
 		
 		
 	private:
@@ -131,6 +180,8 @@ class ExampleApplication
 		Os::Clock::self_pointer_t clock_;
 		
 		TC token_construction_;
+		RuleProcessor rule_processor_;
+		QueryProcessor query_processor_;
 };
 
 Allocator allocator_;

@@ -140,7 +140,7 @@ namespace wiselib {
 			}
 			
 			void check() {
-				DBG("// sizeof(TreeStateMessage::message_id_t) = %d", sizeof(message_id_t));
+				//DBG("// sizeof(TreeStateMessage::message_id_t) = %d", sizeof(message_id_t));
 				assert(type() == MESSAGE_TYPE);
 			}
 			

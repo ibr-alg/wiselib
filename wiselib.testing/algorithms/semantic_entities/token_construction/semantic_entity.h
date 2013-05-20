@@ -60,6 +60,7 @@ namespace wiselib {
 			typedef Clock_P Clock;
 			typedef typename Clock::millis_t millis_t;
 			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
 			typedef Timer_P Timer;
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			
@@ -163,7 +164,7 @@ namespace wiselib {
 					 */
 					bool set_parent(node_id_t r) {
 						if(r != tree_state_.parent()) {
-							DBG("// treestatechange parent %d -> %d", tree_state_.parent(), r);
+							//DBG("// treestatechange parent %d -> %d", tree_state_.parent(), r);
 							tree_state_.set_parent(r);
 							dirty_ = true;
 							return true;
@@ -176,7 +177,7 @@ namespace wiselib {
 					 */
 					bool set_root(node_id_t r) {
 						if(r != tree_state_.root()) {
-							DBG("// treestatechange root %d -> %d", tree_state_.root(), r);
+							//DBG("// treestatechange root %d -> %d", tree_state_.root(), r);
 							tree_state_.set_root(r);
 							dirty_ = true;
 							return true;
@@ -189,7 +190,7 @@ namespace wiselib {
 					 */
 					bool set_distance(distance_t d) {
 						if(d != tree_state_.distance()) {
-							DBG("// treestatechange distance %d -> %d", tree_state_.distance(), d);
+							//DBG("// treestatechange distance %d -> %d", tree_state_.distance(), d);
 							tree_state_.set_distance(d);
 							dirty_ = true;
 							return true;
@@ -236,7 +237,7 @@ namespace wiselib {
 			 * That is, when is_active() is true, the token construction will
 			 * sooner or later start an activity phase (involving setting up
 			 * timers). This manages a bool variable to track if that has
-			 * already hpappened or not.
+			 * already happened or not.
 			 */
 			bool in_activity_phase() { return activity_phase_; }
 			void begin_activity_phase() { activity_phase_ = true; }
@@ -283,7 +284,7 @@ namespace wiselib {
 					DBG("node %d SE %d.%d neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
 							mynodeid, id().rule(), id().value(), iter->first, iter->second.parent(), iter->second.root(), iter->second.distance());
 					if(iter->second.parent() == mynodeid) {
-						DBG("// %d found child %d", mynodeid, iter->first)
+						//DBG("// %d found child %d", mynodeid, iter->first)
 						if(childs_.find(iter->first) == childs_.end()) {
 							childs_.push_back(iter->first);
 						}
@@ -294,18 +295,18 @@ namespace wiselib {
 				
 				// did we loose children?
 				
-				DBG("node %d // SE %d.%d child list begin old=%d new=%d this=%p", mynodeid, id().rule(), id().value(), oldchilds.size(), childs_.size(), this);
+				//DBG("node %d // SE %d.%d child list begin old=%d new=%d this=%p", mynodeid, id().rule(), id().value(), oldchilds.size(), childs_.size(), this);
 				typename Childs::iterator i_new = childs_.begin();
 				for(typename Childs::iterator i_old = oldchilds.begin(); i_old != oldchilds.end(); ++i_old) {
-					DBG("node %d // SE %d.%d old child %d this=%p", mynodeid, id().rule(), id().value(), *i_old, this);
+					//DBG("node %d // SE %d.%d old child %d this=%p", mynodeid, id().rule(), id().value(), *i_old, this);
 					if(i_new != childs_.end()) {
-						DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
+						//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
 					}
 						
 					while(i_new != childs_.end() && *i_new < *i_old) {
 						i_new++;
 						if(i_new != childs_.end()) {
-							DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
+							//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
 						}
 					}
 					if(i_new == childs_.end() || *i_new != *i_old) {
@@ -316,9 +317,9 @@ namespace wiselib {
 				}
 				if(i_new != childs_.end()) { ++i_new; }
 				for(; i_new != childs_.end(); ++i_new) {
-					DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
+					//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
 				}
-				DBG("node %d // SE %d.%d child list end this=%p", mynodeid, id().rule(), id().value(), this);
+				//DBG("node %d // SE %d.%d child list end this=%p", mynodeid, id().rule(), id().value(), this);
 				
 				
 				// Update tree state
@@ -507,6 +508,13 @@ namespace wiselib {
 				activating_token_.end_waiting();
 			}
 			
+			abs_millis_t activating_token_window(typename Clock::self_pointer_t clock) {
+				return absolute_millis(clock, activating_token_.window());
+			}
+			abs_millis_t activating_token_interval(typename Clock::self_pointer_t clock) {
+				return absolute_millis(clock, activating_token_.interval());
+			}
+			
 			
 			void learn_token_forward(typename Clock::self_pointer_t clock, node_id_t mynodeid, node_id_t from, time_t hit) {
 				token_forwards_[from].hit(hit, clock, mynodeid);
@@ -518,7 +526,7 @@ namespace wiselib {
 					typename Timer::self_pointer_t timer,
 					T* obj, node_id_t from, void* userdata = 0
 			) {
-				DBG("// scheduling token_forward from %d SE %d.%d", from, id().rule(), id().value());
+				//DBG("// scheduling token_forward from %d SE %d.%d", from, id().rule(), id().value());
 				token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
 			}
 			
@@ -526,6 +534,12 @@ namespace wiselib {
 				token_forwards_[from].end_waiting();
 			}
 			
+			abs_millis_t token_forward_window(typename Clock::self_pointer_t clock,node_id_t from) {
+				return absolute_millis(clock, token_forwards_[from].window());
+			}
+			abs_millis_t token_forward_interval(typename Clock::self_pointer_t clock, node_id_t from) {
+				return absolute_millis(clock, token_forwards_[from].interval());
+			}
 			
 			/// Debugging.
 			
@@ -540,6 +554,9 @@ namespace wiselib {
 			
 			
 		private:
+			static abs_millis_t absolute_millis(typename Clock::self_pointer_t clock, const time_t& t) {
+				return clock->seconds(t) * 1000 + clock->milliseconds(t);
+			}
 			
 			void cancel_timers(node_id_t n) {
 				if(token_forwards_.contains(n)) {
