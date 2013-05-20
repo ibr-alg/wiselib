@@ -119,6 +119,11 @@ namespace wiselib
          }
          return count;
       }
+      // --------------------------------------------------------------------
+      iterator erase( const iterator& it )
+      {
+         return vector_type::erase( it );
+      }
       ///@}
       // --------------------------------------------------------------------
       ///@name Operations
@@ -167,9 +172,9 @@ namespace wiselib
          // *only* returned if the static vector is full and can not hold
          // new components
          // TODO: Print Error message since this case should not happen!
-		 //return dummy_;
-		 assert(false);
-		 return *(mapped_type*)0;
+         //return dummy_;
+         assert(false);
+         return *(mapped_type*)0;
       }
       ///@}
       
@@ -188,3 +193,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

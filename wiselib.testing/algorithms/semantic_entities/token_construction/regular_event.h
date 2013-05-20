@@ -64,13 +64,15 @@ namespace wiselib {
 				CLOSE_HIT_WINDOW = 25,
 				/// Analogue to @a CLOSE_HIT_WINDOW.
 				STABLE_HIT_WINDOW = 75,
+				/// If found interval is shorter than this, assume its a dupe
+				DUPE_INTERVAL = 100 * TIMESCALE,
 				
 				/// How much a close hit influences expected timing.
-				ALPHA_CLOSE = 50,
+				ALPHA_CLOSE = 25,
 				/// How much a stable hit influences expected timing
-				ALPHA_STABLE = 25,
+				ALPHA_STABLE = 50,
 				/// How much a far hit influences expected timing
-				ALPHA_FAR = 25
+				ALPHA_FAR = 50
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
@@ -83,9 +85,17 @@ namespace wiselib {
 			void hit(time_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
 				time_t new_interval = t - last_encounter_;
 				
-				//DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu", mynodeid, window_, t, expected());
+				if(new_interval < DUPE_INTERVAL) {
+					return;
+				}
 				
-				switch(hit_type(t, clock)) {
+				//DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu", mynodeid, window_, t, expected());
+				//
+				time_t old_interval = interval_;
+				time_t old_window = window_;
+				
+				int h = hit_type(t, clock);
+				switch(h) {
 					case HIT_CLOSE:
 						//DBG("------ Close hit, halving window");
 						window_ /= 2;
@@ -106,15 +116,24 @@ namespace wiselib {
 						break;
 				}
 				
+				DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
+						(int)mynodeid, (int)absolute_millis(clock, t),
+						(int)last_encounter_, (int)absolute_millis(clock, old_interval), (int)absolute_millis(clock, new_interval),
+						(int)absolute_millis(clock, interval_), (int)h, (int)absolute_millis(clock, old_window),
+						(int)absolute_millis(clock, window_), (int)hits_);
+				
 				hits_++;
 				//DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
 				last_encounter_ = t;
 			}
 			
+			void set_interval(time_t i) { interval_ = i; }
+			
 			time_t last_encounter() { return last_encounter_; }
 			time_t window() { return window_; }
 			time_t interval() { return interval_; }
 			time_t expected() { return last_encounter_ + interval_; }
+			bool seen() { return hits_ > 0; }
 			
 			time_t next_expected(time_t t) {
 				time_t r = last_encounter_;

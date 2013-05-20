@@ -17,50 +17,38 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef SEMANTIC_ENTITIES_OFFICE1_H
-#define SEMANTIC_ENTITIES_OFFICE1_H
-
-#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
+#ifndef SEMANTICS_OFFICE1_H
+#define SEMANTICS_OFFICE1_H
 
 namespace wiselib {
 	
-	template<
-		typename TokenConstruction,
-		typename node_id_t
-	>
-	void add_entities(TokenConstruction& tc, node_id_t id) {
-		const int rule = 1;
-		
-		
-		
-		switch(id) {
-			case 0:
-				tc.add_entity(SemanticEntityId(rule, 
-		
+	
+	template<typename TS>
+	void ins(TS& ts, const char* s, const char* p, const char* o) {
+		typename TS::Tuple t;
+		t.set(0, (typename TS::block_data_t*)s);
+		t.set(1, (typename TS::block_data_t*)p);
+		t.set(2, (typename TS::block_data_t*)o);
+		ts.insert(t);
 	}
 	
-	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
-	 */
+	
 	template<
-		typename OsModel_P
+		typename TS,
+		typename node_id_t
 	>
-	class SemanticEntitiesOffice1 {
+	void initial_semantics(TS& ts, node_id_t id) {
+		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
 		
-		public:
-			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
+		enum { MAX_URI_LENGTH = 256 };
+		char myuri[MAX_URI_LENGTH];
+		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%d>", id);
+		myuri[MAX_URI_LENGTH - 1] = '\0';
 		
-		private:
-		
-	}; // SemanticEntitiesOffice1
+		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
+	}
+	
 }
 
-#endif // SEMANTIC_ENTITIES_OFFICE1_H
-
+#endif // SEMANTICS_OFFICE1_H
 

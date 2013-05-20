@@ -254,9 +254,10 @@ namespace wiselib {
 			 * the duty cycling sense).
 			 */
 			bool is_awake() {
-				if(activating_token_.waiting()) {
-					return true;
-				}
+				return activating_token_.waiting();
+			}
+			
+			bool is_forwarding() {
 				for(typename TokenForwards::iterator it = token_forwards_.begin(); it != token_forwards_.end(); ++it) {
 					if(it->second.waiting()) { return true; }
 				}
@@ -281,7 +282,7 @@ namespace wiselib {
 				
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
-					DBG("node %d SE %d.%d neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
+					DBG("node %d SE %x.%x neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
 							mynodeid, id().rule(), id().value(), iter->first, iter->second.parent(), iter->second.root(), iter->second.distance());
 					if(iter->second.parent() == mynodeid) {
 						//DBG("// %d found child %d", mynodeid, iter->first)
@@ -310,7 +311,7 @@ namespace wiselib {
 						}
 					}
 					if(i_new == childs_.end() || *i_new != *i_old) {
-						DBG("node %d // SE %d.%d LOST CHILD %d", mynodeid, id().rule(), id().value(), *i_old);
+						DBG("node %d // SE %x.%x LOST CHILD %d", mynodeid, id().rule(), id().value(), *i_old);
 						// lost child *i_old
 						cancel_timers(*i_old);
 					}
@@ -357,7 +358,7 @@ namespace wiselib {
 				bool c_c = state().set_root(root);
 				changed = changed || c_a || c_b || c_c;
 				
-				DBG("node %d SE %d.%d distance %d parent %d root %d",
+				DBG("node %d SE %x.%x distance %d parent %d root %d",
 						mynodeid, id().rule(), id().value(), state().distance(), state().parent(), state().root());
 				
 				return changed;
@@ -544,8 +545,8 @@ namespace wiselib {
 			/// Debugging.
 			
 			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
-				DBG("node %d SE %d.%d active=%d awake=%d count=%d t=%d parent=%d root=%d distance=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid),
-						is_awake(), count(), t,
+				DBG("node %d SE %x.%x active=%d awake=%d forwarding=%d count=%d t=%d parent=%d root=%d distance=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid),
+						is_awake(), is_forwarding(), count(), t,
 						tree().parent(), tree().root(), tree().distance(),
 						comment);
 				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());

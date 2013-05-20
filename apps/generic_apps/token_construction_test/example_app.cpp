@@ -41,7 +41,8 @@ Allocator& get_allocator();
 
 #include <algorithms/rdf/inqp/query_processor.h>
 
-#include "semantics_office1.h"
+//#include "semantics_office1.h"
+#include "semantics_uniform.h"
 
 typedef Tuple<Os> TupleT;
 typedef wiselib::list_dynamic<Os, TupleT> TupleList;

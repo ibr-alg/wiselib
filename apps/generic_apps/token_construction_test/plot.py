@@ -22,7 +22,8 @@ gnodes = {}
 nhood = set()
 
 properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count', 'node',
-		'SE', 'parent', 'neighbor', 't', 'fwd_window', 'fwd_interval', 'fwd_from')
+		'SE', 'parent', 'neighbor', 't', 'fwd_window', 'fwd_interval', 'fwd_from',
+		'forwarding')
 
 def getnodes(namepattern):
 	global gnodes
@@ -37,6 +38,9 @@ re_properties = {}
 for p in properties:
 	re_properties[p] = re.compile(r'\b' + p + r'\s*(=|\s)\s*([^= ]+)')
 
+re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
+
+
 def parse(f):
 	global gnodes, parents
 	gnodes = {}
@@ -45,11 +49,14 @@ def parse(f):
 	t = 0
 	
 	for line in f:
+		
+		kv = {}
 		def get_value(s):
+			return kv.get(s, None)
 			#m = re.search(r'\b' + s + r'\s*(=|\s)\s*([^= ]+)', line)
-			m = re.search(re_properties[s], line)
-			if m is None: return None
-			return m.group(2).strip()
+			#m = re.search(re_properties[s], line)
+			#if m is None: return None
+			#return m.group(2).strip()
 		
 		# strip off comments
 		
@@ -62,16 +69,25 @@ def parse(f):
 		m = re.match(re_begin_iteration, line)
 		if m is not None:
 			t = int(m.group(1))
+			continue
 		
 		# which node is this line about?
 		
 		if 'node' not in line: continue
+		
+		kv = dict(re.findall(re_kv, line))
+		
 		name = nodename = get_value('node')
 		if name is None:
 			print ("[!!!] nodename is none in line: " + origline)
 		
 		try: t = int(get_value('t')) / 1000
 		except: pass
+		
+		#print "--------------"
+		#print re.findall(re_kv, line)
+		#print "--------------"
+		
 		
 		# is it also about a SE?
 		
@@ -321,6 +337,9 @@ def fig_duty_cycle(namepattern = '.*'):
 		if 'awake' in node:
 			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r-', label='awake', drawstyle='steps-post')
 			property_styles['awake'] = r
+		if 'forwarding' in node:
+			r, = ax.plot(node['forwarding']['t'], node['forwarding']['v'], 'g-', label='forwarding', drawstyle='steps-post')
+			property_styles['forwarding'] = r
 		if 'active' in node:
 			r, = ax.plot(node['active']['t'], node['active']['v'], 'k-', label='active', drawstyle='steps-post')
 			property_styles['active'] = r
