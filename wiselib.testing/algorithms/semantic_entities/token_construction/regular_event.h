@@ -82,8 +82,8 @@ namespace wiselib {
 				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false) {
 			}
 			
-			void hit(time_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
-				time_t new_interval = t - last_encounter_;
+			void hit(abs_millis_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
+				abs_millis_t new_interval = t - last_encounter_;
 				
 				if(new_interval < DUPE_INTERVAL) {
 					return;
@@ -91,8 +91,8 @@ namespace wiselib {
 				
 				//DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu", mynodeid, window_, t, expected());
 				//
-				time_t old_interval = interval_;
-				time_t old_window = window_;
+				abs_millis_t old_interval = interval_;
+				abs_millis_t old_window = window_;
 				
 				int h = hit_type(t, clock);
 				switch(h) {
@@ -117,26 +117,24 @@ namespace wiselib {
 				}
 				
 				DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
-						(int)mynodeid, (int)absolute_millis(clock, t),
-						(int)last_encounter_, (int)absolute_millis(clock, old_interval), (int)absolute_millis(clock, new_interval),
-						(int)absolute_millis(clock, interval_), (int)h, (int)absolute_millis(clock, old_window),
-						(int)absolute_millis(clock, window_), (int)hits_);
+						(int)mynodeid, (int)t, (int)last_encounter_, (int) old_interval, (int) new_interval,
+						(int) interval_, (int)h, (int) old_window, (int) window_, (int)hits_);
 				
 				hits_++;
 				//DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
 				last_encounter_ = t;
 			}
 			
-			void set_interval(time_t i) { interval_ = i; }
+			void set_interval(abs_millis_t i) { interval_ = i; }
 			
-			time_t last_encounter() { return last_encounter_; }
-			time_t window() { return window_; }
-			time_t interval() { return interval_; }
-			time_t expected() { return last_encounter_ + interval_; }
+			abs_millis_t last_encounter() { return last_encounter_; }
+			abs_millis_t window() { return window_; }
+			abs_millis_t interval() { return interval_; }
+			abs_millis_t expected() { return last_encounter_ + interval_; }
 			bool seen() { return hits_ > 0; }
 			
-			time_t next_expected(time_t t) {
-				time_t r = last_encounter_;
+			abs_millis_t next_expected(abs_millis_t t) {
+				abs_millis_t r = last_encounter_;
 				while(r <= t) { r += interval_; }
 				return r;
 			}
@@ -175,16 +173,19 @@ namespace wiselib {
 				userdata_ = userdata;
 				
 				if(early()) {
-					DBG("t=%d // EARLY! hits=%d userdata=%p", absolute_millis(clock, clock->time()), hits_, userdata);
+					//DBG("t=%d // EARLY! hits=%d userdata=%p", (int)absolute_millis(clock, clock->time()), (int)hits_, userdata);
 					waiting_ = true;
-					begin_waiting_callback_(userdata_);
+					if(begin_waiting_callback_) {
+						begin_waiting_callback_(userdata_);
+					}
 					
 				}
 				else {
 					waiting_timer_set_ = true;
 					
 					abs_millis_t delta;
-					delta = absolute_millis(clock, next_expected(clock->time()) - clock->time() - window_);
+					abs_millis_t now = absolute_millis(clock, clock->time());
+					delta = next_expected(now) - now - window_;
 					//DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, 0);
 				}
@@ -200,7 +201,9 @@ namespace wiselib {
 			bool end_waiting() {
 				if(waiting_) {
 					waiting_ = false;
-					end_waiting_callback_(userdata_);
+					if(end_waiting_callback_) {
+						end_waiting_callback_(userdata_);
+					}
 					return true;
 				}
 				return false;
@@ -241,8 +244,8 @@ namespace wiselib {
 				return clock->seconds(t) * 1000 + clock->milliseconds(t);
 			}
 	
-			HitType hit_type(time_t t, typename Clock::self_pointer_t clock_) {
-				time_t diff_t = (t > expected()) ? (t - expected()) : (expected() - t);
+			HitType hit_type(abs_millis_t t, typename Clock::self_pointer_t clock_) {
+				abs_millis_t diff_t = (t > expected()) ? (t - expected()) : (expected() - t);
 				//millis_t diff_m  = clock_->milliseconds(diff_t);
 				
 				if(diff_t < window_ * CLOSE_HIT_WINDOW / 100) { return HIT_CLOSE; }
@@ -250,7 +253,7 @@ namespace wiselib {
 				else { return HIT_FAR; }
 			}
 			
-			void update_interval(time_t new_interval, ::uint8_t alpha) {
+			void update_interval(abs_millis_t new_interval, ::uint8_t alpha) {
 				//assert(new_interval > time_t(0));
 				if(new_interval < window_) { new_interval = window_; }
 				
@@ -265,16 +268,16 @@ namespace wiselib {
 			}
 			
 			void check_invariant() {
-				assert(window_ > time_t(0));
+				assert(window_ > 0);
 				assert(interval_ >= window_);
 			}
 	
 			begin_waiting_callback_t begin_waiting_callback_;
 			end_waiting_callback_t end_waiting_callback_;
 			
-			time_t last_encounter_;
-			time_t interval_;
-			time_t window_;
+			abs_millis_t last_encounter_;
+			abs_millis_t interval_;
+			abs_millis_t window_;
 			size_type hits_;
 			void *userdata_;
 			

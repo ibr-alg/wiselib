@@ -81,6 +81,8 @@ class ExampleApplication
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			
+			radio_->enable_radio();
+			
 			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
 			
 			dictionary.init(debug_);

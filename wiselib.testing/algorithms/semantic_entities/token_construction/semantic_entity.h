@@ -275,7 +275,7 @@ namespace wiselib {
 				// Fill child list from neighbors and sort
 				// 
 				if(neighbor_states_.size() == 0) {
-					DBG("// node %d has no neighbors!", mynodeid);
+					DBG("// node %d has no neighbors!", (int)mynodeid);
 				}
 				
 				Childs oldchilds = childs_;
@@ -283,7 +283,7 @@ namespace wiselib {
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
 					DBG("node %d SE %x.%x neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
-							mynodeid, id().rule(), id().value(), iter->first, iter->second.parent(), iter->second.root(), iter->second.distance());
+							(int)mynodeid, (int)id().rule(), (int)id().value(), (int)iter->first, (int)iter->second.parent(), (int)iter->second.root(), (int)iter->second.distance());
 					if(iter->second.parent() == mynodeid) {
 						//DBG("// %d found child %d", mynodeid, iter->first)
 						if(childs_.find(iter->first) == childs_.end()) {
@@ -311,7 +311,7 @@ namespace wiselib {
 						}
 					}
 					if(i_new == childs_.end() || *i_new != *i_old) {
-						DBG("node %d // SE %x.%x LOST CHILD %d", mynodeid, id().rule(), id().value(), *i_old);
+						DBG("node %d // SE %x.%x LOST CHILD %d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)*i_old);
 						// lost child *i_old
 						cancel_timers(*i_old);
 					}
@@ -359,7 +359,7 @@ namespace wiselib {
 				changed = changed || c_a || c_b || c_c;
 				
 				DBG("node %d SE %x.%x distance %d parent %d root %d",
-						mynodeid, id().rule(), id().value(), state().distance(), state().parent(), state().root());
+						(int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
 				
 				return changed;
 				
@@ -492,7 +492,7 @@ namespace wiselib {
 			
 			/// Timing.
 			
-			void learn_activating_token(typename Clock::self_pointer_t clock, node_id_t mynodeid, time_t hit) {
+			void learn_activating_token(typename Clock::self_pointer_t clock, node_id_t mynodeid, abs_millis_t hit) {
 				activating_token_.hit(hit, clock, mynodeid);
 			}
 			
@@ -510,14 +510,14 @@ namespace wiselib {
 			}
 			
 			abs_millis_t activating_token_window(typename Clock::self_pointer_t clock) {
-				return absolute_millis(clock, activating_token_.window());
+				return activating_token_.window();
 			}
 			abs_millis_t activating_token_interval(typename Clock::self_pointer_t clock) {
-				return absolute_millis(clock, activating_token_.interval());
+				return activating_token_.interval();
 			}
 			
 			
-			void learn_token_forward(typename Clock::self_pointer_t clock, node_id_t mynodeid, node_id_t from, time_t hit) {
+			void learn_token_forward(typename Clock::self_pointer_t clock, node_id_t mynodeid, node_id_t from, abs_millis_t hit) {
 				token_forwards_[from].hit(hit, clock, mynodeid);
 			}
 			
@@ -536,19 +536,28 @@ namespace wiselib {
 			}
 			
 			abs_millis_t token_forward_window(typename Clock::self_pointer_t clock,node_id_t from) {
-				return absolute_millis(clock, token_forwards_[from].window());
+				return token_forwards_[from].window();
 			}
 			abs_millis_t token_forward_interval(typename Clock::self_pointer_t clock, node_id_t from) {
-				return absolute_millis(clock, token_forwards_[from].interval());
+				return token_forwards_[from].interval();
 			}
 			
 			/// Debugging.
 			
 			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
-				DBG("node %d SE %x.%x active=%d awake=%d forwarding=%d count=%d t=%d parent=%d root=%d distance=%d // %s", mynodeid, id().rule(), id().value(), is_active(mynodeid),
-						is_awake(), is_forwarding(), count(), t,
-						tree().parent(), tree().root(), tree().distance(),
-						comment);
+				DBG("print_state");
+				
+				//DBG("// XXX node %d SE %x.%x active=%d ", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)is_active(mynodeid));
+				//DBG("// XXX awake=%d forwarding=%d count=%d t=%d", (int)is_awake(), (int)is_forwarding(), (int)count(), (int)t);
+				//DBG("// XXX parent=%d root=%d distance=%d", (int)tree().parent(), (int)tree().root(), (int)tree().distance());
+				
+				DBG("node %d SE %x.%x active=%d awake=%d forwarding=%d count=%d t=%d parent=%d root=%d distance=%d",
+						(int)mynodeid, (int)id().rule(), (int)id().value(), (int)is_active(mynodeid),
+						(int)is_awake(), (int)is_forwarding(), (int)count(), (int)t,
+						(int)tree().parent(), (int)tree().root(), (int)tree().distance());
+						//comment);
+				
+				
 				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
 				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}

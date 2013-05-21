@@ -79,7 +79,7 @@ namespace wiselib {
 			
 			void on_row(CommunicationType commtype, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
 				assert(columns == 1);
-				DBG("XXX node=%d qid=%d row[0]=%d", node_id_, qid, row[0]);
+				//DBG("XXX node=%d qid=%d row[0]=%d", node_id_, qid, row[0]);
 				SemanticEntityId se_id(qid, row[0]);
 				construction_->add_entity(se_id);
 			}

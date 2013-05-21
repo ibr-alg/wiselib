@@ -168,7 +168,10 @@ def filter(s, options):
 		s = s.replace(ns + '::', '')
 		
 	if options.strip_instantiated:
-		s = '\n'.join((line for line in s.splitlines() if 'instantiated from' not in line))
+		s = '\n'.join((line for line in s.splitlines() if 'instantiated from' not in line and 'required from' not in line))
+		
+	if options.only_errors:
+		s = '\n'.join((line for line in s.splitlines() if 'error' in line))
 		
 	s = bracedepth(s, options.strip_template_args, '<>')
 	s = bracedepth(s, options.strip_aka, '[]')
@@ -181,18 +184,14 @@ def parse_options():
 	WISELIB_OPTIONS = "-n wiselib -n std -f 2 -c"
 	
 	parser = OptionParser()
-	parser.add_option("-w", "--wiselib", action="store_true", default=False, dest="wiselib",
-			help="equivalent to " + WISELIB_OPTIONS)
+	parser.add_option("-w", "--wiselib", action="store_true", default=False, dest="wiselib", help="equivalent to " + WISELIB_OPTIONS)
 	parser.add_option("-n", "--strip-namespace", dest="strip_namespaces", action="append", metavar="NAMESPACE", default=[])
-	parser.add_option("-t", "--strip-template-args", dest="strip_template_args", help="depth, 0 to turn off", metavar="DEPTH",
-			default=100, type="int")
-	parser.add_option("-a", "--strip-aka", dest="strip_aka", help="depth of [...] explanations, 0 to turn off", metavar="DEPTH",
-			default=100, type="int")
-	parser.add_option("-f", "--shorten-filenames", dest="shorten_filenames",
-			help="shorten filenames to this many components", type="int", default=100)
+	parser.add_option("-t", "--strip-template-args", dest="strip_template_args", help="depth, 0 to turn off", metavar="DEPTH", default=100, type="int")
+	parser.add_option("-a", "--strip-aka", dest="strip_aka", help="depth of [...] explanations, 0 to turn off", metavar="DEPTH", default=100, type="int")
+	parser.add_option("-f", "--shorten-filenames", dest="shorten_filenames", help="shorten filenames to this many components", type="int", default=100)
 	parser.add_option("-c", "--colorize", dest="colorize", action="store_true", default=False)
-	parser.add_option("-i", "--strip-instantiated", help="strip 'instantiated from' lines",
-			action="store_true", default=False, dest="strip_instantiated")
+	parser.add_option("-i", "--strip-instantiated", help="strip 'instantiated from' lines et al.", action="store_true", default=False, dest="strip_instantiated")
+	parser.add_option("-e", "--only-errors", help="only output lines with the word 'error' in them", action="store_true", default=False, dest="only_errors")
 	
 	options, args = parser.parse_args()
 	if options.wiselib:

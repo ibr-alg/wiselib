@@ -188,14 +188,18 @@ namespace wiselib {
 				entities_.push_back(SemanticEntityT(id));
 				bool found;
 				SemanticEntityT &se = find_entity(id, found);
+				
+				DBG("a");
 				assert(found);
 				
+				DBG("b");
 				//begin_wait_for_token(se);
 				se.template schedule_activating_token<
 					self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token
 				>(clock_, timer_, this, &se);
 					
-				DBG("node %d SE %x.%x active=%d t=%d", radio_->id(), id.rule(), id.value(), se.is_active(radio_->id()), now());
+				DBG("c");
+				DBG("node %d SE %x.%x active=%d t=%d", (int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se.is_active(radio_->id()), (int)now());
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
 					//timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
@@ -225,11 +229,11 @@ namespace wiselib {
 			void push_caffeine(void* = 0) {
 				//DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
 				if(caffeine_level_ == 0) {
-					DBG("node %d on 1 t=%d", radio_->id(), now());
+					DBG("node %d on 1 t=%d", (int)radio_->id(), (int)now());
 					//radio_->enable_radio();
 				}
 				caffeine_level_++;
-				DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
+				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
 				//DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
 			}
 			
@@ -241,10 +245,10 @@ namespace wiselib {
 				caffeine_level_--;
 				
 				if(caffeine_level_ == 0) {
-					DBG("node %d on 0 t=%d", radio_->id(), now());
+					DBG("node %d on 0 t=%d", (int)radio_->id(), (int)now());
 					//radio_->disable_radio();
 				}
-				DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
+				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
 				
 				
 				//assert(caffeine_level_ >= 100);
@@ -409,7 +413,7 @@ namespace wiselib {
 			 */
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				if(caffeine_level_ <= 0) {
-					DBG("node %d t=%d // [!] didnt hear msg from %d type %d (%x)", radio_->id(), now(), from, (int)data[0], (int)data[0]);
+					DBG("node %d t=%d // [!] didnt hear msg from %d type %d (%x)", (int)radio_->id(), (int)now(), (int)from, (int)data[0], (int)data[0]);
 					return;
 				}
 				
@@ -423,7 +427,7 @@ namespace wiselib {
 			 */
 			void on_receive_task(void *p) {
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
-				time_t t_recv = packet_info->received();
+				abs_millis_t t_recv = absolute_millis(packet_info->received());
 				const node_id_t &from = packet_info->from();
 				//const typename Radio::size_t& len = packet_info->length();
 				block_data_t *data = packet_info->data();
@@ -467,7 +471,7 @@ namespace wiselib {
 				packet_info->destroy();
 			} // on_receive_task()
 			
-			void on_receive_tree_state(TreeStateMessageT& msg, node_id_t from, time_t t_recv) {
+			void on_receive_tree_state(TreeStateMessageT& msg, node_id_t from, abs_millis_t t_recv) {
 				
 				switch(msg.reason()) {
 					case TreeStateMessageT::REASON_REGULAR_BCAST: {
@@ -523,7 +527,7 @@ namespace wiselib {
 				} // for se
 			}
 			
-			void on_receive_token_state(TokenStateMessageT& msg, node_id_t from, time_t t_recv) {
+			void on_receive_token_state(TokenStateMessageT& msg, node_id_t from, abs_millis_t t_recv) {
 				//DBG("on_receive_token_state node %d", radio_->id());
 				
 				bool found;
@@ -543,7 +547,7 @@ namespace wiselib {
 					size_type child_index = se.find_child(from);
 					if(child_index == npos) {
 						//DBG("node %d SE %d.%d // [!] token sender %d is neither child or parent", radio_->id(), se.id().rule(), se.id().value(), from);
-						DBG("node %d SE %x.%x parent %d", radio_->id(), se.id().rule(), se.id().value(), se.parent());
+						DBG("node %d SE %x.%x parent %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.parent());
 						//for(size_type i = 0; i < se.childs(); i++) {
 							//DBG("node %d SE %d.%d childidx %d child %d", radio_->id(), se.id().rule(), se.id().value(), i, se.child_address(i));
 						//}
@@ -573,18 +577,17 @@ namespace wiselib {
 			 * Forward token state to another node (called by
 			 * on_receive_token_state).
 			 */
-			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to, time_t t_recv) {
+			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to, abs_millis_t t_recv) {
 				bool found;
 				SemanticEntityT& se = find_entity(se_id, found);
 				if(!found) { return; }
 				
 				se.learn_token_forward(clock_, radio_->id(), from, t_recv);
 					DBG("node %d SE %x.%x fwd_window %u fwd_interval %u fwd_from %d t=%d",
-							radio_->id(), se.id().rule(), se.id().value(),
-							se.token_forward_window(clock_, from),
-							se.token_forward_interval(clock_, from),
-							from,
-							now()
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+							(int)se.token_forward_window(clock_, from),
+							(int)se.token_forward_interval(clock_, from),
+							(int)from, (int)now()
 					);
 				
 				// <DEBUG>
@@ -618,38 +621,38 @@ namespace wiselib {
 			/**
 			 * Process token state change relevant to us (called by on_receive_token_state).
 			 */
-			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, time_t receive_time) {
+			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, abs_millis_t receive_time) {
 				bool active_before = se.is_active(radio_->id());
 				size_type prev_count = se.prev_token_count();
 				se.set_prev_token_count(s.count());
 				if(se.is_active(radio_->id()) && !active_before) {
 					se.learn_activating_token(clock_, radio_->id(), receive_time); 
 					DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token",
-							radio_->id(), se.id().rule(), se.id().value(),
-							se.activating_token_window(clock_),
-							se.activating_token_interval(clock_),
-							now()
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+							(int)se.activating_token_window(clock_),
+							(int)se.activating_token_interval(clock_),
+							(int)now()
 					);
 					begin_activity(se);
 				}
 				else {
 					DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // token didnt do anything",
-							radio_->id(), se.id().rule(), se.id().value(), se.is_active(radio_->id()), active_before,
-							prev_count, se.prev_token_count(), se.count(), se.is_root(radio_->id()),
-							now()
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
+							(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
+							(int)now()
 					);
 				}
 			}
 			
 			void begin_wait_for_token_forward(void* se_) {
 				SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
-				DBG("node %d // push begin_wait_for_token_forward SE %x.%x", radio_->id(), se.id().rule(), se.id().value());
+				DBG("node %d // push begin_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 				push_caffeine();
 			}
 			
 			void end_wait_for_token_forward(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
-				DBG("node %d // pop end_wait_for_token_forward SE %x.%x", radio_->id(), se.id().rule(), se.id().value());
+				DBG("node %d // pop end_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 				pop_caffeine();
 			}
 			
@@ -658,7 +661,7 @@ namespace wiselib {
 			 * token from the given SE.
 			 */
 			void begin_wait_for_token(SemanticEntityT& se) {
-				DBG("node %d // push begin_wait_for_token SE %x.%x", radio_->id(), se.id().rule(), se.id().value());
+				DBG("node %d // push begin_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 				push_caffeine();
 			}
 			
@@ -670,7 +673,7 @@ namespace wiselib {
 			void end_wait_for_token(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				//if(timing_controller_.end_wait_for_token(se)) {
-					DBG("node %d // pop end_wait_for_token SE %x.%x", radio_->id(), se.id().rule(), se.id().value());
+					DBG("node %d // pop end_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 					pop_caffeine();
 				//}
 			}
@@ -685,7 +688,7 @@ namespace wiselib {
 				
 				se.begin_activity_phase();
 				
-				DBG("node %d // push begin_activity SE %x.%x", radio_->id(), se.id().rule(), se.id().value());
+				DBG("node %d // push begin_activity SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 				push_caffeine();
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
 			}
@@ -730,7 +733,7 @@ namespace wiselib {
 				//DBG("node %d t=%d // scheduling wakeup", radio_->id(), now());
 				
 				se.end_wait_for_activating_token();
-				DBG("node %d t=%d // pop end_activity SE %x.%x", radio_->id(), now(), se.id().rule(), se.id().value());
+				DBG("node %d t=%d // pop end_activity SE %x.%x", (int)radio_->id(), (int)now(), (int)se.id().rule(), (int)se.id().value());
 				pop_caffeine();
 				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
@@ -745,7 +748,7 @@ namespace wiselib {
 				
 				node_id_t n;
 				memcpy(&n, &from_, min(sizeof(node_id_t), sizeof(void*)));
-				DBG("node %d // push begin_wait_for_regular_broadcast %d", radio_->id(), n);
+				DBG("node %d // push begin_wait_for_regular_broadcast %d", (int)radio_->id(), (int)n);
 				
 				push_caffeine();
 			}
@@ -754,7 +757,7 @@ namespace wiselib {
 				node_id_t from; //= (node_id_t)from_;
 				memcpy(&from, &from_, min(sizeof(node_id_t), sizeof(void*)));
 				//if(timing_controller_.end_wait_for_regular_broadcast(from)) {
-					DBG("node %d // pop end_wait_for_regular_broadcast %d", radio_->id(), from);
+					DBG("node %d // pop end_wait_for_regular_broadcast %d", (int)radio_->id(), (int)from);
 					pop_caffeine();
 				//}
 			}
@@ -770,11 +773,11 @@ namespace wiselib {
 				bool r = se.update_state(radio_->id());
 				
 				if(se.is_active(radio_->id()) && !active_before) {
-					DBG("node %d SE %x.%x active=1 t=%d // because of tree change!", radio_->id(), se.id().rule(), se.id().value(), now());
+					DBG("node %d SE %x.%x active=1 t=%d // because of tree change!", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)now());
 					begin_activity(se);
 				}
 				else if(!se.is_active(radio_->id()) && active_before) {
-					DBG("node %d SE %x.%x active=0 t=%d // because of tree change!", radio_->id(), se.id().rule(), se.id().value(), now());
+					DBG("node %d SE %x.%x active=0 t=%d // because of tree change!", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)now());
 					end_activity(se);
 				}
 				return r;
@@ -787,10 +790,10 @@ namespace wiselib {
 			void check_neighbors(void* =0) {
 				//// TODO
 				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
-					if(it->second.seen() && absolute_millis(it->second.last_encounter()) < (now() - 2 * absolute_millis(it->second.interval()))) {
+					if(it->second.seen() && absolute_millis(it->second.last_encounter()) < (now() - 2 *(it->second.interval()))) {
 						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d",
 								(int)radio_->id(), (int)now(), (int)it->first,
-								(int)absolute_millis(it->second.last_encounter()), (int)absolute_millis(it->second.interval())
+								(int)(it->second.last_encounter()), (int)(it->second.interval())
 						);
 						for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {
 							se_it->erase_neighbor(it->first);
