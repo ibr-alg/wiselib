@@ -128,8 +128,8 @@ namespace wiselib {
 			class State {
 				// {{{
 				public:
-					typedef SemanticEntity::TokenState TokenState;
-					typedef SemanticEntity::TreeState TreeState;
+					typedef typename SemanticEntity::TokenState TokenState;
+					typedef typename SemanticEntity::TreeState TreeState;
 					
 					State() : dirty_(true) {
 					}

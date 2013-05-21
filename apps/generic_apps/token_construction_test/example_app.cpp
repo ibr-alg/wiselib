@@ -112,7 +112,7 @@ class ExampleApplication
 			/*
 			 * Add rule 1: (* <...#featureOfInterest> X)
 			 */
-			uint8_t qid = 1;
+			::uint8_t qid = 1;
 			q1.init(&query_processor_, qid);
 			q1.set_expected_operators(2);
 			

@@ -787,10 +787,10 @@ namespace wiselib {
 			void check_neighbors(void* =0) {
 				//// TODO
 				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
-					if(it->second.seen() && it->second.last_encounter() < (now() - 2 * it->second.interval())) {
+					if(it->second.seen() && absolute_millis(it->second.last_encounter()) < (now() - 2 * absolute_millis(it->second.interval()))) {
 						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d",
 								(int)radio_->id(), (int)now(), (int)it->first,
-								(int)it->second.last_encounter(), (int)it->second.interval()
+								(int)absolute_millis(it->second.last_encounter()), (int)absolute_millis(it->second.interval())
 						);
 						for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {
 							se_it->erase_neighbor(it->first);
