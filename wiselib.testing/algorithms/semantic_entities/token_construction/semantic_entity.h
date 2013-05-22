@@ -430,6 +430,34 @@ namespace wiselib {
 				return tree().parent();
 			}
 			
+			
+			node_id_t token_forward_for(node_id_t mynodeid, node_id_t from) {
+				if(from == parent()) { return mynodeid; }
+				else {
+					size_type child_index = find_child(from);
+					if(child_index == npos) { return NULL_NODE_ID; }
+					else if(child_index == childs() - 1) {
+						if(mynodeid == root()) { return mynodeid; }
+						else { return parent(); }
+					}
+					else { return child_address(child_index + 1); }
+				}
+			}
+			
+			node_id_t token_ack_forward_for(node_id_t mynodeid, node_id_t from) {
+				if(from == parent()) {
+					if(childs() == 0) { return mynodeid; }
+					else { return child_address(childs() - 1); }
+				}
+				else {
+					size_type child_index = find_child(from);
+					if(child_index == npos) { return NULL_NODE_ID; }
+					else if(child_index == 0) { return mynodeid; }
+					else { return child_address(child_index - 1); }
+				}
+			}
+			
+			
 			void set_prev_token_count(token_count_t ptc) {
 				prev_token_state_.set_count(ptc);
 			}

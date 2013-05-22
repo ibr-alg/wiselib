@@ -52,7 +52,13 @@ namespace wiselib {
 			typedef delegate1<void, void*> begin_waiting_callback_t;
 			typedef delegate1<void, void*> end_waiting_callback_t;
 			
-			enum { TIMESCALE = 10 };
+			enum {
+				#ifdef SHAWN
+					TIMESCALE = 10
+				#else
+					TIMESCALE = 1
+				#endif
+			};
 			
 			/// Some fractions (in percent).
 			enum TimingFractions {

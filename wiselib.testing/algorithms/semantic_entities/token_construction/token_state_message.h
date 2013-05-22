@@ -59,8 +59,8 @@ namespace wiselib {
 			
 			enum Positions {
 				POS_MESSAGE_ID = 0,
-				//POS_FROM = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_ENTITY_ID = POS_MESSAGE_ID + sizeof(message_id_t), //POS_FROM + sizeof(node_id_t),
+				POS_IS_ACK = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_ENTITY_ID = POS_IS_ACK + 1, // sizeof(bool),
 				POS_TOKEN_STATE = POS_ENTITY_ID + sizeof(SemanticEntityId),
 				
 				POS_END = POS_TOKEN_STATE + sizeof(TokenState)
@@ -72,6 +72,7 @@ namespace wiselib {
 			
 			void init() {
 				set_type(MESSAGE_TYPE);
+				set_is_ack(false);
 			}
 			
 			message_id_t type() {
@@ -104,6 +105,14 @@ namespace wiselib {
 			
 			void set_token_state(const TokenState& s) {
 				wiselib::write<OsModel>(data_ + POS_TOKEN_STATE, s);
+			}
+			
+			bool is_ack() {
+				return data_[POS_IS_ACK] != 0;
+			}
+			
+			void set_is_ack(bool a) {
+				data_[POS_IS_ACK] = a;
 			}
 			
 			block_data_t* data() {

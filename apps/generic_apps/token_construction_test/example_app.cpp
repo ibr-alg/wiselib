@@ -1,9 +1,9 @@
 
-#if ISENSE
+#if defined(ISENSE)
 	extern "C" void assert(int) { }
 	#define CHECK_INVARIANTS 0
-	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-#elif PC
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
+#elif defined(PC)
 	#define CHECK_INVARIANTS 1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
 #endif

@@ -31,6 +31,10 @@
 #include "regular_event.h"
 #include "state_message.h"
 
+#ifndef TOKEN_CONSTRUCTION_RELIABLE_TOKEN_STATE
+	#define TOKEN_CONSTRUCTION_RELIABLE_TOKEN_STATE 1
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -188,16 +192,13 @@ namespace wiselib {
 				bool found;
 				SemanticEntityT &se = find_entity(id, found);
 				
-				DBG("a");
 				assert(found);
 				
-				DBG("b");
 				//begin_wait_for_token(se);
 				se.template schedule_activating_token<
 					self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token
 				>(clock_, timer_, this, &se);
 					
-				DBG("c");
 				DBG("node %d SE %x.%x active=%d t=%d", (int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se.is_active(radio_->id()), (int)now());
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
@@ -229,7 +230,7 @@ namespace wiselib {
 				//DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
 				if(caffeine_level_ == 0) {
 					DBG("node %d on 1 t=%d", (int)radio_->id(), (int)now());
-					//radio_->enable_radio();
+					radio_->enable_radio();
 				}
 				caffeine_level_++;
 				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
@@ -245,7 +246,7 @@ namespace wiselib {
 				
 				if(caffeine_level_ == 0) {
 					DBG("node %d on 0 t=%d", (int)radio_->id(), (int)now());
-					//radio_->disable_radio();
+					radio_->disable_radio();
 				}
 				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
 				
@@ -349,6 +350,20 @@ namespace wiselib {
 			}
 			
 			/**
+			 * Repeadately send token state to next node in the ring until we
+			 * get an acknowledgement.
+			 */
+			/*
+			void on_resend_token_state(void *se_) {
+				SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
+				if(!se.token_state_sent()) {
+					radio_->send(se.next_token_node(), msg.size(), msg.data());
+					timer_->template set_timer<self_type, &self_type::on_resend_token_state>(RESEND_TOKEN_STATE_INTERVAL, this, se_);
+				}
+			}
+			*/
+			
+			/**
 			 * Pass on complete state for given SE.
 			 * That is, token info and tree state for the SE.
 			 */
@@ -390,6 +405,7 @@ namespace wiselib {
 				//DBG("node %d // pop pass_on_state SE %d.%d set_clean %d", radio_->id(), se.id().rule(), se.id().value(), set_clean);
 				pop_caffeine();
 			}
+			
 			
 			/**
 			 * Find a semantic entity by id.
@@ -527,60 +543,83 @@ namespace wiselib {
 			}
 			
 			void on_receive_token_state(TokenStateMessageT& msg, node_id_t from, abs_millis_t t_recv) {
-				//DBG("on_receive_token_state node %d", radio_->id());
-				
 				bool found;
 				SemanticEntityT &se = find_entity(msg.entity_id(), found);
-				if(!found) {
-					//DBG("on_receive_token_state node %d // se %d.%d not found", radio_->id(), msg.entity_id().rule(), msg.entity_id().value());
-					return;
-				}
+				if(!found) { return; }
 				
-				TokenState s = msg.token_state();
 				
+				/*
 				if(from == se.parent()) {
-					//DBG("node %d SE %d.%d // processing token from parent %d", radio_->id(), se.id().rule(), se.id().value(), from);
 					process_token_state(se, s, from, t_recv);
 				}
 				else {
 					size_type child_index = se.find_child(from);
 					if(child_index == npos) {
-						//DBG("node %d SE %d.%d // [!] token sender %d is neither child or parent", radio_->id(), se.id().rule(), se.id().value(), from);
 						DBG("node %d SE %x.%x parent %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.parent());
-						//for(size_type i = 0; i < se.childs(); i++) {
-							//DBG("node %d SE %d.%d childidx %d child %d", radio_->id(), se.id().rule(), se.id().value(), i, se.child_address(i));
-						//}
 						return;
 					}
 					
 					if(child_index == se.childs() - 1) { // from last child
 						if(radio_->id() == se.root()) {
-							//DBG("node %d SE %d.%d // processing token from last child %d at root", radio_->id(), se.id().rule(), se.id().value(), from);
 							process_token_state(se, s, from, t_recv);
 						}
 						else {
-							//DBG("node %d SE %d.%d // fwd token from last child %d to parent %d", radio_->id(), se.id().rule(), se.id().value(), from, se.parent());
 							forward_token_state(se.id(), s, from, se.parent(), t_recv);
 						}
 					}
 					else { // from a not-last child
-						//DBG("node %d SE %d.%d // fwd token from child %d to next child %d", radio_->id(), se.id().rule(), se.id().value(), from, se.child_address(child_index + 1));
 						forward_token_state(se.id(), s, from, se.child_address(child_index + 1), t_recv);
 					}
+				}
+				*/
+				
+				node_id_t forward_node = msg.is_ack() ? se.token_ack_forward_for(radio_->id(), from) : se.token_forward_for(radio_->id(), from);
+				
+				if(forward_node == NULL_NODE_ID) {
+					return;
+				}
+				else if(forward_node == radio_->id()) {
+					TokenState s = msg.token_state();
+					process_token_state(se, s, from, t_recv, msg.is_ack());
+				}
+				else {
+					forward_token_state(se, from, forward_node, t_recv, msg);
 				}
 				
 				se.print_state(radio_->id(), now(), "token state forward");
 			}
 			
+			/*
+			void on_receive_token_state_ack(TokenStateAckMessageT& msg, node_id_t from) {
+				bool found;
+				SemanticEntityT &se = find_entity(msg.entity_id(), found);
+				if(!found) { return; }
+				
+				//TokenState s = msg.token_state();
+				
+				if(from == se.parent()) {
+					forward_token_state_ack(se,id(), s
+							// XXX
+			}
+			
+			void on_receive_token_state_ack(TokenStateAckMessageT& msg) {
+				bool found;
+				SemanticEntityT &se = find_entity(msg.entity_id(), found);
+				if(!found) { return; }
+				
+				TokenState s = msg.token_state();
+				if(s == se.token_state() && !se.token_state_sent()) {
+					se.set_token_state_sent(true);
+					pop_caffeine();
+				}
+			}
+			*/
+			
 			/**
 			 * Forward token state to another node (called by
 			 * on_receive_token_state).
 			 */
-			void forward_token_state(SemanticEntityId& se_id, TokenState s, node_id_t from, node_id_t to, abs_millis_t t_recv) {
-				bool found;
-				SemanticEntityT& se = find_entity(se_id, found);
-				if(!found) { return; }
-				
+			void forward_token_state(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, TokenStateMessageT& msg) {
 				se.learn_token_forward(clock_, radio_->id(), from, t_recv);
 					DBG("node %d SE %x.%x fwd_window %u fwd_interval %u fwd_from %d t=%d",
 							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
@@ -589,30 +628,8 @@ namespace wiselib {
 							(int)from, (int)now()
 					);
 				
-				// <DEBUG>
-				
-				//DBG("node %d // fwd token state %d.%d %d -> %d via %d childs follow", radio_->id(), se_id.rule(), se_id.value(), from, to, radio_->id());
-				
-				
-				//for(size_type i = 0; i < se.childs(); i++) {
-					//DBG("node %d // child %d: %d", radio_->id(), i, se.child_address(i));
-				//}
-				
-				// </DEBUG>
-				
-				TokenStateMessageT msg;
-				//msg.set_from(from);
-				msg.set_entity_id(se_id);
-				msg.set_token_state(s);
 				radio_->send(to, msg.size(), msg.data());
-				
-				//DBG("node %d // fwd token state end wait", radio_->id());
-				
 				se.end_wait_for_token_forward(from);
-				//end_wait_for_token_forward(se, from);
-				
-				//DBG("node %d // fwd token state schedule next wait", radio_->id());
-				
 				se.template schedule_token_forward<self_type, &self_type::begin_wait_for_token_forward,
 					&self_type::end_wait_for_token_forward>(clock_, timer_, this, from, &se);
 			}
@@ -620,7 +637,7 @@ namespace wiselib {
 			/**
 			 * Process token state change relevant to us (called by on_receive_token_state).
 			 */
-			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, abs_millis_t receive_time) {
+			void process_token_state(SemanticEntityT& se, TokenState s, node_id_t from, abs_millis_t receive_time, bool is_ack) {
 				bool active_before = se.is_active(radio_->id());
 				size_type prev_count = se.prev_token_count();
 				se.set_prev_token_count(s.count());
