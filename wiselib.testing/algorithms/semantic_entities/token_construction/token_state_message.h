@@ -115,7 +115,9 @@ namespace wiselib {
 			}
 			
 			void check() {
-				assert(type() == MESSAGE_TYPE);
+				#if CHECK_INVARIANTS
+					assert(type() == MESSAGE_TYPE);
+				#endif
 			}
 		
 		private:

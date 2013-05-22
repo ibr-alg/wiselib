@@ -1,5 +1,11 @@
+
 #if ISENSE
 	extern "C" void assert(int) { }
+	#define CHECK_INVARIANTS 0
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+#elif PC
+	#define CHECK_INVARIANTS 1
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
 #endif
 
 #include <external_interface/external_interface.h>

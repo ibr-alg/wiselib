@@ -101,10 +101,12 @@ namespace wiselib {
 			}
 			
 			void check() {
-				//DBG("// sizeof(StateMessage::message_id_t) = %d", sizeof(message_id_t));
-				assert(type() == MESSAGE_TYPE);
-				tree().check();
-				token().check();
+				#if CHECK_INVARIANTS
+					//DBG("// sizeof(StateMessage::message_id_t) = %d", sizeof(message_id_t));
+					assert(type() == MESSAGE_TYPE);
+					tree().check();
+					token().check();
+				#endif
 			}
 		
 		private:

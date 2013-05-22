@@ -20,6 +20,8 @@
 #ifndef TOKEN_CONSTRUCTION_H
 #define TOKEN_CONSTRUCTION_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
 #include <util/pstl/vector_dynamic.h>
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/list_dynamic.h>
@@ -27,10 +29,7 @@
 #include "semantic_entity.h"
 #include "semantic_entity_id.h"
 #include "regular_event.h"
-
 #include "state_message.h"
-
-#include <util/debugging.h>
 
 namespace wiselib {
 	
@@ -492,7 +491,6 @@ namespace wiselib {
 				}
 				
 				
-				
 				for(size_type i = 0; i < msg.entity_count(); i++) {
 					
 					TreeState s = msg.get_entity_state(i);
@@ -525,6 +523,7 @@ namespace wiselib {
 					
 					//se.print_state(radio_->id(), now(), "token state update/forward");
 				} // for se
+				
 			}
 			
 			void on_receive_token_state(TokenStateMessageT& msg, node_id_t from, abs_millis_t t_recv) {
