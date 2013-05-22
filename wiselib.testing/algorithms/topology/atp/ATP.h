@@ -131,7 +131,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_RSSI_FILTERING
 						255, 0, 255, 0,
 #endif
-				100, 90, 100, 90, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
+				100, 70, 100, 70, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
 				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
@@ -199,23 +199,23 @@ namespace wiselib
 #endif
 					}
 				}
-//				else if ( nd_active_size > SCLD_MAX )
-//				{
-//					int8_t old_transmission_power_dB = transmission_power_dB;
-//#ifdef CONFIG_ATP_H_FLEXIBLE_DB
-//					transmission_power_dB = transmission_power_dB - ATP_H_DB_STEP;
-//#endif
-//					if ( transmission_power_dB < ATP_H_MIN_DB_THRESHOLD )
-//					{
-//						transmission_power_dB = ATP_H_MIN_DB_THRESHOLD;
-//					}
-//					if ( transmission_power_dB != old_transmission_power_dB )
-//					{
-//#ifdef DEBUG_ATP_H_NEIGHBOR_DISCOVERY_STATS
-//						debug().debug("%x - decreasing radius from %i to %i\n", radio().id(), old_transmission_power_dB, transmission_power_dB );
-//#endif
-//					}
-//				}
+				else if ( nd_active_size > SCLD_MAX )
+				{
+					int8_t old_transmission_power_dB = transmission_power_dB;
+#ifdef CONFIG_ATP_H_FLEXIBLE_DB
+					transmission_power_dB = transmission_power_dB - ATP_H_DB_STEP;
+#endif
+					if ( transmission_power_dB < ATP_H_MIN_DB_THRESHOLD )
+					{
+						transmission_power_dB = ATP_H_MIN_DB_THRESHOLD;
+					}
+					if ( transmission_power_dB != old_transmission_power_dB )
+					{
+#ifdef DEBUG_ATP_H_NEIGHBOR_DISCOVERY_STATS
+						debug().debug("%x - decreasing radius from %i to %i\n", radio().id(), old_transmission_power_dB, transmission_power_dB );
+#endif
+					}
+				}
 				for ( Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i )
 				{
 					if ( i->get_active() == 1 )
@@ -240,7 +240,7 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
-				else// if ( nd_active_size > SCLD_MAX )
+				else if ( nd_active_size > SCLD_MAX )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
@@ -288,10 +288,10 @@ namespace wiselib
 //				size_t AVG_SCLD = 0;
 //				size_t lonely_nodes = 0;
 #ifdef DEBUG_ATP_H_STATS_SHAWN
-					debug().debug("TCON:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD, nd_active_size, prot_ref->get_neighborhood_ref()->size(), beacon_period, ATP_sevice_throughput_period * monitoring_phases_throughput, monitoring_phases_throughput, scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("TTCCOON:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD, nd_active_size, prot_ref->get_neighborhood_ref()->size(), beacon_period, ATP_sevice_throughput_period * monitoring_phases_throughput, monitoring_phases_throughput, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-					debug().debug("TCON:%d:%x:%i:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD, nd_active_size, prot_ref->get_neighborhood_ref()->size(), beacon_period, ATP_sevice_throughput_period * monitoring_phases_throughput, monitoring_phases_throughput, scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("TTCCOON:%d:%x:%i:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD, nd_active_size, prot_ref->get_neighborhood_ref()->size(), beacon_period, ATP_sevice_throughput_period * monitoring_phases_throughput, monitoring_phases_throughput, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 //				for ( Neighbor_vector_iterator it = prot_ref->get_neighborhood_ref()->begin(); it != prot_ref->get_neighborhood_ref()->end(); ++it )
 //				{
@@ -305,7 +305,7 @@ namespace wiselib
 //					}
 //				}
 //				AVG_SCLD = AVG_SCLD / nd_active_size;
-				if ( ( nd_active_size <= SCLD ) || ( nd_active_size <= SCLD_MIN ) )
+				if ( nd_active_size <= SCLD_MIN )
 				{
 					uint32_t old_beacon_period = beacon_period;
 #ifdef CONFIG_ATP_H_FLEXIBLE_TP
@@ -363,7 +363,7 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
-				else if ( nd_active_size > SCLD_MIN )
+				else if ( nd_active_size > SCLD_MAX )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(), nd_active_size );
