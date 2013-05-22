@@ -574,13 +574,13 @@ namespace wiselib
 			{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_SHAWN
-				debug.debug( "DDNNBB:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f:%f:%f:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f:%f:%f:%d:%d\n",
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_ISENSE
-				debug.debug( "DDNNBB:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
 #else
-				debug.debug( "DDNNBB:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
 					radio.id(),
 					id,
