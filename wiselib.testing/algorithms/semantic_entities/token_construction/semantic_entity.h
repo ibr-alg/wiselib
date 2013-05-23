@@ -222,10 +222,10 @@ namespace wiselib {
 			
 			/// Ctors.
 			
-			SemanticEntity() : activity_phase_(false), token_state_sent_(false) {
+			SemanticEntity() : activity_phase_(false), sending_token_(false) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), token_state_sent_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), sending_token_(false) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -245,8 +245,8 @@ namespace wiselib {
 			
 			/**
 			 */
-			void set_token_state_sent(bool s) { token_state_sent_ = s; }
-			bool token_state_sent() { return token_state_sent_; }
+			void set_sending_token(bool s) { sending_token_ = s; }
+			bool sending_token() { return sending_token_; }
 			
 			
 			/**
@@ -565,17 +565,17 @@ namespace wiselib {
 			}
 			
 			template<typename T, void (T::*BeginWaiting)(void*), void (T::*EndWaiting)(void*)>
-			void schedule_token_forward(
+			bool schedule_token_forward(
 					typename Clock::self_pointer_t clock,
 					typename Timer::self_pointer_t timer,
 					T* obj, node_id_t from, void* userdata = 0
 			) {
-				//DBG("// scheduling token_forward from %d SE %d.%d", from, id().rule(), id().value());
-				token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
+				DBG("// scheduling token_forward from %d SE %x.%x t %d", from, id().rule(), id().value(), absolute_millis(clock, clock->time()));
+				return token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
 			}
 			
-			void end_wait_for_token_forward(node_id_t from) {
-				token_forwards_[from].end_waiting();
+			bool end_wait_for_token_forward(node_id_t from) {
+				return token_forwards_[from].end_waiting();
 			}
 			
 			abs_millis_t token_forward_window(typename Clock::self_pointer_t clock,node_id_t from) {
@@ -583,6 +583,16 @@ namespace wiselib {
 			}
 			abs_millis_t token_forward_interval(typename Clock::self_pointer_t clock, node_id_t from) {
 				return token_forwards_[from].interval();
+			}
+			
+			
+			
+			abs_millis_t token_send_start() {
+				return token_send_start_;
+			}
+			
+			void set_token_send_start(abs_millis_t tss) {
+				token_send_start_ = tss;
 			}
 			
 			/// Debugging.
@@ -632,8 +642,9 @@ namespace wiselib {
 			// token)
 			//vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			Childs childs_;
+			abs_millis_t token_send_start_;
 			bool activity_phase_;
-			bool token_state_sent_;
+			bool sending_token_;
 	}; // SemanticEntity
 	
 	

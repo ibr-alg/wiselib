@@ -113,11 +113,13 @@ def parse(f):
 		fwd_window = get_value('fwd_window')
 		if fwd_window is not None:
 			fwd_interval = get_value('fwd_interval')
-			if 'forward' not in nodes[name]: nodes[name]['forward'] = {'t': np.array((),dtype=np.int32), 'v': [np.array((),
-				dtype=np.int32), np.array((), dtype=np.int32)]}
-			nodes[name]['forward']['t'] = np.append(nodes[name]['forward']['t'], t)
-			nodes[name]['forward']['v'][0] = np.append(nodes[name]['forward']['v'][0], int(fwd_window))
-			nodes[name]['forward']['v'][1] = np.append(nodes[name]['forward']['v'][1], int(fwd_interval))
+			fwd_from = get_value('fwd_from')
+			if 'forward' not in nodes[name]: nodes[name]['forward'] = {}
+			if fwd_from not in nodes[name]['forward']: nodes[name]['forward'][fwd_from] = { 't': np.array((),dtype=np.int32), 'window': np.array((),
+				dtype=np.int32), 'interval': np.array((), dtype=np.int32)}
+			nodes[name]['forward'][fwd_from]['t'] = np.append(nodes[name]['forward'][fwd_from]['t'], t)
+			nodes[name]['forward'][fwd_from]['window'] = np.append(nodes[name]['forward'][fwd_from]['window'], int(fwd_window))
+			nodes[name]['forward'][fwd_from]['interval'] = np.append(nodes[name]['forward'][fwd_from]['interval'], int(fwd_interval))
 		
 		# track other properties
 		
@@ -287,6 +289,67 @@ def fig_timings():
 	fig.savefig('timings.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
 	
+def fig_forward_timings():
+	global fig
+	global gnodes
+	nodes = gnodes
+	
+	fig = plt.figure(figsize=(16, 40))
+	#fig.subplots_adjust(
+	
+	property_styles = {}
+	
+	i = 0
+	first_ax = None
+	last_ax = None
+	
+	def namesort(kva, kvb):
+		for a, b in zip(kva[0], kvb[0]):
+			if a != b: return cmp(a, b)
+		return cmp(len(kva[0]), len(kvb[0]))
+	
+	for name, node in sorted(nodes.items(), cmp=namesort):
+		if 'forward' not in node: continue
+			
+		for from_, forward in sorted(node['forward'].items(), cmp=namesort):
+			if first_ax is None:
+				ax = plt.subplot(len(nodes), 1, i + 1)
+				first_ax = ax
+			else:
+				ax = plt.subplot(len(nodes), 1, i + 1, sharex=first_ax)
+				
+			ax.spines['bottom'].set_visible(False)
+			ax.spines['top'].set_visible(False)
+			#ax.spines['left'].set_visible(False)
+			#ax.spines['right'].set_visible(False)
+			setp(ax.get_xticklabels(), visible = False)
+			#ax.get_yaxis().set_visible(False)
+			ax.get_xaxis().set_tick_params(size=0)
+			last_ax = ax
+
+			if 'window' in forward:
+				r, = ax.plot(forward['t'], forward['window'], 'b-', label='window', drawstyle='steps-post')
+				property_styles['window'] = r
+			if 'interval' in forward:
+				r, = ax.plot(forward['t'], forward['interval'], 'r-', label='interval', drawstyle='steps-post')
+				property_styles['interval'] = r
+			
+			ax.set_title(name + ' fwd from ' + from_)
+			#pos = list(ax.get_position().bounds)
+			#fig.text(pos[0] - 0.01, pos[1], name, fontsize = 8,
+					#horizontalalignment = 'right')
+			i += 1
+			
+	last_ax.spines['bottom'].set_visible(True)
+	last_ax.set_xlim((-1, 1601))
+	setp(last_ax.get_xticklabels(), visible = True)
+	
+	kv = list(property_styles.items())
+	fig.legend(tuple(x[1] for x in kv), tuple(x[0] for x in kv))
+	
+	fig.savefig('forward_timings.pdf') #, bbox_inches='tight', pad_inches=.1)
+	#plt.show()
+	
 	
 def fig_duty_cycle(namepattern = '.*'):
 	global fig
@@ -375,6 +438,7 @@ print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
 print("timings graph...")
 fig_timings()
+fig_forward_timings()
 #print("counts graph...")
 #fig_count_onegraph(r'.*:1\.2')
 

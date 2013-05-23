@@ -48,6 +48,7 @@ namespace wiselib {
 			typedef typename Radio::node_id_t node_id_t;
 			typedef SemanticEntity_P SemanticEntity;
 			typedef typename SemanticEntity::TokenState TokenState;
+			typedef ::uint32_t abs_millis_t;
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
@@ -62,8 +63,9 @@ namespace wiselib {
 				POS_IS_ACK = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_ENTITY_ID = POS_IS_ACK + 1, // sizeof(bool),
 				POS_TOKEN_STATE = POS_ENTITY_ID + sizeof(SemanticEntityId),
+				POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
 				
-				POS_END = POS_TOKEN_STATE + sizeof(TokenState)
+				POS_END = POS_TIME_OFFSET + sizeof(abs_millis_t)
 			};
 			
 			TokenStateMessage() {
@@ -73,6 +75,7 @@ namespace wiselib {
 			void init() {
 				set_type(MESSAGE_TYPE);
 				set_is_ack(false);
+				set_time_offset(0);
 			}
 			
 			message_id_t type() {
@@ -113,6 +116,14 @@ namespace wiselib {
 			
 			void set_is_ack(bool a) {
 				data_[POS_IS_ACK] = a;
+			}
+			
+			abs_millis_t time_offset() {
+				return wiselib::read<OsModel, block_data_t, abs_millis_t>(data_ + POS_TIME_OFFSET);
+			}
+			
+			void set_time_offset(abs_millis_t to) {
+				wiselib::write<OsModel>(data_ + POS_TIME_OFFSET, to);
 			}
 			
 			block_data_t* data() {
