@@ -222,10 +222,10 @@ namespace wiselib {
 			
 			/// Ctors.
 			
-			SemanticEntity() : activity_phase_(false) {
+			SemanticEntity() : activity_phase_(false), token_state_sent_(false) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), token_state_sent_(false) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -242,6 +242,11 @@ namespace wiselib {
 			bool in_activity_phase() { return activity_phase_; }
 			void begin_activity_phase() { activity_phase_ = true; }
 			void end_activity_phase() { activity_phase_ = false; }
+			
+			/**
+			 */
+			void set_token_state_sent(bool s) { token_state_sent_ = s; }
+			bool token_state_sent() { return token_state_sent_; }
 			
 			
 			/**
@@ -427,7 +432,17 @@ namespace wiselib {
 				if(childs() > 0) {
 					return childs_[0];
 				}
-				return tree().parent();
+				return parent();
+			}
+			
+			node_id_t prev_token_node(node_id_t mynodeid) {
+				if(mynodeid == root()) {
+					if(childs()) {
+						return childs_[childs() - 1];
+					}
+					return NULL_NODE_ID;
+				}
+				return parent();
 			}
 			
 			
@@ -618,6 +633,7 @@ namespace wiselib {
 			//vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			Childs childs_;
 			bool activity_phase_;
+			bool token_state_sent_;
 	}; // SemanticEntity
 	
 	
