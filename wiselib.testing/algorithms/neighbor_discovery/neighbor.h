@@ -537,7 +537,7 @@ namespace wiselib
 		}
 		// --------------------------------------------------------------------
 #ifdef DEBUG_NEIGHBOR_H
-		void print( Debug& debug, Radio& radio
+		void print( Debug& debug, Radio& radio, uint32_t counter
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 				,Position pos = Position( 0, 0, 0 )
 #endif
@@ -574,13 +574,13 @@ namespace wiselib
 			{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_SHAWN
-				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f:%f:%f:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f:%f:%f:%d:%d:%d\n",
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_ISENSE
-				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
 #else
-				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
 					radio.id(),
 					id,
@@ -616,7 +616,7 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 					,trust_counter
-					,trust_counter_inverse
+					,trust_counter_inverse, counter
 #endif
 				);
 			}

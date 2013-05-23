@@ -271,7 +271,8 @@ namespace wiselib
 		}
 		// --------------------------------------------------------------------
 #ifdef DEBUG_PROTOCOL_H
-		void print( Debug& _debug, Radio& _radio
+		void print( Debug& _debug, Radio& _radio,
+				uint32_t counter
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 				,Position _pos = Position( 0, 0, 0 )
 #endif
@@ -287,7 +288,7 @@ namespace wiselib
 			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
 			{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
-				it->print( _debug, _radio, _pos );
+				it->print( _debug, _radio, counter, _pos );
 #else
 				it->print( _debug, _radio );
 #endif

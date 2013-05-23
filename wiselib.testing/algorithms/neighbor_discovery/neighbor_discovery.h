@@ -1386,6 +1386,29 @@ namespace wiselib
 		}
 #endif
 		// --------------------------------------------------------------------
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+		uint32_t get_bytes_received()
+		{
+			return bytes_received;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send()
+		{
+			return bytes_send;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_messages_received()
+		{
+			return bytes_received;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_messages_send()
+		{
+			return bytes_send;
+		}
+		// --------------------------------------------------------------------
+#endif
+		// --------------------------------------------------------------------
 		void init( Radio& _radio, Timer& _timer, Debug& _debug, Clock& _clock, Rand& _rand )
 		{
 			radio_ = &_radio;
