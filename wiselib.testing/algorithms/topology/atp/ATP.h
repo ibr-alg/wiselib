@@ -23,6 +23,7 @@
 #include "ATP_source_config.h"
 #include "ATP_default_values_config.h"
 #include "../../../internal_interface/message/message.h"
+#include "../../../internal_interface/state_status/state_status.h"
 
 namespace wiselib
 {
@@ -32,8 +33,7 @@ namespace wiselib
 				typename Timer_P,
 				typename Rand_P,
 				typename Clock_P,
-				typename Debug_P,
-				typename Messaging_P
+				typename Debug_P
 			>
 	class ATP_Type
 	{
@@ -46,7 +46,6 @@ namespace wiselib
 		typedef ASCL_P ASCL;
 		typedef Timer_P Timer;
 		typedef Clock_P Clock;
-		typedef Messaging_P Messaging;
 		typedef typename Radio::node_id_t node_id_t;
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
@@ -56,7 +55,8 @@ namespace wiselib
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Clock::time_t time_t;
 		typedef Message_Type<Os, Radio, Debug> Message;
-		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug,Messaging> self_type;
+		typedef State_Status_Type<Os, Radio, Debug, 3> State_Status;
+		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug/*,Messaging*/> self_type;
 		typedef typename ASCL::ProtocolSettings ProtocolSettings;
 		typedef typename ASCL::Neighbor Neighbor;
 		typedef typename ASCL::ProtocolPayload ProtocolPayload;
@@ -191,6 +191,10 @@ namespace wiselib
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
 				periodic_bytes_received = scl().get_bytes_received() - periodic_bytes_received;
 				periodic_bytes_send = scl().get_bytes_send() - periodic_bytes_send;
+
+				State_Status transmission_power_status;
+				State_Status throughput_status;
+				State_Status SCLD_status;
 
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), nd_active_size, prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, ATP_sevice_transmission_power_period * monitoring_phases_transmission_power, monitoring_phases_throughput + monitoring_phases_transmission_power, scl().get_position().get_x(),  scl().get_position().get_y() );
@@ -335,7 +339,7 @@ namespace wiselib
 //					}
 //				}
 //				AVG_SCLD = AVG_SCLD / nd_active_size;
-				if ( nd_active_size <= SCLD_MIN )
+				if ( nd_active_size < SCLD_MIN )
 				{
 					uint32_t old_beacon_period = beacon_period;
 #ifdef CONFIG_ATP_H_FLEXIBLE_TP
@@ -352,7 +356,7 @@ namespace wiselib
 #endif
 					}
 				}
-				else if ( nd_active_size  > SCLD_MIN )
+				else if ( nd_active_size >= SCLD_MIN )
 				{
 					uint32_t old_beacon_period = beacon_period;
 #ifdef CONFIG_ATP_H_FLEXIBLE_TP
@@ -437,7 +441,6 @@ namespace wiselib
 			if ( status == ACTIVE_STATUS )
 			{
 				debug().debug( "ATP - ATP_service_disable %x - Entering.\n", radio().id() );
-				//messaging().enable(ASCL::ATP_PROTOCOL_ID);
 #ifdef CONFIG_ATP_H_DISABLE_SCL
 				scl().disable();
 #endif
@@ -500,7 +503,7 @@ namespace wiselib
 			}
 		}
 		// -----------------------------------------------------------------------
-		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, ASCL& scl ,Messaging& messaging)
+		void init( Radio& radio, Timer& timer, Debug& debug, Rand& rand, Clock& clock, ASCL& scl )
 		{
 			_radio = &radio;
 			_timer = &timer;
@@ -508,7 +511,6 @@ namespace wiselib
 			_rand = &rand;
 			_clock = &clock;
 			_scl = &scl;
-            _messaging = &messaging;
 		}
 		// -----------------------------------------------------------------------
 		void set_status( int _st )
@@ -547,18 +549,12 @@ namespace wiselib
 			return *_scl;
 		}
 		// -----------------------------------------------------------------------
-		Messaging& messaging()
-		{
-			return *_messaging;
-		}
-		// -----------------------------------------------------------------------
 		Radio* _radio;
 		Timer* _timer;
 		Debug* _debug;
 		Rand* _rand;
 		Clock* _clock;
 		ASCL* _scl;
-		Messaging* _messaging;
 		enum atp_status
 		{
 			ACTIVE_STATUS,
@@ -582,6 +578,9 @@ namespace wiselib
 		size_t SCLD;
 		uint32_t random_enable_timer_range;
 		uint8_t status;
+		State_Status transmission_power_status;
+		State_Status throughput_status;
+		State_Status SCLD_status;
 	};
 
 }
