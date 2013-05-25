@@ -363,8 +363,10 @@ namespace wiselib {
 				bool c_c = state().set_root(root);
 				changed = changed || c_a || c_b || c_c;
 				
-				DBG("node %d SE %x.%x distance %d parent %d root %d",
-						(int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
+				if(changed) {
+					DBG("node %d SE %x.%x distance %d parent %d root %d // tree state change",
+							(int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
+				}
 				
 				return changed;
 				
@@ -447,9 +449,14 @@ namespace wiselib {
 			
 			
 			node_id_t token_forward_for(node_id_t mynodeid, node_id_t from) {
+				DBG("node %d // token_forward_for from %d childs %d root %d parent %d",
+						(int)mynodeid, (int)from, (int)childs(), (int)root(), (int)parent());
+					
 				if(from == parent()) { return mynodeid; }
 				else {
 					size_type child_index = find_child(from);
+					DBG("node %d  // token_forward_for from %d childs %d child_idx %d root %d parent %d",
+							(int)mynodeid, (int)from, (int)childs(), (int)child_index, (int)root(), (int)parent());
 					if(child_index == npos) { return NULL_NODE_ID; }
 					else if(child_index == childs() - 1) {
 						if(mynodeid == root()) { return mynodeid; }

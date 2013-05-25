@@ -228,6 +228,9 @@ namespace wiselib {
 			 * timer installed by start_waiting_timer!
 			 */
 			void begin_waiting(void*) {
+				DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%p",
+						(int)waiting_timer_set_, (int)waiting_, (int)cancel_, userdata_);
+						
 				waiting_timer_set_ = false;
 				if(!waiting_) {
 					if(cancel_) {

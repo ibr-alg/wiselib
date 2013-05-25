@@ -120,7 +120,7 @@ namespace wiselib {
 				AWAKE_BCAST_INTERVAL = 100 * TIME_SCALE,
 				/// How long to stay awake when we have the token
 				ACTIVITY_PERIOD = 1000 * TIME_SCALE,
-				RESEND_TOKEN_STATE_INTERVAL = 100 * TIME_SCALE,
+				RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
 			};
 			
 			enum SpecialAddresses {
@@ -281,6 +281,8 @@ namespace wiselib {
 				
 				//DBG("node %d // push on_reg_broadcast", radio_->id());
 				push_caffeine();
+				
+				DBG("node %d send_to bcast send_type regular_broadcast t %d", (int)radio_->id(), (int)now());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				//DBG("node %d // pop on_reg_broadcast", radio_->id());
 				pop_caffeine();
@@ -312,6 +314,7 @@ namespace wiselib {
 				
 					//DBG("node %d // push on_dirty_broadcast_state", radio_->id());
 					push_caffeine();
+					DBG("node %d send_to bcast send_type dirty_broadcast t %d", (int)radio_->id(), (int)now());
 					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 					//DBG("node %d // pop on_dirty_broadcast_state", radio_->id());
 					pop_caffeine();
@@ -376,11 +379,15 @@ namespace wiselib {
 					// second offset RESEND_TOKEN_STATE_INTERVAL, etc..
 					abs_millis_t diff = now() - se.token_send_start();
 					abs_millis_t offs = RESEND_TOKEN_STATE_INTERVAL * (diff / RESEND_TOKEN_STATE_INTERVAL);
-					
-					DBG("node %d // resend_token_state offs=%d", (int)radio_->id(), (int)offs);
 					msg.set_time_offset(offs);
 					
-					radio_->send(se.next_token_node(), msg.size(), msg.data());
+					if(se.next_token_node() != radio_->id()) {
+						DBG("node %d // resend_token_state offs=%d to %d", (int)radio_->id(), (int)offs, (int)se.next_token_node());
+					
+						DBG("node %d send_to %d send_type token_state t %d resend %d",
+								(int)radio_->id(),  (int)se.next_token_node(), (int)now(), (int)offs);
+						radio_->send(se.next_token_node(), msg.size(), msg.data());
+					}
 					timer_->template set_timer<self_type, &self_type::on_resend_token_state>(RESEND_TOKEN_STATE_INTERVAL, this, se_);
 				}
 			}
@@ -598,6 +605,9 @@ namespace wiselib {
 						// send token ack
 						msg.set_is_ack(true);
 						//msg.set_time_offset(0);
+						
+						DBG("node %d send_to %d send_type token_ack t %d resend %d",
+								(int)radio_->id(), (int)from, (int)now(), (int)msg.time_offset());
 						radio_->send(from, msg.size(), msg.data());
 					}
 				}
@@ -613,34 +623,31 @@ namespace wiselib {
 			 * on_receive_token_state).
 			 */
 			void forward_token_state(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, TokenStateMessageT& msg) {
-				
-				/*
-				 * XXX: Problem seems to be that we are starting the forward
-				 * with from=token sender and ending it with from=ack sender!
-				 * I.e.: calculate orig token source from ack!
-				 * 
-				 * ack from      token from
-				 * 
-				 * parent        me or last child
-				 * first child   me
-				 * n-th child    (n-1th child)
-				 */
-				
 				if(!msg.is_ack()) {
-				   if(msg.time_offset() == 0) {
-					se.learn_token_forward(clock_, radio_->id(), from, t_recv);
-					DBG("node %d SE %x.%x fwd_window %u fwd_interval %u fwd_from %d t=%d",
+					if(msg.time_offset() == 0) {
+						se.learn_token_forward(clock_, radio_->id(), from, t_recv);
+						DBG("node %d SE %x.%x fwd_window %u fwd_interval %u fwd_from %d t %d",
+								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+								(int)se.token_forward_window(clock_, from),
+								(int)se.token_forward_interval(clock_, from),
+								(int)from, (int)now()
+						);
+					}
+					else {
+						DBG("node %d t %d // fwd_ not learning from %d offset %d", (int)radio_->id(), (int)now(), (int)from, (int)msg.time_offset());
+					}
+				}
+				else {
+					DBG("node %d SE %x.%x // fwd_window %u fwd_interval %u fwd_from %d t %d offset %d ack %d t %d",
 							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 							(int)se.token_forward_window(clock_, from),
 							(int)se.token_forward_interval(clock_, from),
-							(int)from, (int)now()
+							(int)from, (int)now(), (int)msg.time_offset(), (int)msg.is_ack(), (int)now()
 					);
-				 }
-				   else {
-					   DBG("node %d // not learning from=%d offset=%d", (int)radio_->id(), (int)from, (int)msg.time_offset());
-					}
 				}
 				
+				DBG("node %d send_to %d send_type token_forward t %d resend %d",
+						(int)radio_->id(), (int)to,  (int)now(), (int)msg.time_offset());
 				radio_->send(to, msg.size(), msg.data());
 				if(msg.is_ack()) {
 					se.end_wait_for_token_forward(se.token_ack_forward_for(radio_->id(), from));
@@ -806,6 +813,16 @@ namespace wiselib {
 				DBG("node %d // push begin_wait_for_regular_broadcast %d", (int)radio_->id(), (int)n);
 				
 				push_caffeine();
+				
+				
+				bool waiting = false;
+				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
+					if(it->second.waiting()) {
+						waiting = true;
+						break;
+					}
+				}
+				DBG("node %d waiting_for_broadcast %d", radio_->id(), waiting);
 			}
 			
 			void end_wait_for_regular_broadcast(void* from_) {
@@ -815,6 +832,16 @@ namespace wiselib {
 					DBG("node %d // pop end_wait_for_regular_broadcast %d", (int)radio_->id(), (int)from);
 					pop_caffeine();
 				//}
+				
+					
+				bool waiting = false;
+				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
+					if(it->second.waiting()) {
+						waiting = true;
+						break;
+					}
+				}
+				DBG("node %d waiting_for_broadcast %d", radio_->id(), waiting);
 			}
 			
 			/**
@@ -845,7 +872,7 @@ namespace wiselib {
 			void check_neighbors(void* =0) {
 				//// TODO
 				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
-					if(it->second.seen() && absolute_millis(it->second.last_encounter()) < (now() - 2 *(it->second.interval()))) {
+					if(it->second.seen() && absolute_millis(it->second.last_encounter()) + 2 * it->second.interval() < now()) {
 						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d",
 								(int)radio_->id(), (int)now(), (int)it->first,
 								(int)(it->second.last_encounter()), (int)(it->second.interval())

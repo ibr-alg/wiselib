@@ -23,7 +23,7 @@ nhood = set()
 
 properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count', 'node',
 		'SE', 'parent', 'neighbor', 't', 'fwd_window', 'fwd_interval', 'fwd_from',
-		'forwarding')
+		'forwarding', 'waiting_for_broadcast')
 
 def getnodes(namepattern):
 	global gnodes
@@ -406,6 +406,9 @@ def fig_duty_cycle(namepattern = '.*'):
 		if 'active' in node:
 			r, = ax.plot(node['active']['t'], node['active']['v'], 'k-', label='active', drawstyle='steps-post')
 			property_styles['active'] = r
+		if 'waiting_for_broadcast' in node:
+			r, = ax.plot(node['waiting_for_broadcast']['t'], node['waiting_for_broadcast']['v'], 'y-', label='waiting for broadcast', drawstyle='steps-post')
+			property_styles['waiting for broadcast'] = r
 		
 		#ax.set_title(name)
 		pos = list(ax.get_position().bounds)
