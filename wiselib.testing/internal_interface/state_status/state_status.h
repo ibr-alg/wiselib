@@ -1,9 +1,8 @@
 #ifndef __STATE_STATUS_H_
 #define __STATE_STATUS_H_
 
-#define DEBUG_STATE_STATUS_H
-
 #include "util/pstl/vector_static.h"
+#include "state_status_source_config.h"
 
 namespace wiselib
 {
