@@ -20,8 +20,6 @@
 #ifndef SEMANTIC_ENTITY_H
 #define SEMANTIC_ENTITY_H
 
-#include <limits>
-
 #include <util/pstl/vector_static.h>
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/algorithm.h>
@@ -81,7 +79,7 @@ namespace wiselib {
 			class TreeState {
 				// {{{
 				public:
-					TreeState() : parent_(0), root_(std::numeric_limits<node_id_t>::max()), distance_(-1) {
+					TreeState() : parent_(0), root_(-1), distance_(-1) {
 					}
 					
 					TreeState(const TreeState& other) { *this = other; }

@@ -10,11 +10,13 @@ defaultconfig = json.loads('''
 			"compile_platforms": [
 				"tinyos-telosb", "tinyos-micaz",
 				"contiki_micaz", "contiki_sky", "pc",
-				"isense", "isense.5148",
-				"openwrt", "arduino"
+				"isense", "isense.5148"
 			],
+			"compile_empty": {
+				"flags": "-DCODESIZE -DCODESIZE_EMPTY"
+			},
 			"compile_variants": [
-				{ "name": "default" }
+				{ "name": "default", "flags": "-DCODESIZE" }
 			],
 			"include_paths": [
 				"/home/henning/repos/wiselib/wiselib.testing/",
@@ -27,6 +29,7 @@ defaultconfig = json.loads('''
 			"compile_flags": "",
 			"use_detemplate": true,
 			"detemplate_path": "/home/henning/bin/detemplate",
+			"detemplate_flags": "-n wiselib -n std -f 2 -t 0 -a 0 -i",
 			"logfile_path": "codesize_test.log",
 			"binary_name": "example_app"
 		}
@@ -40,9 +43,9 @@ def load_config(s):
 def get_config(path):
 	global config
 	global defaultconfig
-	print '--------------', path, '---------------'
-	print 'conf=', repr(config)
-	print 'def=', repr(defaultconfig)
+	#print '--------------', path, '---------------'
+	#print 'conf=', repr(config)
+	#print 'def=', repr(defaultconfig)
 	try:
 		return get_config_from(path, config)
 	except KeyError:
@@ -52,16 +55,16 @@ def get_config_from(path, c):
 	if type(path) == str:
 		path = path.split('/')
 	o = c
-	print "o=", type(o), repr(o), o
+	#print "o=", type(o), repr(o), o
 	for p in path:
-		print "p=", type(p), repr(p)
+		#print "p=", type(p), repr(p)
 		o = o[p]
-		print "o=", type(o), repr(o), o
+		#print "o=", type(o), repr(o), o
 	return o
 
 
 use_detemplate = get_config('use_detemplate')
-detemplate = [get_config('detemplate_path')]
+detemplate = [get_config('detemplate_path')] + get_config('detemplate_flags').split()
 
 log = open(get_config('logfile_path'), 'w')
 
@@ -208,14 +211,29 @@ def compile(platform, configuration):
 
 codesizes = []
 
-for p in compile_platforms:
-	platform = platforms[p]
-	row = dict(platform = platform, sizes = [])
-	row['tara'] = compile(platform, '') #compile_nothing(platform)
-	for conf in configurations:
-		r = compile(platform, conf)
+for platform in get_config('compile_platforms'):
+	platform_info = platforms[platform]
+	row = {
+		'platform': platform_info,
+		'sizes': []
+	}
+	row['tara'] = compile(platform_info, get_config('compile_empty').get('flags', ''))
+	for variant in get_config('compile_variants'):
+		r = compile(platform_info, variant.get('flags', ''))
 		row['sizes'].append(r)
 	codesizes.append(row)
+
+
+#for p in compile_platforms:
+	#platform = platforms[p]
+	#row = dict(platform = platform, sizes = [])
+	#row['tara'] = compile(platform, '') #compile_nothing(platform)
+	#print "--------------------", configurations
+	#for conf in configurations:
+		#if conf == "": continue
+		#r = compile(platform, conf)
+		#row['sizes'].append(r)
+	#codesizes.append(row)
 
 
 
@@ -244,6 +262,7 @@ print
 print
 print " " * 20,
 for conf in conf_pretty:
+	if conf == "": continue
 	print "%-15s" % conf,
 print "%-15s" % 'empty',
 print

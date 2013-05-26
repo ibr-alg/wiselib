@@ -2,49 +2,51 @@
 
 template<typename OsModel_P>
 class Tuple {
-	// {{{
-	public:
-		typedef OsModel_P OsModel;
-		typedef typename OsModel::block_data_t block_data_t;
-		typedef typename OsModel::size_t size_type;
-		
-		enum {
-			SIZE = 3
-		};
-		
-		typedef Tuple self_type;
-		
-		Tuple() {
-			for(size_type i = 0; i < SIZE; i++) {
-				spo_[i] = 0;
-			}
-		}
-		
-		void free_deep(size_type i) {
-			//delete[] spo_[i];
-			free(spo_[i]);
-			spo_[i] = 0;
-		}
-		void destruct_deep() {
-			for(size_type i = 0; i < SIZE; i++) { free_deep(i); }
-		}
-		
-		// operator= as default
-		
-		block_data_t* get(size_type i) {
-			return spo_[i];
-		}
-		size_type length(size_type i) {
-			//DBG("length(%s)=%d", (char*)spo_[i], strlen((char*)spo_[i]));
-			return spo_[i] ? strlen((char*)spo_[i]) : 0;
-		}
-		void set(size_type i, block_data_t* data) {
-			spo_[i] = data;
-		}
-		void set_deep(size_type i, block_data_t* data) {
-			size_type l = strlen((char*)data) + 1;
-			//spo_[i] = new block_data_t[l];
-			spo_[i] = (block_data_t*)malloc(l * sizeof(block_data_t));
+   // {{{
+   public:
+      typedef OsModel_P OsModel;
+      typedef typename OsModel::block_data_t block_data_t;
+      typedef typename OsModel::size_t size_type;
+
+      enum {
+         SIZE = 3
+      };
+
+      typedef Tuple self_type;
+
+      Tuple() {
+         for(size_type i = 0; i < SIZE; i++) {
+            spo_[i] = 0;
+         }
+      }
+
+      void free_deep(size_type i) {
+         //delete[] spo_[i];
+         //free(spo_[i]);
+         ::get_allocator().free(spo_[i]);
+         spo_[i] = 0;
+      }
+      void destruct_deep() {
+         for(size_type i = 0; i < SIZE; i++) { free_deep(i); }
+      }
+
+      // operator= as default
+
+      block_data_t* get(size_type i) {
+         return spo_[i];
+      }
+      size_type length(size_type i) {
+         //DBG("length(%s)=%d", (char*)spo_[i], strlen((char*)spo_[i]));
+         return spo_[i] ? strlen((char*)spo_[i]) : 0;
+      }
+      void set(size_type i, block_data_t* data) {
+         spo_[i] = data;
+      }
+      void set_deep(size_type i, block_data_t* data) {
+         size_type l = strlen((char*)data) + 1;
+         //spo_[i] = new block_data_t[l];
+         spo_[i] = ::get_allocator().template allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw();
+            //(block_data_t*)malloc(l * sizeof(block_data_t));
 			memcpy(spo_[i], data, l);
 		}
 		

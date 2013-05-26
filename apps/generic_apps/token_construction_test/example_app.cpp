@@ -1,28 +1,15 @@
 
-#if defined(ISENSE)
-	extern "C" void assert(int) { }
-	#define CHECK_INVARIANTS 0
-	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
-#elif defined(PC)
-	#define CHECK_INVARIANTS 1
-	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
-#endif
+#include "platform.h"
 
-#include <external_interface/external_interface.h>
-#include <external_interface/external_interface_testing.h>
-#ifdef ISENSE
-	void* malloc(size_t n) { return isense::malloc(n); }
-	void free(void* p) { isense::free(p); }
-#endif
-
-	
-typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
 using namespace wiselib;
 
-#include <util/allocators/malloc_free_allocator.h>
-typedef MallocFreeAllocator<Os> Allocator;
-Allocator& get_allocator();
+//#include <util/allocators/malloc_free_allocator.h>
+//typedef MallocFreeAllocator<Os> Allocator;
+//Allocator& get_allocator();
+
+
+#if !defined(CODESIZE_EMPTY)
 
 #include <util/pstl/string_utils.h>
 #include <util/meta.h>
@@ -61,15 +48,18 @@ typedef wiselib::TokenConstruction<Os, Os::Radio, Os::Timer> TC;
 typedef wiselib::INQPQueryProcessor<Os, TS> QueryProcessor;
 typedef QueryProcessor::Hash Hash;
 typedef QueryProcessor::Query Query;
-typedef QueryProcessor::GPS GPS;
-typedef QueryProcessor::C Coll;
+typedef QueryProcessor::GraphPatternSelectionT GPS;
+typedef QueryProcessor::CollectT Coll;
 typedef wiselib::ProjectionInfo<Os> Projection;
 typedef wiselib::InqpRuleProcessor<Os, QueryProcessor, TC> RuleProcessor;
 
+#endif // not def CODESIZE_EMPTY
 
 class ExampleApplication
 {
 	public:
+		
+	#if !defined(CODESIZE_EMPTY)
 		
 		template<typename TS>
 		void ins(TS& ts, char* s, char* p, char* o) {
@@ -191,14 +181,18 @@ class ExampleApplication
 		TC token_construction_;
 		RuleProcessor rule_processor_;
 		QueryProcessor query_processor_;
+		
+	#endif // not def CODESIZE_EMPTY
 };
 
-Allocator allocator_;
-Allocator& get_allocator() { return allocator_; }
+//Allocator allocator_;
+//Allocator& get_allocator() { return allocator_; }
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, ExampleApplication> example_app;
 // --------------------------------------------------------------------------
 void application_main( Os::AppMainParameter& value )
 {
-  example_app.init( value );
+	#if !defined(CODESIZE_EMPTY)
+		example_app.init( value );
+	#endif // CODESIZE_EMPTY
 }

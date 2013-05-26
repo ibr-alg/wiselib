@@ -92,9 +92,10 @@ namespace wiselib {
 			
 			const char* c_str() { return (const char*)data_; }
 			
-			static self_pointer_t make(size_type bits) {
+         template<typename Allocator>
+			static self_pointer_t make(Allocator& alloc, size_type bits) {
 				self_pointer_t r = reinterpret_cast<self_pointer_t>(
-					::get_allocator().template allocate_array<block_data_t>(
+					alloc.template allocate_array<block_data_t>(
 						 bytes_needed(bits)
 					) .raw()
 				);

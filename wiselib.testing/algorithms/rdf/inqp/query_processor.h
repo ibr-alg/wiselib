@@ -88,14 +88,14 @@ namespace wiselib {
 			typedef BasicOperatorDescription BOD;
 			typedef Operator<OsModel, self_type> BasicOperator;
 			
-			typedef GraphPatternSelection<OsModel, self_type> GPS;
-			typedef GraphPatternSelectionDescription<OsModel, self_type> GPSD;
-			typedef SimpleLocalJoin<OsModel, self_type> SLJ;
-			typedef SimpleLocalJoinDescription<OsModel, self_type> SLJD;
-			typedef Collect<OsModel, self_type> C;
-			typedef CollectDescription<OsModel, self_type> CD;
-			typedef Aggregate<OsModel, self_type> A;
-			typedef AggregateDescription<OsModel, self_type> AD;
+			typedef GraphPatternSelection<OsModel, self_type> GraphPatternSelectionT;
+			typedef GraphPatternSelectionDescription<OsModel, self_type> GraphPatternSelectionDescriptionT;
+			typedef SimpleLocalJoin<OsModel, self_type> SimpleLocalJoinT;
+			typedef SimpleLocalJoinDescription<OsModel, self_type> SimpleLocalJoinDescriptionT;
+			typedef Collect<OsModel, self_type> CollectT;
+			typedef CollectDescription<OsModel, self_type> CollectDescriptionT;
+			typedef Aggregate<OsModel, self_type> AggregateT;
+			typedef AggregateDescription<OsModel, self_type> AggregateDescriptionT;
 			
 			/// }
 			
@@ -164,16 +164,16 @@ namespace wiselib {
 					
 					switch(op->type()) {
 						case BOD::GRAPH_PATTERN_SELECTION:
-							(reinterpret_cast<GPS*>(op))->execute(*tuple_store_);
+							(reinterpret_cast<GraphPatternSelectionT*>(op))->execute(*tuple_store_);
 							break;
 						case BOD::SIMPLE_LOCAL_JOIN:
-							(reinterpret_cast<SLJ*>(op))->execute();
+							(reinterpret_cast<SimpleLocalJoinT*>(op))->execute();
 							break;
 						case BOD::AGGREGATE:
-							(reinterpret_cast<A*>(op))->execute();
+							(reinterpret_cast<AggregateT*>(op))->execute();
 							break;
 						case BOD::COLLECT:
-							(reinterpret_cast<C*>(op))->execute();
+							(reinterpret_cast<CollectT*>(op))->execute();
 							break;
 						default:
 							DBG("unexpected op type: %d", op->type());
@@ -191,16 +191,16 @@ namespace wiselib {
 				
 				switch(bod->type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
-						query->template add_operator<GPSD, GPS>(bod);
+						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
 						break;
 					case BOD::SIMPLE_LOCAL_JOIN:
-						query->template add_operator<SLJD, SLJ>(bod);
+						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
 						break;
 					case BOD::COLLECT:
-						query->template add_operator<CD, C>(bod);
+						query->template add_operator<CollectDescriptionT, CollectT>(bod);
 						break;
 					case BOD::AGGREGATE:
-						query->template add_operator<AD, A>(bod);
+						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
 					default:
 						DBG("unexpected op type: %d!", bod->type());
@@ -251,7 +251,7 @@ namespace wiselib {
 						for(size_type i = 0; i < columns; i++) {
 							(*row)[i] = wiselib::read<OsModel, block_data_t, Value>(msg->payload() + i * sizeof(Value));
 						}
-						reinterpret_cast<A&>(op).on_receive_row(*row, from);
+						reinterpret_cast<AggregateT&>(op).on_receive_row(*row, from);
 						
 						row->destroy();
 						break;
