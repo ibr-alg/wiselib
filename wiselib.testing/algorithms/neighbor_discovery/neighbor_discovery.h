@@ -1399,12 +1399,12 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		uint32_t get_messages_received()
 		{
-			return bytes_received;
+			return messages_received;
 		}
 		// --------------------------------------------------------------------
 		uint32_t get_messages_send()
 		{
-			return bytes_send;
+			return messages_send;
 		}
 		// --------------------------------------------------------------------
 #endif

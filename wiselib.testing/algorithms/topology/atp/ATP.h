@@ -23,7 +23,9 @@
 #include "ATP_source_config.h"
 #include "ATP_default_values_config.h"
 #include "../../../internal_interface/message/message.h"
+#ifdef CONFING_ATP_H_STATUS_CONTROL
 #include "../../../internal_interface/state_status/state_status.h"
+#endif
 
 namespace wiselib
 {
@@ -55,8 +57,10 @@ namespace wiselib
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Clock::time_t time_t;
 		typedef Message_Type<Os, Radio, Debug> Message;
-		typedef State_Status_Type<Os, Radio, Debug, 3> State_Status;
-		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug/*,Messaging*/> self_type;
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+		typedef State_Status_Type<Os, Radio, Debug, int32_t, 5> State_Status;
+#endif
+		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug> self_type;
 		typedef typename ASCL::ProtocolSettings ProtocolSettings;
 		typedef typename ASCL::Neighbor Neighbor;
 		typedef typename ASCL::ProtocolPayload ProtocolPayload;
@@ -104,6 +108,49 @@ namespace wiselib
 #ifndef CONFIG_ATP_H_RANDOM_BOOT
 			SCL_enable_task();
 #else
+
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -1 );
+//			transmission_power_status.push( 0 );
+//			transmission_power_status.push( 1 );
+//			transmission_power_status.push( 2 );
+//			transmission_power_status.print( debug(), radio() );
+//			debug().debug("TP_STATUS:%d:%d:%d", transmission_power_status.check_mono_dec(), transmission_power_status.check_mono_inc(), transmission_power_status.check_constant() );
+//			debug().debug("--------------------------------------------------------");
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -1 );
+//			transmission_power_status.push( 0 );
+//			transmission_power_status.push( 1 );
+//			transmission_power_status.push( 2 );
+//			transmission_power_status.print( debug(), radio() );
+//			debug().debug("TP_STATUS:%d:%d:%d", transmission_power_status.check_mono_dec(), transmission_power_status.check_mono_inc(), transmission_power_status.check_constant() );
+//			debug().debug("--------------------------------------------------------");
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -1 );
+//			transmission_power_status.push( 4 );
+//			transmission_power_status.push( 1 );
+//			transmission_power_status.push( 2 );
+//			transmission_power_status.print( debug(), radio() );
+//			debug().debug("TP_STATUS:%d:%d:%d", transmission_power_status.check_mono_dec(), transmission_power_status.check_mono_inc(), transmission_power_status.check_constant() );
+//			debug().debug("--------------------------------------------------------");
+//			transmission_power_status.push( 20 );
+//			transmission_power_status.push( 5 );
+//			transmission_power_status.push( 4 );
+//			transmission_power_status.push( -1 );
+//			transmission_power_status.push( -12 );
+//			transmission_power_status.print( debug(), radio() );
+//			debug().debug("TP_STATUS:%d:%d:%d", transmission_power_status.check_mono_dec(), transmission_power_status.check_mono_inc(), transmission_power_status.check_constant() );
+//			debug().debug("--------------------------------------------------------");
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.push( -2 );
+//			transmission_power_status.print( debug(), radio() );
+//			debug().debug("TP_STATUS:%d:%d:%d", transmission_power_status.check_mono_dec(), transmission_power_status.check_mono_inc(), transmission_power_status.check_constant() );
+//			debug().debug("--------------------------------------------------------");
+
+
 			millis_t r = rand()() % random_enable_timer_range;
 			timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
 #endif
@@ -148,6 +195,10 @@ namespace wiselib
 				if ( prot_ref != NULL )
 				{
 					scl().enable();
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+				transmission_power_status.push( transmission_power_dB );
+				SCLD_status.push( nd_active_size );
+#endif
 #ifdef DEBUG_ATP_H_STATS
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 							debug().debug("COORD:%d:%d:%f:%f\n", monitoring_phases_transmission_power + monitoring_phases_throughput, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
@@ -191,11 +242,24 @@ namespace wiselib
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
 				periodic_bytes_received = scl().get_bytes_received() - periodic_bytes_received;
 				periodic_bytes_send = scl().get_bytes_send() - periodic_bytes_send;
-
-				State_Status transmission_power_status;
-				State_Status throughput_status;
-				State_Status SCLD_status;
-
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+				transmission_power_status.push( transmission_power_dB );
+				SCLD_status.push( nd_active_size );
+				if ( SCLD_status.full() && transmission_power_status.first() )
+				{
+					if ( transmission_power_status.check_mono_inc() && !transmission_power_status.check_constant() )
+					{
+						if ( SCLD_status.check_mono_dec() || SCLD_status.check_constant() )
+						{
+							transmission_power_status.lock();
+							transmission_power_dB = transmission_power_status.first();
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+							debug().debug("LOCK_TP:%x:%d:%i\n",radio().id(), monitoring_phase_counter, transmission_power_dB );
+#endif
+						}
+					}
+				}
+#endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), nd_active_size, prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, ATP_sevice_transmission_power_period * monitoring_phases_transmission_power, monitoring_phases_throughput + monitoring_phases_transmission_power, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
@@ -208,7 +272,11 @@ namespace wiselib
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TTCCOON:%d:%x:%i:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD, nd_active_size, prot_ref->get_neighborhood_ref()->size(), beacon_period, ATP_sevice_throughput_period * monitoring_phases_throughput, monitoring_phases_throughput + monitoring_phases_transmission_power, scl().get_position().get_x(),  scl().get_position().get_y(), scl().get_bytes_received(), scl().get_bytes_send(), scl().get_messages_received(), scl().get_messages_send(), periodic_bytes_received, periodic_bytes_send, periodic_messages_received, periodic_messages_send  );
 #endif
-				if ( nd_active_size < SCLD_MIN )
+				if (	( nd_active_size < SCLD_MIN )
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+						&& ( transmission_power_status.try_lock() )
+#endif
+						)
 				{
 					int8_t old_transmission_power_dB = transmission_power_dB;
 #ifdef CONFIG_ATP_H_FLEXIBLE_DB
@@ -225,7 +293,11 @@ namespace wiselib
 #endif
 					}
 				}
-				else if ( nd_active_size > SCLD_MAX )
+				else if ( ( nd_active_size > SCLD_MAX )
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+						&& ( transmission_power_status.try_lock() )
+#endif
+						)
 				{
 					int8_t old_transmission_power_dB = transmission_power_dB;
 #ifdef CONFIG_ATP_H_FLEXIBLE_DB
@@ -314,6 +386,25 @@ namespace wiselib
 //				size_t AVG_SCLD = 0;
 //				size_t lonely_nodes = 0;
 
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+				throughput_status.push( beacon_period );
+				SCLD_status.push( nd_active_size );
+				if ( SCLD_status.full() && throughput_status.full() )
+				{
+					if ( throughput_status.check_mono_inc() && !throughput_status.check_constant() )
+					{
+						if ( SCLD_status.check_mono_dec() || SCLD_status.check_constant() )
+						{
+							beacon_period = throughput_status.first();
+							throughput_status.lock();
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+							debug().debug("LOCK_BP:%x:%d:%i\n",radio().id(), monitoring_phase_counter, beacon_period );
+#endif
+						}
+					}
+				}
+#endif
+
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), nd_active_size, prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, ATP_sevice_transmission_power_period * monitoring_phases_transmission_power, monitoring_phases_throughput + monitoring_phases_transmission_power, scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
@@ -339,7 +430,11 @@ namespace wiselib
 //					}
 //				}
 //				AVG_SCLD = AVG_SCLD / nd_active_size;
-				if ( nd_active_size < SCLD_MIN )
+				if ( ( nd_active_size < SCLD_MIN )
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+						&& ( throughput_status.try_lock() )
+#endif
+						)
 				{
 					uint32_t old_beacon_period = beacon_period;
 #ifdef CONFIG_ATP_H_FLEXIBLE_TP
@@ -356,7 +451,11 @@ namespace wiselib
 #endif
 					}
 				}
-				else if ( nd_active_size >= SCLD_MIN )
+				else if ( ( nd_active_size >= SCLD_MIN )
+#ifdef CONFING_ATP_H_STATUS_CONTROL
+						&& ( throughput_status.try_lock() )
+#endif
+						)
 				{
 					uint32_t old_beacon_period = beacon_period;
 #ifdef CONFIG_ATP_H_FLEXIBLE_TP
@@ -429,7 +528,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_DISABLE_SCL
 				else
 				{
-					ATP_service_disable();
+					timer().template set_timer<self_type, &self_type::ATP_service_disable> ( ATP_sevice_throughput_period, this, 0 );
 				}
 #endif
 			}
@@ -578,9 +677,11 @@ namespace wiselib
 		size_t SCLD;
 		uint32_t random_enable_timer_range;
 		uint8_t status;
+#ifdef CONFING_ATP_H_STATUS_CONTROL
 		State_Status transmission_power_status;
 		State_Status throughput_status;
 		State_Status SCLD_status;
+#endif
 	};
 
 }
