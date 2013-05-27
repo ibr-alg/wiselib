@@ -20,8 +20,6 @@
 #ifndef SEMANTIC_ENTITY_H
 #define SEMANTIC_ENTITY_H
 
-#include <limits>
-
 #include <util/pstl/vector_static.h>
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/algorithm.h>
@@ -81,7 +79,7 @@ namespace wiselib {
 			class TreeState {
 				// {{{
 				public:
-					TreeState() : parent_(0), root_(std::numeric_limits<node_id_t>::max()), distance_(-1) {
+					TreeState() : parent_(0), root_(-1), distance_(-1) {
 					}
 					
 					TreeState(const TreeState& other) { *this = other; }
@@ -222,10 +220,10 @@ namespace wiselib {
 			
 			/// Ctors.
 			
-			SemanticEntity() : activity_phase_(false), token_state_sent_(false) {
+			SemanticEntity() : activity_phase_(false), sending_token_(false) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), token_state_sent_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), sending_token_(false) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -245,8 +243,8 @@ namespace wiselib {
 			
 			/**
 			 */
-			void set_token_state_sent(bool s) { token_state_sent_ = s; }
-			bool token_state_sent() { return token_state_sent_; }
+			void set_sending_token(bool s) { sending_token_ = s; }
+			bool sending_token() { return sending_token_; }
 			
 			
 			/**
@@ -279,9 +277,9 @@ namespace wiselib {
 				
 				// Fill child list from neighbors and sort
 				// 
-				if(neighbor_states_.size() == 0) {
-					DBG("// node %d has no neighbors!", (int)mynodeid);
-				}
+				//if(neighbor_states_.size() == 0) {
+					//DBG("// node %d has no neighbors!", (int)mynodeid);
+				//}
 				
 				Childs oldchilds = childs_;
 				
@@ -305,15 +303,15 @@ namespace wiselib {
 				typename Childs::iterator i_new = childs_.begin();
 				for(typename Childs::iterator i_old = oldchilds.begin(); i_old != oldchilds.end(); ++i_old) {
 					//DBG("node %d // SE %d.%d old child %d this=%p", mynodeid, id().rule(), id().value(), *i_old, this);
-					if(i_new != childs_.end()) {
+					//if(i_new != childs_.end()) {
 						//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-					}
+					//}
 						
 					while(i_new != childs_.end() && *i_new < *i_old) {
-						i_new++;
-						if(i_new != childs_.end()) {
+						++i_new;
+						//if(i_new != childs_.end()) {
 							//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-						}
+						//}
 					}
 					if(i_new == childs_.end() || *i_new != *i_old) {
 						DBG("node %d // SE %x.%x LOST CHILD %d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)*i_old);
@@ -322,9 +320,9 @@ namespace wiselib {
 					}
 				}
 				if(i_new != childs_.end()) { ++i_new; }
-				for(; i_new != childs_.end(); ++i_new) {
+				//for(; i_new != childs_.end(); ++i_new) {
 					//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-				}
+				//}
 				//DBG("node %d // SE %d.%d child list end this=%p", mynodeid, id().rule(), id().value(), this);
 				
 				
@@ -363,8 +361,10 @@ namespace wiselib {
 				bool c_c = state().set_root(root);
 				changed = changed || c_a || c_b || c_c;
 				
-				DBG("node %d SE %x.%x distance %d parent %d root %d",
-						(int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
+				if(changed) {
+					DBG("node %d SE %x.%x distance %d parent %d root %d // tree state change",
+							(int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
+				}
 				
 				return changed;
 				
@@ -447,9 +447,14 @@ namespace wiselib {
 			
 			
 			node_id_t token_forward_for(node_id_t mynodeid, node_id_t from) {
+				DBG("node %d // token_forward_for from %d childs %d root %d parent %d",
+						(int)mynodeid, (int)from, (int)childs(), (int)root(), (int)parent());
+					
 				if(from == parent()) { return mynodeid; }
 				else {
 					size_type child_index = find_child(from);
+					DBG("node %d  // token_forward_for from %d childs %d child_idx %d root %d parent %d",
+							(int)mynodeid, (int)from, (int)childs(), (int)child_index, (int)root(), (int)parent());
 					if(child_index == npos) { return NULL_NODE_ID; }
 					else if(child_index == childs() - 1) {
 						if(mynodeid == root()) { return mynodeid; }
@@ -565,17 +570,17 @@ namespace wiselib {
 			}
 			
 			template<typename T, void (T::*BeginWaiting)(void*), void (T::*EndWaiting)(void*)>
-			void schedule_token_forward(
+			bool schedule_token_forward(
 					typename Clock::self_pointer_t clock,
 					typename Timer::self_pointer_t timer,
 					T* obj, node_id_t from, void* userdata = 0
 			) {
-				//DBG("// scheduling token_forward from %d SE %d.%d", from, id().rule(), id().value());
-				token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
+				DBG("// scheduling token_forward from %d SE %x.%x t %d", from, id().rule(), id().value(), absolute_millis(clock, clock->time()));
+				return token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
 			}
 			
-			void end_wait_for_token_forward(node_id_t from) {
-				token_forwards_[from].end_waiting();
+			bool end_wait_for_token_forward(node_id_t from) {
+				return token_forwards_[from].end_waiting();
 			}
 			
 			abs_millis_t token_forward_window(typename Clock::self_pointer_t clock,node_id_t from) {
@@ -583,6 +588,16 @@ namespace wiselib {
 			}
 			abs_millis_t token_forward_interval(typename Clock::self_pointer_t clock, node_id_t from) {
 				return token_forwards_[from].interval();
+			}
+			
+			
+			
+			abs_millis_t token_send_start() {
+				return token_send_start_;
+			}
+			
+			void set_token_send_start(abs_millis_t tss) {
+				token_send_start_ = tss;
 			}
 			
 			/// Debugging.
@@ -632,8 +647,9 @@ namespace wiselib {
 			// token)
 			//vector_static<OsModel, pair< millis_t, node_id_t >, MAX_NEIGHBORS > token_forwards_;
 			Childs childs_;
+			abs_millis_t token_send_start_;
 			bool activity_phase_;
-			bool token_state_sent_;
+			bool sending_token_;
 	}; // SemanticEntity
 	
 	

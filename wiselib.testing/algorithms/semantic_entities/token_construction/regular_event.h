@@ -158,10 +158,6 @@ namespace wiselib {
 			 * If no waiting timer is set, set a timer to start
 			 * waiting for the event according to current estimations.
 			 * 
-			 * @return true if a wakeup was scheduled, false else.
-			 * The false-case will occur when the wakeup would be scheduled
-			 * with 0ms delay in which case the caller should do whatever he
-			 * wants done himself directly.
 			 */
 			template<typename T, void (T::*BeginWaiting)(void*), void (T::*EndWaiting)(void*)>
 			bool start_waiting_timer(
@@ -169,17 +165,28 @@ namespace wiselib {
 					typename Timer::self_pointer_t timer,
 					T* obj, void* userdata = 0
 			) {
-				if(waiting_timer_set_) {
-					//DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
+				return start_waiting_timer(clock, timer,
+					begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj),
+					end_waiting_callback_t::template from_method<T, EndWaiting>(obj),
+					userdata);
+			}
+				
+			bool start_waiting_timer(typename Clock::self_pointer_t clock,
+					typename Timer::self_pointer_t timer,
+					begin_waiting_callback_t begin, end_waiting_callback_t end,
+					void* userdata = 0
+			) {
+				if(waiting_ || waiting_timer_set_) {
+					DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
 					return true;
 				}
 				
-				begin_waiting_callback_ = begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj);
-				end_waiting_callback_ = end_waiting_callback_t::template from_method<T, EndWaiting>(obj);
+				begin_waiting_callback_ = begin; // begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj);
+				end_waiting_callback_ = end; // end_waiting_callback_t::template from_method<T, EndWaiting>(obj);
 				userdata_ = userdata;
 				
 				if(early()) {
-					//DBG("t=%d // EARLY! hits=%d userdata=%p", (int)absolute_millis(clock, clock->time()), (int)hits_, userdata);
+					DBG("t=%d // EARLY! hits=%d userdata=%p", (int)absolute_millis(clock, clock->time()), (int)hits_, userdata);
 					waiting_ = true;
 					if(begin_waiting_callback_) {
 						begin_waiting_callback_(userdata_);
@@ -192,7 +199,7 @@ namespace wiselib {
 					abs_millis_t delta;
 					abs_millis_t now = absolute_millis(clock, clock->time());
 					delta = next_expected(now) - now - window_;
-					//DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
+					DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, 0);
 				}
 				return true;
@@ -232,6 +239,9 @@ namespace wiselib {
 			 * timer installed by start_waiting_timer!
 			 */
 			void begin_waiting(void*) {
+				DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%p",
+						(int)waiting_timer_set_, (int)waiting_, (int)cancel_, userdata_);
+						
 				waiting_timer_set_ = false;
 				if(!waiting_) {
 					if(cancel_) {

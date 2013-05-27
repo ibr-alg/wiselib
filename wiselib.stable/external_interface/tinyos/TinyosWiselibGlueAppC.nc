@@ -23,7 +23,9 @@ configuration TinyosWiselibGlueAppC
 implementation
 {
    components MainC;
+#if defined(PLATFORM_INGA)
    components PrintfC, SerialStartC;
+#endif
    components TinyosWiselibGlueC as App;
 
    components TinyosWiselibGlueRadioC;

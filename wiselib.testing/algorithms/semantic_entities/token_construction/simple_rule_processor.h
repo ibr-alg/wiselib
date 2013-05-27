@@ -21,6 +21,8 @@
 #define SIMPLE_RULE_PROCESSOR_H
 
 #include <external_interface/external_interface.h>
+#include <util/pstl/map_static_vector.h>
+#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 namespace wiselib {
 	
@@ -32,7 +34,10 @@ namespace wiselib {
 	 * @tparam 
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename TupleStore_P,
+		typename Construction_P,
+		typename Hash_P
 	>
 	class SimpleRuleProcessor {
 		
@@ -40,38 +45,70 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef TupleStore_P TupleStore;
+			typedef typename TupleStore::Tuple Tuple;
+			typedef typename TupleStore::column_mask_t column_mask_t;
+			typedef Construction_P Construction;
 			typedef uint8_t rule_id_t;
+			enum Restrictions { MAX_RULES = 8 };
+			typedef Hash_P Hash;
+			typedef typename Hash::hash_t hash_t;
+		private:
+			class Rule;
+		public:
+			typedef MapStaticVector<OsModel, rule_id_t, Rule, MAX_RULES> Rules;
 			
-			void add_rule(rule_id_t id, Tuple& query, column_mask_t mask, uint8_t result_column) {
-				rules_[id] = make_pair(query, mask);
+			void init(typename TupleStore::self_pointer_t ts,
+					typename Construction::self_pointer_t construction) {
+				tuple_store_ = ts;
+				construction_ = construction;
 			}
 			
-			void add_entities_to(ConstructionT& c) {
+			void add_rule(rule_id_t id, Tuple& query, column_mask_t mask, uint8_t result_column) {
+				rules_[id] = Rule(query, mask, result_column);
+			}
+			
+			void execute_all() {
 				for(typename Rules::iterator it = rules_.begin(); it != rules_.end(); ++it) {
-					for(typename TupleStoreT::iterator tsit = tuple_store_->begin(&it->query(), it->mask());
-						SemanticEntityId se_id(it->first, tsit->
+					for(typename TupleStore::iterator tsit = tuple_store_->begin(&it->second.query(), it->second.mask());
+							tsit != tuple_store_->end(); ++tsit) {
+						block_data_t *d = tsit->get(it->second.result_column());
+						hash_t h = Hash::hash(d, strlen((const char*)d));
+						SemanticEntityId se_id(it->first, h);
+						construction_->add_entity(se_id);
+					}
 				}
 			}
 		
 		private:
 			class Rule {
 				public:
+					Rule() : used_(false) {
+					}
+					
 					Rule(Tuple& query, column_mask_t mask, uint8_t result_column)
-						: query_(query), mask_(mask), result_column_(result_column) {
+						: query_(query), mask_(mask), result_column_(result_column), used_(true) {
 					}
 					
 					Tuple& query() { return query_; }
 					column_mask_t mask() { return mask_; }
 					uint8_t result_column() { return result_column_; }
+					bool& used() { return used_; }
 				
 				private:
 					Tuple query_;
 					column_mask_t mask_;
 					uint8_t result_column_;
+					bool used_;
 			};
+			
+			typename TupleStore::self_pointer_t tuple_store_;
+			typename Construction::self_pointer_t construction_;
+			Rules rules_;
 		
 	}; // SimpleRuleProcessor
 }
 
 #endif // SIMPLE_RULE_PROCESSOR_H
 
+/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/

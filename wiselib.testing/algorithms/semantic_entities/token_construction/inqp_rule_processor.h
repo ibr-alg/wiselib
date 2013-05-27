@@ -73,13 +73,10 @@ namespace wiselib {
 				query_processor_->execute_all();
 			}
 		
-			uint32_t node_id_;
-			
 		private:
 			
 			void on_row(CommunicationType commtype, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
 				assert(columns == 1);
-				//DBG("XXX node=%d qid=%d row[0]=%d", node_id_, qid, row[0]);
 				SemanticEntityId se_id(qid, row[0]);
 				construction_->add_entity(se_id);
 			}
@@ -92,3 +89,4 @@ namespace wiselib {
 
 #endif // INQP_RULE_PROCESSOR_H
 
+/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/
