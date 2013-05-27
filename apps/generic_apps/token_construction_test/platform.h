@@ -3,7 +3,16 @@
 	// running code size tests, leave out debug messages!
 	#define CHECK_INVARIANTS 0
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+
+	#if CODESIZE_INQP
+		#define USE_INQP 1
+	#endif
+	#if CODESIZE_PRESCILLA
+		#define USE_PRESCILLA 1
+	#endif
 #endif
+
+#define USE_DICTIONARY (USE_PRESCILLA)
 
 #define NEED_ALLOCATOR (defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ))
 

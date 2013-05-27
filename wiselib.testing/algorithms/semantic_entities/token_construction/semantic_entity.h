@@ -277,9 +277,9 @@ namespace wiselib {
 				
 				// Fill child list from neighbors and sort
 				// 
-				if(neighbor_states_.size() == 0) {
-					DBG("// node %d has no neighbors!", (int)mynodeid);
-				}
+				//if(neighbor_states_.size() == 0) {
+					//DBG("// node %d has no neighbors!", (int)mynodeid);
+				//}
 				
 				Childs oldchilds = childs_;
 				
@@ -303,15 +303,15 @@ namespace wiselib {
 				typename Childs::iterator i_new = childs_.begin();
 				for(typename Childs::iterator i_old = oldchilds.begin(); i_old != oldchilds.end(); ++i_old) {
 					//DBG("node %d // SE %d.%d old child %d this=%p", mynodeid, id().rule(), id().value(), *i_old, this);
-					if(i_new != childs_.end()) {
+					//if(i_new != childs_.end()) {
 						//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-					}
+					//}
 						
 					while(i_new != childs_.end() && *i_new < *i_old) {
-						i_new++;
-						if(i_new != childs_.end()) {
+						++i_new;
+						//if(i_new != childs_.end()) {
 							//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-						}
+						//}
 					}
 					if(i_new == childs_.end() || *i_new != *i_old) {
 						DBG("node %d // SE %x.%x LOST CHILD %d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)*i_old);
@@ -320,9 +320,9 @@ namespace wiselib {
 					}
 				}
 				if(i_new != childs_.end()) { ++i_new; }
-				for(; i_new != childs_.end(); ++i_new) {
+				//for(; i_new != childs_.end(); ++i_new) {
 					//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-				}
+				//}
 				//DBG("node %d // SE %d.%d child list end this=%p", mynodeid, id().rule(), id().value(), this);
 				
 				

@@ -165,13 +165,24 @@ namespace wiselib {
 					typename Timer::self_pointer_t timer,
 					T* obj, void* userdata = 0
 			) {
+				return start_waiting_timer(clock, timer,
+					begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj),
+					end_waiting_callback_t::template from_method<T, EndWaiting>(obj),
+					userdata);
+			}
+				
+			bool start_waiting_timer(typename Clock::self_pointer_t clock,
+					typename Timer::self_pointer_t timer,
+					begin_waiting_callback_t begin, end_waiting_callback_t end,
+					void* userdata = 0
+			) {
 				if(waiting_ || waiting_timer_set_) {
 					DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
 					return true;
 				}
 				
-				begin_waiting_callback_ = begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj);
-				end_waiting_callback_ = end_waiting_callback_t::template from_method<T, EndWaiting>(obj);
+				begin_waiting_callback_ = begin; // begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj);
+				end_waiting_callback_ = end; // end_waiting_callback_t::template from_method<T, EndWaiting>(obj);
 				userdata_ = userdata;
 				
 				if(early()) {

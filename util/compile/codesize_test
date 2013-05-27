@@ -3,6 +3,7 @@
 import subprocess
 import os, stat
 import json
+import sys
 
 config = {}
 defaultconfig = json.loads('''
@@ -65,8 +66,9 @@ def get_config_from(path, c):
 
 use_detemplate = get_config('use_detemplate')
 detemplate = [get_config('detemplate_path')] + get_config('detemplate_flags').split()
-
 log = open(get_config('logfile_path'), 'w')
+codesizes = []
+
 
 # (rom, ram)
 def grep_table(platform, out):
@@ -150,16 +152,6 @@ platforms = {
 	),
 }
 
-compile_platforms = get_config('compile_platforms')
-configurations = []
-conf_pretty = []
-
-for variant in get_config('compile_variants'):
-	name = variant.get('name', 'default')
-	flags = variant.get('flags', '')
-	configurations.append(flags)
-	conf_pretty.append(name)
-
 def clean():
 	subprocess.call(["make", "clean"])
 	subprocess.call(['rm', '-Rf', 'out'] )
@@ -209,98 +201,95 @@ def compile(platform, configuration):
 		return rom, ram
 	return -1, -1
 
-codesizes = []
+if __name__ == '__main__':
 
-for platform in get_config('compile_platforms'):
-	platform_info = platforms[platform]
-	row = {
-		'platform': platform_info,
-		'sizes': []
-	}
-	row['tara'] = compile(platform_info, get_config('compile_empty').get('flags', ''))
+	if len(sys.argv) > 1:
+		s = open(sys.argv[1]).read()
+		print s
+		load_config(s)
+
+	conf_pretty = []
+
 	for variant in get_config('compile_variants'):
-		r = compile(platform_info, variant.get('flags', ''))
-		row['sizes'].append(r)
-	codesizes.append(row)
+		name = variant.get('name', 'default')
+		conf_pretty.append(name)
+
+	for platform in get_config('compile_platforms'):
+		platform_info = platforms[platform]
+		row = {
+			'platform': platform_info,
+			'sizes': []
+		}
+		row['tara'] = compile(platform_info, get_config('compile_empty').get('flags', ''))
+		for variant in get_config('compile_variants'):
+			r = compile(platform_info, variant.get('flags', ''))
+			row['sizes'].append(r)
+		codesizes.append(row)
+
+	def print_latex():
+		print " " * 20,
+		print "  & %-15s" % conf_pretty[0],
+		for conf in conf_pretty[1:]:
+			print " & %-15s" % conf,
+		print " \\\\"
+
+		for cs in codesizes:
+			print "%20s " % cs['platform']['name'],
+			tara_broken = (cs['tara'][0] == -1)
+			if tara_broken:
+				cs['tara'] = (0, 0)
+		
+			for sz in cs['sizes']:
+				print " & %5s / %5s  " % (
+					'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
+					'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
+				),
+			print " \\\\"
 
 
-#for p in compile_platforms:
-	#platform = platforms[p]
-	#row = dict(platform = platform, sizes = [])
-	#row['tara'] = compile(platform, '') #compile_nothing(platform)
-	#print "--------------------", configurations
-	#for conf in configurations:
-		#if conf == "": continue
-		#r = compile(platform, conf)
-		#row['sizes'].append(r)
-	#codesizes.append(row)
-
-
-
-def print_latex():
+	print
+	print
 	print " " * 20,
-	print "  & %-15s" % conf_pretty[0],
-	for conf in conf_pretty[1:]:
-		print " & %-15s" % conf,
-	print " \\\\"
+	for conf in conf_pretty:
+		if conf == "": continue
+		print "%-15s" % conf,
+	print "%-15s" % 'empty',
+	print
 
+	print "Absolute values + Tara"
+	for cs in codesizes:
+		print "%20s " % cs['platform']['name'],
+		for sz in cs['sizes'] + [cs['tara']]:
+			print "%5s/%5s    " % (
+				'err' if sz[0] == -1 else sz[0],
+				'err' if sz[1] == -1 else sz[1]
+			),
+		print
+
+
+	print "Relative values:"
 	for cs in codesizes:
 		print "%20s " % cs['platform']['name'],
 		tara_broken = (cs['tara'][0] == -1)
 		if tara_broken:
 			cs['tara'] = (0, 0)
-	
 		for sz in cs['sizes']:
-			print " & %5s / %5s  " % (
+			print "%5s/%5s    " % (
 				'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
 				'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
 			),
-		print " \\\\"
+		if tara_broken:
+			print "(tara err, abs values shown)",
+		print
 
 
-print
-print
-print " " * 20,
-for conf in conf_pretty:
-	if conf == "": continue
-	print "%-15s" % conf,
-print "%-15s" % 'empty',
-print
-
-print "Absolute values + Tara"
-for cs in codesizes:
-	print "%20s " % cs['platform']['name'],
-	for sz in cs['sizes'] + [cs['tara']]:
-		print "%5s/%5s    " % (
-			'err' if sz[0] == -1 else sz[0],
-			'err' if sz[1] == -1 else sz[1]
-		),
+	print
+	print "----------"
+	print
+	print_latex()
+	print
 	print
 
-
-print "Relative values:"
-for cs in codesizes:
-	print "%20s " % cs['platform']['name'],
-	tara_broken = (cs['tara'][0] == -1)
-	if tara_broken:
-		cs['tara'] = (0, 0)
-	for sz in cs['sizes']:
-		print "%5s/%5s    " % (
-			'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
-			'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
-		),
-	if tara_broken:
-		print "(tara err, abs values shown)",
-	print
-
-
-print
-print "----------"
-print
-print_latex()
-print
-print
-
-log.close()
+	log.close()
 
 # vim: set ts=3 sw=3 tw=285 noexpandtab :

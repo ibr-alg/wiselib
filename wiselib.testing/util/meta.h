@@ -133,9 +133,9 @@ template< unsigned long long N_>
 struct SmallUint {
 	typedef typename SmallUint<
 		#ifdef PC
-		(N_ >= 0x100000001) ? 0x100000001LL :
+		(N_ >= 0x100000001ULL) ? 0x100000001ULL :
 		#endif
-		(N_ >= 0x000010001) ? 0x000010001L :
+		(N_ >= 0x000010001UL) ? 0x000010001UL :
 		(N_ >= 0x000000101) ? 0x000000101 :
 			0x000000000
 		>::t t;
@@ -143,11 +143,11 @@ struct SmallUint {
 
 template<> struct SmallUint<0x000000000> { typedef ::uint8_t t; };
 template<> struct SmallUint<0x000000101> { typedef ::uint16_t t; };
-template<> struct SmallUint<0x000010001L> { typedef ::uint32_t t; };
+template<> struct SmallUint<0x000010001UL> { typedef ::uint32_t t; };
 
 //#if __WORDSIZE == 64
 #ifdef PC
-template<> struct SmallUint<0x100000001LL> { typedef ::uint64_t t; };
+template<> struct SmallUint<0x100000001ULL> { typedef ::uint64_t t; };
 #endif
 //#endif
 

@@ -11,49 +11,66 @@ using namespace wiselib;
 
 #if !defined(CODESIZE_EMPTY)
 
-#include <util/pstl/string_utils.h>
-#include <util/meta.h>
-#include <util/debugging.h>
-#include <util/pstl/map_static_vector.h>
-#include <util/pstl/priority_queue_dynamic.h>
-#include <util/pstl/list_dynamic.h>
-#include <util/pstl/unique_container.h>
-#include <util/tuple_store/tuplestore.h>
-#include <util/tuple_store/prescilla_dictionary.h>
-#include "tuple.h"
+	#include <util/pstl/string_utils.h>
+	#include <util/meta.h>
+	#include <util/debugging.h>
+	#include <util/pstl/map_static_vector.h>
+	#include <util/pstl/priority_queue_dynamic.h>
+	#include <util/pstl/list_dynamic.h>
+	#include <util/pstl/unique_container.h>
+	#include <util/tuple_store/tuplestore.h>
+	#include "tuple.h"
 
-#include <algorithms/routing/flooding_nd/flooding_nd.h>
-#include <algorithms/protocols/packing_radio/packing_radio.h>
-//#include <algorithms/routing/tree_routing_ndis/tree_routing_ndis.h>
-#include <algorithms/routing/forward_on_directed_nd/forward_on_directed_nd.h>
-#include <algorithms/hash/fnv.h>
+	#include <algorithms/routing/flooding_nd/flooding_nd.h>
+	#include <algorithms/protocols/packing_radio/packing_radio.h>
+	//#include <algorithms/routing/tree_routing_ndis/tree_routing_ndis.h>
+	#include <algorithms/routing/forward_on_directed_nd/forward_on_directed_nd.h>
 
-#include <algorithms/semantic_entities/token_construction/token_construction.h>
-#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
-#include <algorithms/semantic_entities/token_construction/inqp_rule_processor.h>
+	#include <algorithms/hash/fnv.h>
+	typedef Fnv32<Os> Hash;
 
-#include <algorithms/rdf/inqp/query_processor.h>
+	#include <algorithms/semantic_entities/token_construction/token_construction.h>
+	#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
-//#include "semantics_office1.h"
-#include "semantics_uniform.h"
 
-typedef Tuple<Os> TupleT;
-typedef wiselib::list_dynamic<Os, TupleT> TupleList;
-typedef wiselib::UniqueContainer<TupleList> TupleContainer;
-typedef wiselib::PrescillaDictionary<Os> Dictionary;
-typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
+	//#include "semantics_office1.h"
+	#include "semantics_uniform.h"
 
-typedef wiselib::TokenConstruction<Os, Os::Radio, Os::Timer> TC;
+	typedef Tuple<Os> TupleT;
+	typedef wiselib::list_dynamic<Os, TupleT> TupleList;
+	typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+	
+	#if USE_PRESCILLA
+		#include <util/tuple_store/prescilla_dictionary.h>
+		typedef wiselib::PrescillaDictionary<Os> Dictionary;
+		typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
+	#else
+		#include <util/tuple_store/null_dictionary.h>
+		typedef wiselib::TupleStore<Os, TupleContainer, NullDictionary<Os>, Os::Debug, 0, &TupleT::compare> TS;
+	#endif
 
-typedef wiselib::INQPQueryProcessor<Os, TS> QueryProcessor;
-typedef QueryProcessor::Hash Hash;
-typedef QueryProcessor::Query Query;
-typedef QueryProcessor::GraphPatternSelectionT GPS;
-typedef QueryProcessor::CollectT Coll;
-typedef wiselib::ProjectionInfo<Os> Projection;
-typedef wiselib::InqpRuleProcessor<Os, QueryProcessor, TC> RuleProcessor;
+	typedef wiselib::TokenConstruction<Os, Os::Radio, Os::Timer> TC;
 
+
+	#if USE_INQP
+		#include <algorithms/rdf/inqp/query_processor.h>
+		#include <algorithms/semantic_entities/token_construction/inqp_rule_processor.h>
+		typedef wiselib::InqpRuleProcessor<Os, QueryProcessor, TC> RuleProcessor;
+		typedef wiselib::INQPQueryProcessor<Os, TS> QueryProcessor;
+		//typedef QueryProcessor::Hash Hash;
+		typedef QueryProcessor::Query Query;
+		typedef QueryProcessor::GraphPatternSelectionT GPS;
+		typedef QueryProcessor::CollectT Coll;
+		typedef wiselib::ProjectionInfo<Os> Projection;
+	#else 
+		#include <algorithms/semantic_entities/token_construction/simple_rule_processor.h>
+		typedef wiselib::SimpleRuleProcessor<Os, TS, TC, Hash> RuleProcessor;
+	#endif
 #endif // not def CODESIZE_EMPTY
+
+
+#define STRHASH(X) Hash::hash((const block_data_t*)(X), strlen_compiletime(X))
+
 
 class ExampleApplication
 {
@@ -81,55 +98,67 @@ class ExampleApplication
 			
 			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
 			
-			dictionary.init(debug_);
-			ts.init(&dictionary, &container, debug_);
+			#if USE_DICTIONARY
+				dictionary.init(debug_);
+				ts.init(&dictionary, &container, debug_);
+			#else
+				ts.init(0, &container, debug_);
+			#endif
 			token_construction_.init(radio_, timer_, clock_, debug_);
-			query_processor_.init(&ts, timer_);
-			rule_processor_.init(&query_processor_, &token_construction_);
-			rule_processor_.node_id_ = radio_->id();
+			
+			#if USE_INQP
+				query_processor_.init(&ts, timer_);
+				rule_processor_.init(&query_processor_, &token_construction_);
+			#else
+				rule_processor_.init(&ts, &token_construction_);
+			#endif
 			
 			initial_semantics(ts, radio_->id()); // included from semantics_XXX.h
 			create_rules();
 			rule_processor_.execute_all();
 		}
 		
-		
-		Query q1;
-		Coll collect1;
-		GPS gps1;
-		
-		#define STRHASH(X) Hash::hash((const block_data_t*)(X), strlen_compiletime(X))
-		
-		void create_rules() {
-			/*
-			TupleT q;
-			q.set(1, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>");
-			<http://spitfire-project.eu/sensor/foo>  <http://spitfire-project.eu/foi/Room_12> .
-			*/
+		#if USE_INQP
+			Query q1;
+			Coll collect1;
+			GPS gps1;
 			
-			/*
-			 * Add rule 1: (* <...#featureOfInterest> X)
-			 */
-			::uint8_t qid = 1;
-			q1.init(&query_processor_, qid);
-			q1.set_expected_operators(2);
-			
-			collect1.init(
-					&q1, 2 /* opid */, 0 /* parent */, 0 /* parent port */,
-					Projection((long)BIN(11))
-					);
-			q1.add_operator(&collect1);
-			
-			gps1.init(
-					&q1, 1 /* op id */, 2 /* parent */, 0 /* parent port */,
-					Projection((long)BIN(110000)),
-					false, true, false,
-					0, STRHASH("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>"), 0
-					);
-			q1.add_operator<GPS>(&gps1);
-			
-			rule_processor_.add_rule(qid, &q1);
-		}
+			void create_rules() {
+				/*
+				 * Add rule 1: (* <...#featureOfInterest> X)
+				 */
+				::uint8_t qid = 1;
+				q1.init(&query_processor_, qid);
+				q1.set_expected_operators(2);
+				
+				collect1.init(
+						&q1, 2 /* opid */, 0 /* parent */, 0 /* parent port */,
+						Projection((long)BIN(11))
+						);
+				q1.add_operator(&collect1);
+				
+				gps1.init(
+						&q1, 1 /* op id */, 2 /* parent */, 0 /* parent port */,
+						Projection((long)BIN(110000)),
+						false, true, false,
+						0, STRHASH("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>"), 0
+						);
+				q1.add_operator<GPS>(&gps1);
+				
+				rule_processor_.add_rule(qid, &q1);
+			}
+		#else
+			void create_rules() {
+				/*
+				 * Add rule 1: (* <...#featureOfInterest> X)
+				 */
+				::uint8_t qid = 1;
+				const char *p = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
+				TupleT t;
+				t.set(1, (block_data_t*)p);
+				rule_processor_.add_rule(qid, t, BIN(010), 2);
+			}
+		#endif
 		
 		/*
 		
@@ -167,7 +196,9 @@ class ExampleApplication
 		}
 		*/
 		
-		Dictionary dictionary;
+		#if USE_DICTIONARY
+			Dictionary dictionary;
+		#endif
 		TupleContainer container;
 		TS ts;
 		
@@ -180,7 +211,10 @@ class ExampleApplication
 		
 		TC token_construction_;
 		RuleProcessor rule_processor_;
-		QueryProcessor query_processor_;
+		
+		#if USE_INQP
+			QueryProcessor query_processor_;
+		#endif
 		
 	#endif // not def CODESIZE_EMPTY
 };

@@ -572,7 +572,9 @@ namespace wiselib {
 					}
 					
 					//DBG("node %d SE %d.%d t=%d // tree state update from %d", radio_->id(), se.id().rule(), se.id().value(), now(), from);
-					se.print_state(radio_->id(), now(), "tree state update");
+					#if !WISELIB_DISABLE_DEBUG_MESSAGES
+						se.print_state(radio_->id(), now(), "tree state update");
+					#endif
 					
 					// If we are the first child, token state update
 					// from parent is interesting for us here.
@@ -615,7 +617,9 @@ namespace wiselib {
 					forward_token_state(se, from, forward_node, t_recv, msg);
 				}
 				
-				se.print_state(radio_->id(), now(), "token state forward");
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "token state forward");
+				#endif
 			}
 			
 			/**
@@ -800,7 +804,9 @@ namespace wiselib {
 				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
 				
-				se.print_state(radio_->id(), now(), "end activity");
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "end activity");
+				#endif
 			}
 			
 			/// ditto.
