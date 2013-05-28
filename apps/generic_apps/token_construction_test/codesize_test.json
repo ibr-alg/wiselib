@@ -1,0 +1,28 @@
+{
+	"compile_platforms": [
+		"tinyos-telosb", "tinyos-micaz",
+		"contiki_micaz", "contiki_sky", "pc",
+		"isense", "isense.5148"
+	],
+	"compile_empty": {
+		"flags": "-DCODESIZE -DCODESIZE_EMPTY"
+	},
+	"compile_variants": [
+		{ "name": "default", "flags": "-DCODESIZE" },
+		{ "name": "with_inqp", "flags": "-DCODESIZE -DCODESIZE_INQP" }
+	],
+	"include_paths": [
+		"/home/henning/repos/wiselib/wiselib.testing/",
+		"/home/henning/repos/wiselib/wiselib.stable/",
+		"../../../../wiselib.testing/",
+		"../../../../wiselib.stable/",
+		"/Developer/git/wiselib/wiselib.testing/",
+		"/Developer/git/wiselib/wiselib.stable/"
+	],
+	"compile_flags": "",
+	"use_detemplate": true,
+	"detemplate_path": "/home/henning/bin/detemplate",
+	"detemplate_flags": "-n wiselib -n std -f 2 -t 0 -a 0 -i",
+	"logfile_path": "codesize_test.log",
+	"binary_name": "example_app"
+}
