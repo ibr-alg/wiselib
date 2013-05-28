@@ -21,6 +21,8 @@
 #define SEMANTIC_ENTITY_AGGREGATOR_H
 
 #include <external_interface/external_interface.h>
+
+#include <util/pstl/set_vector.h>
 #include "semantic_entity_id.h"
 #include "semantic_entity_aggregation_message.h"
 
@@ -54,31 +56,62 @@ namespace wiselib {
 			
 			enum Restrictions { MAX_ENTRIES = 8 };
 			
-			typedef vector_static<OsModel, AggregationEntry, MAX_ENTRIES> AggregationEntries;
+			//typedef vector_static<OsModel, AggregationEntry, MAX_ENTRIES> AggregationEntries;
 			
 		private:
-			class AggregationEntry {
+			class AggregationKey {
 				public:
 					
 				private:
+					SemanticEntity se_id_;
 					Value sensor_type_, uom_;
-					Value count_, min_, max_, mean_;
 					::uint8_t datatype_;
+			};
+			
+			class AggregationValue {
+				public:
+					AggregationValue() : count_(0) {
+					}
+					
+					void init(Value v) {
+						count_ = 1;
+						min_ = max_ = mean_ = v;
+					}
+					
+					void aggregate(Value v, ::uint8_t datatype) {
+						assert(count_ > 0);
+						if(datatype == INTEGER) {
+							if(v < min_) { min_ = v; }
+							if(v > max_) { max_ = v; }
+							++count_;
+							mean_ += (v - mean_) / count_;
+						}
+						else {
+							assert(false, "not supported!");
+						}
+					}
+					
+				private:
+					Value count_, min_, max_, mean_;
 			};
 		
 		public:
+			MapStaticVector<OsModel, AggregationKey, AggregationValue, MAX_ENTRIES> AggregationEntries;
 			
 			void init(typename TupleStoreT::self_pointer_t ts, const char* entity_format) {
 				tuple_store_ = ts;
 				entity_format_ = entity_format;
 			}
 			
-			void aggregate(SemanticEntityId se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
-				// find matching entry (se_id, sensor_type, uom)
-				// if found:
-				//   aggregate
-				// else if not full:
-				//   create new entry
+			void aggregate(const SemanticEntityId& se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
+				AggregationKey k(se_id, sensor_type, uom, datatype);
+				if(aggregation_entries_.contains(k)) {
+					AggregationValue& v = aggregation_entrties_[k];
+					v.aggregate(value);
+				}
+				else {
+					aggregation_entrties_[k].set(value);
+				}
 			}
 			
 			/**
@@ -89,6 +122,7 @@ namespace wiselib {
 				// clean up all SE entries (need RDFP for that?)
 				// for all entries:
 				//   transform into statements, insert
+				
 			}
 			
 			/**
@@ -108,7 +142,7 @@ namespace wiselib {
 			 * The actual messages can be received by repeated calls to
 			 * @a next_update_message().
 			 */
-			void begin_update_messages(SemanticEntityId se_id) {
+			void begin_update_messages(const SemanticEntityId& se_id) {
 				// TODO
 			}
 			
@@ -122,6 +156,10 @@ namespace wiselib {
 			}
 			
 		private:
+			
+			size_type find_entry(const SemanticEntityId& se_id, Value sensor_type, Value uom, ::uint8_t datatype) {
+			}
+			
 			const char* entity_format_;
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			AggregationEntries aggregation_entrties_;
