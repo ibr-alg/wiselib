@@ -121,6 +121,7 @@ namespace wiselib {
 				// }}}
 			};
 			
+			
 			/**
 			 */
 			class State {

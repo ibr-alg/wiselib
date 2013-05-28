@@ -49,6 +49,7 @@ namespace wiselib {
 			typedef SemanticEntity_P SemanticEntity;
 			typedef typename SemanticEntity::TokenState TokenState;
 			typedef ::uint32_t abs_millis_t;
+			typedef ::uint8_t flags_t;
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
@@ -60,12 +61,16 @@ namespace wiselib {
 			
 			enum Positions {
 				POS_MESSAGE_ID = 0,
-				POS_IS_ACK = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_ENTITY_ID = POS_IS_ACK + 1, // sizeof(bool),
+				POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_ENTITY_ID = POS_FLAGS + sizeof(flags_t), // sizeof(bool),
 				POS_TOKEN_STATE = POS_ENTITY_ID + sizeof(SemanticEntityId),
 				POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
 				
 				POS_END = POS_TIME_OFFSET + sizeof(abs_millis_t)
+			};
+			
+			enum Flags {
+				FLAG_IS_ACK = 0
 			};
 			
 			TokenStateMessage() {
@@ -111,11 +116,12 @@ namespace wiselib {
 			}
 			
 			bool is_ack() {
-				return data_[POS_IS_ACK] != 0;
+				return (wiselib::read<OsModel, block_data_t, flags_t>(data_ + POS_FLAGS) >> FLAG_IS_ACK) & 0x01;
 			}
 			
 			void set_is_ack(bool a) {
-				data_[POS_IS_ACK] = a;
+				flags_t f = wiselib::read<OsModel, block_data_t, flags_t>(data_ + POS_FLAGS);
+				f = (f & ~((flags_t)(1 << FLAG_IS_ACK))) | (a << FLAG_IS_ACK);
 			}
 			
 			abs_millis_t time_offset() {
