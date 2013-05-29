@@ -449,6 +449,34 @@ namespace wiselib {
 			}
 			
 			
+			// XXX: Now token state send mechanism using relaible transport
+			// (WIP):
+			/
+			
+			
+			void handover() {
+				RingTransport transport;
+				
+				transport.init(radio_);
+				transport.open(to);
+				
+				do {
+					switch(ring_transport_state_) {
+						case 0:
+							shdt.fill(token_state_message);
+							break;
+						case 1:
+							aggregator.fill();
+				
+				transport.send(to, 
+			}
+			
+			
+			*/
+			
+			
+			
+			
 			/**
 			 * Find a semantic entity by id.
 			 * Return via @a found whether an entity has been found.
