@@ -462,21 +462,27 @@ namespace wiselib {
 				
 				block_data_t buffer[RingTransport::MAX_MESSAGE_SIZE];
 				size_type buffer_space = RingTransport::MAX_MESSAGE_SIZE;
+				
 				block_data_t *buf = buffer;
 				bool call_again = false;
 				
 				do {
 					switch(ring_transport_state_) {
-						case 0:
+						case 0: {
 							TokenStateMessageT msg;
 							// TODO: fill msg
+							buf = msg.data();
+							
 							transport.send(to, msg.size(), msg.data());
 							break;
-						case 1:
+						}
+						case 1: {
 							size_type written = aggregator.fill_buffer(buf, buffer_space, call_again);
 							buf += written;
 							buffer_space -= written;
 							break;
+						}
+						case 2: {
 					}
 					
 					if(!call_again) {
