@@ -123,6 +123,13 @@ namespace wiselib {
 				// for all entries:
 				//   transform into statements, insert
 				
+				char entity_uri[MAX_STRING_LENGTH];
+				
+				for(typename AggregationEntries::iterator iter = aggregation_entries_.begin(); iter != aggregation_entries_.end(); ++iter) {
+					Tuple t;
+					
+					tuple_store_.insert(t);
+				}
 			}
 			
 			/**
