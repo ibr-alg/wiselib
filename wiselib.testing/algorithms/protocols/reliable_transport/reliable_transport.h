@@ -35,7 +35,7 @@ namespace wiselib {
 		typename OsModel_P,
 		typename Radio_P
 	>
-	class ReliableTransport {
+	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
 		public:
 			typedef OsModel_P OsModel;
@@ -110,13 +110,18 @@ namespace wiselib {
 			}
 			
 			int reg_sent_callback(sent_callback_t sent_callback) {
-				// TODO
+				sent_callback_ = sent_callback;
+			}
+			
+			int reg_abort_callback(sent_callback_t sent_callback) {
+				abort_callback_ = abort_callback;
 			}
 			
 			int id() {
 				return radio_->id();
 			}
 			
+			/*
 			template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
 			int reg_recv_callback(T *obj_pnt) {
 				// TODO
@@ -125,6 +130,7 @@ namespace wiselib {
 			int unreg_recv_callback(int idx) {
 				// TODO
 			}
+			*/
 		
 		private:
 			
@@ -162,7 +168,7 @@ namespace wiselib {
 					case SUBTYPE_DATA:
 						if(msg.sequence_number() != receiving_sequence_number_) { return; }
 						send_ack(from);
-						notify_receivers(msg.payload_size(), msg.payload());
+						notify_receivers(from, msg.payload_size(), msg.payload());
 						break;
 						
 					case SUBTYPE_ACK:

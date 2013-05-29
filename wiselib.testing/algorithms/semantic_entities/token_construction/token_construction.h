@@ -460,15 +460,31 @@ namespace wiselib {
 				transport.init(radio_);
 				transport.open(to);
 				
+				block_data_t buffer[RingTransport::MAX_MESSAGE_SIZE];
+				size_type buffer_space = RingTransport::MAX_MESSAGE_SIZE;
+				block_data_t *buf = buffer;
+				bool call_again = false;
+				
 				do {
 					switch(ring_transport_state_) {
 						case 0:
-							shdt.fill(token_state_message);
+							TokenStateMessageT msg;
+							// TODO: fill msg
+							transport.send(to, msg.size(), msg.data());
 							break;
 						case 1:
-							aggregator.fill();
+							size_type written = aggregator.fill_buffer(buf, buffer_space, call_again);
+							buf += written;
+							buffer_space -= written;
+							break;
+					}
+					
+					if(!call_again) {
+						++ring_transport_state_;
+					}
+					
+				} while(true);
 				
-				transport.send(to, 
 			}
 			
 			
