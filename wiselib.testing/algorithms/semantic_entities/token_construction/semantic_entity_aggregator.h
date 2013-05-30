@@ -23,8 +23,10 @@
 #include <external_interface/external_interface.h>
 
 #include <util/pstl/set_vector.h>
+#include <util/pstl/map_static_vector.h>
+#include <util/broker/shdt_serializer.h>
 #include "semantic_entity_id.h"
-#include "semantic_entity_aggregation_message.h"
+//#include "semantic_entity_aggregation_message.h"
 
 namespace wiselib {
 	
@@ -48,6 +50,7 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef TupleStore_P TupleStoreT;
 			typedef Value_P Value;
+			typedef ShdtSerializer<OsModel, 8> Shdt;
 			
 			/*
 			 * Matches TypeInfo in inqp/projection_info.h
@@ -61,9 +64,13 @@ namespace wiselib {
 		private:
 			class AggregationKey {
 				public:
+					SemanticEntityId& se_id() { return se_id_; }
+					Value uom() { return uom_; }
+					Value type() { return sensor_type_; }
+					::uint8_t datatype() { return datatype_; }
 					
 				private:
-					SemanticEntity se_id_;
+					SemanticEntityId se_id_;
 					Value sensor_type_, uom_;
 					::uint8_t datatype_;
 			};
@@ -87,16 +94,27 @@ namespace wiselib {
 							mean_ += (v - mean_) / count_;
 						}
 						else {
-							assert(false, "not supported!");
+							assert(false && "not supported!");
 						}
 					}
+					
+					Value count() { return count_; }
+					Value min() { return min_; }
+					Value max() { return max_; }
+					Value mean() { return mean_; }
 					
 				private:
 					Value count_, min_, max_, mean_;
 			};
+			
+			enum Fields {
+				FIELD_UOM = 0,
+				FIELD_TYPE, FIELD_DATATYPE, FIELD_COUNT, FIELD_MIN, FIELD_MAX, FIELD_MEAN,
+				FIELD_TOTAL_COUNT, FIELD_TOTAL_MIN, FIELD_TOTAL_MAX, FIELD_TOTAL_MEAN
+			};
 		
 		public:
-			MapStaticVector<OsModel, AggregationKey, AggregationValue, MAX_ENTRIES> AggregationEntries;
+			typedef MapStaticVector<OsModel, AggregationKey, AggregationValue, MAX_ENTRIES> AggregationEntries;
 			
 			void init(typename TupleStoreT::self_pointer_t ts, const char* entity_format) {
 				tuple_store_ = ts;
@@ -106,11 +124,11 @@ namespace wiselib {
 			void aggregate(const SemanticEntityId& se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
 				AggregationKey k(se_id, sensor_type, uom, datatype);
 				if(aggregation_entries_.contains(k)) {
-					AggregationValue& v = aggregation_entrties_[k];
+					AggregationValue& v = aggregation_entries_[k];
 					v.aggregate(value);
 				}
 				else {
-					aggregation_entrties_[k].set(value);
+					aggregation_entries_[k].set(value);
 				}
 			}
 			
@@ -123,6 +141,7 @@ namespace wiselib {
 				// for all entries:
 				//   transform into statements, insert
 				
+				/*
 				char entity_uri[MAX_STRING_LENGTH];
 				
 				for(typename AggregationEntries::iterator iter = aggregation_entries_.begin(); iter != aggregation_entries_.end(); ++iter) {
@@ -130,11 +149,12 @@ namespace wiselib {
 					
 					tuple_store_.insert(t);
 				}
+				*/
 			}
 			
 			/**
 			 */
-			void process(SemanticEntityAggregationMessageT& msg) {
+			//void process(SemanticEntityAggregationMessageT& msg) {
 				// TODO
 				// for all infoblocks in msg:
 				//   find matching entry
@@ -142,7 +162,7 @@ namespace wiselib {
 				//     update
 				//   else if not full:
 				//     create new
-			}
+			//}
 			
 			
 			/**
@@ -150,79 +170,51 @@ namespace wiselib {
 			 * (call this repeadetely until call_again is false!)
 			 * @return number of bytes written
 			 */
-			size_type fill_buffer(block_data_t* buffer, size_type buffer_size, bool& call_again) {
+			size_type fill_buffer(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
 				size_type written = 0;
 				size_type w = 0;
 				
 				for(typename AggregationEntries::iterator iter = aggregation_entries_.begin(); iter != aggregation_entries_.end(); ++iter) {
 					AggregationKey& key = iter->first;
 					AggregationValue& aggregate  = iter->second;
+					if(key.se_id() != se_id) { continue; }
 				
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_UOM, key.uom(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TYPE, key.type(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_DATATYPE, key.datatype(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_COUNT, aggregate.count(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MIN, aggregate.min(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MAX, aggregate.max(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MEAN, aggregate.mean(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_COUNT, aggregate.total_count(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MIN, aggregate.total_min(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MAX, aggregate.total_max(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 					
 					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MEAN, aggregate.total_mean(), call_again);
-					written += w;
-					if(call_again) { return written; }
+					written += w; if(call_again) { return written; }
 				}
-			}
-			
-			/**
-			 * Start iteration over update messages for the given SE.
-			 * The actual messages can be received by repeated calls to
-			 * @a next_update_message().
-			 */
-			void begin_update_messages(const SemanticEntityId& se_id) {
-				// TODO
-			}
-			
-			/**
-			 * Return the next aggregation message in msg.
-			 * @return true if data was inserted into msg, false if iteration
-			 * is over.
-			 */
-			bool next_update_message(SemanticEntityAggregationMessageT& msg) {
-				// TODO
 			}
 			
 		private:
@@ -232,7 +224,8 @@ namespace wiselib {
 			
 			const char* entity_format_;
 			typename TupleStoreT::self_pointer_t tuple_store_;
-			AggregationEntries aggregation_entrties_;
+			AggregationEntries aggregation_entries_;
+			Shdt shdt_;
 		
 	}; // SemanticEntityAggregator
 	

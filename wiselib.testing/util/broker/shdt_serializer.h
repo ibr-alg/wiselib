@@ -22,7 +22,7 @@ namespace wiselib {
 			
 			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::block_data_t block_data_t;
-			typedef ::uint8_t command_t;
+			typedef ::uint8_t instruction_t;
 			typedef ::uint8_t field_id_t;
 			typedef ::uint8_t sz_t;
 			typedef typename SmallUint<TABLE_SIZE + 1>::t table_id_t;
@@ -42,6 +42,34 @@ namespace wiselib {
 				NO_FIELD_ID = (field_id_t)(-1)
 			};
 			
+		private:
+			
+			class Instruction {
+				public:
+					instruction_t type() { return instruction_; }
+					void set_type(instruction_t c) { instruction_ = c; }
+					
+					bool fits(size_type buffer_size) {
+						// TODO
+					}
+					
+					/**
+					 * @return true iff all data was written, false if another
+					 * write is necessary.
+					 */
+					bool write(block_data_t*& buffer, size_type& buffer_size) {
+						// TODO
+					}
+					
+					void read(block_data_t*& buffer, size_type& buffer_size) {
+						// TODO
+					}
+					
+				private:
+					instruction_t instruction_;
+			};
+			
+		public:
 			ShdtSerializer() {
 				memset((void*)lookup_table_, 0, sizeof(lookup_table_));
 			}
@@ -213,6 +241,25 @@ namespace wiselib {
 				wiselib::write<OsModel, table_id_t>(buffer, id); buffer += sizeof(table_id_t);
 			}
 			
+			size_type read_field(block_data_t* buffer, size_type buffer_size, block_data_t*& data, size_type& data_size, field_id_t& field_id) {
+				block_data_t *old_buffer = buffer;
+				block_data_t *old_buffer_size = buffer_size;
+				
+				if(!buffer_size) { return 0; }
+				
+				Instruction in;
+				
+				do {
+					in.read(buffer, buffer_size);
+				
+					if(in.is_field
+				data = in.data();
+				data_size = in.data_size();
+				field_id =
+				
+				return buffer - old_buffer;
+			}
+			
 			/**
 			 * read buffer contents into tuple, returning the number of bytes
 			 * read.
@@ -381,7 +428,7 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			table_id_t hash(const block_data_t *s) {
+			static table_id_t hash(const block_data_t *s) {
 				//return (s[0] ^ s[1]) % TABLE_SIZE;
 				//return reinterpret_cast<Uint<sizeof(block_data_t*)>::t>(s) % TABLE_SIZE;
 				
