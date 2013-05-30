@@ -44,6 +44,14 @@ namespace wiselib {
 		}
 		return r;
 	}
+	
+	size_t prefix_length(char *a, char *b) {
+		size_t r = 0;
+		for( ; *a && (*a == *b); ++a, ++b) {
+			++r;
+		}
+		return r;
+	}
 }
 
 #endif // STRING_UTILS_H

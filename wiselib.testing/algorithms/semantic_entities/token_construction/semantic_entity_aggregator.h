@@ -144,6 +144,69 @@ namespace wiselib {
 				//     create new
 			}
 			
+			
+			/**
+			 * @param call_again set to true if not all data has been written
+			 * (call this repeadetely until call_again is false!)
+			 * @return number of bytes written
+			 */
+			size_type fill_buffer(block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				size_type written = 0;
+				size_type w = 0;
+				
+				for(typename AggregationEntries::iterator iter = aggregation_entries_.begin(); iter != aggregation_entries_.end(); ++iter) {
+					AggregationKey& key = iter->first;
+					AggregationValue& aggregate  = iter->second;
+				
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_UOM, key.uom(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TYPE, key.type(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_DATATYPE, key.datatype(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_COUNT, aggregate.count(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MIN, aggregate.min(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MAX, aggregate.max(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MEAN, aggregate.mean(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_COUNT, aggregate.total_count(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MIN, aggregate.total_min(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MAX, aggregate.total_max(), call_again);
+					written += w;
+					if(call_again) { return written; }
+					
+					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MEAN, aggregate.total_mean(), call_again);
+					written += w;
+					if(call_again) { return written; }
+				}
+			}
+			
 			/**
 			 * Start iteration over update messages for the given SE.
 			 * The actual messages can be received by repeated calls to

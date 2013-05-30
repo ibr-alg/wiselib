@@ -2,7 +2,10 @@
 #ifndef SHDT_SERIALIZER_H
 #define SHDT_SERIALIZER_H
 
+#include <external_interface/external_interface.h>
+#include <util/serialization/serialization.h>
 #include <util/meta.h>
+#include <util/pstl/string_utils.h>
 
 namespace wiselib {
 	
@@ -19,13 +22,25 @@ namespace wiselib {
 			
 			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::block_data_t block_data_t;
-			typedef uint8_t command_t;
+			typedef ::uint8_t command_t;
+			typedef ::uint8_t field_id_t;
+			typedef ::uint8_t sz_t;
 			typedef typename SmallUint<TABLE_SIZE + 1>::t table_id_t;
 			
 			enum { npos = (size_type)(-1) };
 			enum { nidx = (table_id_t)(-1) };
-			enum Commands { CMD_INSERT = 0xfe, CMD_END = 0xff };
+			enum Commands {
+				CMD_VALUE = 0xfb,
+				CMD_CAT = 0xfc,
+				CMD_TABLE_VALUE = 0xfd,
+				
+				CMD_INSERT = 0xfe,
+				CMD_END = 0xff
+			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
+			enum SpecialIds {
+				NO_FIELD_ID = (field_id_t)(-1)
+			};
 			
 			ShdtSerializer() {
 				memset((void*)lookup_table_, 0, sizeof(lookup_table_));
@@ -106,6 +121,96 @@ namespace wiselib {
 					max_size -= cmdlen;
 				}
 				return buffer - old_buffer;
+			}
+			
+			template<typename T>
+			size_type fill_buffer(block_data_t* buffer, size_type max_size, field_id_t field_id, const T& data, bool& call_again) {
+				block_data_t *old_buffer = buffer;
+				
+				size_type cmdlen = sizeof(command_t) + sizeof(sz_t) + sizeof(field_id_t) + sizeof(T);
+				if(max_size < cmdlen) {
+					call_again = true;
+					return 0;
+				}
+				
+				wiselib::write<OsModel, command_t>(buffer, CMD_VALUE); buffer += sizeof(command_t);
+				wiselib::write<OsModel, field_id_t>(buffer, field_id); buffer += sizeof(field_id_t);
+				wiselib::write<OsModel, sz_t>(buffer, sizeof(T)); buffer += sizeof(sz_t);
+				wiselib::write<OsModel, T>(buffer, data); buffer += sizeof(T);
+				max_size -= cmdlen;
+				
+				return buffer - old_buffer;
+			}
+			
+			size_type fill_buffer(block_data_t* buffer, size_type max_size, field_id_t field_id, const char* data, bool& call_again) {
+				block_data_t *old_buffer = buffer;
+				
+				table_id_t id = hash((block_data_t*)data);
+				// is there already a prefix of the string there?
+				char *current = (char*)lookup_table_[id];
+				size_type p = 0;
+				
+				if(current) {
+					p = prefix_length(current, data);
+				}
+				
+				size_type cmdlen = sizeof(command_t) + sizeof(table_id_t) + sizeof(sz_t) + sizeof(table_id_t) + sizeof(sz_t);
+				
+				// how much of the string will have been communicated
+				// after this method returns? (including previous calls!)
+				size_type len = strlen(data) + 1;
+				size_type len_orig = len;
+				
+				// How much of the string actually fits into the buffer?
+				size_type affordable = max_size - cmdlen;
+				
+				// Copy this many bytes is this call
+				size_type copy = len - p;
+				
+				if(copy > affordable) {
+					copy = affordable;
+					len = p + copy;
+				}
+				
+				if(copy) {
+					wiselib::write<OsModel, command_t>(buffer, CMD_CAT); buffer += sizeof(command_t);
+					wiselib::write<OsModel, table_id_t>(buffer, id); buffer += sizeof(table_id_t);
+					wiselib::write<OsModel, sz_t>(buffer, p); buffer += sizeof(sz_t);
+					wiselib::write<OsModel, table_id_t>(buffer, id); buffer += sizeof(table_id_t);
+					wiselib::write<OsModel, sz_t>(buffer, copy); buffer += sizeof(sz_t);
+					max_size -= cmdlen;
+					
+					memcpy(buffer, data + p, copy); buffer += copy;
+					max_size -= copy;
+					
+					get_allocator().free_array(lookup_table_[id]); lookup_table_[id] = 0;
+					block_data_t* d = get_allocator().allocate_array<block_data_t>(len).raw();
+					memcpy(d, data, len);
+					lookup_table_[id] = d;
+				}
+				
+				// Do we have the complete string by now?
+				if(len < len_orig) {
+					call_again = true;
+					return buffer - old_buffer;
+				}
+					
+				
+				// Do we want to write a value command?
+				if(field_id == NO_FIELD_ID) {
+					call_again = false;
+					return buffer - old_buffer;
+				}
+				
+				cmdlen = sizeof(command_t) + sizeof(field_id_t) + sizeof(table_id_t);
+				if(cmdlen > max_size) {
+					call_again = true;
+					return buffer - old_buffer;
+				}
+				
+				wiselib::write<OsModel, command_t>(buffer, CMD_TABLE_VALUE); buffer += sizeof(command_t);
+				wiselib::write<OsModel, field_id_t>(buffer, field_id); buffer += sizeof(field_id_t);
+				wiselib::write<OsModel, table_id_t>(buffer, id); buffer += sizeof(table_id_t);
 			}
 			
 			/**
@@ -276,7 +381,7 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			table_id_t hash(block_data_t *s) {
+			table_id_t hash(const block_data_t *s) {
 				//return (s[0] ^ s[1]) % TABLE_SIZE;
 				//return reinterpret_cast<Uint<sizeof(block_data_t*)>::t>(s) % TABLE_SIZE;
 				

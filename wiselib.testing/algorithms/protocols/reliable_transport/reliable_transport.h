@@ -21,6 +21,9 @@
 #define RELIABLE_TRANSPORT_H
 
 #include <util/delegates/delegate.hpp>
+#include <util/base_classes/radio_base.h>
+
+#include "reliable_transport_message.h"
 
 namespace wiselib {
 	
@@ -33,11 +36,14 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename Radio_P,
+		typename Timer_P
 	>
 	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
 		public:
+			typedef ReliableTransport<OsModel_P, Radio_P, Timer_P> self_type;
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
@@ -45,9 +51,10 @@ namespace wiselib {
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
-			typedef ReliableTransportMessage<OsModel> Message;
-			typedef delegate0<void> sent_callback_t;
-			typedef delegate0<void> abort_callback_t;
+			typedef Timer_P Timer;
+			
+			typedef ReliableTransportMessage<OsModel, Radio> Message;
+			typedef delegate1<void, ::uint8_t> event_callback_t;
 			typedef typename Message::sequence_number_t sequence_number_t;
 			
 			enum SpecialNodeIds {
@@ -55,20 +62,22 @@ namespace wiselib {
 				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
-			enum MessageIds {
-				MESSAGE_TYPE_RELIABLE_TRANSPORT = 0x42,
-				SUBTYPE_OPEN = 0x01, SUBTYPE_CLOSE = 0x02, SUBTYPE_DATA = 0x03,
-				SUBTYPE_ACK = 0x04
-			};
-			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
 				RESEND_TIMEOUT = 200, MAX_RESENDS = 5
 			};
 			
+			enum Events {
+				CONNECTION_INCOMING,
+				MESSAGE_SENT,
+				ABORT_SEND,
+				ABORT_RECEIVE
+			};
 			
-			int init(typename Radio::self_pointer_t radio) {
+			
+			int init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer) {
 				radio_ = radio;
+				timer_ = timer;
 				receiving_sequence_number_ = 0;
 			}
 			
@@ -85,7 +94,7 @@ namespace wiselib {
 			 */
 			int open(node_id_t receiver) {
 				receiver_ = receiver;
-				sending_.set_subtype(SUBTYPE_OPEN);
+				sending_.set_subtype(Message::SUBTYPE_OPEN);
 				sending_.set_sequence_number(0);
 				sending_.set_payload(0, 0);
 				
@@ -94,7 +103,7 @@ namespace wiselib {
 			
 			int close() {
 				// TODO
-				sending_.set_subtype(SUBTYPE_CLOSE);
+				sending_.set_subtype(Message::SUBTYPE_CLOSE);
 				sending_.set_payload(0, 0);
 			}
 			
@@ -105,16 +114,12 @@ namespace wiselib {
 			 * callback to be triggered!
 			 */
 			int send(node_id_t _, size_t len, block_data_t *data) {
-				sending_.set_subtype(SUBTYPE_DATA);
+				sending_.set_subtype(Message::SUBTYPE_DATA);
 				sending_.set_payload(len, data);
 			}
 			
-			int reg_sent_callback(sent_callback_t sent_callback) {
-				sent_callback_ = sent_callback;
-			}
-			
-			int reg_abort_callback(sent_callback_t sent_callback) {
-				abort_callback_ = abort_callback;
+			int reg_event_callback(event_callback_t event_callback) {
+				event_callback_ = event_callback;
 			}
 			
 			int id() {
@@ -145,8 +150,8 @@ namespace wiselib {
 			
 			void on_ack_timeout(void*) {
 				if(resends_ >= MAX_RESENDS) {
-					if(abort_callback_) {
-						abort_callback_();
+					if(event_callback_) {
+						event_callback_(ABORT_SEND);
 					}
 				}
 				else {
@@ -156,34 +161,34 @@ namespace wiselib {
 			
 			void on_receive(node_id_t from, size_t len, block_data_t* data) {
 				Message &msg = *reinterpret_cast<Message*>(data);
-				if(msg.type() != MESSAGE_TYPE_RELIABLE_TRANSPORT) { return; }
+				if(msg.type() != Message::MESSAGE_TYPE) { return; }
 				
 				switch(msg.subtype()) {
-					case SUBTYPE_OPEN:
+					case Message::SUBTYPE_OPEN:
 						if(msg.sequence_number() != receiving_sequence_number_) { return; }
-						if(open_callback_) { open_callback_(); }
+						if(event_callback_) { event_callback_(CONNECTION_INCOMING); }
 						send_ack(from);
 						break;
 						
-					case SUBTYPE_DATA:
+					case Message::SUBTYPE_DATA:
 						if(msg.sequence_number() != receiving_sequence_number_) { return; }
 						send_ack(from);
 						notify_receivers(from, msg.payload_size(), msg.payload());
 						break;
 						
-					case SUBTYPE_ACK:
+					case Message::SUBTYPE_ACK:
 						if(msg.sequence_number() != sending_.sequence_number()) { return; }
 						on_ack();
 						break;
 						
-					case SUBTYPE_CLOSE:
+					case Message::SUBTYPE_CLOSE:
 						break;
 				}
 			}
 				
-			void send_ack() {
+			void send_ack(node_id_t from) {
 				Message ack;
-				ack.set_subtype(SUBTYPE_ACK);
+				ack.set_subtype(Message::SUBTYPE_ACK);
 				ack.set_payload(0, 0);
 				ack.set_sequence_number(receiving_sequence_number_);
 				radio_->send(from, ack.size(), ack.data());
@@ -193,20 +198,21 @@ namespace wiselib {
 			void on_ack() {
 				sending_.increase_sequence_number();
 				acknowledged_ = true;
-				if(sent_callback_) {
-					sent_callback_();
+				if(event_callback_) {
+					event_callback_(MESSAGE_SENT);
 				}
 			}
 			
 			Message sending_;
-			typename Radio::self_pointer_t radio_;
 			size_type resends_;
-			sent_callback_t sent_callback_;
-			abort_callback_t abort_callback_;
 			node_id_t receiver_;
 			bool acknowledged_;
 			sequence_number_t receiving_sequence_number_;
+			
+			event_callback_t event_callback_;
 		
+			typename Radio::self_pointer_t radio_;
+			typename Timer::self_pointer_t timer_;
 	}; // ReliableTransport
 }
 

@@ -25,6 +25,7 @@
 #include <util/pstl/vector_dynamic.h>
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/list_dynamic.h>
+#include <algorithms/protocols/reliable_transport/reliable_transport.h>
 
 #include "semantic_entity.h"
 #include "semantic_entity_id.h"
@@ -61,8 +62,7 @@ namespace wiselib {
 	>
 	class TokenConstruction {
 		public:
-			// Typedefs & Enums
-			// {{{
+			/// @{{{ Typedefs & Enums
 			
 			typedef TokenConstruction<
 				OsModel_P,
@@ -101,6 +101,8 @@ namespace wiselib {
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularBroadcasts;
 			
+			typedef ReliableTransport<OsModel, Radio, Timer> RingTransport;
+			
 			enum MessageTypes {
 				MESSAGE_TYPE_STATE = StateMessageT::MESSAGE_TYPE,
 				MESSAGE_TYPE_TREE_STATE = TreeStateMessageT::MESSAGE_TYPE,
@@ -121,6 +123,7 @@ namespace wiselib {
 				/// How long to stay awake when we have the token
 				ACTIVITY_PERIOD = 1000 * TIME_SCALE,
 				RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
+				HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
 			};
 			
 			enum SpecialAddresses {
@@ -132,9 +135,7 @@ namespace wiselib {
 				npos = (size_type)(-1)
 			};
 			
-			//typedef TimingController<OsModel, SemanticEntityId, Radio, Timer, Clock, REGULAR_BCAST_INTERVAL, MAX_NEIGHBOURS> TimingControllerT;
-			
-			// }}}
+			/// @}}}
 			
 			class PacketInfo {
 				// {{{
@@ -173,6 +174,9 @@ namespace wiselib {
 				clock_ = clock;
 				debug_ = debug;
 				caffeine_level_ = 0;
+				handover_transport_.init(radio_);
+				handover_se_ = 0;
+				handover_state_ = 0;
 				
 				//timing_controller_.init(timer_, clock_);
 				
@@ -396,6 +400,7 @@ namespace wiselib {
 			 * Pass on complete state for given SE.
 			 * That is, token info and tree state for the SE.
 			 */
+			/*
 			void pass_on_state(SemanticEntityT& se, bool set_clean = true) {
 				
 				if(!se.sending_token()) {
@@ -406,7 +411,8 @@ namespace wiselib {
 					push_caffeine();
 					on_resend_token_state(&se);
 				}
-				
+			}
+			*/	
 				
 				/*
 				StateMessageT msg;
@@ -446,57 +452,68 @@ namespace wiselib {
 				//DBG("node %d // pop pass_on_state SE %d.%d set_clean %d", radio_->id(), se.id().rule(), se.id().value(), set_clean);
 				pop_caffeine();
 				*/
+			
+			void initiate_handover(void *se_) {
+				initiate_handover(*reinterpret_cast<SemanticEntityT>(se_));
 			}
 			
-			
-			// XXX: Now token state send mechanism using relaible transport
-			// (WIP):
-			/
-			
+			void initiate_handover(SemanticEntityT& se) {
+				if(handover_se_) {
+					timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_LOCK_INTERVAL, this, (void*)&se);
+				}
+				else {
+					handover_se_ = &se;
+					handover_transport_.open(handover_se_->next_token_node());
+					handover_transport_state_ = 0;
+				}
+			}
 			
 			void handover() {
-				RingTransport transport;
-				
-				transport.init(radio_);
-				transport.open(to);
-				
 				block_data_t buffer[RingTransport::MAX_MESSAGE_SIZE];
-				size_type buffer_space = RingTransport::MAX_MESSAGE_SIZE;
-				
 				block_data_t *buf = buffer;
+				size_type sz = 0;
 				bool call_again = false;
 				
-				do {
-					switch(ring_transport_state_) {
-						case 0: {
-							TokenStateMessageT msg;
-							// TODO: fill msg
-							buf = msg.data();
-							
-							transport.send(to, msg.size(), msg.data());
-							break;
-						}
-						case 1: {
-							size_type written = aggregator.fill_buffer(buf, buffer_space, call_again);
-							buf += written;
-							buffer_space -= written;
-							break;
-						}
-						case 2: {
-					}
-					
-					if(!call_again) {
-						++ring_transport_state_;
-					}
-					
-				} while(true);
+				enum State {
+					OPEN_TRANSPORT = 0, SEND_TOKEN, SEND_AGGREGATES, CLOSE_TRANSPORT
+				};
 				
-			}
-			
-			
-			*/
-			
-			
+				switch(handover_transport_state_) {
+					case OPEN_TRANSPORT: {
+						sz = 0;
+						break;
+					}
+					case SEND_TOKEN: {
+						TokenStateMessageT msg;
+						msg.set_entity_id(handover_se_->id());
+						msg.set_token_state(handover_se_->token());
+						msg.set_time_offset(0);
+						
+						buf = msg.data();
+						sz = msg.size();
+						break;
+					}
+					case SEND_AGGREGATES: {
+						buf = buffer;
+						sz = aggregator_.fill_buffer(buffer, RingTransport::MAX_MESSAGE_SIZE, call_again);
+						break;
+					}
+					case CLOSE_TRANSPORT: {
+						sz = 0;
+						handover_transport_.close();
+						handover_se_ = 0;
+						break;
+					}
+				}
+				
+				if(sz) {
+					handover_transport_.send(0, sz, buf);
+				}
+				
+				if(!call_again) {
+					++handover_transport_state_;
+				}
+			} // handover()
 			
 			
 			/**
@@ -968,6 +985,17 @@ namespace wiselib {
 			size_type caffeine_level_;
 			typename Debug::self_pointer_t debug_;
 			RegularBroadcasts regular_broadcasts_;
+			
+			SemanticEntityAggregator aggregator_;
+			
+			///@{ Token Handover Stuff
+			
+			SemanticEntityT *handover_se_;
+			RingTransport handover_transport_;
+			::uint8_t handover_transport_state_;
+			
+			///@}
+			
 	}; // TokenConstruction
 }
 
