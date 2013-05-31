@@ -209,6 +209,9 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 			debug.debug( "SCLD (size %i) : %d\n,", sizeof(uint8_t), SCLD);
 #endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			debug.debug( "TP (size %i) : %i\n,", sizeof(int8_t), TP);
+#endif
 			for ( ProtocolPayload_vector_iterator it = protocol_payloads.begin(); it != protocol_payloads.end(); ++it )
 			{
 				it->print( debug, radio );

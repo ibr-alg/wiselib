@@ -92,9 +92,21 @@ namespace wiselib
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 			,messages_received					( 0 ),
 			bytes_received						( 0 ),
+			bytes_received_0					( 0 ),
+			bytes_received_6					( 0 ),
+			bytes_received_12					( 0 ),
+			bytes_received_18					( 0 ),
+			bytes_received_24					( 0 ),
+			bytes_received_30					( 0 ),
 			avg_bytes_size_received				( 0 ),
 			messages_send						( 0 ),
 			bytes_send							( 0 ),
+			bytes_send_0						( 0 ),
+			bytes_send_6						( 0 ),
+			bytes_send_12						( 0 ),
+			bytes_send_18						( 0 ),
+			bytes_send_24						( 0 ),
+			bytes_send_30						( 0 ),
 			avg_bytes_size_send					( 0 ),
 			corrupted_messages_received			( 0 ),
 			corrupted_bytes_received			( 0 ),
@@ -226,6 +238,30 @@ namespace wiselib
 			messages_send = messages_send + 1;
 			bytes_send = bytes_send + message.serial_size() + sizeof( size_t ) + sizeof( node_id_t );
 			avg_bytes_size_send = bytes_send / messages_send;
+			if ( get_transmission_power_dB() == 0 )
+			{
+				bytes_send_0++;
+			}
+			else if ( get_transmission_power_dB() == -6 )
+			{
+				bytes_send_6++;
+			}
+			else if ( get_transmission_power_dB() == -12 )
+			{
+				bytes_send_12++;
+			}
+			else if ( get_transmission_power_dB() == -18 )
+			{
+				bytes_send_18++;
+			}
+			else if ( get_transmission_power_dB() == -24 )
+			{
+				bytes_send_24++;
+			}
+			else if ( get_transmission_power_dB() == -30 )
+			{
+				bytes_send_30++;
+			}
 #endif
 		}
 		// --------------------------------------------------------------------
@@ -281,6 +317,7 @@ namespace wiselib
 						beacon.set_protocol_payloads( protocols );
 						beacon.set_beacon_period( bp );
 						beacon.set_beacon_period_update_counter( n->get_beacon_period_update_counter() );
+						beacon.set_TP( get_transmission_power_dB() );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_SMALL_PAYLOAD
 						Neighbor_vector nv_SCL;
 						Neighbor_vector nv_non_SCL;
@@ -871,14 +908,38 @@ namespace wiselib
 							}
 						}
 					}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+					messages_received = messages_received + 1;
+					bytes_received = bytes_received + _len;
+					avg_bytes_size_received = bytes_received / messages_received;
+					if ( beacon.get_TP() == 0 )
+					{
+						bytes_received_0++;
+					}
+					else if ( get_transmission_power_dB() == -6 )
+					{
+						bytes_received_6++;
+					}
+					else if ( get_transmission_power_dB() == -12 )
+					{
+						bytes_received_12++;
+					}
+					else if ( get_transmission_power_dB() == -18 )
+					{
+						bytes_received_18++;
+					}
+					else if ( get_transmission_power_dB() == -24 )
+					{
+						bytes_received_24++;
+					}
+					else if ( get_transmission_power_dB() == -30 )
+					{
+						bytes_received_30++;
+					}
+#endif
 				}
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 				debug().debug("NeighborDiscovery - receive - From %x Exiting.\n", _from );
-#endif
-#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
-				messages_received = messages_received + 1;
-				bytes_received = bytes_received + _len;
-				avg_bytes_size_received = bytes_received / messages_received;
 #endif
 			}
 		}
@@ -1407,6 +1468,68 @@ namespace wiselib
 			return messages_send;
 		}
 		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_0()
+		{
+			return bytes_send_0;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_6()
+		{
+			return bytes_send_6;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_12()
+		{
+			return bytes_send_12;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_18()
+		{
+			return bytes_send_18;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_24()
+		{
+			return bytes_send_24;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_30()
+		{
+			return bytes_send_30;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_0()
+		{
+			return bytes_received_0;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_6()
+		{
+			return bytes_received_6;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_12()
+		{
+			return bytes_received_12;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_18()
+		{
+			return bytes_received_18;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_24()
+		{
+			return bytes_received_24;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_30()
+		{
+			return bytes_received_30;
+		}
+		// --------------------------------------------------------------------
+
+
 #endif
 		// --------------------------------------------------------------------
 		void init( Radio& _radio, Timer& _timer, Debug& _debug, Clock& _clock, Rand& _rand )
@@ -1487,9 +1610,21 @@ namespace wiselib
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 		uint32_t messages_received;
 		uint32_t bytes_received;
+		uint32_t bytes_received_0;
+		uint32_t bytes_received_6;
+		uint32_t bytes_received_12;
+		uint32_t bytes_received_18;
+		uint32_t bytes_received_24;
+		uint32_t bytes_received_30;
 		uint32_t avg_bytes_size_received;
 		uint32_t messages_send;
 		uint32_t bytes_send;
+		uint32_t bytes_send_0;
+		uint32_t bytes_send_6;
+		uint32_t bytes_send_12;
+		uint32_t bytes_send_18;
+		uint32_t bytes_send_24;
+		uint32_t bytes_send_30;
 		uint32_t avg_bytes_size_send;
 		uint32_t corrupted_messages_received;
 		uint32_t corrupted_bytes_received;
