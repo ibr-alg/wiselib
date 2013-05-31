@@ -12,13 +12,13 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		size_t TABLE_SIZE_P,
-		size_t TUPLE_SIZE_P = 3
+		size_t MAX_TUPLE_SIZE_P = 4
 	>
 	class ShdtSerializer {
 		public:
 			typedef OsModel_P OsModel;
 			enum { TABLE_SIZE = TABLE_SIZE_P };
-			enum { TUPLE_SIZE = TUPLE_SIZE_P };
+			enum { MAX_TUPLE_SIZE = MAX_TUPLE_SIZE_P };
 			
 			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::block_data_t block_data_t;
@@ -30,12 +30,8 @@ namespace wiselib {
 			enum { npos = (size_type)(-1) };
 			enum { nidx = (table_id_t)(-1) };
 			enum Commands {
-				CMD_VALUE = 0xfb,
-				CMD_CAT = 0xfc,
-				CMD_TABLE_VALUE = 0xfd,
-				
-				CMD_INSERT = 0xfe,
-				CMD_END = 0xff
+				CMD_TUPLE = 0, CMD_HEADER = 1, CMD_VALUE = 2, CMD_CAT = 3,
+				CMD_TABLE_VALUE = 4, CMD_INSERT = 0xfe, CMD_END = 0xff
 			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum SpecialIds {
@@ -46,27 +42,35 @@ namespace wiselib {
 			
 			class Instruction {
 				public:
-					instruction_t type() { return instruction_; }
-					void set_type(instruction_t c) { instruction_ = c; }
-					
-					bool fits(size_type buffer_size) {
-						// TODO
+					Instruction() : data_idx_(nidx), data_(0) {
 					}
 					
-					/**
-					 * @return true iff all data was written, false if another
-					 * write is necessary.
-					 */
-					bool write(block_data_t*& buffer, size_type& buffer_size) {
-						// TODO
-					}
-					
-					void read(block_data_t*& buffer, size_type& buffer_size) {
-						// TODO
-					}
+					instruction_t& instruction() { return instruction_; }
+					table_id_t& table_size() { return data_idx_[0]; }
+					table_id_t& tuple_size() { return data_idx_[1]; }
+					table_id_t& index(size_type i = 0) { return data_idx_[i]; }
+					table_id_t& source_index() { return data_idx_[0]; }
+					table_id_t& target_index() { return data_idx_[1]; }
+					block_data_t*& data() { return data_; }
+					sz_t& data_size() { return data_size_; }
+					field_id_t& field_id() { return field_id_; }
+					sz_t& field_size() { return data_size_2_; }
+					sz_t& source_prefix() { return data_size_2_; }
 					
 				private:
+					block_data_t *data_;
 					instruction_t instruction_;
+					table_id_t data_idx_[MAX_TUPLE_SIZE];
+					sz_t data_size_;
+					sz_t data_size_2_;
+					field_id_t field_id_;
+					
+				template<
+					typename OsModel_,
+					size_t TABLE_SIZE_,
+					size_t TUPLE_SIZE_
+				>
+				friend class ShdtSerializer;
 			};
 			
 		public:
@@ -251,11 +255,13 @@ namespace wiselib {
 				
 				do {
 					in.read(buffer, buffer_size);
+					process_instruction(in);
+				}
+				while(!in.is_field());
 				
-					if(in.is_field
 				data = in.data();
 				data_size = in.data_size();
-				field_id =
+				field_id = in.field_id();
 				
 				return buffer - old_buffer;
 			}
@@ -332,6 +338,111 @@ namespace wiselib {
 				
 				
 		private:
+			
+			template<typename T>
+			bool read(block_data_t*& buffer, size_type& buffer_size, T& tgt) {
+				if(buffer_size < sizeof(T)) {
+					return false;
+				}
+				wiselib::read<OsModel, block_data_t, T>(buffer, tgt);
+				buffer += sizeof(T);
+				buffer_size -= sizeof(T);
+				return true;
+			}
+			
+			void read_instruction(Instruction& in, block_data_t*& buffer, size_type& buffer_size) {
+				read(buffer, buffer_size, in.index(0));
+				if(in.index(0) != nidx) {
+					// tuple mode
+					in.instruction() = CMD_TUPLE;
+					for(size_type i = 1; i < tuple_size_; i++) {
+						read(buffer, buffer_size, in.index(i));
+					}
+				}
+				else {
+					read(buffer, buffer_size, in.instruction());
+					switch(in.instruction()) {
+						case CMD_HEADER:
+							read(buffer, buffer_size, in.table_size());
+							read(buffer, buffer_size, in.tuple_size());
+							break;
+							
+						case CMD_INSERT:
+							read(buffer, buffer_size, in.index());
+							read(buffer, buffer_size, in.data_size());
+							in.data() = buffer;
+							break;
+							
+						case CMD_VALUE:
+							read(buffer, buffer_size, in.field_id());
+							read(buffer, buffer_size, in.field_size());
+							in.data() = buffer;
+							break;
+							
+						case CMD_CAT:
+							read(buffer, buffer_size, in.source_index());
+							read(buffer, buffer_size, in.source_prefix());
+							read(buffer, buffer_size, in.target_index());
+							read(buffer, buffer_size, in.data_size());
+							in.data() = buffer;
+							break;
+							
+						case CMD_TABLE_VALUE:
+							read(buffer, buffer_size, in.field_id());
+							read(buffer, buffer_size, in.field_index());
+							break;
+					}
+				}
+			}
+			
+			/**
+			 * @return true if this ought to be called again (with the same
+			 * insturction).
+			 */
+			bool write_instruction(Instruction& in, block_data_t*& buffer, size_type& buffer_size) {
+				switch(in.instruction()) {
+					case CMD_HEADER:
+						if(buffer_size < 3 * sizeof(table_id_t)) { return true; }
+						write(buffer, buffer_size, (table_id_t)nidx);
+						write(buffer, buffer_size, in.table_size());
+						write(buffer, buffer_size, in.tuple_size());
+						break;
+						
+					case CMD_INSERT: {
+						// how much of our string is already there?
+						table_id_t id = hash(in.data());
+						size_type p = 0;
+						char *current = (char*)lookup_table_[id];
+						if(current) {
+							p = prefix_length(current, (char*)in.data());
+						}
+						// does the rest fit?
+						if(p) {
+							// cat
+							// XXX
+						}
+						else {
+							// insert
+						}
+						break;
+					}
+					case CMD_VALUE:
+						break;
+					case CMD_CAT:
+						break;
+					case CMD_TABLE_VALUE:
+						break;
+					case CMD_TUPLE:
+						break;
+				}
+			}
+			
+			
+			
+			
+			
+			
+			
 			
 			/**
 			 * \return
