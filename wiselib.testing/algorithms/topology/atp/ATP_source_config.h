@@ -8,8 +8,8 @@
 
 
 #define CONFING_ATP_H_STATUS_CONTROL
-//#define CONFIG_ATP_SIMPLE_SCLD
-#define CONFIG_ATP_LOCAL_SCLD_MINS_MAXS //not implemented yet
+#define CONFIG_ATP_SIMPLE_SCLD
+//#define CONFIG_ATP_LOCAL_SCLD_MINS_MAXS //not implemented yet
 
 //#define DEBUG_ATP_H
 #ifdef DEBUG_ATP_H

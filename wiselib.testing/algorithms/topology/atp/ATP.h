@@ -406,8 +406,8 @@ namespace wiselib
 #endif
 #ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
 				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) )
-#endif
 						|| ( nd_active_size < SCLD_MIN_threshold ) )
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( throughput_status.try_lock() )
 #endif
