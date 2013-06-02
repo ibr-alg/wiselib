@@ -268,8 +268,14 @@ namespace wiselib
 			}
 			size_t BEACON_PERIOD_POS = NEIGHBORHOOD_POS + n_size;
 			size_t BEACON_PERIOD_UPDATE_COUNTER_POS = BEACON_PERIOD_POS + sizeof(millis_t);
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			size_t TP_POS = BEACON_PERIOD_UPDATE_COUNTER_POS + sizeof(uint32_t);
+#endif
 			write<Os, block_data_t, millis_t>( _buff + BEACON_PERIOD_POS + _offset, beacon_period );
 			write<Os, block_data_t, uint32_t>( _buff + BEACON_PERIOD_UPDATE_COUNTER_POS + _offset, beacon_period_update_counter );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			write<Os, block_data_t, int8_t>( _buff + TP_POS + _offset, TP );
+#endif
 			return _buff;
 		}
 		// --------------------------------------------------------------------
@@ -311,8 +317,14 @@ namespace wiselib
 			}
 			size_t BEACON_PERIOD_POS = NEIGHBORHOOD_POS;
 			size_t BEACON_PERIOD_UPDATE_COUNTER_POS = BEACON_PERIOD_POS + sizeof(millis_t);
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			size_t TP_POS = BEACON_PERIOD_UPDATE_COUNTER_POS + sizeof(uint32_t);
+#endif
 			beacon_period = read<Os, block_data_t, millis_t>( _buff + BEACON_PERIOD_POS + _offset );
 			beacon_period_update_counter = read<Os, block_data_t, uint32_t>( _buff + BEACON_PERIOD_UPDATE_COUNTER_POS + _offset );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			TP = read<Os, block_data_t, int8_t>( _buff + TP_POS + _offset );
+#endif
 		}
 		// --------------------------------------------------------------------
 		size_t serial_size()
@@ -343,7 +355,13 @@ namespace wiselib
 			size_t NEIGHBORHOOD_POS = NEIGHBORHOOD_SIZE_POS + sizeof(size_t);
 			size_t BEACON_PERIOD_POS = NEIGHBORHOOD_POS + n_size;
 			size_t BEACON_PERIOD_UPDATE_COUNTER_POS = BEACON_PERIOD_POS + sizeof(millis_t);
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			size_t TP_POS = BEACON_PERIOD_UPDATE_COUNTER_POS + sizeof(uint32_t);
+			return TP_POS + sizeof(int8_t);
+#else
 			return BEACON_PERIOD_UPDATE_COUNTER_POS + sizeof(uint32_t);
+#endif
+
 		}
 		// --------------------------------------------------------------------
 	private:

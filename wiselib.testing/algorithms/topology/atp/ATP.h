@@ -216,6 +216,8 @@ namespace wiselib
 			}
 		}
 		// -----------------------------------------------------------------------
+#undef CONFIG_ATP_SIMPLE_SCLD
+#define CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
 		void ATP_service_transmission_power(void* _userdata = NULL )
 		{
 			if ( status == ACTIVE_STATUS )
