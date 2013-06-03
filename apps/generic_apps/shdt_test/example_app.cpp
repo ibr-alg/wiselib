@@ -29,8 +29,11 @@ class ExampleApplication {
 			
 			w.write_header(8, 3);
 			
-			block_data_t* s = (block_data_t*)"<http://www.wiselib.org/>";
+			block_data_t* s = (block_data_t*)"<http://de.wikipedia.org/wiki/Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch>";
 			w.write_field(1, s, strlen((char*)s));
+			
+			block_data_t* s2 = (block_data_t*)"<http://de.wikipedia.org/wiki/Taumatawhakatangihangakoauauotamateaturipukakapikimaungahoronukupokaiwhenuakitanatahu>";
+			w.write_field(2, s2, strlen((char*)s2));
 			
 			/*
 			s = (block_data_t*)"<http://www.spitfire-project.eu/>";
@@ -44,17 +47,17 @@ class ExampleApplication {
 		
 		// Called by Shdt when a buffer is full
 		void send_buffer(Shdt::Writer& w) {
-			debug_->debug("<send_buffer>");
+			debug_->debug("  <send_buffer>");
 			debug_buffer<Os, 16, Os::Debug>(debug_, w.buffer(), w.buffer_used());
 			
 			shdt_decode(w.buffer(), w.buffer_used());
 			w.reuse_buffer();
-			debug_->debug("</send_buffer>");
+			debug_->debug("  </send_buffer>");
 		}
 		
 		
 		void shdt_decode(block_data_t* buffer, size_type buffer_size) {
-			debug_->debug("<shdt_decode>");
+			debug_->debug("    <shdt_decode>");
 			Shdt::Reader r(&receiver, buffer, buffer_size);
 			
 			Shdt::field_id_t field_id;
@@ -62,8 +65,13 @@ class ExampleApplication {
 			size_type size;
 			
 			bool found = r.read_field(field_id, value, size);
-			debug_->debug("found=%d fid=%d v=%s sz=%d", found, field_id, value, size);
-			debug_->debug("</shdt_decode>");
+			if(found) {
+				debug_->debug("    -> found=%d fid=%d v=%s sz=%d", found, field_id, value, size);
+			}
+			else {
+				debug_->debug("    -> (not found)");
+			}
+			debug_->debug("    </shdt_decode>");
 		}
 		
 	private:

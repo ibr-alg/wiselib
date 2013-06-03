@@ -60,8 +60,8 @@ namespace wiselib {
 			enum { npos = (size_type)(-1) };
 			enum { nidx = (table_id_t)(-1) };
 			enum Commands {
-				CMD_TUPLE = 0, CMD_HEADER = 1, CMD_VALUE = 2, CMD_CAT = 3,
-				CMD_TABLE_VALUE = 4, CMD_INSERT = 5, CMD_END = 0xff,
+				CMD_TUPLE = 't', CMD_HEADER = 'h', CMD_VALUE = 'v', CMD_CAT = 'c',
+				CMD_TABLE_VALUE = 'V', CMD_INSERT = 'i', CMD_END = 0xff,
 			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum SpecialIds {
@@ -147,7 +147,6 @@ namespace wiselib {
 					}
 					
 					table_id_t write_data(block_data_t* data, size_type data_size, size_type n_avoid = 0, table_id_t* avoid = 0) {
-						DBG("<write data dat=\"%s\" l=%d>", (char*)data, data_size);
 						bool call_again = false;
 						table_id_t pos;
 						do {
@@ -191,7 +190,6 @@ namespace wiselib {
 					}
 					
 					void flush() {
-						DBG("buf cur %p start %p", buffer_current_, buffer_start_);
 						if(buffer_current_ > buffer_start_) {
 							write_callback_(*this);
 						}
@@ -230,7 +228,6 @@ namespace wiselib {
 					}
 					
 					bool read_field(field_id_t& field_id, block_data_t*& data, size_type& data_size) {
-						
 						Instruction in = serializer_->read_instruction(buffer_current_, buffer_end_);
 						while(buffer_current_ < buffer_end_ && in.instruction() != CMD_VALUE && in.instruction() != CMD_TABLE_VALUE && in.instruction() != CMD_END) {
 							serializer_->process_instruction(in);
@@ -248,6 +245,10 @@ namespace wiselib {
 							data = serializer_->get_table(in.field_index(), data_size);
 							return true;
 						}
+						
+						serializer_->process_instruction(in);
+						data = 0;
+						data_size = 0;
 						return false;
 					}
 						
@@ -313,11 +314,10 @@ namespace wiselib {
 				// does the rest fit?
 				
 				// header size of the cat command
-				size_type h = sizeof(instruction_t) + 3 * sizeof(table_id_t) + 2 * sizeof(sz_t);
 				size_t l = data_size; //strlen((char*)in.data());
-				if(p && buffer_size > h) {
+				if(p && buffer_size > Instruction::header_size(CMD_CAT)) {
 					// cat
-					size_t copy = buffer_size - h;
+					size_t copy = buffer_size - Instruction::header_size(CMD_CAT);
 					if(copy + p > l) { copy = l - p; }
 					
 					Instruction in;
@@ -332,13 +332,17 @@ namespace wiselib {
 					if(!ca) {
 						set_table(id, data, p + copy);
 					}
+					else {
+						assert(false && "write can instruction failed!");
+					}
+					
+					sz_t blub;
 					
 					call_again = ca || ((p + copy) < l);
 				}
-				else {
+				else if(buffer_size > Instruction::header_size(CMD_INSERT)) {
 					// insert
-					h = sizeof(instruction_t) + 1 * sizeof(table_id_t) + 1 * sizeof(sz_t);
-					size_t copy = buffer_size - h;
+					size_t copy = buffer_size - Instruction::header_size(CMD_INSERT);
 					if(copy > l) { copy = l; }
 					
 					Instruction in;
@@ -352,7 +356,15 @@ namespace wiselib {
 						set_table(id, data, copy);
 						call_again = (copy < l);
 					}
+					else {
+						assert(false && "write insert instruction failed!");
+					}
+					
 				}
+				else {
+					call_again = true;
+				}
+				
 				return call_again;
 			}
 			
@@ -400,7 +412,6 @@ namespace wiselib {
 					}
 						
 					case CMD_VALUE:
-						DBG("write value fid=%d fsz=%d data size=%d data=%s", in.field_id(), in.field_size(), in.data_size(), (char*)in.data());
 						write(buffer, buffer_end, (table_id_t)nidx);
 						write(buffer, buffer_end, (instruction_t)CMD_VALUE);
 						write(buffer, buffer_end, in.field_id());
@@ -427,8 +438,6 @@ namespace wiselib {
 			 */
 			Instruction read_instruction(block_data_t*& buffer, block_data_t* buffer_end) {
 				Instruction in;
-				
-				DBG("read_instruction @%p %02x %02x %02x %02x ...", buffer, buffer[0], buffer[1], buffer[2], buffer[3]);
 				
 				read(buffer, buffer_end, in.index(0));
 				if(in.index(0) != nidx) {
@@ -498,6 +507,7 @@ namespace wiselib {
 					case CMD_TABLE_VALUE:
 					case CMD_END:
 					case CMD_TUPLE:
+						assert(false && "dunno how to process this");
 						break;
 						
 					case CMD_CAT: {
@@ -522,9 +532,13 @@ namespace wiselib {
 					lookup_table_[id] = 0;
 				}
 				block_data_t* d = get_allocator().allocate_array<block_data_t>(data_size + sizeof(sz_t)).raw();
+				lookup_table_[id] = d;
 				
 				wiselib::write<OsModel>(d, data_size);
 				memcpy(d + sizeof(sz_t), data, data_size);
+				
+				
+				DBG("[%d] := %s (%d)", id, (char*)(d + sizeof(sz_t)), (int)d[0]);
 			}
 			
 			block_data_t* get_table(table_id_t id, size_type& sz) {
@@ -545,7 +559,7 @@ namespace wiselib {
 			
 			template<typename T>
 			bool read(block_data_t*& buffer, block_data_t* buffer_end, T& tgt) {
-				if(buffer + sizeof(T) >= buffer_end) {
+				if(buffer + sizeof(T) > buffer_end) {
 					return false;
 				}
 				wiselib::read<OsModel, block_data_t, T>(buffer, tgt);
