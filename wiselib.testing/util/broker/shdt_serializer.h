@@ -320,25 +320,29 @@ namespace wiselib {
 					size_t copy = buffer_size - Instruction::header_size(CMD_CAT);
 					if(copy + p > l) { copy = l - p; }
 					
-					Instruction in;
-					in.instruction() = CMD_CAT;
-					in.source_index() = id;
-					in.source_prefix() = p;
-					in.target_index() = id;
-					in.data_size() = copy;
-					in.data() = data + p;
-					
-					bool ca = write_instruction(in, buffer, buffer + buffer_size);
-					if(!ca) {
-						set_table(id, data, p + copy);
+					if(copy) {
+						Instruction in;
+						in.instruction() = CMD_CAT;
+						in.source_index() = id;
+						in.source_prefix() = p;
+						in.target_index() = id;
+						in.data_size() = copy;
+						in.data() = data + p;
+						
+						bool ca = write_instruction(in, buffer, buffer + buffer_size);
+						if(!ca) {
+							set_table(id, data, p + copy);
+						}
+						else {
+							assert(false && "write can instruction failed!");
+						}
+						
+						call_again = ca || ((p + copy) < l);
 					}
 					else {
-						assert(false && "write can instruction failed!");
+						// string is conveniently already completely there
+						call_again = false;
 					}
-					
-					sz_t blub;
-					
-					call_again = ca || ((p + copy) < l);
 				}
 				else if(buffer_size > Instruction::header_size(CMD_INSERT)) {
 					// insert

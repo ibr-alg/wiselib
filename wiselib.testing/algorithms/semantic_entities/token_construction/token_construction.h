@@ -31,6 +31,7 @@
 #include "semantic_entity_id.h"
 #include "regular_event.h"
 #include "state_message.h"
+#include "semantic_entity_aggregator.h"
 
 #ifndef TOKEN_CONSTRUCTION_RELIABLE_TOKEN_STATE
 	#define TOKEN_CONSTRUCTION_RELIABLE_TOKEN_STATE 1
@@ -55,6 +56,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename TupleStore_P,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Clock_P = typename OsModel_P::Clock,
@@ -66,6 +68,7 @@ namespace wiselib {
 			
 			typedef TokenConstruction<
 				OsModel_P,
+				TupleStore_P,
 				Radio_P,
 				Timer_P,
 				Clock_P,
@@ -78,6 +81,7 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef TupleStore_P TupleStore;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
@@ -102,6 +106,8 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularBroadcasts;
 			
 			typedef ReliableTransport<OsModel, Radio, Timer> RingTransport;
+			
+			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
 			
 			enum MessageTypes {
 				MESSAGE_TYPE_STATE = StateMessageT::MESSAGE_TYPE,
@@ -174,9 +180,9 @@ namespace wiselib {
 				clock_ = clock;
 				debug_ = debug;
 				caffeine_level_ = 0;
-				handover_transport_.init(radio_);
+				handover_transport_.init(radio_, timer_);
 				handover_se_ = 0;
-				handover_state_ = 0;
+				//handover_state_ = 0;
 				
 				//timing_controller_.init(timer_, clock_);
 				
@@ -370,6 +376,7 @@ namespace wiselib {
 			 * Repeadately send token state to next node in the ring until we
 			 * get an acknowledgement.
 			 */
+			/*
 			void on_resend_token_state(void *se_) {
 				SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
 				if(se.sending_token()) {
@@ -395,6 +402,7 @@ namespace wiselib {
 					timer_->template set_timer<self_type, &self_type::on_resend_token_state>(RESEND_TOKEN_STATE_INTERVAL, this, se_);
 				}
 			}
+			*/
 			
 			/**
 			 * Pass on complete state for given SE.
@@ -454,7 +462,7 @@ namespace wiselib {
 				*/
 			
 			void initiate_handover(void *se_) {
-				initiate_handover(*reinterpret_cast<SemanticEntityT>(se_));
+				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_));
 			}
 			
 			void initiate_handover(SemanticEntityT& se) {
@@ -547,6 +555,20 @@ namespace wiselib {
 			}
 			
 			/**
+			 */
+			void on_transport_receive(typename RingTransport::node_id_t from, typename RingTransport::size_t len, block_data_t* data) {
+				
+			}
+			
+			/**
+			 * Called by the reliable transport on several occasions.
+			 */
+			void on_transport_event(::uint8_t event_type) {
+				switch(event_type) {
+				}
+			}
+			
+			/**
 			 * Called indirectly by on_receive to escape interrupt context.
 			 */
 			void on_receive_task(void *p) {
@@ -635,7 +657,8 @@ namespace wiselib {
 					if(changed) {
 						// if the tree changed due to ths, resend token
 						// information as the ring has changed
-						pass_on_state(se, false);
+						//pass_on_state(se, false);
+						initiate_handover(se);
 					}
 					
 					//DBG("node %d SE %d.%d t=%d // tree state update from %d", radio_->id(), se.id().rule(), se.id().value(), now(), from);
@@ -861,7 +884,8 @@ namespace wiselib {
 				// here in case (end_wait_for_token will just do nothing if
 				// not currently waiting).
 				
-				pass_on_state(se);
+				//pass_on_state(se);
+				initiate_handover(se);
 				assert(!se.is_active(radio_->id()));
 				//DBG("node %d t=%d // scheduling wakeup", radio_->id(), now());
 				
@@ -986,7 +1010,7 @@ namespace wiselib {
 			typename Debug::self_pointer_t debug_;
 			RegularBroadcasts regular_broadcasts_;
 			
-			SemanticEntityAggregator aggregator_;
+			SemanticEntityAggregatorT aggregator_;
 			
 			///@{ Token Handover Stuff
 			

@@ -24,6 +24,7 @@
 #include <util/base_classes/radio_base.h>
 
 #include "reliable_transport_message.h"
+#include <util/pstl/map_static_vector.h>
 
 namespace wiselib {
 	
@@ -36,26 +37,34 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename ChannelId_P,
 		typename Radio_P,
 		typename Timer_P
 	>
 	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
 		public:
-			typedef ReliableTransport<OsModel_P, Radio_P, Timer_P> self_type;
+			/// @{{{ Typedefs & Enums
+			typedef ReliableTransport<OsModel_P, ChannelId_P, Radio_P, Timer_P> self_type;
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::size_t size_t;
+			typedef ChannelId_P ChannelId;
+			typedef ChannelId node_id_t;
+			
 			typedef Radio_P Radio;
-			typedef typename Radio::node_id_t node_id_t;
+			//typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
 			typedef Timer_P Timer;
 			
 			typedef ReliableTransportMessage<OsModel, Radio> Message;
-			typedef delegate1<void, ::uint8_t> event_callback_t;
 			typedef typename Message::sequence_number_t sequence_number_t;
+			
+			//typedef delegate1<void, ::uint8_t> event_callback_t;
+			typedef delegate2<size_type, block_data_t*, size_type> produce_callback_t;
+			typedef delegate2<void, block_data_t*, size_type> consume_callback_t;
 			
 			enum SpecialNodeIds {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
@@ -68,17 +77,50 @@ namespace wiselib {
 			};
 			
 			enum Events {
-				CONNECTION_INCOMING,
-				MESSAGE_SENT,
-				ABORT_SEND,
-				ABORT_RECEIVE
+				OPEN_SEND, OPEN_RECEIVE,
+				ACKNOWLEDGE_SEND,
+				ABORT_SEND, ABORT_RECEIVE
 			};
 			
+			enum ReturnValues {
+				SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC
+			};
 			
+			enum { npos = (size_type)(-1) };
+			
+			/// @}}}
+			
+		private:
+			class Endpoint {
+				public:
+					void init(produce_callback_t p, consume_callback_t c) {
+						produce_ = p;
+						consume_ = c;
+						sending_ = false;
+					}
+					
+					bool used() { return produce_ || consume_; }
+				
+				private:
+					ChannelId channel_id_;
+					produce_callback_t produce_;
+					consume_callback_t consume_;
+					//bool active_;
+					bool want_send_;
+			};
+			
+			//typedef MapStaticVector<OsModel, ChannelId, Endpoint, 8> Endpoints;
+			enum { MAX_ENDPOINTS = 8 };
+			typedef Endpoint Endpoints[MAX_ENDPOINTS];
+		
+		public:
 			int init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer) {
 				radio_ = radio;
 				timer_ = timer;
+				sending_channel_idx_ = 0;
+				
 				receiving_sequence_number_ = 0;
+				return SUCCESS;
 			}
 			
 			int enable_radio() {
@@ -89,6 +131,104 @@ namespace wiselib {
 				return radio_->disable_radio();
 			}
 			
+			int register_endpoint(const ChannelId& channel, produce_callback_t produce, consume_callback_t consume) {
+				size_type idx = find_or_create_endpoint(channel);
+				if(idx == npos) {
+					return ERR_UNSPEC;
+				}
+				else {
+					endpoints_[idx].init(produce, consume);
+					return SUCCESS;
+				}
+			}
+			
+			int request_send(const ChannelId& channel) {
+				size_type idx = find_or_create_endpoint(channel);
+				if(idx == npos) {
+					return ERR_UNSPEC;
+				}
+				else {
+					endpoints_[idx].request_send();
+				}
+			}
+			
+		
+		private:
+			Endpoint& sending_endpoint() { return endpoints_[sending_channel_idx_]; }
+			
+			size_type find_or_create_endpoint(const ChannelId& channel, bool create = true) {
+				size_type free = npos;
+				for(size_type i = 0; i < MAX_ENDPOINTS; i++) {
+					if(free == npos && !endpoints_[i].used()) {
+						free = i;
+					}
+					else if(endpoints_[i].channel() == channel) {
+						return i;
+					}
+				}
+				return create ? free : npos;
+			}
+			
+			/**
+			 * Switch to next channel for sending.
+			 */
+			void switch_channels() {
+				size_type ole = sending_channel_idx_;
+				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
+					if(endpoints_[sending_channel_idx_].used()) {
+						sending_ = true;
+						return true;
+					}
+				}
+				for(sending_channel_idx_ = 0; sending_channel_idx_ < ole; sending_channel_idx_++) {
+					if(endpoints_[sending_channel_idx_].used()) {
+						sending_ = true;
+						return true;
+					}
+				}
+				sending_ = false;
+				return false;
+			}
+			
+			/// Sending.
+			
+			void on_receive_ack(const ChannelId& channel) {
+				if(channel == sending_endpoint().channel()) {
+					bool s;
+					do {
+						if(!switch_channels()) {
+							buffer_size_ = 0;
+							break;
+						}
+						buffer_size_ = sending_endpoint().produce(buffer_, MAX_MESSAGE_LENGTH);
+						if(!buffer_size_) { sending_endpoint().destruct(); }
+					} while(!buffer_size_);
+				}
+				else {
+					// ignore ack for wrong channel
+				}
+			}
+			
+			/// Receiving.
+			
+			void on_receive_data(const ChannelId& channel, block_data_t* buffer, size_type len) {
+				size_type idx = find_or_create_endpoint(channel, false);
+				if(idx == npos) {
+					return;
+				}
+				
+				endpoints_[idx].consume(buffer, len);
+			}
+			
+			size_type sending_channel_idx_;
+			Endpoints endpoints_;
+			block_data_t buffer_[MAX_MESSAGE_LENGTH];
+			size_type buffer_size_;
+			
+			
+		
+		
+		// -----	
 			/**
 			 * Open connection to specified node.
 			 */
@@ -99,13 +239,17 @@ namespace wiselib {
 				sending_.set_payload(0, 0);
 				
 				send_acked(true);
+				return SUCCESS;
 			}
 			
 			int close() {
 				// TODO
 				sending_.set_subtype(Message::SUBTYPE_CLOSE);
 				sending_.set_payload(0, 0);
+				return SUCCESS;
 			}
+			
+			
 			
 			/**
 			 * Send a message to the receiver specified in open()
@@ -113,14 +257,16 @@ namespace wiselib {
 			 * DO NOT call this repeatedly without waiting for the sent
 			 * callback to be triggered!
 			 */
-			int send(node_id_t _, size_t len, block_data_t *data) {
-				sending_.set_subtype(Message::SUBTYPE_DATA);
-				sending_.set_payload(len, data);
-			}
+			//int send(node_id_t _, size_t len, block_data_t *data) {
+				//sending_.set_subtype(Message::SUBTYPE_DATA);
+				//sending_.set_payload(len, data);
+				//return SUCCESS;
+			//}
 			
-			int reg_event_callback(event_callback_t event_callback) {
-				event_callback_ = event_callback;
-			}
+			//int reg_event_callback(event_callback_t event_callback) {
+				//event_callback_ = event_callback;
+				//return SUCCESS;
+			//}
 			
 			int id() {
 				return radio_->id();
@@ -145,7 +291,7 @@ namespace wiselib {
 				else { resends_++; }
 				
 				radio_->send(receiver_, sending_.size(), sending_.data());
-				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(RESEND_TIMEOUT);
+				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(RESEND_TIMEOUT, this, 0);
 			}
 			
 			void on_ack_timeout(void*) {
@@ -166,7 +312,7 @@ namespace wiselib {
 				switch(msg.subtype()) {
 					case Message::SUBTYPE_OPEN:
 						if(msg.sequence_number() != receiving_sequence_number_) { return; }
-						if(event_callback_) { event_callback_(CONNECTION_INCOMING); }
+						if(event_callback_) { event_callback_(OPEN_RECEIVE); }
 						send_ack(from);
 						break;
 						
@@ -199,20 +345,24 @@ namespace wiselib {
 				sending_.increase_sequence_number();
 				acknowledged_ = true;
 				if(event_callback_) {
-					event_callback_(MESSAGE_SENT);
+					event_callback_(ACKNOWLEDGE_SEND);
 				}
 			}
+			
+			typename Radio::self_pointer_t radio_;
+			typename Timer::self_pointer_t timer_;
+			
+			Endpoints active_endpoints_;
+			Endpoints passive_endpoints_;
+			
+			
 			
 			Message sending_;
 			size_type resends_;
 			node_id_t receiver_;
 			bool acknowledged_;
 			sequence_number_t receiving_sequence_number_;
-			
-			event_callback_t event_callback_;
 		
-			typename Radio::self_pointer_t radio_;
-			typename Timer::self_pointer_t timer_;
 	}; // ReliableTransport
 }
 

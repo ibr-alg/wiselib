@@ -59,6 +59,8 @@ namespace wiselib {
 				POS_SEQUENCE_NUMBER = POS_MESSAGE_SUB_ID + sizeof(message_id_t),
 				POS_PAYLOAD_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
 				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(payload_size_t),
+				
+				HEADER_SIZE = POS_PAYLOAD
 			};
 			
 			ReliableTransportMessage() {
@@ -101,9 +103,15 @@ namespace wiselib {
 			block_data_t* payload() {
 				return data_ + POS_PAYLOAD;
 			}
+			
+			block_data_t* data() { return data_; }
+			
+			size_type size() {
+				return HEADER_SIZE + payload_size();
+			}
 		
 		private:
-			block_data_t data_[Radio::MAX_MESSAGE_SIZE];
+			block_data_t data_[Radio::MAX_MESSAGE_LENGTH];
 		
 	}; // ReliableTransportMessage
 }

@@ -49,7 +49,7 @@ using namespace wiselib;
 		typedef wiselib::TupleStore<Os, TupleContainer, NullDictionary<Os>, Os::Debug, 0, &TupleT::compare> TS;
 	#endif
 
-	typedef wiselib::TokenConstruction<Os, Os::Radio, Os::Timer> TC;
+	typedef wiselib::TokenConstruction<Os, TS, Os::Radio, Os::Timer> TC;
 
 
 	#if USE_INQP

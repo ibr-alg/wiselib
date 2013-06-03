@@ -35,6 +35,8 @@ class ExampleApplication {
 			block_data_t* s2 = (block_data_t*)"<http://de.wikipedia.org/wiki/Taumatawhakatangihangakoauauotamateaturipukakapikimaungahoronukupokaiwhenuakitanatahu>";
 			w.write_field(2, s2, strlen((char*)s2));
 			
+			w.write_field(3, s2, strlen((char*)s2));
+			
 			/*
 			s = (block_data_t*)"<http://www.spitfire-project.eu/>";
 			w.write_field(2, s, strlen((char*)s));

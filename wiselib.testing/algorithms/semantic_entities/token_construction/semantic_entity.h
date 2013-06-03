@@ -121,7 +121,6 @@ namespace wiselib {
 				// }}}
 			};
 			
-			
 			/**
 			 */
 			class State {
@@ -632,6 +631,8 @@ namespace wiselib {
 					token_forwards_[n].cancel();
 				}
 			}
+			
+			RingTransport transport_next_
 			
 			/// Timing.
 			

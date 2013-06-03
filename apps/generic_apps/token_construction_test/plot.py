@@ -441,7 +441,7 @@ print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
 print("timings graph...")
 fig_timings()
-fig_forward_timings()
+#fig_forward_timings()
 #print("counts graph...")
 #fig_count_onegraph(r'.*:1\.2')
 
