@@ -10,7 +10,7 @@ typedef wiselib::OSMODEL Os;
 typedef Os::Radio Radio;
 typedef Os::Radio::node_id_t node_id_t;
 
-typedef wiselib::DPS_Radio<Os, Radio, Os::Debug, Os::Timer> DPS_Radio_t;
+typedef wiselib::DPS_Radio<Os, Radio, Os::Debug, Os::Timer, Os::Rand> DPS_Radio_t;
 
 class DPSApp
 {
@@ -25,10 +25,11 @@ public:
 		radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+		rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
 	
 		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
 		
-		DPS_Radio_.init(*radio_, *debug_, *timer_);
+		DPS_Radio_.init(*radio_, *debug_, *timer_, *rand_);
 		DPS_Radio_.enable_radio();
 		
 		//Register
@@ -70,6 +71,7 @@ private:
 	Radio::self_pointer_t radio_;
 	Os::Timer::self_pointer_t timer_;
 	Os::Debug::self_pointer_t debug_;
+	Os::Rand::self_pointer_t rand_;
 };
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, DPSApp> example_app;
