@@ -224,32 +224,6 @@ namespace wiselib
 			//TODO
 		}
 #endif
-		
-		//TODO is this needed this complicated?
-		/**
-		* \brief Set bytes into the transport layer part of the payload
-		* \param data pointer to the first element
-		* \param shift byte shift from the beginning of the payload
-		* \param len the length of the array
-		* The template parameter defines the type of the actual variable
-		* The endianness is handled, the data will be in the array as the little endian way
-		*/
-		template<typename Type_P>
-		inline void set_payload( Type_P* data, int shift = 0, uint16_t len = 1 )
-		{
-			for( uint16_t l = 1; l <= len; l++ )
-			{
-				for( unsigned int i = 0; i < sizeof(Type_P); i++ )
-					if( OsModel::endianness == WISELIB_LITTLE_ENDIAN )
-						buffer[payload_position + shift + sizeof(Type_P) - 1 - i] = *((uint8_t*)data + i);
-					else
-						buffer[payload_position + shift + i] = *((uint8_t*)data + i);
-				
-				//Next element
-				data += 1;
-				shift += sizeof(Type_P);
-			}
-		}
 		///@}
 		
 		///@name Getters

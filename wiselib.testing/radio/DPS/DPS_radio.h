@@ -1,5 +1,4 @@
-/********************************
-*******************************************
+/***************************************************************************
  ** This file is part of the generic algorithm library Wiselib.           **
  ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
  **                                                                       **
@@ -232,6 +231,7 @@ namespace wiselib
 			timer_ = &timer;
 			rand_ = &rand;
 			
+			
 			return SUCCESS;
 		}
 		
@@ -264,15 +264,7 @@ namespace wiselib
 		}
 		///@}
 		
-		/**
-		 * \brief
-		 */
-		int send_connection_message( node_id_t destination, uint8_t type, connection_type* connection );
 		
-		/**
-		 * \brief Function called by the timer in order to send DISCOVERY message
-		 */
-		void send_DISCOVERY( void* iterator );
 		
 		/**
 		 * \brief
@@ -332,6 +324,30 @@ namespace wiselib
 	private:
 		
 		/**
+		* \brief
+		*/
+		int send_connection_message( node_id_t destination, uint8_t type, connection_type* connection );
+		
+		/**
+		* \brief Function called by the timer in order to send DISCOVERY message
+		*/
+		void send_DISCOVERY( void* iterator );
+		
+		/**
+		* \brief Function called by the timer in order to mentain timing in DPS
+		*/
+		void general_periodic_timer( void* );
+		
+		//NOTE: only for TEST
+		void turn_off( void* )
+		{
+			//disable_radio(); is not working for shawn...
+			disabled_ = true;
+		}
+		
+		bool disabled_;
+		
+		/**
 		 * Map for the registered protocols
 		 */
 		Protocol_list_t protocol_list_;
@@ -340,6 +356,7 @@ namespace wiselib
 		 * List for the connections
 		 */
 		Connection_list_t connection_list_;
+		
 		
 		//Stored callback_id for radio
 		uint8_t callback_id_;
@@ -363,6 +380,10 @@ namespace wiselib
 		
 	};
 	
+	/**
+	* Pre-shared DISCOVERY & ADVERTISE key
+	*/
+	const uint8_t DPS_REQUEST_KEY[] ={112,86,44,43,207,145,21,13,37,123,182,70,194,174,152,239};
 	
 	// -----------------------------------------------------------------------
 	// -----------------------------------------------------------------------
@@ -437,7 +458,17 @@ namespace wiselib
 		radio().enable_radio();
 		
 		radio().template reg_recv_callback<self_type, &self_type::receive>( this );
-
+		
+		//Start the periodic timer with an extra 2 sec delay in order to establish initial connections
+		timer().template set_timer<self_type, &self_type::general_periodic_timer>( DPS_GENERAL_TIMER_FREQUENCY + 2000, this, NULL );
+		
+		
+		//NOTE only for TEST
+		disabled_ = false;
+		if( id() == 0 )
+			timer().template set_timer<self_type, &self_type::turn_off>( 8000, this, NULL );
+		
+		
 		return SUCCESS;
 	}
 	
@@ -472,6 +503,11 @@ namespace wiselib
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
 	send_connection_message( node_id_t destination, uint8_t type, connection_type* connection )
 	{
+		
+		//NOTE only for TEST
+		if( disabled_ )
+			return ERR_UNSPEC;
+		
 		//Create a packet, no fragmentation
 		DPS_Packet_t packet( type, false );
 		block_data_t* payload=packet.get_payload();
@@ -512,6 +548,18 @@ namespace wiselib
 			bitwise_write<OsModel, block_data_t, uint32_t>( payload, dummy, 0, 32 );
 			packet.length += 4;
 		}
+		else if( type == DPS_Packet_t::DPS_TYPE_HARTBEAT )
+		{
+			if( protocol_list_.find(connection->Pid)->second.server )
+			{
+				packet.set_counter( connection->server_counter );
+				connection->server_counter++;
+			}
+			else
+			{
+				connection->client_counter++;
+			}
+		}
 		else
 		{
 			#ifdef DPS_RADIO_DEBUG
@@ -519,16 +567,15 @@ namespace wiselib
 			#endif
 		}
 		
-		
 		//TODO add the checksum
 		
 		#ifdef DPS_RADIO_DEBUG
-		debug().debug( "DPS: send %x from %llx to %llx", type, (long long unsigned)(radio().id()), (long long unsigned)(destination));
+		debug().debug( "DPS: send from %llx to %llx, packet type: %i", (long long unsigned)(radio().id()), (long long unsigned)(destination), type);
 		#endif
 		
 // 		packet.set_debug( *debug_ );
 // 		packet.print_header();
-		
+
 		radio().send( destination, packet.length, packet.buffer );
 		
 		return SUCCESS;
@@ -634,7 +681,8 @@ namespace wiselib
 			//Search for the used connection
 			for( Connection_list_iterator it = connection_list_.begin(); it != connection_list_.end(); ++it )
 			{
-				if( it->Pid == packet.pid() && it->partner_MAC == from )
+				if( ( it->Pid == packet.pid() ) && ( it->partner_MAC == from ) && 
+					( it->client_counter == packet.counter() ) && ( it->connection_status != connection_type::CONNECTED ) )
 				{
 					//Reset the timer for the connection
 					it->elapsed_time = 0;
@@ -673,11 +721,43 @@ namespace wiselib
 					{
 						connection_list_.erase( it );
 					}
+					return;
 				}
 			}
+			
+			#ifdef DPS_RADIO_DEBUG
+			debug().debug( "DPS: Error, (%llx) received connection message from %llx without matching conn. entry!", (long long unsigned)(radio().id()), (long long unsigned)(from));
+			#endif
+		}
+		else if( packet.type() == DPS_Packet_t::DPS_TYPE_HARTBEAT )
+		{
+			for( Connection_list_iterator it = connection_list_.begin(); it != connection_list_.end(); ++it )
+			{
+				if( ( it->Pid == packet.pid() ) && ( it->partner_MAC == from ) )
+				{
+					//Server side, check for the counter against replay attack
+					if( ( it->client_counter == packet.counter() ) && ( protocol_list_.find(packet.pid())->second.server ) )
+					{
+						it->elapsed_time = 0;
+						it->client_counter++;
+						return;
+					}
+					//Client side, check for the counter against replay attack
+					else if( ( it->server_counter == packet.counter() ) && !( protocol_list_.find(packet.pid())->second.server ) )
+					{
+						it->elapsed_time = 0;
+						it->server_counter++;
+						return;
+					}
+				}
+			}
+			#ifdef DPS_RADIO_DEBUG
+			debug().debug( "DPS: Error, (%llx) received hartbeat from %llx without matching conn. entry! C: %llx", (long long unsigned)(radio().id()), (long long unsigned)(from), (long long unsigned)(packet.counter()));
+			#endif
 		}
 		else
 		{
+			//TODO process RPC messages here
 		}
 	}
 	
@@ -701,6 +781,79 @@ namespace wiselib
 			conn->elapsed_time += DPS_TIMER_DISCOVERY_FREQUENCY;
 			timer().template set_timer<self_type, &self_type::send_DISCOVERY>( DPS_TIMER_DISCOVERY_FREQUENCY, this, conn );
 		}
+	}
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Rand_P>
+	void
+	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
+	general_periodic_timer( void* )
+	{
+		for( Connection_list_iterator it = connection_list_.begin(); it != connection_list_.end(); ++it )
+		{
+			it->elapsed_time += DPS_GENERAL_TIMER_FREQUENCY;
+			
+			//CONNECTED and ( HARTBEAT_TIMEOUT <= elapsed_time < DELETE_TIMEOUT )
+			if(( it->connection_status == connection_type::CONNECTED )
+				&& ( it->elapsed_time >= DPS_HARTBEAT_THRESHOLD ) && (it->elapsed_time < DPS_DELETE_CONNECTION_THRESHOLD))
+			{
+				send_connection_message( it->partner_MAC, DPS_Packet_t::DPS_TYPE_HARTBEAT, &(*it));
+				continue;
+			}
+			
+			//For the server (these states are possible only for the server)
+			//(ADVERTISE_SENT || ALLOW_SENT) && elapsed_time >= CONNECT_TIMEOUT
+			//(CONNECTED)                    && elapsed_time >= DELETE_TIMEOUT
+			if( (protocol_list_.find(it->Pid)->second.server) )
+			{
+				if( (((it->connection_status == connection_type::ADVERTISE_SENT) || (it->connection_status == connection_type::ALLOW_SENT)) 
+							&& (it->elapsed_time >= DPS_CONNECT_TIMEOUT) ) ||
+				    (( it->connection_status == connection_type::CONNECTED ) 
+							&& (it->elapsed_time >= DPS_DELETE_CONNECTION_THRESHOLD) ))
+				{
+					#ifdef DPS_RADIO_DEBUG
+					debug().debug( "DPS: remove client at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
+					#endif
+					
+					connection_list_.erase( it );
+					
+					//Break the loop if this was the only element
+					if( connection_list_.size() == 0 )
+						break;
+				}
+			}
+			//For the client (these states are possible only for the client)
+			//(CONNECT_SENT) && elapsed_time >= CONNECT_TIMEOUT
+			//(CONNECTED)    && elapsed_time >= DELETE_TIMEOUT
+			//The SENDING_DISCOVERY state is handled by another timer&function
+			else
+			{
+				if((( it->connection_status == connection_type::CONNECT_SENT )
+						&& (it->elapsed_time >= DPS_CONNECT_TIMEOUT) ) ||
+				  (( it->connection_status == connection_type::CONNECTED )
+						&& (it->elapsed_time >= DPS_DELETE_CONNECTION_THRESHOLD) ))
+				{
+					#ifdef DPS_RADIO_DEBUG
+					debug().debug( "DPS: reDISCOVERY at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
+					#endif
+					
+					it->connection_status = connection_type::SENDING_DISCOVERY;
+					it->client_counter = rand()() % (0xFFFFFFFF);
+					it->server_counter = 0;
+					it->partner_MAC = Radio::NULL_NODE_ID;
+					it->connection_nonce = 0;
+					
+					timer().template set_timer<self_type, &self_type::send_DISCOVERY>( DPS_TIMER_DISCOVERY_FREQUENCY, this, (void*)(&(*it)) );
+				}
+			}
+			
+		}
+		
+		timer().template set_timer<self_type, &self_type::general_periodic_timer>( DPS_GENERAL_TIMER_FREQUENCY, this, NULL );
 	}
 	
 }

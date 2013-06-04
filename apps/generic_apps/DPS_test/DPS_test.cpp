@@ -34,7 +34,7 @@ public:
 		
 		//Register
 		
-		if( radio_->id() == 0x0 )
+		if( radio_->id() == 0x0 || radio_->id() == 0x2 )
 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, true );
 		else if( radio_->id() == 0x1 )
 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, false );
