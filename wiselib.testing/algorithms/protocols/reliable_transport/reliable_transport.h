@@ -96,7 +96,8 @@ namespace wiselib {
 						remote_address_ = remote_address;
 						produce_ = p;
 						consume_ = c;
-						sequence_number_ = 0;
+						sending_sequence_number_ = 0;
+						receiving_sequence_number_ = 0;
 						channel_id_ = channel;
 						wants_send_ = false;
 						wants_close_ = false;
@@ -107,8 +108,10 @@ namespace wiselib {
 						consume_ = consume_callback_t();
 					}
 					
-					sequence_number_t sequence_number() { return sequence_number_; }
-					void increase_sequence_number() { sequence_number_++; }
+					sequence_number_t sending_sequence_number() { return sending_sequence_number_; }
+					void increase_sending_sequence_number() { sending_sequence_number_++; }
+					sequence_number_t receiving_sequence_number() { return receiving_sequence_number_; }
+					void increase_receiving_sequence_number() { receiving_sequence_number_++; }
 					
 					const ChannelId& channel() { return channel_id_; }
 					
@@ -136,7 +139,8 @@ namespace wiselib {
 					node_id_t remote_address_;
 					produce_callback_t produce_;
 					consume_callback_t consume_;
-					sequence_number_t sequence_number_;
+					sequence_number_t sending_sequence_number_;
+					sequence_number_t receiving_sequence_number_;
 					
 					ChannelId channel_id_;
 					//bool active_;
@@ -186,6 +190,7 @@ namespace wiselib {
 			int request_send(const ChannelId& channel) {
 				size_type idx = find_or_create_endpoint(channel);
 				if(idx == npos) {
+					DBG("request send: channel not found");
 					return ERR_UNSPEC;
 				}
 				else {
@@ -246,13 +251,19 @@ namespace wiselib {
 			/// @{{{ Sending.
 			
 			void check_send() {
-				if(is_sending_) { return; }
+				if(is_sending_) {
+					DBG("check send: alreday sending");
+					return;
+				}
 				if(switch_sending_endpoint()) {
 					sending_.set_subtype(Message::SUBTYPE_DATA);
 					sending_.set_channel(sending_endpoint().channel());
-					sending_.set_sequence_number(sending_endpoint().sequence_number());
+					sending_.set_sequence_number(sending_endpoint().sending_sequence_number());
 					sending_.set_payload_size(sending_endpoint().produce(sending_.payload(), MAX_MESSAGE_LENGTH));
 					try_send();
+				}
+				else {
+					DBG("check send: no sending endpoint found");
 				}
 			}
 			
@@ -260,9 +271,9 @@ namespace wiselib {
 			 * When receiving ack, schedule next send.
 			 */
 			void on_receive_ack(const ChannelId& channel, sequence_number_t seqnr) {
-				if(channel == sending_endpoint().channel() && seqnr == sending_endpoint().sequence_number()) {
+				if(channel == sending_endpoint().channel() && seqnr == sending_endpoint().sending_sequence_number()) {
 					ack_timer_++; // invalidate running ack timer
-					sending_endpoint().increase_sequence_number();
+					sending_endpoint().increase_sending_sequence_number();
 					is_sending_ = false;
 					check_send();
 				}
@@ -270,7 +281,7 @@ namespace wiselib {
 					DBG("ignoring ack. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d",
 							sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
 							channel.rule(), channel.value(),
-							sending_endpoint().sequence_number(), seqnr);
+							sending_endpoint().sending_sequence_number(), seqnr);
 					// ignore ack for wrong channel
 				}
 			}
@@ -279,12 +290,20 @@ namespace wiselib {
 			 * Try sending the current buffer contents
 			 */
 			void try_send() {
+				DBG("try send");
 				if(!is_sending_) {
+					DBG("try send: is not sending");
 					return;
 				}
+				
 				sending_endpoint().comply_send();
 				resends_ = 0;
-				try_send(0);
+				if(sending_.size()) {
+					try_send(0);
+				}
+				else {
+					is_sending_ = false;
+				}
 			}
 			
 			/// ditto.
@@ -308,6 +327,8 @@ namespace wiselib {
 					DBG("ack_timeout resends=%d ack timer %d", resends_, ack_timer_);
 					if(resends_ >= MAX_RESENDS) {
 						sending_endpoint().abort_send();
+						is_sending_ = false;
+						check_send();
 					}
 					else {
 						try_send(0);
@@ -325,7 +346,10 @@ namespace wiselib {
 					return;
 				}
 				
-				endpoints_[idx].consume(buffer, len);
+				if(seqnr == endpoints_[idx].receiving_sequence_number()) {
+					endpoints_[idx].consume(buffer, len);
+					endpoints_[idx].increase_receiving_sequence_number();
+				}
 			}
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
