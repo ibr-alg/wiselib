@@ -52,17 +52,15 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::size_t size_t;
 			typedef ChannelId_P ChannelId;
-			typedef ChannelId node_id_t;
 			
 			typedef Radio_P Radio;
-			//typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
 			typedef Timer_P Timer;
 			
-			typedef ReliableTransportMessage<OsModel, Radio> Message;
+			typedef ReliableTransportMessage<OsModel, ChannelId, Radio> Message;
 			typedef typename Message::sequence_number_t sequence_number_t;
 			
-			//typedef delegate1<void, ::uint8_t> event_callback_t;
 			typedef delegate2<size_type, block_data_t*, size_type> produce_callback_t;
 			typedef delegate2<void, block_data_t*, size_type> consume_callback_t;
 			
@@ -73,7 +71,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 200, MAX_RESENDS = 5
+				RESEND_TIMEOUT = 2000, MAX_RESENDS = 5
 			};
 			
 			enum Events {
@@ -92,21 +90,59 @@ namespace wiselib {
 			
 		private:
 			class Endpoint {
+				// {{{
 				public:
-					void init(produce_callback_t p, consume_callback_t c) {
+					void init(node_id_t remote_address, const ChannelId& channel, produce_callback_t p, consume_callback_t c) {
+						remote_address_ = remote_address;
 						produce_ = p;
 						consume_ = c;
-						sending_ = false;
+						sequence_number_ = 0;
+						channel_id_ = channel;
+						wants_send_ = false;
+						wants_close_ = false;
+					}
+					
+					void destruct() {
+						produce_ = produce_callback_t();
+						consume_ = consume_callback_t();
+					}
+					
+					sequence_number_t sequence_number() { return sequence_number_; }
+					void increase_sequence_number() { sequence_number_++; }
+					
+					const ChannelId& channel() { return channel_id_; }
+					
+					size_type produce(block_data_t* data, size_type len) {
+						return produce_(data, len);
+					}
+					
+					void consume(block_data_t* data, size_type len) {
+						consume_(data, len);
+					}
+					
+					void abort_send() {
+						produce_(0, 0);
 					}
 					
 					bool used() { return produce_ || consume_; }
+					bool wants_close() { return wants_close_; }
+					bool wants_send() { return wants_send_; }
+					void request_send() { wants_send_ = true; }
+					void comply_send() { wants_send_ = false; }
+					
+					node_id_t remote_address() { return remote_address_; }
 				
 				private:
-					ChannelId channel_id_;
+					node_id_t remote_address_;
 					produce_callback_t produce_;
 					consume_callback_t consume_;
+					sequence_number_t sequence_number_;
+					
+					ChannelId channel_id_;
 					//bool active_;
-					bool want_send_;
+					bool wants_send_;
+					bool wants_close_;
+				// }}}
 			};
 			
 			//typedef MapStaticVector<OsModel, ChannelId, Endpoint, 8> Endpoints;
@@ -118,9 +154,14 @@ namespace wiselib {
 				radio_ = radio;
 				timer_ = timer;
 				sending_channel_idx_ = 0;
+				is_sending_ = false;
 				
-				receiving_sequence_number_ = 0;
+				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				return SUCCESS;
+			}
+			
+			int id() {
+				return radio_->id();
 			}
 			
 			int enable_radio() {
@@ -131,13 +172,13 @@ namespace wiselib {
 				return radio_->disable_radio();
 			}
 			
-			int register_endpoint(const ChannelId& channel, produce_callback_t produce, consume_callback_t consume) {
+			int register_endpoint(node_id_t addr, const ChannelId& channel, produce_callback_t produce, consume_callback_t consume) {
 				size_type idx = find_or_create_endpoint(channel);
 				if(idx == npos) {
 					return ERR_UNSPEC;
 				}
 				else {
-					endpoints_[idx].init(produce, consume);
+					endpoints_[idx].init(addr, channel, produce, consume);
 					return SUCCESS;
 				}
 			}
@@ -149,7 +190,13 @@ namespace wiselib {
 				}
 				else {
 					endpoints_[idx].request_send();
+					check_send();
+					//if(!is_sending_) {
+						//switch_sending_endpoint();
+						//try_send();
+					//}
 				}
+				return SUCCESS;
 			}
 			
 		
@@ -172,46 +219,107 @@ namespace wiselib {
 			/**
 			 * Switch to next channel for sending.
 			 */
-			void switch_channels() {
+			bool switch_sending_endpoint() {
 				size_type ole = sending_channel_idx_;
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
-					if(endpoints_[sending_channel_idx_].used()) {
-						sending_ = true;
+					if(sending_endpoint().used() && sending_endpoint().wants_close()) {
+						sending_endpoint().destruct();
+					}
+					if(sending_endpoint().used() && sending_endpoint().wants_send()) {
+						is_sending_ = true;
 						return true;
 					}
 				}
-				for(sending_channel_idx_ = 0; sending_channel_idx_ < ole; sending_channel_idx_++) {
-					if(endpoints_[sending_channel_idx_].used()) {
-						sending_ = true;
+				for(sending_channel_idx_ = 0; sending_channel_idx_ <= ole; sending_channel_idx_++) {
+					if(sending_endpoint().used() && sending_endpoint().wants_close()) {
+						sending_endpoint().destruct();
+					}
+					if(sending_endpoint().used() && sending_endpoint().wants_send()) {
+						is_sending_ = true;
 						return true;
 					}
 				}
-				sending_ = false;
+				is_sending_ = false;
 				return false;
 			}
 			
-			/// Sending.
+			/// @{{{ Sending.
 			
-			void on_receive_ack(const ChannelId& channel) {
-				if(channel == sending_endpoint().channel()) {
-					bool s;
-					do {
-						if(!switch_channels()) {
-							buffer_size_ = 0;
-							break;
-						}
-						buffer_size_ = sending_endpoint().produce(buffer_, MAX_MESSAGE_LENGTH);
-						if(!buffer_size_) { sending_endpoint().destruct(); }
-					} while(!buffer_size_);
+			void check_send() {
+				if(is_sending_) { return; }
+				if(switch_sending_endpoint()) {
+					sending_.set_subtype(Message::SUBTYPE_DATA);
+					sending_.set_channel(sending_endpoint().channel());
+					sending_.set_sequence_number(sending_endpoint().sequence_number());
+					sending_.set_payload_size(sending_endpoint().produce(sending_.payload(), MAX_MESSAGE_LENGTH));
+					try_send();
+				}
+			}
+			
+			/**
+			 * When receiving ack, schedule next send.
+			 */
+			void on_receive_ack(const ChannelId& channel, sequence_number_t seqnr) {
+				if(channel == sending_endpoint().channel() && seqnr == sending_endpoint().sequence_number()) {
+					ack_timer_++; // invalidate running ack timer
+					sending_endpoint().increase_sequence_number();
+					is_sending_ = false;
+					check_send();
 				}
 				else {
+					DBG("ignoring ack. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d",
+							sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
+							channel.rule(), channel.value(),
+							sending_endpoint().sequence_number(), seqnr);
 					// ignore ack for wrong channel
 				}
 			}
 			
-			/// Receiving.
+			/**
+			 * Try sending the current buffer contents
+			 */
+			void try_send() {
+				if(!is_sending_) {
+					return;
+				}
+				sending_endpoint().comply_send();
+				resends_ = 0;
+				try_send(0);
+			}
 			
-			void on_receive_data(const ChannelId& channel, block_data_t* buffer, size_type len) {
+			/// ditto.
+			void try_send(void *) {
+				if(!is_sending_) {
+					return;
+				}
+				
+				radio_->send(sending_endpoint().remote_address(), sending_.size(), sending_.data());
+				resends_++;
+				//ack_timeout_channel_ = sending_endpoint().channel();
+				//ack_timeout_sequence_number_ = sending_endpoint().sequence_number();
+				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, (void*)ack_timer_);
+			}
+			
+			void ack_timeout(void *ack_timer) {
+				//if(is_sending_ && sending_endpoint().used() && sending_endpoint().channel() == ack_timeout_channel_ &&
+						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
+					
+				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
+					DBG("ack_timeout resends=%d ack timer %d", resends_, ack_timer_);
+					if(resends_ >= MAX_RESENDS) {
+						sending_endpoint().abort_send();
+					}
+					else {
+						try_send(0);
+					}
+				}
+			}
+			
+			/// @}}}
+			
+			/// @{{{ Receiving.
+			
+			void on_receive_data(const ChannelId& channel, sequence_number_t seqnr, block_data_t* buffer, size_type len) {
 				size_type idx = find_or_create_endpoint(channel, false);
 				if(idx == npos) {
 					return;
@@ -220,148 +328,49 @@ namespace wiselib {
 				endpoints_[idx].consume(buffer, len);
 			}
 			
-			size_type sending_channel_idx_;
-			Endpoints endpoints_;
-			block_data_t buffer_[MAX_MESSAGE_LENGTH];
-			size_type buffer_size_;
-			
-			
-		
-		
-		// -----	
-			/**
-			 * Open connection to specified node.
-			 */
-			int open(node_id_t receiver) {
-				receiver_ = receiver;
-				sending_.set_subtype(Message::SUBTYPE_OPEN);
-				sending_.set_sequence_number(0);
-				sending_.set_payload(0, 0);
-				
-				send_acked(true);
-				return SUCCESS;
-			}
-			
-			int close() {
-				// TODO
-				sending_.set_subtype(Message::SUBTYPE_CLOSE);
-				sending_.set_payload(0, 0);
-				return SUCCESS;
-			}
-			
-			
-			
-			/**
-			 * Send a message to the receiver specified in open()
-			 * (the node id that is first parameter here will be ignored).
-			 * DO NOT call this repeatedly without waiting for the sent
-			 * callback to be triggered!
-			 */
-			//int send(node_id_t _, size_t len, block_data_t *data) {
-				//sending_.set_subtype(Message::SUBTYPE_DATA);
-				//sending_.set_payload(len, data);
-				//return SUCCESS;
-			//}
-			
-			//int reg_event_callback(event_callback_t event_callback) {
-				//event_callback_ = event_callback;
-				//return SUCCESS;
-			//}
-			
-			int id() {
-				return radio_->id();
-			}
-			
-			/*
-			template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
-			int reg_recv_callback(T *obj_pnt) {
-				// TODO
-			}
-			
-			int unreg_recv_callback(int idx) {
-				// TODO
-			}
-			*/
-		
-		private:
-			
-			void send_acked(bool first) {
-				acknowledged_ = false;
-				if(first) { resends_ = 0; }
-				else { resends_++; }
-				
-				radio_->send(receiver_, sending_.size(), sending_.data());
-				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(RESEND_TIMEOUT, this, 0);
-			}
-			
-			void on_ack_timeout(void*) {
-				if(resends_ >= MAX_RESENDS) {
-					if(event_callback_) {
-						event_callback_(ABORT_SEND);
-					}
-				}
-				else {
-					send_acked(false);
-				}
-			}
-			
-			void on_receive(node_id_t from, size_t len, block_data_t* data) {
+			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				Message &msg = *reinterpret_cast<Message*>(data);
-				if(msg.type() != Message::MESSAGE_TYPE) { return; }
+				if(msg.type() != Message::MESSAGE_TYPE) {
+					return;
+				}
 				
 				switch(msg.subtype()) {
-					case Message::SUBTYPE_OPEN:
-						if(msg.sequence_number() != receiving_sequence_number_) { return; }
-						if(event_callback_) { event_callback_(OPEN_RECEIVE); }
-						send_ack(from);
-						break;
-						
 					case Message::SUBTYPE_DATA:
-						if(msg.sequence_number() != receiving_sequence_number_) { return; }
-						send_ack(from);
-						notify_receivers(from, msg.payload_size(), msg.payload());
+						// TODO: for each channel track the receiving sequence
+						// number (in addition to sending sequence number), discard messages with wrong seqnr
+						on_receive_data(msg.channel(), msg.sequence_number(), msg.payload(), msg.payload_size());
+						send_ack(from, msg);
 						break;
-						
 					case Message::SUBTYPE_ACK:
-						if(msg.sequence_number() != sending_.sequence_number()) { return; }
-						on_ack();
+						on_receive_ack(msg.channel(), msg.sequence_number());
 						break;
-						
-					case Message::SUBTYPE_CLOSE:
+					default:
+						DBG("wrong subtype %d", msg.subtype());
 						break;
 				}
-			}
-				
-			void send_ack(node_id_t from) {
-				Message ack;
-				ack.set_subtype(Message::SUBTYPE_ACK);
-				ack.set_payload(0, 0);
-				ack.set_sequence_number(receiving_sequence_number_);
-				radio_->send(from, ack.size(), ack.data());
-				++receiving_sequence_number_;
 			}
 			
-			void on_ack() {
-				sending_.increase_sequence_number();
-				acknowledged_ = true;
-				if(event_callback_) {
-					event_callback_(ACKNOWLEDGE_SEND);
-				}
+			void send_ack(node_id_t to, Message& msg) {
+				msg.set_payload(0, 0);
+				msg.set_subtype(Message::SUBTYPE_ACK);
+				msg.set_channel(msg.channel());
+				radio_->send(to, msg.size(), msg.data());
 			}
+			
+			/// @}}}
 			
 			typename Radio::self_pointer_t radio_;
 			typename Timer::self_pointer_t timer_;
 			
-			Endpoints active_endpoints_;
-			Endpoints passive_endpoints_;
-			
-			
-			
+			Endpoints endpoints_;
 			Message sending_;
+			
+			ChannelId ack_timeout_channel_;
+			size_type sending_channel_idx_;
+			size_type ack_timer_;
 			size_type resends_;
-			node_id_t receiver_;
-			bool acknowledged_;
-			sequence_number_t receiving_sequence_number_;
+			sequence_number_t ack_timeout_sequence_number_;
+			bool is_sending_;
 		
 	}; // ReliableTransport
 }

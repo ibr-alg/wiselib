@@ -34,6 +34,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename ChannelId_P,
 		typename Radio_P
 	>
 	class ReliableTransportMessage {
@@ -42,6 +43,7 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef ChannelId_P ChannelId;
 			typedef ::uint16_t sequence_number_t;
 			typedef Radio_P Radio;
 			typedef typename Radio::message_id_t message_id_t;
@@ -56,7 +58,8 @@ namespace wiselib {
 			enum {
 				POS_MESSAGE_ID = 0,
 				POS_MESSAGE_SUB_ID = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_SEQUENCE_NUMBER = POS_MESSAGE_SUB_ID + sizeof(message_id_t),
+				POS_CHANNEL_ID = POS_MESSAGE_SUB_ID + sizeof(message_id_t),
+				POS_SEQUENCE_NUMBER = POS_CHANNEL_ID + sizeof(ChannelId),
 				POS_PAYLOAD_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
 				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(payload_size_t),
 				
@@ -83,6 +86,14 @@ namespace wiselib {
 				wiselib::write<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_SUB_ID, id);
 			}
 			
+			ChannelId channel() {
+				return wiselib::read<OsModel, block_data_t, ChannelId>(data_ + POS_CHANNEL_ID);
+			}
+			
+			void set_channel(const ChannelId& c) {
+				wiselib::write<OsModel, block_data_t, const ChannelId&>(data_ + POS_CHANNEL_ID, c);
+			}
+			
 			sequence_number_t sequence_number() {
 				return wiselib::read<OsModel, block_data_t, sequence_number_t>(data_ + POS_SEQUENCE_NUMBER);
 			}
@@ -98,6 +109,10 @@ namespace wiselib {
 			
 			payload_size_t payload_size() {
 				return wiselib::read<OsModel, block_data_t, payload_size_t>(data_ + POS_PAYLOAD_SIZE);
+			}
+			
+			void set_payload_size(payload_size_t p) {
+				wiselib::write<OsModel, block_data_t, payload_size_t>(data_ + POS_PAYLOAD_SIZE, p);
 			}
 			
 			block_data_t* payload() {
