@@ -203,6 +203,15 @@ namespace wiselib
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), scl().get_bytes_received_0(), scl().get_bytes_received_6(), scl().get_bytes_received_12(), scl().get_bytes_received_18(), scl().get_bytes_received_24(), scl().get_bytes_received_30(), scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+					debug().debug("TT_PER_OUT:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_send_0, periodic_bytes_send_6, periodic_bytes_send_12, periodic_bytes_send_18, periodic_bytes_send_24, periodic_bytes_send_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef DEBUG_ATP_H_STATS_SHAWN
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12(, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
 #endif
 #ifdef DEBUG_ATP_H_ATP_SERVICE
 					debug().debug("MILLIS:%d:%d:%d\n", convergence_time,  monitoring_phases,  convergence_time/monitoring_phases);
@@ -289,6 +298,15 @@ namespace wiselib
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), scl().get_bytes_received_0(), scl().get_bytes_received_6(), scl().get_bytes_received_12(), scl().get_bytes_received_18(), scl().get_bytes_received_24(), scl().get_bytes_received_30(), scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+					debug().debug("TT_PER_OUT:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_send_0, periodic_bytes_send_6, periodic_bytes_send_12, periodic_bytes_send_18, periodic_bytes_send_24, periodic_bytes_send_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef DEBUG_ATP_H_STATS_SHAWN
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12(, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
 #ifdef CONFIG_ATP_SIMPLE_SCLD
 				if (	( nd_active_size < SCLD_MIN_threshold )
@@ -475,6 +493,18 @@ namespace wiselib
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), scl().get_bytes_received_0(), scl().get_bytes_received_6(), scl().get_bytes_received_12(), scl().get_bytes_received_18(), scl().get_bytes_received_24(), scl().get_bytes_received_30(), scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef DEBUG_ATP_H_STATS_SHAWN
+					debug().debug("TT_PER_OUT:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_send_0, periodic_bytes_send_6, periodic_bytes_send_12, periodic_bytes_send_18, periodic_bytes_send_24, periodic_bytes_send_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+					debug().debug("TT_PER_OUT:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_send_0, periodic_bytes_send_6, periodic_bytes_send_12, periodic_bytes_send_18, periodic_bytes_send_24, periodic_bytes_send_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef DEBUG_ATP_H_STATS_SHAWN
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12(, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
+#endif
+#ifdef	DEBUG_ATP_H_STATS_ISENSE
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
 #ifdef CONFIG_ATP_SIMPLE_SCLD
 				if ( ( nd_active_size < SCLD_MIN_threshold )
