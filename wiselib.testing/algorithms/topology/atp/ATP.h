@@ -235,18 +235,20 @@ namespace wiselib
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
 				periodic_bytes_received = scl().get_bytes_received() - periodic_bytes_received;
 				periodic_bytes_send = scl().get_bytes_send() - periodic_bytes_send;
-				periodic_bytes_received_0 = scl().get_bytes_received_0()- periodic_bytes_received_0;
-				periodic_bytes_send_0 = scl().get_bytes_send_0() - periodic_bytes_send_0;
-				periodic_bytes_received_6 = scl().get_bytes_received_6() - periodic_bytes_received_6;
-				periodic_bytes_send_6 = scl().get_bytes_send_6() - periodic_bytes_send_6;
-				periodic_bytes_received_12 = scl().get_bytes_received_12() - periodic_bytes_received_12;
-				periodic_bytes_send_12 = scl().get_bytes_send_12() - periodic_bytes_send_12;
-				periodic_bytes_received_18 = scl().get_bytes_received_18() - periodic_bytes_received_18;
-				periodic_bytes_send_18 = scl().get_bytes_send_18() - periodic_bytes_send_18;
-				periodic_bytes_received_24 = scl().get_bytes_received_24() - periodic_bytes_received_24;
-				periodic_bytes_send_24 = scl().get_bytes_send_24() - periodic_bytes_send_24;
-				periodic_bytes_received_30 = scl().get_bytes_received_30() - periodic_bytes_received_30;
-				periodic_bytes_send_30 = scl().get_bytes_send_30() - periodic_bytes_send_30;
+
+				periodic_bytes_received_0 = scl().get_bytes_received_0() + periodic_bytes_received_0;
+				periodic_bytes_send_0 = scl().get_bytes_send_0() + periodic_bytes_send_0;
+				periodic_bytes_received_6 = scl().get_bytes_received_6() + periodic_bytes_received_6;
+				periodic_bytes_send_6 = scl().get_bytes_send_6() + periodic_bytes_send_6;
+				periodic_bytes_received_12 = scl().get_bytes_received_12() + periodic_bytes_received_12;
+				periodic_bytes_send_12 = scl().get_bytes_send_12() + periodic_bytes_send_12;
+				periodic_bytes_received_18 = scl().get_bytes_received_18() + periodic_bytes_received_18;
+				periodic_bytes_send_18 = scl().get_bytes_send_18() + periodic_bytes_send_18;
+				periodic_bytes_received_24 = scl().get_bytes_received_24() + periodic_bytes_received_24;
+				periodic_bytes_send_24 = scl().get_bytes_send_24() + periodic_bytes_send_24;
+				periodic_bytes_received_30 = scl().get_bytes_received_30() + periodic_bytes_received_30;
+				periodic_bytes_send_30 = scl().get_bytes_send_30() + periodic_bytes_send_30;
+
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 				transmission_power_status.push( transmission_power_dB );
 				SCLD_status.push( nd_active_size );
@@ -406,17 +408,29 @@ namespace wiselib
 #endif
 				prot_ref->print( debug(), radio(), monitoring_phase_counter );
 				monitoring_phase_counter = monitoring_phase_counter + 1;
+
+				scl().set_bytes_send_0( 0 );
+				scl().set_bytes_send_6( 0 );
+				scl().set_bytes_send_12( 0 );
+				scl().set_bytes_send_18( 0 );
+				scl().set_bytes_send_24( 0 );
+				scl().set_bytes_send_30( 0 );
+				scl().set_bytes_received_0( 0 );
+				scl().set_bytes_received_6( 0 );
+				scl().set_bytes_received_12( 0 );
+				scl().set_bytes_received_18( 0 );
+				scl().set_bytes_received_24( 0 );
+				scl().set_bytes_received_30( 0 );
+
 				if ( monitoring_phase_counter <= monitoring_phases_transmission_power )
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_transmission_power> ( ATP_sevice_transmission_power_period, this, 0 );
 				}
-#ifdef CONFIG_ATP_H_DISABLE_SCL
 				else
 				{
 					SCLD = nd_active_size;
-					ATP_service_throughput();
+					timer().template set_timer<self_type, &self_type::ATP_service_throughput> ( ATP_sevice_throughput_period, this, 0 );
 				}
-#endif
 			}
 		}
 		// -----------------------------------------------------------------------
@@ -433,18 +447,23 @@ namespace wiselib
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
 				periodic_bytes_received = scl().get_bytes_received() - periodic_bytes_received;
 				periodic_bytes_send = scl().get_bytes_send() - periodic_bytes_send;
-				periodic_bytes_received_0 = scl().get_bytes_received_0()- periodic_bytes_received_0;
-				periodic_bytes_send_0 = scl().get_bytes_send_0() - periodic_bytes_send_0;
-				periodic_bytes_received_6 = scl().get_bytes_received_6() - periodic_bytes_received_6;
-				periodic_bytes_send_6 = scl().get_bytes_send_6() - periodic_bytes_send_6;
-				periodic_bytes_received_12 = scl().get_bytes_received_12() - periodic_bytes_received_12;
-				periodic_bytes_send_12 = scl().get_bytes_send_12() - periodic_bytes_send_12;
-				periodic_bytes_received_18 = scl().get_bytes_received_18() - periodic_bytes_received_18;
-				periodic_bytes_send_18 = scl().get_bytes_send_18() - periodic_bytes_send_18;
-				periodic_bytes_received_24 = scl().get_bytes_received_24() - periodic_bytes_received_24;
-				periodic_bytes_send_24 = scl().get_bytes_send_24() - periodic_bytes_send_24;
-				periodic_bytes_received_30 = scl().get_bytes_received_30() - periodic_bytes_received_30;
-				periodic_bytes_send_30 = scl().get_bytes_send_30() - periodic_bytes_send_30;
+				periodic_bytes_received_0 = scl().get_bytes_received_0() + periodic_bytes_received_0;
+				periodic_bytes_send_0 = scl().get_bytes_send_0() + periodic_bytes_send_0;
+
+				periodic_bytes_received_0 = scl().get_bytes_received_0() + periodic_bytes_received_0;
+				periodic_bytes_send_0 = scl().get_bytes_send_0() + periodic_bytes_send_0;
+				periodic_bytes_received_6 = scl().get_bytes_received_6() + periodic_bytes_received_6;
+				periodic_bytes_send_6 = scl().get_bytes_send_6() + periodic_bytes_send_6;
+				periodic_bytes_received_12 = scl().get_bytes_received_12() + periodic_bytes_received_12;
+				periodic_bytes_send_12 = scl().get_bytes_send_12() + periodic_bytes_send_12;
+				periodic_bytes_received_18 = scl().get_bytes_received_18() + periodic_bytes_received_18;
+				periodic_bytes_send_18 = scl().get_bytes_send_18() + periodic_bytes_send_18;
+				periodic_bytes_received_24 = scl().get_bytes_received_24() + periodic_bytes_received_24;
+				periodic_bytes_send_24 = scl().get_bytes_send_24() + periodic_bytes_send_24;
+				periodic_bytes_received_30 = scl().get_bytes_received_30() + periodic_bytes_received_30;
+				periodic_bytes_send_30 = scl().get_bytes_send_30() + periodic_bytes_send_30;
+
+
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 				throughput_status.push( beacon_period );
 				SCLD_status.push( nd_active_size );
@@ -604,6 +623,20 @@ namespace wiselib
 #endif
 				prot_ref->print( debug(), radio(), monitoring_phase_counter );
 				monitoring_phase_counter = monitoring_phase_counter + 1;
+
+				scl().set_bytes_send_0( 0 );
+				scl().set_bytes_send_6( 0 );
+				scl().set_bytes_send_12( 0 );
+				scl().set_bytes_send_18( 0 );
+				scl().set_bytes_send_24( 0 );
+				scl().set_bytes_send_30( 0 );
+				scl().set_bytes_received_0( 0 );
+				scl().set_bytes_received_6( 0 );
+				scl().set_bytes_received_12( 0 );
+				scl().set_bytes_received_18( 0 );
+				scl().set_bytes_received_24( 0 );
+				scl().set_bytes_received_30( 0 );
+
 				if ( monitoring_phase_counter <= monitoring_phases_transmission_power + monitoring_phases_throughput )
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_throughput> ( ATP_sevice_throughput_period, this, 0 );
