@@ -63,7 +63,7 @@ namespace wiselib {
 			
 			class Endpoint;
 			
-			typedef delegate2<size_type, block_data_t*, size_type, Endpoint&> produce_callback_t;
+			typedef delegate3<size_type, block_data_t*, size_type, Endpoint&> produce_callback_t;
 			typedef delegate3<void, block_data_t*, size_type, Endpoint&> consume_callback_t;
 			
 			enum SpecialNodeIds {
@@ -126,7 +126,7 @@ namespace wiselib {
 					}
 					
 					void abort_send() {
-						produce_(0, 0);
+						produce_(0, 0, *this);
 					}
 					
 					bool used() { return produce_ || consume_; }

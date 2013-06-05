@@ -87,7 +87,7 @@ class ExampleApplication {
 			//timer_->set_timer<ExampleApplication, &ExampleApplication::trigger_produce>(1000, this, 0);
 		}
 		
-		size_type produce(block_data_t* buffer, size_type buffer_size) {
+		size_type produce(block_data_t* buffer, size_type buffer_size, Transport::Endpoint& endpoint) {
 			DBG("produce @%d", radio_->id());
 			memcpy(buffer, buffer_, buffer_size_);
 			return buffer_size_;
