@@ -66,7 +66,8 @@ class ExampleApplication {
 		size_type produce(block_data_t* buffer, size_type buffer_size) {
 			DBG("produce @%d", radio_->id());
 			if(buffer == 0) {
-				DBG("send aborted!");
+				DBG("send aborted! resetting counter");
+				ping_number_ = 0;
 				return 0;
 			}
 			size_type n = snprintf((char*)buffer, buffer_size, "ping number %lu!", ping_number_++);
@@ -75,7 +76,9 @@ class ExampleApplication {
 		
 		void consume(block_data_t* buffer, size_type buffer_size) {
 			DBG("consume @%d", radio_->id());
+			debug_->debug("++++++++++++++++++++++++");
 			debug_buffer<Os, 16, Os::Debug>(debug_, buffer, buffer_size);
+			debug_->debug("++++++++++++++++++++++++");
 		}
 		
 	private:

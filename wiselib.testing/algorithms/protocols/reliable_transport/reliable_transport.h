@@ -252,7 +252,6 @@ namespace wiselib {
 			
 			void check_send() {
 				if(is_sending_) {
-					DBG("check send: alreday sending");
 					return;
 				}
 				if(switch_sending_endpoint()) {
@@ -272,6 +271,7 @@ namespace wiselib {
 			 */
 			void on_receive_ack(const ChannelId& channel, sequence_number_t seqnr) {
 				if(channel == sending_endpoint().channel() && seqnr == sending_endpoint().sending_sequence_number()) {
+					DBG("recv ack seqnr=%d ack_timer=%d", seqnr, ack_timer_);
 					ack_timer_++; // invalidate running ack timer
 					sending_endpoint().increase_sending_sequence_number();
 					is_sending_ = false;
@@ -290,7 +290,6 @@ namespace wiselib {
 			 * Try sending the current buffer contents
 			 */
 			void try_send() {
-				DBG("try send");
 				if(!is_sending_) {
 					DBG("try send: is not sending");
 					return;
@@ -312,6 +311,7 @@ namespace wiselib {
 					return;
 				}
 				
+				DBG("try_send ack timer %d seqnr %d", ack_timer_, sending_endpoint().sending_sequence_number());
 				radio_->send(sending_endpoint().remote_address(), sending_.size(), sending_.data());
 				resends_++;
 				//ack_timeout_channel_ = sending_endpoint().channel();
@@ -324,7 +324,7 @@ namespace wiselib {
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
 					
 				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
-					DBG("ack_timeout resends=%d ack timer %d", resends_, ack_timer_);
+					DBG("ack_timeout resends=%d ack timer %d sqnr %d", resends_, ack_timer_, sending_endpoint().sending_sequence_number());
 					if(resends_ >= MAX_RESENDS) {
 						sending_endpoint().abort_send();
 						is_sending_ = false;
