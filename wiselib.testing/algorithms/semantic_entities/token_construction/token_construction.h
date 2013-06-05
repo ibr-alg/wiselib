@@ -105,7 +105,7 @@ namespace wiselib {
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularBroadcasts;
 			
-			typedef ReliableTransport<OsModel, Radio, Timer> RingTransport;
+			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer> RingTransport;
 			
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
 			
@@ -180,29 +180,13 @@ namespace wiselib {
 				clock_ = clock;
 				debug_ = debug;
 				caffeine_level_ = 0;
-				handover_transport_.init(radio_, timer_);
-				handover_se_ = 0;
-				//handover_state_ = 0;
-				
-				//timing_controller_.init(timer_, clock_);
-				
-				//push_caffeine();
-				
-				// - set up timer to make sure we broadcast our state at least
-				//   so often
-//				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
-				//timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
 				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
-				
-				// - set up timer to sieve out lost neighbors
-				// - register receive callback
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-				
+				ring_transport_.init(radio_, timer_, false);
 				
 				// keep node alive for debugging
 				//push_caffeine();
 				caffeine_level_ = 0;
-				
 				on_regular_broadcast_state();
 			}
 			
@@ -222,7 +206,6 @@ namespace wiselib {
 				DBG("node %d SE %x.%x active=%d t=%d", (int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se.is_active(radio_->id()), (int)now());
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
-					//timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, (void*)&se);
 				}
 			}
 			
@@ -247,20 +230,17 @@ namespace wiselib {
 			/**
 			 */
 			void push_caffeine(void* = 0) {
-				//DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
 				if(caffeine_level_ == 0) {
 					DBG("node %d on 1 t=%d", (int)radio_->id(), (int)now());
 					radio_->enable_radio();
 				}
 				caffeine_level_++;
 				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
-				//DBG("node %d caffeine %d", radio_->id(), caffeine_level_);
 			}
 			
 			/**
 			 */
 			void pop_caffeine(void* = 0) {
-				//DBG("node %d caffeine=%d t=%d", radio_->id(), caffeine_level_, now());
 				assert(caffeine_level_ > 0);
 				caffeine_level_--;
 				
@@ -269,9 +249,6 @@ namespace wiselib {
 					radio_->disable_radio();
 				}
 				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
-				
-				
-				//assert(caffeine_level_ >= 100);
 			}
 			
 			/**
@@ -289,12 +266,9 @@ namespace wiselib {
 					iter->state().set_clean();
 				}
 				
-				//DBG("node %d // push on_reg_broadcast", radio_->id());
 				push_caffeine();
-				
 				DBG("node %d send_to bcast send_type regular_broadcast t %d", (int)radio_->id(), (int)now());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				//DBG("node %d // pop on_reg_broadcast", radio_->id());
 				pop_caffeine();
 				
 				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
@@ -309,172 +283,159 @@ namespace wiselib {
 				TreeStateMessageT msg;
 				msg.set_reason(TreeStateMessageT::REASON_DIRTY_BCAST);
 				
-				//DBG("id=%02d on_dirty_broadcast_state", radio_->id());
-				
 				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 					if(iter->state().dirty()) {
-				//		DBG("id=%02d on_dirty_broadcast_state sending se %d.%08x", radio_->id(), iter->id().rule(), iter->id().value());
 						msg.add_entity_state(*iter);
 						iter->state().set_clean();
 					}
 				}
 				
 				if(msg.entity_count()) {
-					//DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
-				
-					//DBG("node %d // push on_dirty_broadcast_state", radio_->id());
 					push_caffeine();
 					DBG("node %d send_to bcast send_type dirty_broadcast t %d", (int)radio_->id(), (int)now());
 					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-					//DBG("node %d // pop on_dirty_broadcast_state", radio_->id());
 					pop_caffeine();
 				
 				}
-				else {
-					//DBG("id=%02d on_dirty_broadcast_state: nothing to send!", radio_->id());
-				}
-					
 				
 				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
 			}
 			
 			void on_awake_broadcast_state(void* = 0) {
 				if(caffeine_level_ > 0) {
-				
 					TreeStateMessageT msg;
 					msg.set_reason(TreeStateMessageT::REASON_DIRTY_BCAST);
 					
-					//DBG("id=%02d on_dirty_broadcast_state", radio_->id());
-					
 					for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
-						//if(iter->state().dirty()) {
-					//		DBG("id=%02d on_dirty_broadcast_state sending se %d.%08x", radio_->id(), iter->id().rule(), iter->id().value());
-							msg.add_entity_state(*iter);
-							iter->state().set_clean();
-						//}
+						msg.add_entity_state(*iter);
+						iter->state().set_clean();
 					}
 					
 					if(msg.entity_count()) {
-						//DBG("id=%02d on_dirty_broadcast_state sending %d SEs", radio_->id(), msg.entity_count());
-					
-						//DBG("node %d // push on_awake_broadcast_state", radio_->id());
 						push_caffeine();
 						radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-						//DBG("node %d // pop on_awake_broadcast_state", radio_->id());
 						pop_caffeine();
 					
-					}
-					else {
-						//DBG("id=%02d on_dirty_broadcast_state: nothing to send!", radio_->id());
 					}
 				}
 				
 				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 			}
 			
-			/**
-			 * Repeadately send token state to next node in the ring until we
-			 * get an acknowledgement.
-			 */
-			/*
-			void on_resend_token_state(void *se_) {
-				SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
-				if(se.sending_token()) {
-					TokenStateMessageT msg;
-					msg.set_entity_id(se.id());
-					msg.set_token_state(se.token());
-					
-					// round down to lower multiple of
-					// RESEND_TOKEN_STATE_INTERVAL
-					// (so the first call to this will (hopefully) have offset 0, the
-					// second offset RESEND_TOKEN_STATE_INTERVAL, etc..
-					abs_millis_t diff = now() - se.token_send_start();
-					abs_millis_t offs = RESEND_TOKEN_STATE_INTERVAL * (diff / RESEND_TOKEN_STATE_INTERVAL);
-					msg.set_time_offset(offs);
-					
-					if(se.next_token_node() != radio_->id()) {
-						DBG("node %d // resend_token_state offs=%d to %d", (int)radio_->id(), (int)offs, (int)se.next_token_node());
-					
-						DBG("node %d send_to %d send_type token_state t %d resend %d",
-								(int)radio_->id(),  (int)se.next_token_node(), (int)now(), (int)offs);
-						radio_->send(se.next_token_node(), msg.size(), msg.data());
-					}
-					timer_->template set_timer<self_type, &self_type::on_resend_token_state>(RESEND_TOKEN_STATE_INTERVAL, this, se_);
-				}
-			}
-			*/
-			
-			/**
-			 * Pass on complete state for given SE.
-			 * That is, token info and tree state for the SE.
-			 */
-			/*
-			void pass_on_state(SemanticEntityT& se, bool set_clean = true) {
-				
-				if(!se.sending_token()) {
-					se.set_sending_token(true);
-					se.set_token_send_start(now());
-					
-					DBG("node %d // push begin_pass_on_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
-					push_caffeine();
-					on_resend_token_state(&se);
-				}
-			}
-			*/	
-				
-				/*
-				StateMessageT msg;
-				//msg.set_reason(StateMessageT::REASON_PASS_TOKEN);
-				msg.tree().set_reason(TreeStateMessageT::REASON_PASS_TOKEN);
-				msg.tree().add_entity_state(se);
-				msg.token().set_entity_id(se.id());
-				msg.token().set_token_state(se.token());
-				// TODO: we should be sure this is delivered before marking
-				// the SE clean!
-				// 
-				// Idea: SE holds state count (i.e. revision number of the
-				// state), add that to msg, when receiving ack for current
-				// revision, flag as clean. re-send in dirty-bcast-interval
-				// until clean
-				// 
-				if(set_clean) {
-					se.state().set_clean();
-				}
-				//DBG("node %d // push pass_on_state SE %d.%d set_clean %d", radio_->id(), se.id().rule(), se.id().value(), set_clean);
-				push_caffeine();
-				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				//DBG("// %d sending complete state of %d.%d to %d verify se: %d.%d",
-						//radio_->id(), se.id().rule(), se.id().value(), se.next_token_node(),
-						//msg.tree().get_entity_id(0).rule(),
-						//msg.tree().get_entity_id(0).value()
-						//);
-				
-				//debug_buffer<OsModel, 16>(debug_, msg.data(), msg.size());
-				
-				if(se.next_token_node() != radio_->id()) {
-					radio_->send(se.next_token_node(), msg.size(), msg.data());
-				}
-				else {
-					DBG("// would send to self -> ignoring");
-				}
-				//DBG("node %d // pop pass_on_state SE %d.%d set_clean %d", radio_->id(), se.id().rule(), se.id().value(), set_clean);
-				pop_caffeine();
-				*/
+			/// @{{{ Token & Aggregation handover
 			
 			void initiate_handover(void *se_) {
 				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_));
 			}
 			
 			void initiate_handover(SemanticEntityT& se) {
-				if(handover_se_) {
-					timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_LOCK_INTERVAL, this, (void*)&se);
+				se.set_handover_state(0);
+				ring_transport_.request_send(se.id(), true);
+			}
+			
+			// Token sending side
+			
+			size_type produce_handover_initiator(block_data_t* buffer, size_type max_size, typename RingTransport::Endpoint& endpoint) {
+				size_type sz = 0;
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				switch(se.handover_state()) {
+					case SemanticEntityT::SEND_INIT: {
+						// Assumption: TokenStateMessage will always fit into a
+						// single message buffer
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(buffer);
+						msg.set_entity_id(handover_se_->id());
+						msg.set_token_state(handover_se_->token());
+						msg.set_time_offset(0);
+						sz = msg.size();
+						break;
+					}
+						
+					case SemanticEntityT::SEND_AGGREGATES: {
+						bool call_again;
+						sz = aggregator_.fill_buffer(buffer, RingTransport::MAX_MESSAGE_SIZE, call_again);
+						if(call_again) {
+							endpoint.request_send();
+						}
+						break;
+					}
+				} // switch()
+				
+				return sz;
+			}
+			
+			void consume_handover_initator(block_data_t* buffer, size_type size, typename RingTransport::Endpoint& endpoint) {
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				if(*buffer == 'a') {
+					se.set_handover_state(SemanticEntityT::SEND_AGGREGATES);
+					endpoint.request_send();
 				}
 				else {
-					handover_se_ = &se;
-					handover_transport_.open(handover_se_->next_token_node());
-					handover_transport_state_ = 0;
+					endpoint.request_close();
 				}
 			}
+			
+			// Token receiving side
+			
+			size_type produce_handover_recepient(block_data_t* buffer, size_type size, typename RingTransport::Endpoint& endpoint) {
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				switch(se.handover_state()) {
+					case SemanticEntityT::SEND_ACTIVATING:
+						se.set_handover_state(SemanticEntityT::RECV_AGGREGATES);
+						*buffer = 'a';
+						return 1;
+						break;
+					case SemanticEntityT::SEND_NONACTIVATING:
+						se.set_handover_state(SemanticEntityT::CLOSE);
+						endpoint.request_send();
+						*buffer = 'n';
+						return 1;
+						break;
+					case SemanticEntityT::CLOSE:
+						endpoint.request_close();
+						return 0;
+						break;
+				}
+				
+				return 0;
+			}
+			
+			void consume_handover_recepient(block_data_t* buffer, size_type size, typename RingTransport::Endpoint& endpoint) {
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				switch(se.handover_state()) {
+					case SemanticEntityT::RECV_INIT: {
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(buffer);
+						bool activating = process_token_state(msg, se, endpoint.remote_address(), now());
+						se.set_handover_state(activating ? SemanticEntityT::SEND_ACTIVATING : SemanticEntityT::SEND_NONACTIVATING);
+						endpoint.request_send();
+						break;
+					}
+					
+					case SemanticEntityT::RECV_AGGREGATES: {
+						bool end = aggregator_.read_buffer(buffer, size);
+						if(end) {
+							endpoint.request_close();
+						}
+					}
+				} // switch()
+			}
+			
+			/// @}}}
 			
 			void handover() {
 				block_data_t buffer[RingTransport::MAX_MESSAGE_SIZE];
@@ -755,8 +716,9 @@ namespace wiselib {
 			/**
 			 * Process token state change relevant to us (called by on_receive_token_state).
 			 */
-			void process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t receive_time) {
+			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t receive_time) {
 				TokenState s = msg.token_state();
+				bool activating = false;
 				
 				if(msg.is_ack()) {
 					if(s.count() >= se.token().count() && se.sending_token()) {
@@ -778,6 +740,7 @@ namespace wiselib {
 					size_type prev_count = se.prev_token_count();
 					se.set_prev_token_count(s.count());
 					if(se.is_active(radio_->id()) && !active_before) {
+						activating = true;
 						se.learn_activating_token(clock_, radio_->id(), receive_time - msg.time_offset()); 
 						DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
@@ -796,6 +759,7 @@ namespace wiselib {
 						);
 					}
 				}
+				return activating;
 			}
 			
 			void begin_wait_for_token_forward(void* se_) {

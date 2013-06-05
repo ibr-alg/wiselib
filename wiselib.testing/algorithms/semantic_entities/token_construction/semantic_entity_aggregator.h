@@ -170,7 +170,7 @@ namespace wiselib {
 			 * (call this repeadetely until call_again is false!)
 			 * @return number of bytes written
 			 */
-			size_type fill_buffer(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+			size_type __fill_buffer(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
 				size_type written = 0;
 				size_type w = 0;
 				
@@ -217,14 +217,104 @@ namespace wiselib {
 				}
 			}
 			
+			
+			size_type fill_buffer_start(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				fill_buffer_iterator_ = aggregation_entries_.begin();
+				fill_buffer_state_ = FIELD_UOM;
+				return fill_buffer(se_id, buffer, buffer_size, call_again);
+			}
+			
+			size_type fill_buffer(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				if(fill_buffer_iterator_ == aggregation_entries_.end()) {
+					call_again = false;
+					return 0;
+				}
+				
+				call_again = false;
+				block_data_t *buf = buffer, *buf_end = buffer + buffer_size;
+				bool run = true;
+				
+				while(!call_again && buf_end - buf && run) {
+					AggregationKey& key = fill_buffer_iterator_->first;
+					AggregationValue& aggregate = fill_buffer_iterator_->second;
+					
+					switch(fill_buffer_state_) {
+						case FIELD_UOM:
+							call_again = shdt_.write_field(FIELD_UOM, key.uom(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_TYPE; }
+							break;
+							
+						case FIELD_TYPE:
+							call_again = shdt_.write_field(FIELD_TYPE, key.type(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_DATATYPE; }
+							break;
+							
+						case FIELD_DATATYPE:
+							call_again = shdt_.write_field(FIELD_DATATYPE, key.datatype(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_COUNT; }
+							break;
+							
+						case FIELD_COUNT:
+							call_again = shdt_.write_field(FIELD_COUNT, aggregate.count(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_MIN; }
+							break;
+							
+						case FIELD_MIN:
+							call_again = shdt_.write_field(FIELD_MIN, aggregate.min(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_MAX; }
+							break;
+							
+						case FIELD_MAX:
+							call_again = shdt_.write_field(FIELD_MAX, aggregate.max(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_MEAN; }
+							break;
+							
+						case FIELD_MEAN:
+							call_again = shdt_.write_field(FIELD_MEAN, aggregate.mean(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
+							break;
+							
+						case FIELD_TOTAL_COUNT:
+							call_again = shdt_.write_field(FIELD_TOTAL_COUNT, aggregate.total_count(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
+							break;
+							
+						case FIELD_TOTAL_MIN:
+							call_again = shdt_.write_field(FIELD_TOTAL_MIN, aggregate.total_min(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
+							break;
+							
+						case FIELD_TOTAL_MAX:
+							call_again = shdt_.write_field(FIELD_TOTAL_MAX, aggregate.total_max(), buf, buf_end);
+							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
+							break;
+							
+						case FIELD_TOTAL_MEAN:
+							call_again = shdt_.write_field(FIELD_TOTAL_MEAN, aggregate.total_mean(), buf, buf_end);
+							if(!call_again) {
+								++fill_buffer_iterator_;
+								if(fill_buffer_iterator_ == aggregation_entries_.end()) {
+									run = false;
+								}
+							}
+							break;
+					} // switch()
+				} // while()
+				
+				return buf - buffer;
+			} // fill_buffer
+			
+			
 		private:
 			
 			size_type find_entry(const SemanticEntityId& se_id, Value sensor_type, Value uom, ::uint8_t datatype) {
 			}
 			
+			int fill_buffer_state_;
 			const char* entity_format_;
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			AggregationEntries aggregation_entries_;
+			typename AggregationEntries::iterator fill_buffer_iterator_;
 			Shdt shdt_;
 		
 	}; // SemanticEntityAggregator

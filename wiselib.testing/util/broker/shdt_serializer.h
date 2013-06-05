@@ -372,6 +372,29 @@ namespace wiselib {
 				return call_again;
 			}
 			
+			bool write_field(field_id_t field_id, block_data_t* data, size_type data_size, block_data_t*& buffer, block_data_t* buffer_end) {
+				
+				size_type bufsiz = buffer_end - buffer;
+				if(Instruction::header_size(CMD_VALUE) + data_size < bufsiz) {
+					Instruction in;
+					in.instruction() = CMD_VALUE;
+					in.field_id() = field_id;
+					in.field_size() = data_size;
+					in.data() = data;
+					return write_instruction(in, buffer, buffer_end);
+				}
+				else {
+					// do a table insert (as there we can split it up)
+					table_id_t id = write_data(data, data_size);
+					
+					Instruction in;
+					in.instruction() = CMD_TABLE_VALUE;
+					in.field_id() = field_id;
+					in.field_index() = id;
+					return write_instruction(in, buffer, buffer_end);
+				}
+			}
+			
 			/**
 			 * @return true iff this method should be called again with a
 			 * fresh buffer.

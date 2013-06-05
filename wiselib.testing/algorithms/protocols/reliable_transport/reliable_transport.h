@@ -63,7 +63,7 @@ namespace wiselib {
 			
 			class Endpoint;
 			
-			typedef delegate2<size_type, block_data_t*, size_type> produce_callback_t;
+			typedef delegate2<size_type, block_data_t*, size_type, Endpoint&> produce_callback_t;
 			typedef delegate3<void, block_data_t*, size_type, Endpoint&> consume_callback_t;
 			
 			enum SpecialNodeIds {
@@ -118,7 +118,7 @@ namespace wiselib {
 					const ChannelId& channel() { return channel_id_; }
 					
 					size_type produce(block_data_t* data, size_type len) {
-						return produce_(data, len);
+						return produce_(data, len, *this);
 					}
 					
 					void consume(block_data_t* data, size_type len) {
@@ -152,7 +152,6 @@ namespace wiselib {
 				// }}}
 			};
 			
-			//typedef MapStaticVector<OsModel, ChannelId, Endpoint, 8> Endpoints;
 			enum { MAX_ENDPOINTS = 8 };
 			typedef Endpoint Endpoints[MAX_ENDPOINTS];
 		
@@ -283,6 +282,8 @@ namespace wiselib {
 					sending_.set_channel(sending_endpoint().channel());
 					sending_.set_initiator(sending_endpoint().initiator());
 					sending_.set_sequence_number(sending_endpoint().sending_sequence_number());
+					
+					sending_endpoint().comply_send();
 					sending_.set_payload_size(sending_endpoint().produce(sending_.payload(), MAX_MESSAGE_LENGTH));
 					try_send();
 				}
@@ -322,7 +323,6 @@ namespace wiselib {
 					return;
 				}
 				
-				sending_endpoint().comply_send();
 				resends_ = 0;
 				if(sending_.size()) {
 					try_send(0);
