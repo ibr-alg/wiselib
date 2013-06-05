@@ -213,17 +213,12 @@ namespace wiselib {
 					return;
 				}
 				
-				switch(msg.subtype()) {
-					case Message::SUBTYPE_DATA:
-						on_receive_data(msg.channel(), msg.initiator(), msg.sequence_number(), msg.payload(), msg.payload_size());
-						send_ack(from, msg);
-						break;
-					case Message::SUBTYPE_ACK:
-						on_receive_ack(from, msg.channel(), msg.initiator(), msg.sequence_number());
-						break;
-					default:
-						DBG("wrong subtype %d", msg.subtype());
-						break;
+				if(msg.is_ack()) {
+					on_receive_ack(from, msg.channel(), msg.initiator(), msg.sequence_number());
+				}
+				else {
+					on_receive_data(msg.channel(), msg.initiator(), msg.sequence_number(), msg.payload(), msg.payload_size());
+					send_ack(from, msg);
 				}
 			}
 			
@@ -271,16 +266,17 @@ namespace wiselib {
 				return false;
 			}
 			
-			/// @{{{ Sending.
+			/// Sending.
+			///@{
+			// {{{
 			
 			void check_send() {
 				if(is_sending_) {
 					return;
 				}
 				if(switch_sending_endpoint()) {
-					sending_.set_subtype(Message::SUBTYPE_DATA);
+					sending_.set_flags(Message::FLAGS_DATA | (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0));
 					sending_.set_channel(sending_endpoint().channel());
-					sending_.set_initiator(sending_endpoint().initiator());
 					sending_.set_sequence_number(sending_endpoint().sending_sequence_number());
 					
 					sending_endpoint().comply_send();
@@ -363,9 +359,12 @@ namespace wiselib {
 				}
 			}
 			
-			/// @}}}
+			// }}}
+			///@}
 			
-			/// @{{{ Receiving.
+			/// @name Receiving.
+			///@{
+			// {{{
 			
 			void on_receive_data(const ChannelId& channel, bool initiator, sequence_number_t seqnr, block_data_t* buffer, size_type len) {
 				size_type idx = find_or_create_endpoint(channel, !initiator, false);
@@ -381,12 +380,15 @@ namespace wiselib {
 			
 			void send_ack(node_id_t to, Message& msg) {
 				msg.set_payload(0, 0);
-				msg.set_subtype(Message::SUBTYPE_ACK);
+				
+				//msg.set_subtype(Message::SUBTYPE_ACK);
+				msg.set_flags(msg.flags() | Message::FLAG_ACK);
 				//msg.set_channel(msg.channel());
 				radio_->send(to, msg.size(), msg.data());
 			}
 			
-			/// @}}}
+			// }}}
+			///@}
 			
 			typename Radio::self_pointer_t radio_;
 			typename Timer::self_pointer_t timer_;

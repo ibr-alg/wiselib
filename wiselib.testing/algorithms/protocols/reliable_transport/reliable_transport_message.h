@@ -54,12 +54,18 @@ namespace wiselib {
 				SUBTYPE_DATA = 0x00, SUBTYPE_ACK = 0x01
 			};
 			
+			enum Flags {
+				FLAG_OPEN = 0x01, FLAG_ACK = 0x02, FLAG_CLOSE = 0x04,
+				FLAG_INITIATOR = 0x08,
+				
+				FLAGS_DATA = 0x00
+			};
+			
 			enum {
 				POS_MESSAGE_ID = 0,
-				POS_MESSAGE_SUB_ID = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_CHANNEL_ID = POS_MESSAGE_SUB_ID + sizeof(message_id_t),
-				POS_INITIATOR = POS_CHANNEL_ID + sizeof(ChannelId),
-				POS_SEQUENCE_NUMBER = POS_INITIATOR + sizeof(bool),
+				POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_CHANNEL_ID = POS_FLAGS + sizeof(::uint8_t),
+				POS_SEQUENCE_NUMBER = POS_CHANNEL_ID + sizeof(ChannelId),
 				POS_PAYLOAD_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
 				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(payload_size_t),
 				
@@ -68,6 +74,7 @@ namespace wiselib {
 			
 			ReliableTransportMessage() {
 				set_type(MESSAGE_TYPE);
+				set_flags(0);
 			}
 			
 			message_id_t type() {
@@ -78,17 +85,19 @@ namespace wiselib {
 				wiselib::write<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID, id);
 			}
 			
-			message_id_t subtype() {
-				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_SUB_ID);
+			::uint8_t flags() {
+				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_FLAGS);
 			}
 			
-			void set_subtype(message_id_t id) {
-				wiselib::write<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_SUB_ID, id);
+			void set_flags(::uint8_t id) {
+				wiselib::write<OsModel, block_data_t, message_id_t>(data_ + POS_FLAGS, id);
 			}
 			
-			bool is_ack() {
-				return subtype() == SUBTYPE_ACK;
-			}
+			bool is_ack() { return flags() & FLAG_ACK; }
+			bool is_data() { return !is_ack(); }
+			bool is_open() { return flags() & FLAG_OPEN; }
+			bool is_close() { return flags() & FLAG_CLOSE; }
+			bool initiator() { return flags() & FLAG_INITIATOR; }
 			
 			ChannelId channel() {
 				return wiselib::read<OsModel, block_data_t, ChannelId>(data_ + POS_CHANNEL_ID);
@@ -96,14 +105,6 @@ namespace wiselib {
 			
 			void set_channel(const ChannelId& c) {
 				wiselib::write<OsModel, block_data_t, const ChannelId&>(data_ + POS_CHANNEL_ID, c);
-			}
-			
-			bool initiator() {
-				return wiselib::read<OsModel, block_data_t, bool>(data_ + POS_INITIATOR);
-			}
-			
-			void set_initiator(bool initiator) {
-				wiselib::write<OsModel, block_data_t, bool>(data_ + POS_INITIATOR, initiator);
 			}
 			
 			sequence_number_t sequence_number() {

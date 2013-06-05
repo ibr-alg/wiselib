@@ -322,7 +322,9 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 			}
 			
-			/// @{{{ Token & Aggregation handover
+			/// @name Token & Aggregation handover
+			///@{
+			// {{{
 			
 			void initiate_handover(void *se_) {
 				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_));
@@ -347,8 +349,8 @@ namespace wiselib {
 						// Assumption: TokenStateMessage will always fit into a
 						// single message buffer
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(buffer);
-						msg.set_entity_id(handover_se_->id());
-						msg.set_token_state(handover_se_->token());
+						msg.set_entity_id(id);
+						msg.set_token_state(se.token());
 						msg.set_time_offset(0);
 						sz = msg.size();
 						break;
@@ -435,55 +437,8 @@ namespace wiselib {
 				} // switch()
 			}
 			
-			/// @}}}
-			
-			void handover() {
-				block_data_t buffer[RingTransport::MAX_MESSAGE_SIZE];
-				block_data_t *buf = buffer;
-				size_type sz = 0;
-				bool call_again = false;
-				
-				enum State {
-					OPEN_TRANSPORT = 0, SEND_TOKEN, SEND_AGGREGATES, CLOSE_TRANSPORT
-				};
-				
-				switch(handover_transport_state_) {
-					case OPEN_TRANSPORT: {
-						sz = 0;
-						break;
-					}
-					case SEND_TOKEN: {
-						TokenStateMessageT msg;
-						msg.set_entity_id(handover_se_->id());
-						msg.set_token_state(handover_se_->token());
-						msg.set_time_offset(0);
-						
-						buf = msg.data();
-						sz = msg.size();
-						break;
-					}
-					case SEND_AGGREGATES: {
-						buf = buffer;
-						sz = aggregator_.fill_buffer(buffer, RingTransport::MAX_MESSAGE_SIZE, call_again);
-						break;
-					}
-					case CLOSE_TRANSPORT: {
-						sz = 0;
-						handover_transport_.close();
-						handover_se_ = 0;
-						break;
-					}
-				}
-				
-				if(sz) {
-					handover_transport_.send(0, sz, buf);
-				}
-				
-				if(!call_again) {
-					++handover_transport_state_;
-				}
-			} // handover()
-			
+			// }}}
+			///@}
 			
 			/**
 			 * Find a semantic entity by id.
@@ -516,27 +471,13 @@ namespace wiselib {
 			}
 			
 			/**
-			 */
-			void on_transport_receive(typename RingTransport::node_id_t from, typename RingTransport::size_t len, block_data_t* data) {
-				
-			}
-			
-			/**
-			 * Called by the reliable transport on several occasions.
-			 */
-			void on_transport_event(::uint8_t event_type) {
-				switch(event_type) {
-				}
-			}
-			
-			/**
 			 * Called indirectly by on_receive to escape interrupt context.
 			 */
 			void on_receive_task(void *p) {
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				abs_millis_t t_recv = absolute_millis(packet_info->received());
 				const node_id_t &from = packet_info->from();
-				//const typename Radio::size_t& len = packet_info->length();
+				const typename Radio::size_t& len = packet_info->length();
 				block_data_t *data = packet_info->data();
 				
 				message_id_t msgtype = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -564,6 +505,35 @@ namespace wiselib {
 						break;
 					}
 					
+					case RingTransport::Message::MESSAGE_TYPE: {
+						DBG("node %d // recv transport from %d", radio_->id(), from);
+						
+						// Do we need to forward?
+						typename RingTransport::Message &msg = reinterpret_cast<typename RingTransport::Message&>(data);
+						bool found;
+						SemanticEntityT &se = find_entity(msg.channel(), found);
+						if(!found) {
+							DBG("se not found");
+							break;
+						}
+						node_id_t forward_node = msg.is_ack() ? se.token_ack_forward_for(radio_->id(), from) : se.token_forward_for(radio_->id(), from);
+						if(forward_node == NULL_NODE_ID) {
+							DBG("ignoring");
+							break;
+						}
+						
+						if(forward_node == radio_->id()) {
+							DBG("node %d // processing ack %d from %d", radio_->id(), msg.is_ack(), from);
+							ring_transport_.on_receive(from, len, data);
+						}
+						else {
+							//radio_->send(forward_node, len, data);
+							DBG("node %d // fwd ack %d from %d to %d", radio_->id(), msg.is_ack(), from, forward_node);
+							forward_ring(se, from, forward_node, t_recv, msg);
+						}
+					}
+					
+					/*
 					case MESSAGE_TYPE_TOKEN_STATE: {
 						//DBG("// %d recv token state from %d", radio_->id(), from);
 						TokenStateMessageT &msg = reinterpret_cast<TokenStateMessageT&>(*data);
@@ -571,6 +541,7 @@ namespace wiselib {
 						on_receive_token_state(msg, from, t_recv);
 						break;
 					}
+					*/
 					
 					default:
 						DBG("++++++ ALART! unknown packet type %d", msgtype);
@@ -677,39 +648,18 @@ namespace wiselib {
 			 * Forward token state to another node (called by
 			 * on_receive_token_state).
 			 */
-			void forward_token_state(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, TokenStateMessageT& msg) {
-				if(!msg.is_ack()) {
-					if(msg.time_offset() == 0) {
-						se.learn_token_forward(clock_, radio_->id(), from, t_recv);
-						DBG("node %d SE %x.%x fwd_window %u fwd_interval %u fwd_from %d t %d",
-								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-								(int)se.token_forward_window(clock_, from),
-								(int)se.token_forward_interval(clock_, from),
-								(int)from, (int)now()
-						);
-					}
-					else {
-						DBG("node %d t %d // fwd_ not learning from %d offset %d", (int)radio_->id(), (int)now(), (int)from, (int)msg.time_offset());
-					}
-				}
-				else {
-					DBG("node %d SE %x.%x // fwd_window %u fwd_interval %u fwd_from %d t %d offset %d ack %d t %d",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-							(int)se.token_forward_window(clock_, from),
-							(int)se.token_forward_interval(clock_, from),
-							(int)from, (int)now(), (int)msg.time_offset(), (int)msg.is_ack(), (int)now()
-					);
+			void forward_ring(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, typename RingTransport::Message& msg) {
+				if(msg.is_open() && msg.initiator() /* && msg.time_offset() == 0 */) {
+					se.learn_token_forward(clock_, radio_->id(), from, t_recv);
 				}
 				
-				DBG("node %d send_to %d send_type token_forward t %d resend %d",
-						(int)radio_->id(), (int)to,  (int)now(), (int)msg.time_offset());
 				radio_->send(to, msg.size(), msg.data());
-				if(msg.is_ack()) {
-					se.end_wait_for_token_forward(se.token_ack_forward_for(radio_->id(), from));
-						DBG("node %d // schedule_token_forward", radio_->id());
-						se.template schedule_token_forward<self_type, &self_type::begin_wait_for_token_forward,
-							&self_type::end_wait_for_token_forward>(clock_, timer_, this, se.token_ack_forward_for(radio_->id(), from), &se);
-					
+				
+				if(msg.is_close() && msg.is_ack()) {
+					const node_id_t prev = se.token_ack_forward_for(radio_->id(), from);
+					se.end_wait_for_token_forward(prev);
+					se.template schedule_token_forward<self_type, &self_type::begin_wait_for_token_forward,
+						&self_type::end_wait_for_token_forward>(clock_, timer_, this, prev, &se);
 				}
 			}
 			
@@ -790,10 +740,8 @@ namespace wiselib {
 			
 			void end_wait_for_token(void* se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
-				//if(timing_controller_.end_wait_for_token(se)) {
-					DBG("node %d // pop end_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
-					pop_caffeine();
-				//}
+				DBG("node %d // pop end_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				pop_caffeine();
 			}
 			
 			/**
@@ -978,9 +926,7 @@ namespace wiselib {
 			
 			///@{ Token Handover Stuff
 			
-			SemanticEntityT *handover_se_;
-			RingTransport handover_transport_;
-			::uint8_t handover_transport_state_;
+			RingTransport ring_transport_;
 			
 			///@}
 			

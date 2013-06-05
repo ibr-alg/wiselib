@@ -46,6 +46,8 @@ namespace wiselib {
 	>
 	class SemanticEntity {
 		public:
+			// {{{
+			
 			typedef SemanticEntity<OsModel_P, Radio_P, Clock_P, Timer_P, MAX_NEIGHBORS_P> self_type;
 				
 			typedef OsModel_P OsModel;
@@ -73,6 +75,14 @@ namespace wiselib {
 			
 			typedef vector_static<OsModel, node_id_t, MAX_NEIGHBORS> Childs;
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> TokenForwards;
+			
+			enum HandoverState {
+				SEND_INIT, SEND_ACTIVATING, SEND_NONACTIVATING, SEND_AGGREGATES,
+				RECV_INIT, RECV_AGGREGATES,
+				CLOSE
+			};
+			
+			// }}}
 			
 			/**
 			 */
@@ -218,12 +228,10 @@ namespace wiselib {
 			};
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
 			
-			/// Ctors.
-			
-			SemanticEntity() : activity_phase_(false), sending_token_(false) {
+			SemanticEntity() : activity_phase_(false), sending_token_(false), handover_state_(0) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), sending_token_(false) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), sending_token_(false), handover_state_(0) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -335,15 +343,27 @@ namespace wiselib {
 					if(iter->second.parent() == mynodeid) {
 						continue;
 					}
+					if(iter->second.root() == (node_id_t)(-1) || iter->second.distance() == (::uint8_t)(-1)) {
+						continue;
+					}
+					
+					DBG("node %d // other_root %u root %u other_dist %u dist %u",
+							(int)mynodeid, (unsigned)iter->second.root(), root,
+							(unsigned)iter->second.distance(), (unsigned)distance);
 					
 					if(iter->second.root() < root) {
+						DBG("other root is better!");
 						parent = iter->first;
 						root = iter->second.root();
 						distance = iter->second.distance() + 1;
 					}
 					else if(iter->second.root() == root && (iter->second.distance() + 1) < distance) {
+						DBG("other distance is better!");
 						parent = iter->first;
 						distance = iter->second.distance() + 1;
+					}
+					else {
+						DBG("blub");
 					}
 				}
 				
@@ -421,6 +441,8 @@ namespace wiselib {
 				return prev_token_state_.count();
 			}
 			
+			/// @name Token forwarding
+			///@{{{
 			
 			/**
 			 * Where should the token information be sent to after
@@ -477,6 +499,10 @@ namespace wiselib {
 				}
 			}
 			
+			void set_handover_state(int s) { handover_state_ = s; }
+			int handover_state() { return handover_state_; }
+			
+			///@}}}
 			
 			void set_prev_token_count(token_count_t ptc) {
 				prev_token_state_.set_count(ptc);
@@ -538,7 +564,8 @@ namespace wiselib {
 				cancel_timers(neighbor);
 			}
 			
-			/// Timing.
+			// @{ Timing.
+			// {{{
 			
 			void learn_activating_token(typename Clock::self_pointer_t clock, node_id_t mynodeid, abs_millis_t hit) {
 				activating_token_.hit(hit, clock, mynodeid);
@@ -590,7 +617,8 @@ namespace wiselib {
 				return token_forwards_[from].interval();
 			}
 			
-			
+			// }}}
+			// @}
 			
 			abs_millis_t token_send_start() {
 				return token_send_start_;
@@ -600,7 +628,8 @@ namespace wiselib {
 				token_send_start_ = tss;
 			}
 			
-			/// Debugging.
+			// @{ Debugging.
+			// {{{
 			
 			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
 				DBG("print_state");
@@ -620,6 +649,9 @@ namespace wiselib {
 				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
 			
+			// }}}
+			// @}
+			
 			
 		private:
 			static abs_millis_t absolute_millis(typename Clock::self_pointer_t clock, const time_t& t) {
@@ -632,9 +664,7 @@ namespace wiselib {
 				}
 			}
 			
-			RingTransport transport_next_
-			
-			/// Timing.
+			// Timing.
 			
 			TokenForwards token_forwards_;
 			RegularEventT activating_token_;
@@ -652,6 +682,9 @@ namespace wiselib {
 			abs_millis_t token_send_start_;
 			bool activity_phase_;
 			bool sending_token_;
+			
+			int handover_state_;
+			
 	}; // SemanticEntity
 	
 	
