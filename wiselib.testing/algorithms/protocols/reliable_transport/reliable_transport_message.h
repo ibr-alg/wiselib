@@ -69,7 +69,8 @@ namespace wiselib {
 				POS_PAYLOAD_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
 				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(payload_size_t),
 				
-				HEADER_SIZE = POS_PAYLOAD
+				HEADER_SIZE = POS_PAYLOAD,
+				MAX_PAYLOAD_SIZE = Radio::MAX_MESSAGE_LENGTH - HEADER_SIZE
 			};
 			
 			ReliableTransportMessage() {
@@ -96,7 +97,11 @@ namespace wiselib {
 			bool is_ack() { return flags() & FLAG_ACK; }
 			bool is_data() { return !is_ack(); }
 			bool is_open() { return flags() & FLAG_OPEN; }
+			void set_open() { set_flags(flags() | FLAG_OPEN); }
+			
 			bool is_close() { return flags() & FLAG_CLOSE; }
+			void set_close() { set_flags(flags() | FLAG_CLOSE); }
+			
 			bool initiator() { return flags() & FLAG_INITIATOR; }
 			
 			ChannelId channel() {

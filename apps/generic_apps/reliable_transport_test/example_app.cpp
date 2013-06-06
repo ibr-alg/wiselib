@@ -87,20 +87,21 @@ class ExampleApplication {
 			//timer_->set_timer<ExampleApplication, &ExampleApplication::trigger_produce>(1000, this, 0);
 		}
 		
-		size_type produce(block_data_t* buffer, size_type buffer_size, Transport::Endpoint& endpoint) {
+		bool produce(Transport::Message& msg, Transport::Endpoint& endpoint) {
 			DBG("produce @%d", radio_->id());
-			memcpy(buffer, buffer_, buffer_size_);
-			return buffer_size_;
+			memcpy(msg.payload(), buffer_, buffer_size_);
+			msg.set_payload_size(buffer_size_);
+			return true;
 		}
 		
-		void consume(block_data_t* buffer, size_type buffer_size, Transport::Endpoint& endpoint) {
-			DBG("@%d: %s", radio_->id(), (char*)buffer);
+		void consume(Transport::Message& msg, Transport::Endpoint& endpoint) {
+			DBG("@%d: %s", radio_->id(), (char*)msg.payload());
 			//debug_->debug("++++++++++++++++++++++++");
 			//debug_buffer<Os, 16, Os::Debug>(debug_, buffer, buffer_size);
 			//debug_->debug("++++++++++++++++++++++++");
 			if(!endpoint.initiator()) {
-				memcpy(buffer_, buffer, buffer_size);
-				buffer_size_ = buffer_size;
+				memcpy(buffer_, msg.payload(), msg.payload_size());
+				buffer_size_ = msg.payload_size();
 				transport_.request_send(cid_, true);
 			}
 		}

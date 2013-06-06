@@ -195,8 +195,17 @@ namespace wiselib {
 				entities_.push_back(SemanticEntityT(id));
 				bool found;
 				SemanticEntityT &se = find_entity(id, found);
-				
 				assert(found);
+				
+				ring_transport_.register_endpoint(Radio::NULL_NODE_ID, id, true,
+						RingTransport::produce_callback_t::template from_method<self_type, &self_type::produce_handover_initiator>(this),
+						RingTransport::consume_callback_t::template from_method<self_type, &self_type::consume_handover_initiator>(this)
+				);
+				
+				ring_transport_.register_endpoint(Radio::NULL_NODE_ID, id, false,
+						RingTransport::produce_callback_t::template from_method<self_type, &self_type::produce_handover_recepient>(this),
+						RingTransport::consume_callback_t::template from_method<self_type, &self_type::consume_handover_recepient>(this)
+				);
 				
 				//begin_wait_for_token(se);
 				se.template schedule_activating_token<
@@ -322,106 +331,165 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 			}
 			
-			/// @name Token & Aggregation handover
+			///@name Token & Aggregation handover
 			///@{
-			// {{{
+			//{{{
 			
 			void initiate_handover(void *se_) {
 				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_));
 			}
 			
 			void initiate_handover(SemanticEntityT& se) {
+				DBG("node %d SE %x.%x // initiate handover", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 				se.set_handover_state(0);
+				
+				//ring_transport_.open(se.id(), true);
+				
 				ring_transport_.request_send(se.id(), true);
 			}
 			
-			// Token sending side
+			//@{ Token sending side
 			
-			size_type produce_handover_initiator(block_data_t* buffer, size_type max_size, typename RingTransport::Endpoint& endpoint) {
-				size_type sz = 0;
+			bool produce_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				DBG("node %d // x handover produce init", radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
-				if(!found) { return; }
+				if(!found) { return false; }
+				
+				DBG("node %d // handover produce init state %d", radio_->id(), se.handover_state());
 				
 				switch(se.handover_state()) {
 					case SemanticEntityT::SEND_INIT: {
 						// Assumption: TokenStateMessage will always fit into a
 						// single message buffer
-						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(buffer);
-						msg.set_entity_id(id);
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						//msg.set_entity_id(id);
 						msg.set_token_state(se.token());
 						msg.set_time_offset(0);
-						sz = msg.size();
-						break;
+						
+						message.set_open();
+						message.set_payload_size(msg.size());
+						return true;
 					}
 						
+					case SemanticEntityT::SEND_AGGREGATES_START: {
+						bool call_again;
+						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
+						message.set_payload_size(sz);
+						if(call_again) {
+							se.set_handover_state(SemanticEntityT::SEND_AGGREGATES);
+						}
+						else {
+							se.set_handover_state(SemanticEntityT::CLOSE);
+						}
+						endpoint.request_send();
+						return true;
+					}
+				
 					case SemanticEntityT::SEND_AGGREGATES: {
 						bool call_again;
-						sz = aggregator_.fill_buffer(buffer, RingTransport::MAX_MESSAGE_SIZE, call_again);
+						size_type sz = aggregator_.fill_buffer(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
+						message.set_payload_size(sz);
 						if(call_again) {
-							endpoint.request_send();
+							se.set_handover_state(SemanticEntityT::SEND_AGGREGATES);
 						}
-						break;
+						else {
+							se.set_handover_state(SemanticEntityT::CLOSE);
+						}
+						endpoint.request_send();
+						return true;
 					}
+					
+					case SemanticEntityT::CLOSE: {
+						message.set_close();
+						message.set_payload_size(0);
+						se.set_handover_state(SemanticEntityT::DESTRUCT);
+						return true;
+					}
+					
+					case SemanticEntityT::DESTRUCT: {
+						endpoint.request_destruct();
+						return false;
+					}
+					
 				} // switch()
 				
-				return sz;
+				return false;
 			}
 			
-			void consume_handover_initator(block_data_t* buffer, size_type size, typename RingTransport::Endpoint& endpoint) {
+			void consume_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				DBG("node %d // x handover consume init", radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
 				if(!found) { return; }
 				
-				if(*buffer == 'a') {
-					se.set_handover_state(SemanticEntityT::SEND_AGGREGATES);
+				DBG("node %d // handover consume init state %d", radio_->id(), se.handover_state());
+				
+				if(*message.payload() == 'a') {
+					se.set_handover_state(SemanticEntityT::SEND_AGGREGATES_START);
 					endpoint.request_send();
 				}
 				else {
-					endpoint.request_close();
+					se.set_handover_state(SemanticEntityT::CLOSE);
+					endpoint.request_send();
+					//endpoint.request_close();
 				}
 			}
 			
-			// Token receiving side
+			//@}
 			
-			size_type produce_handover_recepient(block_data_t* buffer, size_type size, typename RingTransport::Endpoint& endpoint) {
+			//@{ Token receiving side
+			
+			bool produce_handover_recepient(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				DBG("node %d // x handover produce recv", radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
-				if(!found) { return; }
+				if(!found) { return false; }
+				
+				DBG("node %d // handover produce recv state %d", radio_->id(), se.handover_state());
 				
 				switch(se.handover_state()) {
 					case SemanticEntityT::SEND_ACTIVATING:
 						se.set_handover_state(SemanticEntityT::RECV_AGGREGATES);
-						*buffer = 'a';
-						return 1;
-						break;
+						*message.payload() = 'a';
+						message.set_payload_size(1);
+						return true;
+						
 					case SemanticEntityT::SEND_NONACTIVATING:
 						se.set_handover_state(SemanticEntityT::CLOSE);
 						endpoint.request_send();
-						*buffer = 'n';
-						return 1;
-						break;
-					case SemanticEntityT::CLOSE:
-						endpoint.request_close();
-						return 0;
-						break;
+						*message.payload() = 'n';
+						message.set_payload_size(1);
+						return true;
+						
+					case SemanticEntityT::DESTRUCT:
+						endpoint.request_destruct();
+						return false;
 				}
 				
-				return 0;
+				return false;
 			}
 			
-			void consume_handover_recepient(block_data_t* buffer, size_type size, typename RingTransport::Endpoint& endpoint) {
+			void consume_handover_recepient(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				DBG("node %d // x handover produce recv", radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
 				if(!found) { return; }
 				
+				DBG("node %d // handover produce recv state %d", radio_->id(), se.handover_state());
+				
+				if(message.is_close()) {
+					se.set_handover_state(SemanticEntityT::DESTRUCT);
+					return;
+				}
+				
 				switch(se.handover_state()) {
 					case SemanticEntityT::RECV_INIT: {
-						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(buffer);
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						bool activating = process_token_state(msg, se, endpoint.remote_address(), now());
 						se.set_handover_state(activating ? SemanticEntityT::SEND_ACTIVATING : SemanticEntityT::SEND_NONACTIVATING);
 						endpoint.request_send();
@@ -429,13 +497,16 @@ namespace wiselib {
 					}
 					
 					case SemanticEntityT::RECV_AGGREGATES: {
-						bool end = aggregator_.read_buffer(buffer, size);
+						bool end = aggregator_.read_buffer(message.payload(), message.payload_size());
 						if(end) {
-							endpoint.request_close();
+							//endpoint.request_close();
 						}
+						break;
 					}
 				} // switch()
 			}
+			
+			//@}
 			
 			// }}}
 			///@}
@@ -587,6 +658,9 @@ namespace wiselib {
 					// In any case, update the tree state from our neigbour
 					bool changed = process_neighbor_tree_state(from, s, se);
 					if(changed) {
+						ring_transport_.set_remote_address(se.id(), true, se.next_token_node());
+						ring_transport_.set_remote_address(se.id(), false, se.prev_token_node());
+						
 						// if the tree changed due to ths, resend token
 						// information as the ring has changed
 						//pass_on_state(se, false);

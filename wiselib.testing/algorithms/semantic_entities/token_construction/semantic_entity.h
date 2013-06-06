@@ -46,7 +46,7 @@ namespace wiselib {
 	>
 	class SemanticEntity {
 		public:
-			// {{{
+			//{{{ Typedefs & Enums
 			
 			typedef SemanticEntity<OsModel_P, Radio_P, Clock_P, Timer_P, MAX_NEIGHBORS_P> self_type;
 				
@@ -77,17 +77,17 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> TokenForwards;
 			
 			enum HandoverState {
-				SEND_INIT, SEND_ACTIVATING, SEND_NONACTIVATING, SEND_AGGREGATES,
+				SEND_INIT, SEND_ACTIVATING, SEND_NONACTIVATING, SEND_AGGREGATES_START, SEND_AGGREGATES,
 				RECV_INIT, RECV_AGGREGATES,
-				CLOSE
+				CLOSE, DESTRUCT
 			};
 			
-			// }}}
+			//}}}
 			
 			/**
 			 */
 			class TreeState {
-				// {{{
+				//{{{
 				public:
 					TreeState() : parent_(0), root_(-1), distance_(-1) {
 					}
@@ -293,8 +293,8 @@ namespace wiselib {
 				
 				childs_.clear();
 				for(typename TreeStates::iterator iter = neighbor_states_.begin(); iter != neighbor_states_.end(); ++iter) {
-					DBG("node %d SE %x.%x neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
-							(int)mynodeid, (int)id().rule(), (int)id().value(), (int)iter->first, (int)iter->second.parent(), (int)iter->second.root(), (int)iter->second.distance());
+					//DBG("node %d SE %x.%x neighbor %d neighbor_parent %d neighbor_root %d neighbor_distance %d",
+							//(int)mynodeid, (int)id().rule(), (int)id().value(), (int)iter->first, (int)iter->second.parent(), (int)iter->second.root(), (int)iter->second.distance());
 					if(iter->second.parent() == mynodeid) {
 						//DBG("// %d found child %d", mynodeid, iter->first)
 						if(childs_.find(iter->first) == childs_.end()) {
@@ -347,23 +347,18 @@ namespace wiselib {
 						continue;
 					}
 					
-					DBG("node %d // other_root %u root %u other_dist %u dist %u",
-							(int)mynodeid, (unsigned)iter->second.root(), root,
-							(unsigned)iter->second.distance(), (unsigned)distance);
+					//DBG("node %d // other_root %u root %u other_dist %u dist %u",
+							//(int)mynodeid, (unsigned)iter->second.root(), root,
+							//(unsigned)iter->second.distance(), (unsigned)distance);
 					
 					if(iter->second.root() < root) {
-						DBG("other root is better!");
 						parent = iter->first;
 						root = iter->second.root();
 						distance = iter->second.distance() + 1;
 					}
 					else if(iter->second.root() == root && (iter->second.distance() + 1) < distance) {
-						DBG("other distance is better!");
 						parent = iter->first;
 						distance = iter->second.distance() + 1;
-					}
-					else {
-						DBG("blub");
 					}
 				}
 				
@@ -442,7 +437,8 @@ namespace wiselib {
 			}
 			
 			/// @name Token forwarding
-			///@{{{
+			///@{
+			//{{{
 			
 			/**
 			 * Where should the token information be sent to after
@@ -502,7 +498,8 @@ namespace wiselib {
 			void set_handover_state(int s) { handover_state_ = s; }
 			int handover_state() { return handover_state_; }
 			
-			///@}}}
+			//}}}
+			///@}
 			
 			void set_prev_token_count(token_count_t ptc) {
 				prev_token_state_.set_count(ptc);
@@ -564,8 +561,9 @@ namespace wiselib {
 				cancel_timers(neighbor);
 			}
 			
-			// @{ Timing.
-			// {{{
+			///@name Timing
+			///@{
+			//{{{
 			
 			void learn_activating_token(typename Clock::self_pointer_t clock, node_id_t mynodeid, abs_millis_t hit) {
 				activating_token_.hit(hit, clock, mynodeid);
@@ -617,8 +615,8 @@ namespace wiselib {
 				return token_forwards_[from].interval();
 			}
 			
-			// }}}
-			// @}
+			//}}}
+			///@}
 			
 			abs_millis_t token_send_start() {
 				return token_send_start_;
@@ -628,8 +626,9 @@ namespace wiselib {
 				token_send_start_ = tss;
 			}
 			
-			// @{ Debugging.
-			// {{{
+			///@name Debugging
+			///@{
+			//{{{
 			
 			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
 				DBG("print_state");
@@ -649,9 +648,8 @@ namespace wiselib {
 				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
 			}
 			
-			// }}}
-			// @}
-			
+			//}}}
+			///@}
 			
 		private:
 			static abs_millis_t absolute_millis(typename Clock::self_pointer_t clock, const time_t& t) {

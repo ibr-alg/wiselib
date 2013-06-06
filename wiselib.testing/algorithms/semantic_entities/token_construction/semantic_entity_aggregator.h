@@ -170,61 +170,16 @@ namespace wiselib {
 			 * (call this repeadetely until call_again is false!)
 			 * @return number of bytes written
 			 */
-			size_type __fill_buffer(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
-				size_type written = 0;
-				size_type w = 0;
-				
-				for(typename AggregationEntries::iterator iter = aggregation_entries_.begin(); iter != aggregation_entries_.end(); ++iter) {
-					AggregationKey& key = iter->first;
-					AggregationValue& aggregate  = iter->second;
-					if(key.se_id() != se_id) { continue; }
-				
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_UOM, key.uom(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TYPE, key.type(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_DATATYPE, key.datatype(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_COUNT, aggregate.count(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MIN, aggregate.min(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MAX, aggregate.max(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_MEAN, aggregate.mean(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_COUNT, aggregate.total_count(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MIN, aggregate.total_min(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MAX, aggregate.total_max(), call_again);
-					written += w; if(call_again) { return written; }
-					
-					w = shdt_.fill_buffer(buffer, buffer_size, FIELD_TOTAL_MEAN, aggregate.total_mean(), call_again);
-					written += w; if(call_again) { return written; }
-				}
-			}
-			
-			
-			size_type fill_buffer_start(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+			size_type fill_buffer_start(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
 				fill_buffer_iterator_ = aggregation_entries_.begin();
 				fill_buffer_state_ = FIELD_UOM;
 				return fill_buffer(se_id, buffer, buffer_size, call_again);
 			}
 			
-			size_type fill_buffer(SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+			/// ditto.
+			size_type fill_buffer(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				//{{{
+				
 				if(fill_buffer_iterator_ == aggregation_entries_.end()) {
 					call_again = false;
 					return 0;
@@ -302,8 +257,70 @@ namespace wiselib {
 				} // while()
 				
 				return buf - buffer;
-			} // fill_buffer
+				
+				//}}}
+			} // fill_buffer()
 			
+			/**
+			 */
+			void read_buffer(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
+				//{{{
+				
+				typename Shdt::Reader reader(&shdt_, buffer, buffer_size);
+				bool done = true;
+				block_data_t *data;
+				size_type data_size;
+				typename Shdt::field_id field_id;
+				
+				while(!reader.done()) {
+					done = reader.read_field(field_id, data, data_size);
+					Value& v = reinterpret_cast<Value&>(*data);
+					if(!done) { break; }
+					switch(field_id) {
+						case FIELD_UOM:
+							read_buffer_key_.set_uom(v);
+							break;
+						case FIELD_TYPE:
+							read_buffer_key_.set_type(v);
+							break;
+						case FIELD_DATATYPE:
+							read_buffer_key_.set_datatype(*data);
+							break;
+							
+						case FIELD_COUNT:
+							read_buffer_value_.set_count(v);
+							break;
+						case FIELD_MIN:
+							read_buffer_value_.set_min(v);
+							break;
+						case FIELD_MAX:
+							read_buffer_value_.set_max(v);
+							break;
+						case FIELD_MEAN:
+							read_buffer_value_.set_mean(v);
+							break;
+							
+						case FIELD_TOTAL_COUNT:
+							read_buffer_value_.set_total_count(v);
+							break;
+						case FIELD_TOTAL_MIN:
+							read_buffer_value_.set_total_min(v);
+							break;
+						case FIELD_TOTAL_MAX:
+							read_buffer_value_.set_total_max(v);
+							break;
+						case FIELD_TOTAL_MEAN: {
+							read_buffer_value_.set_total_mean(v);
+							
+							read_buffer_key_.set_se_id(id);
+							//if(aggregation_entries_.contains(read_buffer_key_)) {
+							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
+							break;
+						}
+					} // switch
+				} // while
+				//}}}
+			}
 			
 		private:
 			
@@ -316,6 +333,8 @@ namespace wiselib {
 			AggregationEntries aggregation_entries_;
 			typename AggregationEntries::iterator fill_buffer_iterator_;
 			Shdt shdt_;
+			AggregationKey read_buffer_key_;
+			AggregationValue read_buffer_value_;
 		
 	}; // SemanticEntityAggregator
 	

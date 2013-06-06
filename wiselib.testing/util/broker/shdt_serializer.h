@@ -251,7 +251,11 @@ namespace wiselib {
 						data_size = 0;
 						return false;
 					}
-						
+					
+					bool done() {
+						return buffer_current_ < buffer_end_;
+					}
+					
 				private:
 					ShdtSerializer *serializer_;
 					block_data_t *buffer_start_;
