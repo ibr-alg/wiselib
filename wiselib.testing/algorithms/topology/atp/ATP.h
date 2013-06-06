@@ -82,6 +82,7 @@ namespace wiselib
 			monitoring_phase_counter				( 0 ),
 			monitoring_phases_transmission_power	( ATP_H_MONITORING_PHASES_TRANSMISSION_POWER ),
 			monitoring_phases_throughput			( ATP_H_MONITORING_PHASES_THROUGHPUT ),
+#ifdef DEBUG_ATP_H_STATS
 			periodic_bytes_received					( 0 ),
 			periodic_bytes_received_0				( 0 ),
 			periodic_bytes_received_6				( 0 ),
@@ -98,13 +99,14 @@ namespace wiselib
 			periodic_bytes_send_30					( 0 ),
 			periodic_messages_received				( 0 ),
 			periodic_messages_send					( 0 ),
+#endif
 			SCLD_MAX_threshold						( ATP_H_SCLD_MAX_THRESHOLD ),
 			SCLD_MIN_threshold						( ATP_H_SCLD_MIN_THRESHOLD ),
 			SCLD									( 0 ),
 			random_enable_timer_range				( ATP_H_RANDOM_ENABLE_TIMER_RANGE ),
 			status									( WAITING_STATUS )
 #ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
-			,local_scld_mins_threshold_ratio			( ATP_H_LOCAL_SCLD_MINS_THRESHOLD_RATIO ),
+			,local_scld_mins_threshold_ratio		( ATP_H_LOCAL_SCLD_MINS_THRESHOLD_RATIO ),
 			local_scld_maxs_threshold_ratio			( ATP_H_LOCAL_SCLD_MAXS_THRESHOLD_RATIO )
 #endif
 		{
@@ -169,15 +171,15 @@ namespace wiselib
 				{
 					scl().enable();
 #ifdef CONFING_ATP_H_STATUS_CONTROL
-				transmission_power_status.push( transmission_power_dB );
-				SCLD_status.push( nd_active_size );
+					transmission_power_status.push( transmission_power_dB );
+					SCLD_status.push( nd_active_size );
 #endif
 #ifdef DEBUG_ATP_H_STATS
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
-							debug().debug("COORD:%d:%d:%f:%f\n", monitoring_phases_transmission_power + monitoring_phases_throughput, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("COORD:%d:%d:%f:%f\n", monitoring_phases_transmission_power + monitoring_phases_throughput, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
-							debug().debug("COORD:%d:%x:%d:%d\n", monitoring_phases_transmission_power + monitoring_phases_throughput, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
+					debug().debug("COORD:%d:%x:%d:%d\n", monitoring_phases_transmission_power + monitoring_phases_throughput, radio().id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 #endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), nd_active_size, prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, ATP_sevice_transmission_power_period * monitoring_phases_transmission_power, monitoring_phases_throughput + monitoring_phases_transmission_power, scl().get_position().get_x(),  scl().get_position().get_y() );
@@ -231,11 +233,11 @@ namespace wiselib
 			{
 				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 				size_t nd_active_size = prot_ref->get_neighborhood_active_size();
+#ifdef DEBUG_ATP_H_STATS
 				periodic_messages_received = scl().get_messages_received() - periodic_messages_received;
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
 				periodic_bytes_received = scl().get_bytes_received() - periodic_bytes_received;
 				periodic_bytes_send = scl().get_bytes_send() - periodic_bytes_send;
-
 				periodic_bytes_received_0 = scl().get_bytes_received_0() + periodic_bytes_received_0;
 				periodic_bytes_send_0 = scl().get_bytes_send_0() + periodic_bytes_send_0;
 				periodic_bytes_received_6 = scl().get_bytes_received_6() + periodic_bytes_received_6;
@@ -248,7 +250,7 @@ namespace wiselib
 				periodic_bytes_send_24 = scl().get_bytes_send_24() + periodic_bytes_send_24;
 				periodic_bytes_received_30 = scl().get_bytes_received_30() + periodic_bytes_received_30;
 				periodic_bytes_send_30 = scl().get_bytes_send_30() + periodic_bytes_send_30;
-
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 				transmission_power_status.push( transmission_power_dB );
 				SCLD_status.push( nd_active_size );
@@ -375,8 +377,8 @@ namespace wiselib
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), i->get_position().get_x(), i->get_position().get_y() );
-					}
 #endif
+					}
 				}
 #ifdef DEBUG_ATP_H_STATS
 				if ( nd_active_size < SCLD_MIN_threshold )
@@ -408,7 +410,7 @@ namespace wiselib
 #endif
 				prot_ref->print( debug(), radio(), monitoring_phase_counter );
 				monitoring_phase_counter = monitoring_phase_counter + 1;
-
+#ifdef DEBUG_ATP_H_STATS
 				scl().set_bytes_send_0( 0 );
 				scl().set_bytes_send_6( 0 );
 				scl().set_bytes_send_12( 0 );
@@ -421,7 +423,7 @@ namespace wiselib
 				scl().set_bytes_received_18( 0 );
 				scl().set_bytes_received_24( 0 );
 				scl().set_bytes_received_30( 0 );
-
+#endif
 				if ( monitoring_phase_counter <= monitoring_phases_transmission_power )
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_transmission_power> ( ATP_sevice_transmission_power_period, this, 0 );
@@ -443,13 +445,11 @@ namespace wiselib
 			{
 				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 				size_t nd_active_size = prot_ref->get_neighborhood_active_size();
+#ifdef DEBUG_ATP_H_STATS
 				periodic_messages_received = scl().get_messages_received() - periodic_messages_received;
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
 				periodic_bytes_received = scl().get_bytes_received() - periodic_bytes_received;
 				periodic_bytes_send = scl().get_bytes_send() - periodic_bytes_send;
-				periodic_bytes_received_0 = scl().get_bytes_received_0() + periodic_bytes_received_0;
-				periodic_bytes_send_0 = scl().get_bytes_send_0() + periodic_bytes_send_0;
-
 				periodic_bytes_received_0 = scl().get_bytes_received_0() + periodic_bytes_received_0;
 				periodic_bytes_send_0 = scl().get_bytes_send_0() + periodic_bytes_send_0;
 				periodic_bytes_received_6 = scl().get_bytes_received_6() + periodic_bytes_received_6;
@@ -462,8 +462,7 @@ namespace wiselib
 				periodic_bytes_send_24 = scl().get_bytes_send_24() + periodic_bytes_send_24;
 				periodic_bytes_received_30 = scl().get_bytes_received_30() + periodic_bytes_received_30;
 				periodic_bytes_send_30 = scl().get_bytes_send_30() + periodic_bytes_send_30;
-
-
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 				throughput_status.push( beacon_period );
 				SCLD_status.push( nd_active_size );
@@ -590,8 +589,8 @@ namespace wiselib
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), scl().get_position().get_x(),  scl().get_position().get_y() );
 						debug().debug( "NB:%d:%x:%x:%d:%d\n", monitoring_phase_counter, radio().id(), i->get_id(), i->get_position().get_x(), i->get_position().get_y() );
-					}
 #endif
+					}
 				}
 #ifdef DEBUG_ATP_H_STATS
 				if ( nd_active_size < SCLD_MIN_threshold )
@@ -623,7 +622,7 @@ namespace wiselib
 #endif
 				prot_ref->print( debug(), radio(), monitoring_phase_counter );
 				monitoring_phase_counter = monitoring_phase_counter + 1;
-
+#ifdef DEBUG_ATP_H_STATS
 				scl().set_bytes_send_0( 0 );
 				scl().set_bytes_send_6( 0 );
 				scl().set_bytes_send_12( 0 );
@@ -636,7 +635,7 @@ namespace wiselib
 				scl().set_bytes_received_18( 0 );
 				scl().set_bytes_received_24( 0 );
 				scl().set_bytes_received_30( 0 );
-
+#endif
 				if ( monitoring_phase_counter <= monitoring_phases_transmission_power + monitoring_phases_throughput )
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_throughput> ( ATP_sevice_throughput_period, this, 0 );
@@ -841,6 +840,7 @@ namespace wiselib
 		uint32_t monitoring_phase_counter;
 		uint32_t monitoring_phases_transmission_power;
 		uint32_t monitoring_phases_throughput;
+#ifdef DEBUG_ATP_H_STATS
 		uint32_t periodic_bytes_received;
 		uint32_t periodic_bytes_received_0;
 		uint32_t periodic_bytes_received_6;
@@ -857,6 +857,7 @@ namespace wiselib
 		uint32_t periodic_bytes_send_30;
 		uint32_t periodic_messages_received;
 		uint32_t periodic_messages_send;
+#endif
 		size_t SCLD_MAX_threshold;
 		size_t SCLD_MIN_threshold;
 		size_t SCLD;
