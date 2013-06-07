@@ -77,9 +77,9 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> TokenForwards;
 			
 			enum HandoverState {
-				SEND_INIT, SEND_ACTIVATING, SEND_NONACTIVATING, SEND_AGGREGATES_START, SEND_AGGREGATES,
-				RECV_INIT, RECV_AGGREGATES,
-				CLOSE, DESTRUCT
+				INIT = 0, SEND_ACTIVATING = 1, SEND_NONACTIVATING = 2, SEND_AGGREGATES_START = 3, SEND_AGGREGATES = 4,
+				RECV_AGGREGATES = 5,
+				CLOSE = 6, DESTRUCT = 7
 			};
 			
 			//}}}

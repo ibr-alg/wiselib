@@ -51,6 +51,7 @@ namespace wiselib {
 			typedef TupleStore_P TupleStoreT;
 			typedef Value_P Value;
 			typedef ShdtSerializer<OsModel, 8> Shdt;
+			typedef typename TupleStoreT::Dictionary DictionaryT;
 			
 			/*
 			 * Matches TypeInfo in inqp/projection_info.h
@@ -64,15 +65,44 @@ namespace wiselib {
 		private:
 			class AggregationKey {
 				public:
+					AggregationKey() : uom_key_(DictionaryT::NULL_KEY), type_key_(DictionaryT::NULL_KEY) {
+					}
+					
+					bool operator==(const AggregationKey& other) const {
+						return (se_id_ == other.se_id_) &&
+							(datatype_ == other.datatype_) &&
+							(uom_key_ == other.uom_key_) &&
+							(type_key_ == other.type_key_);
+					}
+					
+					void free_dictionary_references(DictionaryT& dict, bool soft=false) {
+						if(uom_key_ != DictionaryT::NULL_KEY) {
+							dict.erase(uom_key_);
+							if(!soft) { uom_key_ = DictionaryT::NULL_KEY; }
+						}
+						if(type_key_ != DictionaryT::NULL_KEY) {
+							dict.erase(type_key_);
+							if(!soft) { type_key_ = DictionaryT::NULL_KEY; }
+						}
+					}
+					
 					SemanticEntityId& se_id() { return se_id_; }
-					Value uom() { return uom_; }
-					Value type() { return sensor_type_; }
-					::uint8_t datatype() { return datatype_; }
+					void set_se_id(const SemanticEntityId& id) { se_id_ = id; }
+					
+					typename DictionaryT::key_type uom_key() { return uom_key_; }
+					void set_uom_key(typename DictionaryT::key_type u) { uom_key_ = u; }
+					
+					typename DictionaryT::key_type type_key() { return type_key_; }
+					void set_type_key(typename DictionaryT::key_type u) { type_key_ = u; }
+					
+					::uint8_t& datatype() { return datatype_; }
+					void set_datatype(::uint8_t d) { datatype_ = d; }
 					
 				private:
 					SemanticEntityId se_id_;
-					Value sensor_type_, uom_;
 					::uint8_t datatype_;
+					typename DictionaryT::key_type uom_key_;
+					typename DictionaryT::key_type type_key_;
 			};
 			
 			class AggregationValue {
@@ -98,13 +128,27 @@ namespace wiselib {
 						}
 					}
 					
-					Value count() { return count_; }
-					Value min() { return min_; }
-					Value max() { return max_; }
-					Value mean() { return mean_; }
+					Value& count() { return count_; }
+					void set_count(Value& x) { count_ = x; }
+					Value& min() { return min_; }
+					void set_min(Value& x) { min_ = x; }
+					Value& max() { return max_; }
+					void set_max(Value& x) { max_ = x; }
+					Value& mean() { return mean_; }
+					void set_mean(Value& x) { mean_ = x; }
+					
+					Value& total_count() { return total_count_; }
+					void set_total_count(Value& x) { total_count_ = x; }
+					Value& total_min() { return total_min_; }
+					void set_total_min(Value& x) { total_min_ = x; }
+					Value& total_max() { return total_max_; }
+					void set_total_max(Value& x) { total_max_ = x; }
+					Value& total_mean() { return total_mean_; }
+					void set_total_mean(Value& x) { total_mean_ = x; }
 					
 				private:
 					Value count_, min_, max_, mean_;
+					Value total_count_, total_min_, total_max_, total_mean_;
 			};
 			
 			enum Fields {
@@ -194,58 +238,64 @@ namespace wiselib {
 					AggregationValue& aggregate = fill_buffer_iterator_->second;
 					
 					switch(fill_buffer_state_) {
-						case FIELD_UOM:
-							call_again = shdt_.write_field(FIELD_UOM, key.uom(), buf, buf_end);
+						case FIELD_UOM: {
+							block_data_t *uom = dictionary().get_value(key.uom_key());
+							call_again = shdt_.write_field(FIELD_UOM, uom, strlen((char*)uom), buf, buf_end);
+							dictionary().free_value(uom);
 							if(!call_again) { fill_buffer_state_ = FIELD_TYPE; }
 							break;
-							
-						case FIELD_TYPE:
-							call_again = shdt_.write_field(FIELD_TYPE, key.type(), buf, buf_end);
+						}
+						
+						case FIELD_TYPE: {
+							block_data_t *type = dictionary().get_value(key.type_key());
+							call_again = shdt_.write_field(FIELD_TYPE, type, strlen((char*)type), buf, buf_end);
+							dictionary().free_value(type);
 							if(!call_again) { fill_buffer_state_ = FIELD_DATATYPE; }
 							break;
-							
+						}
+						
 						case FIELD_DATATYPE:
-							call_again = shdt_.write_field(FIELD_DATATYPE, key.datatype(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_DATATYPE, &key.datatype(), sizeof(key.datatype()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_COUNT; }
 							break;
 							
 						case FIELD_COUNT:
-							call_again = shdt_.write_field(FIELD_COUNT, aggregate.count(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_COUNT, (block_data_t*)&aggregate.count(), sizeof(aggregate.count()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_MIN; }
 							break;
 							
 						case FIELD_MIN:
-							call_again = shdt_.write_field(FIELD_MIN, aggregate.min(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_MIN, (block_data_t*)&aggregate.min(), sizeof(aggregate.min()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_MAX; }
 							break;
 							
 						case FIELD_MAX:
-							call_again = shdt_.write_field(FIELD_MAX, aggregate.max(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_MAX, (block_data_t*)&aggregate.max(), sizeof(aggregate.max()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_MEAN; }
 							break;
 							
 						case FIELD_MEAN:
-							call_again = shdt_.write_field(FIELD_MEAN, aggregate.mean(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_MEAN, (block_data_t*)&aggregate.mean(), sizeof(aggregate.mean()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
 							break;
 							
 						case FIELD_TOTAL_COUNT:
-							call_again = shdt_.write_field(FIELD_TOTAL_COUNT, aggregate.total_count(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_TOTAL_COUNT, (block_data_t*)&aggregate.total_count(), sizeof(aggregate.total_count()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
 							break;
 							
 						case FIELD_TOTAL_MIN:
-							call_again = shdt_.write_field(FIELD_TOTAL_MIN, aggregate.total_min(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_TOTAL_MIN, (block_data_t*)&aggregate.total_min(), sizeof(aggregate.total_min()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
 							break;
 							
 						case FIELD_TOTAL_MAX:
-							call_again = shdt_.write_field(FIELD_TOTAL_MAX, aggregate.total_max(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_TOTAL_MAX, (block_data_t*)&aggregate.total_max(), sizeof(aggregate.total_max()), buf, buf_end);
 							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
 							break;
 							
 						case FIELD_TOTAL_MEAN:
-							call_again = shdt_.write_field(FIELD_TOTAL_MEAN, aggregate.total_mean(), buf, buf_end);
+							call_again = shdt_.write_field(FIELD_TOTAL_MEAN, (block_data_t*)&aggregate.total_mean(), sizeof(aggregate.total_mean()), buf, buf_end);
 							if(!call_again) {
 								++fill_buffer_iterator_;
 								if(fill_buffer_iterator_ == aggregation_entries_.end()) {
@@ -270,19 +320,23 @@ namespace wiselib {
 				bool done = true;
 				block_data_t *data;
 				size_type data_size;
-				typename Shdt::field_id field_id;
+				typename Shdt::field_id_t field_id;
 				
 				while(!reader.done()) {
 					done = reader.read_field(field_id, data, data_size);
 					Value& v = reinterpret_cast<Value&>(*data);
 					if(!done) { break; }
 					switch(field_id) {
-						case FIELD_UOM:
-							read_buffer_key_.set_uom(v);
+						case FIELD_UOM: {
+							typename DictionaryT::key_type k = dictionary().insert(data);
+							read_buffer_key_.set_uom_key(k);
 							break;
-						case FIELD_TYPE:
-							read_buffer_key_.set_type(v);
+						}
+						case FIELD_TYPE: {
+							typename DictionaryT::key_type k = dictionary().insert(data);
+							read_buffer_key_.set_type_key(k);
 							break;
+						}
 						case FIELD_DATATYPE:
 							read_buffer_key_.set_datatype(*data);
 							break;
@@ -313,7 +367,17 @@ namespace wiselib {
 							read_buffer_value_.set_total_mean(v);
 							
 							read_buffer_key_.set_se_id(id);
-							//if(aggregation_entries_.contains(read_buffer_key_)) {
+							
+							if(aggregation_entries_.contains(read_buffer_key_)) {
+								// we are going to insert that key again, that
+								// would increase the number of references to
+								// type/uom strings without increasing the
+								// number of keys that reference it.
+								// Thus, free one set of references here to
+								// compensate.
+								read_buffer_key_.free_dictionary_references(dictionary(), true);
+							}
+							
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
 							break;
 						}
@@ -322,10 +386,12 @@ namespace wiselib {
 				//}}}
 			}
 			
+			DictionaryT& dictionary() { return tuple_store_->dictionary(); }
+			
 		private:
 			
-			size_type find_entry(const SemanticEntityId& se_id, Value sensor_type, Value uom, ::uint8_t datatype) {
-			}
+			//size_type find_entry(const SemanticEntityId& se_id, Value sensor_type, Value uom, ::uint8_t datatype) {
+			//}
 			
 			int fill_buffer_state_;
 			const char* entity_format_;

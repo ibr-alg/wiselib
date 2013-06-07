@@ -389,7 +389,9 @@ namespace wiselib {
 				}
 				else {
 					// do a table insert (as there we can split it up)
-					table_id_t id = write_data(data, data_size);
+					table_id_t id;
+					bool call_again = write_data(data, data_size, buffer, bufsiz, id);
+					if(call_again) { return true; }
 					
 					Instruction in;
 					in.instruction() = CMD_TABLE_VALUE;

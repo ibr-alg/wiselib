@@ -10,6 +10,10 @@
 	#if CODESIZE_PRESCILLA
 		#define USE_PRESCILLA 1
 	#endif
+
+#else
+	#define USE_PRESCILLA 1
+
 #endif
 
 #define USE_DICTIONARY (USE_PRESCILLA)

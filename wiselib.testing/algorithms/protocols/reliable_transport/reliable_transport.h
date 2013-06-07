@@ -106,8 +106,14 @@ namespace wiselib {
 					}
 					
 					void destruct() {
+						/*
 						produce_ = produce_callback_t();
 						consume_ = consume_callback_t();
+						*/
+						sending_sequence_number_ = 0;
+						receiving_sequence_number_ = 0;
+						wants_close_ = false;
+						wants_send_ = false;
 					}
 					
 					sequence_number_t sending_sequence_number() { return sending_sequence_number_; }
@@ -142,6 +148,7 @@ namespace wiselib {
 					void comply_send() { wants_send_ = false; }
 					
 					node_id_t remote_address() { return remote_address_; }
+					void set_remote_address(node_id_t x) { remote_address_ = x; }
 				
 				private:
 					node_id_t remote_address_;
@@ -224,6 +231,8 @@ namespace wiselib {
 					return;
 				}
 				
+				DBG("transport recv chan %x.%x", msg.channel().rule(), msg.channel().value());
+				
 				if(msg.is_ack()) {
 					on_receive_ack(from, msg);
 				}
@@ -287,8 +296,11 @@ namespace wiselib {
 				}
 				if(switch_sending_endpoint()) {
 					sending_.set_flags(Message::FLAGS_DATA | (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0));
+					DBG("transport setting channel to %x.%x", sending_endpoint().channel().rule(), sending_endpoint().channel().value());
 					sending_.set_channel(sending_endpoint().channel());
 					sending_.set_sequence_number(sending_endpoint().sending_sequence_number());
+					
+					DBG("transport channel is %x.%x", sending_.channel().rule(), sending_.channel().value());
 					
 					sending_endpoint().comply_send();
 					bool produced = sending_endpoint().produce(sending_);
@@ -350,6 +362,7 @@ namespace wiselib {
 				}
 				
 				DBG("@%d try_send ack timer %d seqnr %d", radio_->id(), ack_timer_, sending_endpoint().sending_sequence_number());
+				DBG("transport channel is still %x.%x", sending_.channel().rule(), sending_.channel().value());
 				radio_->send(sending_endpoint().remote_address(), sending_.size(), sending_.data());
 				resends_++;
 				//ack_timeout_channel_ = sending_endpoint().channel();
