@@ -659,6 +659,10 @@ namespace wiselib
 				scl().disable();
 #endif
 			}
+			TxPower tp;
+			tp.set_dB( transmission_power_dB );
+			radio().set_power( tp );
+			radio().set_daemon_period( beacon_period );
 		}
 #endif
 		// -----------------------------------------------------------------------

@@ -321,6 +321,25 @@ namespace wiselib
 #endif
 		}
 		// --------------------------------------------------------------------
+#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+		void daemon_scheduler( void* _data = NULL )
+		{
+#ifdef DEBUG_RELIABLE_RADIO_H
+			debug().debug("ReliableRadio - daemon_scheduler - Entering scheduler\n", radio().id() );
+#endif
+			uint32_t backoff_daemon_period = rand()() % ( daemon_period - 50 );
+			time_t current_time = clock().time();
+#ifdef DEBUG_RELIABLE_RADIO_H
+			debug().debug("DAE_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_daemon_period, daemon_period );
+#endif
+			timer().template set_timer<self_t, &self_t::daemon>( backoff_daemon_period, this, 0 );
+			timer().template set_timer<self_t, &self_t::daemon_scheduler> ( daemon_period, this, 0 );
+#ifdef DEBUG_RELIABLE_RADIO_H
+			debug().debug("ReliableRadio - daemon_scheduler - Exiting scheduler\n", radio().id() );
+#endif
+		}
+#endif
+		// --------------------------------------------------------------------
 		void daemon( void* _user_data = NULL )
 		{
 #ifdef DEBUG_RELIABLE_RADIO_H
@@ -371,6 +390,9 @@ namespace wiselib
 							TxPower tp;
 							tp.set_dB( old_db );
 							radio().set_power( tp );
+#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+							break;
+#endif
 						}
 						else
 						{
@@ -383,6 +405,9 @@ namespace wiselib
 //#endif
 							radio().send( i->get_destination(), message.serial_size(), message.serialize() );
 							i->inc_counter();
+#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+							break;
+#endif
 						}
 					}
 					else if ( ( i->get_counter() ==  max_retries ) && ( i->get_delivered() == 0 ) )
@@ -415,11 +440,13 @@ namespace wiselib
 						i->inc_counter();
 					}
 				}
+#ifndef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
 				millis_t offset = 0;
 #ifdef CONFIG_RELIABLE_RADIO_H_RANDOM_DAEMON_OFFSET
 				millis_t offset = rand()() % daemon_period;
 #endif
 				timer().template set_timer<self_t, &self_t::daemon> ( daemon_period + offset, this, 0 );
+#endif
 			}
 #ifdef DEBUG_RELIABLE_RADIO_H
 			debug().debug( "ReliableRadio - daemon %x Exiting.\n", radio().id() );
