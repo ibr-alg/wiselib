@@ -88,7 +88,7 @@ namespace wiselib
 		///Buffer for the packet
 		block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
 		
-// 		uint8_t payload_max_length;
+		uint8_t payload_max_length;
 		
 		///Constructor
 		DPS_Packet( uint8_t packet_type, bool fragmentation_needed = false )
@@ -117,11 +117,12 @@ namespace wiselib
 				payload_position += 4;
 			}
 			
-// #if ( DPS_FOOTER == 0 )
-// 			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position;
-// #elif
-// 			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position - 4;
-// #endif
+#if ( DPS_FOOTER == 0 )
+			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position;
+#else
+			//Reserve 4 bytes for the footer
+			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position - 4;
+#endif
 			
 			length = payload_position;
 		}

@@ -23,6 +23,8 @@ public:
 	typedef Radio::size_t size_t;
 	typedef Radio::message_id_t message_id_t;
 	
+	typedef DPS_Radio_t::node_id_t DPS_node_id_t;
+	
 	void init( Os::AppMainParameter& value )
 	{
 		radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
@@ -36,12 +38,16 @@ public:
 		DPS_Radio_.enable_radio();
 		
 		//Register
-		
 		if( radio_->id() == 0x0 || radio_->id() == 0x2 )
 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, true );
 		else if( radio_->id() == 0x1 )
 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, false );
-
+		
+		if( radio_->id() == 0x1 )
+		{
+			timer_->set_timer<DPSApp, &DPSApp::send>( 2000, this, NULL );
+			
+		}
 		//--------------------------------------------------------------------------------------
 		//					Testing part
 		//--------------------------------------------------------------------------------------
@@ -49,10 +55,35 @@ public:
 		
 	}
 	
-	int RPC_handler( node_id_t source, uint8_t Fild, uint16_t length, block_data_t* buffer )
+	int RPC_handler( DPS_node_id_t IDs, uint16_t length, block_data_t* buffer )
 	{
-		debug_->debug( "RPC_handler is called at: %llx\n", (long long unsigned)(radio_->id()));
+		debug_->debug( "RPC_handler is called at: %llx (%i/%i)\n", (long long unsigned)(radio_->id()), IDs.first, IDs.second);
+		
+		//Call the function which is associated with the F_id
+		if( IDs.second == 1 )
+			print_string( buffer );
+		
 		return 1;
+	}
+	
+	void print_string (block_data_t* buffer)
+	{
+		debug_->debug( "%s", buffer );
+	}
+	
+	void send( void* )
+	{
+		DPS_node_id_t dest;
+		dest.first = DPS_Radio_t::TEST_PID;
+		dest.second = 1;
+		
+		uint8_t mypayload[] = "This is a test message.";
+		
+		if( DPS_Radio_.send(dest, sizeof(mypayload), mypayload ) == DPS_Radio_t::NO_CONNECTION )
+		{
+			debug_->debug( "No connection at %llx, call is postponed", (long long unsigned)(radio_->id()));
+			timer_->set_timer<DPSApp, &DPSApp::send>( 2000, this, NULL );
+		}
 	}
 	
 	// --------------------------------------------------------------------

@@ -47,7 +47,7 @@ namespace wiselib
 	class Connection_t
 	{
 		typedef Radio_P Radio;
-		typedef typename Radio::node_id_t node_id_t;
+		typedef typename Radio::node_id_t radio_node_id_t;
 		
 	public:
 		Connection_t()
@@ -82,7 +82,7 @@ namespace wiselib
 		/**
 		 * MAC address of the communication partner (server/client)
 		 */
-		node_id_t partner_MAC;
+		radio_node_id_t partner_MAC;
 		
 		/**
 		 * Status of the DPS connection
@@ -126,11 +126,12 @@ namespace wiselib
 	/**
 	* \brief 
 	*/
-	template<typename Radio_P>
+	template<typename Radio_P,
+		typename Pair_P>
 	class Protocol_t
 	{
 		typedef Radio_P Radio;
-		typedef typename Radio::node_id_t node_id_t;
+		typedef Pair_P node_id_t;
 		typedef typename Radio::block_data_t block_data_t;
 		
 	public:
@@ -148,7 +149,7 @@ namespace wiselib
 		 * RPC_handler delegate
 		 * Source, Fid, length, buffer
 		 */
-		typedef delegate4<int, node_id_t, uint8_t, uint16_t, block_data_t*> RPC_handler_delegate_t;
+		typedef delegate3<int, node_id_t, uint16_t, block_data_t*> RPC_handler_delegate_t;
 		RPC_handler_delegate_t rpc_handler_delegate;
 	};
 	
@@ -177,14 +178,17 @@ namespace wiselib
 		typedef DPS_Radio<OsModel, Radio, Debug, Timer, Rand> self_type;
 		typedef self_type* self_pointer_t;
 		
-		typedef typename Radio::node_id_t node_id_t;
+		typedef typename Radio::node_id_t radio_node_id_t;
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::message_id_t message_id_t;
 		
+		//node_id_t as a pair: P_ID and F_ID
+		typedef wiselib::pair<uint8_t, uint8_t> node_id_t;
+		
 		typedef DPS_Packet<OsModel, Radio, Debug> DPS_Packet_t;
 		
-		typedef Protocol_t<Radio> protocol_type;
+		typedef Protocol_t<Radio, node_id_t> protocol_type;
 		typedef wiselib::pair<uint8_t, protocol_type> newprotocol_t;
 		typedef MapStaticVector<OsModel, uint8_t, protocol_type, DPS_MAX_PROTOCOLS> Protocol_list_t;
 		
@@ -204,7 +208,8 @@ namespace wiselib
 			SUCCESS = OsModel::SUCCESS,
 			ERR_UNSPEC = OsModel::ERR_UNSPEC,
 			ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
-			ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
+			ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
+			NO_CONNECTION = 100
 		};
 		// --------------------------------------------------------------------
 		
@@ -254,12 +259,12 @@ namespace wiselib
 		/**
 		 * \brief
 		*/
-		void receive( node_id_t from, size_t length, block_data_t *data );
+		void receive( radio_node_id_t from, size_t length, block_data_t *data );
 		
 		/**
 		 * \brief
 		*/
-		node_id_t id()
+		radio_node_id_t id()
 		{
 			return radio().id();
 		}
@@ -270,7 +275,7 @@ namespace wiselib
 		/**
 		 * \brief
 		 */
-		template<class T, int (T::*TMethod)(node_id_t, uint8_t, uint16_t, block_data_t*)>
+		template<class T, int (T::*TMethod)(node_id_t, uint16_t, block_data_t*)>
 		int reg_recv_callback( T *obj_pnt, uint8_t Pid, bool server )
 		{
 			//The Pid has been already registered
@@ -327,7 +332,7 @@ namespace wiselib
 		/**
 		* \brief
 		*/
-		int send_connection_message( node_id_t destination, uint8_t type, Connection_list_iterator connection );
+		int send_connection_message( radio_node_id_t destination, uint8_t type, Connection_list_iterator connection );
 		
 		/**
 		* \brief Function called by the timer in order to send DISCOVERY message
@@ -520,7 +525,7 @@ namespace wiselib
 	{
 		//Key derivation
 		memcpy(connection->key, DPS_REQUEST_KEY, 16);
-		node_id_t x, y;
+		radio_node_id_t x, y;
 		
 		//Use a fixed order of the two addresses
 		if( connection->partner_MAC > id() )
@@ -533,8 +538,8 @@ namespace wiselib
 			x = id();
 			y = connection->partner_MAC;
 		}
-		memcpy(&(connection->key[0]), &x, sizeof(node_id_t));
-		memcpy(&(connection->key[8]), &y, sizeof(node_id_t));
+		memcpy(&(connection->key[0]), &x, sizeof(radio_node_id_t));
+		memcpy(&(connection->key[8]), &y, sizeof(radio_node_id_t));
 		
 		// XOR it with the connection_nonce
 		for (uint8_t i=0; i<=12; i=i+4) {
@@ -587,7 +592,7 @@ namespace wiselib
 		typename Rand_P>
 	int
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
-	send_connection_message( node_id_t destination, uint8_t type, Connection_list_iterator connection )
+	send_connection_message( radio_node_id_t destination, uint8_t type, Connection_list_iterator connection )
 	{
 		
 		//NOTE only for TEST
@@ -697,8 +702,52 @@ namespace wiselib
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
 	send( node_id_t destination, uint16_t length, block_data_t *data )
 	{
+		//NOTE only for TEST
+		if( disabled_ )
+			return ERR_UNSPEC;
 		
-		return SUCCESS;
+		for( Connection_list_iterator it = connection_list_.begin(); it != connection_list_.end(); ++it )
+		{
+			if( it->Pid == destination.first && it->connection_status == connection_type::CONNECTED )
+			{
+				//Create a packet, NOTE no fragmentation at the moment
+				DPS_Packet_t packet( DPS_Packet_t::DPS_TYPE_RPC_REQUEST, false );
+				block_data_t* payload_act_pointer=packet.get_payload();
+				
+				packet.set_pid( destination.first );
+				packet.set_fid( destination.second );
+				
+				//TODO increment only after all fragments
+				if( protocol_list_[packet.pid()].server )
+					packet.set_counter( it->server_counter++ );
+				else
+					packet.set_counter( it->client_counter++ );
+				
+				//TODO ...
+				memcpy( payload_act_pointer, data, length);
+				payload_act_pointer += length;
+				packet.length += length;
+				
+#if DPS_FOOTER > 0
+				uint8_t MAC[4];
+				calculate_checksum_for_buffer( packet.length, packet.buffer, it, MAC, false );
+				//Free place is always reserved for these 4 bytes
+				memcpy( payload_act_pointer, MAC, 4 );
+				//payload_act_pointer += 4; - won't be used any more
+				packet.length += 4;
+				// 		debug().debug( "DPS: %x %x %x %x length: %i", MAC[0], MAC[1], MAC[2], MAC[3], packet.length);
+#endif
+				
+				#ifdef DPS_RADIO_DEBUG
+				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(it->partner_MAC), destination.first, destination.second);
+				#endif
+				
+				radio().send( it->partner_MAC, packet.length, packet.buffer );
+				
+				return SUCCESS;
+			}
+		}
+		return NO_CONNECTION;
 	}
 	
 	// -----------------------------------------------------------------------
@@ -709,7 +758,7 @@ namespace wiselib
 		typename Rand_P>
 	void
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
-	receive( node_id_t from, size_t length, block_data_t *data ) 
+	receive( radio_node_id_t from, size_t length, block_data_t *data ) 
 	{
 		
 		DPS_Packet_t packet( length, data );
@@ -903,6 +952,21 @@ namespace wiselib
 							it->server_counter++;
 							return;
 						}
+					}
+					else if( packet.type() == DPS_Packet_t::DPS_TYPE_RPC_REQUEST )
+					{
+						//TODO check the counter values, collect fragments...
+						
+						node_id_t source;
+						source.first = packet.pid();
+						source.second = packet.fid();
+						uint16_t payload_length = packet.length - packet.payload_position;
+						
+						#if DPS_FOOTER > 0
+						payload_length -= 4;
+						#endif
+						
+						(protocol_list_[packet.pid()].rpc_handler_delegate)( source, payload_length, packet.buffer + packet.payload_position );
 					}
 					else
 					{
