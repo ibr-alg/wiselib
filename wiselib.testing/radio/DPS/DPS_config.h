@@ -24,7 +24,10 @@
 #define DPS_MAX_CONNECTIONS 2
 
 //The footer is not used
-#define DPS_FOOTER 0
+// 0 - unused 
+// 1 - XOR based 
+// 2 - AES* based
+#define DPS_FOOTER 1
 
 #define DPS_TIMER_DISCOVERY_FREQUENCY 1000 //30
 #define DPS_TIMER_DISCOVERY_MIN 3 //Not used at the moment

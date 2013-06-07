@@ -3,6 +3,9 @@
 * Author: Daniel Gehberger - GSoC 2013 - DPS project
 */
 
+//Needed for iSense in order to avoid linker error with the MapStaticVector class
+extern "C" void assert(int) { }
+
 #include "external_interface/external_interface.h"
 #include "radio/DPS/DPS_radio.h"
 
