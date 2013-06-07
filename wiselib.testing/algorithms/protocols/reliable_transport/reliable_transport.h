@@ -44,7 +44,7 @@ namespace wiselib {
 	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
 		public:
-			/// @{{{ Typedefs & Enums
+			//{{{ Typedefs & Enums
 			typedef ReliableTransport<OsModel_P, ChannelId_P, Radio_P, Timer_P> self_type;
 			
 			typedef OsModel_P OsModel;
@@ -74,7 +74,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 2000, MAX_RESENDS = 3
+				RESEND_TIMEOUT = 5000, MAX_RESENDS = 3
 			};
 			
 			enum ReturnValues {
@@ -83,7 +83,7 @@ namespace wiselib {
 			
 			enum { npos = (size_type)(-1) };
 			
-			/// @}}}
+			//}}}
 			
 			class Endpoint {
 				// {{{
@@ -198,6 +198,12 @@ namespace wiselib {
 					endpoints_[idx].init(addr, channel, initiator, produce, consume, abort_produce);
 					return SUCCESS;
 				}
+			}
+			
+			node_id_t remote_address(const ChannelId& channel, bool initiator) {
+				size_type idx = find_or_create_endpoint(channel, initiator, false);
+				if(idx == npos) { return NULL_NODE_ID; }
+				return endpoints_[idx].remote_address();
 			}
 			
 			void set_remote_address(const ChannelId& channel, bool initiator, node_id_t addr) {
@@ -331,7 +337,8 @@ namespace wiselib {
 				if(msg.channel() == sending_endpoint().channel() &&
 						msg.initiator() == sending_endpoint().initiator() &&
 						msg.sequence_number() == sending_endpoint().sending_sequence_number()) {
-					DBG("@%d recv ack seqnr=%d ack_timer=%d", radio_->id(), msg.sequence_number(), ack_timer_);
+					DBG("@%d recv ack seqnr=%d ack_timer=%d chan=%x.%x/%d", radio_->id(), msg.sequence_number(), ack_timer_,
+							msg.channel().rule(), msg.channel().value(), msg.initiator());
 					ack_timer_++; // invalidate running ack timer
 					sending_endpoint().increase_sending_sequence_number();
 					is_sending_ = false;
@@ -372,8 +379,8 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("@%d try_send ack timer %d seqnr %d", radio_->id(), ack_timer_, sending_endpoint().sending_sequence_number());
-				DBG("transport channel is still %x.%x", sending_.channel().rule(), sending_.channel().value());
+				DBG("@%d try_send ack timer %d seqnr %d chan=%x.%x/%d", radio_->id(), ack_timer_, sending_endpoint().sending_sequence_number(),
+							sending_.channel().rule(), sending_.channel().value(), sending_.initiator());
 				radio_->send(sending_endpoint().remote_address(), sending_.size(), sending_.data());
 				resends_++;
 				//ack_timeout_channel_ = sending_endpoint().channel();
@@ -386,7 +393,8 @@ namespace wiselib {
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
 					
 				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
-					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d", radio_->id(), resends_, ack_timer_, sending_endpoint().sending_sequence_number(), sending_channel_idx_);
+					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d", radio_->id(), resends_, ack_timer_, sending_endpoint().sending_sequence_number(), sending_channel_idx_,
+							sending_.channel().rule(), sending_.channel().value(), sending_.initiator());
 					if(resends_ >= MAX_RESENDS) {
 						sending_endpoint().abort_produce();
 						is_sending_ = false;
@@ -408,12 +416,17 @@ namespace wiselib {
 			void on_receive_data(Message& msg) {
 				size_type idx = find_or_create_endpoint(msg.channel(), !msg.initiator(), false);
 				if(idx == npos) {
+					DBG("on_receive_data: ignoring message of unkonwn channel %x.%x", msg.channel().rule(), msg.channel().value());
 					return;
 				}
 				
 				if(msg.sequence_number() == endpoints_[idx].receiving_sequence_number()) {
+					DBG("on_receive_data: om nom nom");
 					endpoints_[idx].consume(msg);
 					endpoints_[idx].increase_receiving_sequence_number();
+				}
+				else {
+					DBG("on_receive_data: ignoring message of wrong seqnr %d (expected: %d)", msg.sequence_number(), endpoints_[idx].receiving_sequence_number());
 				}
 			}
 			
@@ -439,7 +452,7 @@ namespace wiselib {
 			size_type sending_channel_idx_;
 			size_type ack_timer_;
 			size_type resends_;
-			sequence_number_t ack_timeout_sequence_number_;
+			//sequence_number_t ack_timeout_sequence_number_;
 			bool is_sending_;
 		
 	}; // ReliableTransport

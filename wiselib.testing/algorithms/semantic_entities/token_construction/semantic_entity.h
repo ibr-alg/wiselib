@@ -290,6 +290,7 @@ namespace wiselib {
 				//}
 				//
 				bool lost_childs = false;
+				bool new_childs = false;
 				
 				Childs oldchilds = childs_;
 				
@@ -319,6 +320,7 @@ namespace wiselib {
 						
 					while(i_new != childs_.end() && *i_new < *i_old) {
 						++i_new;
+						new_childs = true;
 						//if(i_new != childs_.end()) {
 							//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
 						//}
@@ -376,7 +378,7 @@ namespace wiselib {
 				bool c_a = state().set_distance(distance);
 				bool c_b = state().set_parent(parent);
 				bool c_c = state().set_root(root);
-				bool changed = lost_childs || c_a || c_b || c_c;
+				bool changed = new_childs || lost_childs || c_a || c_b || c_c;
 				
 				if(changed) {
 					DBG("node %d SE %x.%x distance %d parent %d root %d // tree state change",
