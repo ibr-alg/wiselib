@@ -61,16 +61,12 @@ namespace wiselib {
 			
 			enum Positions {
 				POS_MESSAGE_ID = 0,
-				POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_ENTITY_ID = POS_FLAGS + sizeof(flags_t), // sizeof(bool),
-				POS_TOKEN_STATE = POS_ENTITY_ID + sizeof(SemanticEntityId),
-				POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
+				//POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
+				//POS_ENTITY_ID = POS_FLAGS + sizeof(flags_t), // sizeof(bool),
+				POS_TOKEN_STATE = POS_MESSAGE_ID + sizeof(message_id_t),
+				//POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
 				
-				POS_END = POS_TIME_OFFSET + sizeof(abs_millis_t)
-			};
-			
-			enum Flags {
-				FLAG_IS_ACK = 0
+				POS_END = POS_TOKEN_STATE + sizeof(TokenState)
 			};
 			
 			TokenStateMessage() {
@@ -79,8 +75,6 @@ namespace wiselib {
 			
 			void init() {
 				set_type(MESSAGE_TYPE);
-				set_is_ack(false);
-				set_time_offset(0);
 			}
 			
 			message_id_t type() {
@@ -91,45 +85,12 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, t);
 			}
 			
-			//node_id_t from() {
-				//return wiselib::read<OsModel, block_data_t, node_id_t>(data_ + POS_FROM);
-			//}
-			
-			//void set_from(node_id_t f) {
-				//wiselib::write<OsModel>(data_ + POS_FROM, f);
-			//}
-			
-			SemanticEntityId entity_id() {
-				return wiselib::read<OsModel, block_data_t, SemanticEntityId>(data_ + POS_ENTITY_ID);
-			}
-			
-			void set_entity_id(SemanticEntityId& id) {
-				wiselib::write<OsModel>(data_ + POS_ENTITY_ID, id);
-			}
-			
 			TokenState token_state() {
 				return wiselib::read<OsModel, block_data_t, TokenState>(data_ + POS_TOKEN_STATE);
 			}
 			
 			void set_token_state(const TokenState& s) {
 				wiselib::write<OsModel>(data_ + POS_TOKEN_STATE, s);
-			}
-			
-			bool is_ack() {
-				return (wiselib::read<OsModel, block_data_t, flags_t>(data_ + POS_FLAGS) >> FLAG_IS_ACK) & 0x01;
-			}
-			
-			void set_is_ack(bool a) {
-				flags_t f = wiselib::read<OsModel, block_data_t, flags_t>(data_ + POS_FLAGS);
-				f = (f & ~((flags_t)(1 << FLAG_IS_ACK))) | (a << FLAG_IS_ACK);
-			}
-			
-			abs_millis_t time_offset() {
-				return wiselib::read<OsModel, block_data_t, abs_millis_t>(data_ + POS_TIME_OFFSET);
-			}
-			
-			void set_time_offset(abs_millis_t to) {
-				wiselib::write<OsModel>(data_ + POS_TIME_OFFSET, to);
 			}
 			
 			block_data_t* data() {

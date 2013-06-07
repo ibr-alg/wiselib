@@ -65,6 +65,7 @@ namespace wiselib {
 			
 			typedef delegate2<bool, Message&, Endpoint&> produce_callback_t;
 			typedef delegate2<void, Message&, Endpoint&> consume_callback_t;
+			typedef delegate1<void, Endpoint&> abort_produce_callback_t;
 			
 			enum SpecialNodeIds {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
@@ -73,13 +74,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 5000, MAX_RESENDS = 5
-			};
-			
-			enum Events {
-				OPEN_SEND, OPEN_RECEIVE,
-				ACKNOWLEDGE_SEND,
-				ABORT_SEND, ABORT_RECEIVE
+				RESEND_TIMEOUT = 2000, MAX_RESENDS = 3
 			};
 			
 			enum ReturnValues {
@@ -93,10 +88,11 @@ namespace wiselib {
 			class Endpoint {
 				// {{{
 				public:
-					void init(node_id_t remote_address, const ChannelId& channel, bool initiator, produce_callback_t p, consume_callback_t c) {
+					void init(node_id_t remote_address, const ChannelId& channel, bool initiator, produce_callback_t p, consume_callback_t c, abort_produce_callback_t a) {
 						remote_address_ = remote_address;
 						produce_ = p;
 						consume_ = c;
+						abort_produce_ = a;
 						sending_sequence_number_ = 0;
 						receiving_sequence_number_ = 0;
 						channel_id_ = channel;
@@ -131,9 +127,10 @@ namespace wiselib {
 						consume_(msg, *this);
 					}
 					
-					void abort_send() {
+					void abort_produce() {
+						abort_produce_(*this);
 						//produce_(0, 0, *this);
-						DBG("+++++++++++++ TODO: pass abort_send to application!");
+						//DBG("+++++++++++++ TODO: pass abort_send to application!");
 					}
 					
 					bool used() { return produce_ || consume_; }
@@ -154,6 +151,7 @@ namespace wiselib {
 					node_id_t remote_address_;
 					produce_callback_t produce_;
 					consume_callback_t consume_;
+					abort_produce_callback_t abort_produce_;
 					sequence_number_t sending_sequence_number_;
 					sequence_number_t receiving_sequence_number_;
 					
@@ -191,30 +189,31 @@ namespace wiselib {
 				return radio_->disable_radio();
 			}
 			
-			int register_endpoint(node_id_t addr, const ChannelId& channel, bool initiator, produce_callback_t produce, consume_callback_t consume) {
-				size_type idx = find_or_create_endpoint(channel, initiator);
+			int register_endpoint(node_id_t addr, const ChannelId& channel, bool initiator, produce_callback_t produce, consume_callback_t consume, abort_produce_callback_t abort_produce) {
+				size_type idx = find_or_create_endpoint(channel, initiator, true);
 				if(idx == npos) {
 					return ERR_UNSPEC;
 				}
 				else {
-					endpoints_[idx].init(addr, channel, initiator, produce, consume);
+					endpoints_[idx].init(addr, channel, initiator, produce, consume, abort_produce);
 					return SUCCESS;
 				}
 			}
 			
 			void set_remote_address(const ChannelId& channel, bool initiator, node_id_t addr) {
-				size_type idx = find_or_create_endpoint(channel, initiator);
+				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx == npos) { return; }
 				endpoints_[idx].set_remote_address(addr);
 			}
 			
 			int request_send(const ChannelId& channel, bool initiator) {
-				size_type idx = find_or_create_endpoint(channel, initiator);
+				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx == npos) {
-					DBG("request send: channel not found");
+					DBG("request_send: channel not found");
 					return ERR_UNSPEC;
 				}
 				else {
+					DBG("request_send for idx %d", idx);
 					endpoints_[idx].request_send();
 					check_send();
 					//if(!is_sending_) {
@@ -246,7 +245,7 @@ namespace wiselib {
 		private:
 			Endpoint& sending_endpoint() { return endpoints_[sending_channel_idx_]; }
 			
-			size_type find_or_create_endpoint(const ChannelId& channel, bool initiator, bool create = true) {
+			size_type find_or_create_endpoint(const ChannelId& channel, bool initiator, bool create) {
 				size_type free = npos;
 				for(size_type i = 0; i < MAX_ENDPOINTS; i++) {
 					if(free == npos && !endpoints_[i].used()) {
@@ -265,6 +264,10 @@ namespace wiselib {
 			bool switch_sending_endpoint() {
 				size_type ole = sending_channel_idx_;
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
+					DBG("switch idx %d used %d destruct %d send %d",
+							sending_channel_idx_, sending_endpoint().used(),
+							sending_endpoint().wants_destruct(), sending_endpoint().wants_send());
+					
 					if(sending_endpoint().used() && sending_endpoint().wants_destruct()) {
 						sending_endpoint().destruct();
 					}
@@ -274,6 +277,10 @@ namespace wiselib {
 					}
 				}
 				for(sending_channel_idx_ = 0; sending_channel_idx_ <= ole; sending_channel_idx_++) {
+					DBG("switch idx %d used %d destruct %d send %d",
+							sending_channel_idx_, sending_endpoint().used(),
+							sending_endpoint().wants_destruct(), sending_endpoint().wants_send());
+					
 					if(sending_endpoint().used() && sending_endpoint().wants_destruct()) {
 						sending_endpoint().destruct();
 					}
@@ -291,25 +298,29 @@ namespace wiselib {
 			//{{{
 			
 			void check_send() {
+				DBG("check_send")
 				if(is_sending_) {
+					DBG("check_send: currently sending idx %d", sending_channel_idx_);
 					return;
 				}
 				if(switch_sending_endpoint()) {
 					sending_.set_flags(Message::FLAGS_DATA | (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0));
-					DBG("transport setting channel to %x.%x", sending_endpoint().channel().rule(), sending_endpoint().channel().value());
 					sending_.set_channel(sending_endpoint().channel());
 					sending_.set_sequence_number(sending_endpoint().sending_sequence_number());
-					
-					DBG("transport channel is %x.%x", sending_.channel().rule(), sending_.channel().value());
 					
 					sending_endpoint().comply_send();
 					bool produced = sending_endpoint().produce(sending_);
 					if(produced) {
 						try_send();
 					}
+					else {
+						DBG("check_send: idx %d didnt produce anything!", sending_channel_idx_);
+						is_sending_ = false;
+						check_send();
+					}
 				}
 				else {
-					DBG("check send: no sending endpoint found");
+					DBG("check_send: no sending endpoint found");
 				}
 			}
 			
@@ -375,9 +386,9 @@ namespace wiselib {
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
 					
 				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
-					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d", radio_->id(), resends_, ack_timer_, sending_endpoint().sending_sequence_number());
+					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d", radio_->id(), resends_, ack_timer_, sending_endpoint().sending_sequence_number(), sending_channel_idx_);
 					if(resends_ >= MAX_RESENDS) {
-						sending_endpoint().abort_send();
+						sending_endpoint().abort_produce();
 						is_sending_ = false;
 						check_send();
 					}

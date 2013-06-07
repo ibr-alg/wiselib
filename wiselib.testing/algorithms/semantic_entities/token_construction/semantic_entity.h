@@ -228,10 +228,10 @@ namespace wiselib {
 			};
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> States;
 			
-			SemanticEntity() : activity_phase_(false), sending_token_(false), handover_state_(0) {
+			SemanticEntity() : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), sending_token_(false), handover_state_(0) {
+			SemanticEntity(const SemanticEntityId& id) : state_(id), activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -288,6 +288,8 @@ namespace wiselib {
 				//if(neighbor_states_.size() == 0) {
 					//DBG("// node %d has no neighbors!", (int)mynodeid);
 				//}
+				//
+				bool lost_childs = false;
 				
 				Childs oldchilds = childs_;
 				
@@ -325,6 +327,7 @@ namespace wiselib {
 						DBG("node %d // SE %x.%x LOST CHILD %d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)*i_old);
 						// lost child *i_old
 						cancel_timers(*i_old);
+						lost_childs = true;
 					}
 				}
 				if(i_new != childs_.end()) { ++i_new; }
@@ -367,14 +370,13 @@ namespace wiselib {
 					parent = mynodeid;
 				}
 				
-				bool changed = false;
 				
 				// don't use something like "changed = changed || state().set_xxx()" here!
 				// short circuit evaluation will kill you!
 				bool c_a = state().set_distance(distance);
 				bool c_b = state().set_parent(parent);
 				bool c_c = state().set_root(root);
-				changed = changed || c_a || c_b || c_c;
+				bool changed = lost_childs || c_a || c_b || c_c;
 				
 				if(changed) {
 					DBG("node %d SE %x.%x distance %d parent %d root %d // tree state change",
@@ -495,8 +497,10 @@ namespace wiselib {
 				}
 			}
 			
-			void set_handover_state(int s) { handover_state_ = s; }
-			int handover_state() { return handover_state_; }
+			void set_handover_state_initiator(int s) { handover_state_initiator_ = s; }
+			int handover_state_initiator() { return handover_state_initiator_; }
+			void set_handover_state_recepient(int s) { handover_state_recepient_ = s; }
+			int handover_state_recepient() { return handover_state_recepient_; }
 			
 			//}}}
 			///@}
@@ -681,7 +685,8 @@ namespace wiselib {
 			bool activity_phase_;
 			bool sending_token_;
 			
-			int handover_state_;
+			int handover_state_initiator_;
+			int handover_state_recepient_;
 			
 	}; // SemanticEntity
 	
