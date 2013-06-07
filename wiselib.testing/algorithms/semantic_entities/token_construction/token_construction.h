@@ -141,6 +141,11 @@ namespace wiselib {
 				npos = (size_type)(-1)
 			};
 			
+			enum ReturnValues {
+				SUCCESS = OsModel::SUCCESS,
+				ERR_UNSPEC = OsModel::ERR_UNSPEC
+			};
+			
 			/// @}}}
 			
 			class PacketInfo {
@@ -200,13 +205,13 @@ namespace wiselib {
 				ring_transport_.register_endpoint(Radio::NULL_NODE_ID, id, true,
 						RingTransport::produce_callback_t::template from_method<self_type, &self_type::produce_handover_initiator>(this),
 						RingTransport::consume_callback_t::template from_method<self_type, &self_type::consume_handover_initiator>(this),
-						RingTransport::abort_produce_callback_t::template from_method<self_type, &self_type::abort_produce_handover_initiator>(this)
+						RingTransport::event_callback_t::template from_method<self_type, &self_type::event_handover_initiator>(this)
 				);
 				
 				ring_transport_.register_endpoint(Radio::NULL_NODE_ID, id, false,
 						RingTransport::produce_callback_t::template from_method<self_type, &self_type::produce_handover_recepient>(this),
 						RingTransport::consume_callback_t::template from_method<self_type, &self_type::consume_handover_recepient>(this),
-						RingTransport::abort_produce_callback_t::template from_method<self_type, &self_type::abort_produce_handover_recepient>(this)
+						RingTransport::event_callback_t::template from_method<self_type, &self_type::event_handover_recepient>(this)
 				);
 				
 				//begin_wait_for_token(se);
@@ -350,10 +355,22 @@ namespace wiselib {
 				DBG("node %d SE %x.%x // initiate handover to %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), ring_transport_.remote_address(se.id(), true));
 				se.set_handover_state_initiator(0);
 				
-				//ring_transport_.open(se.id(), true);
+				bool found;
+				typename RingTransport::Endpoint& ep = ring_transport_.get_endpoint(se.id(), true, found);
+				if(!found) {
+					DBG("node %d // initiate: endpoint not found!", radio_->id());
+					return;
+				}
 				
-				if(ring_transport_.remote_address(se.id(), true) != radio_->id()) {
-					ring_transport_.request_send(se.id(), true);
+				if(ep.remote_address() != radio_->id()) {
+					int r = ring_transport_.open(ep);
+					if(r == SUCCESS) {
+						DBG("node %d // initiate: opening", radio_->id());
+						ring_transport_.request_send(se.id(), true);
+					}
+					else {
+						DBG("node %d // initiate: already open!", radio_->id());
+					}
 				}
 			}
 			
@@ -361,7 +378,7 @@ namespace wiselib {
 			
 			bool produce_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
 				if(endpoint.remote_address() == radio_->id()) {
-					endpoint.destruct();
+					//endpoint.destruct();
 					return false;
 				}
 				
@@ -382,8 +399,9 @@ namespace wiselib {
 						msg.set_token_state(se.token());
 						//msg.set_time_offset(0);
 						
-						message.set_open();
+						//message.set_open();
 						message.set_payload_size(msg.size());
+						ring_transport_.expect_answer(endpoint);
 						return true;
 					}
 						
@@ -416,18 +434,18 @@ namespace wiselib {
 					}
 					
 					case SemanticEntityT::CLOSE: {
-						message.set_close();
+						//message.set_close();
 						message.set_payload_size(0);
-						se.set_handover_state_initiator(SemanticEntityT::DESTRUCT);
-						endpoint.request_send();
+						//se.set_handover_state_initiator(SemanticEntityT::DESTRUCT);
+						endpoint.request_close();
 						return true;
 					}
 					
-					case SemanticEntityT::DESTRUCT: {
-						endpoint.destruct();
-						se.set_handover_state_initiator(SemanticEntityT::INIT);
-						return false;
-					}
+					//case SemanticEntityT::DESTRUCT: {
+						//endpoint.destruct();
+						//se.set_handover_state_initiator(SemanticEntityT::INIT);
+						//return false;
+					//}
 					
 				} // switch()
 				
@@ -436,7 +454,7 @@ namespace wiselib {
 			
 			void consume_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
 				if(endpoint.remote_address() == radio_->id()) {
-					endpoint.destruct();
+					//endpoint.destruct();
 					return;
 				}
 				
@@ -460,15 +478,17 @@ namespace wiselib {
 				}
 			}
 			
-			void abort_produce_handover_initiator(typename RingTransport::Endpoint& endpoint) {
-				const SemanticEntityId &id = endpoint.channel();
-				bool found;
-				SemanticEntityT& se = find_entity(id, found);
-				if(!found) { return; }
-				
-				DBG("node %d // handover abort produce init state %d", radio_->id(), se.handover_state_initiator());
-				endpoint.destruct();
-				se.set_handover_state_initiator(SemanticEntityT::INIT);
+			void event_handover_initiator(int event, typename RingTransport::Endpoint& endpoint) {
+				if(event == RingTransport::EVENT_CLOSE || event == RingTransport::EVENT_OPEN) {
+					const SemanticEntityId &id = endpoint.channel();
+					bool found;
+					SemanticEntityT& se = find_entity(id, found);
+					if(!found) { return; }
+					
+					DBG("node %d // handover close initiator state %d evt=%d", radio_->id(), se.handover_state_initiator(), event);
+					//endpoint.destruct();
+					se.set_handover_state_initiator(SemanticEntityT::INIT);
+				}
 			}
 			
 			//@}
@@ -477,7 +497,7 @@ namespace wiselib {
 			
 			bool produce_handover_recepient(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
 				if(endpoint.remote_address() == radio_->id()) {
-					endpoint.destruct();
+					//endpoint.destruct();
 					return false;
 				}
 				
@@ -494,25 +514,27 @@ namespace wiselib {
 						se.set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES);
 						*message.payload() = 'a';
 						message.set_payload_size(1);
+						ring_transport_.expect_answer(endpoint);
 						return true;
 						
 					case SemanticEntityT::SEND_NONACTIVATING:
-						se.set_handover_state_recepient(SemanticEntityT::CLOSE);
-						endpoint.request_send();
+						//se.set_handover_state_recepient(SemanticEntityT::CLOSE);
+						//endpoint.request_send();
 						*message.payload() = 'n';
 						message.set_payload_size(1);
+						ring_transport_.expect_answer(endpoint);
 						return true;
 						
-					case SemanticEntityT::CLOSE:
-						message.set_close();
-						message.set_payload_size(0);
-						se.set_handover_state_recepient(SemanticEntityT::DESTRUCT);
-						return true;
+					//case SemanticEntityT::CLOSE:
+						//message.set_close();
+						//message.set_payload_size(0);
+						//se.set_handover_state_recepient(SemanticEntityT::DESTRUCT);
+						//return true;
 						
-					case SemanticEntityT::DESTRUCT:
-						endpoint.destruct();
-						se.set_handover_state_recepient(SemanticEntityT::INIT);
-						return false;
+					//case SemanticEntityT::DESTRUCT:
+						//endpoint.destruct();
+						//se.set_handover_state_recepient(SemanticEntityT::INIT);
+						//return false;
 				}
 				
 				return false;
@@ -520,7 +542,7 @@ namespace wiselib {
 			
 			void consume_handover_recepient(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
 				if(endpoint.remote_address() == radio_->id()) {
-					endpoint.destruct();
+					//endpoint.destruct();
 					return;
 				}
 				
@@ -530,17 +552,17 @@ namespace wiselib {
 				SemanticEntityT& se = find_entity(id, found);
 				if(!found) { return; }
 				
-				if(message.is_open()) {
-					se.set_handover_state_recepient(SemanticEntityT::INIT);
-				}
+				//if(message.is_open()) {
+					//se.set_handover_state_recepient(SemanticEntityT::INIT);
+				//}
 				
 				DBG("node %d // handover consume recv state %d", radio_->id(), se.handover_state_recepient());
 				
-				if(message.is_close()) {
-					DBG("node %d // handover consume recv state %d message is close!", radio_->id(), se.handover_state_recepient());
-					se.set_handover_state_recepient(SemanticEntityT::DESTRUCT);
-					return;
-				}
+				//if(message.is_close()) {
+					//DBG("node %d // handover consume recv state %d message is close!", radio_->id(), se.handover_state_recepient());
+					//se.set_handover_state_recepient(SemanticEntityT::DESTRUCT);
+					//return;
+				//}
 				
 				switch(se.handover_state_recepient()) {
 					case SemanticEntityT::INIT: {
@@ -559,15 +581,17 @@ namespace wiselib {
 				} // switch()
 			}
 			
-			void abort_produce_handover_recepient(typename RingTransport::Endpoint& endpoint) {
-				const SemanticEntityId &id = endpoint.channel();
-				bool found;
-				SemanticEntityT& se = find_entity(id, found);
-				if(!found) { return; }
-				
-				DBG("node %d // handover abort produce recv state %d", radio_->id(), se.handover_state_recepient());
-				endpoint.destruct();
-				se.set_handover_state_recepient(SemanticEntityT::INIT);
+			void event_handover_recepient(int event, typename RingTransport::Endpoint& endpoint) {
+				if(event == RingTransport::EVENT_CLOSE || event == RingTransport::EVENT_OPEN) {
+					const SemanticEntityId &id = endpoint.channel();
+					bool found;
+					SemanticEntityT& se = find_entity(id, found);
+					if(!found) { return; }
+					
+					DBG("node %d // handover open/close recv state %d", radio_->id(), se.handover_state_recepient());
+					//endpoint.destruct();
+					se.set_handover_state_recepient(SemanticEntityT::INIT);
+				}
 			}
 			
 			//@}
@@ -732,6 +756,7 @@ namespace wiselib {
 						// if the tree changed due to ths, resend token
 						// information as the ring has changed
 						//pass_on_state(se, false);
+						DBG("node %d //initiate handover because of tree change", radio_->id());
 						initiate_handover(se);
 					}
 					
@@ -972,6 +997,7 @@ namespace wiselib {
 			 */
 			void check_neighbors(void* =0) {
 				//// TODO
+				/*
 				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
 					if(it->second.seen() && absolute_millis(it->second.last_encounter()) + 2 * it->second.interval() < now()) {
 						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d",
@@ -989,6 +1015,7 @@ namespace wiselib {
 				for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {
 					se_it->update_state(radio_->id());
 				}
+				*/
 			}
 			
 			/*
