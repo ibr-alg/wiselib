@@ -154,7 +154,7 @@ namespace wiselib {
 						request_open_ = false;
 						request_close_ = false;
 						open_ = true;
-						expect_answer_ = false;
+						//expect_answer_ = false;
 					}
 					bool is_open() { return open_; }
 					
@@ -270,6 +270,7 @@ namespace wiselib {
 				if(found && ep.is_open()) {
 					ep.request_close();
 				}
+				return SUCCESS;
 			}
 			
 			void expect_answer(Endpoint& ep) {
@@ -353,7 +354,9 @@ namespace wiselib {
 			
 			void on_answer_timeout(void *ep_) {
 				Endpoint &ep = *reinterpret_cast<Endpoint*>(ep_);
-				if(ep.is_open() && ep.expects_answer()) {
+				if(ep.expects_answer()) {
+					DBG("node %d // expected answer from %d not received closing channel", radio_->id(),
+							ep.remote_address());
 					ep.abort_produce();
 					ep.close();
 				}
@@ -437,7 +440,7 @@ namespace wiselib {
 						sending_endpoint().open();
 					}
 					
-					if(!sending_endpoint().open()) { return; }
+					if(!sending_endpoint().is_open()) { return; }
 					
 					DBG("@%d recv ack seqnr=%d ack_timer=%d chan=%x.%x/%d", radio_->id(), msg.sequence_number(), ack_timer_,
 							msg.channel().rule(), msg.channel().value(), msg.initiator());
@@ -486,8 +489,8 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("@%d try_send ack timer %d seqnr %d chan=%x.%x/%d", radio_->id(), ack_timer_, sending_endpoint().sending_sequence_number(),
-							sending_.channel().rule(), sending_.channel().value(), sending_.initiator());
+				DBG("@%d try_send ack timer %d seqnr %d chan=%x.%x/%d flags=%d payload=%d", radio_->id(), ack_timer_, sending_endpoint().sending_sequence_number(),
+							sending_.channel().rule(), sending_.channel().value(), sending_.initiator(), sending_.flags(), sending_.payload_size());
 				radio_->send(sending_endpoint().remote_address(), sending_.size(), sending_.data());
 				resends_++;
 				//ack_timeout_channel_ = sending_endpoint().channel();
@@ -554,12 +557,15 @@ namespace wiselib {
 						endpoints_[idx].set_expect_answer(false);
 						endpoints_[idx].consume(msg);
 					}
+					else {
+						DBG("on_receive_data: not consuming empty message");
+					}
 					
 					endpoints_[idx].increase_receiving_sequence_number();
 					
 			}
 			
-			void send_ack(node_id_t to, Message& msg) {
+			void send_ack(node_id_t to, Message msg) {
 				msg.set_payload(0, 0);
 				
 				//msg.set_subtype(Message::SUBTYPE_ACK);

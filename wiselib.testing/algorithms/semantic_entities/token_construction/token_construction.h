@@ -588,7 +588,7 @@ namespace wiselib {
 					SemanticEntityT& se = find_entity(id, found);
 					if(!found) { return; }
 					
-					DBG("node %d // handover open/close recv state %d", radio_->id(), se.handover_state_recepient());
+					DBG("node %d // handover open/close recv state %d from %d", radio_->id(), se.handover_state_recepient(), endpoint.remote_address());
 					//endpoint.destruct();
 					se.set_handover_state_recepient(SemanticEntityT::INIT);
 				}
@@ -665,17 +665,19 @@ namespace wiselib {
 					}
 					
 					case RingTransport::Message::MESSAGE_TYPE: {
-						DBG("node %d // recv transport from %d", radio_->id(), from);
 						
 						// Do we need to forward?
 						typename RingTransport::Message &msg = reinterpret_cast<typename RingTransport::Message&>(*data);
 						bool found;
 						SemanticEntityT &se = find_entity(msg.channel(), found);
+						
+						DBG("node %d // recv transport from %d ack=%d init=%d", radio_->id(), from, msg.is_ack(), msg.initiator());
+						
 						if(!found) {
-							DBG("node %d // transport se not found: %x %x", radio_->id(), msg.channel().rule(), msg.channel().value());
+							DBG("node %d // transport se not found: %x.%x", radio_->id(), msg.channel().rule(), msg.channel().value());
 							break;
 						}
-						node_id_t forward_node = !msg.initiator() ? se.token_ack_forward_for(radio_->id(), from) : se.token_forward_for(radio_->id(), from);
+						node_id_t forward_node = (msg.is_ack() == msg.initiator()) ? se.token_ack_forward_for(radio_->id(), from) : se.token_forward_for(radio_->id(), from);
 						if(forward_node == NULL_NODE_ID) {
 							DBG("node %d // ignoring transport from %d", radio_->id(), from);
 							break;
@@ -786,7 +788,7 @@ namespace wiselib {
 					se.learn_token_forward(clock_, radio_->id(), from, t_recv);
 				}
 				
-				DBG("node %d // fwd to %d", radio_->id(), to);
+				DBG("node %d // fwd to %d ack=%d init=%d", radio_->id(), to, msg.is_ack(), msg.initiator());
 				radio_->send(to, msg.size(), msg.data());
 				
 				if(msg.is_close() && msg.is_ack()) {
