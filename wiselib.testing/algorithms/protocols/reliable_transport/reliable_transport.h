@@ -75,7 +75,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
 				RESEND_TIMEOUT = 5000, MAX_RESENDS = 3,
-				ANSWER_TIMEOUT = 2500,
+				ANSWER_TIMEOUT = 5000,
 			};
 			
 			enum ReturnValues {
@@ -489,9 +489,14 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("@%d try_send ack timer %d seqnr %d chan=%x.%x/%d flags=%d payload=%d", radio_->id(), ack_timer_, sending_endpoint().sending_sequence_number(),
+				node_id_t addr = sending_endpoint().remote_address();
+				
+				DBG("@%d try_send to %d acktimer %d seqnr %d chan=%x.%x/%d flags=%d payload=%d", radio_->id(), addr, ack_timer_, sending_endpoint().sending_sequence_number(),
 							sending_.channel().rule(), sending_.channel().value(), sending_.initiator(), sending_.flags(), sending_.payload_size());
-				radio_->send(sending_endpoint().remote_address(), sending_.size(), sending_.data());
+				
+				if(addr != radio_->id() && addr != NULL_NODE_ID) {
+					radio_->send(addr, sending_.size(), sending_.data());
+				}
 				resends_++;
 				//ack_timeout_channel_ = sending_endpoint().channel();
 				//ack_timeout_sequence_number_ = sending_endpoint().sequence_number();
@@ -536,8 +541,8 @@ namespace wiselib {
 					endpoints_[idx].open();
 				}
 				
-				if(!msg.is_open() && msg.sequence_number() != endpoints_[idx].receiving_sequence_number()) {
-					DBG("on_receive_data: ignoring message of wrong seqnr %d (expected: %d)", msg.sequence_number(), endpoints_[idx].receiving_sequence_number());
+				if(!msg.is_open() || msg.sequence_number() != endpoints_[idx].receiving_sequence_number()) {
+					DBG("on_receive_data: ignoring message of wrong seqnr %d (expected: %d) or chan closed", msg.sequence_number(), endpoints_[idx].receiving_sequence_number());
 					return;
 				}
 					

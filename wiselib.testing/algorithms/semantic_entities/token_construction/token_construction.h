@@ -128,8 +128,9 @@ namespace wiselib {
 				AWAKE_BCAST_INTERVAL = 100 * TIME_SCALE,
 				/// How long to stay awake when we have the token
 				ACTIVITY_PERIOD = 1000 * TIME_SCALE,
-				RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
-				HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
+				//RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
+				//HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
+				HANDOVER_RETRY_INTERVAL = 2000 * TIME_SCALE
 			};
 			
 			enum SpecialAddresses {
@@ -479,11 +480,16 @@ namespace wiselib {
 			}
 			
 			void event_handover_initiator(int event, typename RingTransport::Endpoint& endpoint) {
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+					
+				if(event == RingTransport::EVENT_ABORT) {
+					timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
+				}
+				
 				if(event == RingTransport::EVENT_CLOSE || event == RingTransport::EVENT_OPEN) {
-					const SemanticEntityId &id = endpoint.channel();
-					bool found;
-					SemanticEntityT& se = find_entity(id, found);
-					if(!found) { return; }
 					
 					DBG("node %d // handover close initiator state %d evt=%d", radio_->id(), se.handover_state_initiator(), event);
 					//endpoint.destruct();
@@ -749,7 +755,9 @@ namespace wiselib {
 					// In any case, update the tree state from our neigbour
 					bool changed = process_neighbor_tree_state(from, s, se);
 					if(changed) {
-						DBG("node %d SE %x.%x // new init remote addr: %d (p=%d c[0]=%d)", radio_->id(), se.id().rule(), se.id().value(), se.next_token_node(), se.parent(), se.child_address(0));
+						DBG("node %d SE %x.%x // new init remote addr: %d (p=%d #c=%d c[0]=%d c[-1]=%d)",
+								radio_->id(), se.id().rule(), se.id().value(), se.next_token_node(),
+								se.parent(), se.childs(), se.child_address(0), se.child_address(se.childs() - 1));
 						DBG("node %d SE %x.%x // new recep remote addr: %d", radio_->id(), se.id().rule(), se.id().value(), se.prev_token_node(radio_->id()));
 						
 						ring_transport_.set_remote_address(se.id(), true, se.next_token_node());

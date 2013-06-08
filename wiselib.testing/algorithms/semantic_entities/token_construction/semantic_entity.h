@@ -313,14 +313,14 @@ namespace wiselib {
 				//DBG("node %d // SE %d.%d child list begin old=%d new=%d this=%p", mynodeid, id().rule(), id().value(), oldchilds.size(), childs_.size(), this);
 				typename Childs::iterator i_new = childs_.begin();
 				for(typename Childs::iterator i_old = oldchilds.begin(); i_old != oldchilds.end(); ++i_old) {
-					//DBG("node %d // SE %d.%d old child %d this=%p", mynodeid, id().rule(), id().value(), *i_old, this);
-					//if(i_new != childs_.end()) {
-						//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
-					//}
+					
+					// i_old points at smallest unprocessed old child
+					// i_new points at smallest unprocessed new child
 						
 					while(i_new != childs_.end() && *i_new < *i_old) {
-						++i_new;
 						new_childs = true;
+						DBG("node %d // SE %x.%x NEW CHILD %d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)*i_new);
+						++i_new;
 						//if(i_new != childs_.end()) {
 							//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
 						//}
@@ -331,8 +331,11 @@ namespace wiselib {
 						cancel_timers(*i_old);
 						lost_childs = true;
 					}
+					else {
+						++i_new;
+					}
 				}
-				if(i_new != childs_.end()) { ++i_new; }
+				if(i_new != childs_.end()) { new_childs = true; }
 				//for(; i_new != childs_.end(); ++i_new) {
 					//DBG("node %d // SE %d.%d new child %d", mynodeid, id().rule(), id().value(), *i_new);
 				//}
