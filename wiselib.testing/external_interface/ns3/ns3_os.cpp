@@ -16,7 +16,7 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#include "wiselib.stable/external_interface/ns3/ns3_os.h"
+#include "external_interface/ns3/ns3_os.h"
 
 namespace wiselib
 {

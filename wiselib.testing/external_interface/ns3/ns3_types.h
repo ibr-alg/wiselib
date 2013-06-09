@@ -20,12 +20,16 @@
 #define CONNECTOR_NS3_TYPES_H
 
 #include <stdint.h>
+#include "/home/dizhi/git-repo/ns-3-dev-git/src/wiselib/model/wiselib-ext-iface.h"
 
 namespace wiselib
 {
+
+class WiselibExtIface;
+
    struct Ns3Os {
-      // This class will be implemented in NS-3 later
-      //ExtIfaceApplication *app;
+      // This class is implemented in NS-3
+      WiselibExtIface *proc;
    };
 }
 

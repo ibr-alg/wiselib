@@ -23,9 +23,11 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include "external_interface/ns3/ns3_types.h"
+#include "external_interface/ns3/ns3_os.h"
+
 namespace wiselib
 {
-
    /** \brief Ns3 Implementation of \ref debug_concept "Debug Concept".
     *
     *  \ingroup debug_concept
@@ -47,17 +49,8 @@ namespace wiselib
       {}
       // --------------------------------------------------------------------
       void debug( const char *msg, ... )
-      {
-         /* we use standard printf function here
-          * In the GSoC project, the ns3::NS_LOG_DEBUG method will be used
-          * This method will be wrapped into the ExtIfaceApplication class in NS-3
-          */
-         va_list fmtargs;
-         char buffer[1024];
-         va_start( fmtargs, msg );
-         vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
-         va_end( fmtargs );
-         printf( "%s\n", buffer );
+      {        
+         os ().proc->Debug (msg);
       }
 
    private:
