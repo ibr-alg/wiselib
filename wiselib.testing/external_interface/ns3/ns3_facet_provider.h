@@ -21,7 +21,6 @@
 
 
 #include "external_interface/facet_provider.h"
-//#include "/home/dizhi/wiselib-master/wiselib.stable/external_interface/facet_provider.h"
 #include "external_interface/ns3/ns3_os.h"
 
 namespace wiselib

@@ -19,10 +19,10 @@
 #ifndef __CONNECTOR_NS3_OS_MODEL_H__
 #define __CONNECTOR_NS3_OS_MODEL_H__
 
-#include "wiselib.stable/external_interface/default_return_values.h"
-#include "wiselib.stable/external_interface/ns3/ns3_types.h"
-#include "wiselib.stable/external_interface/ns3/ns3_debug.h"
-#include "wiselib.stable/util/serialization/endian.h"
+#include "external_interface/default_return_values.h"
+#include "external_interface/ns3/ns3_types.h"
+#include "external_interface/ns3/ns3_debug.h"
+#include "util/serialization/endian.h"
 
 
 namespace wiselib

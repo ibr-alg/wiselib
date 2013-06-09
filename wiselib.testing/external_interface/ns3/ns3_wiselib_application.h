@@ -19,8 +19,8 @@
 #ifndef __EXTERNAL_INTERFACE_NS3_WISELIB_APPLICATION_H__
 #define __EXTERNAL_INTERFACE_NS3_WISELIB_APPLICATION_H__
 
-#include "wiselib.stable/external_interface/wiselib_application.h"
-#include "wiselib.stable/external_interface/ns3/ns3_os.h"
+#include "external_interface/wiselib_application.h"
+#include "external_interface/ns3/ns3_os.h"
 
 namespace wiselib
 {
