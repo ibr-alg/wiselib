@@ -48,6 +48,7 @@ namespace wiselib {
 			typedef Radio_P Radio;
 			typedef typename Radio::message_id_t message_id_t;
 			typedef ::uint8_t payload_size_t;
+			typedef ::uint32_t delay_t;
 			
 			enum MessageIds {
 				MESSAGE_TYPE = 0x42,
@@ -66,7 +67,8 @@ namespace wiselib {
 				POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_CHANNEL_ID = POS_FLAGS + sizeof(::uint8_t),
 				POS_SEQUENCE_NUMBER = POS_CHANNEL_ID + sizeof(ChannelId),
-				POS_PAYLOAD_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
+				POS_DELAY = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
+				POS_PAYLOAD_SIZE = POS_DELAY + sizeof(delay_t),
 				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(payload_size_t),
 				
 				HEADER_SIZE = POS_PAYLOAD,
@@ -76,6 +78,8 @@ namespace wiselib {
 			ReliableTransportMessage() {
 				set_type(MESSAGE_TYPE);
 				set_flags(0);
+				set_delay(0);
+				set_payload_size(0);
 			}
 			
 			message_id_t type() {
@@ -118,6 +122,14 @@ namespace wiselib {
 			
 			void set_sequence_number(sequence_number_t s) {
 				wiselib::write<OsModel, block_data_t, sequence_number_t>(data_ + POS_SEQUENCE_NUMBER, s);
+			}
+			
+			delay_t delay() {
+				return wiselib::read<OsModel, block_data_t, delay_t>(data_ + POS_DELAY);
+			}
+			
+			void set_delay(delay_t d) {
+				wiselib::write<OsModel, block_data_t, delay_t>(data_ + POS_DELAY, d);
 			}
 			
 			void set_payload(payload_size_t size, block_data_t* data) {

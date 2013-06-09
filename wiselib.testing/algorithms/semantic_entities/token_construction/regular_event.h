@@ -39,8 +39,8 @@ namespace wiselib {
 		typename Timer_P = typename OsModel_P::Timer
 	>
 	class RegularEvent {
-		// {{{
 		public:
+			// {{{
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
@@ -83,6 +83,8 @@ namespace wiselib {
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
 			enum Restrictions { MIN_WINDOW_SIZE = 100 * TIMESCALE };
+			
+			// }}}
 			
 			RegularEvent() : last_encounter_(0), interval_(1000 * TIMESCALE), window_(1000 * TIMESCALE),
 				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false) {
@@ -301,7 +303,6 @@ namespace wiselib {
 			bool waiting_;
 			bool waiting_timer_set_;
 			bool cancel_;
-		// }}}
 	};
 }
 
