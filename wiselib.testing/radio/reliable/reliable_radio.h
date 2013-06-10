@@ -47,6 +47,7 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		ReliableRadio_Type() :
 			daemon_period		( RR_RESEND_DAEMON_PERIOD ),
+			status				( RR_WAITING_STATUS ),
 			max_retries			( RR_MAX_RETRIES ),
 			seq					( 0 )
 		{};
@@ -56,16 +57,19 @@ namespace wiselib
 		// --------------------------------------------------------------------
 		void enable_radio()
 		{
+			if ( status == RR_WAITING_STATUS )
+			{
 #ifdef DEBUG_RELIABLE_RADIO_H
-			debug().debug( "ReliableRadio - enable %x- Entering.\n", radio().id() );
+				debug().debug( "ReliableRadio - enable %x- Entering.\n", radio().id() );
 #endif
-			radio().enable_radio();
-			set_status( RR_ACTIVE_STATUS );
-			recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive>( this );
-			daemon();
+				radio().enable_radio();
+				set_status( RR_ACTIVE_STATUS );
+				recv_callback_id_ = radio().template reg_recv_callback<self_t, &self_t::receive>( this );
+				daemon();
 #ifdef DEBUG_RELIABLE_RADIO_H
-			debug().debug( "ReliableRadio - enable %x - Exiting.\n", radio().id() );
+				debug().debug( "ReliableRadio - enable %x - Exiting.\n", radio().id() );
 #endif
+			}
 		};
 		// --------------------------------------------------------------------
 		void disable_radio()
@@ -267,7 +271,7 @@ namespace wiselib
 //						}
 //#endif
 					}
-					else if ( msg->get_message_id() == RR_REPLY )
+					else if ( ( msg->get_message_id() == RR_REPLY ) && ( msg->compare_checksum() ) )
 					{
 #ifdef DEBUG_RELIABLE_RADIO_H
 						debug().debug( "ReliableRadio - receive %x - Received RR_REPLY.\n", radio().id() );
@@ -314,6 +318,13 @@ namespace wiselib
 //						//debug().debug( "ReliableRadio - receive %x - Exiting from %x with possible obsolete reply.\n", radio().id(), _from );
 //#endif
 					}
+					else if ( msg->compare_checksum() )
+					{
+						for ( RegisteredCallbacks_vector_iterator j = callbacks.begin(); j != callbacks.end(); ++j )
+						{
+							(*j)( _from, _len, _msg, _ex);
+						}
+					}
 				}
 			}
 #ifdef DEBUG_RELIABLE_RADIO_H
@@ -321,7 +332,7 @@ namespace wiselib
 #endif
 		}
 		// --------------------------------------------------------------------
-#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
 		void daemon_scheduler( void* _data = NULL )
 		{
 #ifdef DEBUG_RELIABLE_RADIO_H
@@ -390,7 +401,7 @@ namespace wiselib
 							TxPower tp;
 							tp.set_dB( old_db );
 							radio().set_power( tp );
-#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
 							break;
 #endif
 						}
@@ -405,7 +416,7 @@ namespace wiselib
 //#endif
 							radio().send( i->get_destination(), message.serial_size(), message.serialize() );
 							i->inc_counter();
-#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
 							break;
 #endif
 						}
@@ -440,7 +451,7 @@ namespace wiselib
 						i->inc_counter();
 					}
 				}
-#ifndef CONFIG_RELIABLE_RADIO_H_TIGHT_DAMEON_CONTROL
+#ifndef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
 				millis_t offset = 0;
 #ifdef CONFIG_RELIABLE_RADIO_H_RANDOM_DAEMON_OFFSET
 				millis_t offset = rand()() % daemon_period;
@@ -719,8 +730,8 @@ namespace wiselib
         };
 	private:
 		uint32_t recv_callback_id_;
-        uint8_t status;
         millis_t daemon_period;
+        uint8_t status;
         RegisteredCallbacks_vector callbacks;
         ReliableRadioMessage_vector reliable_radio_messages;
         ReliableRadioReply_vector reliable_radio_replies;

@@ -18,13 +18,20 @@ typedef Os::Clock Clock;
 typedef uint16_t TimesNumber;
 typedef uint8 SecondsNumber;
 typedef uint32 AgentID;
+#ifdef CONFIG_SCLD_ATP_RELIABLE_RADIO
 typedef wiselib::ReliableRadio_Type<Os, Radio, Clock, Timer, Rand, Debug> ReliableRadio;
 typedef wiselib::NeighborDiscovery_Type<Os, ReliableRadio, Clock, Timer, Rand, Debug> NeighborDiscovery;
 typedef wiselib::ATP_Type<Os, ReliableRadio, NeighborDiscovery, Timer, Rand, Clock, Debug> ATP;
+#else
+typedef wiselib::NeighborDiscovery_Type<Os, Radio, Clock, Timer, Rand, Debug> NeighborDiscovery;
+typedef wiselib::ATP_Type<Os, Radio, NeighborDiscovery, Timer, Rand, Clock, Debug> ATP;
+#endif
 
 NeighborDiscovery* neighbor_discovery;
 ATP atp;
+#ifdef CONFIG_SCLD_ATP_RELIABLE_RADIO
 ReliableRadio reliable_radio;
+#endif
 
 void application_main(Os::AppMainParameter& value) {
     Radio *wiselib_radio_ = &wiselib::FacetProvider<Os, Radio>::get_facet(value);
@@ -35,9 +42,14 @@ void application_main(Os::AppMainParameter& value) {
     wiselib_rand_->srand(wiselib_radio_->id());
     wiselib_radio_->set_channel(SCLD_ATP_CHANNEL);
     neighbor_discovery = new NeighborDiscovery();
+#ifdef CONFIG_SCLD_ATP_RELIABLE_RADIO
     reliable_radio.init(  *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ );
     reliable_radio.enable_radio();
     neighbor_discovery->init( reliable_radio, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_);
     atp.init( reliable_radio, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
+#else
+    neighbor_discovery->init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_);
+    atp.init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
+#endif
     atp.enable();
 }

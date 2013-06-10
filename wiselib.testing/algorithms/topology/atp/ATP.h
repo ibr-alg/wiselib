@@ -26,6 +26,9 @@
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 #include "../../../internal_interface/state_status/state_status.h"
 #endif
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
+#include "ATP_agent.h"
+#endif
 
 namespace wiselib
 {
@@ -57,6 +60,9 @@ namespace wiselib
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Clock::time_t time_t;
 		typedef Message_Type<Os, Radio, Debug> Message;
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
+		typedef ATP_AgentType<Os, Radio, uint32_t, uint32_t, Debug> ATP_Agent;
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 		typedef State_Status_Type<Os, Radio, Debug, int32_t, 5> State_Status;
 #endif
@@ -105,7 +111,7 @@ namespace wiselib
 			SCLD									( 0 ),
 			random_enable_timer_range				( ATP_H_RANDOM_ENABLE_TIMER_RANGE ),
 			status									( WAITING_STATUS )
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 			,local_scld_mins_threshold_ratio		( ATP_H_LOCAL_SCLD_MINS_THRESHOLD_RATIO ),
 			local_scld_maxs_threshold_ratio			( ATP_H_LOCAL_SCLD_MAXS_THRESHOLD_RATIO )
 #endif
@@ -120,6 +126,9 @@ namespace wiselib
 		{
 #ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Entering.\n", radio().id() );
+#endif
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
+			radio().set_daemon_period( 1000 );
 #endif
 			radio().enable_radio();
 			set_status( ACTIVE_STATUS );
@@ -315,7 +324,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_SIMPLE_SCLD
 				if (	( nd_active_size < SCLD_MIN_threshold )
 #endif
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) ) ||
 						( nd_active_size < SCLD_MIN_threshold ) )
 #endif
@@ -342,7 +351,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_SIMPLE_SCLD
 				else if (	( nd_active_size > SCLD_MAX_threshold )
 #endif
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
 						( nd_active_size > SCLD_MAX_threshold ) )
 #endif
@@ -437,7 +446,7 @@ namespace wiselib
 		}
 		// -----------------------------------------------------------------------
 //#undef CONFIG_ATP_SIMPLE_SCLD
-//#define CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+//#define CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 		// -----------------------------------------------------------------------
 		void ATP_service_throughput(void* _userdata = NULL )
 		{
@@ -527,7 +536,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_SIMPLE_SCLD
 				if ( ( nd_active_size < SCLD_MIN_threshold )
 #endif
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) )
 						|| ( nd_active_size < SCLD_MIN_threshold ) )
 #endif
@@ -554,7 +563,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_SIMPLE_SCLD
 				else if ( ( nd_active_size >= SCLD_MIN_threshold )
 #endif
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
 							( nd_active_size >= SCLD_MIN_threshold ) )
 #endif
@@ -659,10 +668,60 @@ namespace wiselib
 				scl().disable();
 #endif
 			}
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
 			TxPower tp;
 			tp.set_dB( transmission_power_dB );
 			radio().set_power( tp );
 			radio().set_daemon_period( beacon_period );
+			radio().template reg_recv_callback<self_type, &self_type::receive>( this );
+			ATP_Agent agent;
+			agent.set_agent_id( radio().id() );
+			block_data_t buff[100];
+			Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
+			Neighbor_vector v;
+			prot_ref->fill_active_neighborhood( v );
+			node_id_t dest = v.at( rand()() % v.size() ).get_id();
+			debug().debug("SENDING1:%x -> %x\n", radio().id(), dest );
+			agent.print( debug(), radio() );
+			send( dest, agent.serial_size(), agent.serialize( buff ), AGENT_MESSAGE );
+#endif
+		}
+#endif
+		// -----------------------------------------------------------------------
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
+		void send( node_id_t _dest, size_t _len, block_data_t* _data, message_id_t _msg_id )
+		{
+			Message message;
+			message.set_message_id( _msg_id );
+			message.set_payload( _len, _data );
+			TxPower tp;
+			tp.set_dB( transmission_power_dB );
+			radio().set_power( tp );
+			radio().send( _dest, message.serial_size(), message.serialize() );
+			debug().debug("SENDING2:%x -> %x\n", radio().id(), _dest );
+		}
+		// -----------------------------------------------------------------------
+		void receive( node_id_t _from, size_t _len, block_data_t * _msg, ExtendedData const &_ex )
+		{
+			if ( _from != radio().id() )
+			{
+				message_id_t msg_id = *_msg;
+				Message *message = (Message*) _msg;
+				if ( ( msg_id == AGENT_MESSAGE ) && message->compare_checksum() )
+				{
+					ATP_Agent agent;
+					agent.de_serialize( message->get_payload() );
+					agent.inc_hop_count();
+					block_data_t buff[100];
+					Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
+					Neighbor_vector v;
+					prot_ref->fill_active_neighborhood( v );
+					node_id_t dest = v.at( rand()() % v.size() ).get_id();
+					agent.print( debug(), radio() );
+					debug().debug("AGENT_HOP:%x:%x:%d - > %x\n",radio().id(), agent.get_agent_id(), agent.get_hop_count(), dest );
+					send( dest, agent.serial_size(), agent.serialize( buff ), AGENT_MESSAGE );
+				}
+			}
 		}
 #endif
 		// -----------------------------------------------------------------------
@@ -672,7 +731,7 @@ namespace wiselib
 			radio().unreg_recv_callback( radio_callback_id );
 		}
 		// -----------------------------------------------------------------------
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 		size_t get_local_SCLD_MINS()
 		{
 			size_t local_mins = 0;
@@ -824,6 +883,13 @@ namespace wiselib
 			return *_scl;
 		}
 		// -----------------------------------------------------------------------
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
+		enum message_ids
+		{
+			AGENT_MESSAGE = 15
+		};
+#endif
+		// -----------------------------------------------------------------------
 		Radio* _radio;
 		Timer* _timer;
 		Debug* _debug;
@@ -867,7 +933,7 @@ namespace wiselib
 		size_t SCLD;
 		uint32_t random_enable_timer_range;
 		uint8_t status;
-#ifdef CONFIG_ATP_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 		size_t local_scld_mins_threshold_ratio;
 		size_t local_scld_maxs_threshold_ratio;
 #endif

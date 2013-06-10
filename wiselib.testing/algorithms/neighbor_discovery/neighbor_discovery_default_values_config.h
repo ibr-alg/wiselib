@@ -1,6 +1,6 @@
 //default ND protocol settings
 //#define ND_MAX_NEIGHBORS 500 //shawn setting
-#define ND_MAX_NEIGHBORS 25
+#define ND_MAX_NEIGHBORS 20
 #define ND_MAX_REGISTERED_PROTOCOLS 2
 #define ND_BEACON_PERIOD 1000
 #define ND_TRANSMISSION_POWER_DB -30
