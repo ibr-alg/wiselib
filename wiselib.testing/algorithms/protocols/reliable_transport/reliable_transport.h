@@ -149,20 +149,32 @@ namespace wiselib {
 						request_open_ = true;
 					}
 					bool wants_open() { return request_open_; }
+					
+					/**
+					 * Force (re-)open of the channel.
+					 */
 					void open() {
-						if(!open_) {
-							event_(EVENT_OPEN, *this);
-							
-							sending_sequence_number_ = 0;
-							receiving_sequence_number_ = 0;
-							request_open_ = false;
-							request_close_ = false;
-							open_ = true;
+						if(open_) {
+							close();
+						}
+						event_(EVENT_OPEN, *this);
+						
+						sending_sequence_number_ = 0;
+						receiving_sequence_number_ = 0;
+						request_open_ = false;
+						request_close_ = false;
+						open_ = true;
+						/*
 						}
 						else {
 							DBG("not opening, already open! init=%d", initiator());
 						}
+						*/
 						//expect_answer_ = false;
+						DBG("post-open: init=%d recv_seqnr=%d send_seqnr=%d rq_open=%d rq_close=%d open=%d exp_ans=%d",
+								initiator_,
+								receiving_sequence_number_, sending_sequence_number_, request_open_,
+								request_close_, open_, expect_answer_);
 					}
 					bool is_open() { return open_; }
 					
@@ -186,6 +198,12 @@ namespace wiselib {
 						else {
 							DBG("not closing, already closed! init=%d", initiator());
 						}
+						expect_answer_ = false;
+						
+						DBG("post-close: init=%d recv_seqnr=%d send_seqnr=%d rq_open=%d rq_close=%d open=%d exp_ans=%d",
+								initiator_,
+								receiving_sequence_number_, sending_sequence_number_, request_open_,
+								request_close_, open_, expect_answer_);
 					}
 					
 					bool initiator() { return initiator_; }
@@ -564,11 +582,11 @@ namespace wiselib {
 				}
 				
 				if(msg.is_open()) {
-					DBG("node %d // opening receiver init=%d", radio_->id(), endpoints_[idx].initiator());
+					DBG("node %d // opening receiver init=%d (forcing re-open if necessary)", radio_->id(), endpoints_[idx].initiator());
 					endpoints_[idx].open();
 				}
 				
-				if(!msg.is_open() || msg.sequence_number() != endpoints_[idx].receiving_sequence_number()) {
+				if(!msg.is_open() && msg.sequence_number() != endpoints_[idx].receiving_sequence_number()) {
 					DBG("node %d // on_receive_data: ignoring message of wrong seqnr %d (expected: %d) or chan closed init=%d", radio_->id(), msg.sequence_number(), endpoints_[idx].receiving_sequence_number(), endpoints_[idx].initiator());
 					return;
 				}
@@ -597,7 +615,13 @@ namespace wiselib {
 					}
 					
 					endpoints_[idx].increase_receiving_sequence_number();
+					DBG("node %d // endpoint after recevie_data: exp_ans=%d wants_send=%d open=%d",
+							radio_->id(),
+							endpoints_[idx].expects_answer(),
+							endpoints_[idx].wants_send(),
+							endpoints_[idx].is_open());
 					
+					check_send();
 			}
 			
 			void send_ack(node_id_t to, Message msg) {

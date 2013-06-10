@@ -200,8 +200,14 @@ namespace wiselib {
 					
 					abs_millis_t delta;
 					abs_millis_t now = absolute_millis(clock, clock->time());
-					delta = next_expected(now) - now - window_;
-					DBG("t=%d // begin_waiting in %dms", absolute_millis(clock, clock->time()), delta);
+					abs_millis_t ne = next_expected(now);
+					if(now + window_ >= ne) {
+						delta = 0;
+					}
+					else {
+						delta = ne - now - window_;
+					}
+					DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", absolute_millis(clock, clock->time()), delta, ne, now, window_);
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, 0);
 				}
 				return true;

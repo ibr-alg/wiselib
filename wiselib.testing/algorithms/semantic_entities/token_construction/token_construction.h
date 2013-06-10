@@ -496,7 +496,7 @@ namespace wiselib {
 				switch(event) {
 					case RingTransport::EVENT_ABORT: 
 						// TODO: somehow keep delay info here!
-						DBG("node %d // push begin_handover", radio_->id());
+						DBG("node %d // push begin_handover because abort", radio_->id());
 						push_caffeine();
 						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
 						break;
