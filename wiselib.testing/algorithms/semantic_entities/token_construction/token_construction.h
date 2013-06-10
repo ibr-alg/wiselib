@@ -387,6 +387,7 @@ namespace wiselib {
 			
 			bool produce_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
 				if(endpoint.remote_address() == radio_->id()) {
+					DBG("node %d // handover produce init -- aborting because of self-send", radio_->id());
 					//endpoint.destruct();
 					return false;
 				}

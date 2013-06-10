@@ -189,16 +189,16 @@ namespace wiselib {
 						}
 						
 						if(open_ || request_open_) {
-							receiving_sequence_number_ = 0;
-							sending_sequence_number_ = 0;
-							request_open_ = false;
-							request_close_ = false;
-							open_ = false;
 						}
 						else {
 							DBG("not closing, already closed! init=%d", initiator());
 						}
 						expect_answer_ = false;
+							receiving_sequence_number_ = 0;
+							sending_sequence_number_ = 0;
+							//request_open_ = false;
+							request_close_ = false;
+							open_ = false;
 						
 						DBG("post-close: init=%d recv_seqnr=%d send_seqnr=%d rq_open=%d rq_close=%d open=%d exp_ans=%d",
 								initiator_,
@@ -360,7 +360,7 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("node %d // transport recv chan %x.%x msg.init=%d", radio_->id(), msg.channel().rule(), msg.channel().value(), msg.initiator());
+				DBG("node %d // transport recv chan %x.%x msg.init=%d msg.ack=%d", radio_->id(), msg.channel().rule(), msg.channel().value(), msg.initiator(), msg.is_ack());
 				
 				if(msg.is_ack()) {
 					on_receive_ack(from, msg);
@@ -386,16 +386,6 @@ namespace wiselib {
 					}
 				}
 				return create ? free : npos;
-			}
-			
-			void on_answer_timeout(void *ep_) {
-				Endpoint &ep = *reinterpret_cast<Endpoint*>(ep_);
-				if(ep.expects_answer()) {
-					DBG("node %d // expected answer from %d not received closing channel", radio_->id(),
-							ep.remote_address());
-					ep.abort_produce();
-					ep.close();
-				}
 			}
 			
 			/**
@@ -481,7 +471,15 @@ namespace wiselib {
 						sending_endpoint().open();
 					}
 					
-					if(!sending_endpoint().is_open()) { return; }
+					if(!sending_endpoint().is_open()) {
+						DBG("endpoint not open @%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
+							radio_->id(), from,
+							sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
+							msg.channel().rule(), msg.channel().value(),
+							sending_endpoint().sending_sequence_number(), msg.sequence_number(),
+							sending_endpoint().initiator(), msg.initiator());
+						return;
+					}
 					
 					DBG("@%d recv ack seqnr=%d ack_timer=%d chan=%x.%x/%d", radio_->id(), msg.sequence_number(), ack_timer_,
 							msg.channel().rule(), msg.channel().value(), msg.initiator());
@@ -566,6 +564,19 @@ namespace wiselib {
 					}
 				}
 			}
+			
+			void on_answer_timeout(void *ep_) {
+				Endpoint &ep = *reinterpret_cast<Endpoint*>(ep_);
+				if(ep.expects_answer()) {
+					DBG("node %d // expected answer from %d not received closing channel", radio_->id(),
+							ep.remote_address());
+					ep.abort_produce();
+					ep.close();
+					is_sending_ = false;
+					check_send();
+				}
+			}
+			
 			
 			//}}}
 			///@}
