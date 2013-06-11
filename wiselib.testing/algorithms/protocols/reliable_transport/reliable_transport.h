@@ -466,13 +466,20 @@ namespace wiselib {
 						msg.initiator() == sending_endpoint().initiator() &&
 						msg.sequence_number() == sending_endpoint().sending_sequence_number()) {
 					
+					DBG("node %d // on_recv_ack ep.wants_open=%d ep.wants_close=%d ep.init=%d ep.open=%d",
+							radio_->id(),
+							sending_endpoint().wants_open(),
+							sending_endpoint().wants_close(),
+							sending_endpoint().initiator(),
+							sending_endpoint().is_open());
+					
 					if(sending_endpoint().wants_open() && !sending_endpoint().is_open()) {
 						DBG("node %d opening init=%d after first ack", radio_->id(), sending_endpoint().initiator());
 						sending_endpoint().open();
 					}
 					
-					if(!sending_endpoint().is_open()) {
-						DBG("endpoint not open @%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
+					if(!is_sending_) { //sending_endpoint().is_open()) {
+						DBG("not sending @%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
 							radio_->id(), from,
 							sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
 							msg.channel().rule(), msg.channel().value(),
@@ -602,37 +609,32 @@ namespace wiselib {
 					return;
 				}
 					
-					//if(msg.is_open()) {
-						//if(endpoints_[idx].is_open()) { return; }
-						//else { endpoints_[idx].open(); }
-					//}
-					
-					if(msg.is_close()) {
-						if(endpoints_[idx].is_open()) {
-							DBG("node %d // closing init=%d because of incoming close-msg", radio_->id(), endpoints_[idx].initiator());
-							endpoints_[idx].close();
-						}
-						else { return; }
+				
+				bool c = false;
+				if(msg.is_close()) {
+					if(endpoints_[idx].is_open()) {
+						DBG("node %d // closing init=%d because of incoming close-msg", radio_->id(), endpoints_[idx].initiator());
+						//endpoints_[idx].close();
+						c = true;
 					}
-					
-					
-					DBG("on_receive_data: om nom nom");
-					if(msg.payload_size()) {
-						endpoints_[idx].set_expect_answer(false);
-						endpoints_[idx].consume(msg);
-					}
-					else {
-						DBG("on_receive_data: not consuming empty message");
-					}
-					
-					endpoints_[idx].increase_receiving_sequence_number();
-					DBG("node %d // endpoint after recevie_data: exp_ans=%d wants_send=%d open=%d",
-							radio_->id(),
-							endpoints_[idx].expects_answer(),
-							endpoints_[idx].wants_send(),
-							endpoints_[idx].is_open());
-					
-					check_send();
+					else { return; }
+				}
+				
+				
+				DBG("on_receive_data: om nom nom");
+				endpoints_[idx].set_expect_answer(false);
+				endpoints_[idx].consume(msg);
+				endpoints_[idx].increase_receiving_sequence_number();
+				
+				if(c) { endpoints_[idx].close(); }
+				
+				DBG("node %d // endpoint after recevie_data: exp_ans=%d wants_send=%d open=%d",
+						radio_->id(),
+						endpoints_[idx].expects_answer(),
+						endpoints_[idx].wants_send(),
+						endpoints_[idx].is_open());
+				
+				check_send();
 			}
 			
 			void send_ack(node_id_t to, Message msg) {
