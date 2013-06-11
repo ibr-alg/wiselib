@@ -122,15 +122,15 @@ namespace wiselib {
 			enum Timing {
 				TIME_SCALE = TOKEN_CONSTRUCTION_TIME_SCALE,
 				/// Guarantee to broadcast in this fixed inverval
-				REGULAR_BCAST_INTERVAL = 10000 * TIME_SCALE,
+				REGULAR_BCAST_INTERVAL = 30000 * TIME_SCALE,
 				/// Check in this interval whether state is dirty and broadcast it if so
 				DIRTY_BCAST_INTERVAL = 100 * TIME_SCALE,
 				AWAKE_BCAST_INTERVAL = 100 * TIME_SCALE,
 				/// How long to stay awake when we have the token
-				ACTIVITY_PERIOD = 1000 * TIME_SCALE,
+				ACTIVITY_PERIOD = 3000 * TIME_SCALE,
 				//RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
 				//HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
-				HANDOVER_RETRY_INTERVAL = 2000 * TIME_SCALE
+				HANDOVER_RETRY_INTERVAL = 6000 * TIME_SCALE
 			};
 			
 			enum SpecialAddresses {
@@ -354,31 +354,32 @@ namespace wiselib {
 			
 			void initiate_handover(SemanticEntityT& se) {
 				DBG("node %d SE %x.%x // initiate handover to %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), ring_transport_.remote_address(se.id(), true));
-				se.set_handover_state_initiator(0);
 				
 				bool found;
 				typename RingTransport::Endpoint& ep = ring_transport_.get_endpoint(se.id(), true, found);
 				if(!found) {
 					DBG("node %d // initiate: endpoint not found!", radio_->id());
-					DBG("node %d // pop end_handover", radio_->id());
+					DBG("node %d // pop end_handover (not found)", radio_->id());
 					pop_caffeine();
 					return;
 				}
 				
 				if(ep.remote_address() != radio_->id()) {
-					int r = ring_transport_.open(ep);
+					int r = ring_transport_.open(ep, true);
 					if(r == SUCCESS) {
 						DBG("node %d // initiate: opening", radio_->id());
-						ring_transport_.request_send(se.id(), true);
+						se.set_handover_state_initiator(0);
+						ring_transport_.flush();
+						//ring_transport_.request_send(se.id(), true);
 					}
 					else {
 						DBG("node %d // initiate: already open!", radio_->id());
-						DBG("node %d // pop end_handover", radio_->id());
+						DBG("node %d // pop end_handover (already open)", radio_->id());
 						pop_caffeine();
 					}
 				}
 				else {
-					DBG("node %d // pop end_handover", radio_->id());
+					DBG("node %d // pop end_handover (self-send)", radio_->id());
 					pop_caffeine();
 				}
 			}
@@ -423,7 +424,8 @@ namespace wiselib {
 							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 						}
 						else {
-							se.set_handover_state_initiator(SemanticEntityT::CLOSE);
+							endpoint.request_close();
+							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
 						endpoint.request_send();
 						return true;
@@ -437,7 +439,8 @@ namespace wiselib {
 							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 						}
 						else {
-							se.set_handover_state_initiator(SemanticEntityT::CLOSE);
+							endpoint.request_close();
+							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
 						endpoint.request_send();
 						return true;
@@ -448,7 +451,7 @@ namespace wiselib {
 						message.set_payload_size(0);
 						//se.set_handover_state_initiator(SemanticEntityT::DESTRUCT);
 						endpoint.request_close();
-						return true;
+						return false;
 					}
 					
 					//case SemanticEntityT::DESTRUCT: {
@@ -482,9 +485,9 @@ namespace wiselib {
 					endpoint.request_send();
 				}
 				else {
-					se.set_handover_state_initiator(SemanticEntityT::CLOSE);
-					endpoint.request_send();
-					//endpoint.request_close();
+					//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
+					//endpoint.request_send();
+					endpoint.request_close();
 				}
 			}
 			
@@ -497,7 +500,7 @@ namespace wiselib {
 				switch(event) {
 					case RingTransport::EVENT_ABORT: 
 						// TODO: somehow keep delay info here!
-						DBG("node %d // push begin_handover because abort", radio_->id());
+						DBG("node %d // push begin_handover because abort setting up retry for %d", radio_->id(), now() + HANDOVER_RETRY_INTERVAL);
 						push_caffeine();
 						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
 						break;
@@ -512,8 +515,9 @@ namespace wiselib {
 						se.set_handover_state_initiator(SemanticEntityT::INIT);
 						DBG("node %d // pop end_handover_connection", radio_->id());
 						pop_caffeine();
-						DBG("node %d // pop end_handover", radio_->id());
+						DBG("node %d // pop end_handover (close)", radio_->id());
 						pop_caffeine();
+						endpoint.request_close();
 						break;
 				}
 				
@@ -803,7 +807,9 @@ namespace wiselib {
 						// if the tree changed due to ths, resend token
 						// information as the ring has changed
 						//pass_on_state(se, false);
-						DBG("node %d //initiate handover because of tree change", radio_->id());
+						DBG("node %d // initiate handover because of tree change", radio_->id());
+						DBG("node %d // push begin_handover (tree change)", radio_->id());
+						push_caffeine();
 						initiate_handover(se);
 					}
 					
@@ -961,14 +967,14 @@ namespace wiselib {
 				// not currently waiting).
 				
 				//pass_on_state(se);
+				DBG("node %d t=%d // pop end_activity SE %x.%x", (int)radio_->id(), (int)now(), (int)se.id().rule(), (int)se.id().value());
+				DBG("node %d // push begin_handover", radio_->id());
+				//pop_caffeine(); // popped by initiate_handover
 				initiate_handover(se);
 				assert(!se.is_active(radio_->id()));
 				//DBG("node %d t=%d // scheduling wakeup", radio_->id(), now());
 				
 				se.end_wait_for_activating_token();
-				DBG("node %d t=%d // pop end_activity SE %x.%x", (int)radio_->id(), (int)now(), (int)se.id().rule(), (int)se.id().value());
-				DBG("node %d // push begin_handover", radio_->id());
-				//pop_caffeine(); // popped by initiate_handover
 				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
 				

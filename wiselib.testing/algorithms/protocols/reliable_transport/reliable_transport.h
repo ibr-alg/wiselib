@@ -78,7 +78,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
 				RESEND_TIMEOUT = 5000, MAX_RESENDS = 3,
-				ANSWER_TIMEOUT = 5000,
+				ANSWER_TIMEOUT = 10000,
 			};
 			
 			enum ReturnValues {
@@ -147,6 +147,8 @@ namespace wiselib {
 						sending_sequence_number_ = 0;
 						receiving_sequence_number_ = 0;
 						request_open_ = true;
+						
+						open_ = true;
 					}
 					bool wants_open() { return request_open_; }
 					
@@ -159,8 +161,8 @@ namespace wiselib {
 						}
 						event_(EVENT_OPEN, *this);
 						
-						sending_sequence_number_ = 0;
-						receiving_sequence_number_ = 0;
+						//sending_sequence_number_ = 0;
+						//receiving_sequence_number_ = 0;
 						request_open_ = false;
 						request_close_ = false;
 						open_ = true;
@@ -179,7 +181,7 @@ namespace wiselib {
 					bool is_open() { return open_; }
 					
 					void request_close() {
-						open_ = false;
+						//open_ = false;
 						request_close_ = true;
 					}
 					bool wants_close() { return request_close_; }
@@ -196,7 +198,7 @@ namespace wiselib {
 						expect_answer_ = false;
 							receiving_sequence_number_ = 0;
 							sending_sequence_number_ = 0;
-							//request_open_ = false;
+							request_open_ = false;
 							request_close_ = false;
 							open_ = false;
 						
@@ -281,7 +283,7 @@ namespace wiselib {
 				return endpoints_[idx];
 			}
 			
-			int open(const ChannelId& channel, bool initiator = true) {
+			int open(const ChannelId& channel, bool initiator = true, bool request_send = false) {
 				bool found;
 				Endpoint& ep = get_endpoint(channel, initiator, found);
 				if(found) {
@@ -290,9 +292,10 @@ namespace wiselib {
 				return ERR_UNSPEC;
 			}
 				
-			int open(Endpoint& ep) {
+			int open(Endpoint& ep, bool request_send = false) {
 				if(!ep.is_open() && !ep.wants_open()) {
 					ep.request_open();
+					if(request_send) { ep.request_send(); }
 					return SUCCESS;
 				}
 				return ERR_UNSPEC;
@@ -366,12 +369,14 @@ namespace wiselib {
 					on_receive_ack(from, msg);
 				}
 				else {
-					send_ack(from, msg);
-					on_receive_data(msg);
+					on_receive_data(from, msg);
 				}
 			}
 			
-		
+			void flush() {
+				check_send();
+			}
+			
 		private:
 			Endpoint& sending_endpoint() { return endpoints_[sending_channel_idx_]; }
 			
@@ -429,6 +434,12 @@ namespace wiselib {
 				}
 				if(switch_sending_endpoint()) {
 					
+					DBG("node %d // check_send: found sending endpoint: idx=%d i=%d open=%d wants_open=%d wants_close=%d wants_send=%d",
+							sending_channel_idx_,
+							radio_->id(), sending_endpoint().initiator(),
+							sending_endpoint().is_open(), sending_endpoint().wants_open(),
+							sending_endpoint().wants_close(), sending_endpoint().wants_send());
+					
 					send_start_ = now();
 					
 					int flags = (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0);
@@ -439,6 +450,7 @@ namespace wiselib {
 					sending_.set_sequence_number(sending_endpoint().sending_sequence_number());
 					sending_.set_flags(flags);
 					sending_.set_delay(0);
+					sending_.set_payload(0, 0);
 					
 					if(sending_endpoint().wants_send()) {
 						sending_endpoint().comply_send();
@@ -592,7 +604,7 @@ namespace wiselib {
 			///@{
 			//{{{
 			
-			void on_receive_data(Message& msg) {
+			void on_receive_data(node_id_t from, Message& msg) {
 				size_type idx = find_or_create_endpoint(msg.channel(), !msg.initiator(), false);
 				if(idx == npos) {
 					DBG("on_receive_data: ignoring message of unkonwn channel %x.%x", msg.channel().rule(), msg.channel().value());
@@ -608,7 +620,8 @@ namespace wiselib {
 					DBG("node %d // on_receive_data: ignoring message of wrong seqnr %d (expected: %d) or chan closed init=%d", radio_->id(), msg.sequence_number(), endpoints_[idx].receiving_sequence_number(), endpoints_[idx].initiator());
 					return;
 				}
-					
+				
+				send_ack(from, msg);
 				
 				bool c = false;
 				if(msg.is_close()) {
@@ -628,10 +641,12 @@ namespace wiselib {
 				
 				if(c) { endpoints_[idx].close(); }
 				
-				DBG("node %d // endpoint after recevie_data: exp_ans=%d wants_send=%d open=%d",
+				DBG("node %d // endpoint after recevie_data: idx=%d exp_ans=%d wants_send=%d wants_close=%d open=%d",
 						radio_->id(),
+						idx,
 						endpoints_[idx].expects_answer(),
 						endpoints_[idx].wants_send(),
+						endpoints_[idx].wants_close(),
 						endpoints_[idx].is_open());
 				
 				check_send();
