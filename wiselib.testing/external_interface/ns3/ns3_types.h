@@ -20,7 +20,7 @@
 #define CONNECTOR_NS3_TYPES_H
 
 #include <stdint.h>
-#include "/home/dizhi/git-repo/ns-3-dev-git/src/wiselib/model/wiselib-ext-iface.h"
+#include "wiselib-ext-iface.h"
 
 namespace wiselib
 {
