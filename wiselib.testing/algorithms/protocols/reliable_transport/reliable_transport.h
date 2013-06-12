@@ -146,6 +146,8 @@ namespace wiselib {
 					void request_open() {
 						request_open_ = true;
 						if(open_) { close(); }
+						receiving_sequence_number_ = 0;
+						sending_sequence_number_ = 0;
 						event_(EVENT_OPEN, *this);
 					}
 					bool wants_open() { return request_open_; }
