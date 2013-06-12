@@ -421,13 +421,16 @@ namespace wiselib {
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
 						if(call_again) {
+							DBG("node %d // more aggregate packets will follow!", radio_->id());
 							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
+							endpoint.request_send();
 						}
 						else {
+							DBG("node %d // done with aggregates, requesting close", radio_->id());
 							endpoint.request_close();
+							return false;
 							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
-						endpoint.request_send();
 						return true;
 					}
 				

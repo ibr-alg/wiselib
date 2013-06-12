@@ -144,11 +144,9 @@ namespace wiselib {
 					void comply_send() { request_send_ = false; }
 					
 					void request_open() {
-						sending_sequence_number_ = 0;
-						receiving_sequence_number_ = 0;
 						request_open_ = true;
-						
-						open_ = true;
+						if(open_) { close(); }
+						event_(EVENT_OPEN, *this);
 					}
 					bool wants_open() { return request_open_; }
 					
@@ -156,10 +154,6 @@ namespace wiselib {
 					 * Force (re-)open of the channel.
 					 */
 					void open() {
-						if(open_) {
-							close();
-						}
-						event_(EVENT_OPEN, *this);
 						
 						//sending_sequence_number_ = 0;
 						//receiving_sequence_number_ = 0;
@@ -186,21 +180,16 @@ namespace wiselib {
 					}
 					bool wants_close() { return request_close_; }
 					void close() {
-						if(open_) {
+						if(open_ || request_open_) {
 							event_(EVENT_CLOSE, *this);
 						}
 						
-						if(open_ || request_open_) {
-						}
-						else {
-							DBG("not closing, already closed! init=%d", initiator());
-						}
 						expect_answer_ = false;
-							receiving_sequence_number_ = 0;
-							sending_sequence_number_ = 0;
-							request_open_ = false;
-							request_close_ = false;
-							open_ = false;
+						receiving_sequence_number_ = 0;
+						sending_sequence_number_ = 0;
+						request_open_ = false;
+						request_close_ = false;
+						open_ = false;
 						
 						DBG("post-close: init=%d recv_seqnr=%d send_seqnr=%d rq_open=%d rq_close=%d open=%d exp_ans=%d",
 								initiator_,
@@ -443,7 +432,10 @@ namespace wiselib {
 					send_start_ = now();
 					
 					int flags = (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0);
-					if(sending_endpoint().wants_open()) { flags |= Message::FLAG_OPEN; }
+					if(sending_endpoint().wants_open()) {
+						flags |= Message::FLAG_OPEN;
+						sending_endpoint().open();
+					}
 					if(sending_endpoint().wants_close()) { flags |= Message::FLAG_CLOSE; }
 					
 					sending_.set_channel(sending_endpoint().channel());
@@ -485,10 +477,10 @@ namespace wiselib {
 							sending_endpoint().initiator(),
 							sending_endpoint().is_open());
 					
-					if(sending_endpoint().wants_open() && !sending_endpoint().is_open()) {
-						DBG("node %d opening init=%d after first ack", radio_->id(), sending_endpoint().initiator());
-						sending_endpoint().open();
-					}
+					//if(sending_endpoint().wants_open() && !sending_endpoint().is_open()) {
+						//DBG("node %d opening init=%d after first ack", radio_->id(), sending_endpoint().initiator());
+						//sending_endpoint().open();
+					//}
 					
 					if(!is_sending_) { //sending_endpoint().is_open()) {
 						DBG("not sending @%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
@@ -505,7 +497,7 @@ namespace wiselib {
 					ack_timer_++; // invalidate running ack timer
 					sending_endpoint().increase_sending_sequence_number();
 					
-					if(sending_endpoint().wants_close() && sending_endpoint().is_open()) {
+					if(sending_endpoint().wants_close()) { // && sending_endpoint().is_open()) {
 						DBG("node %d closing init=%d because done", radio_->id(), sending_endpoint().initiator());
 						sending_endpoint().close();
 					}
@@ -613,6 +605,7 @@ namespace wiselib {
 				
 				if(msg.is_open()) {
 					DBG("node %d // opening receiver init=%d (forcing re-open if necessary)", radio_->id(), endpoints_[idx].initiator());
+					endpoints_[idx].request_open();
 					endpoints_[idx].open();
 				}
 				
@@ -623,16 +616,7 @@ namespace wiselib {
 				
 				send_ack(from, msg);
 				
-				bool c = false;
-				if(msg.is_close()) {
-					if(endpoints_[idx].is_open()) {
-						DBG("node %d // closing init=%d because of incoming close-msg", radio_->id(), endpoints_[idx].initiator());
-						//endpoints_[idx].close();
-						c = true;
-					}
-					else { return; }
-				}
-				
+				bool c = msg.is_close();
 				
 				DBG("on_receive_data: om nom nom");
 				endpoints_[idx].set_expect_answer(false);
