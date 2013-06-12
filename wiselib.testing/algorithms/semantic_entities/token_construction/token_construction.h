@@ -846,15 +846,24 @@ namespace wiselib {
 							from, to);
 				}
 				
-				DBG("node %d // fwd to %d ack=%d init=%d", radio_->id(), to, msg.is_ack(), msg.initiator());
+				DBG("node %d // fwd to %d ack=%d init=%d open=%d delay=%d", radio_->id(), to, msg.is_ack(), msg.initiator(),
+						msg.is_open(), msg.delay());
 				radio_->send(to, msg.size(), msg.data());
 				
 				if(msg.is_close() && msg.is_ack()) {
 					const node_id_t prev = se.token_ack_forward_for(radio_->id(), from);
+					DBG("node %d // end waiting for token from %d",
+							radio_->id(), prev);
 					se.end_wait_for_token_forward(prev);
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "");
+				#endif
 					se.template schedule_token_forward<self_type, &self_type::begin_wait_for_token_forward,
 						&self_type::end_wait_for_token_forward>(clock_, timer_, this, prev, &se);
 				}
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "");
+				#endif
 			}
 			
 			/**
