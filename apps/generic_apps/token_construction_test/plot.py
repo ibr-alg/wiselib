@@ -280,7 +280,7 @@ def fig_timings():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 501))
+	last_ax.set_xlim((-1, 801))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -418,7 +418,7 @@ def fig_duty_cycle(namepattern = '.*'):
 			
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
-	last_ax.set_xlim((-1, 501))
+	last_ax.set_xlim((-1, 801))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -442,7 +442,8 @@ print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
 print("timings graph...")
 fig_timings()
-#fig_forward_timings()
+print("fwd timings graph...")
+fig_forward_timings()
 #print("counts graph...")
 #fig_count_onegraph(r'.*:1\.2')
 

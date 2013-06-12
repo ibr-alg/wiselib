@@ -838,8 +838,12 @@ namespace wiselib {
 			 * on_receive_token_state).
 			 */
 			void forward_ring(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, typename RingTransport::Message& msg) {
-				if(msg.is_open() && msg.initiator()  && msg.delay() == 0 ) {
+				if(msg.is_open() && msg.initiator() && !msg.is_ack() && msg.delay() == 0 ) {
 					se.learn_token_forward(clock_, radio_->id(), from, t_recv);
+					DBG("node %d fwd_window %d fwd_interval %d fwd_from %d-%d",
+							radio_->id(), se.token_forward_window(clock_, from),
+							se.token_forward_interval(clock_, from),
+							from, to);
 				}
 				
 				DBG("node %d // fwd to %d ack=%d init=%d", radio_->id(), to, msg.is_ack(), msg.initiator());
@@ -1054,7 +1058,7 @@ namespace wiselib {
 			 */
 			void check_neighbors(void* =0) {
 				//// TODO
-				/*
+				
 				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
 					if(it->second.seen() && absolute_millis(it->second.last_encounter()) + 2 * it->second.interval() < now()) {
 						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d",
@@ -1072,7 +1076,7 @@ namespace wiselib {
 				for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {
 					se_it->update_state(radio_->id());
 				}
-				*/
+				
 			}
 			
 			/*
