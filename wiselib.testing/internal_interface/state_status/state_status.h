@@ -12,20 +12,22 @@ namespace wiselib
 					typename Numeric_P,
 					int SS_VECTOR_SIZE
 				>
-	class State_Status_Type
+	class StateStatus_Type
 	{
+	public:
 		typedef Os_P Os;
 		typedef Radio_P Radio;
 		typedef Debug_P Debug;
 		typedef Numeric_P Numeric;
 		typedef vector_static<Os, Numeric, SS_VECTOR_SIZE> status_state_vector;
 		typedef typename status_state_vector::iterator status_state_vector_iterator;
-	public:
-		State_Status_Type() :
+		typedef StateStatus_Type<Os, Radio, Debug, Numeric, SS_VECTOR_SIZE> self_type;
+
+		StateStatus_Type() :
 			lock_flag ( 1 )
 		{}
 		// --------------------------------------------------------------------
-		~State_Status_Type()
+		~StateStatus_Type()
 		{}
 		// --------------------------------------------------------------------
 		uint8_t check_mono_inc()
@@ -91,10 +93,14 @@ namespace wiselib
 			return 0;
 		}
 		// --------------------------------------------------------------------
-		uint8_t check_oscilation()
+		Numeric cartesian_product( self_type _v )
 		{
-			//control systems literature...
-			return 0;
+			Numeric R = 0;
+			for ( size_t i = 0; i< _v.ss_vector.size(); i++ )
+			{
+				R = R + _v.get_ss_vector_ref()->at(i) * ss_vector[i];
+			}
+			return R;
 		}
 		// --------------------------------------------------------------------
 		void push( Numeric _v )
@@ -146,6 +152,11 @@ namespace wiselib
 		{
 			ss_vector.clear();
 			lock_flag = 0;
+		}
+		// --------------------------------------------------------------------
+		status_state_vector* get_ss_vector_ref()
+		{
+			return &ss_vector;
 		}
 		// --------------------------------------------------------------------
 #ifdef DEBUG_STATE_STATUS_H

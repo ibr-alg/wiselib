@@ -25,6 +25,7 @@
 #include "../../../internal_interface/message/message.h"
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 #include "../../../internal_interface/state_status/state_status.h"
+#include "../../../internal_interface/state_status/time_series_status.h"
 #endif
 #ifdef CONFIG_ATP_H_AGENT_BENCHMARK
 #include "ATP_agent.h"
@@ -64,7 +65,9 @@ namespace wiselib
 		typedef ATP_AgentType<Os, Radio, uint32_t, uint32_t, Debug> ATP_Agent;
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
-		typedef State_Status_Type<Os, Radio, Debug, int32_t, 5> State_Status;
+		typedef StateStatus_Type<Os, Radio, Debug, int32_t, ATP_FRAME_SIZE> FrameStateStatus;
+		typedef StateStatus_Type<Os, Radio, Debug, int32_t, ATP_SERIES_SIZE> SeriesStateStatus;
+		typedef TimeSeries_Type<Os, Radio, Debug, ATP_FRAME_SIZE, ATP_SERIES_SIZE> TimeSeries;
 #endif
 		typedef ATP_Type<Os, Radio, ASCL, Timer, Rand, Clock, Debug> self_type;
 		typedef typename ASCL::ProtocolSettings ProtocolSettings;
@@ -135,8 +138,41 @@ namespace wiselib
 #ifndef CONFIG_ATP_H_RANDOM_BOOT
 			SCL_enable_task();
 #else
-			millis_t r = rand()() % random_enable_timer_range;
-			timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
+
+			FrameStateStatus f;
+			SeriesStateStatus s;
+			f.push(1);
+			f.push(2);
+			f.push(3);
+			f.push(4);
+			f.push(5);
+
+			s.push(1);
+			s.push(2);
+			s.push(3);
+			s.push(4);
+			s.push(5);
+			s.push(6);
+			s.push(7);
+			s.push(8);
+			s.push(9);
+			s.push(10);
+
+
+			//int32_t R = s.cartesian_product( s );
+			//debug().debug("CAR:%d\n", R );
+				//
+			//for ( size_t i = 0; i< s.get_ss_vector_ref()->size(); i++ )
+			//{
+			//	debug().debug("ELE:%d", s.get_ss_vector_ref()->at(i) );
+			//}
+			//debug().debug("---------------");
+			//s.print( debug(), radio() );
+			TM.set_frame( &f );
+			TM.set_series( &s );
+			TM.autocorellate( debug(), radio() );
+			//millis_t r = rand()() % random_enable_timer_range;
+			//timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
 #endif
 #ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Exiting.\n", radio().id() );
@@ -181,6 +217,7 @@ namespace wiselib
 					scl().enable();
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 					transmission_power_status.push( transmission_power_dB );
+					transmission_power_series_status.push( transmission_power_dB );
 					SCLD_status.push( nd_active_size );
 #endif
 #ifdef DEBUG_ATP_H_STATS
@@ -262,6 +299,7 @@ namespace wiselib
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 				transmission_power_status.push( transmission_power_dB );
+				transmission_power_series_status.push( transmission_power_dB );
 				SCLD_status.push( nd_active_size );
 				if ( SCLD_status.full() && transmission_power_status.first() )
 				{
@@ -474,6 +512,7 @@ namespace wiselib
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 				throughput_status.push( beacon_period );
+				throughput_series_status.push( beacon_period );
 				SCLD_status.push( nd_active_size );
 				if ( SCLD_status.full() && throughput_status.full() )
 				{
@@ -674,16 +713,20 @@ namespace wiselib
 			radio().set_power( tp );
 			radio().set_daemon_period( beacon_period );
 			radio().template reg_recv_callback<self_type, &self_type::receive>( this );
-			ATP_Agent agent;
-			agent.set_agent_id( radio().id() );
-			block_data_t buff[100];
-			Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
-			Neighbor_vector v;
-			prot_ref->fill_active_neighborhood( v );
-			node_id_t dest = v.at( rand()() % v.size() ).get_id();
-			debug().debug("SENDING1:%x -> %x\n", radio().id(), dest );
-			agent.print( debug(), radio() );
-			send( dest, agent.serial_size(), agent.serialize( buff ), AGENT_MESSAGE );
+
+			if (radio().id() == 0x96f4 )
+			{
+				ATP_Agent agent;
+				agent.set_agent_id( radio().id() );
+				block_data_t buff[100];
+				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
+				Neighbor_vector v;
+				prot_ref->fill_active_neighborhood( v );
+				node_id_t dest = v.at( rand()() % v.size() ).get_id();
+				debug().debug("SENDING1:%x -> %x\n", radio().id(), dest );
+				agent.print( debug(), radio() );
+				send( dest, agent.serial_size(), agent.serialize( buff ), AGENT_MESSAGE );
+			}
 #endif
 		}
 #endif
@@ -938,9 +981,12 @@ namespace wiselib
 		size_t local_scld_maxs_threshold_ratio;
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
-		State_Status transmission_power_status;
-		State_Status throughput_status;
-		State_Status SCLD_status;
+		FrameStateStatus transmission_power_status;
+		FrameStateStatus throughput_status;
+		FrameStateStatus SCLD_status;
+		SeriesStateStatus transmission_power_series_status;
+		SeriesStateStatus throughput_series_status;
+		TimeSeries TM;
 #endif
 	};
 
