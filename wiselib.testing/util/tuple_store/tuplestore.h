@@ -199,9 +199,11 @@ namespace wiselib {
 					
 					void update_current() {
 						if(this->container_iterator_ != this->container_end_) {
-							Tuple& t_ = *this->container_iterator_;
-							Tuple t;
+							Tuple& t = *this->container_iterator_;
+							//Tuple t;
 							
+							// copy tuple container -> t
+							/*
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 									t.set(i, t_.get(i));
@@ -210,7 +212,10 @@ namespace wiselib {
 									t.set_deep(i, t_.get(i));
 								}
 							}
+							*/
 							
+							// resolve dict entries and copy to this->current_
+							// (this->current_ is now a deep copy of the tuple)
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 									typename Dictionary::key_type dictkey = TupleStore::to_key(t.get(i));
@@ -226,7 +231,7 @@ namespace wiselib {
 								}
 							}
 							
-							t.destruct_deep();
+							//t.destruct_deep();
 						}
 						up_to_date_ = true;
 					}
