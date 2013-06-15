@@ -23,38 +23,71 @@ typedef uint16_t bitmask_t;
 #include <util/broker/protobuf_rdf_serializer.h>
 #include <util/broker/shdt_serializer.h>
 #include <algorithms/codecs/huffman_codec.h>
-#include <util/pstl/list_dynamic.h>
 #include <util/pstl/vector_dynamic.h>
 #include <util/pstl/vector_dynamic_set.h>
 #include <util/tuple_store/codec_tuplestore.h>
-#include <util/tuple_store/prescilla_dictionary.h>
 #include <util/tuple_store/null_dictionary.h>
 #include <util/tuple_store/tuplestore.h>
 
 typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
-typedef list_dynamic<Os, BrokerTupleT> TupleContainer;
-// Prescilla
-typedef PrescillaDictionary<Os> PrescillaDict;
 
 #define COL(X) (1 << (X))
 #define RDF_COLS (COL(0) | COL(1) | COL(2))
 
 // TupleStore(s)
 
-//typedef TupleStore<Os, TupleContainer, NullDictionary<Os>, Os::Debug, 0, &BrokerTupleT::compare> DictStore;
-typedef TupleStore<Os, TupleContainer, PrescillaDict, Os::Debug, RDF_COLS, &BrokerTupleT::compare> DictStore;
-typedef CodecTupleStore<Os, DictStore, HuffmanCodec<Os>, RDF_COLS> PresCodecDictStore;
 
-// Broker
+// --- Prescilla Store in RAM
+/*
+
+#include <util/tuple_store/prescilla_dictionary.h>
+#include <util/pstl/list_dynamic.h>
+
+typedef list_dynamic<Os, BrokerTupleT> TupleContainer;
+typedef PrescillaDictionary<Os> Dictionary;
+typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
+typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
+
+*/
+
+// --- Block device store
+
+#include <algorithms/block_memory/file_block_memory.h>
+#include <algorithms/block_memory/bitmap_chunk_allocator.h>
+#include <algorithms/block_memory/cached_block_memory.h>
+
+#include <algorithms/block_memory/b_plus_hash_set.h>
+#include <algorithms/block_memory/b_plus_dictionary.h>
+#include <algorithms/hash/fnv.h>
+
+typedef FileBlockMemory<Os> PhysicalBlockMemory;
+typedef CachedBlockMemory<Os, PhysicalBlockMemory, 8, 3, true> BlockMemory;
+typedef BitmapChunkAllocator<Os, BlockMemory, 8> BlockAllocator;
+
+typedef Fnv32<Os> Hash;
+typedef BPlusHashSet<Os, BlockAllocator, Hash, BrokerTupleT, true> TupleContainer;
+typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
+typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
+typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
+
+#define USE_BLOCK_TS 1
+
+
+
+// --- Broker
 
 typedef uint16_t bitmask_t;
-typedef Broker<Os, PresCodecDictStore, bitmask_t> broker_t;
+typedef Broker<Os, CodecTupleStoreT, bitmask_t> broker_t;
 
-// Protocols & Serializations
+// --- Protocols & Serializations
 
+/*
 typedef DirectBrokerProtocol<Os, broker_t, Os::Radio, Os::Debug> B2B;
 typedef ShdtSerializer<Os, 10> Shdt;
 typedef ProtobufRdfSerializer<Os> Protobuf;
+*/
+
+
 
 char* large_document[][3] = {
 	#include "btcsample0.cpp"
@@ -70,18 +103,43 @@ class App {
 			//radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
 			//timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 			
+			// --- Dictionary init
+			
+		#if USE_BLOCK_TS
+			// init actual block memory
+			block_memory_.physical().init("block_memory.img");
+			
+			// init cache
+			block_memory_.init();
+			
+			// init allocator
+			block_allocator_.init(&block_memory_, debug_);
+			block_allocator_.wipe();
+			block_memory_.reset_stats();
+			
+			// init block-dictionary
+			dict.init(&block_allocator_, debug_);
+			container.init(&block_allocator_, debug_);
+		#else 
 			dict.init(debug_);
+		#endif
+			
+			DBG("--- init codec_ts");
 			//ts.init(&dict, &container, debug_);
 			codec_ts.init(&dict, &container, debug_);
+			
+			DBG("--- init broker");
 			broker.init(&codec_ts);
 			
 			//broker.init(debug_);
 			
+			DBG("--- inserting documents");
 			//insert_large_document();
 			insert_small_documents();
 			
 			//retrieve_document("doc1");
 			
+			DBG("--- testing broker");
 			test_broker();
 		}
 		
@@ -189,10 +247,16 @@ class App {
 		}
 	
 	private:
-		DictStore::Dictionary dict;
-		DictStore::TupleContainer container;
+		
+	#if USE_BLOCK_TS
+		BlockMemory block_memory_;
+		BlockAllocator block_allocator_;
+	#endif
+		
+		TupleStoreT::Dictionary dict;
+		TupleStoreT::TupleContainer container;
 		//DictStore ts;
-		PresCodecDictStore codec_ts;
+		CodecTupleStoreT codec_ts;
 		broker_t broker;
 		bitmask_t recvmask;
 		

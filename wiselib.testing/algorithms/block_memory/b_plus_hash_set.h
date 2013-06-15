@@ -79,13 +79,13 @@ namespace wiselib {
 					Entry() : next_(ChunkAddress::invalid()), refcount_(0), length_(0) {
 					}
 					
-					ChunkAddress next() { return next_; }
+					ChunkAddress next() const { return next_; }
 					void set_next(ChunkAddress a) { next_ = a; }
 					
-					refcount_t refcount() { return refcount_; }
+					refcount_t refcount() const { return refcount_; }
 					void set_refcount(refcount_t r) { refcount_ = r; }
 					
-					size_type length() {
+					size_type length() const {
 						if(Payload<value_type>::fixed_size) {
 							return Payload<value_type>::size(payload());
 						}
@@ -95,7 +95,7 @@ namespace wiselib {
 					}
 					
 					typename BPlusHashSet_detail::PayloadRet<value_type, PL::fixed_size>::type
-					payload() {
+					payload() const {
 						if(PL::fixed_size) {
 							return Payload<value_type>::from_data((block_data_t*)&length_);
 						}
@@ -115,7 +115,7 @@ namespace wiselib {
 						}
 					}
 					
-					size_type total_length() {
+					size_type total_length() const {
 						if(Payload<value_type>::fixed_size) {
 							return (char*)&length_ - (char*)&next_ + length();
 						}
@@ -124,7 +124,7 @@ namespace wiselib {
 						}
 					}
 					
-					bool operator==(Entry& other) {
+					bool operator==(Entry& other) const {
 						check();
 						other.check();
 						
@@ -136,7 +136,7 @@ namespace wiselib {
 					}
 					
 #if (DEBUG_OSTREAM || DEBUG_GRAPHVIZ)
-					void debug_ostream(std::ostream& os) {
+					void debug_ostream(std::ostream& os) const {
 						os << "Entry(nxt=" << next_ << " refc=" << refcount_;
 						if(Payload<value_type>::fixed_size) {
 							os << " sz=" << sizeof(value_type) << "F";
@@ -147,13 +147,13 @@ namespace wiselib {
 						os << " " << payload() << ")";
 					}
 					
-					friend std::ostream& operator<<(std::ostream& os, Entry& e) {
+					friend std::ostream& operator<<(std::ostream& os, Entry& e) const {
 						e.debug_ostream(os);
 						return os;
 					}
 #endif // DEBUG_OSTREAM
 					
-					void check() {
+					void check() const {
 						assert(next_ == ChunkAddress::invalid() || next_.address() >= 6000);
 					}
 					
@@ -242,7 +242,7 @@ namespace wiselib {
 					}
 					
 				private:
-					Entry& entry() { return *reinterpret_cast<Entry*>(buffer_ + entry_address_.offset() * BlockMemory::CHUNK_SIZE); }
+					const Entry& entry() { return *reinterpret_cast<const Entry*>(buffer_ + entry_address_.offset() * BlockMemory::CHUNK_SIZE); }
 					void load_entry() {
 						
 						if(set_ != 0 && entry_address_ != ChunkAddress::invalid()) {
@@ -254,7 +254,7 @@ namespace wiselib {
 					self_type *set_;
 					typename Tree::iterator tree_iterator_;
 					ChunkAddress entry_address_;
-					block_data_t *buffer_; //[BlockMemory::BLOCK_SIZE];
+					const block_data_t *buffer_; //[BlockMemory::BLOCK_SIZE];
 				// }}}
 			};
 			
@@ -277,6 +277,8 @@ namespace wiselib {
 			bool empty() { return size() == 0; }
 			
 			iterator insert(const value_type& v) {
+				//DBG("b plus hash set insert");
+				
 			//iterator insert(value_type v) {
 				check();
 				hash_t h = hash_value(v);
@@ -295,7 +297,7 @@ namespace wiselib {
 					// See if we can find the entry in the linked list of entries with this hash
 					ChunkAddress prev = ChunkAddress::invalid();
 					for(addr = it->value(); addr != ChunkAddress::invalid(); addr = entry.next()) {
-						DBG("insert list read entry");
+						//DBG("insert list read entry");
 						read_entry(entry, addr);
 						if(Compare<value_type>::cmp(entry.payload(), v) == 0) {
 							if(!UNIQUE) {
@@ -336,7 +338,7 @@ namespace wiselib {
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
 				ChunkAddress k = it.chunk_address();
 				
-				DBG("erase read entry");
+				//DBG("erase read entry");
 				read_entry(entry, k);
 				assert(entry.refcount() > 0);
 				entry.set_refcount(entry.refcount() - 1);
@@ -349,14 +351,14 @@ namespace wiselib {
 					assert(tree_it != tree_.end());
 					ChunkAddress addr, prev = ChunkAddress::invalid();
 					for(addr = tree_it->value(); addr != ChunkAddress::invalid() && addr != k; addr = entry.next()) {
-						DBG("erase read entry list");
+						//DBG("erase read entry list");
 						read_entry(entry, addr);
 						prev = addr;
 					} // for
 					assert(addr == k);
 					
 					if(prev == ChunkAddress::invalid()) {
-						DBG("erase read entry noprev");
+						//DBG("erase read entry noprev");
 						read_entry(entry, k);
 						if(entry.next() == ChunkAddress::invalid()) {
 							tree_.erase(tree_it);
@@ -368,12 +370,12 @@ namespace wiselib {
 					else {
 						block_data_t buffer2[BlockMemory::BUFFER_SIZE];
 						Entry &entry2 = *reinterpret_cast<Entry*>(buffer2);
-						DBG("erase read entry prev");
+						//DBG("erase read entry prev");
 						read_entry(entry2, k);
 						entry.set_next(entry2.next());
 						write_entry(entry, prev);
 					}
-					DBG("erase read entry free");
+					//DBG("erase read entry free");
 					read_entry(entry, k);
 					block_memory_->free_chunks(k, entry.total_length());
 				
@@ -397,13 +399,13 @@ namespace wiselib {
 				ChunkAddress addr;
 				block_data_t buffer[BlockMemory::BUFFER_SIZE];
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
-				DBG("find read entry");
+				//DBG("find read entry");
 				read_entry(entry, k);
 				
 				for(addr = it->value();
 						addr != ChunkAddress::invalid() && Compare<value_type>::cmp(entry.payload(), v) != 0;
 						addr = entry.next()) {
-					DBG("find read entry list");
+					//DBG("find read entry list");
 					read_entry(entry, addr);
 				} // for
 				return iterator(this, it, addr);
@@ -418,13 +420,13 @@ namespace wiselib {
 				ChunkAddress addr;
 				block_data_t buffer[BlockMemory::BUFFER_SIZE];
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
-				DBG("count read entry");
+				//DBG("count read entry");
 				read_entry(entry, k);
 				
 				for(addr = it->value();
 						addr != ChunkAddress::invalid() && Compare<value_type>::cmp(entry.payload(), v) != 0;
 						addr = entry.next()) {
-					DBG("count list read entry");
+					//DBG("count list read entry");
 					read_entry(entry, addr);
 				} // for
 				return entry.refcount();
