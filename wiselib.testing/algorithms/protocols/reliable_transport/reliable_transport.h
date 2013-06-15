@@ -59,6 +59,7 @@ namespace wiselib {
 			typedef typename Radio::message_id_t message_id_t;
 			typedef Timer_P Timer;
 			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
 			
 			typedef ReliableTransportMessage<OsModel, ChannelId, Radio> Message;
 			typedef typename Message::sequence_number_t sequence_number_t;
@@ -418,7 +419,7 @@ namespace wiselib {
 			//{{{
 			
 			void check_send() {
-				DBG("check_send")
+				DBG("check_send");
 				if(is_sending_) {
 					DBG("check_send: currently sending idx %d", sending_channel_idx_);
 					return;
