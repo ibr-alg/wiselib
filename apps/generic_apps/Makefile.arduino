@@ -1,4 +1,8 @@
 
+
+BOARD ?= mega2560
+ARDUINO_PATH ?= /usr/share/arduino
+
 #ARDUINO_BOARD=atmega328
 ARDUINO_BOARD=$(BOARD)
 #ARDUINO_PATH=/home/henning/repos/Arduino-rraf
@@ -75,8 +79,8 @@ libzeroconf:
 arduino: ./$(APP_SRC) $(WISELIB_PATH_TESTING)/external_interface/arduino/standalone/main.cpp
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
-	make -C $(ARDUINO_PATH) clean
-	make -C $(ARDUINO_PATH)
+	#make -C $(ARDUINO_PATH) clean
+	#make -C $(ARDUINO_PATH)
 	$(CXX) \
 		$(WISELIB_PATH_TESTING)/external_interface/arduino/standalone/main.cpp ./$(APP_SRC) $(CXXFLAGS) $(ADD_CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf
 	avr-strip $(OUTPUT)/$(BIN_OUT).elf

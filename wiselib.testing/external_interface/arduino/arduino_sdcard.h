@@ -22,7 +22,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Arduino.h>
+#include "arduino.h"
 #include <Sd2Card.h>
 
 #include "arduino_debug.h"

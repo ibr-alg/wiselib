@@ -22,7 +22,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Arduino.h>
+#include "arduino.h"
 
 namespace wiselib
 {
