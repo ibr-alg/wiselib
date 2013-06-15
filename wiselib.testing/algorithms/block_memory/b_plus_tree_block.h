@@ -116,10 +116,18 @@ namespace wiselib {
 			KVPair& operator[](size_type i) {
 				return (reinterpret_cast<KVPair*>(data_ + POS_PAYLOAD))[i];
 			}
+			const KVPair& operator[](size_type i) const {
+				return (reinterpret_cast<const KVPair*>(data_ + POS_PAYLOAD))[i];
+			}
+			
 			KVPair& at(size_type i) { return operator[](i); }
+			const KVPair& at(size_type i) const { return operator[](i); }
 			
 			KVPair& first() { return operator[](0); }
+			const KVPair& first() const { return operator[](0); }
+			
 			KVPair& last() { return operator[](size() - 1); }
+			const KVPair& last() const { return operator[](size() - 1); }
 			
 			
 			static key_type pivot(KVPair& kv0, KVPair& kv1) {
@@ -221,7 +229,7 @@ namespace wiselib {
 			 * That is, if a key is searched that is strictly lower than all keys in
 			 * the container (and only then), this will return npos.
 			 */
-			size_type find(const key_type& k) {
+			size_type find(const key_type& k) const {
 				size_type l = 0;
 				size_type r = size();
 				
@@ -271,8 +279,8 @@ namespace wiselib {
 			// Numerous ways of reporting the number of contained elements
 			// {{{
 			
-			size_type size() {
-				return *(reinterpret_cast<size_type*>(data_ + POS_SIZE));
+			size_type size() const {
+				return *(reinterpret_cast<const size_type*>(data_ + POS_SIZE));
 			}
 			
 			void set_size(size_type s) {
@@ -287,7 +295,7 @@ namespace wiselib {
 			 * @return true iff an insert would require
 			 * splitting this block.
 			 */
-			bool full() {
+			bool full() const {
 				return size() == max_size();
 			}
 			
@@ -295,19 +303,19 @@ namespace wiselib {
 			 * @return true iff block holds enough elements
 			 * so it does not need to be splitted.
 			 */
-			bool full_enough() { return size() >= MIN_ELEMENTS; }
+			bool full_enough() const { return size() >= MIN_ELEMENTS; }
 			
 			/**
 			 * @return true iff another node can borrow an element from this
 			 * one and afterwards this node would still be full_enough().
 			 */
-			bool enough_for_borrow() {
+			bool enough_for_borrow() const {
 				return size() >= MIN_ELEMENTS + 1;
 			}
 			
 			// }}}
 			
-			address_t prev() {
+			address_t prev() const {
 				return *reinterpret_cast<address_t*>(data_ + POS_PREV);
 			}
 			
@@ -315,8 +323,8 @@ namespace wiselib {
 				*reinterpret_cast<address_t*>(data_ + POS_PREV) = p;
 			}
 			
-			address_t next() {
-				return *reinterpret_cast<address_t*>(data_ + POS_NEXT);
+			address_t next() const {
+				return *reinterpret_cast<const address_t*>(data_ + POS_NEXT);
 			}
 			
 			void set_next(address_t p) {

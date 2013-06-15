@@ -199,11 +199,17 @@ namespace wiselib {
 					
 					void update_current() {
 						if(this->container_iterator_ != this->container_end_) {
-							Tuple& t = *this->container_iterator_;
-							//Tuple t;
+							
+							// Note that this extra copy *is* necessary
+							// eg. when your container is on a block device
+							// in which case the iterator contents (as they point
+							// directly into the block cache), might not be valid
+							// anymore when doing dictionary lookups in between!
+							
+							Tuple& t_ = *this->container_iterator_;
+							Tuple t;
 							
 							// copy tuple container -> t
-							/*
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 									t.set(i, t_.get(i));
@@ -212,7 +218,6 @@ namespace wiselib {
 									t.set_deep(i, t_.get(i));
 								}
 							}
-							*/
 							
 							// resolve dict entries and copy to this->current_
 							// (this->current_ is now a deep copy of the tuple)
