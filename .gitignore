@@ -19,3 +19,6 @@ Wiselib.files
 Wiselib.includes
 .c9revisions/
 *~
+*.log
+example_app
+tags
