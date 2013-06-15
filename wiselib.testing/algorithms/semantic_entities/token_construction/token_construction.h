@@ -126,11 +126,19 @@ namespace wiselib {
 				/// Check in this interval whether state is dirty and broadcast it if so
 				DIRTY_BCAST_INTERVAL = 100 * TIME_SCALE,
 				AWAKE_BCAST_INTERVAL = 100 * TIME_SCALE,
-				/// How long to stay awake when we have the token
-				ACTIVITY_PERIOD = 3000 * TIME_SCALE,
+				
+				/**
+				 * How long to stay awake when we have the token.
+				 * Should be considerably longer than it needs to transfer the
+				 * token state to the next node
+				 * should be larger than:
+				 * ((ReliableTransport::MAX_RESENDS - 1) * ReliableTransport::RESEND_TIMEOUT) * k
+				 * for k between 4 and 10 (depending on aggregation data * length)
+				 */
+				ACTIVITY_PERIOD = (1000 * TIME_SCALE) * 10,
 				//RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
 				//HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
-				HANDOVER_RETRY_INTERVAL = 6000 * TIME_SCALE
+				HANDOVER_RETRY_INTERVAL = ACTIVITY_PERIOD / 2, //6000 * TIME_SCALE
 			};
 			
 			enum SpecialAddresses {
@@ -876,6 +884,13 @@ namespace wiselib {
 				bool active_before = se.is_active(radio_->id());
 				size_type prev_count = se.prev_token_count();
 				se.set_prev_token_count(s.count());
+				
+				DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // process_token_state",
+						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
+						(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
+						(int)now()
+				);
+					
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
 					se.learn_activating_token(clock_, radio_->id(), receive_time - delay); 
@@ -888,12 +903,8 @@ namespace wiselib {
 					
 					begin_activity(se);
 				}
-				else {
-					DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // token didnt do anything",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
-							(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
-							(int)now()
-					);
+				else if(!se.is_active(radio_->id()) && active_before) {
+					end_activity(&se);
 				}
 				return activating;
 			}
@@ -974,6 +985,12 @@ namespace wiselib {
 				//assert(se.is_active(radio_->id()));
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
+				
+				DBG("node %d SE %x.%x active=%d prevcount=%d count=%d isroot=%d t=%d // update_token_state",
+						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()),
+						(int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
+						(int)now()
+				);
 				
 				// it might be the case that our activity period started
 				// before us waking up to wait for the token.
