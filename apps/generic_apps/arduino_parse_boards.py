@@ -21,7 +21,5 @@ def parse_boards(filename, board, tag):
 	return config.get('dummy', board + '.' + tag)
 
 if __name__ == '__main__':
-	print >>sys.stderr, "parse boards called as: ", sys.argv
-	
 	print parse_boards(sys.argv[1], sys.argv[2], sys.argv[3])
 

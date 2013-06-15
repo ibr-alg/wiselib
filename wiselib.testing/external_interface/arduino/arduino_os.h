@@ -49,6 +49,7 @@ namespace wiselib
       typedef ArduinoClock<ArduinoOsModel> Clock;
 #if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
+      typedef ArduinoEthernetRadio<ArduinoOsModel> Radio;
 #endif
 	  typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
 
