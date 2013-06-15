@@ -32,28 +32,15 @@ template	<	typename Os_P,
 		SeriesStateStatus autocorellate( Debug& _d, Radio& _r)
 		{
 			SeriesStateStatus R;
-
-			//frame->print( _d, _r );
-			//series->print( _d, _r );
 			FrameStateStatus lag_frame;
-			for ( size_t j = 0; j < SERIES_SIZE - FRAME_SIZE + 1; j++ )
+			for ( size_t j = SERIES_SIZE - FRAME_SIZE + 1; j!= 0; j-- )
 			{
-				for ( size_t i = 0; i < FRAME_SIZE; i++ )
+				for ( size_t i = FRAME_SIZE; i !=0 ; i-- )
 				{
-
-					//series->get_ss_vector_ref()->at[j+i];
-					lag_frame.push( series->get_ss_vector_ref()->at(i + j ) );
+					lag_frame.push( series->get_ss_vector_ref()->at( ( i - 1 ) + ( j - 1 ) ) );
 				}
-				lag_frame.print( _d, _r );
-				_d.debug("-------------------------");
-				//R.push( lag_frame.cartesian_product( lag_frame ) );
+				R.push( lag_frame.autocorellate( *frame ) );
 			}
-			_d.debug("-------------------------");
-			_d.debug("-------------------------");
-			_d.debug("-------------------------");
-
-			//R.print( _d, _r );
-			frame->print( _d, _r );
 			return R;
 		}
 		// --------------------------------------------------------------------

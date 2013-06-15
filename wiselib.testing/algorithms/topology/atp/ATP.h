@@ -141,36 +141,10 @@ namespace wiselib
 
 			FrameStateStatus f;
 			SeriesStateStatus s;
-			f.push(1);
-			f.push(2);
-			f.push(3);
-			f.push(4);
-			f.push(5);
-
-			s.push(1);
-			s.push(2);
-			s.push(3);
-			s.push(4);
-			s.push(5);
-			s.push(6);
-			s.push(7);
-			s.push(8);
-			s.push(9);
-			s.push(10);
-
-
-			//int32_t R = s.cartesian_product( s );
-			//debug().debug("CAR:%d\n", R );
-				//
-			//for ( size_t i = 0; i< s.get_ss_vector_ref()->size(); i++ )
-			//{
-			//	debug().debug("ELE:%d", s.get_ss_vector_ref()->at(i) );
-			//}
-			//debug().debug("---------------");
-			//s.print( debug(), radio() );
 			TM.set_frame( &f );
 			TM.set_series( &s );
-			TM.autocorellate( debug(), radio() );
+			TM.autocorellate( debug(), radio() ).check_oscillation();
+
 			//millis_t r = rand()() % random_enable_timer_range;
 			//timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
 #endif
