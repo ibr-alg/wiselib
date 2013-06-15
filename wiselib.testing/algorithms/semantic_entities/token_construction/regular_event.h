@@ -114,14 +114,26 @@ namespace wiselib {
 						//DBG("------ stable hit");
 						update_interval(new_interval, ALPHA_STABLE);
 						break;
-					case HIT_FAR:
+					case HIT_FAR: {
 						//DBG("------ far hit, doubling window");
 						//DBG("------- HIT window before double %llu", window_);
-						window_ *= 2;
 						//DBG("------- HIT window after double %llu", window_);
-						if(window_ > interval_) { window_ = interval_; }
+						abs_millis_t old_window = window_;
+						abs_millis_t old_interval = interval_;
+						
 						update_interval(new_interval, ALPHA_FAR);
+						
+						window_ *= 2;
+						
+						//if(interval_ > old_interval_ && interval_ - window_ > old_interval - old_window) {
+						if(interval_ > old_interval && interval_ + old_window > old_interval + window_) {
+							window_ = interval_ - old_interval + old_window;
+						}
+						
+						if(window_ > interval_) { window_ = interval_; }
+						
 						break;
+					}
 				}
 				
 				DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
@@ -279,7 +291,7 @@ namespace wiselib {
 			
 			void update_interval(abs_millis_t new_interval, ::uint8_t alpha) {
 				//assert(new_interval > time_t(0));
-				if(new_interval < window_) { new_interval = window_; }
+				//if(new_interval < window_) { new_interval = window_; }
 				
 				if(early()) {
 					interval_ = new_interval;
