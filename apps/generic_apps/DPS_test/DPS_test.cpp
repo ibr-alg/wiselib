@@ -3,8 +3,10 @@
 * Author: Daniel Gehberger - GSoC 2013 - DPS project
 */
 
+#ifdef ISENSE
 //Needed for iSense in order to avoid linker error with the MapStaticVector class
 extern "C" void assert(int) { }
+#endif
 
 #include "external_interface/external_interface.h"
 #include "radio/DPS/DPS_radio.h"
@@ -32,22 +34,33 @@ public:
 		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 		rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
 	
-		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
+		debug_->debug( "Booting with ID: %llx %i\n", (long long unsigned)(radio_->id()), sizeof(node_id_t));
 		
 		DPS_Radio_.init(*radio_, *debug_, *timer_, *rand_);
 		DPS_Radio_.enable_radio();
 		
 		//Register
-		if( radio_->id() == 0x0 || radio_->id() == 0x2 )
-			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, true );
-		else if( radio_->id() == 0x1 )
-			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, false );
-		
 		if( radio_->id() == 0x1 )
+			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler, &DPSApp::manage_buffer>( this, DPS_Radio_t::TEST_PID, true );
+		else if( radio_->id() == 0x2 )
+			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler, &DPSApp::manage_buffer>( this, DPS_Radio_t::TEST_PID, false );
+		
+		if( radio_->id() == 0x2 )
 		{
 			timer_->set_timer<DPSApp, &DPSApp::send>( 2000, this, NULL );
 			
 		}
+		
+// 		if( radio_->id() == 0x203c )
+// 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, true );
+// 		else if( radio_->id() == 0x203d )
+// 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, false );
+// 		
+// 		if( radio_->id() == 0x203d )
+// 		{
+// 			timer_->set_timer<DPSApp, &DPSApp::send>( 2000, this, NULL );
+// 			
+// 		}
 		//--------------------------------------------------------------------------------------
 		//					Testing part
 		//--------------------------------------------------------------------------------------
@@ -57,30 +70,53 @@ public:
 	
 	int RPC_handler( DPS_node_id_t IDs, uint16_t length, block_data_t* buffer )
 	{
-		debug_->debug( "RPC_handler is called at: %llx (%i/%i)\n", (long long unsigned)(radio_->id()), IDs.first, IDs.second);
+		debug_->debug( "RPC_handler is called at: %llx (%i/%i)\n", (long long unsigned)(radio_->id()), IDs.Pid, IDs.Fid);
+		
+		//Free up the buffer, if there are many buffers, then the right one should be found
+		test_buffer_inuse = false;
 		
 		//Call the function which is associated with the F_id
-		if( IDs.second == 1 )
-			print_string( buffer );
+		if( IDs.Fid == 1 )
+			add_numbers( buffer[0], buffer[1] );
 		
 		return 1;
 	}
 	
-	void print_string (block_data_t* buffer)
+	block_data_t* manage_buffer( block_data_t* buffer, uint16_t length, bool get_buffer )
 	{
-		debug_->debug( "%s", buffer );
+		if( get_buffer )
+		{
+			test_buffer_inuse = true;
+			return test_buffer;
+		}
+		else
+		{
+			debug_->debug( "RPC buffer has been freed up" );
+			test_buffer_inuse = false;
+			return test_buffer;
+		}
+	}
+	
+	void add_numbers( uint8_t a, uint8_t b)
+	{
+		debug_->debug( "%i + %i = %i", a, b, a + b );
 	}
 	
 	void send( void* )
 	{
 		DPS_node_id_t dest;
-		dest.first = DPS_Radio_t::TEST_PID;
-		dest.second = 1;
+		dest.Pid = DPS_Radio_t::TEST_PID;
+		dest.Fid = 1;
+		dest.ack_required = 1;
 		
-		uint8_t mypayload[] = "This is a test message.";
+		test_buffer[0] = 5;
+		test_buffer[1] = 10;
 		
-		if( DPS_Radio_.send(dest, sizeof(mypayload), mypayload ) == DPS_Radio_t::NO_CONNECTION )
+		test_buffer_inuse = true;
+		
+		if( DPS_Radio_.send(dest, 2, test_buffer ) == DPS_Radio_t::NO_CONNECTION )
 		{
+			test_buffer_inuse = false;
 			debug_->debug( "No connection at %llx, call is postponed", (long long unsigned)(radio_->id()));
 			timer_->set_timer<DPSApp, &DPSApp::send>( 2000, this, NULL );
 		}
@@ -100,6 +136,9 @@ public:
 
 private:
 	int callback_id;
+	
+	block_data_t test_buffer[100];
+	bool test_buffer_inuse;
 
 	DPS_Radio_t DPS_Radio_;
 	Radio::self_pointer_t radio_;

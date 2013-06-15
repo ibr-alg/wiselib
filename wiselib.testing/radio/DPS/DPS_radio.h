@@ -137,7 +137,8 @@ namespace wiselib
 	public:
 		Protocol_t()
 		: server( false ),
-		rpc_handler_delegate(RPC_handler_delegate_t())
+		rpc_handler_delegate(RPC_handler_delegate_t()),
+		buffer_handler_delegate(buffer_handler_delegate_t())
 		{}
 		
 		/**
@@ -151,6 +152,37 @@ namespace wiselib
 		 */
 		typedef delegate3<int, node_id_t, uint16_t, block_data_t*> RPC_handler_delegate_t;
 		RPC_handler_delegate_t rpc_handler_delegate;
+		
+		/**
+		 * buffer handler delegate
+		 * function for 2 use cases
+		 * 	- get a buffer for incoming messages
+		 * 	- when ACK is required then free up the buffer
+		 */
+		typedef delegate3<block_data_t*, block_data_t*, uint16_t, bool> buffer_handler_delegate_t;
+		buffer_handler_delegate_t buffer_handler_delegate;
+	};
+	
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+	
+	
+	/**
+	* \brief 
+	*/
+	class DPS_node_id_type
+	{
+	public:
+		DPS_node_id_type()
+		: Pid( 0 ),
+		Fid( 0 ),
+		ack_required( 0 )
+		{}
+		
+		uint8_t Pid;
+		uint8_t Fid;
+		uint8_t ack_required;
 	};
 	
 // -----------------------------------------------------------------------
@@ -184,7 +216,7 @@ namespace wiselib
 		typedef typename Radio::message_id_t message_id_t;
 		
 		//node_id_t as a pair: P_ID and F_ID
-		typedef wiselib::pair<uint8_t, uint8_t> node_id_t;
+		typedef DPS_node_id_type node_id_t;
 		
 		typedef DPS_Packet<OsModel, Radio, Debug> DPS_Packet_t;
 		
@@ -237,6 +269,7 @@ namespace wiselib
 			timer_ = &timer;
 			rand_ = &rand;
 			
+// 			rand_->srand( id() );
 			
 			return SUCCESS;
 		}
@@ -275,7 +308,7 @@ namespace wiselib
 		/**
 		 * \brief
 		 */
-		template<class T, int (T::*TMethod)(node_id_t, uint16_t, block_data_t*)>
+		template<class T, int (T::*TMethod)(node_id_t, uint16_t, block_data_t*), block_data_t* (T::*TMethod2)(block_data_t*, uint16_t, bool)>
 		int reg_recv_callback( T *obj_pnt, uint8_t Pid, bool server )
 		{
 			//The Pid has been already registered
@@ -286,6 +319,7 @@ namespace wiselib
 			newprotocol_t newprotocol;
 			newprotocol.first = Pid;
 			newprotocol.second.rpc_handler_delegate = protocol_type::RPC_handler_delegate_t::template from_method<T, TMethod>( obj_pnt );
+			newprotocol.second.buffer_handler_delegate = protocol_type::buffer_handler_delegate_t::template from_method<T, TMethod2>( obj_pnt );
 			newprotocol.second.server = server;
 			
 			protocol_list_.push_back(newprotocol);
@@ -375,6 +409,12 @@ namespace wiselib
 		 * List for the connections
 		 */
 		Connection_list_t connection_list_;
+		
+		/**
+		 * Saved buffer pointer from the RPC handler class
+		 * Used for fragmentation & reassembling
+		 */
+		block_data_t* app_buffer;
 		
 		
 		//Stored callback_id for radio
@@ -708,14 +748,21 @@ namespace wiselib
 		
 		for( Connection_list_iterator it = connection_list_.begin(); it != connection_list_.end(); ++it )
 		{
-			if( it->Pid == destination.first && it->connection_status == connection_type::CONNECTED )
+			if( it->Pid == destination.Pid && it->connection_status == connection_type::CONNECTED )
 			{
-				//Create a packet, NOTE no fragmentation at the moment
-				DPS_Packet_t packet( DPS_Packet_t::DPS_TYPE_RPC_REQUEST, false );
+				bool fragmentation = false;
+				
+				//Check the size of the data: Max message size vs. header + payload + footer
+				if( Radio::MAX_MESSAGE_LENGTH < length + DPS_Packet_t::DPS_RPC_HEADER_SIZE + DPS_Packet_t::DPS_FOOTER_SIZE )
+					fragmentation = true;
+					
+				//Create a packet with or without fragmentation
+				DPS_Packet_t packet( DPS_Packet_t::DPS_TYPE_RPC_REQUEST, fragmentation );
 				block_data_t* payload_act_pointer=packet.get_payload();
 				
-				packet.set_pid( destination.first );
-				packet.set_fid( destination.second );
+				packet.set_pid( destination.Pid );
+				packet.set_fid( destination.Fid );
+				packet.set_ack_flag( destination.ack_required );
 				
 				//TODO increment only after all fragments
 				if( protocol_list_[packet.pid()].server )
@@ -739,7 +786,7 @@ namespace wiselib
 #endif
 				
 				#ifdef DPS_RADIO_DEBUG
-				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(it->partner_MAC), destination.first, destination.second);
+				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(it->partner_MAC), destination.Pid, destination.Fid);
 				#endif
 				
 				radio().send( it->partner_MAC, packet.length, packet.buffer );
@@ -781,8 +828,12 @@ namespace wiselib
 			calculate_checksum_for_buffer( packet.length-4, packet.buffer, fake_it, MAC, true );
 			if( memcmp( MAC, &(packet.buffer[packet.length-4]), 4 ) )
 			{
-				debug().debug( "DPS: checksum error in packet (%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
-				//return;
+				#ifdef DPS_RADIO_DEBUG
+				debug().debug( "DPS: checksum error in DISCOVERY/ADVERTISE packet" );
+// 				debug().debug( "(%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
+				#endif
+				
+				return;
 			}
 #endif
 			//Receive a Discovery at a node which provides the protocol as a server
@@ -873,9 +924,13 @@ namespace wiselib
 					calculate_checksum_for_buffer( packet.length-4, packet.buffer, it, MAC, false );
 					if( memcmp( MAC, &(packet.buffer[packet.length-4]), 4 ) )
 					{
-						debug().debug( "DPS: checksum error in packet (%x %x %x %x) calc (%x %x %x %x) length %i!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3], packet.length);
-						//TODO Delete connection
-						//return;
+						#ifdef DPS_RADIO_DEBUG
+						debug().debug( "DPS: checksum error in CONNECTION packet" );
+// 						debug().debug( "(%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
+						#endif
+						
+						connection_list_.erase( it );
+						return;
 					}
 #endif
 					
@@ -932,8 +987,11 @@ namespace wiselib
 					calculate_checksum_for_buffer( packet.length-4, packet.buffer, it, MAC, false );
 					if( memcmp( MAC, &(packet.buffer[packet.length-4]), 4 ) )
 					{
-						debug().debug( "DPS: checksum error in packet (%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
-						//return;
+						#ifdef DPS_RADIO_DEBUG
+						debug().debug( "DPS: checksum error in CONNECTED packet" );
+// 						debug().debug( "(%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
+						#endif
+						return;
 					}
 #endif
 					if( packet.type() == DPS_Packet_t::DPS_TYPE_HARTBEAT )
@@ -941,6 +999,7 @@ namespace wiselib
 						//Server side, check for the counter against replay attack
 						if( ( it->client_counter == packet.counter() ) && ( protocol_list_[packet.pid()].server ) )
 						{
+// 							debug().debug( "DPS: HB ok at %llx", (long long unsigned)(radio().id()) );
 							it->elapsed_time = 0;
 							it->client_counter++;
 							return;
@@ -948,25 +1007,70 @@ namespace wiselib
 						//Client side, check for the counter against replay attack
 						else if( ( it->server_counter == packet.counter() ) && !( protocol_list_[packet.pid()].server ) )
 						{
+// 							debug().debug( "DPS: HB ok at %llx", (long long unsigned)(radio().id()) );
 							it->elapsed_time = 0;
 							it->server_counter++;
 							return;
 						}
 					}
+					else if( packet.type() == DPS_Packet_t::DPS_TYPE_RPC_ACK )
+					{
+						//TODO handle...
+					}
 					else if( packet.type() == DPS_Packet_t::DPS_TYPE_RPC_REQUEST )
 					{
+						//Send back an ACK if it is requested by the sender
+						if( packet.ack_flag() )
+						{
+							DPS_Packet_t ack_packet( DPS_Packet_t::DPS_TYPE_RPC_ACK, false );
+							
+							if( packet.fragmentation_flag() )
+							{
+								//Modify the header by hand because it requires less resources
+								ack_packet.set_fragmentation_flag( 1 );
+								ack_packet.length += DPS_Packet_t::DPS_FRAGMENTATION_HEADER_SIZE;
+								ack_packet.payload_position += DPS_Packet_t::DPS_FRAGMENTATION_HEADER_SIZE;
+								ack_packet.set_fragmentation_header(packet.fragmentation_header_length(), packet.fragmentation_header_shift());
+							}
+							
+							ack_packet.set_pid( packet.pid() );
+							ack_packet.set_fid( packet.fid() );
+							ack_packet.set_counter( packet.counter() );
+							
+#if DPS_FOOTER > 0
+							calculate_checksum_for_buffer( ack_packet.length, ack_packet.buffer, it, MAC, false );
+							//No payload
+							memcpy( ack_packet.buffer + ack_packet.payload_position, MAC, 4 );
+							ack_packet.length += 4;
+#endif
+							radio().send( it->partner_MAC, ack_packet.length, ack_packet.buffer );
+						}
+						
 						//TODO check the counter values, collect fragments...
 						
+						//get buffer from the handler
+						app_buffer = (protocol_list_[packet.pid()].buffer_handler_delegate)( NULL, length, true );
+						
+						
 						node_id_t source;
-						source.first = packet.pid();
-						source.second = packet.fid();
+						source.Pid = packet.pid();
+						source.Fid = packet.fid();
 						uint16_t payload_length = packet.length - packet.payload_position;
+						
+						//TODO only after full packets
+						if( protocol_list_[packet.pid()].server )
+							it->client_counter++;
+						else
+							it->server_counter++;
+						
+						//Copy the payload
+						memcpy( app_buffer, packet.buffer + packet.payload_position, payload_length );
 						
 						#if DPS_FOOTER > 0
 						payload_length -= 4;
 						#endif
 						
-						(protocol_list_[packet.pid()].rpc_handler_delegate)( source, payload_length, packet.buffer + packet.payload_position );
+						(protocol_list_[packet.pid()].rpc_handler_delegate)( source, payload_length, app_buffer );
 					}
 					else
 					{

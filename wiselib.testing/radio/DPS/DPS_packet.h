@@ -103,26 +103,21 @@ namespace wiselib
 			//Save the type into the header
 			set_type( packet_type );
 			
-			//The payload position by default
-			payload_position = 6;
-			
-			//F_id is needed for the RPC packets (1 byte)
+			//F_id is needed for the RPC packets (1 byte) --> BASIC size +1
 			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE || packet_type == DPS_TYPE_RPC_ACK )
-				payload_position++;
+				payload_position = DPS_RPC_HEADER_SIZE;
+			else
+				payload_position = DPS_BASIC_HEADER_SIZE;
 			
 			//Save the place for the fragmentation header (4 bytes)
 			if( fragmentation_needed )
 			{
 				set_fragmentation_flag( 1 );
-				payload_position += 4;
+				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
 			}
 			
-#if ( DPS_FOOTER == 0 )
-			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position;
-#else
-			//Reserve 4 bytes for the footer
-			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position - 4;
-#endif
+			//Reserve 0 or 4 bytes for the footer
+			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position - DPS_FOOTER_SIZE;
 			
 			length = payload_position;
 		}
@@ -132,14 +127,14 @@ namespace wiselib
 		{
 			memcpy( buffer, in_buffer, in_length );
 			
-			payload_position = 6;
-			
 			uint8_t packet_type = type();
 			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE || packet_type == DPS_TYPE_RPC_ACK )
-				payload_position++;
+				payload_position = DPS_RPC_HEADER_SIZE;
+			else
+				payload_position = DPS_BASIC_HEADER_SIZE;
 			
 			if( fragmentation_flag() == 1 )
-				payload_position += 4;
+				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
 			
 			//TODO checksum?
 			
@@ -165,6 +160,18 @@ namespace wiselib
 			DPS_TYPE_HARTBEAT = 13
 		};
 		
+		enum DPS_Header_Sizes
+		{
+			DPS_BASIC_HEADER_SIZE = 6,
+			DPS_RPC_HEADER_SIZE = 7,
+			DPS_FRAGMENTATION_HEADER_SIZE = 4,
+#if DPS_FOOTER > 0
+			DPS_FOOTER_SIZE = 4
+#else
+			DPS_FOOTER_SIZE = 0
+#endif
+		};
+		
 		///Set debug for print_header()
 		void set_debug( Debug& debug )
 		{
@@ -182,7 +189,7 @@ namespace wiselib
 		void set_fragmentation_flag( uint8_t value )
 		{
 			//byte: 0, bit: 3, length: 1
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 0, value, 2, 1 );
+			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 0, value, 3, 1 );
 		}
 		
 		void set_type( uint8_t value )
@@ -238,7 +245,7 @@ namespace wiselib
 		inline uint8_t fragmentation_flag()
 		{
 			//byte: 0, bit: 3, length: 1
-			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer + 0, 2, 1 );
+			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer + 0, 3, 1 );
 		}
 		
 		inline uint8_t type()
@@ -303,8 +310,10 @@ namespace wiselib
 			debug().debug( "Type: %d \n", type());
 			debug().debug( "Counter: %d \n", counter());
 			debug().debug( "P_id: %d \n", pid());
-			debug().debug( "(F_id: %d) \n", fid());
-			debug().debug( "(Length: %d Shift: %d) \n", fragmentation_header_length(), fragmentation_header_shift());
+			if( fid() == 1 )
+				debug().debug( "F_id: %d \n", fid());
+			if( fragmentation_flag() == 1 )
+				debug().debug( "Length: %d Shift: %d \n", fragmentation_header_length(), fragmentation_header_shift());
 		}
 		#endif
 		
