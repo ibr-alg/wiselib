@@ -29,7 +29,7 @@ template	<	typename Os_P,
 		TimeSeries_Type() {}
 		~TimeSeries_Type() {}
 		// --------------------------------------------------------------------
-		SeriesStateStatus autocorellate( Debug& _d, Radio& _r)
+		SeriesStateStatus autocorellate()
 		{
 			SeriesStateStatus R;
 			FrameStateStatus lag_frame;

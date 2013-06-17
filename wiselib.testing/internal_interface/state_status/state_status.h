@@ -182,13 +182,13 @@ namespace wiselib
 			return ( ( SS_VECTOR_SIZE * sum_xy ) - ( sum_x * sum_y ) ) * 100 / sqrt32( ( SS_VECTOR_SIZE * sum_xx - ( sum_x ) * ( sum_x ) ) * ( SS_VECTOR_SIZE * sum_yy - ( sum_y ) * ( sum_y ) ) );
 		}
 		// --------------------------------------------------------------------
-		uint16_t sqrt32(uint32_t n)
+		uint16_t sqrt32( uint32_t _n )
 		{
 			uint32_t  c = 0x8000;
 			uint32_t  g = 0x8000;
 
 		    for(;;) {
-		        if(g*g > n)
+		        if(g*g > _n)
 		            g ^= c;
 		        c >>= 1;
 		        if(c == 0)

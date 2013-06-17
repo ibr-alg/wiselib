@@ -138,15 +138,8 @@ namespace wiselib
 #ifndef CONFIG_ATP_H_RANDOM_BOOT
 			SCL_enable_task();
 #else
-
-			FrameStateStatus f;
-			SeriesStateStatus s;
-			TM.set_frame( &f );
-			TM.set_series( &s );
-			TM.autocorellate( debug(), radio() ).check_oscillation();
-
-			//millis_t r = rand()() % random_enable_timer_range;
-			//timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
+			millis_t r = rand()() % random_enable_timer_range;
+			timer().template set_timer<self_type, &self_type::SCL_enable_task> ( r, this, 0 );
 #endif
 #ifdef DEBUG_ATP_H_ENABLE
 			debug().debug( "ATP - enable %x - Exiting.\n", radio().id() );
@@ -296,6 +289,25 @@ namespace wiselib
 #endif
 					}
 				}
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL
+				if ( transmission_power_series_status.full() )
+				{
+					TM.set_frame( &transmission_power_status );
+					TM.set_series( &transmission_power_series_status );
+					if ( TM.autocorellate().check_oscillation() )
+					{
+						//SCLD_MIN_threshold = SCLD_MIN_threshold - 1;
+						//SCLD_MAX_threshold = SCLD_MAX_threshold + 1;
+						transmission_power_status.lock();
+						debug().debug("OSCTL:%x:%d:%i\n",radio().id(), monitoring_phase_counter, transmission_power_dB );
+					}
+					else
+					{
+						transmission_power_status.unlock();
+						debug().debug("OSCTU:%x:%d:%i\n",radio().id(), monitoring_phase_counter, transmission_power_dB );
+					}
+				}
+#endif
 #endif
 #ifdef CONFIG_ATP_THRESHOLD_LOCAL_SCLD
 				uint8_t threshold_local_SCLD = get_threshold_local_SCLD( SCLD_MIN, SCLD_MAX );
@@ -333,7 +345,7 @@ namespace wiselib
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
-#ifdef CONFIG_ATP_SIMPLE_SCLD
+#ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				if (	( nd_active_size < SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
@@ -360,7 +372,7 @@ namespace wiselib
 #endif
 					}
 				}
-#ifdef CONFIG_ATP_SIMPLE_SCLD
+#ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if (	( nd_active_size > SCLD_MAX_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
@@ -457,8 +469,10 @@ namespace wiselib
 			}
 		}
 		// -----------------------------------------------------------------------
-//#undef CONFIG_ATP_SIMPLE_SCLD
-//#define CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
+#ifdef CONFIG_ATP_H_HYBRID
+#undef CONFIG_ATP_H_SIMPLE_SCLD
+#define CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
+#endif
 		// -----------------------------------------------------------------------
 		void ATP_service_throughput(void* _userdata = NULL )
 		{
@@ -509,6 +523,25 @@ namespace wiselib
 #endif
 					}
 				}
+#ifdef	CONFIG_ATP_H_OSCILATION_CONTROL
+				if ( throughput_series_status.full() )
+				{
+					TM.set_frame( &throughput_status );
+					TM.set_series( &throughput_series_status );
+					if ( TM.autocorellate().check_oscillation() )
+					{
+						//SCLD_MIN_threshold = SCLD_MIN_threshold - 1;
+						//SCLD_MAX_threshold = SCLD_MAX_threshold + 1;
+						debug().debug("OSCBTL:%x:%d:%d\n",radio().id(), SCLD_MIN_threshold, SCLD_MAX_threshold );
+						throughput_status.lock();
+					}
+					else
+					{
+						debug().debug("OSCBTU:%x:%d:%d\n",radio().id(), SCLD_MIN_threshold, SCLD_MAX_threshold );
+						throughput_status.unlock();
+					}
+				}
+#endif
 #endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
 					debug().debug("CON:%d:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), nd_active_size, prot_ref->get_neighborhood_ref()->size(), transmission_power_dB, ATP_sevice_transmission_power_period * monitoring_phases_transmission_power, monitoring_phases_throughput + monitoring_phases_transmission_power, scl().get_position().get_x(),  scl().get_position().get_y() );
@@ -546,7 +579,7 @@ namespace wiselib
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
-#ifdef CONFIG_ATP_SIMPLE_SCLD
+#ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				if ( ( nd_active_size < SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
@@ -573,7 +606,7 @@ namespace wiselib
 #endif
 					}
 				}
-#ifdef CONFIG_ATP_SIMPLE_SCLD
+#ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if ( ( nd_active_size >= SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
@@ -958,9 +991,11 @@ namespace wiselib
 		FrameStateStatus transmission_power_status;
 		FrameStateStatus throughput_status;
 		FrameStateStatus SCLD_status;
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL
 		SeriesStateStatus transmission_power_series_status;
 		SeriesStateStatus throughput_series_status;
 		TimeSeries TM;
+#endif
 #endif
 	};
 
