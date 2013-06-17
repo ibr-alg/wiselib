@@ -76,6 +76,9 @@ namespace wiselib {
 					void mark_unused() { date_ = 0; }
 					bool used() { return date_ != 0; }
 					
+					void set_dirty(bool d) { dirty_ = d; }
+					bool dirty() { return dirty_; }
+					
 					size_type date() { return date_; }
 					block_data_t* data() { return data_; }
 					address_t& address() { return address_; }
@@ -86,6 +89,7 @@ namespace wiselib {
 					block_data_t data_[BlockMemory::BLOCK_SIZE];
 					address_t address_;
 					size_type date_;
+					bool dirty_;
 			};
 			
 			BlockMemory_P& physical() { return *(BlockMemory_P*)this; }
@@ -132,10 +136,11 @@ namespace wiselib {
 				}
 				else {
 					// cache miss
-					if(!WRITE_THROUGH && cache_[i].used()) {
+					if(!WRITE_THROUGH && cache_[i].used() && cache_[i].dirty()) {
 						physical_write(cache_[i].data(), cache_[i].address());
 					}
 					cache_[i].mark_used();
+					cache_[i].set_dirty(false);
 					cache_[i].address() = a;
 					physical_read(cache_[i].data(), a);
 				}
@@ -147,17 +152,30 @@ namespace wiselib {
 				CacheEntry &e = cache_[i];
 				
 				if((e.used() && (e.address() != a))) {
+					// entry not found in cache and we would need to kick out
+					// another one for it
+					
 					// only update if a already in the cache or
 					// free slot available for write-through.
 					// for write-back, force the update
 					if(WRITE_THROUGH) {
+						// in write-through just dont do anything in this case,
+						// (write() will care for putting it on disk)
 						return;
 					}
-					else {
+					else if(e.dirty()) {
+						// write back the old one
+						
 						physical_write(e.data(), e.address());
+						e.set_dirty(false);
 					}
 				}
+				
+				// update cache entry
 
+				//e.set_dirty(memcmp(e.data(), new_data, BLOCK_SIZE) != 0);
+				e.set_dirty(true);
+				
 				memcpy(e.data(), new_data, BLOCK_SIZE);
 				e.mark_used();
 				e.address() = a;
@@ -182,6 +200,16 @@ namespace wiselib {
 					(cache_[find(a)].address() != a)
 				);
 			}
+			
+			void flush() {
+				for(size_type i = 0; i < CACHE_SIZE; i++) {
+					CacheEntry &e = cache_[i];
+					if(e.used() && e.dirty()) {
+						physical_write(e.data(), e.address());
+						e.set_dirty(false);
+					}
+				}
+			}
 
 			void set_special_range(address_t start, address_t end) {
 				start_ = start;
@@ -194,6 +222,10 @@ namespace wiselib {
 		
 			void reset_stats() {
 				reads_ = writes_ = 0;
+			}
+			
+			void print_stats() {
+				DBG("CBM phys reads: %ld phys writes: %ld", reads_, writes_);
 			}
 			
 		private:
@@ -249,10 +281,6 @@ namespace wiselib {
 			}
 
 
-			void print_stats() {
-				DBG("CBM phys reads: %ld phys writes: %ld", reads_, writes_);
-			}
-			
 			CacheEntry cache_[CACHE_SIZE];
 			address_t start_;
 			address_t end_;

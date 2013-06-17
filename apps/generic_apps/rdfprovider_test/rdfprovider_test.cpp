@@ -80,7 +80,7 @@ typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleS
 	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 2, 1, true> BlockMemory;
 	typedef BitmapChunkAllocator<Os, BlockMemory, 8, ::uint16_t> BlockAllocator;
 #else
-	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 20, 4, true> BlockMemory;
+	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 20, 4, false> BlockMemory;
 	typedef BitmapChunkAllocator<Os, BlockMemory, 8, Os::size_t> BlockAllocator;
 #endif
 
@@ -202,6 +202,21 @@ class App {
 			debug_->debug("create doc1");
 			doc3mask = broker.create_document("doc3");
 			debug_->debug("ins");
+			
+			ins("aa", "bb", "cc", doc1mask);
+			
+			debug_->debug("--------- after first tuple:");
+			block_memory_.flush();
+			block_memory_.print_stats();
+			
+			ins("bb", "aa", "cc", doc1mask);
+			ins("bb", "cc", "aa", doc1mask);
+			ins("cc", "cc", "aa", doc1mask);
+			
+			debug_->debug("--------- after 3 more:");
+			block_memory_.flush();
+			block_memory_.print_stats();
+			
 			ins("ab", "7777777", "dd", doc1mask );
 			debug_->debug("ins");
 			ins("ab", "88888888", "xx", doc1mask );
@@ -224,6 +239,10 @@ class App {
 			debug_->debug("ins");
 			ins("yy6", "999999999", "ab", doc1mask | doc3mask);
 			debug_->debug("ins done");
+			
+			debug_->debug("--------- after even more:");
+			block_memory_.flush();
+			block_memory_.print_stats();
 		}
 		
 		void test_broker() {
