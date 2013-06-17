@@ -52,9 +52,9 @@ public:
 		}
 		
 // 		if( radio_->id() == 0x203c )
-// 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, true );
+// 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler, &DPSApp::manage_buffer>( this, DPS_Radio_t::TEST_PID, true );
 // 		else if( radio_->id() == 0x203d )
-// 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler>( this, DPS_Radio_t::TEST_PID, false );
+// 			DPS_Radio_.reg_recv_callback<DPSApp,&DPSApp::RPC_handler, &DPSApp::manage_buffer>( this, DPS_Radio_t::TEST_PID, false );
 // 		
 // 		if( radio_->id() == 0x203d )
 // 		{
@@ -78,6 +78,8 @@ public:
 		//Call the function which is associated with the F_id
 		if( IDs.Fid == 1 )
 			add_numbers( buffer[0], buffer[1] );
+		else if (IDs.Fid == 2 )
+			print_text( buffer );
 		
 		return 1;
 	}
@@ -93,7 +95,7 @@ public:
 		{
 			debug_->debug( "RPC buffer has been freed up" );
 			test_buffer_inuse = false;
-			return test_buffer;
+			return NULL;
 		}
 	}
 	
@@ -102,19 +104,27 @@ public:
 		debug_->debug( "%i + %i = %i", a, b, a + b );
 	}
 	
+	void print_text ( block_data_t* buffer )
+	{
+		debug_->debug( "PRINT: %s", buffer );
+	}
+	
 	void send( void* )
 	{
 		DPS_node_id_t dest;
 		dest.Pid = DPS_Radio_t::TEST_PID;
-		dest.Fid = 1;
+		dest.Fid = 2;
 		dest.ack_required = 1;
 		
-		test_buffer[0] = 5;
-		test_buffer[1] = 10;
+// 		test_buffer[0] = 5;
+// 		test_buffer[1] = 10;
+		
+		uint8_t mypayload[] = "This is a test message. This is a test message. This is a test message. This is a test message. This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message.  This is a test message. ";
+		memcpy( test_buffer, mypayload, sizeof(mypayload) ); 
 		
 		test_buffer_inuse = true;
 		
-		if( DPS_Radio_.send(dest, 2, test_buffer ) == DPS_Radio_t::NO_CONNECTION )
+		if( DPS_Radio_.send(dest, sizeof(mypayload), test_buffer ) == DPS_Radio_t::NO_CONNECTION )
 		{
 			test_buffer_inuse = false;
 			debug_->debug( "No connection at %llx, call is postponed", (long long unsigned)(radio_->id()));
@@ -137,7 +147,7 @@ public:
 private:
 	int callback_id;
 	
-	block_data_t test_buffer[100];
+	block_data_t test_buffer[500];
 	bool test_buffer_inuse;
 
 	DPS_Radio_t DPS_Radio_;

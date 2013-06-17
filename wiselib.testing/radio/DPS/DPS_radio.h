@@ -126,12 +126,33 @@ namespace wiselib
 	/**
 	* \brief 
 	*/
-	template<typename Radio_P,
-		typename Pair_P>
+	class DPS_node_id_type
+	{
+	public:
+		DPS_node_id_type()
+		: Pid( 0 ),
+		Fid( 0 ),
+		ack_required( 0 )
+		{}
+		
+		uint8_t Pid;
+		uint8_t Fid;
+		uint8_t ack_required;
+	};
+	
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+	
+	
+	/**
+	* \brief 
+	*/
+	template<typename Radio_P>
 	class Protocol_t
 	{
 		typedef Radio_P Radio;
-		typedef Pair_P node_id_t;
+		typedef DPS_node_id_type node_id_t;
 		typedef typename Radio::block_data_t block_data_t;
 		
 	public:
@@ -171,18 +192,57 @@ namespace wiselib
 	/**
 	* \brief 
 	*/
-	class DPS_node_id_type
+	template<typename Radio_P>
+	class buffer_list_type
 	{
+		typedef Radio_P Radio;
+		typedef DPS_node_id_type node_id_t;
+		typedef Connection_t<Radio> connection_type;
+		typedef typename Radio::block_data_t block_data_t;
+		
 	public:
-		DPS_node_id_type()
-		: Pid( 0 ),
-		Fid( 0 ),
-		ack_required( 0 )
+		buffer_list_type()
+		: buffer_pointer( NULL ),
+		buffer_length( 0 ),
+		outgoing( true ),
+		processed_size( 0 ),
+		last_fragment_size( 0 ),
+		elapsed_time( 0 ),
+		connection_pointer( NULL ),
+		RPC_parameters()
 		{}
 		
-		uint8_t Pid;
-		uint8_t Fid;
-		uint8_t ack_required;
+		/**
+		 */
+		block_data_t* buffer_pointer;
+		
+		/**
+		 */
+		uint16_t buffer_length;
+		
+		/**
+		 */
+		bool outgoing;
+		
+		/**
+		 */
+		uint16_t processed_size;
+		
+		/**
+		 */
+		uint16_t last_fragment_size;
+		
+		/**
+		 */
+		uint16_t elapsed_time;
+		
+		/**
+		 */
+		connection_type* connection_pointer;
+		
+		/**
+		 */
+		node_id_t RPC_parameters;
 	};
 	
 // -----------------------------------------------------------------------
@@ -215,18 +275,23 @@ namespace wiselib
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::message_id_t message_id_t;
 		
-		//node_id_t as a pair: P_ID and F_ID
+		//node_id_t as a triplet: P_id, F_id, ack_flag
 		typedef DPS_node_id_type node_id_t;
 		
 		typedef DPS_Packet<OsModel, Radio, Debug> DPS_Packet_t;
 		
-		typedef Protocol_t<Radio, node_id_t> protocol_type;
+		typedef Protocol_t<Radio> protocol_type;
 		typedef wiselib::pair<uint8_t, protocol_type> newprotocol_t;
 		typedef MapStaticVector<OsModel, uint8_t, protocol_type, DPS_MAX_PROTOCOLS> Protocol_list_t;
 		
 		typedef Connection_t<Radio> connection_type;
 		typedef vector_static<OsModel, connection_type, DPS_MAX_CONNECTIONS> Connection_list_t;
 		typedef typename Connection_list_t::iterator Connection_list_iterator;
+		
+		typedef buffer_list_type<Radio> buffer_element_t;
+		typedef vector_static<OsModel, buffer_element_t, DPS_MAX_BUFFER_LIST> Buffer_list_t;
+		typedef typename Buffer_list_t::iterator Buffer_list_iterator;
+		
 		
 		//TODO
 		enum Pid_values
@@ -366,6 +431,11 @@ namespace wiselib
 		/**
 		* \brief
 		*/
+		void send_RPC( Buffer_list_iterator act_buffer );
+		
+		/**
+		* \brief
+		*/
 		int send_connection_message( radio_node_id_t destination, uint8_t type, Connection_list_iterator connection );
 		
 		/**
@@ -411,10 +481,9 @@ namespace wiselib
 		Connection_list_t connection_list_;
 		
 		/**
-		 * Saved buffer pointer from the RPC handler class
-		 * Used for fragmentation & reassembling
+		 * List for the in/outgoing contents
 		 */
-		block_data_t* app_buffer;
+		Buffer_list_t buffer_list_;
 		
 		
 		//Stored callback_id for radio
@@ -727,6 +796,9 @@ namespace wiselib
 // 		packet.set_debug( *debug_ );
 // 		packet.print_header();
 
+		//Reset the timer
+		connection->elapsed_time = 0;
+
 		radio().send( destination, packet.length, packet.buffer );
 		
 		return SUCCESS;
@@ -750,51 +822,149 @@ namespace wiselib
 		{
 			if( it->Pid == destination.Pid && it->connection_status == connection_type::CONNECTED )
 			{
-				bool fragmentation = false;
+				//TODO check for full buffer
 				
-				//Check the size of the data: Max message size vs. header + payload + footer
-				if( Radio::MAX_MESSAGE_LENGTH < length + DPS_Packet_t::DPS_RPC_HEADER_SIZE + DPS_Packet_t::DPS_FOOTER_SIZE )
-					fragmentation = true;
-					
-				//Create a packet with or without fragmentation
-				DPS_Packet_t packet( DPS_Packet_t::DPS_TYPE_RPC_REQUEST, fragmentation );
-				block_data_t* payload_act_pointer=packet.get_payload();
+				buffer_element_t new_buffer;
 				
-				packet.set_pid( destination.Pid );
-				packet.set_fid( destination.Fid );
-				packet.set_ack_flag( destination.ack_required );
+				new_buffer.buffer_length = length;
 				
-				//TODO increment only after all fragments
-				if( protocol_list_[packet.pid()].server )
-					packet.set_counter( it->server_counter++ );
-				else
-					packet.set_counter( it->client_counter++ );
+				new_buffer.buffer_pointer = data;
 				
-				//TODO ...
-				memcpy( payload_act_pointer, data, length);
-				payload_act_pointer += length;
-				packet.length += length;
+				new_buffer.RPC_parameters = destination;
 				
-#if DPS_FOOTER > 0
-				uint8_t MAC[4];
-				calculate_checksum_for_buffer( packet.length, packet.buffer, it, MAC, false );
-				//Free place is always reserved for these 4 bytes
-				memcpy( payload_act_pointer, MAC, 4 );
-				//payload_act_pointer += 4; - won't be used any more
-				packet.length += 4;
-				// 		debug().debug( "DPS: %x %x %x %x length: %i", MAC[0], MAC[1], MAC[2], MAC[3], packet.length);
-#endif
+				new_buffer.connection_pointer = &(*it);
 				
-				#ifdef DPS_RADIO_DEBUG
-				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(it->partner_MAC), destination.Pid, destination.Fid);
-				#endif
+				new_buffer.outgoing = true;
 				
-				radio().send( it->partner_MAC, packet.length, packet.buffer );
+				Buffer_list_iterator act_buffer = buffer_list_.insert( new_buffer );
+				
+				send_RPC( act_buffer );
 				
 				return SUCCESS;
 			}
 		}
 		return NO_CONNECTION;
+	}
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Rand_P>
+	void
+	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
+	send_RPC( Buffer_list_iterator act_buffer )
+	{
+		act_buffer->elapsed_time = 0;
+		
+		bool fragmentation = false;
+		
+		//Check the size of the data: Max message size vs. header + payload + footer
+		if( Radio::MAX_MESSAGE_LENGTH < act_buffer->buffer_length + DPS_Packet_t::DPS_RPC_HEADER_SIZE + DPS_Packet_t::DPS_FOOTER_SIZE )
+			fragmentation = true;
+		
+		//Create a packet with or without fragmentation
+		DPS_Packet_t packet( DPS_Packet_t::DPS_TYPE_RPC_REQUEST, fragmentation );
+		
+		packet.set_pid( act_buffer->RPC_parameters.Pid );
+		packet.set_fid( act_buffer->RPC_parameters.Fid );
+		packet.set_ack_flag( act_buffer->RPC_parameters.ack_required );
+		
+		if( protocol_list_[packet.pid()].server )
+			packet.set_counter( act_buffer->connection_pointer->server_counter );
+		else
+			packet.set_counter( act_buffer->connection_pointer->client_counter );
+		
+		//execute the loop at least once
+		bool more_to_send = true;
+		while( more_to_send )
+		{
+		
+			//Fill in the fragmentation header
+			if( fragmentation )
+			{
+				//Full size of the RPC and the shift for this fragment
+				packet.set_fragmentation_header( act_buffer->buffer_length, act_buffer->processed_size );
+			}
+			
+			uint8_t act_payload_size;
+			//Calculate the payload size for this DPS packet
+			//If the remaining size (buffer_length-processed_size) is bigger than the max payload size
+			if( packet.payload_max_length < act_buffer->buffer_length - act_buffer->processed_size)
+				//Use the full available payload
+				act_payload_size = packet.payload_max_length;
+			else
+				//else: only the required size
+				act_payload_size = act_buffer->buffer_length - act_buffer->processed_size;
+			
+			//Copy the payload into the packet
+			memcpy( packet.buffer + packet.length, act_buffer->buffer_pointer + act_buffer->processed_size, act_payload_size);
+			packet.length += act_payload_size;
+			
+	#if DPS_FOOTER > 0
+			uint8_t MAC[4];
+			//TODO bloe...
+			Connection_list_iterator it;
+			for( it = connection_list_.begin(); it != connection_list_.end(); ++it )
+			{ 
+				if( &(*(it)) == act_buffer->connection_pointer )
+					break;
+			}
+			calculate_checksum_for_buffer( packet.length, packet.buffer, it, MAC, false );
+			//Free place is always reserved for these 4 bytes
+			memcpy( packet.buffer + packet.length, MAC, 4 );
+			//TODO NOTE remove pointers like here
+			packet.length += 4;
+			// 		debug().debug( "DPS: %x %x %x %x length: %i", MAC[0], MAC[1], MAC[2], MAC[3], packet.length);
+	#endif
+			
+			#ifdef DPS_RADIO_DEBUG
+			if( fragmentation )
+				debug().debug( "DPS: send RPC fragment (%i/%i) from %llx to %llx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_pointer->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+			else
+				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_pointer->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+			#endif
+			
+			//Send the (fragment)
+			radio().send( act_buffer->connection_pointer->partner_MAC, packet.length, packet.buffer );
+			
+			//Reset the timer
+			act_buffer->connection_pointer->elapsed_time = 0;
+			
+			//Wait for the ACK, this function will be called again by the timeout/receive(ACK) if there are more fragments
+			if( act_buffer->RPC_parameters.ack_required )
+			{
+				act_buffer->last_fragment_size = act_payload_size;
+				more_to_send = false;
+			}
+			//Packet completed and no ACK
+			else if( act_buffer->processed_size + act_payload_size == act_buffer->buffer_length )
+			{
+				//Free up the buffer
+				(protocol_list_[act_buffer->RPC_parameters.Pid].buffer_handler_delegate)( act_buffer->buffer_pointer, act_buffer->buffer_length, false );
+				
+				more_to_send = false;
+				
+				//Sending completed, increment the counter
+				if( protocol_list_[packet.pid()].server )
+					act_buffer->connection_pointer->server_counter++;
+				else
+					act_buffer->connection_pointer->client_counter++;
+				
+				//remove from the list
+				buffer_list_.erase( act_buffer );
+			}
+			//more fragments and no ack, reset the DPS packet length (RPC header + Frag header)
+			else 
+			{
+				//Increase the processed size
+				act_buffer->processed_size += act_payload_size;
+				//reset the DPS packet
+				packet.length = DPS_Packet_t::DPS_RPC_HEADER_SIZE + DPS_Packet_t::DPS_FRAGMENTATION_HEADER_SIZE;
+			}
+		}
+		//TODO increment counters after all fragments in the periodic timeout (because of the possible ACK-ing)
 	}
 	
 	// -----------------------------------------------------------------------
@@ -883,9 +1053,6 @@ namespace wiselib
 						if( it->partner_MAC != NULL_NODE_ID || it->client_counter != packet.counter() )
 							return;
 						
-						//Reset the timer for the connection
-						it->elapsed_time = 0;
-						
 						it->connection_status = connection_type::CONNECT_SENT;
 						it->partner_MAC = from;
 						
@@ -933,9 +1100,6 @@ namespace wiselib
 						return;
 					}
 #endif
-					
-					//Reset the timer for the connection
-					it->elapsed_time = 0;
 					
 					if( packet.type() == DPS_Packet_t::DPS_TYPE_CONNECT_REQUEST ) //SERVER SIDE
 					{
@@ -999,26 +1163,65 @@ namespace wiselib
 						//Server side, check for the counter against replay attack
 						if( ( it->client_counter == packet.counter() ) && ( protocol_list_[packet.pid()].server ) )
 						{
-// 							debug().debug( "DPS: HB ok at %llx", (long long unsigned)(radio().id()) );
-							it->elapsed_time = 0;
 							it->client_counter++;
 							return;
 						}
 						//Client side, check for the counter against replay attack
 						else if( ( it->server_counter == packet.counter() ) && !( protocol_list_[packet.pid()].server ) )
 						{
-// 							debug().debug( "DPS: HB ok at %llx", (long long unsigned)(radio().id()) );
-							it->elapsed_time = 0;
 							it->server_counter++;
 							return;
 						}
 					}
 					else if( packet.type() == DPS_Packet_t::DPS_TYPE_RPC_ACK )
 					{
-						//TODO handle...
+						for( Buffer_list_iterator act_buffer = buffer_list_.begin(); act_buffer != buffer_list_.end(); ++act_buffer )
+						{
+							if( (act_buffer->connection_pointer) == &(*it) )
+							{
+								if( ((packet.fragmentation_flag() == 1) && (act_buffer->processed_size == packet.fragmentation_header_shift())) ||
+									(packet.fragmentation_flag() == 0) )
+								{
+									act_buffer->processed_size += act_buffer->last_fragment_size;
+								}
+								else
+								{
+										#ifdef DPS_RADIO_DEBUG
+										debug().debug( "DPS: received dupliated ACK");
+										#endif
+										return;
+								}
+								
+								//Sending completed
+								if( act_buffer->processed_size == act_buffer->buffer_length )
+								{
+									//Free up the buffer
+									(protocol_list_[act_buffer->RPC_parameters.Pid].buffer_handler_delegate)( act_buffer->buffer_pointer, act_buffer->buffer_length, false );
+									
+									//Sending completed, increment the counter
+									if( protocol_list_[packet.pid()].server )
+										act_buffer->connection_pointer->server_counter++;
+									else
+										act_buffer->connection_pointer->client_counter++;
+									
+									//remove from the list
+									buffer_list_.erase( act_buffer );
+								}
+								//Send next fragment
+								else
+								{
+									send_RPC( act_buffer );
+								}
+								
+								
+								return;
+							}
+						}
 					}
 					else if( packet.type() == DPS_Packet_t::DPS_TYPE_RPC_REQUEST )
 					{
+						//TODO check the counter values
+						
 						//Send back an ACK if it is requested by the sender
 						if( packet.ack_flag() )
 						{
@@ -1046,35 +1249,81 @@ namespace wiselib
 							radio().send( it->partner_MAC, ack_packet.length, ack_packet.buffer );
 						}
 						
-						//TODO check the counter values, collect fragments...
-						
-						//get buffer from the handler
-						app_buffer = (protocol_list_[packet.pid()].buffer_handler_delegate)( NULL, length, true );
 						
 						
-						node_id_t source;
-						source.Pid = packet.pid();
-						source.Fid = packet.fid();
-						uint16_t payload_length = packet.length - packet.payload_position;
+						uint16_t actual_payload_length = packet.length - packet.payload_position - DPS_Packet_t::DPS_FOOTER_SIZE;
 						
-						//TODO only after full packets
-						if( protocol_list_[packet.pid()].server )
-							it->client_counter++;
+						//Check whether there is a buffer exists for this fragment
+						Buffer_list_iterator act_buffer;
+						for( act_buffer = buffer_list_.begin(); act_buffer != buffer_list_.end(); ++act_buffer )
+						{
+							if( (act_buffer->connection_pointer) == &(*it) )
+								break;
+						}
+						
+						//There is no buffer for this RPC, create a new one
+						if( act_buffer == buffer_list_.end() )
+						{
+							//TODO check for full buffer
+							
+							buffer_element_t new_buffer;
+							
+							//Calculate the full length
+							if( packet.fragmentation_flag() == 1 )
+								new_buffer.buffer_length = packet.fragmentation_header_length();
+							else
+								new_buffer.buffer_length = actual_payload_length;
+							
+							new_buffer.buffer_pointer = (protocol_list_[packet.pid()].buffer_handler_delegate)( NULL, new_buffer.buffer_length, true );
+							
+							new_buffer.RPC_parameters.Pid = packet.pid();
+							new_buffer.RPC_parameters.Fid = packet.fid();
+							
+							new_buffer.connection_pointer = &(*it);
+							
+							new_buffer.outgoing = false;
+							
+							act_buffer = buffer_list_.insert( new_buffer );
+						}
+						
+						//reset the "timer" for the buffer
+						act_buffer->elapsed_time = 0;
+						
+						//NOTE this does not accept out of order arrival for fragments
+						if( act_buffer->processed_size > packet.fragmentation_header_shift() )
+						{
+							return;
+						}
+						
+						//Copy the content of the actual DPS packet
+						if( packet.fragmentation_flag() == 1 )
+						{
+							memcpy( act_buffer->buffer_pointer + packet.fragmentation_header_shift(), packet.buffer + packet.payload_position, actual_payload_length );
+						}
 						else
-							it->server_counter++;
+						{
+							memcpy( act_buffer->buffer_pointer, packet.buffer + packet.payload_position, actual_payload_length );
+						}
 						
-						//Copy the payload
-						memcpy( app_buffer, packet.buffer + packet.payload_position, payload_length );
+						//Update the size
+						act_buffer->processed_size += actual_payload_length;
 						
-						#if DPS_FOOTER > 0
-						payload_length -= 4;
-						#endif
-						
-						(protocol_list_[packet.pid()].rpc_handler_delegate)( source, payload_length, app_buffer );
+						//Notify the the RPC_handler if the full RPC is here
+						if( act_buffer->processed_size == act_buffer->buffer_length )
+						{
+							if( protocol_list_[packet.pid()].server )
+								it->client_counter++;
+							else
+								it->server_counter++;
+							
+							(protocol_list_[packet.pid()].rpc_handler_delegate)( act_buffer->RPC_parameters, act_buffer->buffer_length, act_buffer->buffer_pointer );
+							
+							buffer_list_.erase( act_buffer );
+						}
 					}
 					else
 					{
-						//TODO process RPC messages here
+						//TODO process RPC REPLY?
 					}
 				}
 			}
@@ -1119,6 +1368,8 @@ namespace wiselib
 		{
 			it->elapsed_time += DPS_GENERAL_TIMER_FREQUENCY;
 			
+// 			debug().debug( "%llx: connection timeout: %i", (long long unsigned)(radio().id()), it->elapsed_time );
+			
 			//CONNECTED and ( HARTBEAT_TIMEOUT <= elapsed_time < DELETE_TIMEOUT )
 			if(( it->connection_status == connection_type::CONNECTED )
 				&& ( it->elapsed_time >= DPS_HARTBEAT_THRESHOLD ) && (it->elapsed_time < DPS_DELETE_CONNECTION_THRESHOLD))
@@ -1140,6 +1391,8 @@ namespace wiselib
 					#ifdef DPS_RADIO_DEBUG
 					debug().debug( "DPS: remove client at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
 					#endif
+					
+					//TODO check for buffer in use!
 					
 					connection_list_.erase( it );
 					
@@ -1163,6 +1416,8 @@ namespace wiselib
 					debug().debug( "DPS: reDISCOVERY at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
 					#endif
 					
+					//TODO check for buffer in use!
+					
 					it->connection_status = connection_type::SENDING_DISCOVERY;
 					it->client_counter = rand()() % (0xFFFFFFFF);
 					it->server_counter = 0;
@@ -1174,6 +1429,35 @@ namespace wiselib
 			}
 			
 		}
+		
+		for( Buffer_list_iterator it = buffer_list_.begin(); it != buffer_list_.end(); ++it )
+		{
+			it->elapsed_time += DPS_GENERAL_TIMER_FREQUENCY;
+			
+			if( it->outgoing && ( it->elapsed_time > DPS_ACK_TIMEOUT ) )
+			{
+				send_RPC( it );
+			}
+			else if( !(it->outgoing) && ( it->elapsed_time > DPS_FRAGMENT_COLLECTION_TIMEOUT ) )
+			{
+				//Free up the buffer
+				(protocol_list_[it->RPC_parameters.Pid].buffer_handler_delegate)( it->buffer_pointer, it->buffer_length, false );
+				
+				//Sending uncompleted, increment the counter
+				if( protocol_list_[it->connection_pointer->Pid].server )
+					it->connection_pointer->server_counter++;
+				else
+					it->connection_pointer->client_counter++;
+				
+				//remove from the list
+				buffer_list_.erase( it );
+				
+				//Break the loop if this was the only element
+				if( buffer_list_.size() == 0 )
+					break;
+			}
+		}
+		
 		
 		timer().template set_timer<self_type, &self_type::general_periodic_timer>( DPS_GENERAL_TIMER_FREQUENCY, this, NULL );
 	}
