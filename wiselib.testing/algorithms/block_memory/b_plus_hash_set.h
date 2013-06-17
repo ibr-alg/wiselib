@@ -227,7 +227,7 @@ namespace wiselib {
 						check();
 						return entry().payload();
 					}
-					value_type* operator->() {
+					const value_type* operator->() {
 						load_entry();
 						check();
 						return &entry().payload();
@@ -277,9 +277,6 @@ namespace wiselib {
 			bool empty() { return size() == 0; }
 			
 			iterator insert(const value_type& v) {
-				//DBG("b plus hash set insert");
-				
-			//iterator insert(value_type v) {
 				check();
 				hash_t h = hash_value(v);
 				
@@ -297,7 +294,6 @@ namespace wiselib {
 					// See if we can find the entry in the linked list of entries with this hash
 					ChunkAddress prev = ChunkAddress::invalid();
 					for(addr = it->value(); addr != ChunkAddress::invalid(); addr = entry.next()) {
-						//DBG("insert list read entry");
 						read_entry(entry, addr);
 						if(Compare<value_type>::cmp(entry.payload(), v) == 0) {
 							if(!UNIQUE) {

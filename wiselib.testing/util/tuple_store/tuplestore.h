@@ -198,6 +198,7 @@ namespace wiselib {
 				private:
 					
 					void update_current() {
+						// {{{
 						if(this->container_iterator_ != this->container_end_) {
 							
 							// Note that this extra copy *is* necessary
@@ -239,6 +240,7 @@ namespace wiselib {
 							//t.destruct_deep();
 						}
 						up_to_date_ = true;
+						// }}}
 					}
 					
 					ContainerIterator container_iterator_;
@@ -378,6 +380,8 @@ namespace wiselib {
 				friend class wiselib::TupleStore;
 				// }}}
 			};
+			
+		// }}}
 	} // namespace
 	
 	/**
