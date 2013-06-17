@@ -56,7 +56,7 @@ namespace wiselib {
 				SPECIAL_AREA_SIZE = SPECIAL_AREA_SIZE_P,
 				WRITE_THROUGH = WRITE_THROUGH_P,
 				BLOCK_SIZE = BlockMemory::BLOCK_SIZE,
-				BUFFER_SIZE = BlockMemory::BUFFER_SIZE,
+				BUFFER_SIZE = BLOCK_SIZE,
 				NO_ADDRESS = BlockMemory::NO_ADDRESS
 			};
 			
@@ -83,7 +83,7 @@ namespace wiselib {
 				private:
 					static size_type current_date_;
 					
-					block_data_t data_[BlockMemory::BUFFER_SIZE];
+					block_data_t data_[BlockMemory::BLOCK_SIZE];
 					address_t address_;
 					size_type date_;
 			};
@@ -133,7 +133,7 @@ namespace wiselib {
 				else {
 					// cache miss
 					if(!WRITE_THROUGH && cache_[i].used()) {
-						//physical_write(cache_[i].data(), cache_[i].address());
+						physical_write(cache_[i].data(), cache_[i].address());
 					}
 					cache_[i].mark_used();
 					cache_[i].address() = a;

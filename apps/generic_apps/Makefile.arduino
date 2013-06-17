@@ -80,7 +80,7 @@ arduino: ./$(APP_SRC) $(WISELIB_PATH_TESTING)/external_interface/arduino/standal
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
 	#make -C $(ARDUINO_PATH) clean
-	#make -C $(ARDUINO_PATH)
+	make -C $(ARDUINO_PATH)
 	$(CXX) \
 		$(WISELIB_PATH_TESTING)/external_interface/arduino/standalone/main.cpp ./$(APP_SRC) $(CXXFLAGS) $(ADD_CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf
 	avr-strip $(OUTPUT)/$(BIN_OUT).elf
