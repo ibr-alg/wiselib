@@ -34,8 +34,7 @@
 #undef sq
 #undef bit
 
-// For now just disable assertions
-#define assert(X)
+#undef PI
 
 #endif // WISELIB_ARDUINO_H
 

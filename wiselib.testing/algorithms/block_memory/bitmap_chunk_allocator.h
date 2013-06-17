@@ -44,6 +44,7 @@ namespace wiselib {
 		typename OsModel_P,
 		typename BlockMemory_P,
 		size_t CHUNK_SIZE_P,
+		typename Address_P = typename BlockMemory_P::address_t,
 		typename Debug = typename OsModel_P::Debug
 	>
 	class BitmapChunkAllocator {
@@ -54,8 +55,8 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef BlockMemory_P BlockMemory;
-			typedef typename BlockMemory::address_t address_t;
-			typedef BitmapChunkAllocator<OsModel, BlockMemory, CHUNK_SIZE_P> self_type;
+			typedef Address_P address_t;
+			typedef BitmapChunkAllocator<OsModel, BlockMemory, CHUNK_SIZE_P, Address_P, Debug> self_type;
 			typedef self_type* self_pointer_t;
 			typedef StandaloneMath<OsModel> Math;
 			
@@ -69,7 +70,8 @@ namespace wiselib {
 				CHUNK_SIZE = CHUNK_SIZE_P,
 				CHUNKS_PER_BLOCK = BlockMemory::BLOCK_SIZE / CHUNK_SIZE,
 				ENTRIES_PER_SUMMARY_BLOCK = BlockMemory::BLOCK_SIZE / SUMMARY_SIZE,
-				BLOCKS_PER_BLOCK = 8 * BlockMemory::BLOCK_SIZE / CHUNKS_PER_BLOCK
+				BLOCKS_PER_BLOCK = 8 * BlockMemory::BLOCK_SIZE / CHUNKS_PER_BLOCK,
+				CHUNK_BITS = Log<CHUNKS_PER_BLOCK, 2>::value
 				
 			};
 			
@@ -80,7 +82,6 @@ namespace wiselib {
 			};
 
 			class ChunkAddress {
-					enum { CHUNK_BITS = Log<CHUNKS_PER_BLOCK, 2>::value };
 				
 				public:
 					ChunkAddress() : addr_(0) {
@@ -143,13 +144,26 @@ namespace wiselib {
 			
 			void init(BlockMemory* block_memory, typename Debug::self_pointer_t debug) {
 				block_memory_ = block_memory;
+				debug_ = debug;
+				
+				
+				// reserve the "special" part of the cache below for caching
+				// the chunk index
+				block_memory_->set_special_range(0, layer_start(summary_height_) + layer_size(summary_height_));
+				
+				if(Math::log2(size()) > sizeof(address_t)*8) {
+					debug_->debug("WARNING: block addresses restricted to %d bit, but medium size is %lu (requiring %d bits)!",
+							sizeof(address_t)*8, size(), Math::log2(size()));
+				}
+				
+				if(Math::log2(size()) > sizeof(address_t)*8 - CHUNK_BITS) {
+					debug_->debug("WARNING: block addresses in chunk context restricted to %d bit, but medium size is %lu (requiring %d bits)!",
+							sizeof(address_t)*8 - CHUNK_BITS, size(), Math::log2(size()));
+				}
+				
 				calculate_limits();
 
-				// The cache below me, is only for me and my allocation stuff.
-				// If you want one for your userdata, place one above me!
-				block_memory_->set_special_range(0, layer_start(summary_height_) + layer_size(summary_height_));
 
-				debug_ = debug;
 				
 				debug_->debug("bitmap chunk allocator init");
 				debug_->debug("chunk size          : %lu", (size_type)CHUNK_SIZE);
@@ -182,7 +196,7 @@ namespace wiselib {
 			}
 			
 			void format() {
-				DBG("formatting block memory device...%s", "");
+				debug_->debug("formatting block memory device...%s", "");
 				
 				// This allocator needs the first TOTAL_MAP_BLOCKS for
 				// himself, thus those need to be marked allocated initially.
@@ -201,27 +215,27 @@ namespace wiselib {
 				size_type full_blocks = zeros / BLOCK_SIZE;
 				size_type ones = layer_size(summary_height_) * BLOCK_SIZE - zeros;
 				
-				DBG("CMB zero blocks start at %ld", a);
+				debug_->debug("CMB zero blocks start at %ld", a);
 				memset(buf, 0, BUFFER_SIZE);
 				for( ; zeros >= BLOCK_SIZE; zeros -= BLOCK_SIZE, a++) {
 					block_memory_->write(buf, a);
 				}
 				if(zeros) {
-					DBG("CMB mixed at %ld", a);
+					debug_->debug("CMB mixed at %ld", a);
 					memset(buf, 0, zeros);
 					memset(buf + zeros, 0xff, BUFFER_SIZE - zeros);
 					block_memory_->write(buf, a);
 					a++;
 					ones -= (BUFFER_SIZE - zeros);
 				}
-				DBG("CMB ones start at at %ld", a);
+				debug_->debug("CMB ones start at at %ld", a);
 				memset(buf, 0xff, BUFFER_SIZE);
 				for( ; ones >= BLOCK_SIZE; ones -= BLOCK_SIZE, a++) {
 					block_memory_->write(buf, a);
 				}
 				assert(ones == 0);
 				
-				DBG("user blocks start at %ld", a);
+				debug_->debug("user blocks start at %ld", a);
 				
 				for(size_type layer = summary_height_ - 1; layer != (size_type)(-1); layer--) {
 					zeros = full_blocks * SUMMARY_SIZE;
@@ -252,12 +266,12 @@ namespace wiselib {
 					full_blocks = (full_blocks * SUMMARY_SIZE) / BLOCK_SIZE;
 				}
 				
-				DBG("verifying CBM summaries...");
+				debug_->debug("verifying CMB summaries...");
 				for(size_type cmb = 0; cmb < chunk_map_blocks_; cmb++) {
 					check_chunk_map_block(layer_start(summary_height_) + cmb);
 				}
 
-				DBG("formatting done.");
+				debug_->debug("formatting done.");
 			}
 			
 			address_t create(block_data_t* buffer) {

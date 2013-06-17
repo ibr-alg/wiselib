@@ -6,6 +6,14 @@ using namespace wiselib;
 
 typedef OSMODEL Os;
 
+#ifdef ARDUINO
+int freeRam () {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
+#endif
+
 #include "util/allocators/malloc_free_allocator.h"
 typedef MallocFreeAllocator<Os> Allocator;
 
@@ -28,6 +36,7 @@ typedef uint16_t bitmask_t;
 #include <util/tuple_store/codec_tuplestore.h>
 #include <util/tuple_store/null_dictionary.h>
 #include <util/tuple_store/tuplestore.h>
+#include <util/meta.h>
 
 typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 
@@ -52,7 +61,13 @@ typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleS
 
 // --- Block device store
 
-#include <algorithms/block_memory/file_block_memory.h>
+#if (ARDUINO || ISENSE)
+	typedef Os::BlockMemory PhysicalBlockMemory;
+#else
+	#include <algorithms/block_memory/file_block_memory.h>
+	typedef FileBlockMemory<Os> PhysicalBlockMemory;
+#endif
+
 #include <algorithms/block_memory/bitmap_chunk_allocator.h>
 #include <algorithms/block_memory/cached_block_memory.h>
 
@@ -60,9 +75,14 @@ typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleS
 #include <algorithms/block_memory/b_plus_dictionary.h>
 #include <algorithms/hash/fnv.h>
 
-typedef FileBlockMemory<Os> PhysicalBlockMemory;
-typedef CachedBlockMemory<Os, PhysicalBlockMemory, 8, 3, true> BlockMemory;
-typedef BitmapChunkAllocator<Os, BlockMemory, 8> BlockAllocator;
+
+#if ARDUINO
+	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 2, 1, true> BlockMemory;
+	typedef BitmapChunkAllocator<Os, BlockMemory, 8, ::uint16_t> BlockAllocator;
+#else
+	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 20, 4, true> BlockMemory;
+	typedef BitmapChunkAllocator<Os, BlockMemory, 8, Os::size_t> BlockAllocator;
+#endif
 
 typedef Fnv32<Os> Hash;
 typedef BPlusHashSet<Os, BlockAllocator, Hash, BrokerTupleT, true> TupleContainer;
@@ -72,10 +92,12 @@ typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleS
 
 #define USE_BLOCK_TS 1
 
+// ---
 
+//PrintInt<sizeof(block_data_t*)> _0;
+//PrintInt<sizeof(Dictionary::key_type)> _1;
 
 // --- Broker
-
 typedef uint16_t bitmask_t;
 typedef Broker<Os, CodecTupleStoreT, bitmask_t> broker_t;
 
@@ -88,11 +110,6 @@ typedef ProtobufRdfSerializer<Os> Protobuf;
 */
 
 
-
-char* large_document[][3] = {
-	#include "btcsample0.cpp"
-};
-
 typedef broker_t::Tuple Tuple;
 typedef broker_t::TupleStore::column_mask_t column_mask_t;
 
@@ -100,14 +117,25 @@ class App {
 	public:
 		void init(Os::AppMainParameter& amp) {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
+			
+			//DBG("rdfprovider test initializing (DBG)!");
+		#ifdef ARDUINO
+			debug_->debug("init free: %d", freeRam());
+		#endif
 			//radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
 			//timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 			
 			// --- Dictionary init
 			
+			//digitalWrite(13, LOW);
+			
 		#if USE_BLOCK_TS
-			// init actual block memory
-			block_memory_.physical().init("block_memory.img");
+			#if ARDUINO
+				block_memory_.physical().init();
+			#else
+				// init actual block memory
+				block_memory_.physical().init("block_memory.img");
+			#endif
 			
 			// init cache
 			block_memory_.init();
@@ -124,22 +152,22 @@ class App {
 			dict.init(debug_);
 		#endif
 			
-			DBG("--- init codec_ts");
+			debug_->debug("--- init codec_ts");
 			//ts.init(&dict, &container, debug_);
 			codec_ts.init(&dict, &container, debug_);
 			
-			DBG("--- init broker");
+			debug_->debug("--- init broker");
 			broker.init(&codec_ts);
 			
 			//broker.init(debug_);
 			
-			DBG("--- inserting documents");
+			debug_->debug("--- inserting documents");
 			//insert_large_document();
 			insert_small_documents();
 			
 			//retrieve_document("doc1");
 			
-			DBG("--- testing broker");
+			debug_->debug("--- testing broker");
 			test_broker();
 		}
 		
@@ -153,32 +181,49 @@ class App {
 			broker.tuple_store().insert(t);
 		}
 		
+		/*
 		void insert_large_document() {
 			bitmask_t largemask = broker.create_document("large");
 			for(size_t i=0; i < sizeof(large_document) / sizeof(large_document[0]); i++) {
 				ins(large_document[i][0], large_document[i][1], large_document[i][2], largemask);
 			}
 		}
+		*/
 		
 		bitmask_t doc1mask;
 		bitmask_t doc2mask;
 		bitmask_t doc3mask;	
 		
 		void insert_small_documents() {
+			debug_->debug("create doc1");
 			doc1mask = broker.create_document("doc1");
+			debug_->debug("create doc1");
 			doc2mask = broker.create_document("doc2");
+			debug_->debug("create doc1");
 			doc3mask = broker.create_document("doc3");
+			debug_->debug("ins");
 			ins("ab", "7777777", "dd", doc1mask );
+			debug_->debug("ins");
 			ins("ab", "88888888", "xx", doc1mask );
+			debug_->debug("ins");
 			ins("yy1", "999999999", "abx", doc1mask | doc3mask);
+			debug_->debug("ins");
 			ins("yy2", "999999999", "ab", doc1mask | doc3mask);
+			debug_->debug("ins");
 			ins("ab", "a1", "xx", doc1mask | doc2mask);
+			debug_->debug("ins");
 			ins("yy3", "999999999", "abx", doc1mask | doc3mask);
+			debug_->debug("ins");
 			ins("ab", "a2", "xx", doc1mask | doc2mask);
+			debug_->debug("ins");
 			ins("ab", "a3", "xx", doc1mask | doc2mask);
+			debug_->debug("ins");
 			ins("yy4", "999999999", "ab", doc1mask | doc3mask);
+			debug_->debug("ins");
 			ins("yy5", "999999999", "ab", doc1mask | doc3mask);
+			debug_->debug("ins");
 			ins("yy6", "999999999", "ab", doc1mask | doc3mask);
+			debug_->debug("ins done");
 		}
 		
 		void test_broker() {
@@ -238,6 +283,7 @@ class App {
 			//}
 		}
 		
+#if 0
 		void retrieve_document(char * docname) {
 			bitmask_t mask = broker.get_document_mask(docname);
 			debug_->debug("--- retrieve: %s\n", docname);
@@ -245,9 +291,9 @@ class App {
 				debug_->debug("(%s %s %s  mask=%x qrymask=%x)\n", iter->get(0), iter->get(1), iter->get(2), iter->bitmask(), iter.query().bitmask());
 			}
 		}
-	
+#endif	
 	private:
-		
+	
 	#if USE_BLOCK_TS
 		BlockMemory block_memory_;
 		BlockAllocator block_allocator_;
@@ -266,7 +312,6 @@ class App {
 wiselib::WiselibApplication<Os, App> app;
 
 Allocator allocator_;
-
 Allocator& get_allocator() { return allocator_; }
 
 void application_main(Os::AppMainParameter& amp) {
