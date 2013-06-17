@@ -296,15 +296,24 @@ namespace wiselib
 					TM.set_series( &transmission_power_series_status );
 					if ( TM.autocorellate().check_oscillation() )
 					{
-						//SCLD_MIN_threshold = SCLD_MIN_threshold - 1;
-						//SCLD_MAX_threshold = SCLD_MAX_threshold + 1;
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL_THRESHOLD_CONTROL
+						if ( SCLD_MIN_threshold > 1 )
+						{
+							SCLD_MIN_threshold = SCLD_MIN_threshold - 1;
+						}
+						SCLD_MAX_threshold = SCLD_MAX_threshold + 1;
+#endif
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL_LOCK_CONTROL
 						transmission_power_status.lock();
-						debug().debug("OSCTL:%x:%d:%i\n",radio().id(), monitoring_phase_counter, transmission_power_dB );
+#endif
+						debug().debug("OSCTL:%d:%x:%i:%d:%d\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD_MAX_threshold, SCLD_MIN_threshold );
 					}
 					else
 					{
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL_LOCK_CONTROL
 						transmission_power_status.unlock();
-						debug().debug("OSCTU:%x:%d:%i\n",radio().id(), monitoring_phase_counter, transmission_power_dB );
+#endif
+						debug().debug("OSCTU:%d:%x:%i:%d:%d\n", monitoring_phase_counter, radio().id(), transmission_power_dB, SCLD_MAX_threshold, SCLD_MIN_threshold );
 					}
 				}
 #endif
@@ -530,15 +539,24 @@ namespace wiselib
 					TM.set_series( &throughput_series_status );
 					if ( TM.autocorellate().check_oscillation() )
 					{
-						//SCLD_MIN_threshold = SCLD_MIN_threshold - 1;
-						//SCLD_MAX_threshold = SCLD_MAX_threshold + 1;
-						debug().debug("OSCBTL:%x:%d:%d\n",radio().id(), SCLD_MIN_threshold, SCLD_MAX_threshold );
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL_THRESHOLD_CONTROL
+						if ( SCLD_MIN_threshold > 1 )
+						{
+							SCLD_MIN_threshold = SCLD_MIN_threshold - 1;
+						}
+						SCLD_MAX_threshold = SCLD_MAX_threshold + 1;
+#endif
+						debug().debug("OSCBTL:%d:%x:%d:%d:%d\n", monitoring_phase_counter, radio().id(),beacon_period, SCLD_MAX_threshold, SCLD_MIN_threshold );
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL_LOCK_CONTROL
 						throughput_status.lock();
+#endif
 					}
 					else
 					{
-						debug().debug("OSCBTU:%x:%d:%d\n",radio().id(), SCLD_MIN_threshold, SCLD_MAX_threshold );
+						debug().debug("OSCBTU:%d:%x:%d:%d:%d\n", monitoring_phase_counter, radio().id(), beacon_period, SCLD_MAX_threshold, SCLD_MIN_threshold );
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL_LOCK_CONTROL
 						throughput_status.unlock();
+#endif
 					}
 				}
 #endif
