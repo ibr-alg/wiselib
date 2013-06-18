@@ -21,9 +21,9 @@
 
 #define DPS_MAX_PROTOCOLS 1
 
-#define DPS_MAX_CONNECTIONS 2
+#define DPS_MAX_CONNECTIONS 1
 
-#define DPS_MAX_BUFFER_LIST 2
+#define DPS_MAX_BUFFER_LIST 1
 
 //The footer is not used
 // 0 - unused 
