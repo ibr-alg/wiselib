@@ -56,6 +56,7 @@ namespace wiselib
 		server_counter(0),
 		connection_nonce(0),
 		elapsed_time(0),
+		link_metric(0xFFFF),
 		Pid(0),
 		connection_status(UNUSED)
 		{}
@@ -98,6 +99,11 @@ namespace wiselib
 		 * Elapsed time since the last activity
 		 */
 		uint16_t elapsed_time;
+		
+		/**
+		 * The link metric for the actual connection, only used at connection setup at the moment
+		 */
+		uint16_t link_metric;
 		
 		/**
 		 * Connection keys (nonce XOR negotiated key)
@@ -274,6 +280,7 @@ namespace wiselib
 		typedef typename Radio::size_t size_t;
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::message_id_t message_id_t;
+		typedef typename Radio::ExtendedData ExtendedData;
 		
 		//node_id_t as a triplet: P_id, F_id, ack_flag
 		typedef DPS_node_id_type node_id_t;
@@ -356,7 +363,7 @@ namespace wiselib
 		/**
 		 * \brief
 		*/
-		void receive( radio_node_id_t from, size_t length, block_data_t *data );
+		void receive( radio_node_id_t from, size_t length, block_data_t *data,  ExtendedData const &ex );
 		
 		/**
 		 * \brief
@@ -440,7 +447,12 @@ namespace wiselib
 		/**
 		* \brief Function called by the timer in order to send DISCOVERY message
 		*/
-		void send_DISCOVERY( void* iterator );
+		void send_DISCOVERY( void* n_in );
+		
+		/**
+		 * \brief Function called by the timer in order to send CONNECT message
+		 */
+		void request_connection( void* n_in );
 		
 		/**
 		* \brief Function called by the timer in order to mentain timing in DPS
@@ -912,10 +924,10 @@ namespace wiselib
 		typename Rand_P>
 	void
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
-	receive( radio_node_id_t from, size_t length, block_data_t *data ) 
+	receive( radio_node_id_t from, size_t length, block_data_t *data, ExtendedData const &ex ) 
 	{
-		//The initial 2 bits must be: 01
-		if( bitwise_read<OsModel, block_data_t, uint8_t>( data, 0, 2 ) != 1 )
+		//The initial 2 bits must be: 10
+		if( bitwise_read<OsModel, block_data_t, uint8_t>( data, 0, 2 ) != 2 )
 			return;
 		
 		DPS_Packet_t packet( length, data );
@@ -976,7 +988,6 @@ namespace wiselib
 			}
 			
 			//The node can receive this only as a reply
-			//TODO LQI based selection --> only store and make decision after some more time
 			if( packet.type() == DPS_Packet_t::DPS_TYPE_ADVERTISE &&
 				!(protocol_list_[packet.pid()].server) ) //CLIENT CODE
 			{
@@ -984,15 +995,25 @@ namespace wiselib
 				{
 					if( it->Pid == packet.pid() )
 					{
-						//Check for duplicate ADVERTISE messages and counter errors
-						if( it->partner_MAC != NULL_NODE_ID || it->client_counter != packet.counter() )
+						//If the there is a connection  or the counter is incorrect, drop the message
+						if( it->connection_status != connection_type::SENDING_DISCOVERY || it->client_counter != packet.counter() )
 							return;
 						
-						it->connection_status = connection_type::CONNECT_SENT;
-						it->partner_MAC = from;
+						//If this is a better candidate than the previous ones, based on the link metric
+						if( it->link_metric > ex.link_metric() )
+						{
+							//If this was the first advertisement, wait some more time for a possible better candidate
+							if( it->link_metric == 0xFFFF )
+								timer().template set_timer<self_type, &self_type::request_connection>( DPS_WAIT_FOR_MORE_ADVERTISEMENTS_TIMEOUT, this, (void*)(it-connection_list_.begin()) );
+							
+							it->partner_MAC = from;
+							it->link_metric = ex.link_metric();
+							
+							#ifdef DPS_RADIO_DEBUG
+							debug().debug( "DPS: candidate (%llx) stored with link_metric: %i", (long long unsigned)(from), it->link_metric );
+							#endif
+						}
 						
-						//Send a CONNECT to the selected server 
-						send_connection_message( from, DPS_Packet_t::DPS_TYPE_CONNECT_REQUEST, it );
 						return;
 					}
 				}
@@ -1274,6 +1295,26 @@ namespace wiselib
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Timer_P,
+		typename Rand_P>
+	void
+	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
+	request_connection( void* n_in )
+	{
+		int n = (int)n_in;
+		Connection_list_iterator it = connection_list_.begin() + n;
+		
+		it->connection_status = connection_type::CONNECT_SENT;
+		
+		//Send a CONNECT to the selected server 
+		send_connection_message( it->partner_MAC, DPS_Packet_t::DPS_TYPE_CONNECT_REQUEST, it );
+	}
+	
+	
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
 	typename Radio_P,
 	typename Debug_P,
 	typename Timer_P,
@@ -1326,6 +1367,7 @@ namespace wiselib
 					
 					it->connection_status = connection_type::SENDING_DISCOVERY;
 					it->client_counter = rand()() % (0xFFFFFFFF);
+					it->link_metric = 0xFFFF;
 // 					it->server_counter = 0;
 // 					it->partner_MAC = Radio::NULL_NODE_ID;
 // 					it->connection_nonce = 0;

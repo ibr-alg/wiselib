@@ -44,7 +44,7 @@
   DPS
      0   1   2   3   4   5   6   7  
    + - + - + - + - + - + - + - + - + 
-   | 0   1 |ACK| F |    TYPE       |
+   | 1   0 |ACK| F |    TYPE       |
    + - + - + - + - + - + - + - + - +
    
   Fragmentation Header
