@@ -69,13 +69,15 @@ namespace wiselib
 	*/
 	template<typename OsModel_P,
 		typename Radio_P,
-		typename Debug_P>
+		typename Debug_P,
+		typename Connection_list_iterator_P>
 	class DPS_Packet
 	{
 	public:
 		typedef Debug_P Debug;
 		typedef OsModel_P OsModel;
 		typedef Radio_P Radio;
+		typedef Connection_list_iterator_P Connection_list_iterator;
 
 		typedef typename Radio::block_data_t block_data_t;
 		typedef typename Radio::size_t size_t;
@@ -227,9 +229,12 @@ namespace wiselib
 		}
 		
 #if ( DPS_FOOTER > 0 )
-		void set_checksum( uint32_t value )
+		void set_checksum( Connection_list_iterator connection, bool use_request_key )
 		{
-			//TODO
+			block_data_t MAC[4];
+			calculate_checksum( connection, MAC, use_request_key );
+			memcpy( buffer + length, MAC, 4 );
+			length += 4;
 		}
 #endif
 		///@}
@@ -292,9 +297,16 @@ namespace wiselib
 		}
 		
 #if ( DPS_FOOTER > 0 )
-		void get_checksum( uint32_t value )
+		bool validate_checksum( Connection_list_iterator connection, bool use_request_key )
 		{
-			//TODO
+			block_data_t MAC[4];
+			length -= 4;
+			calculate_checksum( connection, MAC, use_request_key );
+			length += 4;
+			if( memcmp( MAC, buffer + length - 4, 4 ) == 0 )
+				return true;
+			else
+				return false;
 		}
 #endif
 		
@@ -310,7 +322,7 @@ namespace wiselib
 			debug().debug( "Type: %d \n", type());
 			debug().debug( "Counter: %d \n", counter());
 			debug().debug( "P_id: %d \n", pid());
-			if( fid() == 1 )
+			if( type() == DPS_TYPE_CONNECT_REQUEST )
 				debug().debug( "F_id: %d \n", fid());
 			if( fragmentation_flag() == 1 )
 				debug().debug( "Length: %d Shift: %d \n", fragmentation_header_length(), fragmentation_header_shift());
@@ -319,11 +331,56 @@ namespace wiselib
 		
 	private:
 		
+#if DPS_FOOTER > 0
+		/**
+		 * \brief
+		 */
+		void calculate_checksum( Connection_list_iterator connection, block_data_t* MAC, bool use_request_key );
+#endif
+		
 		Debug& debug()
 		{ return *debug_; }
 
 		typename Debug::self_pointer_t debug_;
 	};
+	
+	/**
+	* Pre-shared DISCOVERY & ADVERTISE key
+	*/
+	const static uint8_t DPS_REQUEST_KEY[] ={112,86,44,43,207,145,21,13,37,123,182,70,194,174,152,239};
+	
+#if DPS_FOOTER > 0
+	// -----------------------------------------------------------------------
+	template<typename OsModel_P,
+		typename Radio_P,
+		typename Debug_P,
+		typename Connection_list_iterator_P>
+	void
+	DPS_Packet<OsModel_P, Radio_P, Debug_P, Connection_list_iterator_P>::
+	calculate_checksum( Connection_list_iterator connection, block_data_t* MAC, bool use_request_key )
+	{
+		memset(MAC,0,4);
+		
+		//XOR the byte of the buffer into the 4-byte-long MAC buffer
+		for ( uint8_t i = 0; i < length; i++ ) 
+		{
+			MAC[i%4] ^= buffer[i];
+		}
+#if DPS_FOOTER == 1
+		//XOR the buffer with the connection key
+		for ( uint8_t i = 0; i < 16; i++ ) 
+		{
+			//Use the request key for the DISCOVERY and ADVERTISE messages
+			if( use_request_key )
+				MAC[i%4] ^= DPS_REQUEST_KEY[i];
+			else
+				MAC[i%4] ^= connection->key[i];
+		}
+#else
+#error Implement AES based auth.
+#endif
+	}
+#endif //DPS_FOOTER > 0
 	
 }
 #endif

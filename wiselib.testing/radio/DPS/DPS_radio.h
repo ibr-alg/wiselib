@@ -278,8 +278,6 @@ namespace wiselib
 		//node_id_t as a triplet: P_id, F_id, ack_flag
 		typedef DPS_node_id_type node_id_t;
 		
-		typedef DPS_Packet<OsModel, Radio, Debug> DPS_Packet_t;
-		
 		typedef Protocol_t<Radio> protocol_type;
 		typedef wiselib::pair<uint8_t, protocol_type> newprotocol_t;
 		typedef MapStaticVector<OsModel, uint8_t, protocol_type, DPS_MAX_PROTOCOLS> Protocol_list_t;
@@ -292,6 +290,7 @@ namespace wiselib
 		typedef vector_static<OsModel, buffer_element_t, DPS_MAX_BUFFER_LIST> Buffer_list_t;
 		typedef typename Buffer_list_t::iterator Buffer_list_iterator;
 		
+		typedef DPS_Packet<OsModel, Radio, Debug, Connection_list_iterator> DPS_Packet_t;
 		
 		//TODO
 		enum Pid_values
@@ -454,13 +453,6 @@ namespace wiselib
 		 */
 		void generate_connection_key( Connection_list_iterator connection );
 		
-#if DPS_FOOTER > 0
-		/**
-		 * \brief Calculate the footer checksum for a buffer
-		 */
-		void calculate_checksum_for_buffer( size_t length, block_data_t* buffer, Connection_list_iterator connection, block_data_t* MAC );
-#endif
-		
 		//NOTE: only for TEST
 		void turn_off( void* )
 		{
@@ -507,11 +499,6 @@ namespace wiselib
 		typename Rand::self_pointer_t rand_;
 		
 	};
-	
-	/**
-	* Pre-shared DISCOVERY & ADVERTISE key
-	*/
-	const uint8_t DPS_REQUEST_KEY[] ={112,86,44,43,207,145,21,13,37,123,182,70,194,174,152,239};
 	
 	// -----------------------------------------------------------------------
 	// -----------------------------------------------------------------------
@@ -582,9 +569,6 @@ namespace wiselib
 		#ifdef DPS_RADIO_DEBUG
 		debug().debug( "DPS Radio: initialization at %llx", (long long unsigned)(radio().id()) );
 		#endif
-		
-// 		debug().debug(" SIZEs: conn: %i buf: %i proto: %i nodeid: %i bool %i conn* %i data* %i conniterator %i", sizeof(connection_type), sizeof(buffer_element_t), sizeof(newprotocol_t), sizeof(node_id_t), sizeof(bool), sizeof(connection_type*), sizeof(block_data_t*), sizeof(Connection_list_iterator));
-			
 		
 		radio().enable_radio();
 		
@@ -661,40 +645,6 @@ namespace wiselib
 			connection->key[i+3] ^= ((connection->connection_nonce >> 0) & 0xFF);
 		}
 	}
-	
-#if DPS_FOOTER > 0
-	// -----------------------------------------------------------------------
-	template<typename OsModel_P,
-		typename Radio_P,
-		typename Debug_P,
-		typename Timer_P,
-		typename Rand_P>
-	void
-	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
-	calculate_checksum_for_buffer( size_t length, block_data_t* buffer, Connection_list_iterator connection, block_data_t* MAC )
-	{
-		memset(MAC,0,4);
-		
-		//XOR the byte of the buffer into the 4-byte-long MAC buffer
-		for ( uint8_t i = 0; i < length; i++ ) 
-		{
-			MAC[i%4] ^= buffer[i];
-		}
-#if DPS_FOOTER == 1
-		//XOR the buffer with the connection key
-		for ( uint8_t i = 0; i < 16; i++ ) 
-		{
-			//Use the request key for the DISCOVERY and ADVERTISE messages
-			if( connection == connection_list_.end() )
-				MAC[i%4] ^= DPS_REQUEST_KEY[i];
-			else
-				MAC[i%4] ^= connection->key[i];
-		}
-#else
-#error Implement AES based auth.
-#endif
-	}
-#endif //DPS_FOOTER > 0
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
@@ -779,19 +729,8 @@ namespace wiselib
 		//Calculate the full length
 		packet.length += payload_act_pointer - packet.get_payload();
 		
-		
-		//If the footer is enabled then calculate the checksum and copy it to the end of the message
 #if DPS_FOOTER > 0
-		uint8_t MAC[4];
-		if( use_requst_key_for_checksum )
-			calculate_checksum_for_buffer( packet.length, packet.buffer, connection_list_.end(), MAC );
-		else
-			calculate_checksum_for_buffer( packet.length, packet.buffer, connection, MAC );
-		//Free place is always reserved for these 4 bytes
-		memcpy( payload_act_pointer, MAC, 4 );
-		//payload += 4; - won't be used any more
-		packet.length += 4;
-// 		debug().debug( "DPS: %x %x %x %x length: %i", MAC[0], MAC[1], MAC[2], MAC[3], packet.length);
+		packet.set_checksum( connection, use_requst_key_for_checksum );
 #endif
 		
 		
@@ -828,7 +767,13 @@ namespace wiselib
 		{
 			if( it->Pid == destination.Pid && it->connection_status == connection_type::CONNECTED )
 			{
-				//TODO check for full buffer
+				if( buffer_list_.size() == DPS_MAX_BUFFER_LIST )
+				{
+					#ifdef DPS_RADIO_DEBUG
+					debug().debug( "DPS fatal: buffer list is full!" );
+					#endif
+					return ERR_UNSPEC;
+				}
 				
 				buffer_element_t new_buffer;
 				
@@ -909,12 +854,7 @@ namespace wiselib
 			packet.length += act_payload_size;
 			
 	#if DPS_FOOTER > 0
-			uint8_t MAC[4];
-			calculate_checksum_for_buffer( packet.length, packet.buffer, act_buffer->connection_it, MAC );
-			//Free place is always reserved for these 4 bytes
-			memcpy( packet.buffer + packet.length, MAC, 4 );
-			packet.length += 4;
-			// 		debug().debug( "DPS: %x %x %x %x length: %i", MAC[0], MAC[1], MAC[2], MAC[3], packet.length);
+			packet.set_checksum( act_buffer->connection_it, false );
 	#endif
 			
 			#ifdef DPS_RADIO_DEBUG
@@ -974,7 +914,9 @@ namespace wiselib
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
 	receive( radio_node_id_t from, size_t length, block_data_t *data ) 
 	{
-		//TODO validate the DPS type!!
+		//The initial 2 bits must be: 01
+		if( bitwise_read<OsModel, block_data_t, uint8_t>( data, 0, 2 ) != 1 )
+			return;
 		
 		DPS_Packet_t packet( length, data );
 		block_data_t* payload=packet.get_payload();
@@ -991,15 +933,11 @@ namespace wiselib
 		{
 #if DPS_FOOTER > 0
 			//Checksum validation based on the REQUEST key
-			uint8_t MAC[4];
-			calculate_checksum_for_buffer( packet.length-4, packet.buffer, connection_list_.end(), MAC );
-			if( memcmp( MAC, &(packet.buffer[packet.length-4]), 4 ) )
+			if( !(packet.validate_checksum( connection_list_.end(), true )) )
 			{
 				#ifdef DPS_RADIO_DEBUG
 				debug().debug( "DPS: checksum error in DISCOVERY/ADVERTISE packet" );
-// 				debug().debug( "(%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
 				#endif
-				
 				return;
 			}
 #endif
@@ -1084,13 +1022,10 @@ namespace wiselib
 					
 #if DPS_FOOTER > 0
 					//Checksum validation based on the connection key
-					uint8_t MAC[4];
-					calculate_checksum_for_buffer( packet.length-4, packet.buffer, it, MAC );
-					if( memcmp( MAC, &(packet.buffer[packet.length-4]), 4 ) )
+					if( !(packet.validate_checksum( it, false )) )
 					{
 						#ifdef DPS_RADIO_DEBUG
 						debug().debug( "DPS: checksum error in CONNECTION packet" );
-// 						debug().debug( "(%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
 						#endif
 						
 						connection_list_.erase( it );
@@ -1144,13 +1079,10 @@ namespace wiselib
 				{
 #if DPS_FOOTER > 0
 					//Checksum validation
-					uint8_t MAC[4];
-					calculate_checksum_for_buffer( packet.length-4, packet.buffer, it, MAC );
-					if( memcmp( MAC, &(packet.buffer[packet.length-4]), 4 ) )
+					if( !(packet.validate_checksum( it, false )) )
 					{
 						#ifdef DPS_RADIO_DEBUG
 						debug().debug( "DPS: checksum error in CONNECTED packet" );
-// 						debug().debug( "(%x %x %x %x) calc (%x %x %x %x)!", packet.buffer[packet.length-4], packet.buffer[packet.length-3], packet.buffer[packet.length-2], packet.buffer[packet.length-1], MAC[0], MAC[1], MAC[2], MAC[3]);
 						#endif
 						return;
 					}
@@ -1232,7 +1164,13 @@ namespace wiselib
 						//There is no buffer for this RPC, create a new one
 						if( act_buffer == buffer_list_.end() )
 						{
-							//TODO check for full buffer
+							if( buffer_list_.size() == DPS_MAX_BUFFER_LIST )
+							{
+								#ifdef DPS_RADIO_DEBUG
+								debug().debug( "DPS fatal: buffer list is full!" );
+								#endif
+								return;
+							}
 							
 							buffer_element_t new_buffer;
 							
@@ -1282,10 +1220,7 @@ namespace wiselib
 							packet.set_type( DPS_Packet_t::DPS_TYPE_RPC_ACK );
 							packet.length = packet.payload_position;
 #if DPS_FOOTER > 0
-							calculate_checksum_for_buffer( packet.length, packet.buffer, it, MAC );
-							//No payload
-							memcpy( packet.buffer + packet.payload_position, MAC, 4 );
-							packet.length += 4;
+							packet.set_checksum( it, false );
 #endif
 							radio().send( it->partner_MAC, packet.length, packet.buffer );
 						}
@@ -1351,8 +1286,6 @@ namespace wiselib
 		{
 			it->elapsed_time += DPS_GENERAL_TIMER_FREQUENCY;
 			
-// 			debug().debug( "MEM: %i",  mem->mem_free() );
-			
 			//CONNECTED and ( HARTBEAT_TIMEOUT <= elapsed_time < DELETE_TIMEOUT )
 			if(( it->connection_status == connection_type::CONNECTED )
 				&& ( it->elapsed_time >= DPS_HARTBEAT_THRESHOLD ) && (it->elapsed_time < DPS_DELETE_CONNECTION_THRESHOLD))
@@ -1361,15 +1294,10 @@ namespace wiselib
 				continue;
 			}
 			
-			//For the server (these states are possible only for the server)
-			//(ADVERTISE_SENT || ALLOW_SENT) && elapsed_time >= CONNECT_TIMEOUT
-			//(CONNECTED)                    && elapsed_time >= DELETE_TIMEOUT
+			//For the server
 			if( (protocol_list_[it->Pid].server) )
 			{
-				if( (((it->connection_status == connection_type::ADVERTISE_SENT) || (it->connection_status == connection_type::ALLOW_SENT)) 
-							&& (it->elapsed_time >= DPS_CONNECT_TIMEOUT) ) ||
-				    (( it->connection_status == connection_type::CONNECTED ) 
-							&& (it->elapsed_time >= DPS_DELETE_CONNECTION_THRESHOLD) ))
+				if( it->elapsed_time >= DPS_DELETE_CONNECTION_THRESHOLD )
 				{
 					#ifdef DPS_RADIO_DEBUG
 					debug().debug( "DPS: remove client at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
@@ -1384,16 +1312,11 @@ namespace wiselib
 						break;
 				}
 			}
-			//For the client (these states are possible only for the client)
-			//(CONNECT_SENT) && elapsed_time >= CONNECT_TIMEOUT
-			//(CONNECTED)    && elapsed_time >= DELETE_TIMEOUT
+			//For the client
 			//The SENDING_DISCOVERY state is handled by another timer&function
 			else
 			{
-				if((( it->connection_status == connection_type::CONNECT_SENT )
-						&& (it->elapsed_time >= DPS_CONNECT_TIMEOUT) ) ||
-				  (( it->connection_status == connection_type::CONNECTED )
-						&& (it->elapsed_time >= DPS_DELETE_CONNECTION_THRESHOLD) ))
+				if( it->elapsed_time >= DPS_DELETE_CONNECTION_THRESHOLD )
 				{
 					#ifdef DPS_RADIO_DEBUG
 					debug().debug( "DPS: reDISCOVERY at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
