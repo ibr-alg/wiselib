@@ -90,8 +90,8 @@ namespace wiselib {
 				wiselib::write<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID, id);
 			}
 			
-			::uint8_t flags() {
-				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_FLAGS);
+			::uint8_t flags() const {
+				return wiselib::read<OsModel, block_data_t, message_id_t>(const_cast<block_data_t*>(data_ + POS_FLAGS));
 			}
 			
 			void set_flags(::uint8_t id) {

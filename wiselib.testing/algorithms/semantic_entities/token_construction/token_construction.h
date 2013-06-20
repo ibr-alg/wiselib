@@ -60,7 +60,8 @@ namespace wiselib {
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Clock_P = typename OsModel_P::Clock,
-		typename Debug_P = typename OsModel_P::Debug
+		typename Debug_P = typename OsModel_P::Debug,
+		typename Rand_P = typename OsModel_P::Rand
 	>
 	class TokenConstruction {
 		public:
@@ -90,6 +91,7 @@ namespace wiselib {
 			typedef typename Clock::time_t time_t;
 			typedef ::uint32_t abs_millis_t;
 			typedef Debug_P Debug;
+			typedef Rand_P Rand;
 			
 			typedef ::uint8_t token_count_t;
 			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
@@ -105,7 +107,7 @@ namespace wiselib {
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularBroadcasts;
 			
-			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock> RingTransport;
+			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand> RingTransport;
 			
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
 			

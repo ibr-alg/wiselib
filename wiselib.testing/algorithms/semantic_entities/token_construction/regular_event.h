@@ -135,6 +135,8 @@ namespace wiselib {
 						break;
 					}
 				}
+						
+				check_invariant();
 				
 				DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
 						(int)mynodeid, (int)t, (int)last_encounter_, (int) old_interval, (int) new_interval,
@@ -300,7 +302,7 @@ namespace wiselib {
 					interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
 				}
 				
-				check_invariant();
+				//check_invariant();
 			}
 			
 			void check_invariant() {
