@@ -17,4 +17,4 @@ cd ../../../
 # configure and build NS-3 with examples
 ./waf configure --enable-examples
 ./waf
-#./waf --run src/wiselib/examples/wiselib-ns3-example
+./waf --run src/wiselib/examples/wiselib-ns3-example

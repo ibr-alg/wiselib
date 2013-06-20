@@ -28,29 +28,34 @@
 
 namespace wiselib
 {
-   /** \brief Ns3 Implementation of \ref debug_concept "Debug Concept".
+   /** \brief NS-3 Implementation of \ref debug_concept "Debug Concept".
     *
     *  \ingroup debug_concept
     *  \ingroup ns3_facets
     *
-    *  Ns3 implementation of the \ref debug_concept "Debug Concept" ...
+    *  NS-3 implementation of the \ref debug_concept "Debug Concept" ...
     */
    template<typename OsModel_P>
-   class Ns3Debug
+   class Ns3DebugModel
    {
    public:
       typedef OsModel_P OsModel;
 
-      typedef Ns3Debug<OsModel> self_type;
+      typedef Ns3DebugModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
       // --------------------------------------------------------------------
-      Ns3Debug( Ns3Os& os )
+      Ns3DebugModel( Ns3Os& os )
          : os_(os)
       {}
       // --------------------------------------------------------------------
       void debug( const char *msg, ... )
       {        
-         os ().proc->Debug (msg);
+         va_list fmtargs;
+         char buffer[1024];
+         va_start( fmtargs, msg );
+         vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
+         va_end( fmtargs );
+         os ().proc->Debug (buffer);
       }
 
    private:

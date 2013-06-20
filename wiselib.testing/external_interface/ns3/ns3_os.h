@@ -22,6 +22,7 @@
 #include "external_interface/default_return_values.h"
 #include "external_interface/ns3/ns3_types.h"
 #include "external_interface/ns3/ns3_debug.h"
+#include "external_interface/ns3/ns3_timer.h"
 #include "util/serialization/endian.h"
 
 
@@ -46,7 +47,8 @@ namespace wiselib
 
       typedef DefaultReturnValues<Ns3OsModel> ReturnValues;
 
-      typedef Ns3Debug<Ns3OsModel> Debug;
+      typedef Ns3DebugModel<Ns3OsModel> Debug;
+      typedef Ns3TimerModel<Ns3OsModel> Timer;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
