@@ -22,7 +22,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Arduino.h>
+#include "arduino.h"
 
 namespace wiselib
 {
@@ -46,9 +46,11 @@ namespace wiselib
       {
       }
 
+	  /*
       ArduinoDebug(bool initialized) : initialized_(initialized)
       {
       }
+	  */
       // --------------------------------------------------------------------
       enum Restrictions { MAXLINE = 128 };
       // --------------------------------------------------------------------
@@ -68,11 +70,6 @@ namespace wiselib
    ArduinoDebug<OsModel_P>::
    debug( const char* msg, ... )
    {
-      if(!initialized_) {
-         Serial.begin(9600);
-         initialized_ = true;
-      }
-      
       va_list fmtargs;
       char buffer[MAXLINE];
       va_start( fmtargs, msg );

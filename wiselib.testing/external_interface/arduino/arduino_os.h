@@ -19,6 +19,11 @@
 #ifndef __ARDUINO_OS_MODEL_H__
 #define __ARDUINO_OS_MODEL_H__
 
+// #include <assert.h>
+#define assert(X)
+#define DBG(X)
+#define DBG(X, ...)
+
 #include "external_interface/default_return_values.h"
 #include "external_interface/arduino/arduino_debug.h"
 #include "external_interface/arduino/arduino_clock.h"
@@ -26,6 +31,10 @@
 #include "external_interface/arduino/arduino_ethernet_radio.h"
 
 #include "util/serialization/endian.h"
+
+/*routes the assert() error message into STDERR, TODO: route STDERR to the 
+serial port so that you can actually output the messages*/
+// #define __ASSERT_USE_STDERR 
 
 namespace wiselib
 {
@@ -49,6 +58,7 @@ namespace wiselib
       typedef ArduinoClock<ArduinoOsModel> Clock;
 #if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
+	  typedef EthernetRadio Radio;
 #endif
 	  typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
 

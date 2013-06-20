@@ -25,6 +25,8 @@ namespace wiselib {
 			typedef typename ParentTupleStore::Tuple Tuple;
 			typedef typename ParentTupleStore::iterator ParentIterator;
 			typedef typename ParentTupleStore::column_mask_t column_mask_t;
+			typedef typename ParentTupleStore::TupleContainer TupleContainer;
+			typedef typename ParentTupleStore::Dictionary Dictionary;
 			
 			typedef CodecTupleStore<OsModel, ParentTupleStore, Codec, CODEC_COLUMNS> self_type;
 			typedef self_type* self_pointer_t;

@@ -17,26 +17,26 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#include "external_interface/arduino/arduino_os.h"
+#ifndef WISELIB_ARDUINO_H
+#define WISELIB_ARDUINO_H
 
-void application_main(wiselib::ArduinoOsModel&);
+#include <Arduino.h>
 
-int main(int argc, const char** argv )
-{
-	wiselib::ArduinoOsModel app_main_arg;
-	
-	init();
-	
-#if defined(USBCON)
-	USBDevice.attach();
-#endif
-	
-	pinMode(13, OUTPUT);
-    Serial.begin(9600);
-	application_main(app_main_arg);
-	
-	for(;;) { }
-	
-	return 0;
-}
+// Undefine some arduino convenience macros that
+// (might) clash with wiselib code
+#undef min
+#undef max
+#undef abs
+#undef constraint
+#undef round
+#undef radians
+#undef degrees
+#undef sq
+#undef bit
+
+#undef PI
+
+#endif // WISELIB_ARDUINO_H
+
+
 

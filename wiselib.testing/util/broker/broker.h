@@ -3,6 +3,7 @@
 #define BROKER_H
 
 #include <util/pstl/int_dictionary.h>
+#include <util/delegates/delegate.hpp>
 
 namespace wiselib {
 	
@@ -195,8 +196,12 @@ namespace wiselib {
 			typedef typename TupleStore::iterator iterator;
 			typedef typename CompressedTupleStore::iterator compressed_iterator;
 			
-			void init(typename Os::Debug::self_pointer_t debug) {
-				tuple_store_.init(debug);
+			//void init(typename Os::Debug::self_pointer_t debug) {
+				//tuple_store_.init(debug);
+			//}
+			
+			void init(typename TupleStore::self_pointer_t ts) {
+				tuple_store_ = ts;
 			}
 			
 			template<class T, void (T::*TMethod)(document_name_t)>
@@ -265,7 +270,7 @@ namespace wiselib {
 					internal.set(i, tuple.get(i));
 				}
 				internal.set_bitmask(mask);
-				tuple_store_.insert(internal);
+				tuple_store().insert(internal);
 				document_has_changed(mask);
 			}
 			
@@ -286,8 +291,8 @@ namespace wiselib {
 				for(size_type i=0; i<STRINGS; i++) {
 					internal.set(i, query.get(i));
 				}
-				typename TupleStore::iterator r = tuple_store_.begin(&internal, columns); //find(internal, columns);
-				return iterator(r, tuple_store_.end(), docs);
+				typename TupleStore::iterator r = tuple_store().begin(&internal, columns); //find(internal, columns);
+				return iterator(r, tuple_store().end(), docs);
 			}
 			
 			template<typename QueryTuple>
@@ -300,8 +305,8 @@ namespace wiselib {
 				return compressed_iterator(r);
 			}
 			
-			TupleStore& tuple_store() { return tuple_store_; }
-			CompressedTupleStore& compressed_tuple_store() { return tuple_store_.parent_tuple_store(); }
+			TupleStore& tuple_store() { return *tuple_store_; }
+			CompressedTupleStore& compressed_tuple_store() { return tuple_store_->parent_tuple_store(); }
 			
 			void document_has_changed(bitmask_t mask) {
 				document_name_t docname = get_document_name(mask);
@@ -349,7 +354,8 @@ namespace wiselib {
 				return r;
 			}
 			
-			TupleStore tuple_store_;
+			//TupleStore tuple_store_;
+			typename TupleStore::self_pointer_t tuple_store_;
 			
 			NameDictionary name_dictionary_;
 			Subscriptions subscriptions_;

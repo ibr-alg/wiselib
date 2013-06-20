@@ -117,24 +117,24 @@ namespace wiselib {
 						return *this;
 					}
 					
-					bool operator==(const iterator& other) {
+					bool operator==(const iterator& other) const {
 						return (block_address_ == other.block_address_) &&
 							(index_ == other.index_);
 					}
-					bool operator!=(const iterator& other) { return !(*this == other); }
+					bool operator!=(const iterator& other) const { return !(*this == other); }
 					
-					value_type operator*() {
+					value_type operator*() const {
 						return block()[index_];
 					}
-					value_type* operator->() { return &block()[index_]; }
+					const value_type* operator->() const { return &block()[index_]; }
 					
-					address_t block_address() { return block_address_; }
-					size_type index() { return index_; }
+					address_t block_address() const { return block_address_; }
+					size_type index() const { return index_; }
 					
 					
 				private:
-					LeafBlock& block() {
-						return *reinterpret_cast<LeafBlock*>(memory_->get(block_address_));
+					const LeafBlock& block() const {
+						return *reinterpret_cast<const LeafBlock*>(memory_->get(block_address_));
 					}
 					
 					address_t block_address_;
@@ -165,7 +165,7 @@ namespace wiselib {
 							a = tree_->root_ = tree_->create_block(leaf);
 						}
 						else {
-							DBG("bpt ins read");
+							//DBG("bpt ins read");
 							tree_->read_block(block_, a);
 						}
 						
@@ -195,7 +195,7 @@ namespace wiselib {
 							size_type p = block_.find(inner_kv_.key());
 							insert(block_[p].value(), a);
 							if(insert_up_) {
-								DBG("bpt ins read 2");
+								//DBG("bpt ins read 2");
 								tree_->read_block(block_, a);
 								if(block_.full()) {
 									split<InnerBlock>(a, inner_kv_, parent);
@@ -289,7 +289,7 @@ namespace wiselib {
 							Block block_next; // = block; // re-use the cache for block
 							
 							// - load block1.next
-							DBG("bpt split read");
+							//DBG("bpt split read");
 							tree_->read_block(block_next, next);
 							block_next.set_prev(a2);
 							tree_->write_block(block_next, next);
@@ -332,7 +332,7 @@ namespace wiselib {
 							return;
 						}
 						else {
-							DBG("bpt erase read");
+							//DBG("bpt erase read");
 							tree_->read_block(block_, a);
 						}
 						
@@ -361,7 +361,7 @@ namespace wiselib {
 							erase(block_[p].value(), a, new_left, new_right);
 							
 							if(erase_up_) {
-								DBG("bpt erase read 2");
+								//DBG("bpt erase read 2");
 								tree_->read_block(block_, a);
 								p = block_.find(erase_key_);
 								block_.erase(p);
@@ -400,7 +400,7 @@ namespace wiselib {
 						key_type pivot_old, pivot_new;
 						
 						if(a_right != NO_ADDRESS) {
-							DBG("bpt merge read");
+							//DBG("bpt merge read");
 							tree_->read_block(other, a_right);
 							a_other = a_right;
 							if(other.enough_for_borrow()) {
@@ -414,7 +414,7 @@ namespace wiselib {
 						}
 						
 						if(!could_borrow && a_left != NO_ADDRESS) {
-							DBG("merge read 2");
+							//DBG("merge read 2");
 							tree_->read_block(other, a_left);
 							a_other = a_left;
 							if(other.enough_for_borrow()) {
@@ -431,7 +431,7 @@ namespace wiselib {
 							tree_->write_block(block, a);
 							
 							InnerBlock &parent = *reinterpret_cast<InnerBlock*>(&other);
-							DBG("merge read 3");
+							//DBG("merge read 3");
 							tree_->read_block(parent, a_parent);
 							size_type idx = parent.find(pivot_old);
 							parent[idx].key() = pivot_new;
@@ -450,7 +450,7 @@ namespace wiselib {
 							
 								address_t block_next = block.next();
 								if(block_next != NO_ADDRESS) {
-							DBG("merge read 4");
+							//DBG("merge read 4");
 									tree_->read_block(other, block_next);
 									other.set_prev(a);
 									tree_->write_block(other, block_next);
@@ -464,7 +464,7 @@ namespace wiselib {
 								address_t other_next = other.next();
 								erase_key_ = other[0].key();
 								if(other_next != NO_ADDRESS) {
-							DBG("merge read 5");
+							//DBG("merge read 5");
 									tree_->read_block(other, other_next);
 									other.set_prev(a);
 									tree_->write_block(other, other_next);
@@ -516,7 +516,6 @@ namespace wiselib {
 			void clear(address_t a) {
 				if(a == NO_ADDRESS) { return; }
 				InnerBlock block;
-											DBG("clear read !!!");
 
 				read_block(block, a);
 				
@@ -543,6 +542,7 @@ namespace wiselib {
 			 * @return bool true <=> element was inserted
 			 */
 			pair<iterator, bool> insert(const value_type& kv) {
+				//DBG("B+ tree insert");
 				check();
 				
 				debug_graphviz("before_insert.dot");
@@ -569,6 +569,7 @@ namespace wiselib {
 			/**
 			 */
 			iterator erase(iterator it) {
+				//DBG("B+ tree erase");
 				check();
 				debug_graphviz("before_erase.dot");
 				
@@ -580,11 +581,12 @@ namespace wiselib {
 			}
 			
 			iterator find(const key_type& k) {
+				//DBG("B+ tree find");
 				check();
 				
 				LeafBlock block;
 				address_t a = find_leaf(block, k);
-				assert(a < BlockMemory::SIZE || a == NO_ADDRESS);
+				assert(a < block_memory_->size() || a == NO_ADDRESS);
 				
 				if(a == NO_ADDRESS) {
 					check();
@@ -605,7 +607,7 @@ namespace wiselib {
 			iterator begin() {
 				LeafBlock block;
 				address_t a = find_leaf(block, 0);
-				assert(a < BlockMemory::SIZE || a == NO_ADDRESS);
+				assert(a < block_memory_->size() || a == NO_ADDRESS);
 				
 				iterator r = iterator(block_memory_, a, 0);
 				return r;
@@ -622,7 +624,7 @@ namespace wiselib {
 			void update(iterator it, const mapped_type& new_value) {
 				if(it == end()) { return; }
 				LeafBlock block;
-				DBG("update read");
+				//DBG("update read");
 				read_block(block, it.block_address());
 				block[it.index()] = typename LeafBlock::KVPair(block[it.index()].key(), new_value);
 				write_block(block, it.block_address());
@@ -748,7 +750,7 @@ namespace wiselib {
 				if(a == NO_ADDRESS) { return; }
 				
 				InnerBlock b;
-				DBG("bpt check read");
+				//DBG("bpt check read");
 				read_block(b, a);
 				if(b.marker_is(LEAF_MARKER)) {
 					LeafBlock &leaf = *reinterpret_cast<LeafBlock*>(&b);
@@ -785,7 +787,7 @@ namespace wiselib {
 			void check() {
 				debug_graphviz("before_check.dot");
 				
-				assert(root_ < BlockMemory::SIZE || root_ == NO_ADDRESS);
+				assert(root_ < block_memory_->size() || root_ == NO_ADDRESS);
 				
 				check_sorted();
 				check_iter_size();
@@ -805,14 +807,14 @@ namespace wiselib {
 			
 			template<typename Block>
 			void read_block(Block& b, address_t a) {
-				assert(a < BlockMemory::SIZE || a == NO_ADDRESS);
+				assert(a < block_memory_->size() || a == NO_ADDRESS);
 				
 				block_memory_->read(reinterpret_cast<block_data_t*>(&b), a);
 			}
 			
 			template<typename Block>
 			void write_block(Block& b, address_t a) {
-				assert(a < BlockMemory::SIZE || a == NO_ADDRESS);				
+				assert(a < block_memory_->size() || a == NO_ADDRESS);				
 				block_memory_->write(reinterpret_cast<block_data_t*>(&b), a);
 			}
 			
@@ -839,12 +841,12 @@ namespace wiselib {
 			 */
 			address_t find_leaf(LeafBlock& block, const key_type& k) {
 				address_t a = root_;
-				assert(a < BlockMemory::SIZE || a == NO_ADDRESS);
+				assert(a < block_memory_->size() || a == NO_ADDRESS);
 				
 				InnerBlock &inner = *reinterpret_cast<InnerBlock*>(&block);
 				
 				while(a != NO_ADDRESS) {
-					DBG("find leaf read");
+					//DBG("find leaf read");
 					read_block(inner, a);
 					if(is_leaf(inner)) {
 						return a;
@@ -855,7 +857,7 @@ namespace wiselib {
 							p = 0;
 						}
 						a = inner[p].value();
-						assert(a < BlockMemory::SIZE || a == NO_ADDRESS);
+						assert(a < block_memory_->size() || a == NO_ADDRESS);
 					}
 				}
 				return NO_ADDRESS;

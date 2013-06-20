@@ -85,7 +85,17 @@ class StandaloneMath {
 		/// round to nearest integer
 		static integer_t round(real_t);
 
-                static real_t pow(real_t,integer_t);
+		static real_t pow(real_t,integer_t);
+		
+		static integer_t log2(integer_t i) {
+			integer_t r = 0;
+			bool roundup = i & 0x01;
+			while(i >>= 1) {
+				r++;
+				if((i >> 1) && (i & 0x01)) { roundup = true; }
+			}
+			return r + roundup;
+		}
 		
 	private:
 		static real_t sin_degrees(integer_t);
