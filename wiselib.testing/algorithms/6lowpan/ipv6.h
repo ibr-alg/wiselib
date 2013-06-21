@@ -93,7 +93,6 @@
 		* 
 		*/
 		template<typename OsModel_P,
-			typename Radio_LoWPAN_P,
 			typename Radio_P,
 			typename Debug_P,
 			typename Timer_P,
@@ -103,13 +102,12 @@
 		{
 		public:
 		typedef OsModel_P OsModel;
-		typedef Radio_LoWPAN_P Radio_LoWPAN;
 		typedef Radio_P Radio;
 		typedef Debug_P Debug;
 		typedef Timer_P Timer;
 		typedef InterfaceManager_P InterfaceManager_t;
 		
-		typedef IPv6<OsModel, Radio_LoWPAN, Radio, Debug, Timer, InterfaceManager_t> self_type;
+		typedef IPv6<OsModel, Radio, Debug, Timer, InterfaceManager_t> self_type;
 		typedef self_type* self_pointer_t;
 		
 		typedef IPv6Address<Radio, Debug> IPv6Address_t;
@@ -133,8 +131,8 @@
 		
 		enum NextHeaders
 		{
-			UDP = Radio_LoWPAN::UDP,
-			ICMPV6 = Radio_LoWPAN::ICMPV6,
+			UDP = 17,
+			ICMPV6 = 58,
 			//TCP = 6
 			EH_HOHO = 0	//Hop by Hop
 			/*EH_DESTO = 60
@@ -166,7 +164,7 @@
 			ERR_UNSPEC = OsModel::ERR_UNSPEC,
 			ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
 			ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-			ROUTING_CALLED = Radio_LoWPAN::ROUTING_CALLED
+			ROUTING_CALLED = InterfaceManager_t::ROUTING_CALLED
 		};
 		// --------------------------------------------------------------------
 		
@@ -509,47 +507,43 @@
 	
 	//Initialize NULL_NODE_ID
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::NULL_NODE_ID = IPv6Address<Radio_P, Debug_P>(0);
 	
 	// -----------------------------------------------------------------------
 	//Initialize BROADCAST_ADDRESS
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::BROADCAST_ADDRESS = IPv6Address<Radio_P, Debug_P>(1);
 	
 	// -----------------------------------------------------------------------
 	//Initialize ALL_ROUTERS_ADDRESS
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	const
 	IPv6Address<Radio_P, Debug_P>
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::ALL_ROUTERS_ADDRESS = IPv6Address<Radio_P, Debug_P>(2);
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::ALL_ROUTERS_ADDRESS = IPv6Address<Radio_P, Debug_P>(2);
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	IPv6()
 	: radio_ ( 0 ),
 	debug_ ( 0 )
@@ -557,12 +551,11 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	~IPv6()
 	{
 		disable_radio();
@@ -573,13 +566,12 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	init( void )
 	{
 		if ( enable_radio() != SUCCESS )
@@ -590,13 +582,12 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	destruct( void )
 	{
 		return disable_radio();
@@ -604,13 +595,12 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	enable_radio( void )
 	{
 		if ( interface_manager_->enable_radios() != SUCCESS )
@@ -638,13 +628,12 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	disable_radio( void )
 	{
 		#ifdef IPv6_LAYER_DEBUG
@@ -658,13 +647,12 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	int
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	send( node_id_t destination, size_t packet_number, block_data_t *data )
 	{
 		//Get the packet pointer from the manager
@@ -916,13 +904,12 @@
 	}
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	void
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	receive( link_layer_node_id_t from, size_t packet_number, block_data_t *data )
 	{
 		//Get the packet pointer from the manager
@@ -1109,13 +1096,12 @@
 	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	bool
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	ip_packet_for_this_node( node_id_t* destination, uint8_t target_interface)
 	{
 		for ( int i = 0; i < LOWPAN_MAX_PREFIXES; i++)
@@ -1131,13 +1117,12 @@
 	// -----------------------------------------------------------------------
 	#ifdef LOWPAN_ROUTE_OVER
 	template<typename OsModel_P,
-		typename Radio_LoWPAN_P,
 		typename Radio_P,
 		typename Debug_P,
 		typename Timer_P,
 		typename InterfaceManager_P>
 	void 
-	IPv6<OsModel_P, Radio_LoWPAN_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
+	IPv6<OsModel_P, Radio_P, Debug_P, Timer_P, InterfaceManager_P>::
 	routing_polling( void* p_number )
 	{
 		int packet_number = (int)p_number;

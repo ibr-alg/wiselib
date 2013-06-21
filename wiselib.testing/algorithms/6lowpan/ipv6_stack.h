@@ -87,7 +87,7 @@ namespace wiselib
 		
 		typedef wiselib::InterfaceManager<OsModel, LoWPAN_t, Radio, Debug, Timer, UartRadio_t> InterfaceManager_t;
 		
-		typedef wiselib::IPv6<OsModel, LoWPAN_t, Radio, Debug, Timer, InterfaceManager_t> IPv6_t;
+		typedef wiselib::IPv6<OsModel, Radio, Debug, Timer, InterfaceManager_t> IPv6_t;
 
 		typedef wiselib::UDP<OsModel, IPv6_t, Radio, Debug> UDP_t;
 		typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug, Timer> ICMPv6_t;

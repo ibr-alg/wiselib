@@ -63,7 +63,7 @@ namespace wiselib
 		typedef typename Packet_Pool_Mgr_t::Packet IPv6Packet_t;
 		typedef NDStorage<Radio, Debug> NDStorage_t;
 		
-		typedef IPv6<OsModel, Radio_LoWPAN, Radio, Debug, Timer, self_type> Radio_IPv6;
+		typedef IPv6<OsModel, Radio, Debug, Timer, self_type> Radio_IPv6;
 		typedef IPv6Address<Radio, Debug> IPv6Address_t;
 		
 		typedef PrefixType<IPv6Address_t> PrefixType_t;
