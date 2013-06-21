@@ -21,18 +21,14 @@ public:
    void init(Os::AppMainParameter& amp)
    {
       Os::BluetoothRadio::block_data_t message[] = "Test\0";
-
+      radio.get_slave_name(";BTSlave");
       radio.enable_radio();
-
-      wiselib::ArduinoZeroconf<Os, Os::BluetoothRadio, Os::Debug> mdns;
-      mdns.init( radio, clock, debug );
-      mdns.enable();
+      radio.connect_radio(1);
 
       debug.debug( "Hello World from Example Application!\n" );
 
       while ( 1 )
       {
-         mdns.topology();
          radio.send( Os::BluetoothRadio::BROADCAST_ADDRESS, 4, message);
 
          if ( serialEventRun ) serialEventRun();
