@@ -99,8 +99,8 @@ namespace wiselib
 			memset(buffer, 0, Radio::MAX_MESSAGE_LENGTH);
 			
 			//Initial 10 (== 2)
-			uint8_t version = 2;
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 0, version, 0, 2 );
+			uint32_t version = 2;
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, version, 0, 2 );
 			
 			//Save the type into the header
 			set_type( packet_type );
@@ -180,22 +180,22 @@ namespace wiselib
 		
 		///@name Setters
 		///@{
-		void set_ack_flag( uint8_t value )
+		void set_ack_flag( uint32_t value )
 		{
 			//byte: 0, bit: 2, length: 1
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 0, value, 2, 1 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, value, 2, 1 );
 		}
 		
-		void set_fragmentation_flag( uint8_t value )
+		void set_fragmentation_flag( uint32_t value )
 		{
 			//byte: 0, bit: 3, length: 1
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 0, value, 3, 1 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, value, 3, 1 );
 		}
 		
-		void set_type( uint8_t value )
+		void set_type( uint32_t value )
 		{
 			//byte: 0, bit: 4, length: 4
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 0, value, 4, 4 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, value, 4, 4 );
 		}
 		
 		void set_counter( uint32_t value )
@@ -204,26 +204,26 @@ namespace wiselib
 			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 1, value, 0, 32 );
 		}
 		
-		void set_pid( uint8_t value )
+		void set_pid( uint32_t value )
 		{
 			//byte: 5, bit: 0, length: 8
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 5, value, 0, 8 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 5, value, 0, 8 );
 		}
 		
-		void set_fid( uint8_t value )
+		void set_fid( uint32_t value )
 		{
 			//NOTE must be called only for RPC_* type packets
 			//byte: 6, bit: 0, length: 8
-			bitwise_write<OsModel, block_data_t, uint8_t>( buffer + 6, value, 0, 8 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 6, value, 0, 8 );
 		}
 		
-		void set_fragmentation_header( uint16_t length, uint16_t shift )
+		void set_fragmentation_header( uint32_t length, uint32_t shift )
 		{
 			//NOTE must be called for packets with reserved fragmentation header positions
 			//byte: 7, bit: 0, length: 16
-			bitwise_write<OsModel, block_data_t, uint16_t>( buffer + 7, length, 0, 16 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 7, length, 0, 16 );
 			//byte: 9, bit: 0, length: 16
-			bitwise_write<OsModel, block_data_t, uint16_t>( buffer + 9, shift, 0, 16 );
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 9, shift, 0, 16 );
 		}
 		
 #if ( DPS_FOOTER > 0 )
@@ -242,19 +242,19 @@ namespace wiselib
 		inline uint8_t ack_flag()
 		{
 			//byte: 0, bit: 2, length: 1
-			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer + 0, 2, 1 );
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 0, 2, 1 );
 		}
 		
 		inline uint8_t fragmentation_flag()
 		{
 			//byte: 0, bit: 3, length: 1
-			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer + 0, 3, 1 );
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 0, 3, 1 );
 		}
 		
 		inline uint8_t type()
 		{
 			//byte: 0, bit: 4, length: 4
-			return bitwise_read<OsModel, block_data_t, uint8_t>( buffer + 0, 4, 4 );
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 0, 4, 4 );
 		}
 		
 		inline uint32_t counter()
@@ -280,13 +280,13 @@ namespace wiselib
 		{
 			//NOTE must be called for packets with reserved fragmentation header positions
 			//byte: 7, bit: 0, length: 16
-			return bitwise_read<OsModel, block_data_t, uint16_t>( buffer + 7, 0, 16 );
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 7, 0, 16 );
 		}
 		
 		inline uint16_t fragmentation_header_shift()
 		{
 			//byte: 9, bit: 0, length: 16
-			return bitwise_read<OsModel, block_data_t, uint16_t>( buffer + 9, 0, 16 );
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 9, 0, 16 );
 		}
 		
 		inline block_data_t* get_payload()
@@ -310,7 +310,7 @@ namespace wiselib
 		
 		///@}
 		
-		#ifdef DPS_RADIO_DEBUG
+		#if DPS_RADIO_DEBUG >= 2
 		/** \brief Debug function
 		*/
 		void print_header()
