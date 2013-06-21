@@ -129,12 +129,11 @@ namespace wiselib {
 						if(interval_ > old_interval && interval_ + old_window > old_interval + window_) {
 							window_ = interval_ - old_interval + old_window;
 						}
-						
-						if(window_ > interval_) { window_ = interval_; }
-						
 						break;
 					}
 				}
+				
+				if(window_ > interval_) { window_ = interval_; }
 						
 				check_invariant();
 				

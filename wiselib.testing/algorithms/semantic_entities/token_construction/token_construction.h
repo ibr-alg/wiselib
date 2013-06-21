@@ -190,7 +190,7 @@ namespace wiselib {
 				// }}}
 			};
 			
-			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug) {
+			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug, typename Rand::self_pointer_t rand) {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
@@ -198,7 +198,7 @@ namespace wiselib {
 				caffeine_level_ = 0;
 				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-				ring_transport_.init(radio_, timer_, clock_, false);
+				ring_transport_.init(radio_, timer_, clock_, rand, false);
 				
 				// keep node alive for debugging
 				//push_caffeine();
@@ -530,7 +530,6 @@ namespace wiselib {
 						pop_caffeine();
 						DBG("node %d // pop end_handover (close)", radio_->id());
 						pop_caffeine();
-						endpoint.request_close();
 						break;
 				}
 				
@@ -731,7 +730,7 @@ namespace wiselib {
 						bool found;
 						SemanticEntityT &se = find_entity(msg.channel(), found);
 						
-						DBG("node %d // recv transport from %d ack=%d init=%d", radio_->id(), from, msg.is_ack(), msg.initiator());
+						DBG("node %d // recv transport from %d ack=%d init=%d f=%d s=%d", radio_->id(), from, msg.is_ack(), msg.initiator(), msg.flags(), msg.sequence_number());
 						
 						if(!found) {
 							DBG("node %d // transport se not found: %x.%x", radio_->id(), msg.channel().rule(), msg.channel().value());

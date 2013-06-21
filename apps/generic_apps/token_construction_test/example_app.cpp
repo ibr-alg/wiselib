@@ -93,6 +93,7 @@ class ExampleApplication
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 			
 			radio_->enable_radio();
 			
@@ -104,7 +105,7 @@ class ExampleApplication
 			#else
 				ts.init(0, &container, debug_);
 			#endif
-			token_construction_.init(radio_, timer_, clock_, debug_);
+			token_construction_.init(radio_, timer_, clock_, debug_, rand_);
 			
 			#if USE_INQP
 				query_processor_.init(&ts, timer_);
@@ -208,6 +209,7 @@ class ExampleApplication
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
+		Os::Rand::self_pointer_t rand_;
 		
 		TC token_construction_;
 		RuleProcessor rule_processor_;

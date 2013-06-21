@@ -237,7 +237,7 @@ namespace wiselib {
 				is_sending_ = false;
 				
 				if(reg_receiver) {
-					radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+					//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				}
 				return SUCCESS;
 			}
@@ -355,9 +355,11 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("node %d // transport recv chan %x.%x msg.init=%d msg.ack=%d", radio_->id(), msg.channel().rule(), msg.channel().value(), msg.initiator(), msg.is_ack());
+				DBG("node %d // transport recv chan %x.%x msg.init=%d msg.ack=%d msg.s=%d msg.f=%d", radio_->id(), msg.channel().rule(), msg.channel().value(), msg.initiator(), msg.is_ack(), msg.sequence_number(), msg.flags());
 				
-				size_type idx = find_or_create_endpoint(msg.channel(), !msg.initiator(), false);
+				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
+				DBG("node %d // recv idx=%d sending_idx=%d", radio_->id(), idx, sending_channel_idx_);
+				
 				if(idx == npos) {
 					DBG("on_receive: ignoring message of unkonwn channel %x.%x", msg.channel().rule(), msg.channel().value());
 					return;
@@ -418,7 +420,6 @@ namespace wiselib {
 			
 			void receive_close(Endpoint& ep, node_id_t n, Message& msg) {
 				consume_data(ep, msg);
-				send_ack_for(n, msg);
 				ep.close();
 			}
 			
@@ -439,7 +440,7 @@ namespace wiselib {
 				ack_timer_++; // invalidate ack timer
 				
 				ep.increase_sequence_number();
-				if(ep.wants_close() && msg.is_close()) {
+				if(ep.wants_close() /* && msg.is_close() */) {
 					ep.close();
 				}
 			}
@@ -449,12 +450,18 @@ namespace wiselib {
 				ep.set_expect_answer(false);
 				ep.consume(msg);
 				
-				if(!ep.wants_send() || !ep.wants_close()) {
+				if(!ep.wants_send() && !ep.wants_close()) {
+					DBG("node %d // consume_data: sending ack to %d", radio_->id(), ep.remote_address());
 					send_ack_for(ep.remote_address(), msg);
 				}
 			}
 			
-			void send_ack_for(node_id_t to, const Message& msg) {
+			/**
+			 * @param msg reference to message to send an ack for.
+			 *   This method promises not to cahnge anything on msg (in real
+			 *   C++ you would use a const &)
+			 */
+			void send_ack_for(node_id_t to, Message& msg) {
 				Message m;
 				m.set_sequence_number(msg.sequence_number());
 				m.set_channel(msg.channel());
@@ -538,15 +545,16 @@ namespace wiselib {
 					send_start_ = now();
 					
 					int flags = (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0);
+					
 					if(sending_endpoint().wants_open()) {
 						flags |= Message::FLAG_OPEN;
 						sending_endpoint().open();
 					}
-					else {
+					
+					if(sending_endpoint().wants_close()) {
+						flags |= Message::FLAG_CLOSE;
+						sending_endpoint().increase_sequence_number();
 					}
-					
-					if(sending_endpoint().wants_close()) { flags |= Message::FLAG_CLOSE; }
-					
 					
 					sending_.set_channel(sending_endpoint().channel());
 					sending_.set_sequence_number(sending_endpoint().sequence_number());
@@ -556,6 +564,7 @@ namespace wiselib {
 					
 					if(sending_endpoint().wants_send()) {
 						sending_endpoint().increase_sequence_number();
+						sending_.set_sequence_number(sending_endpoint().sequence_number());
 						sending_endpoint().comply_send();
 						bool send = sending_endpoint().produce(sending_);
 						if(!send) {
@@ -576,56 +585,56 @@ namespace wiselib {
 			/**
 			 * When receiving ack, schedule next send.
 			 */
-			void on_receive_ack(node_id_t from, Message& msg) {
-				if(msg.channel() == sending_endpoint().channel() &&
-						msg.initiator() == sending_endpoint().initiator() &&
-						msg.sequence_number() == sending_endpoint().sending_sequence_number()) {
+			//void on_receive_ack(node_id_t from, Message& msg) {
+				//if(msg.channel() == sending_endpoint().channel() &&
+						//msg.initiator() == sending_endpoint().initiator() &&
+						//msg.sequence_number() == sending_endpoint().sending_sequence_number()) {
 					
-					DBG("node %d // on_recv_ack ep.wants_open=%d ep.wants_close=%d ep.init=%d ep.open=%d msg.is_open=%d msg.is_close=%d",
-							radio_->id(),
-							sending_endpoint().wants_open(),
-							sending_endpoint().wants_close(),
-							sending_endpoint().initiator(),
-							sending_endpoint().is_open(), msg.is_open(), msg.is_close());
+					//DBG("node %d // on_recv_ack ep.wants_open=%d ep.wants_close=%d ep.init=%d ep.open=%d msg.is_open=%d msg.is_close=%d",
+							//radio_->id(),
+							//sending_endpoint().wants_open(),
+							//sending_endpoint().wants_close(),
+							//sending_endpoint().initiator(),
+							//sending_endpoint().is_open(), msg.is_open(), msg.is_close());
 					
-					//if(sending_endpoint().wants_open() && !sending_endpoint().is_open()) {
-						//DBG("node %d opening init=%d after first ack", radio_->id(), sending_endpoint().initiator());
-						//sending_endpoint().open();
+					////if(sending_endpoint().wants_open() && !sending_endpoint().is_open()) {
+						////DBG("node %d opening init=%d after first ack", radio_->id(), sending_endpoint().initiator());
+						////sending_endpoint().open();
+					////}
+					
+					//if(!is_sending_) { //sending_endpoint().is_open()) {
+						//DBG("not sending @%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
+							//radio_->id(), from,
+							//sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
+							//msg.channel().rule(), msg.channel().value(),
+							//sending_endpoint().sending_sequence_number(), msg.sequence_number(),
+							//sending_endpoint().initiator(), msg.initiator());
+						//return;
 					//}
 					
-					if(!is_sending_) { //sending_endpoint().is_open()) {
-						DBG("not sending @%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
-							radio_->id(), from,
-							sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
-							msg.channel().rule(), msg.channel().value(),
-							sending_endpoint().sending_sequence_number(), msg.sequence_number(),
-							sending_endpoint().initiator(), msg.initiator());
-						return;
-					}
+					//DBG("@%d recv ack seqnr=%d ack_timer=%d chan=%x.%x/%d", radio_->id(), msg.sequence_number(), ack_timer_,
+							//msg.channel().rule(), msg.channel().value(), msg.initiator());
+					//ack_timer_++; // invalidate running ack timer
+					//sending_endpoint().increase_sending_sequence_number();
 					
-					DBG("@%d recv ack seqnr=%d ack_timer=%d chan=%x.%x/%d", radio_->id(), msg.sequence_number(), ack_timer_,
-							msg.channel().rule(), msg.channel().value(), msg.initiator());
-					ack_timer_++; // invalidate running ack timer
-					sending_endpoint().increase_sending_sequence_number();
+					//if(sending_endpoint().wants_close()) { // && sending_endpoint().is_open()) {
+						//DBG("node %d closing init=%d because done", radio_->id(), sending_endpoint().initiator());
+						//sending_endpoint().close();
+					//}
 					
-					if(sending_endpoint().wants_close()) { // && sending_endpoint().is_open()) {
-						DBG("node %d closing init=%d because done", radio_->id(), sending_endpoint().initiator());
-						sending_endpoint().close();
-					}
-					
-					is_sending_ = false;
-					check_send();
-				}
-				else {
-					DBG("@%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
-							radio_->id(), from,
-							sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
-							msg.channel().rule(), msg.channel().value(),
-							sending_endpoint().sending_sequence_number(), msg.sequence_number(),
-							sending_endpoint().initiator(), msg.initiator());
-					// ignore ack for wrong channel
-				}
-			}
+					//is_sending_ = false;
+					//check_send();
+				//}
+				//else {
+					//DBG("@%d ignoring ack from %d. mychan=%d.%d ackchan=%d.%d myseqnr=%d ackseqnr=%d init=%d ackinit=%d",
+							//radio_->id(), from,
+							//sending_endpoint().channel().rule(), sending_endpoint().channel().value(),
+							//msg.channel().rule(), msg.channel().value(),
+							//sending_endpoint().sending_sequence_number(), msg.sequence_number(),
+							//sending_endpoint().initiator(), msg.initiator());
+					//// ignore ack for wrong channel
+				//}
+			//}
 			
 			/**
 			 * Try sending the current buffer contents
@@ -641,6 +650,7 @@ namespace wiselib {
 					try_send(0);
 				}
 				else {
+					DBG("node %d // try send: not sending empty message!", radio_->id());
 					is_sending_ = false;
 				}
 			}
@@ -653,8 +663,8 @@ namespace wiselib {
 				
 				node_id_t addr = sending_endpoint().remote_address();
 				
-				DBG("@%d try_send to %d acktimer %d seqnr %d chan=%x.%x/%d flags=%d payload=%d delay=%d", radio_->id(), addr, ack_timer_, sending_endpoint().sequence_number(),
-							sending_.channel().rule(), sending_.channel().value(), sending_.initiator(), sending_.flags(), sending_.payload_size(), (int)(now() - send_start_));
+				DBG("@%d try_send to %d acktimer %d seqnr %d chan=%x.%x/%d flags=%d payload=%d delay=%d idx=%d", radio_->id(), addr, ack_timer_, sending_endpoint().sequence_number(),
+							sending_.channel().rule(), sending_.channel().value(), sending_.initiator(), sending_.flags(), sending_.payload_size(), (int)(now() - send_start_), sending_channel_idx_);
 				
 				if(addr != radio_->id() && addr != NULL_NODE_ID) {
 					sending_.set_delay(now() - send_start_);
