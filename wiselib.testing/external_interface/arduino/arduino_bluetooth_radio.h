@@ -145,6 +145,7 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoBluetoothRadio<OsModel_P>::connect_radio(size_t mode = 0)
    {
+	id_ = mode;
 	Bluetooth_t Bluetooth_(rxd_,txd_);
 	Bluetooth_.begin(baud_rate_); //Set BluetoothBee BaudRate to default baud rate 38400
 	if(mode = 1)
