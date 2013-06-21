@@ -138,8 +138,6 @@ namespace wiselib
 			if( fragmentation_flag() == 1 )
 				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
 			
-			//TODO checksum?
-			
 			length = in_length;
 		}
 		
@@ -159,7 +157,7 @@ namespace wiselib
 			DPS_TYPE_RPC_REQUEST = 10,
 			DPS_TYPE_RPC_RESPONSE = 11,
 			DPS_TYPE_RPC_ACK = 12,
-			DPS_TYPE_HARTBEAT = 13
+			DPS_TYPE_HEARTBEAT = 13
 		};
 		
 		enum DPS_Header_Sizes
