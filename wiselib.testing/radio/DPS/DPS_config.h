@@ -54,4 +54,8 @@
 	#define DPS_WAIT_FOR_MORE_ADVERTISEMENTS_TIMEOUT 500
 #endif
 
+#define DPS_IPv6
+// #define DPS_IPv6_STUB //Client
+// #define DPS_IPv6_SKELETON //Server
+
 #endif

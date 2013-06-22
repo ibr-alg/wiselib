@@ -36,8 +36,6 @@
 #include "radio/DPS/DPS_config.h"
 #include "radio/DPS/DPS_packet.h"
 
-
-
 namespace wiselib
 {
 	/**
@@ -135,15 +133,21 @@ namespace wiselib
 	/**
 	* \brief 
 	*/
+	template<typename Radio_P>
 	class DPS_node_id_type
 	{
-	public:
+		public:
+		typedef Radio_P Radio;
+		typedef typename Radio::node_id_t node_id_t;
+		
 		DPS_node_id_type()
-		: Pid( 0 ),
+		: target_address( 0 ),
+		Pid( 0 ),
 		Fid( 0 ),
 		ack_required( 0 )
 		{}
 		
+		node_id_t target_address;
 		uint8_t Pid;
 		uint8_t Fid;
 		uint8_t ack_required;
@@ -161,7 +165,7 @@ namespace wiselib
 	class Protocol_t
 	{
 		typedef Radio_P Radio;
-		typedef DPS_node_id_type node_id_t;
+		typedef DPS_node_id_type<Radio> node_id_t;
 		typedef typename Radio::block_data_t block_data_t;
 		
 	public:
@@ -206,7 +210,7 @@ namespace wiselib
 	class buffer_list_type
 	{
 		typedef Radio_P Radio;
-		typedef DPS_node_id_type node_id_t;
+		typedef DPS_node_id_type<Radio> node_id_t;
 		typedef Connection_list_iterator_P Connection_list_iterator;
 		typedef typename Radio::block_data_t block_data_t;
 		
@@ -292,7 +296,7 @@ namespace wiselib
 		typedef typename Radio::ExtendedData ExtendedData;
 		
 		//node_id_t as a triplet: P_id, F_id, ack_flag
-		typedef DPS_node_id_type node_id_t;
+		typedef DPS_node_id_type<Radio> node_id_t;
 		
 		typedef Protocol_t<Radio> protocol_type;
 		typedef wiselib::pair<uint8_t, protocol_type> newprotocol_t;
@@ -321,7 +325,7 @@ namespace wiselib
 			ERR_UNSPEC = OsModel::ERR_UNSPEC,
 			ERR_NOTIMPL = OsModel::ERR_NOTIMPL,
 			ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH,
-			NO_CONNECTION = 100
+			NO_CONNECTION = 101
 		};
 		// --------------------------------------------------------------------
 		
@@ -787,26 +791,32 @@ namespace wiselib
 		{
 			if( it->Pid == destination.Pid && it->connection_status == connection_type::CONNECTED )
 			{
-				if( buffer_list_.size() == DPS_MAX_BUFFER_LIST )
+				//If the destination is specified, then it should match as well
+				//Usecase: server --> client
+				if( NULL_NODE_ID == destination.target_address || 
+					it->partner_MAC == destination.target_address )
 				{
-					#if DPS_RADIO_DEBUG >= 0
-					debug().debug( "DPS fatal: buffer list is full!" );
-					#endif
-					return ERR_UNSPEC;
+					if( buffer_list_.size() == DPS_MAX_BUFFER_LIST )
+					{
+						#if DPS_RADIO_DEBUG >= 0
+						debug().debug( "DPS fatal: buffer list is full!" );
+						#endif
+						return ERR_UNSPEC;
+					}
+					
+					buffer_element_t new_buffer;
+					new_buffer.buffer_length = length;
+					new_buffer.buffer_pointer = data;
+					new_buffer.RPC_parameters = destination;
+					new_buffer.connection_it = it;
+					new_buffer.outgoing = true;
+					
+					Buffer_list_iterator act_buffer = buffer_list_.insert( new_buffer );
+					
+					send_RPC( act_buffer );
+					
+					return SUCCESS;
 				}
-				
-				buffer_element_t new_buffer;
-				new_buffer.buffer_length = length;
-				new_buffer.buffer_pointer = data;
-				new_buffer.RPC_parameters = destination;
-				new_buffer.connection_it = it;
-				new_buffer.outgoing = true;
-				
-				Buffer_list_iterator act_buffer = buffer_list_.insert( new_buffer );
-				
-				send_RPC( act_buffer );
-				
-				return SUCCESS;
 			}
 		}
 		return NO_CONNECTION;
@@ -1255,6 +1265,13 @@ namespace wiselib
 					#endif
 					
 					send_connection_message( from, DPS_Packet_t::DPS_TYPE_CONNECT_FINISH, it );
+					
+					//Call back the handler because of the new connection
+					node_id_t tmp;
+					tmp.Pid = it->Pid;
+					tmp.Fid = 0; //Fixed value for new connection callback
+					tmp.target_address = from;
+					(protocol_list_[packet.pid()].rpc_handler_delegate)( tmp, 0, NULL );
 				}
 				else if( type == DPS_Packet_t::DPS_TYPE_CONNECT_FINISH ) //SERVER SIDE
 				{
@@ -1264,6 +1281,13 @@ namespace wiselib
 					debug().debug( "DPS: Server (%llx) connected to %llx, protocol: %i", (long long unsigned)(radio().id()), (long long unsigned)(from), it->Pid);
 					debug().debug( "DPS parameters CNT_c: %llx, CNT_s: %llx, nonce: %llx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
 					#endif
+					
+					//Call back the handler because of the new connection
+					node_id_t tmp;
+					tmp.Pid = it->Pid;
+					tmp.Fid = 0; //Fixed value for new connection callback
+					tmp.target_address = from;
+					(protocol_list_[packet.pid()].rpc_handler_delegate)( tmp, 0, NULL );
 				}
 				//DPS_Packet_t::DPS_TYPE_CONNECT_ABORT + the non-implemented DISCONNECT messages
 				else if ( type <= DPS_Packet_t::DPS_TYPE_DISCONNECT_FINISH )
