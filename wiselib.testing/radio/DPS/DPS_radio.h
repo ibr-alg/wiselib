@@ -317,6 +317,12 @@ namespace wiselib
 		{
 			TEST_PID = 10
 		};
+		
+		enum callback_values
+		{
+			NEW_CONNECTION = 254,
+			DELETE_CONNECTION = 255
+		};
 
 		// --------------------------------------------------------------------
 		enum ErrorCodes
@@ -410,7 +416,7 @@ namespace wiselib
 			protocol_list_.push_back(newprotocol);
 			
 			#if DPS_RADIO_DEBUG >= 1
-			debug().debug( "DPS: RPC handler registration for %i at %llx as %x", Pid, (long long unsigned)(radio().id()), server);
+			debug().debug( "DPS: Reg %i C/S: %x", Pid, server);
 			#endif
 			
 			//Start the DISCOVERY if it is a client
@@ -426,7 +432,7 @@ namespace wiselib
 				if( it == connection_list_.end() )
 				{
 					#if DPS_RADIO_DEBUG >= 0
-					debug().debug("DPS: Error, connection list is full");
+					debug().debug("DPS: ConnLFull");
 					#endif
 					return ERR_UNSPEC;
 				}
@@ -589,8 +595,8 @@ namespace wiselib
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
 	enable_radio( void )
 	{
-		#if DPS_RADIO_DEBUG >= 1
-		debug().debug( "DPS Radio: initialization at %llx", (long long unsigned)(radio().id()) );
+		#if DPS_RADIO_DEBUG >= 2
+		debug().debug( "DPS init" );
 		#endif
 		
 		radio().enable_radio();
@@ -621,9 +627,9 @@ namespace wiselib
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
 	disable_radio( void )
 	{
-		#if DPS_RADIO_DEBUG >= 1
-		debug().debug( "DPS Radio: Disable" );
-		#endif
+// 		#if DPS_RADIO_DEBUG >= 1
+// 		debug().debug( "DPS Radio: Disable" );
+// 		#endif
 		
 		if( radio().disable_radio() != SUCCESS )
 			return ERR_UNSPEC;
@@ -746,7 +752,7 @@ namespace wiselib
 		else
 		{
 			#if DPS_RADIO_DEBUG >= 0
-			debug().debug( "DPS: Error, unsupported type code for connection message");
+			debug().debug( "DPS: UnknownTypeCode");
 			#endif
 			return ERR_UNSPEC;
 		}
@@ -760,7 +766,8 @@ namespace wiselib
 		
 		
 		#if DPS_RADIO_DEBUG >= 2
-		debug().debug( "DPS: send from %llx to %llx, packet type: %i", (long long unsigned)(radio().id()), (long long unsigned)(destination), type);
+		debug().debug( "DPS: send to %llx, T: %i", (long long unsigned)(destination), type);
+// 		debug().debug( "DPS: send from %llx to %llx, packet type: %i", (long long unsigned)(radio().id()), (long long unsigned)(destination), type);
 		#endif
 		
 // 		packet.set_debug( *debug_ );
@@ -799,7 +806,7 @@ namespace wiselib
 					if( buffer_list_.size() == DPS_MAX_BUFFER_LIST )
 					{
 						#if DPS_RADIO_DEBUG >= 0
-						debug().debug( "DPS fatal: buffer list is full!" );
+						debug().debug( "DPS BuffLFull" );
 						#endif
 						return ERR_UNSPEC;
 					}
@@ -891,9 +898,11 @@ namespace wiselib
 			
 			#if DPS_RADIO_DEBUG >= 2
 			if( fragmentation )
-				debug().debug( "DPS: send RPC fragment (%i/%i) from %llx to %llx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+				debug().debug( "DPS: send RPC frag (%i/%i) to %llx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+// 				debug().debug( "DPS: send RPC frag (%i/%i) from %llx to %llx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
 			else
-				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+				debug().debug( "DPS: send RPC to %llx (%i/%i)", (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+// 				debug().debug( "DPS: send RPC from %llx to %llx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
 			#endif
 			
 			//Send the (fragment)
@@ -954,7 +963,8 @@ namespace wiselib
 // 		packet.print_header();
 		
 		#if DPS_RADIO_DEBUG >= 2
-		debug().debug( "DPS: Node %llx received from %llx, packet type: %i ", (long long unsigned)(radio().id()), (long long unsigned)(from), type);
+		debug().debug( "DPS: Rec from %llx, T: %i ", (long long unsigned)(from), type);
+// 		debug().debug( "DPS: Node %llx received from %llx, packet type: %i ", (long long unsigned)(radio().id()), (long long unsigned)(from), type);
 		#endif
 		
 		//Handled in a different way since there is no connection in the list for this
@@ -965,7 +975,7 @@ namespace wiselib
 			if( !(packet.validate_checksum( connection_list_.end(), true )) )
 			{
 				#if DPS_RADIO_DEBUG >= 0
-				debug().debug( "DPS: checksum error in DISCOVERY packet" );
+				debug().debug( "DPS CHKErr" );
 				#endif
 				return;
 			}
@@ -985,7 +995,7 @@ namespace wiselib
 				if( connection_list_.size() == DPS_MAX_CONNECTIONS )
 				{
 					#if DPS_RADIO_DEBUG >= 0
-					debug().debug("DPS: Error, connection list is full");
+					debug().debug("DPS ConnLFull");
 					#endif
 					return;
 				}
@@ -1040,7 +1050,8 @@ namespace wiselib
 				else
 				{
 					#if DPS_RADIO_DEBUG >= 0
-					debug().debug( "DPS: packet dropped (incorrect counter) from: %llx type: %i S: %llx C: %llx P: %llx", (long long unsigned)(from), type, (long long unsigned)(it->server_counter), (long long unsigned)(it->client_counter), (long long unsigned)(packet.counter()) );
+					debug().debug( "DPS CNTErr " );
+// 					debug().debug( "DPS: packet dropped (incorrect counter) from: %llx type: %i S: %llx C: %llx P: %llx", (long long unsigned)(from), type, (long long unsigned)(it->server_counter), (long long unsigned)(it->client_counter), (long long unsigned)(packet.counter()) );
 					#endif
 					return;
 				}
@@ -1065,7 +1076,7 @@ namespace wiselib
 				if( !(packet.validate_checksum( it, type == DPS_Packet_t::DPS_TYPE_ADVERTISE )) )
 				{
 					#if DPS_RADIO_DEBUG >= 0
-					debug().debug( "DPS: packet dropped (checksum error)" );
+					debug().debug( "DPS CHKErr" );
 					#endif
 					
 					//If there is a problem in a connection message, drop the connection
@@ -1096,8 +1107,8 @@ namespace wiselib
 							}
 							else
 							{
-									#if DPS_RADIO_DEBUG >= 0
-									debug().debug( "DPS: packet dropped (dupliated ACK)");
+									#if DPS_RADIO_DEBUG >= 1
+									debug().debug( "DPS DuplAck");
 									#endif
 									return;
 							}
@@ -1143,7 +1154,7 @@ namespace wiselib
 						if( buffer_list_.size() == DPS_MAX_BUFFER_LIST )
 						{
 							#if DPS_RADIO_DEBUG >= 0
-							debug().debug( "DPS fatal: buffer list is full!" );
+							debug().debug( "DPS BuffLFull" );
 							#endif
 							return;
 						}
@@ -1174,10 +1185,13 @@ namespace wiselib
 					//Copy the content of the actual DPS packet
 					//The extra validation is to avoid the copy of a duplicated fragment. These cannot be dropped (return) before
 					//this since the reason can be the lost ACK and it must be repeated but that mechanism uses the same packet.
+					bool DF_drop = false; //reduce the number of if-s
 					if( packet.fragmentation_flag() == 1 )
 					{
 						if( act_buffer->processed_size == packet.fragmentation_header_shift() )
 							memcpy( act_buffer->buffer_pointer + packet.fragmentation_header_shift(), packet.buffer + packet.payload_position, actual_payload_length );
+						else
+							DF_drop = true;
 					}
 					else
 					{
@@ -1196,10 +1210,11 @@ namespace wiselib
 						radio().send( it->partner_MAC, packet.length, packet.buffer );
 					}
 					
-					if( act_buffer->processed_size != packet.fragmentation_header_shift() )
+					if( DF_drop )
 					{
 						#if DPS_RADIO_DEBUG >= 0
-						debug().debug( "DPS duplicated fragment %i %i!", act_buffer->processed_size, packet.fragmentation_header_shift() );
+						debug().debug( "DPS: DF");
+// 						debug().debug( "DPS duplicated fragment %i %i!", act_buffer->processed_size, packet.fragmentation_header_shift() );
 						#endif
 						return;
 					}
@@ -1261,7 +1276,7 @@ namespace wiselib
 					
 					#if DPS_RADIO_DEBUG >= 1
 					debug().debug( "DPS: Client (%llx) connected to %llx, protocol: %i", (long long unsigned)(radio().id()), (long long unsigned)(from), it->Pid);
-					debug().debug( "DPS parameters CNT_c: %llx, CNT_s: %llx, nonce: %llx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
+					debug().debug( "DPS CNT_c: %llx, CNT_s: %llx, nonce: %llx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
 					#endif
 					
 					send_connection_message( from, DPS_Packet_t::DPS_TYPE_CONNECT_FINISH, it );
@@ -1269,7 +1284,7 @@ namespace wiselib
 					//Call back the handler because of the new connection
 					node_id_t tmp;
 					tmp.Pid = it->Pid;
-					tmp.Fid = 0; //Fixed value for new connection callback
+					tmp.Fid = NEW_CONNECTION;
 					tmp.target_address = from;
 					(protocol_list_[packet.pid()].rpc_handler_delegate)( tmp, 0, NULL );
 				}
@@ -1279,13 +1294,13 @@ namespace wiselib
 					
 					#if DPS_RADIO_DEBUG >= 1
 					debug().debug( "DPS: Server (%llx) connected to %llx, protocol: %i", (long long unsigned)(radio().id()), (long long unsigned)(from), it->Pid);
-					debug().debug( "DPS parameters CNT_c: %llx, CNT_s: %llx, nonce: %llx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
+					debug().debug( "DPS CNT_c: %llx, CNT_s: %llx, nonce: %llx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
 					#endif
 					
 					//Call back the handler because of the new connection
 					node_id_t tmp;
 					tmp.Pid = it->Pid;
-					tmp.Fid = 0; //Fixed value for new connection callback
+					tmp.Fid = NEW_CONNECTION;
 					tmp.target_address = from;
 					(protocol_list_[packet.pid()].rpc_handler_delegate)( tmp, 0, NULL );
 				}
@@ -1298,7 +1313,8 @@ namespace wiselib
 			}
 		}
 		#if DPS_RADIO_DEBUG >= 0
-		debug().debug( "DPS: Error, (%llx) received message from %llx without matching conn. entry!", (long long unsigned)(radio().id()), (long long unsigned)(from));
+		debug().debug( "DPS MsgNoConn" );
+// 		debug().debug( "DPS: Error, (%llx) received from %llx, no conn!", (long long unsigned)(radio().id()), (long long unsigned)(from));
 		#endif
 	}
 	
@@ -1366,10 +1382,17 @@ namespace wiselib
 					if( it->last_received_timer >= DPS_DELETE_CONNECTION_THRESHOLD )
 					{
 						#if DPS_RADIO_DEBUG >= 0
-						debug().debug( "DPS: remove client at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
+						debug().debug( "DPS: rm client (%llx/%i)", (long long unsigned)(it->partner_MAC), it->Pid);
 						#endif
 						
 						//TODO check for buffer in use!
+						
+// 						//Call back the handler because of the died connection
+						node_id_t tmp;
+						tmp.Pid = it->Pid;
+						tmp.Fid = DELETE_CONNECTION;
+						tmp.target_address = it->partner_MAC;
+						(protocol_list_[it->Pid].rpc_handler_delegate)( tmp, 0, NULL );
 						
 						connection_list_.erase( it );
 						
@@ -1385,10 +1408,17 @@ namespace wiselib
 					if( it->last_received_timer >= DPS_DELETE_CONNECTION_THRESHOLD )
 					{
 						#if DPS_RADIO_DEBUG >= 0
-						debug().debug( "DPS: reDISCOVERY at (%llx) for %i", (long long unsigned)(radio().id()), it->Pid);
+						debug().debug( "DPS: reDISC (%llx/%i)", (long long unsigned)(it->partner_MAC), it->Pid);
 						#endif
 						
 						//TODO check for buffer in use!
+						
+// 						//Call back the handler because of the died connection
+						node_id_t node;
+						node.Pid = it->Pid;
+						node.Fid = DELETE_CONNECTION;
+						node.target_address = it->partner_MAC;
+						(protocol_list_[it->Pid].rpc_handler_delegate)( node, 0, NULL );
 						
 						it->connection_status = connection_type::SENDING_DISCOVERY;
 						it->client_counter = rand()() % (0xFFFFFFFF);
@@ -1426,7 +1456,7 @@ namespace wiselib
 				buffer_list_.erase( it );
 				
 				#if DPS_RADIO_DEBUG >= 0
-				debug().debug( "DPS: Timeout remove buffer");
+				debug().debug( "DPS: Timeout rm buffer");
 				#endif
 				
 				//Break the loop if this was the only element
