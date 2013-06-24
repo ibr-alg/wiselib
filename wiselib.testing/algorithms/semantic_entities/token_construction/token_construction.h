@@ -106,10 +106,9 @@ namespace wiselib {
 			
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularBroadcasts;
-			
 			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand> RingTransport;
-			
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
+			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			
 			enum MessageTypes {
 				MESSAGE_TYPE_STATE = StateMessageT::MESSAGE_TYPE,
@@ -190,7 +189,7 @@ namespace wiselib {
 				// }}}
 			};
 			
-			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug, typename Rand::self_pointer_t rand) {
+			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug, typename Rand::self_pointer_t rand, typename TupleStore::self_pointer_t ts) {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
@@ -200,10 +199,18 @@ namespace wiselib {
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				ring_transport_.init(radio_, timer_, clock_, rand, false);
 				
+				aggregator_.init(ts);
+				
+				end_activity_callback_ = end_activity_callback_t();
+				
 				// keep node alive for debugging
 				//push_caffeine();
 				caffeine_level_ = 0;
 				on_regular_broadcast_state();
+			}
+			
+			void set_end_activity_callback(end_activity_callback_t cb) {
+				end_activity_callback_ = cb;
 			}
 			
 			void add_entity(const SemanticEntityId& id) {
@@ -430,6 +437,7 @@ namespace wiselib {
 						bool call_again;
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
+						DBG("node %d // send aggr start payload size %d", radio_->id(), (int)sz);
 						if(call_again) {
 							DBG("node %d // more aggregate packets will follow!", radio_->id());
 							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
@@ -438,13 +446,13 @@ namespace wiselib {
 						else {
 							DBG("node %d // done with aggregates, requesting close", radio_->id());
 							endpoint.request_close();
-							return false;
 							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
 						return true;
 					}
 				
 					case SemanticEntityT::SEND_AGGREGATES: {
+						DBG("node %d // send aggr", radio_->id());
 						bool call_again;
 						size_type sz = aggregator_.fill_buffer(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
@@ -625,6 +633,7 @@ namespace wiselib {
 					}
 					
 					case SemanticEntityT::RECV_AGGREGATES: {
+						DBG("node %d // aggr read_buffer", radio_->id());
 						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
@@ -978,7 +987,9 @@ namespace wiselib {
 				if(!se.in_activity_phase()) { return; }
 				se.end_activity_phase();
 				
-				//bool got_token = se.got_token();
+				if(end_activity_callback_) {
+					end_activity_callback_(se, aggregator_);
+				}
 				
 				// we can not assert the below as begin_activity() might have
 				// been called at initialization for keeping us awake at the
@@ -1130,6 +1141,7 @@ namespace wiselib {
 			RegularBroadcasts regular_broadcasts_;
 			
 			SemanticEntityAggregatorT aggregator_;
+			end_activity_callback_t end_activity_callback_;
 			
 			///@{ Token Handover Stuff
 			

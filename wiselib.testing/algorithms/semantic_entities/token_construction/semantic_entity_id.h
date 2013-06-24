@@ -47,6 +47,11 @@ namespace wiselib {
 			bool operator==(const SemanticEntityId& other) const {
 				return value_ == other.value_ && rule_ == other.rule_;
 			}
+			
+			bool operator!=(const SemanticEntityId& other) const {
+				return !(*this == other);
+			}
+			
 			bool operator<(const SemanticEntityId& other) const {
 				return rule_ < other.rule_ || (rule_ == other.rule_ && value_ < other.value_);
 			}

@@ -68,6 +68,11 @@ namespace wiselib {
 					AggregationKey() : uom_key_(DictionaryT::NULL_KEY), type_key_(DictionaryT::NULL_KEY) {
 					}
 					
+					AggregationKey(const SemanticEntityId& se_id, typename DictionaryT::key_type sensor_type,
+							typename DictionaryT::key_type uom, ::uint8_t datatype) :
+						se_id_(se_id), datatype_(datatype), uom_key_(uom), type_key_(sensor_type) {
+					}
+					
 					bool operator==(const AggregationKey& other) const {
 						return (se_id_ == other.se_id_) &&
 							(datatype_ == other.datatype_) &&
@@ -111,12 +116,14 @@ namespace wiselib {
 					}
 					
 					void init(Value v) {
-						count_ = 1;
-						min_ = max_ = mean_ = v;
+						total_count_ = count_ = 1;
+						total_min_ = total_max_ = total_mean_ = min_ = max_ = mean_ = v;
 					}
 					
 					void aggregate(Value v, ::uint8_t datatype) {
-						assert(count_ > 0);
+						DBG("aggr %ld before %2d/%2d/%2d",
+								(long)v, (int)min_, (int)max_, (int)mean_);
+						
 						if(datatype == INTEGER) {
 							if(v < min_) { min_ = v; }
 							if(v > max_) { max_ = v; }
@@ -126,6 +133,9 @@ namespace wiselib {
 						else {
 							assert(false && "not supported!");
 						}
+						
+						DBG("aggr %ld after %2d/%2d/%2d",
+								(long)v, (int)min_, (int)max_, (int)mean_);
 					}
 					
 					Value& count() { return count_; }
@@ -146,6 +156,15 @@ namespace wiselib {
 					Value& total_mean() { return total_mean_; }
 					void set_total_mean(Value& x) { total_mean_ = x; }
 					
+					void set_totals() {
+						total_count_ = count_;
+						total_min_ = min_;
+						total_max_ = max_;
+						total_mean_ = mean_;
+						
+						count_ = min_ = max_ = mean_ = 0;
+					}
+					
 				private:
 					Value count_, min_, max_, mean_;
 					Value total_count_, total_min_, total_max_, total_mean_;
@@ -159,55 +178,41 @@ namespace wiselib {
 		
 		public:
 			typedef MapStaticVector<OsModel, AggregationKey, AggregationValue, MAX_ENTRIES> AggregationEntries;
+			typedef typename AggregationEntries::iterator iterator;
 			
-			void init(typename TupleStoreT::self_pointer_t ts, const char* entity_format) {
+			void init(typename TupleStoreT::self_pointer_t ts) { //, const char* entity_format) {
 				tuple_store_ = ts;
-				entity_format_ = entity_format;
+				//entity_format_ = entity_format;
 			}
 			
 			void aggregate(const SemanticEntityId& se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
 				AggregationKey k(se_id, sensor_type, uom, datatype);
 				if(aggregation_entries_.contains(k)) {
 					AggregationValue& v = aggregation_entries_[k];
-					v.aggregate(value);
+					v.aggregate(value, datatype);
 				}
 				else {
-					aggregation_entries_[k].set(value);
-				}
-			}
-			
-			/**
-			 */
-			void update_to_tuplestore() {
-				// TODO
-				// 
-				// clean up all SE entries (need RDFP for that?)
-				// for all entries:
-				//   transform into statements, insert
-				
-				/*
-				char entity_uri[MAX_STRING_LENGTH];
-				
-				for(typename AggregationEntries::iterator iter = aggregation_entries_.begin(); iter != aggregation_entries_.end(); ++iter) {
-					Tuple t;
+					//DBG("k not found, contains:");
+					//for(iterator iter=begin(); iter!=end(); ++iter) {
+						//DBG("contains %d.%08lx
 					
-					tuple_store_.insert(t);
+					aggregation_entries_[k].init(value);
 				}
-				*/
 			}
 			
 			/**
+			 * For the given SE, move the current aggregation values to the
+			 * total values, then reset the current values to 0.
 			 */
-			//void process(SemanticEntityAggregationMessageT& msg) {
-				// TODO
-				// for all infoblocks in msg:
-				//   find matching entry
-				//   if found:
-				//     update
-				//   else if not full:
-				//     create new
-			//}
+			void set_totals(const SemanticEntityId& se_id) {
+				for(iterator iter = begin(); iter != end(); ++iter) {
+					if(iter->first.se_id() != se_id) { continue; }
+					iter->second.set_totals();
+				}
+			}
 			
+			iterator begin() { return aggregation_entries_.begin(); }
+			iterator end() { return aggregation_entries_.end(); }
 			
 			/**
 			 * @param call_again set to true if not all data has been written
@@ -322,10 +327,15 @@ namespace wiselib {
 				size_type data_size;
 				typename Shdt::field_id_t field_id;
 				
+				DBG("aggr this is read_buffer buffer_size=%d", buffer_size);
+				
 				while(!reader.done()) {
 					done = reader.read_field(field_id, data, data_size);
+					DBG("aggr read_buffer done=%d", done);
+					
 					Value& v = reinterpret_cast<Value&>(*data);
 					if(!done) { break; }
+					DBG("aggr read_buffer field id %d", field_id);
 					switch(field_id) {
 						case FIELD_UOM: {
 							typename DictionaryT::key_type k = dictionary().insert(data);

@@ -105,7 +105,10 @@ class ExampleApplication
 			#else
 				ts.init(0, &container, debug_);
 			#endif
-			token_construction_.init(radio_, timer_, clock_, debug_, rand_);
+			token_construction_.init(radio_, timer_, clock_, debug_, rand_, &ts);
+			token_construction_.set_end_activity_callback(
+				TC::end_activity_callback_t::from_method<ExampleApplication, &ExampleApplication::on_end_activity>(this)
+			);
 			
 			#if USE_INQP
 				query_processor_.init(&ts, timer_);
@@ -113,6 +116,16 @@ class ExampleApplication
 			#else
 				rule_processor_.init(&ts, &token_construction_);
 			#endif
+				
+			
+			// Insert some URIs we need for generating aggregation info into
+			// the dictionary
+			
+			aggr_key_temp_ = dictionary.insert((uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
+			aggr_key_centigrade_ = dictionary.insert((uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
+			
+			// end aggregation URIs
+			
 			
 			initial_semantics(ts, radio_->id()); // included from semantics_XXX.h
 			create_rules();
@@ -161,41 +174,25 @@ class ExampleApplication
 			}
 		#endif
 		
-		/*
+		typedef TC::SemanticEntityAggregatorT Aggregator;
 		
-		#pragma GCC diagnostic push
-		#pragma GCC diagnostic ignored "-Wwrite-strings"
-		void init_ts() {
-			dictionary.init(debug_);
-			ts.init(&dictionary, &container, debug_);
+		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
+			if(radio_->id() == se.root()) {
+				debug_->debug("node %d // aggr setting totals", radio_->id());
+				aggregator.set_totals(se.id());
+			}
 			
-			if(radio_->id() & 0x01) { ins(ts, "node", "foi", "f0"); }
-			if((radio_->id() >> 1) & 0x01) { ins(ts, "node", "foi", "f1"); }
-			if((radio_->id() >> 2) & 0x01) { ins(ts, "node", "foi", "f2"); }
-			if((radio_->id() >> 3) & 0x01) { ins(ts, "node", "foi", "f3"); }
-		}
-		#pragma GCC diagnostic pop
-		
-		void init_tc() {
-			token_construction_.init(radio_, timer_, clock_, debug_);
+			debug_->debug("node %d // aggr local value", radio_->id());
+			aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
 			
-			for(size_t i = 0; i < 4; i++) {
-				if((radio_->id() >> i) & 0x01) {
-					token_construction_.add_entity(SemanticEntityId(1, i));
-				}
+			for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
+				debug_->debug("node %d // aggr SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+						(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
+						(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
+						(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
+						(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
 			}
 		}
-		
-		void hashes() {
-			typedef Fnv32<Os> Hash;
-			const char *strings[] = {
-				"A", "measures", "m1", "m2", "has_value", "12", "14"
-			};
-			for(const char **s = strings; *s; s++) {
-				DBG("%-20s %08x", *s, Hash::hash((block_data_t*)*s, strlen(*s)));
-			}
-		}
-		*/
 		
 		#if USE_DICTIONARY
 			Dictionary dictionary;
@@ -216,6 +213,11 @@ class ExampleApplication
 		
 		#if USE_INQP
 			QueryProcessor query_processor_;
+		#endif
+			
+		#if USE_DICTIONARY
+			Dictionary::key_type aggr_key_temp_;
+			Dictionary::key_type aggr_key_centigrade_;
 		#endif
 		
 	#endif // not def CODESIZE_EMPTY
