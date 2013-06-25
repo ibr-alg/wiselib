@@ -124,6 +124,9 @@ class ExampleApplication
 			aggr_key_temp_ = dictionary.insert((uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
 			aggr_key_centigrade_ = dictionary.insert((uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
 			
+			debug_->debug("node %d // temp=%8lx centigrate=%8lx", (int)radio_->id(),
+					(long)aggr_key_temp_, (long)aggr_key_centigrade_);
+			
 			// end aggregation URIs
 			
 			
@@ -185,6 +188,7 @@ class ExampleApplication
 			debug_->debug("node %d // aggr local value", radio_->id());
 			aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
 			
+			debug_->debug("node %d // aggr begin list", radio_->id());
 			for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
 				debug_->debug("node %d // aggr SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
 						(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
@@ -192,6 +196,7 @@ class ExampleApplication
 						(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
 						(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
 			}
+			debug_->debug("node %d // aggr end list", radio_->id());
 		}
 		
 		#if USE_DICTIONARY

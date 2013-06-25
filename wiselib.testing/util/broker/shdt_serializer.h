@@ -472,9 +472,7 @@ namespace wiselib {
 			Instruction read_instruction(block_data_t*& buffer, block_data_t* buffer_end) {
 				Instruction in;
 				
-				DBG("read instruction start buf=%p", buffer);
 				read(buffer, buffer_end, in.index(0));
-				DBG("read instruction buf=%p", buffer);
 				if(in.index(0) != nidx) {
 					// tuple mode
 					in.instruction() = CMD_TUPLE;
@@ -494,25 +492,17 @@ namespace wiselib {
 						}
 							
 						case CMD_INSERT:
-							DBG("read instruction ins buf=%p", buffer);
 							read(buffer, buffer_end, in.index());
-							DBG("read instruction ins 1 buf=%p", buffer);
 							read(buffer, buffer_end, in.data_size());
-							DBG("read instruction ins 2 buf=%p", buffer);
 							in.data() = buffer;
 							buffer += in.data_size();
-							DBG("read instruction ins 3 buf=%p", buffer);
 							break;
 							
 						case CMD_VALUE:
-							DBG("read instruction val 1 buf=%p", buffer);
 							read(buffer, buffer_end, in.field_id());
-							DBG("read instruction val 2 buf=%p", buffer);
 							read(buffer, buffer_end, in.data_size());
-							DBG("read instruction val 3 buf=%p fs=%d", buffer, in.data_size());
 							in.data() = buffer;
 							buffer += in.data_size();
-							DBG("read instruction val 4 buf=%p", buffer);
 							break;
 							
 						case CMD_CAT:
@@ -581,7 +571,7 @@ namespace wiselib {
 				memcpy(d + sizeof(sz_t), data, data_size);
 				
 				
-				DBG("[%d] := %s (%d)", id, (char*)(d + sizeof(sz_t)), (int)d[0]);
+				//DBG("[%d] := %s (%d)", id, (char*)(d + sizeof(sz_t)), (int)d[0]);
 			}
 			
 			block_data_t* get_table(table_id_t id, size_type& sz) {

@@ -115,27 +115,34 @@ namespace wiselib {
 					AggregationValue() : count_(0) {
 					}
 					
-					void init(Value v) {
-						total_count_ = count_ = 1;
-						total_min_ = total_max_ = total_mean_ = min_ = max_ = mean_ = v;
+					void init(Value v, bool with_totals = true) {
+						count_ = 1;
+						min_ = max_ = mean_ = v;
+						
+						if(with_totals) {
+							total_count_ = 1;
+							total_min_ = total_max_ = total_mean_ = v;
+						}
 					}
 					
 					void aggregate(Value v, ::uint8_t datatype) {
-						DBG("aggr %ld before %2d/%2d/%2d",
-								(long)v, (int)min_, (int)max_, (int)mean_);
-						
-						if(datatype == INTEGER) {
-							if(v < min_) { min_ = v; }
-							if(v > max_) { max_ = v; }
-							++count_;
-							mean_ += (v - mean_) / count_;
+						//DBG("aggr %ld before %2d/%2d/%2d", (long)v, (int)min_, (int)max_, (int)mean_);
+						if(count_ == 0) {
+							init(v, false);
 						}
 						else {
-							assert(false && "not supported!");
+							if(datatype == INTEGER) {
+								if(v < min_) { min_ = v; }
+								if(v > max_) { max_ = v; }
+								++count_;
+								mean_ += (v - mean_) / count_;
+							}
+							else {
+								assert(false && "datatype not supported for aggregation!");
+							}
 						}
 						
-						DBG("aggr %ld after %2d/%2d/%2d",
-								(long)v, (int)min_, (int)max_, (int)mean_);
+						//DBG("aggr %ld after %2d/%2d/%2d", (long)v, (int)min_, (int)max_, (int)mean_);
 					}
 					
 					Value& count() { return count_; }
@@ -196,7 +203,7 @@ namespace wiselib {
 					//for(iterator iter=begin(); iter!=end(); ++iter) {
 						//DBG("contains %d.%08lx
 					
-					aggregation_entries_[k].init(value);
+					aggregation_entries_[k].init(value, true);
 				}
 			}
 			
@@ -234,77 +241,84 @@ namespace wiselib {
 					return 0;
 				}
 				
-				call_again = false;
+				call_again = true;
 				block_data_t *buf = buffer, *buf_end = buffer + buffer_size;
-				bool run = true;
+				bool ca = false;
 				
-				while(!call_again && buf_end - buf && run) {
+				/*
+				 * loop writes data as long all this is true:
+				 * - we have not written the last entry yet (call_again is true)
+				 * - we did not just have a field write aborted (child
+				 *   communicated call_again, variable ca)
+				 * - we did not use up the buffer yet
+				 */
+				while(call_again && !ca && (buf_end - buf)) {
 					AggregationKey& key = fill_buffer_iterator_->first;
 					AggregationValue& aggregate = fill_buffer_iterator_->second;
 					
 					switch(fill_buffer_state_) {
 						case FIELD_UOM: {
 							block_data_t *uom = dictionary().get_value(key.uom_key());
-							call_again = shdt_.write_field(FIELD_UOM, uom, strlen((char*)uom), buf, buf_end);
+							ca = shdt_.write_field(FIELD_UOM, uom, strlen((char*)uom) + 1, buf, buf_end);
 							dictionary().free_value(uom);
-							if(!call_again) { fill_buffer_state_ = FIELD_TYPE; }
+							if(!ca) { fill_buffer_state_ = FIELD_TYPE; }
 							break;
 						}
 						
 						case FIELD_TYPE: {
 							block_data_t *type = dictionary().get_value(key.type_key());
-							call_again = shdt_.write_field(FIELD_TYPE, type, strlen((char*)type), buf, buf_end);
+							ca = shdt_.write_field(FIELD_TYPE, type, strlen((char*)type) + 1, buf, buf_end);
 							dictionary().free_value(type);
-							if(!call_again) { fill_buffer_state_ = FIELD_DATATYPE; }
+							if(!ca) { fill_buffer_state_ = FIELD_DATATYPE; }
 							break;
 						}
 						
 						case FIELD_DATATYPE:
-							call_again = shdt_.write_field(FIELD_DATATYPE, &key.datatype(), sizeof(key.datatype()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_COUNT; }
+							ca = shdt_.write_field(FIELD_DATATYPE, &key.datatype(), sizeof(key.datatype()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_COUNT; }
 							break;
 							
 						case FIELD_COUNT:
-							call_again = shdt_.write_field(FIELD_COUNT, (block_data_t*)&aggregate.count(), sizeof(aggregate.count()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_MIN; }
+							ca = shdt_.write_field(FIELD_COUNT, (block_data_t*)&aggregate.count(), sizeof(aggregate.count()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_MIN; }
 							break;
 							
 						case FIELD_MIN:
-							call_again = shdt_.write_field(FIELD_MIN, (block_data_t*)&aggregate.min(), sizeof(aggregate.min()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_MAX; }
+							ca = shdt_.write_field(FIELD_MIN, (block_data_t*)&aggregate.min(), sizeof(aggregate.min()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_MAX; }
 							break;
 							
 						case FIELD_MAX:
-							call_again = shdt_.write_field(FIELD_MAX, (block_data_t*)&aggregate.max(), sizeof(aggregate.max()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_MEAN; }
+							ca = shdt_.write_field(FIELD_MAX, (block_data_t*)&aggregate.max(), sizeof(aggregate.max()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_MEAN; }
 							break;
 							
 						case FIELD_MEAN:
-							call_again = shdt_.write_field(FIELD_MEAN, (block_data_t*)&aggregate.mean(), sizeof(aggregate.mean()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
+							ca = shdt_.write_field(FIELD_MEAN, (block_data_t*)&aggregate.mean(), sizeof(aggregate.mean()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
 							break;
 							
 						case FIELD_TOTAL_COUNT:
-							call_again = shdt_.write_field(FIELD_TOTAL_COUNT, (block_data_t*)&aggregate.total_count(), sizeof(aggregate.total_count()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
+							ca = shdt_.write_field(FIELD_TOTAL_COUNT, (block_data_t*)&aggregate.total_count(), sizeof(aggregate.total_count()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
 							break;
 							
 						case FIELD_TOTAL_MIN:
-							call_again = shdt_.write_field(FIELD_TOTAL_MIN, (block_data_t*)&aggregate.total_min(), sizeof(aggregate.total_min()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
+							ca = shdt_.write_field(FIELD_TOTAL_MIN, (block_data_t*)&aggregate.total_min(), sizeof(aggregate.total_min()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
 							break;
 							
 						case FIELD_TOTAL_MAX:
-							call_again = shdt_.write_field(FIELD_TOTAL_MAX, (block_data_t*)&aggregate.total_max(), sizeof(aggregate.total_max()), buf, buf_end);
-							if(!call_again) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
+							ca = shdt_.write_field(FIELD_TOTAL_MAX, (block_data_t*)&aggregate.total_max(), sizeof(aggregate.total_max()), buf, buf_end);
+							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
 							break;
 							
 						case FIELD_TOTAL_MEAN:
-							call_again = shdt_.write_field(FIELD_TOTAL_MEAN, (block_data_t*)&aggregate.total_mean(), sizeof(aggregate.total_mean()), buf, buf_end);
-							if(!call_again) {
+							ca = shdt_.write_field(FIELD_TOTAL_MEAN, (block_data_t*)&aggregate.total_mean(), sizeof(aggregate.total_mean()), buf, buf_end);
+							if(!ca) {
 								++fill_buffer_iterator_;
 								if(fill_buffer_iterator_ == aggregation_entries_.end()) {
-									run = false;
+									call_again = false;
 								}
 							}
 							break;
@@ -327,15 +341,10 @@ namespace wiselib {
 				size_type data_size;
 				typename Shdt::field_id_t field_id;
 				
-				DBG("aggr this is read_buffer buffer_size=%d", buffer_size);
-				
 				while(!reader.done()) {
 					done = reader.read_field(field_id, data, data_size);
-					DBG("aggr read_buffer done=%d", done);
-					
 					Value& v = reinterpret_cast<Value&>(*data);
 					if(!done) { break; }
-					DBG("aggr read_buffer field id %d", field_id);
 					switch(field_id) {
 						case FIELD_UOM: {
 							typename DictionaryT::key_type k = dictionary().insert(data);
@@ -389,6 +398,11 @@ namespace wiselib {
 							}
 							
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
+							//DBG("aggr read_buffer SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+									//(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
+									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
+									//(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
+									//(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
 							break;
 						}
 					} // switch
