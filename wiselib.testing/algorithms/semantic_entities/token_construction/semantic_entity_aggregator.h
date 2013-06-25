@@ -60,6 +60,18 @@ namespace wiselib {
 			
 			enum Restrictions { MAX_ENTRIES = 8 };
 			
+			enum Fields {
+				FIELD_UOM = 0,
+				FIELD_TYPE, FIELD_DATATYPE,
+				
+				FIELD_COUNT, FIRST_VALUE_FIELD = FIELD_COUNT,
+				FIELD_MIN, FIELD_MAX, FIELD_MEAN,
+				FIELD_TOTAL_COUNT, FIELD_TOTAL_MIN, FIELD_TOTAL_MAX, FIELD_TOTAL_MEAN,
+				
+				FIELDS = FIELD_TOTAL_MEAN
+			};
+		
+			
 			//typedef vector_static<OsModel, AggregationEntry, MAX_ENTRIES> AggregationEntries;
 			
 		private:
@@ -112,30 +124,31 @@ namespace wiselib {
 			
 			class AggregationValue {
 				public:
-					AggregationValue() : count_(0) {
+					AggregationValue() {
+						count() = 0;
 					}
 					
 					void init(Value v, bool with_totals = true) {
-						count_ = 1;
-						min_ = max_ = mean_ = v;
+						count() = 1;
+						min() = max() = mean() = v;
 						
 						if(with_totals) {
-							total_count_ = 1;
-							total_min_ = total_max_ = total_mean_ = v;
+							total_count() = 1;
+							total_min() = total_max() = total_mean() = v;
 						}
 					}
 					
 					void aggregate(Value v, ::uint8_t datatype) {
 						//DBG("aggr %ld before %2d/%2d/%2d", (long)v, (int)min_, (int)max_, (int)mean_);
-						if(count_ == 0) {
+						if(count() == 0) {
 							init(v, false);
 						}
 						else {
 							if(datatype == INTEGER) {
-								if(v < min_) { min_ = v; }
-								if(v > max_) { max_ = v; }
-								++count_;
-								mean_ += (v - mean_) / count_;
+								if(v < min()) { min() = v; }
+								if(v > max()) { max() = v; }
+								++count();
+								mean() += (v - mean()) / count();
 							}
 							else {
 								assert(false && "datatype not supported for aggregation!");
@@ -145,6 +158,7 @@ namespace wiselib {
 						//DBG("aggr %ld after %2d/%2d/%2d", (long)v, (int)min_, (int)max_, (int)mean_);
 					}
 					
+					/*
 					Value& count() { return count_; }
 					void set_count(Value& x) { count_ = x; }
 					Value& min() { return min_; }
@@ -162,33 +176,53 @@ namespace wiselib {
 					void set_total_max(Value& x) { total_max_ = x; }
 					Value& total_mean() { return total_mean_; }
 					void set_total_mean(Value& x) { total_mean_ = x; }
+					*/
+					
+					Value& count() { return values_[FIELD_COUNT - FIRST_VALUE_FIELD]; }
+					void set_count(Value& x) { count() = x; }
+					Value& min() { return values_[FIELD_MIN - FIRST_VALUE_FIELD]; }
+					void set_min(Value& x) { min() = x; }
+					Value& max() { return values_[FIELD_MAX - FIRST_VALUE_FIELD]; }
+					void set_max(Value& x) { max() = x; }
+					Value& mean() { return values_[FIELD_MEAN - FIRST_VALUE_FIELD]; }
+					void set_mean(Value& x) { mean() = x; }
+					
+					Value&  total_count() { return values_[FIELD_TOTAL_COUNT - FIRST_VALUE_FIELD]; }
+					void set_total_count(Value& x) { total_count() = x; }
+					Value&  total_min() { return values_[FIELD_TOTAL_MIN - FIRST_VALUE_FIELD]; }
+					void set_total_min(Value& x) { total_min() = x; }
+					Value&  total_max() { return values_[FIELD_TOTAL_MAX - FIRST_VALUE_FIELD]; }
+					void set_total_max(Value& x) { total_max() = x; }
+					Value&  total_mean() { return values_[FIELD_TOTAL_MEAN - FIRST_VALUE_FIELD]; }
+					void set_total_mean(Value& x) { total_mean() = x; }
 					
 					void set_totals() {
-						total_count_ = count_;
-						total_min_ = min_;
-						total_max_ = max_;
-						total_mean_ = mean_;
+						total_count() = count();
+						total_min() = min();
+						total_max() = max();
+						total_mean() = mean();
 						
-						count_ = min_ = max_ = mean_ = 0;
+						count() = min() = max() = mean() = 0;
 					}
 					
+					Value* values() { return values_; }
+					
 				private:
+					Value values_[FIELDS - FIRST_VALUE_FIELD];
+					
+					/*
 					Value count_, min_, max_, mean_;
 					Value total_count_, total_min_, total_max_, total_mean_;
+					*/
 			};
 			
-			enum Fields {
-				FIELD_UOM = 0,
-				FIELD_TYPE, FIELD_DATATYPE, FIELD_COUNT, FIELD_MIN, FIELD_MAX, FIELD_MEAN,
-				FIELD_TOTAL_COUNT, FIELD_TOTAL_MIN, FIELD_TOTAL_MAX, FIELD_TOTAL_MEAN
-			};
-		
 		public:
 			typedef MapStaticVector<OsModel, AggregationKey, AggregationValue, MAX_ENTRIES> AggregationEntries;
 			typedef typename AggregationEntries::iterator iterator;
 			
 			void init(typename TupleStoreT::self_pointer_t ts) { //, const char* entity_format) {
 				tuple_store_ = ts;
+				shdt_.set_table_size(8);
 				//entity_format_ = entity_format;
 			}
 			
@@ -256,12 +290,14 @@ namespace wiselib {
 					AggregationKey& key = fill_buffer_iterator_->first;
 					AggregationValue& aggregate = fill_buffer_iterator_->second;
 					
+					DBG("aggr fill buffer state: %d", fill_buffer_state_);
+					
 					switch(fill_buffer_state_) {
 						case FIELD_UOM: {
 							block_data_t *uom = dictionary().get_value(key.uom_key());
 							ca = shdt_.write_field(FIELD_UOM, uom, strlen((char*)uom) + 1, buf, buf_end);
 							dictionary().free_value(uom);
-							if(!ca) { fill_buffer_state_ = FIELD_TYPE; }
+							//if(!ca) { fill_buffer_state_ = FIELD_TYPE; }
 							break;
 						}
 						
@@ -269,60 +305,84 @@ namespace wiselib {
 							block_data_t *type = dictionary().get_value(key.type_key());
 							ca = shdt_.write_field(FIELD_TYPE, type, strlen((char*)type) + 1, buf, buf_end);
 							dictionary().free_value(type);
-							if(!ca) { fill_buffer_state_ = FIELD_DATATYPE; }
+							//if(!ca) { fill_buffer_state_ = FIELD_DATATYPE; }
 							break;
 						}
 						
 						case FIELD_DATATYPE:
 							ca = shdt_.write_field(FIELD_DATATYPE, &key.datatype(), sizeof(key.datatype()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_COUNT; }
+							//if(!ca) { fill_buffer_state_ = FIELD_COUNT; }
 							break;
 							
+						default:
+							ca = shdt_.write_field(fill_buffer_state_, (block_data_t*)&(aggregate.values()[fill_buffer_state_ - FIRST_VALUE_FIELD]), sizeof(Value), buf, buf_end);
+							break;
+						
+							
+						/*
 						case FIELD_COUNT:
 							ca = shdt_.write_field(FIELD_COUNT, (block_data_t*)&aggregate.count(), sizeof(aggregate.count()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_MIN; }
+							//if(!ca) { fill_buffer_state_ = FIELD_MIN; }
 							break;
 							
 						case FIELD_MIN:
 							ca = shdt_.write_field(FIELD_MIN, (block_data_t*)&aggregate.min(), sizeof(aggregate.min()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_MAX; }
+							//if(!ca) { fill_buffer_state_ = FIELD_MAX; }
 							break;
 							
 						case FIELD_MAX:
 							ca = shdt_.write_field(FIELD_MAX, (block_data_t*)&aggregate.max(), sizeof(aggregate.max()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_MEAN; }
+							//if(!ca) { fill_buffer_state_ = FIELD_MEAN; }
 							break;
 							
 						case FIELD_MEAN:
 							ca = shdt_.write_field(FIELD_MEAN, (block_data_t*)&aggregate.mean(), sizeof(aggregate.mean()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
+							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
 							break;
 							
 						case FIELD_TOTAL_COUNT:
 							ca = shdt_.write_field(FIELD_TOTAL_COUNT, (block_data_t*)&aggregate.total_count(), sizeof(aggregate.total_count()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
+							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
 							break;
 							
 						case FIELD_TOTAL_MIN:
 							ca = shdt_.write_field(FIELD_TOTAL_MIN, (block_data_t*)&aggregate.total_min(), sizeof(aggregate.total_min()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
+							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
 							break;
 							
 						case FIELD_TOTAL_MAX:
 							ca = shdt_.write_field(FIELD_TOTAL_MAX, (block_data_t*)&aggregate.total_max(), sizeof(aggregate.total_max()), buf, buf_end);
-							if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
+							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
 							break;
+						
 							
 						case FIELD_TOTAL_MEAN:
 							ca = shdt_.write_field(FIELD_TOTAL_MEAN, (block_data_t*)&aggregate.total_mean(), sizeof(aggregate.total_mean()), buf, buf_end);
 							if(!ca) {
 								++fill_buffer_iterator_;
+								fill_buffer_state_ = FIELD_UOM;
+								
 								if(fill_buffer_iterator_ == aggregation_entries_.end()) {
 									call_again = false;
 								}
 							}
 							break;
+						*/
 					} // switch()
+					
+					
+					if(fill_buffer_state_ == FIELD_TOTAL_MEAN  && !ca) {
+						++fill_buffer_iterator_;
+						fill_buffer_state_ = FIELD_UOM;
+						
+						if(fill_buffer_iterator_ == aggregation_entries_.end()) {
+							call_again = false;
+						}
+					}
+					else {
+						fill_buffer_state_++;
+					}
+					
 				} // while()
 				
 				return buf - buffer;

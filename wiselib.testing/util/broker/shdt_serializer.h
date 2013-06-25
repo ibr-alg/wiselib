@@ -88,6 +88,7 @@ namespace wiselib {
 							case CMD_TABLE_VALUE: return 2 * sizeof(table_id_t) + sizeof(instruction_t) + sizeof(field_id_t);
 							default: assert(false);
 						}
+						return 0;
 					}
 					
 					size_type header_size() { return header_size(instruction_); }
@@ -413,18 +414,23 @@ namespace wiselib {
 					return true;
 				}
 				
+				if(in.instruction() != CMD_TUPLE) {
+					write(buffer, buffer_end, (table_id_t)nidx);
+					write(buffer, buffer_end, (instruction_t)in.instruction());
+				}
+				
 				switch(in.instruction()) {
 					case CMD_HEADER:
-						write(buffer, buffer_end, (table_id_t)nidx);
-						write(buffer, buffer_end, (instruction_t)CMD_HEADER);
+						//write(buffer, buffer_end, (table_id_t)nidx);
+						//write(buffer, buffer_end, (instruction_t)CMD_HEADER);
 						write(buffer, buffer_end, (table_id_t)SHDT_VERSION);
 						write(buffer, buffer_end, in.table_size());
 						write(buffer, buffer_end, in.tuple_size());
 						break;
 						
 					case CMD_INSERT: {
-						write(buffer, buffer_end, (table_id_t)nidx);
-						write(buffer, buffer_end, (instruction_t)CMD_INSERT);
+						//write(buffer, buffer_end, (table_id_t)nidx);
+						//write(buffer, buffer_end, (instruction_t)CMD_INSERT);
 						write(buffer, buffer_end, in.index());
 						write(buffer, buffer_end, in.data_size());
 						memcpy(buffer, in.data(), in.data_size());
@@ -433,8 +439,8 @@ namespace wiselib {
 					}
 					
 					case CMD_CAT: {
-						write(buffer, buffer_end, (table_id_t)nidx);
-						write(buffer, buffer_end, (instruction_t)CMD_CAT);
+						//write(buffer, buffer_end, (table_id_t)nidx);
+						//write(buffer, buffer_end, (instruction_t)CMD_CAT);
 						write(buffer, buffer_end, in.source_index()); // take prefix from here
 						write(buffer, buffer_end, in.source_prefix());
 						write(buffer, buffer_end, in.target_index()); // write result here
@@ -445,8 +451,8 @@ namespace wiselib {
 					}
 						
 					case CMD_VALUE:
-						write(buffer, buffer_end, (table_id_t)nidx);
-						write(buffer, buffer_end, (instruction_t)CMD_VALUE);
+						//write(buffer, buffer_end, (table_id_t)nidx);
+						//write(buffer, buffer_end, (instruction_t)CMD_VALUE);
 						write(buffer, buffer_end, in.field_id());
 						write(buffer, buffer_end, in.field_size());
 						memcpy(buffer, in.data(), in.field_size());
@@ -454,14 +460,14 @@ namespace wiselib {
 						break;
 					
 					case CMD_TABLE_VALUE:
-						write(buffer, buffer_end, (table_id_t)nidx);
-						write(buffer, buffer_end, (instruction_t)CMD_TABLE_VALUE);
+						//write(buffer, buffer_end, (table_id_t)nidx);
+						//write(buffer, buffer_end, (instruction_t)CMD_TABLE_VALUE);
 						write(buffer, buffer_end, in.field_id());
 						write(buffer, buffer_end, in.field_index());
 						break;
 						
-					case CMD_TUPLE:
-						break;
+					//case CMD_TUPLE:
+						//break;
 				}
 				
 				return call_again;
@@ -530,6 +536,7 @@ namespace wiselib {
 					case CMD_HEADER:
 						table_size_ = in.table_size();
 						tuple_size_ = in.tuple_size();
+						assert(table_size_ > 0);
 						break;
 						
 					case CMD_INSERT:

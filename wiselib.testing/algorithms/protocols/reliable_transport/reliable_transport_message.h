@@ -112,8 +112,8 @@ namespace wiselib {
 				return wiselib::read<OsModel, block_data_t, ChannelId>(data_ + POS_CHANNEL_ID);
 			}
 			
-			void set_channel(const ChannelId& c) {
-				wiselib::write<OsModel, block_data_t, const ChannelId&>(data_ + POS_CHANNEL_ID, c);
+			void set_channel(ChannelId c) {
+				wiselib::write<OsModel, block_data_t, ChannelId>(data_ + POS_CHANNEL_ID, c);
 			}
 			
 			sequence_number_t sequence_number() {

@@ -20,6 +20,9 @@
 #ifndef TOKEN_CONSTRUCTION_H
 #define TOKEN_CONSTRUCTION_H
 
+#include "semantic_entity.h"
+#include "semantic_entity_id.h"
+
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
 #include <util/pstl/vector_dynamic.h>
@@ -27,8 +30,6 @@
 #include <util/pstl/list_dynamic.h>
 #include <algorithms/protocols/reliable_transport/reliable_transport.h>
 
-#include "semantic_entity.h"
-#include "semantic_entity_id.h"
 #include "regular_event.h"
 #include "state_message.h"
 #include "semantic_entity_aggregator.h"
