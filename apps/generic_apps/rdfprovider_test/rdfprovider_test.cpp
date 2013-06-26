@@ -2,16 +2,26 @@
 #include "external_interface/external_interface.h"
 #include "external_interface/external_interface_testing.h"
 
+
+//#define BITMAP_CHUNK_ALLOCATOR_CHECK 1
+
 using namespace wiselib;
 
 typedef OSMODEL Os;
 
-#ifdef ARDUINO
 int freeRam () {
-  extern int __heap_start, *__brkval; 
-  int v; 
-  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+	#ifdef ARDUINO
+		extern int __heap_start, *__brkval; 
+		int v; 
+		return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+	#else
+		return -1;
+	#endif
 }
+
+
+#ifdef PC
+	#define DEBUG_GRAPHVIZ 1
 #endif
 
 #include "util/allocators/malloc_free_allocator.h"
@@ -46,56 +56,65 @@ typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 // TupleStore(s)
 
 
-// --- Prescilla Store in RAM
-/*
+// --- < USE RAM >
+	/*
 
-#include <util/tuple_store/prescilla_dictionary.h>
-#include <util/pstl/list_dynamic.h>
+	#include <util/tuple_store/prescilla_dictionary.h>
+	#include <util/pstl/list_dynamic.h>
 
-typedef list_dynamic<Os, BrokerTupleT> TupleContainer;
-typedef PrescillaDictionary<Os> Dictionary;
-typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
-typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
+	typedef list_dynamic<Os, BrokerTupleT> TupleContainer;
+	typedef PrescillaDictionary<Os> Dictionary;
+	typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
+	typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
 
-*/
+	*/
 
-// --- Block device store
+// --- < / USE RAM >
 
-#if (ARDUINO || ISENSE)
-	typedef Os::BlockMemory PhysicalBlockMemory;
-#else
-	#include <algorithms/block_memory/file_block_memory.h>
-	typedef FileBlockMemory<Os> PhysicalBlockMemory;
-#endif
+// --- < USE BLOCKMEMORY >
 
-#include <algorithms/block_memory/bitmap_chunk_allocator.h>
-#include <algorithms/block_memory/cached_block_memory.h>
+	#if (ARDUINO || ISENSE)
+		typedef Os::BlockMemory PhysicalBlockMemory;
+	#else
+		#include <algorithms/block_memory/file_block_memory.h>
+		typedef FileBlockMemory<Os> PhysicalBlockMemory;
+	#endif
 
-#include <algorithms/block_memory/b_plus_hash_set.h>
-#include <algorithms/block_memory/b_plus_dictionary.h>
-#include <algorithms/hash/fnv.h>
+	#include <algorithms/block_memory/bitmap_chunk_allocator.h>
+	#include <algorithms/block_memory/cached_block_memory.h>
+
+	#include <algorithms/block_memory/b_plus_hash_set.h>
+	#include <algorithms/block_memory/b_plus_dictionary.h>
+	#include <algorithms/hash/fnv.h>
 
 
-#if ARDUINO
-	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 2, 1, true> BlockMemory;
-	typedef BitmapChunkAllocator<Os, BlockMemory, 8, ::uint16_t> BlockAllocator;
-#else
-	typedef CachedBlockMemory<Os, PhysicalBlockMemory, 20, 4, false> BlockMemory;
-	typedef BitmapChunkAllocator<Os, BlockMemory, 8, Os::size_t> BlockAllocator;
-#endif
+	#if ARDUINO
+		typedef CachedBlockMemory<Os, PhysicalBlockMemory, 2, 1, true> BlockMemory;
+		typedef BitmapChunkAllocator<Os, BlockMemory, 8, ::uint16_t> BlockAllocator;
+	#else
+		typedef CachedBlockMemory<Os, PhysicalBlockMemory, 20, 4, true> BlockMemory;
+		//typedef BitmapChunkAllocator<Os, BlockMemory, 8, Os::size_t> BlockAllocator;
+		typedef BitmapChunkAllocator<Os, BlockMemory, 8, Os::size_t> BlockAllocator;
+	#endif
 
-typedef Fnv32<Os> Hash;
-typedef BPlusHashSet<Os, BlockAllocator, Hash, BrokerTupleT, true> TupleContainer;
-typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
-typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
-typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
+	typedef Fnv32<Os> Hash;
+	typedef BPlusHashSet<Os, BlockAllocator, Hash, BrokerTupleT, true> TupleContainer;
+	typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
+	typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
 
-#define USE_BLOCK_TS 1
+	// Use Huffman Codec
+	typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
 
-// ---
+	// Use no Codec
+	//typedef TupleStoreT CodecTupleStoreT;
+
+	#define USE_BLOCK_TS 1
+
+// --- < / USE_BLOCKMEMORY >
 
 //PrintInt<sizeof(block_data_t*)> _0;
 //PrintInt<sizeof(Dictionary::key_type)> _1;
+//PrintInt<sizeof(Os::size_t)> _size;
 
 // --- Broker
 typedef uint16_t bitmask_t;
@@ -135,6 +154,7 @@ class App {
 			#else
 				// init actual block memory
 				block_memory_.physical().init("block_memory.img");
+				//block_memory_.physical().init("sde_dump");
 			#endif
 			
 			// init cache
@@ -169,6 +189,10 @@ class App {
 			
 			debug_->debug("--- testing broker");
 			test_broker();
+			
+		#ifdef ARDUINO
+			debug_->debug("init end free: %d", freeRam());
+		#endif
 		}
 		
 		void ins(const char* s, const char *p, const char* o, bitmask_t bm) {
@@ -196,31 +220,22 @@ class App {
 		
 		void insert_small_documents() {
 			debug_->debug("create doc1");
+			debug_->debug("init free: %d", freeRam());
 			doc1mask = broker.create_document("doc1");
 			debug_->debug("create doc1");
+			debug_->debug("init free: %d", freeRam());
 			doc2mask = broker.create_document("doc2");
 			debug_->debug("create doc1");
+			debug_->debug("init free: %d", freeRam());
 			doc3mask = broker.create_document("doc3");
 			debug_->debug("ins");
-			
-			ins("aa", "bb", "cc", doc1mask);
-			
-			debug_->debug("--------- after first tuple:");
-			block_memory_.flush();
-			block_memory_.print_stats();
-			
-			ins("bb", "aa", "cc", doc1mask);
-			ins("bb", "cc", "aa", doc1mask);
-			ins("cc", "cc", "aa", doc1mask);
-			
-			debug_->debug("--------- after 3 more:");
-			block_memory_.flush();
-			block_memory_.print_stats();
-			
+			debug_->debug("init free: %d", freeRam());
 			ins("ab", "7777777", "dd", doc1mask );
 			debug_->debug("ins");
+			debug_->debug("init free: %d", freeRam());
 			ins("ab", "88888888", "xx", doc1mask );
 			debug_->debug("ins");
+			debug_->debug("init free: %d", freeRam());
 			ins("yy1", "999999999", "abx", doc1mask | doc3mask);
 			debug_->debug("ins");
 			ins("yy2", "999999999", "ab", doc1mask | doc3mask);
@@ -284,7 +299,11 @@ class App {
 			broker_t::TupleStore::iterator it = broker.tuple_store().begin(&query, (1 << 0));
 			
 			while(it != broker.tuple_store().end()) {
+				broker_t::Tuple t = *it;
+				debug_->debug("would erase: (%s %s %s mask=%x)",
+					t.get(0), t.get(1), t.get(2), t.bitmask());	
 				it = broker.tuple_store().erase(it);
+				//++it;
 			}
 			
 			debug_->debug("--- iter doc1:");

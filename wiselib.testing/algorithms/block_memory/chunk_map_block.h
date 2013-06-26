@@ -110,15 +110,13 @@ namespace wiselib {
 			} // find(n)
 			
 			void mark(size_type offset, size_type n) {
-				//DBG("mark(this=%lx, %lu, %lu)", (long int)(void*)this, offset, n);
-				
 				size_type pos = offset / WORDBITS;
 				if(offset % WORDBITS) {
 					//GET_OS.debug("offset %% WORDBITS != 0");
 					word_t &w = *reinterpret_cast<word_t*>(data_ + pos * sizeof(word_t));
 					// word 'starts' at lsb, ends at msb
 					// set to 0 all bits from offset % WORDBITS to msb.
-					w &= ~( ((1UL << Math::min(n, WORDBITS - (offset % WORDBITS))) - 1UL) << offset );
+					w &= ~( (word_t)((((word_t)1) << (word_t)Math::min(n, WORDBITS - (offset % WORDBITS))) - 1UL) << (word_t)(offset % WORDBITS) );
 					n -= Math::min(WORDBITS - (offset % WORDBITS), n);
 					pos++;
 				}
@@ -134,6 +132,10 @@ namespace wiselib {
 					// set to 0 all bits from lsb to n % WORDBITS
 					w &= ~((1 << (n % WORDBITS)) - 1);
 				}
+				
+				if(n > 0) {
+					//assert(used(offset));
+				}
 			}
 			
 			void unmark(size_type offset, size_type n) {
@@ -142,8 +144,9 @@ namespace wiselib {
 					word_t &w = *reinterpret_cast<word_t*>(data_ + pos * sizeof(word_t));
 					// word 'starts' at lsb, ends at msb
 					// set to 1 all bits from offset % WORDBITS to msb.
-					w |= ((1UL << Math::min(n, WORDBITS - offset)) - 1UL) << offset;
-					n -= Math::min(WORDBITS - offset, n);
+					//w |= ((1UL << Math::min(n, WORDBITS - (offset % WORDBITS))) - 1UL) << offset;
+					w |= (word_t)((((word_t)1) << (word_t)Math::min(n, WORDBITS - (offset % WORDBITS))) - 1UL) << (word_t)(offset % WORDBITS);
+					n -= Math::min(WORDBITS - (offset % WORDBITS), n);
 					pos++;
 				}
 				

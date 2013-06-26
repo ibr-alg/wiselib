@@ -270,13 +270,13 @@ namespace wiselib {
 
 			int physical_write(block_data_t* data, address_t a) {
 				writes_++;
-				if(writes_ % 10 == 0) { print_stats();	}
+				if(writes_ % 100 == 0) { print_stats();	}
 				return BlockMemory::write(data, a);
 			}
 
 			int physical_read(block_data_t* data, address_t a) {
 				reads_++;
-				if(reads_ % 10 == 0) { print_stats();	}
+				if(reads_ % 100 == 0) { print_stats();	}
 				return BlockMemory::read(data, a);
 			}
 
