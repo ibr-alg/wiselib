@@ -19,10 +19,9 @@
 #ifndef __ARDUINO_OS_MODEL_H__
 #define __ARDUINO_OS_MODEL_H__
 
-// #include <assert.h>
-#define assert(X)
-#define DBG(X)
-#define DBG(X, ...)
+#include <assert.h>
+#define DBG(X) ArduinoDebug<ArduinoOsModel>(true).debug(X)
+#define DBG(X, ...) ArduinoDebug<ArduinoOsModel>(true).debug(X, __VA_ARGS__)
 
 #include "external_interface/default_return_values.h"
 #include "external_interface/arduino/arduino_debug.h"
@@ -34,7 +33,7 @@
 
 /*routes the assert() error message into STDERR, TODO: route STDERR to the 
 serial port so that you can actually output the messages*/
-// #define __ASSERT_USE_STDERR 
+#define __ASSERT_USE_STDERR 
 
 namespace wiselib
 {
