@@ -44,6 +44,10 @@ using namespace wiselib;
 		#include <util/tuple_store/prescilla_dictionary.h>
 		typedef wiselib::PrescillaDictionary<Os> Dictionary;
 		typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
+	#elif USE_TREEDICT
+		#include <util/pstl/unbalanced_tree_dictionary.h>
+		typedef wiselib::UnbalancedTreeDictionary<Os> Dictionary;
+		typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 	#else
 		#include <util/tuple_store/null_dictionary.h>
 		typedef wiselib::TupleStore<Os, TupleContainer, NullDictionary<Os>, Os::Debug, 0, &TupleT::compare> TS;
@@ -100,7 +104,11 @@ class ExampleApplication
 			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
 			
 			#if USE_DICTIONARY
-				dictionary.init(debug_);
+				#if USE_PRESCILLA
+					dictionary.init(debug_);
+				#elif USE_TREEDICT
+					dictionary.init();
+				#endif
 				ts.init(&dictionary, &container, debug_);
 			#else
 				ts.init(0, &container, debug_);

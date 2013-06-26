@@ -13,10 +13,11 @@
 
 #else
 	#define USE_PRESCILLA 1
+	//#define USE_TREEDICT 1
 
 #endif
 
-#define USE_DICTIONARY (USE_PRESCILLA)
+#define USE_DICTIONARY (USE_PRESCILLA || USE_TREEDICT)
 
 #define NEED_ALLOCATOR (defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ))
 
