@@ -167,10 +167,10 @@ namespace wiselib
 // 			
 // 			
 // 			//Init UDP
-// 			udp.init( ipv6, *debug_, &packet_pool_mgr);
+			udp.init( ipv6, *debug_, &packet_pool_mgr);
 // 			//Just register callback, not enable IP radio
-// 			if( SUCCESS != udp.enable_radio() )
-// 				debug_->debug( "DPS enUDP failed" );
+			if( SUCCESS != udp.enable_radio() )
+				debug_->debug( "DPS enUDP failed" );
 			
 // 			//Init ICMPv6
 // 			icmpv6.init( ipv6, *debug_, *timer_, &packet_pool_mgr);

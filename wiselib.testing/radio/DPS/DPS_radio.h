@@ -312,12 +312,6 @@ namespace wiselib
 		
 		typedef DPS_Packet<OsModel, Radio, Debug, Connection_list_iterator> DPS_Packet_t;
 		
-		//TODO
-		enum Pid_values
-		{
-			TEST_PID = 10
-		};
-		
 		enum callback_values
 		{
 			NEW_CONNECTION = 254,
@@ -1206,7 +1200,6 @@ namespace wiselib
 #if DPS_FOOTER > 0
 						packet.set_checksum( it, false );
 #endif
-// 						if( rand()() & 0xF <= 13 )
 						radio().send( it->partner_MAC, packet.length, packet.buffer );
 					}
 					

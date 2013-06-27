@@ -142,6 +142,12 @@ namespace wiselib
 			DELETE_CONNECTION = Radio_DPS::DELETE_CONNECTION
 		};
 		
+				
+		//TODO
+		enum Pid_values
+		{
+			IPv6_PID = 41
+		};
 		
 		
 		// -----------------------------------------------------------------
@@ -180,9 +186,9 @@ namespace wiselib
 			prefix_list[INTERFACE_UART][0].ip_address.make_it_link_local();
 			prefix_list[INTERFACE_UART][0].ip_address.set_long_iid( &my_id, true );
 			
-			radio_dps_->template reg_recv_callback<self_type,&self_type::RPC_handler, &self_type::manage_buffer>( this, 10, true );
+			radio_dps_->template reg_recv_callback<self_type,&self_type::RPC_handler, &self_type::manage_buffer>( this, IPv6_PID, true );
 #elif defined DPS_IPv6_STUB
-			radio_dps_->template reg_recv_callback<self_type,&self_type::RPC_handler, &self_type::manage_buffer>( this, 10, false );
+			radio_dps_->template reg_recv_callback<self_type,&self_type::RPC_handler, &self_type::manage_buffer>( this, IPv6_PID, false );
 #endif
 			
 			
@@ -311,18 +317,25 @@ namespace wiselib
 				return radio_uart().send( packet_number, data );
 			else if( selected_interface == INTERFACE_DPS )
 			{
-// 				if( DPS_Radio_.send(dest, sizeof(mypayload), test_buffer ) == DPS_Radio_t::NO_CONNECTION )
-// 				{
-// 					test_buffer_inuse = false;
-// 					debug_->debug( "No connection at %llx, call is postponed", (long long unsigned)(radio_->id()));
-// 					timer_->set_timer<DPSApp, &DPSApp::send>( 2000, this, NULL );
-// 				}
+				DPS_node_id_t ID;
+				ID.Pid = IPv6_PID;
+				ID.Fid = IPv6_receive;
+				ID.ack_required = 0;
+				ID.target_address = receiver.get_iid();
+				
+				return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
 			}
 			else
 				return ERR_NOTIMPL;
 #elif defined DPS_IPv6_STUB
 			
-			//TODO DPS CALL
+			DPS_node_id_t ID;
+			ID.Pid = IPv6_PID;
+			ID.Fid = IPv6_receive;
+			ID.ack_required = 0;
+			ID.target_address = receiver.get_iid();
+			
+			return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
 #endif
 			
 			return SUCCESS;

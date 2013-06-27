@@ -75,7 +75,7 @@ public:
 #endif
 		
 // 		callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
-// 		callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
+		callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 		
 // --> The Neighbor Discovery can be started with this line, it MUST be enabled for the SLIP communication
 		//ipv6_stack_.icmpv6.ND_timeout_manager_function( NULL );
@@ -90,15 +90,15 @@ public:
 			Test destination
 		*/
 				
-// 		IPv6Address_t destinationaddr;
+		IPv6Address_t destinationaddr;
 // 		
 // 		//Host ID of the destination
-// 		node_id_t ll_id = 0x2140;
+// 		node_id_t ll_id = 0x2144;
 		
 // 		Global addressing
 		if( radio_->id() == 0x2144 )
 		{
-			IPv6Address_t destinationaddr;
+			
 			
 			uint8_t my_prefix[8];
 			my_prefix[0] = 0x20;
@@ -115,9 +115,10 @@ public:
 			destinationaddr.set_long_iid(&ll_id, true);
 			
 			ipv6_stack_.interface_manager.set_prefix_for_interface( my_prefix, 0, 64 );
+			
 		}
 		
-		//Link-local addressing
+// 		//Link-local addressing
 // 		destinationaddr.make_it_link_local();
 // 		destinationaddr.set_long_iid(&ll_id, true);
 // 		
@@ -127,8 +128,10 @@ public:
 // 			For the best compression use ports between 61616 and 61631
 // 		*/
 // 		
-// 		if( radio_->id() == 0x2144 )
-// 		{
+		if( radio_->id() == 0x2144 )
+		{
+			timer_->set_timer<lowpanApp, &lowpanApp::send>( 10000, this, NULL );
+			
 // 			uint8_t mypayload[] = "hello :) This is a test message.";
 // 			
 // 			//Set IPv6 header fields
@@ -137,13 +140,14 @@ public:
 // 			// local_port, remote_port, remote_host
 // 			UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
 // 			ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
-// 		}
-// 		if( radio_->id() == 0x2140 )
-// 		{
-// 			//local_port, registered UDP callback ID, [remote_port], [remote_host]
-// 			ipv6_stack_.udp.listen( 61617, callback_id );
-// 			//ipv6_stack_.udp.print_sockets();
-// 		}
+		}
+		
+		if( radio_->id() == 0x2040 )
+		{
+			//local_port, registered UDP callback ID, [remote_port], [remote_host]
+			ipv6_stack_.udp.listen( 61617, callback_id );
+			//ipv6_stack_.udp.print_sockets();
+		}
 // 		
 		
 		/*
@@ -159,6 +163,35 @@ public:
 		}
 		*/
 		
+	}
+	
+	void send( void* )
+	{
+		IPv6Address_t destinationaddr;
+		node_id_t ll_id = 0x2040;
+				
+		uint8_t my_prefix[8];
+		my_prefix[0] = 0x20;
+		my_prefix[1] = 0x01;
+		my_prefix[2] = 0x63;
+		my_prefix[3] = 0x80;
+		my_prefix[4] = 0x70;
+		my_prefix[5] = 0xA0;
+		my_prefix[6] = 0xB0;
+		my_prefix[7] = 0x69;
+		
+		destinationaddr.set_prefix( my_prefix, 64 );
+		destinationaddr.set_long_iid(&ll_id, true);
+		uint8_t mypayload[] = "hello :) This is a test message.";
+		
+		//Set IPv6 header fields
+// 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
+		
+		// local_port, remote_port, remote_host
+		UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
+		ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
+		
+		timer_->set_timer<lowpanApp, &lowpanApp::send>( 15000, this, NULL );
 	}
 
 	// --------------------------------------------------------------------
