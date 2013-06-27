@@ -305,7 +305,7 @@ namespace wiselib {
 						}
 					}
 				}
-				sort(childs_.begin(), childs_.end());
+				insertion_sort(childs_.begin(), childs_.end());
 				
 				
 				// did we loose children?

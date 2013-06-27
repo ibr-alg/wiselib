@@ -48,6 +48,9 @@ namespace wiselib {
 			Kiss()
 				: x_(123456789), y_(362436000), z_(521288629), c_(7654321) {
 			}
+		
+			void init() {
+			}
 			
 			void srand(value_t seed) {
 				x_ = seed;
@@ -78,3 +81,4 @@ namespace wiselib {
 
 #endif // KISS_H
 
+/* vim: set ts=4 sw=4 tw=78 noexpandtab :*/

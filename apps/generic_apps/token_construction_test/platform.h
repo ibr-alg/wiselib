@@ -7,8 +7,11 @@
 	#if CODESIZE_INQP
 		#define USE_INQP 1
 	#endif
+
 	#if CODESIZE_PRESCILLA
 		#define USE_PRESCILLA 1
+	#else
+		#define USE_TREEDICT 1
 	#endif
 
 #else

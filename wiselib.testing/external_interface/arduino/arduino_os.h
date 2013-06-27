@@ -20,8 +20,12 @@
 #define __ARDUINO_OS_MODEL_H__
 
 #include <assert.h>
-#define DBG(X) ArduinoDebug<ArduinoOsModel>(true).debug(X)
-#define DBG(X, ...) ArduinoDebug<ArduinoOsModel>(true).debug(X, __VA_ARGS__)
+
+#if WISELIB_DISABLE_DEBUG_MESSAGES
+	#define DBG(...)
+#else
+	#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
+#endif
 
 #include "external_interface/default_return_values.h"
 #include "external_interface/arduino/arduino_debug.h"

@@ -426,7 +426,7 @@ namespace wiselib {
 			
 			enum {
 				COLUMNS = Tuple::SIZE,
-				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1),
+				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1)
 			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
@@ -661,7 +661,7 @@ namespace wiselib {
 			
 			enum {
 				COLUMNS = Tuple::SIZE,
-				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1),
+				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1)
 			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			

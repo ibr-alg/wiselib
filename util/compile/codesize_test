@@ -13,21 +13,24 @@ defaultconfig = json.loads('''
 				"contiki_micaz", "contiki_sky", "pc",
 				"isense", "isense.5148"
 			],
+			"compile_common": {
+				"makefile": "Makefile",
+				"flags": "-DCODESIZE",
+				"include_paths": [
+					"/home/henning/repos/wiselib/wiselib.testing/",
+					"/home/henning/repos/wiselib/wiselib.stable/",
+					"../../../../wiselib.testing/",
+					"../../../../wiselib.stable/",
+					"/Developer/git/wiselib/wiselib.testing/",
+					"/Developer/git/wiselib/wiselib.stable/"
+				]
+			},
 			"compile_empty": {
-				"flags": "-DCODESIZE -DCODESIZE_EMPTY"
+				"flags": "-DCODESIZE_EMPTY"
 			},
 			"compile_variants": [
-				{ "name": "default", "flags": "-DCODESIZE" }
+				{ "name": "default" }
 			],
-			"include_paths": [
-				"/home/henning/repos/wiselib/wiselib.testing/",
-				"/home/henning/repos/wiselib/wiselib.stable/",
-				"../../../../wiselib.testing/",
-				"../../../../wiselib.stable/",
-				"/Developer/git/wiselib/wiselib.testing/",
-				"/Developer/git/wiselib/wiselib.stable/"
-			],
-			"compile_flags": "",
 			"use_detemplate": true,
 			"detemplate_path": "/home/henning/bin/detemplate",
 			"detemplate_flags": "-n wiselib -n std -f 2 -t 0 -a 0 -i",
@@ -63,6 +66,11 @@ def get_config_from(path, c):
 		#print "o=", type(o), repr(o), o
 	return o
 
+if __name__ == '__main__':
+	if len(sys.argv) > 1:
+		s = open(sys.argv[1]).read()
+		print s
+		load_config(s)
 
 use_detemplate = get_config('use_detemplate')
 detemplate = [get_config('detemplate_path')] + get_config('detemplate_flags').split()
@@ -157,31 +165,32 @@ def clean():
 	subprocess.call(['rm', '-Rf', 'out'] )
 	subprocess.call(['rm', '-Rf', 'build'])
 
-def mkflags(platform, configuration):
-	f = ''
-	f += get_config('compile_flags')
-	if configuration:
-		f += configuration
-	for ip in get_config('include_paths'):
-		f += ' -I' + ip + ' '
-	return f
-
 def compile(platform, configuration):
 	global detemplate
 	global use_detemplate
 	
+	flags = get_config('compile_common').get('flags', '') + ' ' + configuration.get('flags', '')
+	# Add include paths
+	p = get_config('compile_common').get('include_paths', []) + configuration.get('include_paths', [])
+	for ip in p:
+		flags += ' -I' + ip + ' '
+	
+	makefile = get_config('compile_common/makefile')
+	if configuration.get('makefile', None):
+		makefile = configuration.get('makefile', None)
+	
 	clean()
+	makecmd = ["make", "-f", makefile, platform['name'], "ADD_CXXFLAGS=\"" + flags + "\""]
+	
 	log.write("------------\n")
-	log.write(" ".join(["make", platform['name'], "ADD_CXXFLAGS=\"" + mkflags(platform, configuration) + "\""])
-			+ '\n')
+	log.write(" ".join(makecmd) + '\n')
 	log.write("------------\n")
-	print " ".join(["make", platform['name'], "ADD_CXXFLAGS=\"" + mkflags(platform, configuration) + "\""]) 
+	print " ".join(makecmd) 
 	log.flush()
 	
 	#import locale
 	#locale.setlocale(locale.LC_ALL, 'C')
 	
-	makecmd = ["make", platform['name'], "ADD_CXXFLAGS=\"" + mkflags(platform, configuration) + "\""]
 	if use_detemplate:
 		p = subprocess.Popen(makecmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) #, env={'LANG': 'C'})
 		pd = subprocess.Popen(detemplate, stdin = p.stdout)
@@ -202,12 +211,6 @@ def compile(platform, configuration):
 	return -1, -1
 
 if __name__ == '__main__':
-
-	if len(sys.argv) > 1:
-		s = open(sys.argv[1]).read()
-		print s
-		load_config(s)
-
 	conf_pretty = []
 
 	for variant in get_config('compile_variants'):
@@ -220,9 +223,9 @@ if __name__ == '__main__':
 			'platform': platform_info,
 			'sizes': []
 		}
-		row['tara'] = compile(platform_info, get_config('compile_empty').get('flags', ''))
+		row['tara'] = compile(platform_info, get_config('compile_empty'))
 		for variant in get_config('compile_variants'):
-			r = compile(platform_info, variant.get('flags', ''))
+			r = compile(platform_info, variant)
 			row['sizes'].append(r)
 		codesizes.append(row)
 

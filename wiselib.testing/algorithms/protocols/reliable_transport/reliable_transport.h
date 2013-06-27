@@ -536,11 +536,13 @@ namespace wiselib {
 				}
 				if(switch_sending_endpoint()) {
 					
+					#if !WISELIB_DISABLE_DEBUG
 					DBG("node %d // check_send: found sending endpoint: idx=%d i=%d open=%d wants_open=%d wants_close=%d wants_send=%d",
 							sending_channel_idx_,
 							radio_->id(), sending_endpoint().initiator(),
 							sending_endpoint().is_open(), sending_endpoint().wants_open(),
 							sending_endpoint().wants_close(), sending_endpoint().wants_send());
+					#endif
 					
 					send_start_ = now();
 					

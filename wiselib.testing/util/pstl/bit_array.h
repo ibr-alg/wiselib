@@ -92,7 +92,7 @@ namespace wiselib {
 			
 			const char* c_str() { return (const char*)data_; }
 			
-         template<typename Allocator>
+			template<typename Allocator>
 			static self_pointer_t make(Allocator& alloc, size_type bits) {
 				self_pointer_t r = reinterpret_cast<self_pointer_t>(
 					alloc.template allocate_array<block_data_t>(
@@ -104,17 +104,16 @@ namespace wiselib {
 				return r;
 			}
 
-                        size_type terminate(size_type idx){
-                            size_type zeros = 8;
-                            if(idx % 8 != 0)
-                                zeros += 8 - idx % 8;
-                            for (size_type i = 0; i < zeros; ++i){
-                                set(idx + i, false);                                
-                            }
-                            return zeros;
-                        }
-
-			
+			size_type terminate(size_type idx){
+				size_type zeros = 8;
+				if(idx % 8 != 0) {
+					zeros += 8 - idx % 8;
+				}
+				for (size_type i = 0; i < zeros; ++i){
+					set(idx + i, false);
+				}
+				return zeros;
+			}
 			
 			static size_type byte(size_type pos) {
 				return pos / 8;
@@ -124,8 +123,6 @@ namespace wiselib {
 				return /*7 -*/ pos % 8;
 			}
 		private:
-			
-//			size_type size_;
 			block_data_t data_[0];
 	};
 	

@@ -58,8 +58,9 @@ namespace wiselib {
 	/**
 	 * In contrast to @a prefix_length, this will ignore 0-termination!
 	 */
-	size_t prefix_length_n(size_t n, ::uint8_t *a, ::uint8_t *b) {
-		size_t r = 0;
+	template<typename S>
+	S prefix_length_n(S n, ::uint8_t *a, ::uint8_t *b) {
+		S r = 0;
 		for( ; (r < n) && (*a == *b); ++a, ++b) {
 			++r;
 		}

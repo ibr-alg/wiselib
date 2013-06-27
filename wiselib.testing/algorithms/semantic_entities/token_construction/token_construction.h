@@ -114,7 +114,7 @@ namespace wiselib {
 			enum MessageTypes {
 				MESSAGE_TYPE_STATE = StateMessageT::MESSAGE_TYPE,
 				MESSAGE_TYPE_TREE_STATE = TreeStateMessageT::MESSAGE_TYPE,
-				MESSAGE_TYPE_TOKEN_STATE = TokenStateMessageT::MESSAGE_TYPE,
+				MESSAGE_TYPE_TOKEN_STATE = TokenStateMessageT::MESSAGE_TYPE
 			};
 			
 			enum Constraints {
@@ -140,7 +140,7 @@ namespace wiselib {
 				ACTIVITY_PERIOD = (1000 * TIME_SCALE) * 10,
 				//RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
 				//HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
-				HANDOVER_RETRY_INTERVAL = ACTIVITY_PERIOD / 2, //6000 * TIME_SCALE
+				HANDOVER_RETRY_INTERVAL = ACTIVITY_PERIOD / 2 //6000 * TIME_SCALE
 			};
 			
 			enum SpecialAddresses {
@@ -893,24 +893,33 @@ namespace wiselib {
 				bool activating = false;
 				
 				bool active_before = se.is_active(radio_->id());
-				size_type prev_count = se.prev_token_count();
+				
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					size_type prev_count = se.prev_token_count();
+				#endif
+				
 				se.set_prev_token_count(s.count());
 				
-				DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // process_token_state",
-						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
-						(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
-						(int)now()
-				);
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // process_token_state",
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
+							(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
+							(int)now()
+					);
+				#endif
 					
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
 					se.learn_activating_token(clock_, radio_->id(), receive_time - delay); 
-					DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token recv=%d delay=%d",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-							(int)se.activating_token_window(clock_),
-							(int)se.activating_token_interval(clock_),
-							(int)now(), (int)receive_time, (int)delay
-					);
+					
+					#if !WISELIB_DISABLE_DEBUG_MESSAGES
+						DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token recv=%d delay=%d",
+								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+								(int)se.activating_token_window(clock_),
+								(int)se.activating_token_interval(clock_),
+								(int)now(), (int)receive_time, (int)delay
+						);
+					#endif
 					
 					begin_activity(se);
 				}
@@ -921,14 +930,18 @@ namespace wiselib {
 			}
 			
 			void begin_wait_for_token_forward(void* se_) {
-				SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
-				DBG("node %d // push begin_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
+					DBG("node %d // push begin_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#endif
 				push_caffeine();
 			}
 			
 			void end_wait_for_token_forward(void* se_) {
-				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
-				DBG("node %d // pop end_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+					DBG("node %d // pop end_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#endif
 				pop_caffeine();
 			}
 			
@@ -947,8 +960,10 @@ namespace wiselib {
 			}
 			
 			void end_wait_for_token(void* se_) {
-				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
-				DBG("node %d // pop end_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+					DBG("node %d // pop end_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#endif
 				pop_caffeine();
 			}
 			

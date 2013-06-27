@@ -62,7 +62,7 @@ namespace wiselib {
 			enum { nidx = (table_id_t)(-1) };
 			enum Commands {
 				CMD_TUPLE = 't', CMD_HEADER = 'h', CMD_VALUE = 'v', CMD_CAT = 'c',
-				CMD_TABLE_VALUE = 'V', CMD_INSERT = 'i', CMD_END = 0xff,
+				CMD_TABLE_VALUE = 'V', CMD_INSERT = 'i', CMD_END = 0xff
 			};
 			
 			enum {
@@ -96,7 +96,7 @@ namespace wiselib {
 						return header_size() + payload_size();
 					}
 					
-					static int header_size(block_data_t cmd) {
+					static size_type header_size(block_data_t cmd) {
 						switch(cmd) {
 							case CMD_HEADER: return HeaderInstruction::header_size();
 							case CMD_INSERT: return InsertInstruction::header_size();
@@ -412,10 +412,10 @@ namespace wiselib {
 					
 					if(copy) {
 						CatInstruction in;
+						in.payload_size() = copy;
 						in.source_index() = id;
 						in.source_prefix() = p;
 						in.target_index() = id;
-						in.payload_size() = copy;
 						in.payload() = data + p;
 						
 						bool ca = write_instruction(in, buffer, buffer + buffer_size);

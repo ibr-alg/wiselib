@@ -40,6 +40,8 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+         typedef UnbalancedTreeDictionary<OsModel_P> self_type;
+         typedef self_type* self_pointer_t;
 			
 		private:
 			struct Node {
@@ -118,7 +120,7 @@ namespace wiselib {
 					return 1;
 				}
 				
-				bool child_idx;
+				bool child_idx = 0;
 				if(p->parent) {
 					child_idx = (p == p->parent->childs[Node::RIGHT]);
 				}

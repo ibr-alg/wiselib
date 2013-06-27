@@ -99,8 +99,10 @@ namespace wiselib {
 				
 				//DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu", mynodeid, window_, t, expected());
 				//
-				abs_millis_t old_interval = interval_;
-				abs_millis_t old_window = window_;
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					abs_millis_t old_interval = interval_;
+					abs_millis_t old_window = window_;
+				#endif
 				
 				int h = hit_type(t, clock);
 				switch(h) {
@@ -137,9 +139,11 @@ namespace wiselib {
 						
 				check_invariant();
 				
-				DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
-						(int)mynodeid, (int)t, (int)last_encounter_, (int) old_interval, (int) new_interval,
-						(int) interval_, (int)h, (int) old_window, (int) window_, (int)hits_);
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
+							(int)mynodeid, (int)t, (int)last_encounter_, (int) old_interval, (int) new_interval,
+							(int) interval_, (int)h, (int) old_window, (int) window_, (int)hits_);
+				#endif
 				
 				hits_++;
 				//DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
