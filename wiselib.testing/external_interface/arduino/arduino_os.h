@@ -25,6 +25,7 @@
 #include "external_interface/arduino/arduino_sdcard.h"
 #include "external_interface/arduino/arduino_ethernet_radio.h"
 #include "external_interface/arduino/arduino_bluetooth_radio.h"
+#include "external_interface/arduino/arduino_timer.h"
 #include "util/serialization/endian.h"
 
 namespace wiselib
@@ -47,13 +48,15 @@ namespace wiselib
 
       typedef ArduinoDebug<ArduinoOsModel> Debug;
       typedef ArduinoClock<ArduinoOsModel> Clock;
+      typedef ArduinoTimer<ArduinoOsModel> Timer;
 #if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
 #endif
 #if ARDUINO_USE_BLUETOOTH
       typedef ArduinoBluetoothRadio<ArduinoOsModel> BluetoothRadio;
 #endif
-	  typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
+ 
+      typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
