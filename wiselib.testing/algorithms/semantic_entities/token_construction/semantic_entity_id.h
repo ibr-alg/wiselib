@@ -59,6 +59,12 @@ namespace wiselib {
 			Value value() const { return value_; }
 			Rule rule() const { return rule_; }
 			
+			::uint8_t hash8() {
+				::uint32_t a = rule_ ^ value_;
+				::uint16_t b = (a & 0xffff) ^ (a >> 16);
+				return (b & 0xff) ^ (b >> 8);
+			}
+			
 		private:
 			Value value_;
 			Rule rule_;

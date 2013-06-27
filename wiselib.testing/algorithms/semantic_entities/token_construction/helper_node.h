@@ -17,10 +17,8 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef BLOOM_FILTER_H
-#define BLOOM_FILTER_H
-
-#include <util/meta.h>
+#ifndef HELPER_NODE_H
+#define HELPER_NODE_H
 
 namespace wiselib {
 	
@@ -29,58 +27,57 @@ namespace wiselib {
 	 * 
 	 * @ingroup
 	 * 
-	 * @tparam Size_P size in bits
+	 * @tparam 
 	 */
 	template<
-		typename OsModel_P,
-		int Size_P = 256
+		typename OsModel_P
 	>
-	class BloomFilter {
+	class HelperNode {
 		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef BloomFilter<OsModel, 256> Filter;
 			
-			enum { SIZE = Size_P, SIZE_BYTES = DivCeil<SIZE, 8>::value };
-			
-			typedef BloomFilter<OsModel, SIZE> self_type;
-			
-			static self_type* create() {
-				self_type *r = reinterpret_cast<self_type*>(
-						::get_allocator().template allocate_array<block_data_t>(SIZE_BYTES)
-				);
-				r->clear();
-			}
-			
+			/**
+			 * Clear filters.
+			 */
 			void clear() {
-				memset(data_, 0x00, SIZE_BYTES);
+				seen_.clear();
+				adopted_.clear();
+			}
+			
+			bool has_adopted(SemanticEntityId& se_id) {
+				return adopted_.get(se_id.hash8());
+			}
+			
+			void neighbor_seen(SemanticEntityId& se_id, size_type distance) {
+				seen_.add(se_id.hash8());
+				seen_distance_ = min(seen_distance_, distance);
+			}
+			
+			void neighbor_seen(Filter& ses, size_type distance) {
+				seen_ |= ses;
+				seen_distance_ = min(seen_distance_, distance);
+			}
+			
+			void adopt_neighbor(SemanticEntityId& se) {
+				adopted_.add(se.hash8());
+			}
+			
+			void adopt_neighbor(Filter& ses) {
+				adopted_ |= ses;
 			}
 		
-			void destroy() {
-				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
-			}
-			
-			void add(size_type v) {
-				v %= SIZE;
-				data_[byte(v)] |= (1 << bit(v));
-			}
-			
-			void operator|=(self_type& other) {
-				for(size_type i = 0; i < SIZE_BYTES; i++) {
-					data_[i] |= other.data_[i];
-				}
-			}
-			
 		private:
+			Filter seen_;
+			size_type seen_distance_;
 			
-			static size_type byte(size_type n) { return n / 8; }
-			static size_type bit(size_type n) { return n % 8; }
-			
-			block_data_t data_[0];
+			Filter adopted_;
 		
-	}; // BloomFilter
+	}; // HelperNode
 }
 
-#endif // BLOOM_FILTER_H
+#endif // HELPER_NODE_H
 
