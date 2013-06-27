@@ -99,6 +99,7 @@ namespace wiselib {
 						 bytes_needed(bits)
 					) .raw()
 				);
+				memset(r, 0, bytes_needed(bits));
 //				r->set_size(bits);
 				return r;
 			}

@@ -215,6 +215,9 @@
 			#ifdef LOWPAN_ROUTE_OVER
 			routing_.init( *timer_, *debug_, *radio_ );
 			#endif
+			
+			flow_label_ = 0;
+			traffic_class_ = 0;
 
 			return SUCCESS;
 		}
@@ -262,6 +265,16 @@
 		
 		InterfaceManager_t* interface_manager_;
 		
+		/**
+		* Set traffic class and flow label values, which will be used in the further packets
+		* \param traffic_class 8 bits traffic class field
+		* \param flow_label 20 bits flow label field (upper bits will not be used)
+		*/
+		void set_traffic_class_flow_label( uint8_t traffic_class = 0, uint32_t flow_label = 0 )
+		{
+			traffic_class_ = traffic_class;
+			flow_label_ = flow_label;
+		}
 		
 		/*
 				Extension headers
@@ -481,6 +494,12 @@
 		void routing_polling( void* p_number );
 		#endif
 		
+		/**
+		* Traffic class & Flow label storage
+		*/
+		uint8_t traffic_class_;
+		uint32_t flow_label_;
+		
 	};
 	
 	
@@ -598,7 +617,7 @@
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: initialization at %x", radio().id() );
+		debug().debug( "IPv6 layer: initialization at %llx", (long long unsigned)(radio().id()) );
 		//debug().debug( "IPv6 layer: MAC length: %i", sizeof(link_layer_node_id_t) );
 
 		#ifdef LOWPAN_ROUTE_OVER
@@ -807,6 +826,15 @@
 			message->set_real_next_header(message->transport_next_header());
 		}
 		
+		//use the stored values (default: 0)
+		message->set_flow_label(flow_label_);
+		message->set_traffic_class(traffic_class_);
+		
+		//For ND messages the destination could be specified, no routing needed
+		if( message->target_interface != NUMBER_OF_INTERFACES &&
+			( message->remote_ll_address != 0 || message->target_interface == INTERFACE_UART ))
+			return interface_manager_->send_to_interface( destination, packet_number, NULL, message->target_interface );
+		
 		//This is a multicast message to all nodes or to all routers
 		//This is the same in MESH UNDER and ROUTE OVER
 		if ( destination == BROADCAST_ADDRESS || destination == ALL_ROUTERS_ADDRESS )
@@ -819,11 +847,6 @@
 			//Broadcast the packet via the radio
 			return interface_manager_->send_to_interface( BROADCAST_ADDRESS, packet_number, NULL, INTERFACE_RADIO );
 		}
-		
-		//For ND messages the destination could be specified, no routing needed
-		if( message->remote_ll_address != 0 && message->target_interface != NUMBER_OF_INTERFACES)
-			return interface_manager_->send_to_interface( destination, packet_number, NULL, message->target_interface );
-			
 		
 	#ifdef LOWPAN_ROUTE_OVER
 		//In the route over mode, every hop is an IP hop
@@ -840,7 +863,10 @@
 			#ifdef IPv6_LAYER_DEBUG
 			char stra[43];
 			char strb[43];
-			debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(stra), next_hop.get_address(strb) );
+			if( target_interface == INTERFACE_UART ) //there is not really a "next" hop with UART
+				debug().debug( "IPv6 layer: Send to %s via UART", destination.get_address(stra) );
+			else
+				debug().debug( "IPv6 layer: Send to %s Next hop is: %s", destination.get_address(stra), next_hop.get_address(strb) );
 			#endif
 			//Send the package to the next hop
 			return interface_manager_->send_to_interface( next_hop, packet_number, NULL, target_interface );
@@ -957,13 +983,13 @@
 								packet_pool_mgr_->clean_packet( message );
 								return;
 							}
-							
-							//Shift to the end of the option +2 because of the Type and Length
-							actual_TLV_shift += start_of_the_actual_EH[actual_TLV_shift+1] + 2;
-							
 							break;
 						}
 					}
+					
+					//Shift to the end of the option +2 because of the Type and Length
+					//Do this for all TLV, without the need of any registered handler
+					actual_TLV_shift += start_of_the_actual_EH[actual_TLV_shift+1] + 2;
 				}
 				
 				//Prepare for the next EH
@@ -981,33 +1007,66 @@
 		}
 		// Process Extension Headers - END
 		
+// 		debug().debug( "IPv6 flow_label: %i, traffic_class: %i\n", message->flow_label(), message->traffic_class());
+		
 		//The packet is for this node (unicast)
 		//It is always true with MESH UNDER
-		if ( destination_ip == BROADCAST_ADDRESS || destination_ip == SOLICITED_MULTICAST_ADDRESS ||
-			ip_packet_for_this_node(&destination_ip, message->target_interface) ||
-			( act_nd_storage != NULL && ( act_nd_storage->is_router && destination_ip == ALL_ROUTERS_ADDRESS ) ) )
+// 		if ( destination_ip == BROADCAST_ADDRESS || destination_ip == SOLICITED_MULTICAST_ADDRESS ||
+// 			ip_packet_for_this_node(&destination_ip, message->target_interface) ||
+// 			( act_nd_storage != NULL && ( act_nd_storage->is_router && destination_ip == ALL_ROUTERS_ADDRESS ) ) )
+
+		//Get all multicast and unicast, check for all interfaces instead of only the source
+		if( ( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 ) ||
+			ip_packet_for_this_node(&destination_ip, INTERFACE_RADIO) || 
+			ip_packet_for_this_node(&destination_ip, INTERFACE_UART) )
 		{
 			node_id_t source_ip;
 			message->source_address(source_ip);
 			
+			
 			#ifdef IPv6_LAYER_DEBUG
 			link_layer_node_id_t my_mac = radio_->id();
 			char str[43];
-			if( destination_ip == BROADCAST_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %x", source_ip.get_address(str), my_mac );
-			else if( destination_ip == ALL_ROUTERS_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %x", source_ip.get_address(str), my_mac );
-			else if( destination_ip == SOLICITED_MULTICAST_ADDRESS )
-				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %x", source_ip.get_address(str), my_mac );
-			else
-				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %x", source_ip.get_address(str), my_mac );
 			#endif
+			if( destination_ip == BROADCAST_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				#endif
+			}
+			else if( destination_ip == ALL_ROUTERS_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG	
+				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				#endif
+			}
+			else if( destination_ip == SOLICITED_MULTICAST_ADDRESS )
+			{
+				#ifdef IPv6_LAYER_DEBUG	
+				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				#endif
+			}
+			else if( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 )
+			{
+				#ifdef IPv6_LAYER_DEBUG
+				debug().debug( "IPv6 layer: Received packet non-supported multicast from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				#endif
+				
+				packet_pool_mgr_->clean_packet( message );
+				return;
+			}
+			else
+			{
+				#ifdef IPv6_LAYER_DEBUG	
+				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				#endif
+			}
 			
 			//If it is not a supported transport layer, drop it
 			if( (message->transport_next_header() != UDP) && (message->transport_next_header() != ICMPV6) )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %x", message->transport_next_header(), my_mac );
+				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %llx", message->transport_next_header(), (long long unsigned)my_mac );
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				return;
@@ -1062,7 +1121,9 @@
 		for ( int i = 0; i < LOWPAN_MAX_PREFIXES; i++)
 		{
 			if( interface_manager_->prefix_list[target_interface][i].ip_address == *(destination) )
+			{
 				return true;
+			}
 		}
 		return false;
 	}

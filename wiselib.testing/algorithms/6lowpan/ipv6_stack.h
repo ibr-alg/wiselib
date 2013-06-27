@@ -113,20 +113,13 @@ namespace wiselib
 			timer_ = &timer;
 			uart_ = &uart;
 			
-			debug_->debug( "IPv6 stack init: %x", radio_->id());
+			debug_->debug( "IPv6 stack init: %llx", (long long unsigned)(radio_->id()));
 			
 			packet_pool_mgr.init( *debug_ );
 			
 			
 			//Init LoWPAN
 			lowpan.init(*radio_, *debug_, &packet_pool_mgr, *timer_ );
-			
-			#ifdef ISENSE
-			if( radio_->set_channel( 18 ) == 18 )
-				debug_->debug( "Radio channel is set to: 18! " );
-			else
-				debug_->debug( "Fatal error: Radio channel can't be configured! " );
-			#endif
 			
 			//Init Uart Radio
 			uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr, *timer_ );
@@ -160,6 +153,7 @@ namespace wiselib
 		
 		ICMPv6_t icmpv6; 
 		UDP_t udp;
+		IPv6_t ipv6;
 		InterfaceManager_t interface_manager;
 		
 	private:
@@ -168,7 +162,6 @@ namespace wiselib
 		typename Timer::self_pointer_t timer_;
 		typename Uart::self_pointer_t uart_;
 		
-		IPv6_t ipv6;
 		LoWPAN_t lowpan;
 		UartRadio_t uart_radio;
 		Packet_Pool_Mgr_t packet_pool_mgr;

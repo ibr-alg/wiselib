@@ -56,8 +56,7 @@ namespace wiselib {
 				SPECIAL_AREA_SIZE = SPECIAL_AREA_SIZE_P,
 				WRITE_THROUGH = WRITE_THROUGH_P,
 				BLOCK_SIZE = BlockMemory::BLOCK_SIZE,
-				SIZE = BlockMemory::SIZE,
-				BUFFER_SIZE = BlockMemory::BUFFER_SIZE,
+				BUFFER_SIZE = BLOCK_SIZE,
 				NO_ADDRESS = BlockMemory::NO_ADDRESS
 			};
 			
@@ -69,12 +68,16 @@ namespace wiselib {
 			class CacheEntry {
 				public:
 					void mark_used() {
+						//used_ = true;
 						// skip date 0 as it has as special meaning
 						if(current_date_ == 0) { current_date_++; }
 						date_ = current_date_++;
 					}
 					void mark_unused() { date_ = 0; }
 					bool used() { return date_ != 0; }
+					
+					void set_dirty(bool d) { dirty_ = d; }
+					bool dirty() { return dirty_; }
 					
 					size_type date() { return date_; }
 					block_data_t* data() { return data_; }
@@ -83,28 +86,14 @@ namespace wiselib {
 				private:
 					static size_type current_date_;
 					
-					block_data_t data_[BlockMemory::BUFFER_SIZE];
+					block_data_t data_[BlockMemory::BLOCK_SIZE];
 					address_t address_;
 					size_type date_;
+					bool dirty_;
 			};
 			
-			/*
-			 * Dirty hack:
-			 * this init() method is tailored to specifically copy
-			 * the one of bitmap chunk allocator.
-			 * TODO: find a more generic way to handle initialization of the
-			 * praent class. Maybe revert to "has-a" instead of "is-a"
-			 * (then we need to care about whether the 'parent' class is
-			 * allocating or not!)
-			 */
-			/*template<typename BM>
-			int init(BM* block_memory, typename OsModel::Debug *debug) {
-				memset(cache_, 0, sizeof(cache_));
-				BlockMemory::init(block_memory, debug);
-				start_ = 0;
-				end_ = (address_t)(-1);
-				return SUCCESS;
-			}*/
+			BlockMemory_P& physical() { return *(BlockMemory_P*)this; }
+			
 			int init() {
 				memset(cache_, 0, sizeof(cache_));
 				start_ = 0;
@@ -115,45 +104,15 @@ namespace wiselib {
 			}
 			
 			//
-			// Chunk operations
-			//
-
-			// Make sure this is not being used on top of a chunk
-			// allocator, as the chunk-wise access would undermine
-			// our cache and lead to inconsintencies!
-
-//			void create_chunks(block_data_t*, size_type) { BlockMemory::READ_THE_SOURCE_LUKE; }
-//			void allocate_chunks(size_type) { BlockMemory::READ_THE_SOURCE_LUKE; }
-//			void free_chunks(int, size_type) { BlockMemory::READ_THE_SOURCE_LUKE; }
-//			void write_chunks(block_data_t*, int,  size_type) { BlockMemory::READ_THE_SOURCE_LUKE; }
-
-/*
-			ChunkAddress create_chunks(block_data_t* buffer, size_type bytes) {
-				ChunkAddress r = BlockMemory::create_chunks(buffer, bytes);
-				invalidate(r.address());
-				return r;
-			}
-			
-			ChunkAddress allocate_chunks(size_type n) {
-				ChunkAddress r = BlockMemory::allocate_chunks(n);
-				invalidate(r.address());
-				return r;
-			}
-
-			void free_chunks(ChunkAddress a, size_type bytes) {
-				invalidate(a.address());
-				BlockMemory::free_chunks(a, bytes);
-			}
-
-			void write_chunks(block_data_t* buffer, ChunkAddress addr, size_type bytes) {
-				BlockMemory::write_chunks(buffer, addr, bytes);
-				invalidate(addr.address());
-			}
-*/
-			//
 			// Block operations
 			//
 
+			int wipe() {
+				block_memory().wipe();
+				init();
+				return SUCCESS;
+			}
+			
 			int write(block_data_t* buffer, address_t a) {
 				update(buffer, a);
 				if(WRITE_THROUGH) {
@@ -170,17 +129,18 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			block_data_t* get(address_t a) {
+			const block_data_t* get(address_t a) {
 				size_type i = find(a);
 				if(cache_[i].used() && cache_[i].address() == a) {
 					// cache hit
 				}
 				else {
 					// cache miss
-					if(!WRITE_THROUGH && cache_[i].used()) {
+					if(!WRITE_THROUGH && cache_[i].used() && cache_[i].dirty()) {
 						physical_write(cache_[i].data(), cache_[i].address());
 					}
 					cache_[i].mark_used();
+					cache_[i].set_dirty(false);
 					cache_[i].address() = a;
 					physical_read(cache_[i].data(), a);
 				}
@@ -192,17 +152,30 @@ namespace wiselib {
 				CacheEntry &e = cache_[i];
 				
 				if((e.used() && (e.address() != a))) {
+					// entry not found in cache and we would need to kick out
+					// another one for it
+					
 					// only update if a already in the cache or
 					// free slot available for write-through.
 					// for write-back, force the update
 					if(WRITE_THROUGH) {
+						// in write-through just dont do anything in this case,
+						// (write() will care for putting it on disk)
 						return;
 					}
-					else {
+					else if(e.dirty()) {
+						// write back the old one
+						
 						physical_write(e.data(), e.address());
+						e.set_dirty(false);
 					}
 				}
+				
+				// update cache entry
 
+				//e.set_dirty(memcmp(e.data(), new_data, BLOCK_SIZE) != 0);
+				e.set_dirty(true);
+				
 				memcpy(e.data(), new_data, BLOCK_SIZE);
 				e.mark_used();
 				e.address() = a;
@@ -227,6 +200,16 @@ namespace wiselib {
 					(cache_[find(a)].address() != a)
 				);
 			}
+			
+			void flush() {
+				for(size_type i = 0; i < CACHE_SIZE; i++) {
+					CacheEntry &e = cache_[i];
+					if(e.used() && e.dirty()) {
+						physical_write(e.data(), e.address());
+						e.set_dirty(false);
+					}
+				}
+			}
 
 			void set_special_range(address_t start, address_t end) {
 				start_ = start;
@@ -234,7 +217,17 @@ namespace wiselib {
 			}
 
 			BlockMemory& block_memory() { return *(BlockMemory*)this; }
+			
+			size_type size() { return block_memory().size(); }
 		
+			void reset_stats() {
+				reads_ = writes_ = 0;
+			}
+			
+			void print_stats() {
+				DBG("CBM phys reads: %ld phys writes: %ld", reads_, writes_);
+			}
+			
 		private:
 
 			bool in_special_area(address_t a) { return a >= start_ && a < end_; }
@@ -276,24 +269,18 @@ namespace wiselib {
 			}
 
 			int physical_write(block_data_t* data, address_t a) {
-				DBG("write %ld", a);
 				writes_++;
 				if(writes_ % 100 == 0) { print_stats();	}
 				return BlockMemory::write(data, a);
 			}
 
 			int physical_read(block_data_t* data, address_t a) {
-				DBG("read %ld", a);
 				reads_++;
 				if(reads_ % 100 == 0) { print_stats();	}
 				return BlockMemory::read(data, a);
 			}
 
 
-			void print_stats() {
-				DBG("CBM phys reads: %ld phys writes: %ld", reads_, writes_);
-			}
-			
 			CacheEntry cache_[CACHE_SIZE];
 			address_t start_;
 			address_t end_;

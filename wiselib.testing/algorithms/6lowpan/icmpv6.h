@@ -264,6 +264,12 @@ namespace wiselib
 			for( int i = 0; i < NUMBER_OF_INTERFACES; i++ )
 				sent_RS[i] = 0;
 			
+			//If the SLIP is enabled, send Router Solicitation for the SLIP tool to configure the addresses
+			#ifdef IPv6_SLIP
+			sent_RS[radio_ip_->INTERFACE_UART] = 1;
+			send_RS_to_all_routers( (void*)(radio_ip_->INTERFACE_UART) );
+			#endif
+			
 			return SUCCESS;
 		}
 		
@@ -817,6 +823,9 @@ namespace wiselib
 			data[2] = 0;
 			data[3] = 0;
 			
+			//Delete the source interface
+			message->target_interface = NUMBER_OF_INTERFACES;
+			
 			//Send the packet to the IP layer
 			int result = radio_ip().send( from, packet_number, NULL );
 			//Set the packet unused if the result is NOT ROUTING_CALLED, because this way tha ipv6 layer will clean it
@@ -1037,6 +1046,11 @@ namespace wiselib
 				
 				//Reset RS sending variables
 				sent_RS[target_interface] = 0;
+			
+				//Stop the SLIP part as well
+			#ifdef IPv6_SLIP
+				sent_RS[radio_ip_->INTERFACE_UART] = 0;
+			#endif
 				
 				//actual position in the data
 				act_pos = 4;
@@ -1072,6 +1086,8 @@ namespace wiselib
 				act_pos += 4;
 				
 				link_layer_node_id_t ll_source = 0;
+				
+				uint16_t prefix_option_start_positon = 0;
 				//Process the options
 				while( message->transport_length() - act_pos > 0 )
 				{
@@ -1089,7 +1105,10 @@ namespace wiselib
 						ll_source = read_link_layer_option( data, act_pos );
 					
 					else if( data[act_pos] == PREFIX_INFORMATION )
+					{
+						prefix_option_start_positon = act_pos;
 						process_prefix_information( data, act_pos, target_interface );
+					}
 					
 					else if( data[act_pos] == LOWPAN_CONTEXT )
 						process_6lowpan_context_option( data, act_pos, target_interface );
@@ -1103,13 +1122,16 @@ namespace wiselib
 				//If this message is from the uart, this flag was set by the uart radio
 				if( message->ND_installation_message )
 				{
+					//Define the global address for the UART
+					process_prefix_information( data, prefix_option_start_positon, radio_ip_->INTERFACE_UART );
+					
 					#ifdef ND_DEBUG
 					debug().debug( "ND border router installation message is processed, inform routers about the changes in RAs!" );
 					#endif
 					packet_pool_mgr_->clean_packet( message );
 					
 					#ifdef LOWPAN_ROUTE_OVER
-					uint8_t number_target = ( 3 << 4 ) | target_interface;
+					uint8_t number_target = ( 1 << 4 ) | target_interface;
 					send_RA_to_all_routers( (void*)number_target );
 					#endif
 					return;
@@ -1124,7 +1146,7 @@ namespace wiselib
 					#endif
 					packet_pool_mgr_->clean_packet( message );
 					
-					uint8_t number_target = ( 3 << 4 ) | target_interface;
+					uint8_t number_target = ( 1 << 4 ) | target_interface;
 					send_RA_to_all_routers( (void*)number_target );
 					
 					return;
@@ -1361,6 +1383,12 @@ namespace wiselib
 			{
 				#ifdef ND_DEBUG
 				debug().debug(" ND manager: ND is disabled for interface %i ", target_interface );
+				
+				//Display the addresses for the UART as well
+				char str[43];
+				for( int i = 0; i < LOWPAN_MAX_PREFIXES; i++ )
+				debug_->debug(" ND (if: %i/%i) valid: %i, addr: %s", target_interface, i, radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime, radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.get_address(str) );
+				
 				#endif
 				continue;
 			}
@@ -1370,7 +1398,7 @@ namespace wiselib
 				#ifdef ND_DEBUG
 				debug().debug(" ND manager: This is a border router on interface %i ", target_interface );
 				#endif
-				continue;
+// 				continue;
 			}
 			
 			#ifdef ND_DEBUG
@@ -1378,7 +1406,7 @@ namespace wiselib
 			#endif
 
 			//If the list of the default routers is empty send a ROUTER_SOLICITATION
-			if( act_nd_storage->neighbor_cache.is_default_routers_list_empty() )
+			if( act_nd_storage->neighbor_cache.is_default_routers_list_empty() && !(act_nd_storage->is_border_router) )
 			{
 				//If RS sending is not in process
 				if( sent_RS[target_interface] == 0 )
@@ -1579,7 +1607,7 @@ namespace wiselib
 			
 			char str[43];
 			for( int i = 0; i < LOWPAN_MAX_PREFIXES; i++ )
-				debug_->debug(" ND (if: %i) prefix(%i) valid: %i, addr: %s", target_interface, i, radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime, radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.get_address(str) );
+				debug_->debug(" ND (if: %i/%i) valid: %i, addr: %s", target_interface, i, radio_ip_->interface_manager_->prefix_list[target_interface][i].adv_valid_lifetime, radio_ip_->interface_manager_->prefix_list[target_interface][i].ip_address.get_address(str) );
 			
 			
 			#endif
@@ -1612,8 +1640,16 @@ namespace wiselib
 		//Determinate the actual ND storage
 		NDStorage_t* act_nd_storage;
 		act_nd_storage = radio_ip_->interface_manager_->get_nd_storage( target_interface );
+		
+		//Enable RS for the UART if SLIP is in use
+#ifdef IPv6_SLIP
+		if( (target_interface != radio_ip_->INTERFACE_UART || typecode != ROUTER_SOLICITATION) &&
+			act_nd_storage == NULL	)
+			return ERR_UNSPEC;
+#else
 		if( act_nd_storage == NULL )
 			return ERR_UNSPEC;
+#endif
 		
 		//Get a packet from the manager
 		uint8_t packet_number = packet_pool_mgr_->get_unused_packet_with_number();
@@ -1642,6 +1678,11 @@ namespace wiselib
 		/*
 			ND type specific part
 						*/
+		
+		link_layer_node_id_t ll_source;
+		// if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
+			ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
+			
 		if( typecode == ROUTER_SOLICITATION )
 		{
 			//Set the source address
@@ -1650,10 +1691,6 @@ namespace wiselib
 			
 			//Original size of the ROUTER_SOLICITATION
 			length = 8;
-			
-			link_layer_node_id_t ll_source;
-			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
-				ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
 			
 			//Call Options here
 			//Insert the SLLAO option
@@ -1700,10 +1737,6 @@ namespace wiselib
 			insert_authoritative_border_router_option( message, length, act_nd_storage );
 			#endif
 			
-			link_layer_node_id_t ll_source;
-			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
-				ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
-			
 			//Insert the SLLAO
 			insert_link_layer_option( message, length, ll_source, false );
 			
@@ -1738,10 +1771,6 @@ namespace wiselib
 			//----------------------------------
 			//Call Options here
 			
-			link_layer_node_id_t ll_source;
-			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
-				ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
-			
 			//Insert the SLLAO
 			insert_link_layer_option( message, length, ll_source, false );
 			
@@ -1774,9 +1803,6 @@ namespace wiselib
 			
 			//----------------------------------
 			//Call Options here
-			link_layer_node_id_t ll_source;
-			if( target_interface == radio_ip_->interface_manager_->INTERFACE_RADIO )
-				ll_source = radio_ip_->interface_manager_->radio_lowpan_->id();
 			
 			//Insert the SLLAO
 			insert_link_layer_option( message, length, ll_source, false );

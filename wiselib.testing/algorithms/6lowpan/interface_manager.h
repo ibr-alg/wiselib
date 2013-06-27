@@ -120,7 +120,7 @@ namespace wiselib
 			prefix_list[INTERFACE_UART][0].adv_valid_lifetime = 0xFFFFFFFF;
 			prefix_list[INTERFACE_UART][0].adv_prefered_lifetime = 0xFFFFFFFF;
 			//The 16th bit is set to 1 because this is a reserved place of the addresses
-			my_id |= 8000;
+			my_id |= 0x8000;
 			prefix_list[INTERFACE_UART][0].ip_address.make_it_link_local();
 			prefix_list[INTERFACE_UART][0].ip_address.set_long_iid( &my_id, true );
 			
@@ -315,7 +315,7 @@ namespace wiselib
 		{
 			//Use the radio's MAC for the UART
 			//The 16th bit is set to 1 because this is a reserved place of the addresses 
-			my_id |= 8000;
+			my_id |= 0x8000;
 		}
 		
 		

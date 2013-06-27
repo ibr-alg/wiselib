@@ -106,7 +106,7 @@ typedef wiselib::JoinSemanticClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radi
 #include "algorithms/cluster/messages/sema_resu.h"
 typedef wiselib::SemaResuClusterMsg<wiselib::OSMODEL, wiselib::OSMODEL::Radio> SemaResumeMsg_t;
 
-#include "algorithms/cluster_radio/cluster_radio_message.h"
+//#include "algorithms/cluster_radio/cluster_radio_message.h"
 
 #endif	/* _CLUSTERING_TYPES_H */
 

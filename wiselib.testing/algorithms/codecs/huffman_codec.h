@@ -32,6 +32,14 @@ namespace wiselib
             size_type sz = encode_internal(in, 0);
             bitarray_t *out = bitarray_t::make(sz);
             encode_internal(in, out);
+			
+			//DBG("encode(%s) = %02x %02x %02x %02x len=%d",
+					//(char*)in_,
+					//((block_data_t*)out)[0],
+					//((block_data_t*)out)[1],
+					//((block_data_t*)out)[2],
+					//((block_data_t*)out)[3], (int)strlen((char*)out));
+			
             return reinterpret_cast<block_data_t*> (out);
 
         } // encode()

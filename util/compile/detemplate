@@ -44,7 +44,7 @@ def bracedepth(line, maxdepth, braces='<>', eat = False):
 					p = pos
 					
 		if eat:
-			if depth < maxdepth or (depth == maxdepth and c != braces[1] and not escaped):
+			if depth < maxdepth or (depth == maxdepth and c != braces[1] and not (escaped and c in braces)):
 				r += c
 			
 		if c == '-':

@@ -103,6 +103,7 @@ namespace wiselib {
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_t;
+			typedef size_t size_type;
 			typedef Value_P value_type;
 			typedef value_type& reference;
 			typedef const value_type& const_reference;

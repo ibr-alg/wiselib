@@ -90,7 +90,8 @@ tinyos-tossim:
 tinyos-gnode:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.gnode gnode tinyos-gnode ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
-
+ns3:
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.ns3 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 ###############################################################
 ##
 ## Flash hex file to node

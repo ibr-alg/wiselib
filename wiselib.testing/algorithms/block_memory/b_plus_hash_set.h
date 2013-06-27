@@ -22,6 +22,7 @@
 
 #include <util/meta.h>
 #include <util/traits.h>
+#include <util/debugging.h>
 #include "b_plus_tree.h"
 
 namespace wiselib {
@@ -75,19 +76,21 @@ namespace wiselib {
 			
 			class Entry {
 				// {{{
-				public:
 					Entry() : next_(ChunkAddress::invalid()), refcount_(0), length_(0) {
 					}
 					
-					ChunkAddress next() { return next_; }
+				public:
+					typedef typename BPlusHashSet_detail::PayloadRet<value_type, PL::fixed_size>::type PayloadT;
+						
+					ChunkAddress next() const { return next_; }
 					void set_next(ChunkAddress a) { next_ = a; }
 					
-					refcount_t refcount() { return refcount_; }
+					refcount_t refcount() const { return refcount_; }
 					void set_refcount(refcount_t r) { refcount_ = r; }
 					
-					size_type length() {
+					size_type length() const {
 						if(Payload<value_type>::fixed_size) {
-							return Payload<value_type>::size(payload());
+							return Payload<value_type>::size(value_type());
 						}
 						else {
 							return length_;
@@ -95,7 +98,7 @@ namespace wiselib {
 					}
 					
 					typename BPlusHashSet_detail::PayloadRet<value_type, PL::fixed_size>::type
-					payload() {
+					payload() const {
 						if(PL::fixed_size) {
 							return Payload<value_type>::from_data((block_data_t*)&length_);
 						}
@@ -104,39 +107,59 @@ namespace wiselib {
 						}
 					}
 					
+					/// For debugging.
+					block_data_t* raw_payload() {
+						if(PL::fixed_size) { return (block_data_t*)&length_; }
+						else { return (block_data_t*)&length_ + sizeof(length_); }
+					}
+					
+					const block_data_t* raw_payload() const {
+						if(PL::fixed_size) { return (block_data_t*)&length_; }
+						else { return (block_data_t*)&length_ + sizeof(length_); }
+					}
+					
+					
 					void set_payload(const value_type& p) {
 						//assert(strlen(reinterpret_cast<char*>(p)) <= MAX_VALUE_LENGTH);
 						if(Payload<value_type>::fixed_size) {
-							memcpy((char*)&length_, Payload<value_type>::data(p), Payload<value_type>::size(p));
 						}
 						else {
 							length_ = PL::size(p);
-							memcpy((char*)&length_ + sizeof(length_), PL::data(p), length_);
 						}
+						memcpy(raw_payload(), PL::data(p), PL::size(p));
 					}
 					
-					size_type total_length() {
+					size_type total_length() const {
+						return raw_payload() - reinterpret_cast<const block_data_t*>(this) + length();
+						
+						/*
 						if(Payload<value_type>::fixed_size) {
-							return (char*)&length_ - (char*)&next_ + length();
+							// the char* diff is the size of this class
+							// withouth the length_ field. length() will
+							// return the correct (fixed-value) length for our
+							// value type
+							return (char*)&refcount_ + sizeof(refcount_t) - (char*)&next_ + length();
 						}
 						else {
 							return sizeof(Entry) + length();
 						}
+						*/
 					}
 					
-					bool operator==(Entry& other) {
+					bool operator==(Entry& other) const {
 						check();
 						other.check();
 						
 						if(total_length() != other.total_length()) { return false; }
 						
-						return memcmp(this, &other, total_length()) == 0;
+						return refcount_ == other.refcount_ && next_ == other.next_ && (memcmp(raw_payload(), other.raw_payload(), length()) == 0);
+							//memcmp(this, &other, total_length()) == 0;
 						
 						//return next() == other.next() && refcount() == other.refcount() && length() == other.length();
 					}
 					
 #if (DEBUG_OSTREAM || DEBUG_GRAPHVIZ)
-					void debug_ostream(std::ostream& os) {
+					void debug_ostream(std::ostream& os) const {
 						os << "Entry(nxt=" << next_ << " refc=" << refcount_;
 						if(Payload<value_type>::fixed_size) {
 							os << " sz=" << sizeof(value_type) << "F";
@@ -147,19 +170,24 @@ namespace wiselib {
 						os << " " << payload() << ")";
 					}
 					
-					friend std::ostream& operator<<(std::ostream& os, Entry& e) {
+					friend std::ostream& operator<<(std::ostream& os, Entry& e);
+					
+					/*
+					friend std::ostream& operator<<(std::ostream& os, Entry& e) const {
 						e.debug_ostream(os);
 						return os;
 					}
+					*/
 #endif // DEBUG_OSTREAM
 					
-					void check() {
-						assert(next_ == ChunkAddress::invalid() || next_.address() >= 6000);
+					void check() const {
+						//assert(next_ == ChunkAddress::invalid() || next_.address() >= 6000);
 					}
 					
 				private:
 					ChunkAddress next_;
 					refcount_t refcount_;
+					
 					size_type length_;
 				// }}}
 			};
@@ -227,7 +255,7 @@ namespace wiselib {
 						check();
 						return entry().payload();
 					}
-					value_type* operator->() {
+					const value_type* operator->() {
 						load_entry();
 						check();
 						return &entry().payload();
@@ -242,7 +270,7 @@ namespace wiselib {
 					}
 					
 				private:
-					Entry& entry() { return *reinterpret_cast<Entry*>(buffer_ + entry_address_.offset() * BlockMemory::CHUNK_SIZE); }
+					const Entry& entry() { return *reinterpret_cast<const Entry*>(buffer_ + entry_address_.offset() * BlockMemory::CHUNK_SIZE); }
 					void load_entry() {
 						
 						if(set_ != 0 && entry_address_ != ChunkAddress::invalid()) {
@@ -254,7 +282,18 @@ namespace wiselib {
 					self_type *set_;
 					typename Tree::iterator tree_iterator_;
 					ChunkAddress entry_address_;
-					block_data_t *buffer_; //[BlockMemory::BLOCK_SIZE];
+					const block_data_t *buffer_; //[BlockMemory::BLOCK_SIZE];
+					
+				
+				template<
+					typename OsModel_,
+					typename BlockMemory_,
+					typename Hash_,
+					typename Value_,
+					bool UNIQUE_,
+					typename Debug_
+				>
+				friend class BPlusHashSet;
 				// }}}
 			};
 			
@@ -277,12 +316,12 @@ namespace wiselib {
 			bool empty() { return size() == 0; }
 			
 			iterator insert(const value_type& v) {
-			//iterator insert(value_type v) {
 				check();
 				hash_t h = hash_value(v);
 				
 				ChunkAddress addr = ChunkAddress::invalid();
 				block_data_t buffer[BlockMemory::BUFFER_SIZE];
+				memset(buffer, 0, BlockMemory::BUFFER_SIZE);
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
 				
 				typename Tree::iterator it = tree_.find(h);
@@ -295,7 +334,6 @@ namespace wiselib {
 					// See if we can find the entry in the linked list of entries with this hash
 					ChunkAddress prev = ChunkAddress::invalid();
 					for(addr = it->value(); addr != ChunkAddress::invalid(); addr = entry.next()) {
-						DBG("insert list read entry");
 						read_entry(entry, addr);
 						if(Compare<value_type>::cmp(entry.payload(), v) == 0) {
 							if(!UNIQUE) {
@@ -331,17 +369,18 @@ namespace wiselib {
 			
 			iterator erase(iterator it) {
 				check();
+				assert(it != end());
 				
 				block_data_t buffer[BlockMemory::BUFFER_SIZE];
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
 				ChunkAddress k = it.chunk_address();
 				
-				DBG("erase read entry");
 				read_entry(entry, k);
 				assert(entry.refcount() > 0);
 				entry.set_refcount(entry.refcount() - 1);
 				if(entry.refcount() != 0) {
 					write_entry(entry, k);
+					++it;
 				}
 				else {
 					hash_t h = hash_value(entry.payload());
@@ -349,37 +388,35 @@ namespace wiselib {
 					assert(tree_it != tree_.end());
 					ChunkAddress addr, prev = ChunkAddress::invalid();
 					for(addr = tree_it->value(); addr != ChunkAddress::invalid() && addr != k; addr = entry.next()) {
-						DBG("erase read entry list");
 						read_entry(entry, addr);
 						prev = addr;
 					} // for
 					assert(addr == k);
 					
 					if(prev == ChunkAddress::invalid()) {
-						DBG("erase read entry noprev");
 						read_entry(entry, k);
 						if(entry.next() == ChunkAddress::invalid()) {
-							tree_.erase(tree_it);
+							it.tree_iterator_ = tree_.erase(tree_it);
+							it.entry_address_ = it.tree_iterator_->second;
 						}
 						else {
 							tree_.update(tree_it, entry.next());
+							++it;
 						}
 					}
 					else {
+						++it;
 						block_data_t buffer2[BlockMemory::BUFFER_SIZE];
 						Entry &entry2 = *reinterpret_cast<Entry*>(buffer2);
-						DBG("erase read entry prev");
 						read_entry(entry2, k);
 						entry.set_next(entry2.next());
 						write_entry(entry, prev);
 					}
-					DBG("erase read entry free");
 					read_entry(entry, k);
 					block_memory_->free_chunks(k, entry.total_length());
 				
 				}
 				
-				++it;
 				return it;
 			} // erase()
 			
@@ -397,13 +434,11 @@ namespace wiselib {
 				ChunkAddress addr;
 				block_data_t buffer[BlockMemory::BUFFER_SIZE];
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
-				DBG("find read entry");
 				read_entry(entry, k);
 				
 				for(addr = it->value();
 						addr != ChunkAddress::invalid() && Compare<value_type>::cmp(entry.payload(), v) != 0;
 						addr = entry.next()) {
-					DBG("find read entry list");
 					read_entry(entry, addr);
 				} // for
 				return iterator(this, it, addr);
@@ -418,13 +453,11 @@ namespace wiselib {
 				ChunkAddress addr;
 				block_data_t buffer[BlockMemory::BUFFER_SIZE];
 				Entry &entry = *reinterpret_cast<Entry*>(buffer);
-				DBG("count read entry");
 				read_entry(entry, k);
 				
 				for(addr = it->value();
 						addr != ChunkAddress::invalid() && Compare<value_type>::cmp(entry.payload(), v) != 0;
 						addr = entry.next()) {
-					DBG("count list read entry");
 					read_entry(entry, addr);
 				} // for
 				return entry.refcount();
@@ -447,6 +480,7 @@ namespace wiselib {
 				e.set_payload(value);
 				e.set_next(ChunkAddress::invalid());
 				e.set_refcount(1);
+				
 				e.check();
 				ChunkAddress r = block_memory_->create_chunks(reinterpret_cast<block_data_t*>(&e), e.total_length());
 				

@@ -185,6 +185,14 @@ struct RemovePointer<T*> { typedef T t; };
 
 
 /**
+ * Incomplete type for printing eg sizeof info at compile time (as error).
+ * Use like:
+ * PrintInt<sizeof(block_data_t*)> blub;
+ * Source: http://stackoverflow.com/questions/2008398/is-it-possible-to-print-out-the-size-of-a-c-class-at-compile-time
+ */
+template<int s> struct PrintInt;
+
+/**
  * Calculate length of a string constant at compile time.
  */
 template<size_t N_>
