@@ -59,6 +59,10 @@ namespace wiselib {
 					return e;
 				}
 				
+				bool is_leaf() {
+					return childs[0] == 0 && childs[1] == 0;
+				}
+				
 				Node *childs[2], *parent;
 				::uint16_t refcount;
 				//::uint16_t length;
@@ -73,15 +77,26 @@ namespace wiselib {
 			enum { ABSTRACT_KEYS = false };
 			
 			void init() {
+				root_ = 0;
+			}
+			
+			template<typename Debug>
+			void init(Debug*) {
+				root_ = 0;
 			}
 			
 			key_type insert(mapped_type v) {
 				int c;
 				Node *p = find_node(v, c);
 				
-				if(c == 0) {
+				if(c == 0 && p) {
 					p->refcount++;
 					return to_key(p);
+				}
+				else if(c == 0 && !p) {
+					root_ = Node::make(v);
+					root_->parent = 0;
+					return to_key(root_);
 				}
 				else {
 					Node *n = Node::make(v);
@@ -120,28 +135,34 @@ namespace wiselib {
 					return 1;
 				}
 				
-				bool child_idx = 0;
-				if(p->parent) {
-					child_idx = (p == p->parent->childs[Node::RIGHT]);
+				if(p->is_leaf()) {
+					if(p->parent) {
+						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
+						p->parent->childs[child_idx] = 0;
+					}
 				}
-				
-				bool successor_side = 1;
-				Node *s = find_successor(p, successor_side);
-				assert(s != 0);
-				
-				// remove successor from subtree
-				s->parent->childs[!successor_side] = s->childs[successor_side];
-				if(s->childs[successor_side]) {
-					s->childs[successor_side]->parent = s->parent->childs[!successor_side];
+				else {
+					bool successor_side = 1;
+					Node *s = find_successor(p, successor_side);
+					assert(s != 0);
+					
+					// remove successor from subtree
+					s->parent->childs[!successor_side] = s->childs[successor_side];
+					if(s->childs[successor_side]) {
+						s->childs[successor_side]->parent = s->parent->childs[!successor_side];
+					}
+					
+					if(p->parent) {
+						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
+						p->parent->childs[child_idx] = s;
+					}
+					if(p->childs[!successor_side]) { p->childs[!successor_side]->parent = s; }
+					if(p->childs[successor_side]) { p->childs[successor_side]->parent = s; }
+					
+					s->parent = p->parent;
+					s->childs[!successor_side] = p->childs[!successor_side];
+					s->childs[successor_side] = p->childs[successor_side];
 				}
-				
-				if(p->parent) { p->parent->childs[child_idx] = s; }
-				if(p->childs[!successor_side]) { p->childs[!successor_side]->parent = s; }
-				if(p->childs[successor_side]) { p->childs[successor_side]->parent = s; }
-				
-				s->parent = p->parent;
-				s->childs[!successor_side] = p->childs[!successor_side];
-				s->childs[successor_side] = p->childs[successor_side];
 				
 				get_allocator().free_array(
 						reinterpret_cast<block_data_t*>(p)
@@ -154,12 +175,24 @@ namespace wiselib {
 			
 			/**
 			 * @param c holds the result of value comparison between v and
-			 * best found node. 0 => found, negative => would insert left,
-			 * positive => would insert right.
+			 * best found node.
+			 * 
+			 * return value | c    | meaning
+			 * -------------|------|----------------------------------------------------
+			 * != 0         | != 0 | use returned node as parent for inserting your value
+			 * != 0         | 0    | matching node found and returned
+			 * 0            | 0    | the tree is empty yet, insert your value as root_
+			 * 0            | != 0 | not possible
+			 * 
 			 */
 			Node* find_node(mapped_type v, int& c) {
+				assert(v != 0);
+				c = 0;
 				Node *p = root_, *prev = root_;
 				while(p) {
+					assert(p->value != 0);
+					
+					DBG("strcmp(%x, %x, %x)", (int)(void*)p, (int)(void*)p->value, (int)(void*)v);
 					c = strcmp((char*)p->value, (char*)v);
 					if(c == 0) {
 						return p;
@@ -167,13 +200,16 @@ namespace wiselib {
 					prev = p;
 					p = p->childs[(c < 0) ? 0 : 1];
 				}
+				
+				assert((prev == 0) == (root_ == 0));
+				assert((prev == 0) <= (c == 0));
 				return prev;
 			}
 			
 			Node* find_successor(Node *p, bool& right = 1) {
-				p = p->childs[right];
+				if(!p) { return 0; }
 				
-				if(!p) {
+				if(!p->childs[right]) {
 					if(right) {
 						right = 0;
 						return find_successor(p, right);
@@ -183,10 +219,13 @@ namespace wiselib {
 					}
 				}
 				
-				while(p->childs[!right]) {
+				p = p->childs[right];
+				Node *prev = p;
+				while(p) {
+					prev = p;
 					p = p->childs[!right];
 				}
-				return p;
+				return prev;
 			}
 			
 			static key_type to_key(Node *p) { return reinterpret_cast<key_type>(p); }
@@ -199,3 +238,4 @@ namespace wiselib {
 
 #endif // UNBALANCED_TREE_DICTIONARY_H
 
+/* vim: set ts=4 sw=4 tw=78 noexpandtab :*/

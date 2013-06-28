@@ -290,7 +290,7 @@ namespace wiselib {
 					AggregationKey& key = fill_buffer_iterator_->first;
 					AggregationValue& aggregate = fill_buffer_iterator_->second;
 					
-					DBG("aggr fill buffer state: %d", fill_buffer_state_);
+					DBG("aggr fill buffer state: %d", (int)fill_buffer_state_);
 					
 					switch(fill_buffer_state_) {
 						case FIELD_UOM: {

@@ -57,21 +57,24 @@ typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 
 
 // --- < USE RAM >
-	/*
+	/**/
 
 	#include <util/tuple_store/prescilla_dictionary.h>
+	#include <util/pstl/unbalanced_tree_dictionary.h>
 	#include <util/pstl/list_dynamic.h>
 
 	typedef list_dynamic<Os, BrokerTupleT> TupleContainer;
-	typedef PrescillaDictionary<Os> Dictionary;
+	//typedef PrescillaDictionary<Os> Dictionary;
+	typedef UnbalancedTreeDictionary<Os> Dictionary;
 	typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
 	typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
 
-	*/
+	/**/
 
 // --- < / USE RAM >
 
 // --- < USE BLOCKMEMORY >
+	/*
 
 	#if (ARDUINO || ISENSE)
 		typedef Os::BlockMemory PhysicalBlockMemory;
@@ -110,6 +113,7 @@ typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 
 	#define USE_BLOCK_TS 1
 
+	*/
 // --- < / USE_BLOCKMEMORY >
 
 //PrintInt<sizeof(block_data_t*)> _0;
@@ -255,9 +259,9 @@ class App {
 			ins("yy6", "999999999", "ab", doc1mask | doc3mask);
 			debug_->debug("ins done");
 			
-			debug_->debug("--------- after even more:");
-			block_memory_.flush();
-			block_memory_.print_stats();
+			//debug_->debug("--------- after even more:");
+			//block_memory_.flush();
+			//block_memory_.print_stats();
 		}
 		
 		void test_broker() {

@@ -87,7 +87,7 @@ namespace wiselib {
 				// TODO
 				assert(size() + ENTITY_SIZE < MAX_MESSAGE_LENGTH);
 				if(size() + ENTITY_SIZE >= MAX_MESSAGE_LENGTH) {
-					DBG("message full! current pos_ent=%d count=%d ent sz=%d maxlen=%d", POS_ENTITIES, entity_count(), ENTITY_SIZE, MAX_MESSAGE_LENGTH);
+					DBG("message full! current pos_ent=%d count=%d ent sz=%d maxlen=%d", (int)POS_ENTITIES, (int)entity_count(), (int)ENTITY_SIZE, (int)MAX_MESSAGE_LENGTH);
 				}
 				//DBG("writing ent desc to %p end=%p", entity_description(entity_count()), data_ + MAX_MESSAGE_LENGTH);
 				wiselib::write<OsModel>(entity_description(entity_count()), se.tree());

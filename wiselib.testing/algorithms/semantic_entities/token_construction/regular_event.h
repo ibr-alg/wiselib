@@ -23,6 +23,10 @@
 #include <external_interface/external_interface.h>
 #include <util/delegates/delegate.hpp>
 
+#ifdef ISENSE
+	#include <isense/util/get_os.h>
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -72,6 +76,7 @@ namespace wiselib {
 				STABLE_HIT_WINDOW = 75,
 				/// If found interval is shorter than this, assume its a dupe
 				DUPE_INTERVAL = 100 * TIMESCALE,
+				MIN_INTERVAL = 100 * TIMESCALE,
 				
 				/// How much a close hit influences expected timing.
 				ALPHA_CLOSE = 25,
@@ -135,13 +140,13 @@ namespace wiselib {
 					}
 				}
 				
+				if(interval_ < MIN_INTERVAL) { interval_ = MIN_INTERVAL; }
 				if(window_ > interval_) { window_ = interval_; }
 						
 				check_invariant();
 				
 				#if !WISELIB_DISABLE_DEBUG_MESSAGES
-					DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d",
-							(int)mynodeid, (int)t, (int)last_encounter_, (int) old_interval, (int) new_interval,
+					DBG("node %d t %d last_encounter %d old_interval %d new_interval %d corrected_interval %d hit_type %d old_window %d corrected_window %d hits %d", (int)mynodeid, (int)t, (int)last_encounter_, (int) old_interval, (int) new_interval,
 							(int) interval_, (int)h, (int) old_window, (int) window_, (int)hits_);
 				#endif
 				
@@ -196,7 +201,7 @@ namespace wiselib {
 					void* userdata = 0
 			) {
 				if(waiting_ || waiting_timer_set_) {
-					DBG("t=%d // timer already set!", absolute_millis(clock, clock->time()));
+					DBG("t=%d // timer already set!", (int)absolute_millis(clock, clock->time()));
 					return true;
 				}
 				
@@ -205,7 +210,7 @@ namespace wiselib {
 				userdata_ = userdata;
 				
 				if(early()) {
-					DBG("t=%d // EARLY! hits=%d userdata=%p", (int)absolute_millis(clock, clock->time()), (int)hits_, userdata);
+					DBG("t=%d // EARLY! hits=%d userdata=%x", (int)absolute_millis(clock, clock->time()), (int)hits_, (int)userdata);
 					waiting_ = true;
 					if(begin_waiting_callback_) {
 						begin_waiting_callback_(userdata_);
@@ -224,7 +229,12 @@ namespace wiselib {
 					else {
 						delta = ne - now - window_;
 					}
-					DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", absolute_millis(clock, clock->time()), delta, ne, now, window_);
+					DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", (int)absolute_millis(clock, clock->time()), (int)delta, (int)ne, (int)now, (int)window_);
+					
+					#ifdef ISENSE
+						GET_OS.debug("setting timer: %d", (int)delta);
+					#endif
+					
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, 0);
 				}
 				return true;
@@ -264,8 +274,7 @@ namespace wiselib {
 			 * timer installed by start_waiting_timer!
 			 */
 			void begin_waiting(void*) {
-				DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%p",
-						(int)waiting_timer_set_, (int)waiting_, (int)cancel_, userdata_);
+				DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%x", (int)waiting_timer_set_, (int)waiting_, (int)cancel_, (int)userdata_);
 						
 				waiting_timer_set_ = false;
 				if(!waiting_) {

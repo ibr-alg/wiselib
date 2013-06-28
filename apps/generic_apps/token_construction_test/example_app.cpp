@@ -101,7 +101,7 @@ class ExampleApplication
 			
 			radio_->enable_radio();
 			
-			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
+			debug_->debug( "Hello World from Example Application! my id=%d\n", (int)radio_->id());
 			
 			#if USE_DICTIONARY
 				#if USE_PRESCILLA

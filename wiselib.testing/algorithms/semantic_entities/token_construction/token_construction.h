@@ -126,8 +126,8 @@ namespace wiselib {
 				/// Guarantee to broadcast in this fixed inverval
 				REGULAR_BCAST_INTERVAL = 30000 * TIME_SCALE,
 				/// Check in this interval whether state is dirty and broadcast it if so
-				DIRTY_BCAST_INTERVAL = 100 * TIME_SCALE,
-				AWAKE_BCAST_INTERVAL = 100 * TIME_SCALE,
+				DIRTY_BCAST_INTERVAL = 1000 * TIME_SCALE,
+				AWAKE_BCAST_INTERVAL = 1000 * TIME_SCALE,
 				
 				/**
 				 * How long to stay awake when we have the token.
@@ -198,7 +198,9 @@ namespace wiselib {
 				caffeine_level_ = 0;
 				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-				ring_transport_.init(radio_, timer_, clock_, rand, false);
+				radio_->enable_radio();
+				
+				ring_transport_.init(radio_, timer_, clock_, rand, debug_, false);
 				
 				aggregator_.init(ts);
 				
@@ -308,6 +310,8 @@ namespace wiselib {
 				
 				push_caffeine();
 				DBG("node %d send_to bcast send_type regular_broadcast t %d", (int)radio_->id(), (int)now());
+				
+				debug_->debug("node %d t %d // send reg bcast", (int)radio_->id(), (int)now());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				pop_caffeine();
 				
@@ -333,6 +337,7 @@ namespace wiselib {
 				if(msg.entity_count()) {
 					push_caffeine();
 					DBG("node %d send_to bcast send_type dirty_broadcast t %d", (int)radio_->id(), (int)now());
+					debug_->debug("node %d t %d // send dirty bcast state", (int)radio_->id(), (int)now());
 					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 					pop_caffeine();
 				
@@ -353,6 +358,7 @@ namespace wiselib {
 					
 					if(msg.entity_count()) {
 						push_caffeine();
+						debug_->debug("node %d t %d // send on awake bcast state", (int)radio_->id(), (int)now());
 						radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 						pop_caffeine();
 					
@@ -371,13 +377,13 @@ namespace wiselib {
 			}
 			
 			void initiate_handover(SemanticEntityT& se) {
-				DBG("node %d SE %x.%x // initiate handover to %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), ring_transport_.remote_address(se.id(), true));
+				DBG("node %d SE %x.%x // initiate handover to %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)ring_transport_.remote_address(se.id(), true));
 				
 				bool found;
 				typename RingTransport::Endpoint& ep = ring_transport_.get_endpoint(se.id(), true, found);
 				if(!found) {
-					DBG("node %d // initiate: endpoint not found!", radio_->id());
-					DBG("node %d // pop end_handover (not found)", radio_->id());
+					DBG("node %d // initiate: endpoint not found!", (int)radio_->id());
+					DBG("node %d // pop end_handover (not found)", (int)radio_->id());
 					pop_caffeine();
 					return;
 				}
@@ -385,19 +391,19 @@ namespace wiselib {
 				if(ep.remote_address() != radio_->id()) {
 					int r = ring_transport_.open(ep, true);
 					if(r == SUCCESS) {
-						DBG("node %d // initiate: opening", radio_->id());
+						DBG("node %d // initiate: opening", (int)radio_->id());
 						se.set_handover_state_initiator(0);
 						ring_transport_.flush();
 						//ring_transport_.request_send(se.id(), true);
 					}
 					else {
-						DBG("node %d // initiate: already open!", radio_->id());
-						DBG("node %d // pop end_handover (already open)", radio_->id());
+						DBG("node %d // initiate: already open!", (int)radio_->id());
+						DBG("node %d // pop end_handover (already open)", (int)radio_->id());
 						pop_caffeine();
 					}
 				}
 				else {
-					DBG("node %d // pop end_handover (self-send)", radio_->id());
+					DBG("node %d // pop end_handover (self-send)", (int)radio_->id());
 					pop_caffeine();
 				}
 			}
@@ -406,18 +412,18 @@ namespace wiselib {
 			
 			bool produce_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
 				if(endpoint.remote_address() == radio_->id()) {
-					DBG("node %d // handover produce init -- aborting because of self-send", radio_->id());
+					DBG("node %d // handover produce init -- aborting because of self-send", (int)radio_->id());
 					//endpoint.destruct();
 					return false;
 				}
 				
-				DBG("node %d // x handover produce init", radio_->id());
+				DBG("node %d // x handover produce init", (int)radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
 				if(!found) { return false; }
 				
-				DBG("node %d // handover produce init state %d", radio_->id(), se.handover_state_initiator());
+				DBG("node %d // handover produce init state %d", (int)radio_->id(), (int)se.handover_state_initiator());
 				
 				switch(se.handover_state_initiator()) {
 					case SemanticEntityT::INIT: {
@@ -438,14 +444,14 @@ namespace wiselib {
 						bool call_again;
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
-						DBG("node %d // send aggr start payload size %d", radio_->id(), (int)sz);
+						DBG("node %d // send aggr start payload size %d", (int)radio_->id(), (int)sz);
 						if(call_again) {
-							DBG("node %d // more aggregate packets will follow!", radio_->id());
+							DBG("node %d // more aggregate packets will follow!", (int)radio_->id());
 							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 							endpoint.request_send();
 						}
 						else {
-							DBG("node %d // done with aggregates, requesting close", radio_->id());
+							DBG("node %d // done with aggregates, requesting close", (int)radio_->id());
 							endpoint.request_close();
 							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
@@ -453,7 +459,7 @@ namespace wiselib {
 					}
 				
 					case SemanticEntityT::SEND_AGGREGATES: {
-						DBG("node %d // send aggr", radio_->id());
+						DBG("node %d // send aggr", (int)radio_->id());
 						bool call_again;
 						size_type sz = aggregator_.fill_buffer(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
@@ -493,14 +499,14 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("node %d // x handover consume init", radio_->id());
+				DBG("node %d // x handover consume init", (int)radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
 				if(!found) { return; }
 				
-				DBG("node %d // from %d handover consume init state %d: %02x %02x %02x %02x ...", radio_->id(), endpoint.remote_address(), se.handover_state_initiator(),
-						message.payload()[0], message.payload()[1], message.payload()[2], message.payload()[3]);
+				DBG("node %d // from %d handover consume init state %d: %02x %02x %02x %02x ...", (int)radio_->id(), (int)endpoint.remote_address(), (int)se.handover_state_initiator(),
+						(int)message.payload()[0], (int)message.payload()[1], (int)message.payload()[2], (int)message.payload()[3]);
 				
 				if(*message.payload() == 'a') {
 					se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
@@ -522,22 +528,22 @@ namespace wiselib {
 				switch(event) {
 					case RingTransport::EVENT_ABORT: 
 						// TODO: somehow keep delay info here!
-						DBG("node %d // push begin_handover because abort setting up retry for %d", radio_->id(), now() + HANDOVER_RETRY_INTERVAL);
+						DBG("node %d // push begin_handover because abort setting up retry for %d", (int)radio_->id(), (int)now() + HANDOVER_RETRY_INTERVAL);
 						push_caffeine();
 						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
 						break;
 						
 					case RingTransport::EVENT_OPEN:
 						se.set_handover_state_initiator(SemanticEntityT::INIT);
-						DBG("node %d // push begin_handover_connection", radio_->id());
+						DBG("node %d // push begin_handover_connection", (int)radio_->id());
 						push_caffeine();
 						break;
 						
 					case RingTransport::EVENT_CLOSE:
 						se.set_handover_state_initiator(SemanticEntityT::INIT);
-						DBG("node %d // pop end_handover_connection", radio_->id());
+						DBG("node %d // pop end_handover_connection", (int)radio_->id());
 						pop_caffeine();
-						DBG("node %d // pop end_handover (close)", radio_->id());
+						DBG("node %d // pop end_handover (close)", (int)radio_->id());
 						pop_caffeine();
 						break;
 				}
@@ -560,13 +566,13 @@ namespace wiselib {
 					return false;
 				}
 				
-				DBG("node %d // x handover produce recv", radio_->id());
+				DBG("node %d // x handover produce recv", (int)radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
 				if(!found) { return false; }
 				
-				DBG("node %d // handover produce recv state %d", radio_->id(), se.handover_state_recepient());
+				DBG("node %d // handover produce recv state %d", (int)radio_->id(), (int)se.handover_state_recepient());
 				
 				switch(se.handover_state_recepient()) {
 					case SemanticEntityT::SEND_ACTIVATING:
@@ -605,7 +611,7 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("node %d // x handover consume recv", radio_->id());
+				DBG("node %d // x handover consume recv", (int)radio_->id());
 				const SemanticEntityId &id = endpoint.channel();
 				bool found;
 				SemanticEntityT& se = find_entity(id, found);
@@ -615,7 +621,7 @@ namespace wiselib {
 					//se.set_handover_state_recepient(SemanticEntityT::INIT);
 				//}
 				
-				DBG("node %d // handover consume recv state %d", radio_->id(), se.handover_state_recepient());
+				DBG("node %d // handover consume recv state %d", (int)radio_->id(), (int)se.handover_state_recepient());
 				
 				//if(message.is_close()) {
 					//DBG("node %d // handover consume recv state %d message is close!", radio_->id(), se.handover_state_recepient());
@@ -628,13 +634,13 @@ namespace wiselib {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						bool activating = process_token_state(msg, se, endpoint.remote_address(), now(), message.delay());
 						se.set_handover_state_recepient(activating ? SemanticEntityT::SEND_ACTIVATING : SemanticEntityT::SEND_NONACTIVATING);
-						DBG("node %d // handover consume recv new state %d", radio_->id(), se.handover_state_recepient());
+						DBG("node %d // handover consume recv new state %d", (int)radio_->id(), (int)se.handover_state_recepient());
 						endpoint.request_send();
 						break;
 					}
 					
 					case SemanticEntityT::RECV_AGGREGATES: {
-						DBG("node %d // aggr read_buffer", radio_->id());
+						DBG("node %d // aggr read_buffer", (int)radio_->id());
 						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
@@ -649,13 +655,13 @@ namespace wiselib {
 				
 				switch(event) {
 					case RingTransport::EVENT_OPEN:
-						DBG("node %d // push begin_recv_connection", radio_->id());
+						DBG("node %d // push begin_recv_connection", (int)radio_->id());
 						push_caffeine();
 						se.set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
 						
 					case RingTransport::EVENT_CLOSE:
-						DBG("node %d // pop end_recv_connection", radio_->id());
+						DBG("node %d // pop end_recv_connection", (int)radio_->id());
 						pop_caffeine();
 						se.set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
@@ -740,25 +746,25 @@ namespace wiselib {
 						bool found;
 						SemanticEntityT &se = find_entity(msg.channel(), found);
 						
-						DBG("node %d // recv transport from %d ack=%d init=%d f=%d s=%d", radio_->id(), from, msg.is_ack(), msg.initiator(), msg.flags(), msg.sequence_number());
+						DBG("node %d // recv transport from %d ack=%d init=%d f=%d s=%d", (int)radio_->id(), (int)from, (int)msg.is_ack(), (int)msg.initiator(), (int)msg.flags(), (int)msg.sequence_number());
 						
 						if(!found) {
-							DBG("node %d // transport se not found: %x.%x", radio_->id(), msg.channel().rule(), msg.channel().value());
+							DBG("node %d // transport se not found: %x.%x", (int)radio_->id(), (int)msg.channel().rule(), (int)msg.channel().value());
 							break;
 						}
 						node_id_t forward_node = (msg.is_ack() == msg.initiator()) ? se.token_ack_forward_for(radio_->id(), from) : se.token_forward_for(radio_->id(), from);
 						if(forward_node == NULL_NODE_ID) {
-							DBG("node %d // ignoring transport from %d", radio_->id(), from);
+							DBG("node %d // ignoring transport from %d", (int)radio_->id(), (int)from);
 							break;
 						}
 						
 						if(forward_node == radio_->id()) {
-							DBG("node %d // transport processing ack %d from %d", radio_->id(), msg.is_ack(), from);
+							DBG("node %d // transport processing ack %d from %d", (int)radio_->id(), (int)msg.is_ack(), (int)from);
 							ring_transport_.on_receive(from, len, data);
 						}
 						else {
 							//radio_->send(forward_node, len, data);
-							DBG("node %d // transport fwd init=%d ack=%d from %d to %d", radio_->id(), msg.initiator(), msg.is_ack(), from, forward_node);
+							DBG("node %d // transport fwd init=%d ack=%d from %d to %d", (int)radio_->id(), (int)msg.initiator(), (int)msg.is_ack(), (int)from, (int)forward_node);
 							forward_ring(se, from, forward_node, t_recv, msg);
 						}
 						break;
@@ -775,7 +781,7 @@ namespace wiselib {
 					*/
 					
 					default:
-						DBG("++++++ ALART! unknown packet type %d", msgtype);
+						DBG("++++++ ALART! unknown packet type %d", (int)msgtype);
 						break;
 				} // switch(msgtype)
 				
@@ -818,10 +824,9 @@ namespace wiselib {
 					// In any case, update the tree state from our neigbour
 					bool changed = process_neighbor_tree_state(from, s, se);
 					if(changed) {
-						DBG("node %d SE %x.%x // new init remote addr: %d (p=%d #c=%d c[0]=%d c[-1]=%d)",
-								radio_->id(), se.id().rule(), se.id().value(), se.next_token_node(),
-								se.parent(), se.childs(), se.child_address(0), se.child_address(se.childs() - 1));
-						DBG("node %d SE %x.%x // new recep remote addr: %d", radio_->id(), se.id().rule(), se.id().value(), se.prev_token_node(radio_->id()));
+						DBG("node %d SE %x.%x // new init remote addr: %d (p=%d #c=%d c[0]=%d c[-1]=%d)", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.next_token_node(),
+								(int)se.parent(), (int)se.childs(), (int)se.child_address(0), (int)se.child_address(se.childs() - 1));
+						DBG("node %d SE %x.%x // new recep remote addr: %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.prev_token_node(radio_->id()));
 						
 						ring_transport_.set_remote_address(se.id(), true, se.next_token_node());
 						ring_transport_.set_remote_address(se.id(), false, se.prev_token_node(radio_->id()));
@@ -829,8 +834,8 @@ namespace wiselib {
 						// if the tree changed due to ths, resend token
 						// information as the ring has changed
 						//pass_on_state(se, false);
-						DBG("node %d // initiate handover because of tree change", radio_->id());
-						DBG("node %d // push begin_handover (tree change)", radio_->id());
+						DBG("node %d // initiate handover because of tree change", (int)radio_->id());
+						DBG("node %d // push begin_handover (tree change)", (int)radio_->id());
 						push_caffeine();
 						initiate_handover(se);
 					}
@@ -859,20 +864,20 @@ namespace wiselib {
 			void forward_ring(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, typename RingTransport::Message& msg) {
 				if(msg.is_open() && msg.initiator() && !msg.is_ack() && msg.delay() == 0 ) {
 					se.learn_token_forward(clock_, radio_->id(), from, t_recv);
-					DBG("node %d fwd_window %d fwd_interval %d fwd_from %d-%d",
-							radio_->id(), se.token_forward_window(clock_, from),
-							se.token_forward_interval(clock_, from),
-							from, to);
+					DBG("node %d fwd_window %d fwd_interval %d fwd_from %d-%d", (int)radio_->id(), (int)se.token_forward_window(clock_, from),
+							(int)se.token_forward_interval(clock_, from),
+							(int)from, (int)to);
 				}
 				
-				DBG("node %d // fwd to %d ack=%d init=%d open=%d delay=%d", radio_->id(), to, msg.is_ack(), msg.initiator(),
+				DBG("node %d // fwd to %d ack=%d init=%d open=%d delay=%d", (int)radio_->id(), (int)to, (int)msg.is_ack(), (int)msg.initiator(),
 						msg.is_open(), msg.delay());
+					
+				debug_->debug("node %d t %d // send forward ring", (int)radio_->id(), (int)now());
 				radio_->send(to, msg.size(), msg.data());
 				
 				if(msg.is_close() && msg.is_ack()) {
 					const node_id_t prev = se.token_ack_forward_for(radio_->id(), from);
-					DBG("node %d // end waiting for token from %d",
-							radio_->id(), prev);
+					DBG("node %d // end waiting for token from %d", (int)radio_->id(), (int)prev);
 					se.end_wait_for_token_forward(prev);
 				#if !WISELIB_DISABLE_DEBUG_MESSAGES
 					se.print_state(radio_->id(), now(), "");
@@ -901,8 +906,7 @@ namespace wiselib {
 				se.set_prev_token_count(s.count());
 				
 				#if !WISELIB_DISABLE_DEBUG_MESSAGES
-					DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // process_token_state",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
+					DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // process_token_state", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
 							(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
 							(int)now()
 					);
@@ -913,8 +917,7 @@ namespace wiselib {
 					se.learn_activating_token(clock_, radio_->id(), receive_time - delay); 
 					
 					#if !WISELIB_DISABLE_DEBUG_MESSAGES
-						DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token recv=%d delay=%d",
-								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+						DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token recv=%d delay=%d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(int)se.activating_token_window(clock_),
 								(int)se.activating_token_interval(clock_),
 								(int)now(), (int)receive_time, (int)delay
@@ -1014,8 +1017,7 @@ namespace wiselib {
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
 				
-				DBG("node %d SE %x.%x active=%d prevcount=%d count=%d isroot=%d t=%d // update_token_state",
-						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()),
+				DBG("node %d SE %x.%x active=%d prevcount=%d count=%d isroot=%d t=%d // update_token_state", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()),
 						(int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
 						(int)now()
 				);
@@ -1029,7 +1031,7 @@ namespace wiselib {
 				
 				//pass_on_state(se);
 				DBG("node %d t=%d // pop end_activity SE %x.%x", (int)radio_->id(), (int)now(), (int)se.id().rule(), (int)se.id().value());
-				DBG("node %d // push begin_handover", radio_->id());
+				DBG("node %d // push begin_handover", (int)radio_->id());
 				//pop_caffeine(); // popped by initiate_handover
 				initiate_handover(se);
 				assert(!se.is_active(radio_->id()));
@@ -1048,6 +1050,7 @@ namespace wiselib {
 			void end_activity(SemanticEntityT& se) { end_activity((void*)&se); }
 			
 			void begin_wait_for_regular_broadcast(void *from_) {
+				DBG("// beg wait for reg bcast");
 				
 				node_id_t n;
 				memcpy(&n, &from_, min(sizeof(node_id_t), sizeof(void*)));
@@ -1063,10 +1066,11 @@ namespace wiselib {
 						break;
 					}
 				}
-				DBG("node %d waiting_for_broadcast %d", radio_->id(), waiting);
+				DBG("node %d waiting_for_broadcast %d", (int)radio_->id(), (int)waiting);
 			}
 			
 			void end_wait_for_regular_broadcast(void* from_) {
+				DBG("// end wait for reg bcast");
 				node_id_t from; //= (node_id_t)from_;
 				memcpy(&from, &from_, min(sizeof(node_id_t), sizeof(void*)));
 				//if(timing_controller_.end_wait_for_regular_broadcast(from)) {
@@ -1082,7 +1086,7 @@ namespace wiselib {
 						break;
 					}
 				}
-				DBG("node %d waiting_for_broadcast %d", radio_->id(), waiting);
+				DBG("node %d waiting_for_broadcast %d", (int)radio_->id(), (int)waiting);
 			}
 			
 			/**
@@ -1115,8 +1119,7 @@ namespace wiselib {
 				
 				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
 					if(it->second.seen() && absolute_millis(it->second.last_encounter()) + 2 * it->second.interval() < now()) {
-						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d",
-								(int)radio_->id(), (int)now(), (int)it->first,
+						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d", (int)radio_->id(), (int)now(), (int)it->first,
 								(int)(it->second.last_encounter()), (int)(it->second.interval())
 						);
 						for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {

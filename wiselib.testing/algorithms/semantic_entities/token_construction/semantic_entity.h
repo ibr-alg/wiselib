@@ -384,8 +384,7 @@ namespace wiselib {
 				bool changed = new_childs || lost_childs || c_a || c_b || c_c;
 				
 				if(changed) {
-					DBG("node %d SE %x.%x distance %d parent %d root %d // tree state change",
-							(int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
+					DBG("node %d SE %x.%x distance %d parent %d root %d // tree state change", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)state().distance(), (int)state().parent(), (int)state().root());
 				}
 				
 				return changed;
@@ -472,14 +471,12 @@ namespace wiselib {
 			
 			
 			node_id_t token_forward_for(node_id_t mynodeid, node_id_t from) {
-				DBG("node %d // token_forward_for from %d childs %d root %d parent %d",
-						(int)mynodeid, (int)from, (int)childs(), (int)root(), (int)parent());
+				DBG("node %d // token_forward_for from %d childs %d root %d parent %d", (int)mynodeid, (int)from, (int)childs(), (int)root(), (int)parent());
 					
 				if(from == parent()) { return mynodeid; }
 				else {
 					size_type child_index = find_child(from);
-					DBG("node %d  // token_forward_for from %d childs %d child_idx %d root %d parent %d",
-							(int)mynodeid, (int)from, (int)childs(), (int)child_index, (int)root(), (int)parent());
+					DBG("node %d  // token_forward_for from %d childs %d child_idx %d root %d parent %d", (int)mynodeid, (int)from, (int)childs(), (int)child_index, (int)root(), (int)parent());
 					if(child_index == npos) { return NULL_NODE_ID; }
 					else if(child_index == childs() - 1) {
 						if(mynodeid == root()) { return mynodeid; }
@@ -609,7 +606,7 @@ namespace wiselib {
 					typename Timer::self_pointer_t timer,
 					T* obj, node_id_t from, void* userdata = 0
 			) {
-				DBG("// scheduling token_forward from %d SE %x.%x t %d", from, id().rule(), id().value(), absolute_millis(clock, clock->time()));
+				DBG("// scheduling token_forward from %d SE %x.%x t %d", (int)from, (int)id().rule(), (int)id().value(), (int)absolute_millis(clock, clock->time()));
 				return token_forwards_[from].template start_waiting_timer<T, BeginWaiting, EndWaiting>(clock, timer, obj, userdata);
 			}
 			
@@ -646,8 +643,7 @@ namespace wiselib {
 				//DBG("// XXX awake=%d forwarding=%d count=%d t=%d", (int)is_awake(), (int)is_forwarding(), (int)count(), (int)t);
 				//DBG("// XXX parent=%d root=%d distance=%d", (int)tree().parent(), (int)tree().root(), (int)tree().distance());
 				
-				DBG("node %d SE %x.%x active=%d awake=%d forwarding=%d count=%d t=%d parent=%d root=%d distance=%d",
-						(int)mynodeid, (int)id().rule(), (int)id().value(), (int)is_active(mynodeid),
+				DBG("node %d SE %x.%x active=%d awake=%d forwarding=%d count=%d t=%d parent=%d root=%d distance=%d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)is_active(mynodeid),
 						(int)is_awake(), (int)is_forwarding(), (int)count(), (int)t,
 						(int)tree().parent(), (int)tree().root(), (int)tree().distance());
 						//comment);

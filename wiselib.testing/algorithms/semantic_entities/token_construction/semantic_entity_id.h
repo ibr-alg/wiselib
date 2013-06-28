@@ -97,7 +97,7 @@ namespace wiselib {
 			wiselib::write<OsModel>(data, value.rule_); data += sizeof(Rule);
 			wiselib::write<OsModel>(data, value.value_); data += sizeof(Value);
 			
-			DBG("writing SE ID r=%d v=%d %02x %02x %02x %02x %02x");
+			//DBG("writing SE ID r=%d v=%d %02x %02x %02x %02x %02x");
 			return sizeof(Rule) + sizeof(Value);
 		}
 		
