@@ -17,25 +17,72 @@ public:
    {
       timer = new Os::Timer(); 
       debug = new Os::Debug();
-      debug->debug("Timer Event Test App");
-      timer->set_timer<ExampleApplication, &ExampleApplication::on_time>( 3000, this, ( void* )timer );
-      timer->set_timer<ExampleApplication, &ExampleApplication::on_second_time>( 1000, this, (void* )timer);
-      while (true)
-      {
-         timer->run_arduino_timer();
-         //if ( serialEventRun ) serialEventRun();
-      }
-
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_time>( 1000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_third_time>( 3000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_fifth_time>( 5000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_seventh_time>( 7000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_ninth_time>( 9000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_second_time>( 2000, this, (void* )timer);
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_fourth_time>( 4000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_sixth_time>( 6000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_eigth_time>( 8000, this, ( void* )timer );
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_tenth_time>( 10000, this, ( void* )timer );
    }
  
    void on_time(void*)
    {
-      debug->debug("Three second timer event");
+      debug->debug("One second timer event");
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_eleventh_time>( 11000, this, ( void* )timer );
    }
 
    void on_second_time(void*)
    {
-      debug->debug("One second timer event");
+      debug->debug("Two second timer event");
+   }
+
+   void on_third_time(void*)
+   {
+      debug->debug("Three second timer event");
+   }
+
+   void on_fourth_time(void*)
+   {
+      debug->debug("Four second timer event");
+   }
+
+   void on_fifth_time(void*)
+   {
+      debug->debug("Five second timer event");
+   }
+
+   void on_sixth_time(void*)
+   {
+      debug->debug("Six second timer event");
+   }
+
+   void on_seventh_time(void*)
+   {
+      debug->debug("Seven second timer event");
+   }
+
+   void on_eigth_time(void*)
+   {
+      debug->debug("Eight second timer event");
+   }
+
+   void on_ninth_time(void*)
+   {
+      debug->debug("Nine second timer event");
+   }
+
+   void on_tenth_time(void*)
+   {
+      debug->debug("Ten second timer event");
+   }
+
+   void on_eleventh_time(void*)
+   {
+      debug->debug("Eleven second timer event");
    }
 
 private:
@@ -49,11 +96,17 @@ private:
 int main(Os::AppMainParameter& amp)
 {  
    init();
+   pinMode(13, OUTPUT);
 #if defined(USBCON)
    USBDevice.attach();
 #endif
-
-   ExampleApplication example_app;
+   ExampleApplication Example;
+   
+   while(true)
+   {
+      if ( serialEventRun ) serialEventRun();
+   }
    return 0;
 }
-			
+
+
