@@ -468,7 +468,7 @@ namespace wiselib {
       /// transfer elements of list l to position
       void splice( iterator position, list_type& l )
       {
-         while ( !full && !l.empty() )
+         while ( !full() && !l.empty() )
          {
             insert( position, l.pop_front()->elment_ );
             position++;
