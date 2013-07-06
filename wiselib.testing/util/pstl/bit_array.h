@@ -27,9 +27,11 @@ namespace wiselib {
 				return r;
 			}
 			
+			/*
 			void destroy() {
 				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
 			}
+			*/
 			
 			bool operator[](size_type idx) { return get(idx); }
 			
