@@ -27,10 +27,37 @@ namespace wiselib {
 	 * 
 	 * @ingroup
 	 * 
-	 * @tparam 
+	 * @tparam Adopted_P A set or AMQ that tracks all the SEs this node takes part in in
+	 * order to connect them
+	 * @tpram RootMap_P a map / AMQ data structure SemanticEntityId =>
+	 * node_id_t that stores for each seen SE the seen root node.
+	 * 
+	 * 
+	 * on helper node seeing SE $s in real node:
+	 * 	if $s not key in $seen_:
+	 * 		add $s to $seen_
+	 * 	elif seen_[$s] != $s.root:
+	 * 		seen_[$s] = min($s.root, seen_[$s].root)
+	 * 
+	 * on helper node sees it becomes parent for real node:
+	 * 	adopted_[$s] = true
+	 * 
+	 * on helper node with adopted_[$s] sees tree state:
+	 * 	do forwarding to child
+	 * 	if our turn:
+	 * 		forward along tree defined by adopted_[$S]
+	 * 
+	 * on real node seeing SE $s in helper node:
+	 * 	join according to root=$s.root parent=$s.root
+	 * 	
+	 * on real node receiving adoption forward:
+	 * 	process/forward according to physical child
+	 * 
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename Adopted_P,
+		typename RootMap_P
 	>
 	class HelperNode {
 		

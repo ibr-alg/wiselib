@@ -91,6 +91,9 @@ namespace wiselib {
 					block_data_t& command() { return data_[1]; }
 					block_data_t*& payload() { return payload_; }
 					block_data_t& payload_size() { return data_[2]; }
+					bool is_tuple() {
+						return data_[0] != nidx;
+					}
 					
 					size_type size() {
 						return header_size() + payload_size();
@@ -249,7 +252,7 @@ namespace wiselib {
 					template<typename Tuple>
 					void write_tuple(Tuple& t) {
 						table_id_t ids_[serializer_->tuple_size()];
-						for(size_type i = 0; i < serializer_.tuple_size(); ++i) {
+						for(size_type i = 0; i < serializer_->tuple_size(); ++i) {
 							ids_[i] = write_data(t.get(i), t.length(i), i, ids_);
 						}
 					}
@@ -311,6 +314,10 @@ namespace wiselib {
 						serializer_(serializer), buffer_start_(buffer), buffer_current_(buffer), buffer_end_(buffer + buffer_size) {
 					}
 					
+					/**
+					 * @return true iff field could be read, false if there
+					 * was insufficient data available.
+					 */
 					bool read_field(field_id_t& field_id, block_data_t*& data, size_type& data_size) {
 						Instruction in = serializer_->read_instruction(buffer_current_, buffer_end_);
 						while(buffer_current_ < buffer_end_ && in.command() != CMD_VALUE && in.command() != CMD_TABLE_VALUE && in.command() != CMD_END) {
@@ -337,6 +344,32 @@ namespace wiselib {
 						data_size = 0;
 						return false;
 					}
+					
+					template<typename Tuple>
+					bool read_tuple(Tuple& tuple) {
+						DBG("this=%p", this);
+						Instruction in = serializer_->read_instruction(buffer_current_, buffer_end_);
+						DBG("this=%p", this);
+						/*
+						while(buffer_current_ < buffer_end_ && !in.is_tuple() && in.command() != CMD_END) {
+							serializer_->process_instruction(in);
+							in = serializer_->read_instruction(buffer_current_, buffer_end_);
+						}
+						
+						if(in.is_tuple()) {
+							table_id_t *t = reinterpret_cast<table_id_t*>(&in);
+							DBG("tuple size: %d", serializer_->tuple_size());
+							for(size_type i = 0; i < serializer_->tuple_size(); i++) {
+								size_type sz;
+								tuple.set(i, serializer_->get_table(t[i], sz));
+							}
+							return true;
+						}
+						*/
+						
+						return false;
+					}
+							
 					
 					bool done() {
 						return buffer_current_ >= buffer_end_;
@@ -385,6 +418,25 @@ namespace wiselib {
 			table_id_t tuple_size() { return tuple_size_; }
 			void set_tuple_size(table_id_t ts) { tuple_size_ = ts; }
 			
+			
+			table_id_t ensure_avoids(table_id_t id, size_type n_avoid, table_id_t* avoid, bool* wrap = 0) {
+				bool ok;
+				do {
+					ok = true;
+					for(size_type i = 0; i < n_avoid; i++) {
+						if(id == avoid[i]) {
+							ok = false;
+							id++;
+							if(id >= table_size_) {
+								if(wrap) { *wrap = true; }
+								id = 0;
+							}
+						}
+					}
+				} while(!ok);
+				return id;
+			}
+			
 			/**
 			 * @return true iff this method should be called again with a
 			 * fresh buffer.
@@ -393,14 +445,42 @@ namespace wiselib {
 					table_id_t& id, size_type n_avoid = 0, table_id_t* avoid = 0) {
 				bool call_again = false;
 				
-				// how much of our string is already there?
-				id = hash(data, data_size);
-				size_type p = 0;
-				size_type current_size = 0;
-				block_data_t *current = get_table(id, current_size);
-				if(current) {
-					p = prefix_length_n(min(data_size, current_size), current, data);
-				}
+				size_type p = 0; // length of prefix already there
+				
+				#if !SHDT_REUSE_PREFIXES
+					// just consider a single target position defined by
+					// hash(complete string), maybe there is a prefix of the
+					// string already there because we needed to split.
+					
+					id = hash(data, data_size);
+					id = ensure_avoids(id, n_avoid, avoid);
+					
+					size_type current_size = 0;
+					block_data_t *current = get_table(id, current_size);
+					if(current) {
+						p = prefix_length_n(min(data_size, current_size), current, data);
+					}
+				#else
+					// find a string in table with the longest common prefix
+					
+					for(size_type cid = 0; cid < table_size_; cid++) {
+						bool wrap = false;
+						cid = ensure_avoids(icd, n_avoid, avoid, &wrap);
+						if(wrap) { break; }
+						
+						size_type current_size = 0;
+						block_data_t *current = get_table(cid, current_size);
+						if(current) {
+							size_type pn = prefix_length_n(min(data_size, current_size), current, data);
+						}
+						if(pn > p) {
+							p = pn;
+							id = cid;
+							if(p == data_size) { break; }
+						}
+					}
+				#endif
+				
 				// does the rest fit?
 				
 				// header size of the cat command
@@ -499,13 +579,14 @@ namespace wiselib {
 			Instruction read_instruction(block_data_t*& buffer, block_data_t* buffer_end) {
 				Instruction in;
 				
-				if(buffer_end - buffer < MIN_INSTRUCTION_HEADER_SIZE) {
+				if((buffer_end - buffer) < MIN_INSTRUCTION_HEADER_SIZE) {
 					return in;
 				}
 				
 				// read the first few byte of the instruction
 				// (as many as we can sure there will be regardless of the
 				// command type)
+				DBG("first pass: %d buf = %x %x %x %x %x ", MIN_INSTRUCTION_HEADER_SIZE, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
 				memcpy(&in, buffer, MIN_INSTRUCTION_HEADER_SIZE);
 				buffer += MIN_INSTRUCTION_HEADER_SIZE;
 				
@@ -516,11 +597,13 @@ namespace wiselib {
 				assert(to_read >= 0);
 				
 				if(to_read > 0) {
+					DBG("second pass: %d hs=%d hs'=%d", to_read, in.header_size(), hs);
 					memcpy(&in + MIN_INSTRUCTION_HEADER_SIZE, buffer, to_read);
 					buffer += to_read;
 				}
 				
 				if(in.has_payload()) {
+					DBG("now the payload");
 					in.payload() = buffer;
 					buffer += in.payload_size();
 				}
@@ -571,8 +654,6 @@ namespace wiselib {
 				}
 			}
 			
-		private:
-			
 			void set_table(table_id_t id, block_data_t* data, sz_t data_size) {
 				if(lookup_table_[id]) {
 					get_allocator().free_array(lookup_table_[id]);
@@ -603,6 +684,8 @@ namespace wiselib {
 				wiselib::read<OsModel>(lookup_table_[id], sz);
 				return lookup_table_[id] + sizeof(sz_t);
 			}
+			
+		private:
 			
 			template<typename T>
 			bool read(block_data_t*& buffer, block_data_t* buffer_end, T& tgt) {
