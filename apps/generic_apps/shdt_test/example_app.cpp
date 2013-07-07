@@ -125,6 +125,11 @@ class ExampleApplication {
 				if(!found) { break; }
 				
 				for(size_type i = 0; i < 3; i++, verify_idx_++) {
+					for(int j = 0; j < (strlen((char*)t.get(i)) + 1); j++) {
+						DBG("j=%d c=%c", j, t.get(i)[j]);
+					}
+					
+					DBG("t[%d]=%s test[%d]=%s", i, t.get(i), verify_idx_, test_tuples_[verify_idx_]);
 					if(strcmp((char*)t.get(i), (char*)test_tuples_[verify_idx_]) != 0) {
 						debug_->debug("error: t[%d]=%s != vrfy[%d]=%s", (int)i, (char*)t.get(i),
 								(int)verify_idx_, (char*)test_tuples_[verify_idx_]);
