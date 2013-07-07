@@ -19,11 +19,44 @@
 #ifndef __DPS_CONFIG_H__
 #define __DPS_CONFIG_H__
 
-#define DPS_MAX_PROTOCOLS 1
+#ifdef DPS_IPv6_STUB
+	#undef IPv6_ND_ENABLED
+	#undef IPv6_EXT_ENABLED
+	
+	#define DPS_MAX_PROTOCOLS 1
+	#define DPS_MAX_CONNECTIONS 1
+	#define DPS_MAX_BUFFER_LIST 1
+	
+	#undef IP_PACKET_POOL_SIZE
+	#define IP_PACKET_POOL_SIZE 1
+	
+	//Only the DPSRadio
+	#undef NUMBER_OF_INTERFACES
+	#define NUMBER_OF_INTERFACES 1
+	
+	
+#elif defined DPS_IPv6_SKELETON
+	#undef IPv6_EXT_ENABLED
+	
+	#define DPS_MAX_PROTOCOLS 1
+	#define DPS_MAX_CONNECTIONS 4
+	#define DPS_MAX_BUFFER_LIST 4
+	
+	#undef IP_PACKET_POOL_SIZE
+	#define IP_PACKET_POOL_SIZE 4
+	
+	//6LoWPAN, UART, DPSRadio
+	#undef NUMBER_OF_INTERFACES
+	#define NUMBER_OF_INTERFACES 3
+	
+	#define IPv6_TREE_ROUTING
+	#define IPv6_TREE_SINK 0x2144
+#else
+	#error Neither STUB nor SKELETON was defined!
+#endif
+	
+#define IPv6_PREFIX {0x20, 0x01, 0x63, 0x80, 0x70, 0xA0, 0xB0, 0x69};
 
-#define DPS_MAX_CONNECTIONS 1
-
-#define DPS_MAX_BUFFER_LIST 1
 
 //Footer mode
 // 0 - unused 

@@ -27,7 +27,8 @@
 #define __ALGORITHMS_6LOWPAN_IPV6_STACK_H__
 
 #include "config_testing.h"
-#include "algorithms/6lowpan/lowpan_config.h"
+#include "algorithms/6lowpan/lowpan_config.h" //General IPv6 config
+#include "radio/DPS/DPS_config.h" //DPS config, it may overwrite some parameters from the IPv6 config!
 
 #include "radio/DPS/DPS_radio.h"
 
@@ -41,7 +42,7 @@
 
 #include "radio/DPS/IPv6/ipv6.h"
 #include "algorithms/6lowpan/ipv6_packet_pool_manager.h"
-// #include "algorithms/6lowpan/icmpv6.h"
+#include "radio/DPS/IPv6/icmpv6.h"
 #include "algorithms/6lowpan/udp.h"
 
 
@@ -54,7 +55,20 @@ namespace wiselib
 	* with the instances of the template parameters. After it packets can be sent by UDP, and
 	* an echo request could be sent by the ICMPv6.
 	*
-	* The Stack:
+	* The Server Stack:
+	* ------------------------
+	* |   UDP   |   ICMPv6   |
+	* ------------------------
+	* |        IPv6          |
+	* ------------------------
+	* [   InterfaceManager   ]
+	* --------------------------------
+	* | UartRadio |  6LoWPAN |  DPS  |
+	* --------------------------------
+	* |  Uart     |       Radio      |
+	* --------------------------------
+	* 
+	* The Client Stack
 	* ------------------------
 	* |   UDP   |   ICMPv6   |
 	* ------------------------
@@ -62,10 +76,10 @@ namespace wiselib
 	* ------------------------
 	* [   InterfaceManager   ]
 	* ------------------------
-	* | 6LoWPAN |  UartRadio |
-	* ------------------------
-	* |  Radio  |    Uart    |
-	* ------------------------
+	* |          DPS         |
+	* -----------------------
+	* |         Radio        |
+	* -----------------------
 	*
 	* InterfaceManager: This manager separates the interfaces, at the moment there are two interfaces
 	*			in the stack, but it can be extended.
@@ -77,6 +91,7 @@ namespace wiselib
 		typename Debug_P,
 		typename Timer_P,
 #ifdef DPS_IPv6_SKELETON
+		typename Clock_P,
 		typename Uart_P,
 #endif
 		typename Rand_P>
@@ -93,8 +108,9 @@ namespace wiselib
 		typedef wiselib::DPS_Radio<OsModel, Radio, Debug, Timer, Rand> DPS_Radio_t;
 		
 #ifdef DPS_IPv6_SKELETON
+		typedef Clock_P Clock;
 		typedef Uart_P Uart;
-		typedef DPS_IPv6Stack<OsModel, Radio, Debug, Timer, Uart, Rand> self_type;
+		typedef DPS_IPv6Stack<OsModel, Radio, Debug, Timer, Uart, Clock, Rand> self_type;
 		typedef wiselib::UartRadio<OsModel, Radio, Debug, Timer, Uart> UartRadio_t;
 		typedef wiselib::LoWPAN<OsModel, Radio, Debug, Timer, UartRadio_t> LoWPAN_t;
 		typedef wiselib::InterfaceManager<OsModel, LoWPAN_t, Radio, Debug, Timer, UartRadio_t, DPS_Radio_t> InterfaceManager_t;
@@ -106,7 +122,7 @@ namespace wiselib
 		typedef wiselib::IPv6<OsModel, Radio, Debug, Timer, InterfaceManager_t> IPv6_t;
 		
 		typedef wiselib::UDP<OsModel, IPv6_t, Radio, Debug> UDP_t;
-// 		typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug, Timer> ICMPv6_t;
+		typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug, Timer> ICMPv6_t;
 		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
 		
 		enum ErrorCodes
@@ -123,7 +139,7 @@ namespace wiselib
 		*				- managers of the stack: PacketPoolManager, InterfaceManager
 		*/
 #ifdef DPS_IPv6_SKELETON
-		void init( Radio& radio, Debug& debug, Timer& timer, Uart& uart, Rand& rand)
+		void init( Radio& radio, Debug& debug, Timer& timer, Uart& uart, Rand& rand, Clock& clock)
 #elif defined DPS_IPv6_STUB
 		void init( Radio& radio, Debug& debug, Timer& timer, Rand& rand)
 #endif
@@ -133,7 +149,7 @@ namespace wiselib
 			timer_ = &timer;
 			rand_ = &rand;
 			
-			debug_->debug( "IPv6 stack init: %llx", (long long unsigned)(radio_->id()));
+			debug_->debug( "IPv6 stack init: %lx", (long long unsigned)(radio_->id()));
 			
 			packet_pool_mgr.init( *debug_ );
 			
@@ -141,6 +157,7 @@ namespace wiselib
 			dps_radio.enable_radio();
 			
 #ifdef DPS_IPv6_SKELETON
+			clock_ = &clock;
 			uart_ = &uart;
 			
 			//Init LoWPAN
@@ -152,15 +169,19 @@ namespace wiselib
 			interface_manager.init( &dps_radio, &lowpan, *debug_, &uart_radio, &packet_pool_mgr );
 			
 			lowpan.nd_storage_.set_debug( *debug_ );
+			
+			ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager, *clock_ );
 #elif defined DPS_IPv6_STUB
 			interface_manager.init( &dps_radio, *debug_, &packet_pool_mgr );
+			
+			ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 #endif
 // 			
 // 			
 			
 // 			
 // 			//Init IPv6
-			ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
+// 			ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 // 			//IPv6 will enable lower level radios
 			if( SUCCESS != ipv6.enable_radio() )
 				debug_->debug( "DPS enIP failed" );
@@ -173,17 +194,17 @@ namespace wiselib
 				debug_->debug( "DPS enUDP failed" );
 			
 // 			//Init ICMPv6
-// 			icmpv6.init( ipv6, *debug_, *timer_, &packet_pool_mgr);
+			icmpv6.init( ipv6, *debug_, *timer_, &packet_pool_mgr);
 // 			//Just register callback, not enable IP radio
-// 			if( SUCCESS != icmpv6.enable_radio() )
-// 				debug_->debug( "Fatal error: ICMPv6 layer enabling failed! " );
+			if( SUCCESS != icmpv6.enable_radio() )
+				debug_->debug( "Fatal error: ICMPv6 layer enabling failed! " );
 			
 			
 // 			if( !lowpan.nd_storage_.is_router )
 // 				icmpv6.ND_timeout_manager_function( NULL );
 		}
 		
-// 		ICMPv6_t icmpv6; 
+		ICMPv6_t icmpv6; 
 		UDP_t udp;
 		IPv6_t ipv6;
 		InterfaceManager_t interface_manager;
@@ -197,6 +218,7 @@ namespace wiselib
 		
 #ifdef DPS_IPv6_SKELETON
 		typename Uart::self_pointer_t uart_;
+		typename Clock::self_pointer_t clock_;
 		LoWPAN_t lowpan;
 		UartRadio_t uart_radio;
 #endif

@@ -34,7 +34,8 @@
 	#include "algorithms/6lowpan/nd_storage.h"
 
 	#ifdef LOWPAN_ROUTE_OVER
-	#include "algorithms/6lowpan/simple_queryable_routing.h"
+// 	#include "algorithms/6lowpan/simple_queryable_routing.h"
+	#include "radio/DPS/IPv6/simple_queryable_routing.h"
 	#endif
 #endif
 	
@@ -113,6 +114,7 @@
 		typedef Debug_P Debug;
 		typedef Timer_P Timer;
 		typedef InterfaceManager_P InterfaceManager_t;
+		typedef typename OsModel::Clock Clock;
 		
 		typedef IPv6<OsModel, Radio, Debug, Timer, InterfaceManager_t> self_type;
 		typedef self_type* self_pointer_t;
@@ -207,7 +209,11 @@
 		~IPv6();
 		///@}
 		
-		int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer, InterfaceManager_t* i_mgr )
+#ifndef DPS_IPv6_STUB
+		int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer, InterfaceManager_t* i_mgr, Clock& clock)
+#else
+		int init( Radio& radio, Debug& debug, Packet_Pool_Mgr_t* p_mgr, Timer& timer, InterfaceManager_t* i_mgr)
+#endif
 		{
 			radio_ = &radio;
 			debug_ = &debug;
@@ -218,8 +224,10 @@
 			//Generate solicited_multicast address
 			SOLICITED_MULTICAST_ADDRESS.make_it_solicited_multicast(radio_->id());
 #ifndef DPS_IPv6_STUB
+			clock_ = &clock;
 			#ifdef LOWPAN_ROUTE_OVER
-			routing_.init( *timer_, *debug_, *radio_ );
+			routing_.init( *timer_, *debug_, *radio_, *clock_ );
+// 			routing_.init( *timer_, *debug_, *radio_ );
 			#endif
 #endif
 			flow_label_ = 0;
@@ -486,6 +494,7 @@
 		typename Radio::self_pointer_t radio_;
 		typename Debug::self_pointer_t debug_;
 		typename Timer::self_pointer_t timer_;
+		typename Clock::self_pointer_t clock_;
 		Packet_Pool_Mgr_t* packet_pool_mgr_;
 
 		/**
@@ -620,7 +629,7 @@
 			return ERR_UNSPEC;
 		
 		#ifdef IPv6_LAYER_DEBUG
-		debug().debug( "IPv6 layer: initialization at %llx", (long long unsigned)(radio().id()) );
+		debug().debug( "IPv6 layer: initialization at %lx", (long long unsigned)(radio().id()) );
 		//debug().debug( "IPv6 layer: MAC length: %i", sizeof(link_layer_node_id_t) );
 
 		#ifdef LOWPAN_ROUTE_OVER
@@ -914,7 +923,7 @@
 	#ifdef LOWPAN_MESH_UNDER
 		return interface_manager_->send_to_interface( destination, packet_number, NULL, INTERFACE_RADIO );
 	#endif
-#else
+#else //#ifndef DPS_IPv6_STUB
 		return interface_manager_->send_to_interface( destination, packet_number, NULL, INTERFACE_RADIO );
 #endif
 		return SUCCESS;
@@ -1025,8 +1034,11 @@
 
 		//Get all multicast and unicast, check for all interfaces instead of only the source
 		if( ( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 ) ||
-			ip_packet_for_this_node(&destination_ip, INTERFACE_RADIO) || 
-			ip_packet_for_this_node(&destination_ip, INTERFACE_UART) )
+			ip_packet_for_this_node(&destination_ip, INTERFACE_RADIO) 
+#ifndef DPS_IPv6_STUB
+			|| ip_packet_for_this_node(&destination_ip, INTERFACE_UART) 
+#endif
+			)
 		{
 			node_id_t source_ip;
 			message->source_address(source_ip);
@@ -1039,25 +1051,25 @@
 			if( destination_ip == BROADCAST_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				debug().debug( "IPv6 layer: Received packet (to all nodes) from %s at %lx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			else if( destination_ip == ALL_ROUTERS_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG	
-				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				debug().debug( "IPv6 layer: Received packet (to all routers) from %s at %lx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			else if( destination_ip == SOLICITED_MULTICAST_ADDRESS )
 			{
 				#ifdef IPv6_LAYER_DEBUG	
-				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				debug().debug( "IPv6 layer: Received packet (to solicited multicast) from %s at %lx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			else if( destination_ip.addr[0] == 0xFF && destination_ip.addr[1] == 0x02 )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Received packet non-supported multicast from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				debug().debug( "IPv6 layer: Received packet non-supported multicast from %s at %lx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 				
 				packet_pool_mgr_->clean_packet( message );
@@ -1066,7 +1078,7 @@
 			else
 			{
 				#ifdef IPv6_LAYER_DEBUG	
-				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %llx", source_ip.get_address(str), (long long unsigned)my_mac );
+				debug().debug( "IPv6 layer: Received packet (unicast) from %s at %lx", source_ip.get_address(str), (long long unsigned)my_mac );
 				#endif
 			}
 			
@@ -1074,7 +1086,7 @@
 			if( (message->transport_next_header() != UDP) && (message->transport_next_header() != ICMPV6) )
 			{
 				#ifdef IPv6_LAYER_DEBUG
-				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %llx", message->transport_next_header(), (long long unsigned)my_mac );
+				debug().debug( "IPv6 layer: Dropped packet (not supported transport layer: %i) at %lx", message->transport_next_header(), (long long unsigned)my_mac );
 				#endif
 				packet_pool_mgr_->clean_packet( message );
 				return;
@@ -1113,6 +1125,15 @@
 				packet_pool_mgr_->clean_packet( message );
 		}
 	#endif
+#else //This is a DPS STUB, no forwarding
+		else
+		{
+			#ifdef IPv6_LAYER_DEBUG
+			debug().debug( "IPv6 layer: Dropped packet not for me!" );
+			#endif
+			packet_pool_mgr_->clean_packet( message );
+			return;
+		}
 #endif
 	}
 	

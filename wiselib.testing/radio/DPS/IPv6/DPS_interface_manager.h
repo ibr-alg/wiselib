@@ -333,7 +333,7 @@ namespace wiselib
 			ID.Pid = IPv6_PID;
 			ID.Fid = IPv6_receive;
 			ID.ack_required = 0;
-			ID.target_address = receiver.get_iid();
+			ID.target_address = Radio::NULL_NODE_ID;
 			
 			return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
 #endif
@@ -375,6 +375,10 @@ namespace wiselib
 		*/
 		PrefixType_t prefix_list[NUMBER_OF_INTERFACES][LOWPAN_MAX_PREFIXES];
 		
+#ifdef DPS_IPv6_SKELETON
+		typename Radio_LoWPAN::self_pointer_t radio_lowpan_;
+#endif
+		
 		private:
 			
 		/**
@@ -403,7 +407,6 @@ namespace wiselib
 		Packet_Pool_Mgr_t* packet_pool_mgr_;
 		
 #ifdef DPS_IPv6_SKELETON
-		typename Radio_LoWPAN::self_pointer_t radio_lowpan_;
 		typename Radio_Uart::self_pointer_t radio_uart_;
 		
 		Radio_LoWPAN& radio_lowpan()
@@ -569,7 +572,7 @@ namespace wiselib
 		}
 		else
 		{
-			debug_->debug( "RPC buffer has been freed up" );
+// 			debug_->debug( "RPC buffer has been freed up" );
 			packet_pool_mgr_->clean_packet_with_number( ip_packet_number );
 			ip_packet_number = IP_PACKET_POOL_SIZE;
 			return NULL;

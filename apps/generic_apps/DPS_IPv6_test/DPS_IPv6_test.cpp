@@ -30,13 +30,15 @@ typedef Os::Radio::node_id_t node_id_t;
 	typedef Os::Uart Uart;
 	#endif
 	
-	typedef wiselib::DPS_IPv6Stack<Os, Radio, Os::Debug, Os::Timer, Uart, Os::Rand> DPS_IPv6Stack;
+	typedef wiselib::DPS_IPv6Stack<Os, Radio, Os::Debug, Os::Timer, Os::Clock, Uart, Os::Rand> DPS_IPv6Stack;
 #elif defined DPS_IPv6_STUB
 	typedef wiselib::DPS_IPv6Stack<Os, Radio, Os::Debug, Os::Timer, Os::Rand> DPS_IPv6Stack;
 #endif
 
 typedef wiselib::IPv6Address<Radio, Os::Debug> IPv6Address_t;
 typedef wiselib::UDPSocket<IPv6Address_t> UDPSocket_t;
+
+uint8_t my_prefix[8] = IPv6_PREFIX
 
 class lowpanApp
 {
@@ -61,20 +63,21 @@ public:
 			uart_size = 16;
 		#endif
 	// --> Set the Radio Chanel in this line
-		debug_->debug( "Booting with ID: %llx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 18 ), 8*sizeof(radio_->id()), uart_size);
+		debug_->debug( "Booting with ID: %lx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 18 ), 8*sizeof(radio_->id()), uart_size);
 		debug_->debug( "MEM: %i",  mem->mem_free() );
 	#else
 		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
 	#endif
 		
 #ifdef DPS_IPv6_SKELETON
+		clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet( value );
-		ipv6_stack_.init(*radio_, *debug_, *timer_, *uart_, *rand_);
+		ipv6_stack_.init(*radio_, *debug_, *timer_, *uart_, *rand_, *clock_);
 #elif defined DPS_IPv6_STUB
 		ipv6_stack_.init(*radio_, *debug_, *timer_, *rand_);
 #endif
 		
-// 		callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
+		callback_id = ipv6_stack_.icmpv6.reg_recv_callback<lowpanApp,&lowpanApp::receive_echo_reply>( this );
 		callback_id = ipv6_stack_.udp.reg_recv_callback<lowpanApp,&lowpanApp::receive_radio_message>( this );
 		
 // --> The Neighbor Discovery can be started with this line, it MUST be enabled for the SLIP communication
@@ -92,97 +95,54 @@ public:
 				
 		IPv6Address_t destinationaddr;
 // 		
-// 		//Host ID of the destination
-// 		node_id_t ll_id = 0x2144;
-		
-// 		Global addressing
-		if( radio_->id() == 0x2144 )
-		{
-			
-			
-			uint8_t my_prefix[8];
-			my_prefix[0] = 0x20;
-			my_prefix[1] = 0x01;
-			my_prefix[2] = 0x63;
-			my_prefix[3] = 0x80;
-			my_prefix[4] = 0x70;
-			my_prefix[5] = 0xA0;
-			my_prefix[6] = 0xB0;
-			my_prefix[7] = 0x69;
-			
+	#ifdef DPS_IPv6_SKELETON
 			node_id_t ll_id = radio_->id();
 			destinationaddr.set_prefix( my_prefix, 64 );
 			destinationaddr.set_long_iid(&ll_id, true);
 			
 			ipv6_stack_.interface_manager.set_prefix_for_interface( my_prefix, 0, 64 );
-			
-		}
-		
-// 		//Link-local addressing
-// 		destinationaddr.make_it_link_local();
-// 		destinationaddr.set_long_iid(&ll_id, true);
-// 		
+	#endif
 // 		/*
 // 			UDP test
 // 			
 // 			For the best compression use ports between 61616 and 61631
 // 		*/
 // 		
-		if( radio_->id() == 0x2144 )
+#ifdef DPS_IPv6_STUB
 		{
-			timer_->set_timer<lowpanApp, &lowpanApp::send>( 10000, this, NULL );
-			
-// 			uint8_t mypayload[] = "hello :) This is a test message.";
-// 			
-// 			//Set IPv6 header fields
-// // 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
-// 			
-// 			// local_port, remote_port, remote_host
-// 			UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
-// 			ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
+			seq = 0;
+			timer_->set_timer<lowpanApp, &lowpanApp::send>( rand()() % (0x1FFF) + 5000, this, NULL );
 		}
+#endif
 		
-		if( radio_->id() == 0x2040 )
+		if( radio_->id() == 0x2144 )
 		{
 			//local_port, registered UDP callback ID, [remote_port], [remote_host]
 			ipv6_stack_.udp.listen( 61617, callback_id );
 			//ipv6_stack_.udp.print_sockets();
 		}
-// 		
-		
-		/*
-			ICMPv6 Ping test
-		*/
-		
-		/*
-		if( radio_->id() == 0x0 )
-		{
-			debug_->debug("Application layer: sending echo request");
-			ipv6_stack_.icmpv6.ping(destinationaddr);
-			//ipv6_stack_.icmpv6.ping(ipv6_stack_.ipv6.BROADCAST_ADDRESS);
-		}
-		*/
 		
 	}
 	
 	void send( void* )
 	{
-		IPv6Address_t destinationaddr;
-		node_id_t ll_id = 0x2040;
-				
-		uint8_t my_prefix[8];
-		my_prefix[0] = 0x20;
-		my_prefix[1] = 0x01;
-		my_prefix[2] = 0x63;
-		my_prefix[3] = 0x80;
-		my_prefix[4] = 0x70;
-		my_prefix[5] = 0xA0;
-		my_prefix[6] = 0xB0;
-		my_prefix[7] = 0x69;
+		seq++;
 		
+		IPv6Address_t destinationaddr;
+		node_id_t ll_id = 0x2144;
+
 		destinationaddr.set_prefix( my_prefix, 64 );
 		destinationaddr.set_long_iid(&ll_id, true);
-		uint8_t mypayload[] = "hello :) This is a test message.";
+		uint8_t mypayload[] = "UDPfrom: ____ #: __ ";
+		//9-10-11-12
+		//15-16
+		mypayload[9] = destinationaddr.get_hex((radio_->id() >> 12) & 0xF);
+		mypayload[10] = destinationaddr.get_hex((radio_->id() >> 8) & 0xF);
+		mypayload[11] = destinationaddr.get_hex((radio_->id() >> 4) & 0xF);
+		mypayload[12] = destinationaddr.get_hex((radio_->id() >> 0) & 0xF);
+		
+		mypayload[17] = destinationaddr.get_hex((seq >> 4) & 0xF);
+		mypayload[18] = destinationaddr.get_hex((seq >> 0) & 0xF);
 		
 		//Set IPv6 header fields
 // 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
@@ -190,6 +150,7 @@ public:
 		// local_port, remote_port, remote_host
 		UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
 		ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
+// 		ipv6_stack_.icmpv6.ping(destinationaddr);
 		
 		timer_->set_timer<lowpanApp, &lowpanApp::send>( 15000, this, NULL );
 	}
@@ -201,23 +162,24 @@ public:
 		if( socket != ipv6_stack_.udp.id() )
 		{
 			char str[43];
-			debug_->debug( "Application layer received msg at %llx from %s", (long long unsigned)(radio_->id()), socket.remote_host.get_address(str) );
+			debug_->debug( "Application layer received msg at %lx from %s", (long long unsigned)(radio_->id()), socket.remote_host.get_address(str) );
 			debug_->debug( "    Size: %i Content: %s ", len, buf);
 		}
 	}
 
 	// --------------------------------------------------------------------
-// 	void receive_echo_reply( IPv6Address_t from, uint16_t len, Os::Radio::block_data_t *buf )
-// 	{
-// 		if( len == 1 && buf[0] == ipv6_stack_.icmpv6.ECHO_REPLY )
-// 		{
-// 			char str[43];
-// 			debug_->debug( "Application layer received echo reply at %llx from %s", (long long unsigned)(radio_->id()), from.get_address(str) );
-// 		}
-// 	}
+	void receive_echo_reply( IPv6Address_t from, uint16_t len, Os::Radio::block_data_t *buf )
+	{
+		if( len == 1 && buf[0] == ipv6_stack_.icmpv6.ECHO_REPLY )
+		{
+			char str[43];
+			debug_->debug( "Application layer received echo reply at %lx from %s", (long long unsigned)(radio_->id()), from.get_address(str) );
+		}
+	}
 
 private:
 	int callback_id;
+	int seq;
 
 	DPS_IPv6Stack ipv6_stack_;
 	Radio::self_pointer_t radio_;
@@ -225,8 +187,11 @@ private:
 	Os::Debug::self_pointer_t debug_;
 	Os::Rand::self_pointer_t rand_;
 #ifdef DPS_IPv6_SKELETON
+	Os::Clock::self_pointer_t clock_;
 	Uart::self_pointer_t uart_;
 #endif
+	Os::Rand& rand()
+	{ return *rand_; }
 };
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, lowpanApp> example_app;

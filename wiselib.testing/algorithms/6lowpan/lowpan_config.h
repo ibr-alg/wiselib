@@ -19,6 +19,12 @@
 #ifndef __LOWPAN_CONFIG_H
 #define __LOWPAN_CONFIG_H
 
+//Enable the use of IPv6 extension headers
+#define IPv6_EXT_ENABLED
+
+//Enable the ND codes in the icmpv6.h
+#define IPv6_ND_ENABLED
+
 //6LoWPAN IP packet max size
 #define LOWPAN_IP_PACKET_BUFFER_MAX_SIZE 1500
 
@@ -50,7 +56,7 @@
 #define NUMBER_OF_INTERFACES 2
 
 //Number of UDP sockets in the UDP layer
-#define NUMBER_OF_UDP_SOCKETS 4
+#define NUMBER_OF_UDP_SOCKETS 2
 
 //Enable the Router Solicitation messages on the UART interface
 // #define IPv6_SLIP
