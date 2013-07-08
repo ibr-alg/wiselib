@@ -39,7 +39,9 @@ char *test_tuples_mini[] = {
 
 
 char *test_tuples_btcsample[][3] = {
-	#include "btcsample0.cpp"
+	//#include "ssp.cpp"
+	//#include "btcsample0.cpp"
+	#include "incontextsensing.cpp"
 	0
 };
 
@@ -58,7 +60,16 @@ class ExampleApplication {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			
 			//shdt_encode(100);
-			test_shdt_tuples(64, 100, (block_data_t**)test_tuples_btcsample);
+			
+			//for(size_type packet_size = 20; packet_size <= 120; packet_size += 20) {
+			//	for(size_type table_size = 8; table_size <= Shdt::MAX_TABLE_SIZE; table_size *= 2) {
+			size_type packet_size = 100;
+			size_type table_size=64;
+					sender.reset();
+					receiver.reset();
+					test_shdt_tuples(table_size, packet_size, (block_data_t**)test_tuples_btcsample);
+			//	}
+			//}
 		}
 		
 		
@@ -86,9 +97,9 @@ class ExampleApplication {
 			shdt_test_send_tuples();
 			
 			if(test_tuples_[verify_idx_]) {
-				debug_->debug("error: verify_idx not at end idx=%d *idx=%s", (int)verify_idx_, (char*)test_tuples_[verify_idx_]);
+				debug_->debug("\x1b[31merror: verify_idx not at end idx=%d *idx=%s\x1b[m", (int)verify_idx_, (char*)test_tuples_[verify_idx_]);
 			}
-			debug_->debug("cstr_size %d shdt_size %d packets %d", (int)cstr_size_, (int)shdt_size_, (int)packets_);
+			debug_->debug("bufsize %d tablesize %d cstr_size %d shdt_size %d packets %d ratio %f", (int)bufsize_, (int)table_size_, (int)cstr_size_, (int)shdt_size_, (int)packets_, (float)shdt_size_ / (float)cstr_size_);
 		}
 		
 		
@@ -125,13 +136,9 @@ class ExampleApplication {
 				if(!found) { break; }
 				
 				for(size_type i = 0; i < 3; i++, verify_idx_++) {
-					for(int j = 0; j < (strlen((char*)t.get(i)) + 1); j++) {
-						DBG("j=%d c=%c", j, t.get(i)[j]);
-					}
-					
-					DBG("t[%d]=%s test[%d]=%s", i, t.get(i), verify_idx_, test_tuples_[verify_idx_]);
+					//DBG("t[%d]=%s test[%d]=%s", i, t.get(i), verify_idx_, test_tuples_[verify_idx_]);
 					if(strcmp((char*)t.get(i), (char*)test_tuples_[verify_idx_]) != 0) {
-						debug_->debug("error: t[%d]=%s != vrfy[%d]=%s", (int)i, (char*)t.get(i),
+						debug_->debug("\x1b[31merror: t[%d]=%s != vrfy[%d]=%s\x1b[m", (int)i, (char*)t.get(i),
 								(int)verify_idx_, (char*)test_tuples_[verify_idx_]);
 					}
 				}

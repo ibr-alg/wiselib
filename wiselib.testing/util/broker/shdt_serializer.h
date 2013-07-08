@@ -74,7 +74,7 @@ namespace wiselib {
 			enum SpecialIds {
 				NO_FIELD_ID = (field_id_t)(-1)
 			};
-			enum { SHDT_VERSION = 1 };
+			enum { SHDT_VERSION = 2 };
 			
 			// }}}
 			
@@ -221,6 +221,8 @@ namespace wiselib {
 					}
 					
 					void write_header(table_id_t table_size, table_id_t tuple_size) {
+						check();
+						
 						serializer_->set_table_size(table_size);
 						serializer_->set_tuple_size(tuple_size);
 						HeaderInstruction in;
@@ -228,12 +230,17 @@ namespace wiselib {
 						in.table_size() = table_size;
 						in.tuple_size() = tuple_size;
 						write_instruction((Instruction&)in);
+						
+						check();
 					}
 					
 					table_id_t write_data(block_data_t* data, size_type data_size, size_type n_avoid = 0, table_id_t* avoid = 0) {
+						check();
+						
 						bool call_again = false;
 						table_id_t pos;
 						do {
+							assert(buffer_end_ >= buffer_current_);
 							call_again = serializer_->write_data(
 									data, data_size,
 									buffer_current_, buffer_end_ - buffer_current_,
@@ -241,21 +248,27 @@ namespace wiselib {
 							if(call_again) { write_callback_(*this); }
 						}
 						while(call_again);
+						
+						check();
 						return pos;
 					}
 					
 					template<typename Tuple>
 					void write_tuple(Tuple& t) {
+						check();
 						//table_id_t ids_[serializer_->tuple_size()];
 						Instruction in;
 						for(size_type i = 0; i < serializer_->tuple_size(); ++i) {
 							in.tuple()[i] = write_data(t.get(i), t.length(i), i, in.tuple());
 						}
 						write_instruction(in);
+						
+						check();
 					}
 					
 					
 					void write_field(field_id_t field_id, block_data_t* data, size_type data_size) {
+						check();
 						if(sizeof(ValueInstruction) + data_size < buffer_space()) {
 							ValueInstruction in;
 							in.field_id() = field_id;
@@ -272,12 +285,15 @@ namespace wiselib {
 							in.field_index() = id;
 							write_instruction((Instruction&)in);
 						}
+						check();
 					}
 					
 					void flush() {
+						check();
 						if(buffer_current_ > buffer_start_) {
 							write_callback_(*this);
 						}
+						check();
 					}
 					
 					block_data_t* buffer() { return buffer_start_; }
@@ -287,11 +303,19 @@ namespace wiselib {
 					void reuse_buffer(size_type offset = 0) { buffer_current_ = buffer_start_; }
 					
 				private:
+					
+					void check() {
+						assert(buffer_end_ >= buffer_current_);
+					}
+					
 					void write_instruction(Instruction& in) {
 						bool call_again = false;
 						do {
 							call_again = serializer_->write_instruction(in, buffer_current_, buffer_end_);
+							check();
+							
 							if(call_again) { write_callback_(*this); }
+							check();
 						}
 						while(call_again);
 					}
@@ -441,10 +465,12 @@ namespace wiselib {
 				bool call_again = false;
 				
 				size_type p = 0; // length of prefix already there
-				table_id_t source_id;
+				table_id_t source_id = 0;
 				
 				#if SHDT_REUSE_PREFIXES
 					// find a string in table with the longest common prefix
+					
+					id = nidx;
 					
 					for(table_id_t cid = 0; cid < table_size_; cid++) {
 						size_type current_size = 0;
@@ -457,10 +483,15 @@ namespace wiselib {
 								if(p == data_size) { break; }
 							}
 						}
+						else {
+							if(id == nidx) { id = cid; }
+						}
 					}
 					
-					id = hash(data, data_size);
-					id = ensure_avoids(id, n_avoid, avoid);
+					if(id == nidx) {
+						id = hash(data, data_size);
+						id = ensure_avoids(id, n_avoid, avoid);
+					}
 				#else 
 					// just consider a single target position defined by
 					// hash(complete string), maybe there is a prefix of the
@@ -506,6 +537,7 @@ namespace wiselib {
 					}
 					else {
 						// string is conveniently already completely there
+						id = source_id;
 						call_again = false;
 					}
 				}
@@ -563,10 +595,11 @@ namespace wiselib {
 			 * fresh buffer.
 			 */
 			bool write_instruction(Instruction& in, block_data_t*& buffer, block_data_t* buffer_end) {
-				if(buffer + in.size() > buffer_end) { return true; }
-				
 				int hs = in.header_size();
 				if(hs == -1) { hs = tuple_size_; }
+				
+				if(buffer + hs + (in.has_payload() ? in.payload_size() : 0) > buffer_end) { return true; }
+				
 				memcpy(buffer, &in, hs);
 				buffer += hs;
 				
@@ -652,7 +685,7 @@ namespace wiselib {
 						block_data_t *current = get_table(cat.source_index(), current_size);
 						assert(current != 0);
 						
-						size_type l = current_size + cat.payload_size();
+						size_type l = cat.source_prefix() + cat.payload_size();
 						block_data_t buf[l];
 						memcpy(buf, current, cat.source_prefix()); //current_size);
 						memcpy(buf + cat.source_prefix(), cat.payload(), cat.payload_size());
@@ -664,6 +697,8 @@ namespace wiselib {
 			}
 			
 			void set_table(table_id_t id, block_data_t* data, sz_t data_size) {
+				assert(strlen((char*)data) + 1 >= data_size);
+				
 				if(lookup_table_[id]) {
 					get_allocator().free_array(lookup_table_[id]);
 					lookup_table_[id] = 0;
