@@ -508,8 +508,6 @@ namespace wiselib {
 					}
 				#endif
 				
-				// does the rest fit?
-				
 				// header size of the cat command
 				size_t l = data_size; //strlen((char*)in.data());
 				if(p && buffer_size > Instruction::header_size(CMD_CAT) + 1) {
