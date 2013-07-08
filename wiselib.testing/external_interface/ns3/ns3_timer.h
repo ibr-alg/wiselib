@@ -54,7 +54,7 @@ namespace wiselib
       template<typename T, void (T::*TMethod)(void*)>
       int set_timer( millis_t millis, T *obj_pnt, void *userdata )
       {
-         if (os().proc->template SetTimeout<T, TMethod>( millis, obj_pnt, userdata ))
+         if (os().proc.template SetTimeout<T, TMethod>( millis, obj_pnt, userdata ))
            return SUCCESS;
 
          return ERR_UNSPEC;
