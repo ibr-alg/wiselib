@@ -55,7 +55,7 @@ namespace wiselib
          va_start( fmtargs, msg );
          vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
          va_end( fmtargs );
-         os ().proc->Debug (buffer);
+         os ().proc.Debug (buffer);
       }
 
    private:

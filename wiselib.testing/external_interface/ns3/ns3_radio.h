@@ -56,7 +56,7 @@ namespace wiselib
       };
       // --------------------------------------------------------------------
       enum SpecialNodeIds {
-         BROADCAST_ADDRESS = 0xffff, ///< All nodes in communication rnage
+         BROADCAST_ADDRESS = 0xffffffffU, ///< All nodes in communication rnage
          NULL_NODE_ID      = -1      ///< Unknown/No node id
       };
       // --------------------------------------------------------------------
@@ -70,7 +70,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       int send( node_id_t id, size_t len, block_data_t *data )
       {
-         os().proc->send_wiselib_message( id, len, data );
+         os().proc.sendWiselibMessage( id, len, data );
          return SUCCESS;
       };
       // --------------------------------------------------------------------
@@ -82,13 +82,13 @@ namespace wiselib
       // --------------------------------------------------------------------
       node_id_t id()
       {
-         return os().proc->id();
+         return os().proc.id();
       }
       // --------------------------------------------------------------------
       template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
       int reg_recv_callback( T *obj_pnt )
       {
-         if (os().proc->template reg_recv_callback<T, TMethod>( obj_pnt ))
+         if (os().proc.template regRecvCallback<T, TMethod>( obj_pnt ))
             return SUCCESS;
 
          return ERR_UNSPEC;
@@ -97,6 +97,11 @@ namespace wiselib
       int unreg_recv_callback( int idx )
       { return ERR_NOTIMPL; }
 
+      // specific methods for NS-3
+      void init_radio ()
+      {
+        os().proc.initRadio ();
+      }
    private:
       Ns3Os& os()
       { return os_; }
