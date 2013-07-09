@@ -12,19 +12,20 @@ WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
 ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
 SD_PATH=$(ARDUINO_PATH)/libraries/SD
 SOFTWARE_SERIAL_PATH=$(ARDUINO_PATH)/libraries/SoftwareSerial
+MSTIMER2_PATH=$(ARDUINO_PATH)/libraries/MsTimer2
 
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
-	-I$(ETHERNET_PATH)/utility -I$(SD_PATH) -I$(SOFTWARE_SERIAL_PATH) -I$(SD_PATH)/utility
+	-I$(ETHERNET_PATH)/utility -I$(SD_PATH) -I$(SOFTWARE_SERIAL_PATH) -I$(SD_PATH)/utility -I$(MSTIMER2_PATH)
 
 ZEROCONF_PATH=/home/parita/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -lspi -larduino -lethernet -lzeroconf -lstring -Wl,--end-group
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -lspi -larduino -lethernet -lzeroconf -lstring -lmstimer2 -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_BLUETOOTH -DARDUINO_LITE -DARDUINO_STRING -Os -w \
+CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
 PORT=/dev/ttyUSB0
