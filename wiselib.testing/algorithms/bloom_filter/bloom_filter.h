@@ -53,6 +53,10 @@ namespace wiselib {
 				r->clear();
 			}
 			
+			void clear() {
+				memset(data_, 0x00, SIZE_BYTES);
+			}
+		
 			void destroy() {
 				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
 			}
@@ -63,15 +67,11 @@ namespace wiselib {
 			}
 			
 			void operator|=(self_type& other) {
-				for(size_type i = 0; i < SIZE; i++) {
+				for(size_type i = 0; i < SIZE_BYTES; i++) {
 					data_[i] |= other.data_[i];
 				}
 			}
 			
-			void clear() {
-				memset(data_, 0x00, SIZE_BYTES);
-			}
-		
 		private:
 			
 			static size_type byte(size_type n) { return n / 8; }

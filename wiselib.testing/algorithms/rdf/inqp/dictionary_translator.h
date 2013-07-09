@@ -20,8 +20,6 @@
 #ifndef DICTIONARY_TRANSLATOR_H
 #define DICTIONARY_TRANSLATOR_H
 
-#include <util/pstl/unbalanced_tree.h>
-
 namespace wiselib {
 	
 	/**

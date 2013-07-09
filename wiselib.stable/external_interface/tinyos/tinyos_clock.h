@@ -42,6 +42,7 @@ namespace wiselib
 
       typedef TinyOsClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
+      typedef uint16_t millis_t; 
 
       typedef uint32_t time_t;
       // --------------------------------------------------------------------
