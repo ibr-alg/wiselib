@@ -309,7 +309,7 @@ namespace wiselib {
 					}
 					
 					Tuple& operator*() {
-						return this->current_;
+						return *container_iterator_; //this->current_;
 					}
 					Tuple* operator->() { return &operator*(); }
 					Iterator& operator++() {
@@ -320,7 +320,7 @@ namespace wiselib {
 					
 					~Iterator() {
 						query_.destruct_deep();
-						current_.destruct_deep();
+						//current_.destruct_deep();
 					}
 					
 					bool operator==(const Iterator& other) { return container_iterator_ == other.container_iterator_; }
@@ -337,7 +337,9 @@ namespace wiselib {
 					 */
 					void set_query(Tuple& query, column_mask_t mask) {
 						column_mask_ = mask;
-						deep_copy<COLUMNS>(query_, query);
+						if(&query) {
+							deep_copy<COLUMNS>(query_, query);
+						}
 						forward();
 					}
 					
@@ -374,7 +376,7 @@ namespace wiselib {
 					
 					ContainerIterator container_iterator_;
 					ContainerIterator container_end_;
-					Tuple query_, current_;
+					Tuple query_; //, current_;
 					column_mask_t column_mask_;
 					
 				template<
@@ -424,7 +426,7 @@ namespace wiselib {
 			
 			enum {
 				COLUMNS = Tuple::SIZE,
-				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1),
+				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1)
 			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
@@ -659,7 +661,7 @@ namespace wiselib {
 			
 			enum {
 				COLUMNS = Tuple::SIZE,
-				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1),
+				MASK_ALL = (column_mask_t)((1 << COLUMNS) - 1)
 			};
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
@@ -730,7 +732,12 @@ namespace wiselib {
 				iterator r;
 				
 				for(size_type i=0; i<COLUMNS; i++) {
-					r.query_.set_deep(i, query->get(i));
+					if(query->get(i)) {
+						r.query_.set_deep(i, query->get(i));
+					}
+					else {
+						r.query_.free_deep(i);
+					}
 				}
 				
 				r.container_iterator_ = container_->begin();

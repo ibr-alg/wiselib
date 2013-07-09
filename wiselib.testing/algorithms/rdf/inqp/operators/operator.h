@@ -75,6 +75,15 @@ namespace wiselib {
 				parent_.port_ = od->parent_port();
 			}
 			
+			void init(uint8_t type, Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection) {
+				type_ = type;
+				query_ = query;
+				id_ = id;
+				parent_.id_ = parent_id;
+				parent_.port_ = parent_port;
+				projection_info_ = projection;
+			}
+			
 			void attach_to(self_type* parent) {
 				parent_.push_ = push_t::from_stub((void*)parent, parent->push_);
 				//parent_.port_ = port;

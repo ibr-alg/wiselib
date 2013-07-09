@@ -20,809 +20,1154 @@
 #ifndef TOKEN_CONSTRUCTION_H
 #define TOKEN_CONSTRUCTION_H
 
-#include <util/pstl/list_static.h>
+#include "semantic_entity.h"
+#include "semantic_entity_id.h"
+
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
+#include <util/pstl/vector_dynamic.h>
 #include <util/pstl/map_static_vector.h>
-#include <util/pstl/utility.h>
-#include <util/pstl/pair.h>
-#include <util/standalone_math.h>
-#include "message_types.h"
+#include <util/pstl/list_dynamic.h>
+#include <algorithms/protocols/reliable_transport/reliable_transport.h>
+
+#include "regular_event.h"
+#include "state_message.h"
+#include "semantic_entity_aggregator.h"
+
+#ifndef TOKEN_CONSTRUCTION_RELIABLE_TOKEN_STATE
+	#define TOKEN_CONSTRUCTION_RELIABLE_TOKEN_STATE 1
+#endif
+
+#ifndef TOKEN_CONSTRUCTION_TIME_SCALE
+	#ifdef SHAWN
+		#define TOKEN_CONSTRUCTION_TIME_SCALE 10
+	#else
+		#define TOKEN_CONSTRUCTION_TIME_SCALE 1
+	#endif
+#endif
 
 namespace wiselib {
 	
+	/**
+	 * @brief
+	 * 
+	 * @ingroup
+	 * 
+	 * @tparam 
+	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P,
+		typename TupleStore_P,
+		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Clock_P = typename OsModel_P::Clock,
-		typename Rand_P = typename OsModel_P::Rand,
 		typename Debug_P = typename OsModel_P::Debug,
-		typename TagDebug_P = typename OsModel_P::Debug,
-		typename Actuator_P = int
+		typename Rand_P = typename OsModel_P::Rand
 	>
 	class TokenConstruction {
 		public:
+			/// @{{{ Typedefs & Enums
+			
+			typedef TokenConstruction<
+				OsModel_P,
+				TupleStore_P,
+				Radio_P,
+				Timer_P,
+				Clock_P,
+				Debug_P
+			> self_type;
+			typedef self_type* self_pointer_t;
+			
+			enum Restrictions { MAX_NEIGHBORS = 8 };
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef TupleStore_P TupleStore;
 			typedef Radio_P Radio;
-			typedef Debug_P Debug;
-			typedef TagDebug_P TagDebug;
+			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
 			typedef Timer_P Timer;
 			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
+			typedef Debug_P Debug;
 			typedef Rand_P Rand;
-			typedef Actuator_P Actuator;
 			
-			typedef TokenConstruction<OsModel, Radio, Timer, Clock, Rand, Debug, TagDebug, Actuator> self_type;
+			typedef ::uint8_t token_count_t;
+			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
+			typedef list_dynamic<OsModel, SemanticEntityT> SemanticEntities;
+			typedef typename SemanticEntityT::State State;
+			typedef typename State::TokenState TokenState;
+			typedef typename State::TreeState TreeState;
 			
-			typedef BridgeRequestMessage<Os, Radio> BridgeRequestMessageT;
-			typedef DestructDetourMessage<Os, Radio> DestructDetourMessageT;
-			typedef RenumberMessage<Os, Radio> RenumberMessageT;
-			typedef EdgeRequestMessage<Os, Radio> EdgeRequestMessageT;
-			typedef DropEdgeRequestMessage<Os, Radio> DropEdgeRequestMessageT;
+			typedef StateMessage<OsModel, SemanticEntityT, Radio> StateMessageT;
+			typedef typename StateMessageT::TreeStateMessageT TreeStateMessageT;
+			typedef typename StateMessageT::TokenStateMessageT TokenStateMessageT;
 			
-			typedef typename Radio::node_id_t node_id_t;
-			typedef uint8_t position_t;
-			typedef StandaloneMath<OsModel> Math;
-			typedef typename OsModel::size_t size_t;
+			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
+			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularBroadcasts;
+			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand> RingTransport;
+			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
+			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			
-			enum { MSG_TOKEN = 80, MSG_BEACON, MSG_MERGE_REQUEST };
-			static const double SHORTCUT_PROBABILITY = .3;
-			
-			enum Restrictions { MAX_CHANNELS = 8, MAX_TOKEN_SIZE = Radio::MAX_MESSAGE_LENGTH };
-			enum { BEACON_INTERVAL = 100, TOKEN_STAY_INTERVAL = 5000, TOKEN_WAKEUP_BEFORE = 2000 };
-			//enum MergeState { MERGED, WAIT_FOR_SLAVE_TOKEN, WAIT_FOR_MASTER_TOKEN };
-			enum MergeState {
-				MERGED = 0,
-				
-				SLAVE_WAIT_FOR_MY_TOKEN = 0x01,
-				SLAVE_WAIT_FOR_MASTER_TOKEN = 0x02,
-				
-				MASTER_REQUEST_SENT = 0x10,
-				MASTER_WAIT_FOR_SLAVE_TOKEN = 0x11,
-				MASTER_WAIT_FOR_MY_TOKEN = 0x12,
-				MASTER_WAIT_FOR_RENUMBER = 0x13
+			enum MessageTypes {
+				MESSAGE_TYPE_STATE = StateMessageT::MESSAGE_TYPE,
+				MESSAGE_TYPE_TREE_STATE = TreeStateMessageT::MESSAGE_TYPE,
+				MESSAGE_TYPE_TOKEN_STATE = TokenStateMessageT::MESSAGE_TYPE
 			};
-			enum { CHANNEL_NORMAL = 0, CHANNEL_OLD = 0x01, CHANNEL_NEW = 0x02 };
 			
-		private:
+			enum Constraints {
+				MAX_NEIGHBOURS = 8
+			};
 			
-			struct Token {
-				
-				Token() : message_type(MSG_TOKEN) {
-				}
-				
-				void init() {
-					message_type = MSG_TOKEN;
-					stay_awake = false; //true; // DEBUG
-					keepalive_ = false;
-					//period_ = TOKEN_STAY_INTERVAL;
-					nodes = 1;
-					last_seen_number_ = 0;
-					ring_id_ = Radio::NULL_NODE_ID;
-				}
-				
-				size_t length() {
-					size_t l = sizeof(Token);
-					return l;
-				}
-				
-				node_id_t ring_id() { return ring_id_; }
-				bool is_keepalive() { return keepalive_; }
+			enum Timing {
+				TIME_SCALE = TOKEN_CONSTRUCTION_TIME_SCALE,
+				/// Guarantee to broadcast in this fixed inverval
+				REGULAR_BCAST_INTERVAL = 30000 * TIME_SCALE,
+				/// Check in this interval whether state is dirty and broadcast it if so
+				DIRTY_BCAST_INTERVAL = 1000 * TIME_SCALE,
+				AWAKE_BCAST_INTERVAL = 1000 * TIME_SCALE,
 				
 				/**
-				 * Set various token infos such as increasing the
-				 * number of last seen node etc...
+				 * How long to stay awake when we have the token.
+				 * Should be considerably longer than it needs to transfer the
+				 * token state to the next node
+				 * should be larger than:
+				 * ((ReliableTransport::MAX_RESENDS - 1) * ReliableTransport::RESEND_TIMEOUT) * k
+				 * for k between 4 and 10 (depending on aggregation data * length)
 				 */
-				void touch() {
-					last_seen_number_++;
-				}
-				
-				void set_renumber() {
-					renumber_ = true;
-					last_seen_number_ = 0;
-				}
-				bool renumbering() {
-					return renumber_;
-				}
-				void done_renumbering() {
-					renumber_ = false;
-					nodes = last_seen_number_;
-					last_seen_number_ = 0;
-				}
-				
-				uint32_t period() {
-					return nodes * TOKEN_STAY_INTERVAL;
-				}
-				
-				uint8_t message_type;
-				
-				uint8_t stay_awake : 1;
-				uint8_t keepalive_ : 1;
-				uint8_t renumber_ : 1;
-				
-				//uint32_t period_;
-				position_t nodes;
-				position_t last_seen_number_;
-				node_id_t ring_id_;
-				uint16_t rounds_;
-				node_id_t token_id_;
-				
+				ACTIVITY_PERIOD = (1000 * TIME_SCALE) * 10,
+				//RESEND_TOKEN_STATE_INTERVAL = 500 * TIME_SCALE,
+				//HANDOVER_LOCK_INTERVAL = 10 * TIME_SCALE,
+				HANDOVER_RETRY_INTERVAL = ACTIVITY_PERIOD / 2 //6000 * TIME_SCALE
 			};
 			
-			struct Channel {
-				
-				Channel() : in_(Radio::NULL_NODE_ID), out_time_(0), flags_(CHANNEL_NORMAL) {
-				}
-				
-				void init() {
-					out_time_ = 0;
-					taking_time_ = false;
-					flags_ = CHANNEL_NORMAL;
-					in_ = Radio::NULL_NODE_ID;
-					out_ = Radio::NULL_NODE_ID;
-				}
-				
-				bool used() { return in_ != Radio::NULL_NODE_ID; }
-				void erase() { in_ = Radio::NULL_NODE_ID; }
-				
-				node_id_t in() { return in_; }
-				void set_in(node_id_t i) { in_ = i; }
-				node_id_t out() { return out_; }
-				void set_out(node_id_t o) { out_ = o; }
-				//position_t number() { return number_; }
-				//void set_number(position_t n) { number_ = n; }
-				
-				bool is_new() { return flags_ & CHANNEL_NEW; }
-				bool is_old() { return flags_ & CHANNEL_OLD; }
-				
-				node_id_t in_, out_;
-				//position_t number_;
-				
-				// how long will the token be away after leaving through
-				// out()?
-				uint32_t out_time_;
-				
-				/**
-				 * New channels will not be used by keepalive tokens
-				 * 
-				 * new channels stay new as long
-				 * as no updated token period is available
-				 * (token.period() = 0)
-				 */
-				uint8_t flags_;
-				bool taking_time_;
+			enum SpecialAddresses {
+				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
+				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
-			/// Messages
-			// {{{
-			
-			struct Message {
-				Message(uint8_t type) : message_type_(type) { }
-				uint8_t message_type_;
+			enum SpecialValues {
+				npos = (size_type)(-1)
 			};
 			
-			struct Beacon : public Message {
-				Beacon() : Message(MSG_BEACON) { }
+			enum ReturnValues {
+				SUCCESS = OsModel::SUCCESS,
+				ERR_UNSPEC = OsModel::ERR_UNSPEC
+			};
+			
+			/// @}}}
+			
+			class PacketInfo {
+				// {{{
+				public:
+					static PacketInfo* create(time_t received, node_id_t from, typename Radio::size_t len, block_data_t* data) {
+						PacketInfo *r = reinterpret_cast<PacketInfo*>(
+							::get_allocator().template allocate_array<block_data_t>(sizeof(PacketInfo) + len).raw()
+						);
+						r->received_ = received;
+						r->from_ = from;
+						r->len_ = len;
+						memcpy(r->data_, data, len);
+						return r;
+					}
+					
+					void destroy() {
+						::get_allocator().template free_array(reinterpret_cast<block_data_t*>(this));
+					}
+					
+					time_t& received() { return received_; }
+					node_id_t& from() { return from_; }
+					typename Radio::size_t& length() { return len_; }
+					block_data_t *data() { return data_; }
 				
-				node_id_t ring_id() { return ring_id_; }
-				void set_ring_id(node_id_t r) { ring_id_ = r; }
-				node_id_t ring_id_;
+				private:
+					time_t received_;
+					typename Radio::size_t len_;
+					node_id_t from_;
+					block_data_t data_[0];
+				// }}}
 			};
 			
-			struct MergeRequest : public Message {
-				MergeRequest() : Message(MSG_MERGE_REQUEST) { }
-			};
-			
-			// }}}
-			
-		public:
-			typedef Channel Channels[MAX_CHANNELS];
-			
-			TokenConstruction() {
-			}
-			
-			int init() {
-				return OsModel::SUCCESS;
-			}
-			
-			int init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer,
-					typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug,
-					typename TagDebug::self_pointer_t tagdebug, typename Actuator::self_pointer_t actuator) {
+			void init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug, typename Rand::self_pointer_t rand, typename TupleStore::self_pointer_t ts) {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
 				debug_ = debug;
-				tagdebug_ = tagdebug;
-				actuator_ = actuator;
-				
+				caffeine_level_ = 0;
+				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
 				
-				channel_count_ = 0;
+				ring_transport_.init(radio_, timer_, clock_, rand, debug_, false);
 				
-				return OsModel::SUCCESS;
+				aggregator_.init(ts);
+				
+				end_activity_callback_ = end_activity_callback_t();
+				
+				// keep node alive for debugging
+				//push_caffeine();
+				caffeine_level_ = 0;
+				on_regular_broadcast_state();
 			}
 			
-			int destruct() {
-				return OsModel::SUCCESS;
+			void set_end_activity_callback(end_activity_callback_t cb) {
+				end_activity_callback_ = cb;
 			}
 			
-			void start_construction() {
-				actuator_->set_value(0.0);
-				actuator_->set_value(-1.0);
+			void add_entity(const SemanticEntityId& id) {
+				//entities_.push_back(id); // implicit cast for the win ;p
+				entities_.push_back(SemanticEntityT(id));
+				bool found;
+				SemanticEntityT &se = find_entity(id, found);
+				assert(found);
 				
-				debug_->debug("starting token ring construction\n");
-				//last_receive_ = clock_->seconds(clock_->time());
-				//timer_->template set_timer<self_type, &self_type::on_time>(100, this, 0);
+				ring_transport_.register_endpoint(Radio::NULL_NODE_ID, id, true,
+						RingTransport::produce_callback_t::template from_method<self_type, &self_type::produce_handover_initiator>(this),
+						RingTransport::consume_callback_t::template from_method<self_type, &self_type::consume_handover_initiator>(this),
+						RingTransport::event_callback_t::template from_method<self_type, &self_type::event_handover_initiator>(this)
+				);
 				
-				set_ring_id(radio_->id());
+				ring_transport_.register_endpoint(Radio::NULL_NODE_ID, id, false,
+						RingTransport::produce_callback_t::template from_method<self_type, &self_type::produce_handover_recepient>(this),
+						RingTransport::consume_callback_t::template from_method<self_type, &self_type::consume_handover_recepient>(this),
+						RingTransport::event_callback_t::template from_method<self_type, &self_type::event_handover_recepient>(this)
+				);
 				
-				//sending_token_.real = true;
-				//sending_token_.stay_awake = false;
-				//sending_token_.ring_id = radio_->id();
-				//sending_token_.nodes = 1;
-				
-				add_channel(radio_->id(), radio_->id(), CHANNEL_NORMAL);
-				current_channel_ = &channels_[0];
-				measure_out_time_begin_ = -1;
-				//awake_ = true;
-				wakeup();
-				//wait_for_master_ = Radio::NULL_NODE_ID;
-				//merge_state_ = MERGED;
-				
-				send_beacon();
-				
-				scheduling_send_token_ = false;
-				scheduling_wakeup_ = false;
-				
-				// create & send initial token
-				last_non_keepalive_token_.init();
-				last_non_keepalive_token_.ring_id_ = ring_id();
-				last_non_keepalive_token_.token_id_ = radio_->id();
-				set_have_token(true);
-				pass_on_token();
-			}
-			
-			/// Message sending
-			// {{{
-			
-			void send_beacon(void* _=0) {
-				if(awake()) {
-					radio_->send(Radio::BROADCAST_ADDRESS, sizeof(beacon_), (block_data_t*)&beacon_);
-				}
-				
-				timer_->template set_timer<self_type, &self_type::send_beacon>(BEACON_INTERVAL, this, 0);
-			}
-			
-			//void send_merge_request(node_id_t to) {
-				////debug_->debug("merge: send merge req %d -> %d\n", radio_->id(), to);
-				//MergeRequest msg;
-				//radio_->send(to, sizeof(msg), (block_data_t*)&msg);
-			//}
-			
-			// }}}
-			
-			
-			// }}}
-			
-			/// Message retrieval: on_receive_XXX
-			// {{{
-			
-			void on_receive(typename Radio::node_id_t source, typename Radio::size_t len, typename Radio::block_data_t* data) {
-				if(len < 1) { return; }
-				
-				switch(data[0]) {
-					case MSG_BEACON:
-						{
-							if(!awake()) { return; }
-							//debug_->debug("recv beacon %d->%d\n", source, radio_->id());
-							Beacon beacon;
-							memcpy(&beacon, data, sizeof(beacon));
-							on_receive_beacon(source, beacon);
-						}
-						break;
-						
-					//case MSG_MERGE_REQUEST:
-						//{
-							////debug_->debug("merge: recv merge request %d->%d\n", source, radio_->id());
-							//MergeRequest merge_request;
-							//memcpy(&merge_request, data, sizeof(merge_request));
-							//on_receive_merge_request(source, merge_request);
-						//}
-						//break;
-						
-					case MSG_TOKEN:
-						{
-							//debug_->debug("recv token %d->%d\n", source, radio_->id());
-							on_receive_token(source, *reinterpret_cast<Token*>(data));
-						}
-						break;
-				}
-				
-				last_receive_ = clock_->seconds(clock_->time());
-			}
-			
-			void on_receive_beacon(node_id_t source, Beacon& beacon) {
-				if(beacon.ring_id() == ring_id()) {
-					// possible shortcut
-					if(rand_->operator()() <= SHORTCUT_PROBABILITY * Rand::RANDOM_MAX) {
-						//token_add_shortcut_option(ring_id(), beacon.ring_id());
-					}
-				}
-				
-				else if(ring_id() < beacon.ring_id() && have_token()) {
-					set_have_token(false);
-					debug_->debug("sending token for join %d -> %d T%d\n", radio_->id(), source, last_non_keepalive_token_.token_id_);
-					radio_->send(source, last_non_keepalive_token_.length(), (block_data_t*)&last_non_keepalive_token_);
-					add_channel(source, source, CHANNEL_NEW);
-					start_stay_awake();
-				}
-				
-				// ring with smaller id found, request its token
-				//else if(ring_id() > beacon.ring_id()) {
-					//start_stay_awake();
-					////send_merge_request(source);
-					////merge_state_ = MASTER_REQUEST_SENT;
-					////merge_partner_ = source;
-				//}
-			}
-			
-			//void on_receive_merge_request(node_id_t source, MergeRequest& merge_request) {
-				//merge_state_ = SLAVE_WAIT_FOR_MY_TOKEN;
-				//merge_partner_ = source;
-				
-				////if(have_token() && !received_token().is_surrogate()) {
-					////debug_->debug("merge: %d trustfully giving his token to %d!\n", radio_->id(), merge_partner_);
+				//begin_wait_for_token(se);
+				se.template schedule_activating_token<
+					self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token
+				>(clock_, timer_, this, &se);
 					
-					////set_have_token(false);
-					////radio_->send(merge_partner_, received_token().length(), (block_data_t*)&received_token());
-					////merge_state_ = SLAVE_WAIT_FOR_MASTER_TOKEN;
-				////}
-			//}
-			
-			void on_receive_token(node_id_t source, Token& token) {
-				if(token.is_keepalive()) {
-					on_receive_keepalive_token(source, token);
-				}
-				else {
-					on_receive_regular_token(source, token);
+				DBG("node %d SE %x.%x active=%d t=%d", (int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se.is_active(radio_->id()), (int)now());
+				if(se.is_active(radio_->id())) {
+					begin_activity(se);
 				}
 			}
-
-			void measure_channel_time(node_id_t source, Token& token) {
-				debug_->debug("%d measure_channel_time chan=(%d %d), src=%d, begin=%d, now=%d\n",
-						radio_->id(), current_channel_->in(), current_channel_->out(),
-						source, measure_out_time_begin_, now());
-				
-				if(measure_out_time_begin_ != -1) {
-				current_channel_->out_time_ = now() - measure_out_time_begin_;
-				}
-			}
-			
-			void on_receive_regular_token(node_id_t source, Token& token) {
-				if(!awake()) {
-					debug_->debug("%d overslept a regular token!!!!\n", radio_->id());
-					return;
-				}
-				
-				//debug_->debug("on_receive_regular_token() %d->%d\n", source, radio_->id());
-				token.touch();
-				
-				debug_->debug("recv token: %d @%d -> %d @%d  keepalive=%d T%d%s\n", source, token.ring_id_, radio_->id(), ring_id(), token.is_keepalive(), token.token_id_, token.renumbering() ? "R" : "");
-				
-				
-				
-				if(token.ring_id_ == ring_id()) {
-					//abort_keepalive();
-				}
-				else {
-					node_id_t new_ring_id = Math::max(ring_id(), token.ring_id());
-					//token.ring_id_ = new_ring_id;
-					set_ring_id(new_ring_id);
-				}
-				
-				node_id_t new_ring_id = Math::max(ring_id(), token.ring_id());
-				
-				if(!find_channel_by_in(source)) {
-					debug_->debug("%d adding double channel for %d\n", radio_->id(), source);
-					add_channel(source, source, CHANNEL_NEW);
-					start_stay_awake();
-					
-					if(!token.renumbering()) {
-						//debug_->debug("%d starting renumbering on T%d\n", radio_->id(), token.token_id_);
-						token.set_renumber();
-						renumbering_in_ = source;
-					}
-					
-					// is this our new "real" token? 
-					if(token.ring_id_ >= ring_id()) {
-						measure_channel_time(source, token);
-						
-						schedule_send_token(TOKEN_STAY_INTERVAL);
-						
-						set_have_token(true);
-						last_non_keepalive_token_ = token;
-					}
-					else {
-						// TODO: next time the "real" token is being send
-						// to the newly created channel make sure
-						// to send a keepalive to the "old" channel as well!
-						// (doesn't change anything regarding wake-times, but
-						// makes it easier to detect token loss)
-						// 
-						// TODO: how do we detect token loss when the token
-						// was lost during "exploration" of a new channel?
-						// (the "new" nodes are in stay_awake and we
-						// don't know when to expect the token back)
-					}
-					last_non_keepalive_token_.ring_id_ = new_ring_id;
-					set_ring_id(new_ring_id);
-					
-				}
-				else {
-					//if(measure_out_time_) {
-						//debug_->debug("measured out_time channel: %p (%d %d). now=%d begin=%d result=%d T%d",
-								//measure_out_time_channel_, measure_out_time_channel_->in(), measure_out_time_channel_->out(),
-								//now(), measure_out_time_begin_,now() - measure_out_time_begin_, token.token_id_);
-						//measure_out_time_channel_->out_time_ = now() - measure_out_time_begin_;
-						//measure_out_time_ = false;
-					//}
-					measure_channel_time(source, token);
-					
-					select_channels(source);
-						
-					if(current_channel_->out_time_ == 0 || token.renumbering()) {
-						//debug_->debug("%d starting time measurement for ch %p (%d %d) T%d\n", radio_->id(), current_channel_, current_channel_->in(), current_channel_->out(), token.token_id_);
-						//measure_out_time_ = true;
-						//measure_out_time_channel_ = current_channel_;
-						//measure_out_time_begin_ = now() + TOKEN_STAY_INTERVAL;
-							//clock_->seconds(clock_->clock()) * 1000 + clock_->milliseconds(clock_->clock());
-						start_stay_awake();
-						schedule_send_token(TOKEN_STAY_INTERVAL);
-					}
-					else {
-						stop_stay_awake();
-						schedule_send_token(TOKEN_STAY_INTERVAL);
-						if(current_channel_->out() == radio_->id()) {
-							start_stay_awake();
-						}
-						else {
-							schedule_wakeup(TOKEN_STAY_INTERVAL + current_channel_->out_time_ - TOKEN_WAKEUP_BEFORE);
-						}
-						//timer_->template set_timer<self_type, &self_type::expect_token>(current_channel_->out_time_ - TOKEN_WAKEUP_BEFORE, this, 0);
-					}
-					
-					if(source == renumbering_in_ && token.renumbering()) {
-						token.done_renumbering();
-						make_new_channels_old();
-					}
-					
-					set_have_token(true);
-					token.ring_id_ = new_ring_id;
-					last_non_keepalive_token_ = token;
-					set_ring_id(new_ring_id);
-				}
-				
-				//debug_channels();
-				
-				//debug_->debug("%d select_channel(%d) = %p\n", radio_->id(), source, current_channel_);
-				
-				if(!expect_token_active_) {
-					debug_->debug("ERROR: not expecting anything!\n");
-				}
-			}
-
-			uint32_t now() {
-				return clock_->seconds(clock_->time()) * 1000
-					+ clock_->milliseconds(clock_->time());
-			}
-				
-			void on_receive_keepalive_token(node_id_t source, Token& token) {
-				if(!awake()) {
-					//debug_->debug("%d overslept a regular token!!!!\n", radio_->id());
-					return;
-				}
-				
-				start_stay_awake();
-				if(have_token()) { return; }
-				
-				//debug_->debug("KEEPALIVE from %d-> %d will wake up in %d again.\n", source, radio_->id(), token.period() - TOKEN_WAKEUP_BEFORE);
-				//if(expect_token_active_) {
-					//debug_->debug("ERROR: expecting twice?!\n");
-				//}
-				//expect_token_active_ = true;
-				//timer_->template set_timer<self_type, &self_type::expect_token>(token.period() - TOKEN_WAKEUP_BEFORE, this, 0);
-				//set_have_token(false);
-				schedule_send_token(TOKEN_STAY_INTERVAL);
-			}
-			
-			
-			void schedule_send_token(uint32_t interval) {
-				if(scheduling_send_token_) { return; }
-				
-				debug_->debug("%d scheduling token send in %d\n", radio_->id(), interval);
-				scheduling_send_token_ = true;
-				timer_->template set_timer<self_type, &self_type::pass_on_token>(interval, this, 0);
-			}
-
-			void schedule_wakeup(uint32_t interval) {
-				if(scheduling_wakeup_) { return; }
-				
-				debug_->debug("%d scheduling wakeup in %d\n", radio_->id(), interval);
-				scheduling_wakeup_ = true;
-				timer_->template set_timer<self_type, &self_type::expect_token>(interval, this, 0);
-			}
-			
-			
-			/**
-			 * Wake up node for token retrieval & schedule passing on (& going
-			 * back to sleep) of the token
-			 */
-			void expect_token(void* = 0) {
-				debug_->debug("scheduled wakeup: %d\n", radio_->id());
-				scheduling_wakeup_ = false;
-				wakeup();
-			}
-
-			void pass_on_token(void* = 0) {
-				debug_->debug("%d pass_on_token() T%d%s have=%d\n", radio_->id(), last_non_keepalive_token_.token_id_, last_non_keepalive_token_.renumbering() ? "R" : "", have_token());
-				scheduling_send_token_ = false;
-				
-				if(!have_token() && !current_keepalive_channel_) {
-					debug_->debug("pass_on_token(): %d dont have a token and no keepalive channel!!\n", radio_->id());
-					return;
-				}
-	
-				node_id_t to;
-				
-				last_non_keepalive_token_.ring_id_ = ring_id();
-				
-				Token send = last_non_keepalive_token_;
-				if(have_token()) {
-					to = current_channel_->out();
-					if(to != radio_->id()) {
-						measure_out_time_begin_ = now();
-					}
-				}
-				else {
-					to = current_keepalive_channel_->out();
-					send.keepalive_ = true;
-				}
-				debug_->debug("pass_on_token %d->%d keepalive=%d\n", radio_->id(), to, send.is_keepalive());
-				
-				set_have_token(false);
-				if(to == radio_->id()) {
-					on_receive(to, send.length(), (typename Radio::block_data_t*)&send);
-				}
-				else {
-					radio_->send(to, send.length(), (block_data_t*)&send);
-					sleep();
-				}
-			}
-
-			void update_awake_actuator() {
-				if(stay_awake_) {
-					actuator_->set_value(2.0);
-				}
-				else if(awake_) {
-					actuator_->set_value(0.0); // red
-				}
-				else {
-					actuator_->set_value(-1.0); // grey
-				}
-			}
-
-			void wakeup() {
-				debug_->debug("%d wakeup\n", radio_->id());
-				awake_ = true;
-				update_awake_actuator();
-			}
-			void sleep() {
-				if(!stay_awake_) {
-					debug_->debug("%d sleep\n", radio_->id());
-					awake_ = false;
-					actuator_->set_value((double)awake_ - 1);
-				}
-				else {
-					debug_->debug("%d not sleeping because its in stay-awake\n", radio_->id());
-				}
-				update_awake_actuator();
-			}
-			bool awake() { return awake_; }
-			
-			void start_stay_awake() {
-				debug_->debug("%d start stay awake\n", radio_->id());
-				stay_awake_ = true;
-				wakeup();
-				update_awake_actuator();
-			}
-			void stop_stay_awake() {
-				debug_->debug("%d end stay awake\n", radio_->id());
-				stay_awake_ = false;
-				update_awake_actuator();
-			}
-			bool staying_awake() { return stay_awake_; }
-			
-			void set_ring_id(node_id_t id) { beacon_.set_ring_id(id); }
-			node_id_t ring_id() { return beacon_.ring_id(); }
-			
-			void set_have_token(bool have) {
-				debug_->debug("%d set_have_token(%d)\n", radio_->id(), have);
-				have_token_ = have;
-				if(have_token_) {
-					tagdebug_->debug("%d T%d.", radio_->id(), last_non_keepalive_token_.ring_id());
-				}
-				else {
-					tagdebug_->debug("%d    .", radio_->id());
-				}
-			}
-			
-			void select_channels(node_id_t source) {
-				bool found = false, found_keepalive = false;
-				for(Channel* ch=&channels_[0]; ch < &channels_[MAX_CHANNELS]; ch++) {
-					if(ch->used() && ch->in() == source) {
-						if(!ch->is_old()) {
-							measure_out_time_begin_ = -1;
-							current_channel_ = ch;
-							found = true;
-						}
-						if(!ch->is_new()) {
-							current_keepalive_channel_ = ch;
-							found_keepalive = true;
-						}
-						if(found && found_keepalive) {
-							break;
-						}
-					}
-				}
-				if(!found) {
-					debug_->debug("%d couldnt find channel for source %d!\n", radio_->id(), source);
-				}
-			}
-
-			bool have_token() { return have_token_; }
 			
 		private:
+			
+			/*
+			
+			 
+			            COFFEE !!!
+			
+			                (
+			             )  )  )
+			            (  (  (
+			            )  )  )
+			            ,-----.
+			           ' ~ ~ ~ `,
+			          |\~ ~ ~ ~,|--.
+			          | `-._.-' | )|
+			          |         |_/
+			          |         |
+			          \         |
+			           `-.___.-'
+			
+			
+			*/
+			
 			/**
-			 * CHANNEL_NEXT: add channel so that its out port will be next in
-			 * line.
 			 */
-			Channel* add_channel(node_id_t in, node_id_t out, uint8_t flags) {
-				debug_->debug("%d add_channel(%d, %d)\n", radio_->id(), in, out);
-				if(current_channel_) {
-				debug_->debug("%d former current ch: (%d %d)\n", radio_->id(), current_channel_->in(),
-						current_channel_->out());
+			void push_caffeine(void* = 0) {
+				if(caffeine_level_ == 0) {
+					DBG("node %d on 1 t=%d", (int)radio_->id(), (int)now());
+					radio_->enable_radio();
 				}
-				//measure_out_time_ = false;
-				Channel *ch;
+				caffeine_level_++;
+				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
+			}
+			
+			/**
+			 */
+			void pop_caffeine(void* = 0) {
+				assert(caffeine_level_ > 0);
+				caffeine_level_--;
 				
-				// if there is a this/this channel, remove it
-				for(ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
-					if(ch->in() == radio_->id() && ch->out() == radio_->id()) {
-						ch->erase();
-						channel_count_--;
+				if(caffeine_level_ == 0) {
+					DBG("node %d on 0 t=%d", (int)radio_->id(), (int)now());
+					radio_->disable_radio();
+				}
+				DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
+			}
+			
+			/**
+			 * Send out our current state to our neighbors.
+			 * Also set up timer to do this again in REGULAR_BCAST_INTERVAL.
+			 */
+			void on_regular_broadcast_state(void *_= 0) {
+				check_neighbors();
+				
+				TreeStateMessageT msg;
+				msg.set_reason(TreeStateMessageT::REASON_REGULAR_BCAST);
+				
+				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					msg.add_entity_state(*iter);
+					iter->state().set_clean();
+				}
+				
+				push_caffeine();
+				DBG("node %d send_to bcast send_type regular_broadcast t %d", (int)radio_->id(), (int)now());
+				
+				debug_->debug("node %d t %d // send reg bcast", (int)radio_->id(), (int)now());
+				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				pop_caffeine();
+				
+				timer_->template set_timer<self_type, &self_type::on_regular_broadcast_state>(REGULAR_BCAST_INTERVAL, this, 0);
+			}
+			
+			/**
+			 * Send out our current state to our neighbors if it is considered
+			 * dirty.
+			 * Also set up a timer to do this again in DIRTY_BCAST_INTERVAL.
+			 */
+			void on_dirty_broadcast_state(void* = 0) {
+				TreeStateMessageT msg;
+				msg.set_reason(TreeStateMessageT::REASON_DIRTY_BCAST);
+				
+				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					if(iter->state().dirty()) {
+						msg.add_entity_state(*iter);
+						iter->state().set_clean();
+					}
+				}
+				
+				if(msg.entity_count()) {
+					push_caffeine();
+					DBG("node %d send_to bcast send_type dirty_broadcast t %d", (int)radio_->id(), (int)now());
+					debug_->debug("node %d t %d // send dirty bcast state", (int)radio_->id(), (int)now());
+					radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+					pop_caffeine();
+				
+				}
+				
+				timer_->template set_timer<self_type, &self_type::on_dirty_broadcast_state>(DIRTY_BCAST_INTERVAL, this, 0);
+			}
+			
+			void on_awake_broadcast_state(void* = 0) {
+				if(caffeine_level_ > 0) {
+					TreeStateMessageT msg;
+					msg.set_reason(TreeStateMessageT::REASON_DIRTY_BCAST);
+					
+					for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+						msg.add_entity_state(*iter);
+						iter->state().set_clean();
+					}
+					
+					if(msg.entity_count()) {
+						push_caffeine();
+						debug_->debug("node %d t %d // send on awake bcast state", (int)radio_->id(), (int)now());
+						radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+						pop_caffeine();
+					
+					}
+				}
+				
+				timer_->template set_timer<self_type, &self_type::on_awake_broadcast_state>(AWAKE_BCAST_INTERVAL, this, 0);
+			}
+			
+			///@name Token & Aggregation handover
+			///@{
+			//{{{
+			
+			void initiate_handover(void *se_) {
+				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_));
+			}
+			
+			void initiate_handover(SemanticEntityT& se) {
+				DBG("node %d SE %x.%x // initiate handover to %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)ring_transport_.remote_address(se.id(), true));
+				
+				bool found;
+				typename RingTransport::Endpoint& ep = ring_transport_.get_endpoint(se.id(), true, found);
+				if(!found) {
+					DBG("node %d // initiate: endpoint not found!", (int)radio_->id());
+					DBG("node %d // pop end_handover (not found)", (int)radio_->id());
+					pop_caffeine();
+					return;
+				}
+				
+				if(ep.remote_address() != radio_->id()) {
+					int r = ring_transport_.open(ep, true);
+					if(r == SUCCESS) {
+						DBG("node %d // initiate: opening", (int)radio_->id());
+						se.set_handover_state_initiator(0);
+						ring_transport_.flush();
+						//ring_transport_.request_send(se.id(), true);
+					}
+					else {
+						DBG("node %d // initiate: already open!", (int)radio_->id());
+						DBG("node %d // pop end_handover (already open)", (int)radio_->id());
+						pop_caffeine();
+					}
+				}
+				else {
+					DBG("node %d // pop end_handover (self-send)", (int)radio_->id());
+					pop_caffeine();
+				}
+			}
+			
+			//@{ Token sending side
+			
+			bool produce_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) {
+					DBG("node %d // handover produce init -- aborting because of self-send", (int)radio_->id());
+					//endpoint.destruct();
+					return false;
+				}
+				
+				DBG("node %d // x handover produce init", (int)radio_->id());
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return false; }
+				
+				DBG("node %d // handover produce init state %d", (int)radio_->id(), (int)se.handover_state_initiator());
+				
+				switch(se.handover_state_initiator()) {
+					case SemanticEntityT::INIT: {
+						// Assumption: TokenStateMessage will always fit into a
+						// single message buffer
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						//msg.set_entity_id(id);
+						msg.set_token_state(se.token());
+						//msg.set_time_offset(0);
+						
+						//message.set_open();
+						message.set_payload_size(msg.size());
+						ring_transport_.expect_answer(endpoint);
+						return true;
+					}
+						
+					case SemanticEntityT::SEND_AGGREGATES_START: {
+						bool call_again;
+						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
+						message.set_payload_size(sz);
+						DBG("node %d // send aggr start payload size %d", (int)radio_->id(), (int)sz);
+						if(call_again) {
+							DBG("node %d // more aggregate packets will follow!", (int)radio_->id());
+							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
+							endpoint.request_send();
+						}
+						else {
+							DBG("node %d // done with aggregates, requesting close", (int)radio_->id());
+							endpoint.request_close();
+							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
+						}
+						return true;
+					}
+				
+					case SemanticEntityT::SEND_AGGREGATES: {
+						DBG("node %d // send aggr", (int)radio_->id());
+						bool call_again;
+						size_type sz = aggregator_.fill_buffer(id, message.payload(), RingTransport::Message::MAX_PAYLOAD_SIZE, call_again);
+						message.set_payload_size(sz);
+						if(call_again) {
+							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
+						}
+						else {
+							endpoint.request_close();
+							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
+						}
+						endpoint.request_send();
+						return true;
+					}
+					
+					case SemanticEntityT::CLOSE: {
+						//message.set_close();
+						message.set_payload_size(0);
+						//se.set_handover_state_initiator(SemanticEntityT::DESTRUCT);
+						endpoint.request_close();
+						return false;
+					}
+					
+					//case SemanticEntityT::DESTRUCT: {
+						//endpoint.destruct();
+						//se.set_handover_state_initiator(SemanticEntityT::INIT);
+						//return false;
+					//}
+					
+				} // switch()
+				
+				return false;
+			}
+			
+			void consume_handover_initiator(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) {
+					//endpoint.destruct();
+					return;
+				}
+				
+				DBG("node %d // x handover consume init", (int)radio_->id());
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				DBG("node %d // from %d handover consume init state %d: %02x %02x %02x %02x ...", (int)radio_->id(), (int)endpoint.remote_address(), (int)se.handover_state_initiator(),
+						(int)message.payload()[0], (int)message.payload()[1], (int)message.payload()[2], (int)message.payload()[3]);
+				
+				if(*message.payload() == 'a') {
+					se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
+					endpoint.request_send();
+				}
+				else {
+					//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
+					//endpoint.request_send();
+					endpoint.request_close();
+				}
+			}
+			
+			void event_handover_initiator(int event, typename RingTransport::Endpoint& endpoint) {
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				switch(event) {
+					case RingTransport::EVENT_ABORT: 
+						// TODO: somehow keep delay info here!
+						DBG("node %d // push begin_handover because abort setting up retry for %d", (int)radio_->id(), (int)now() + HANDOVER_RETRY_INTERVAL);
+						push_caffeine();
+						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
+						break;
+						
+					case RingTransport::EVENT_OPEN:
+						se.set_handover_state_initiator(SemanticEntityT::INIT);
+						DBG("node %d // push begin_handover_connection", (int)radio_->id());
+						push_caffeine();
+						break;
+						
+					case RingTransport::EVENT_CLOSE:
+						se.set_handover_state_initiator(SemanticEntityT::INIT);
+						DBG("node %d // pop end_handover_connection", (int)radio_->id());
+						pop_caffeine();
+						DBG("node %d // pop end_handover (close)", (int)radio_->id());
+						pop_caffeine();
+						break;
+				}
+				
+				//if(event == RingTransport::EVENT_CLOSE) {event == RingTransport::EVENT_OPEN) {
+					
+					//DBG("node %d // handover close initiator state %d evt=%d", radio_->id(), se.handover_state_initiator(), event);
+					////endpoint.destruct();
+					//se.set_handover_state_initiator(SemanticEntityT::INIT);
+				//}
+			}
+			
+			//@}
+			
+			//@{ Token receiving side
+			
+			bool produce_handover_recepient(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) {
+					//endpoint.destruct();
+					return false;
+				}
+				
+				DBG("node %d // x handover produce recv", (int)radio_->id());
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return false; }
+				
+				DBG("node %d // handover produce recv state %d", (int)radio_->id(), (int)se.handover_state_recepient());
+				
+				switch(se.handover_state_recepient()) {
+					case SemanticEntityT::SEND_ACTIVATING:
+						se.set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES);
+						*message.payload() = 'a';
+						message.set_payload_size(1);
+						ring_transport_.expect_answer(endpoint);
+						return true;
+						
+					case SemanticEntityT::SEND_NONACTIVATING:
+						//se.set_handover_state_recepient(SemanticEntityT::CLOSE);
+						//endpoint.request_send();
+						*message.payload() = 'n';
+						message.set_payload_size(1);
+						ring_transport_.expect_answer(endpoint);
+						return true;
+						
+					//case SemanticEntityT::CLOSE:
+						//message.set_close();
+						//message.set_payload_size(0);
+						//se.set_handover_state_recepient(SemanticEntityT::DESTRUCT);
+						//return true;
+						
+					//case SemanticEntityT::DESTRUCT:
+						//endpoint.destruct();
+						//se.set_handover_state_recepient(SemanticEntityT::INIT);
+						//return false;
+				}
+				
+				return false;
+			}
+			
+			void consume_handover_recepient(typename RingTransport::Message& message, typename RingTransport::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) {
+					//endpoint.destruct();
+					return;
+				}
+				
+				DBG("node %d // x handover consume recv", (int)radio_->id());
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				//if(message.is_open()) {
+					//se.set_handover_state_recepient(SemanticEntityT::INIT);
+				//}
+				
+				DBG("node %d // handover consume recv state %d", (int)radio_->id(), (int)se.handover_state_recepient());
+				
+				//if(message.is_close()) {
+					//DBG("node %d // handover consume recv state %d message is close!", radio_->id(), se.handover_state_recepient());
+					//se.set_handover_state_recepient(SemanticEntityT::DESTRUCT);
+					//return;
+				//}
+				
+				switch(se.handover_state_recepient()) {
+					case SemanticEntityT::INIT: {
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						bool activating = process_token_state(msg, se, endpoint.remote_address(), now(), message.delay());
+						se.set_handover_state_recepient(activating ? SemanticEntityT::SEND_ACTIVATING : SemanticEntityT::SEND_NONACTIVATING);
+						DBG("node %d // handover consume recv new state %d", (int)radio_->id(), (int)se.handover_state_recepient());
+						endpoint.request_send();
+						break;
+					}
+					
+					case SemanticEntityT::RECV_AGGREGATES: {
+						DBG("node %d // aggr read_buffer", (int)radio_->id());
+						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
+						break;
+					}
+				} // switch()
+			}
+			
+			void event_handover_recepient(int event, typename RingTransport::Endpoint& endpoint) {
+				const SemanticEntityId &id = endpoint.channel();
+				bool found;
+				SemanticEntityT& se = find_entity(id, found);
+				if(!found) { return; }
+				
+				switch(event) {
+					case RingTransport::EVENT_OPEN:
+						DBG("node %d // push begin_recv_connection", (int)radio_->id());
+						push_caffeine();
+						se.set_handover_state_recepient(SemanticEntityT::INIT);
+						break;
+						
+					case RingTransport::EVENT_CLOSE:
+						DBG("node %d // pop end_recv_connection", (int)radio_->id());
+						pop_caffeine();
+						se.set_handover_state_recepient(SemanticEntityT::INIT);
+						break;
+				}
+					//DBG("node %d // handover open/close recv state %d from %d", radio_->id(), se.handover_state_recepient(), endpoint.remote_address());
+			}
+			
+			//@}
+			
+			// }}}
+			///@}
+			
+			/**
+			 * Find a semantic entity by id.
+			 * Return via @a found whether an entity has been found.
+			 * If @a found is true, the returned reference is valid.
+			 */
+			SemanticEntityT& find_entity(const SemanticEntityId& id, bool& found) {
+				for(typename SemanticEntities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+					if(iter->id() == id) {
+						found = true;
+						return *iter;
+					}
+				}
+				found = false;
+				return *reinterpret_cast<SemanticEntityT*>(0);
+			}
+			
+			/**
+			 * Called by the radio when any packet is received.
+			 */
+			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				if(caffeine_level_ <= 0) {
+					DBG("node %d t=%d // [!] didnt hear msg from %d type %d (%x)", (int)radio_->id(), (int)now(), (int)from, (int)data[0], (int)data[0]);
+					return;
+				}
+				
+				time_t now = clock_->time();
+				PacketInfo *p = PacketInfo::create(now, from, len, data);
+				timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
+			}
+			
+			/**
+			 * Called indirectly by on_receive to escape interrupt context.
+			 */
+			void on_receive_task(void *p) {
+				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
+				abs_millis_t t_recv = absolute_millis(packet_info->received());
+				const node_id_t &from = packet_info->from();
+				const typename Radio::size_t& len = packet_info->length();
+				block_data_t *data = packet_info->data();
+				
+				message_id_t msgtype = wiselib::read<OsModel, block_data_t, message_id_t>(data);
+				
+				switch(msgtype) {
+					/*
+					case MESSAGE_TYPE_STATE: {
+						//DBG("// %d recv complete state from %d", radio_->id(), from);
+						
+						//debug_buffer<OsModel, 16>(debug_, data, len);
+						
+						StateMessageT &msg = reinterpret_cast<StateMessageT&>(*data);
+						msg.check();
+						on_receive_tree_state(msg.tree(), from, t_recv);
+						on_receive_token_state(msg.token(), from, t_recv);
+						break;
+					}
+					*/
+					
+					case MESSAGE_TYPE_TREE_STATE: {
+						//DBG("// %d recv tree state from %d", radio_->id(), from);
+						TreeStateMessageT &msg = reinterpret_cast<TreeStateMessageT&>(*data);
+						msg.check();
+						on_receive_tree_state(msg, from, t_recv);
+						break;
+					}
+					
+					case RingTransport::Message::MESSAGE_TYPE: {
+						
+						// Do we need to forward?
+						typename RingTransport::Message &msg = reinterpret_cast<typename RingTransport::Message&>(*data);
+						bool found;
+						SemanticEntityT &se = find_entity(msg.channel(), found);
+						
+						DBG("node %d // recv transport from %d ack=%d init=%d f=%d s=%d", (int)radio_->id(), (int)from, (int)msg.is_ack(), (int)msg.initiator(), (int)msg.flags(), (int)msg.sequence_number());
+						
+						if(!found) {
+							DBG("node %d // transport se not found: %x.%x", (int)radio_->id(), (int)msg.channel().rule(), (int)msg.channel().value());
+							break;
+						}
+						node_id_t forward_node = (msg.is_ack() == msg.initiator()) ? se.token_ack_forward_for(radio_->id(), from) : se.token_forward_for(radio_->id(), from);
+						if(forward_node == NULL_NODE_ID) {
+							DBG("node %d // ignoring transport from %d", (int)radio_->id(), (int)from);
+							break;
+						}
+						
+						if(forward_node == radio_->id()) {
+							DBG("node %d // transport processing ack %d from %d", (int)radio_->id(), (int)msg.is_ack(), (int)from);
+							ring_transport_.on_receive(from, len, data);
+						}
+						else {
+							//radio_->send(forward_node, len, data);
+							DBG("node %d // transport fwd init=%d ack=%d from %d to %d", (int)radio_->id(), (int)msg.initiator(), (int)msg.is_ack(), (int)from, (int)forward_node);
+							forward_ring(se, from, forward_node, t_recv, msg);
+						}
+						break;
+					}
+					
+					/*
+					case MESSAGE_TYPE_TOKEN_STATE: {
+						//DBG("// %d recv token state from %d", radio_->id(), from);
+						TokenStateMessageT &msg = reinterpret_cast<TokenStateMessageT&>(*data);
+						msg.check();
+						on_receive_token_state(msg, from, t_recv);
+						break;
+					}
+					*/
+					
+					default:
+						DBG("++++++ ALART! unknown packet type %d", (int)msgtype);
+						break;
+				} // switch(msgtype)
+				
+				packet_info->destroy();
+			} // on_receive_task()
+			
+			void on_receive_tree_state(TreeStateMessageT& msg, node_id_t from, abs_millis_t t_recv) {
+				
+				switch(msg.reason()) {
+					case TreeStateMessageT::REASON_REGULAR_BCAST: {
+						RegularEventT &event = regular_broadcasts_[from];
+						event.hit(t_recv, clock_, radio_->id());
+						event.set_interval(REGULAR_BCAST_INTERVAL);
+						event.end_waiting();
+						
+						void *v;
+						memcpy(&v, &from, min(sizeof(node_id_t), sizeof(void*)));
+						event.template start_waiting_timer<
+							self_type, &self_type::begin_wait_for_regular_broadcast, &self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
+						break;
+					}
+					case TreeStateMessageT::REASON_DIRTY_BCAST:
+						//timing_controller_.dirty_broadcast(from, now);
+						break;
+				}
+				
+				
+				for(size_type i = 0; i < msg.entity_count(); i++) {
+					
+					TreeState s = msg.get_entity_state(i);
+					SemanticEntityId sid = msg.get_entity_id(i);
+					
+					bool found;
+					SemanticEntityT &se = find_entity(sid, found);
+					if(!found) { continue; }
+					
+					//DBG("node %d // on_recv_tree_state se tree state from %d SE %d.%d parent %d active (before) %d", radio_->id(), from, sid.rule(), sid.value(), s.parent(), se.is_active(radio_->id()));
+					
+					
+					// In any case, update the tree state from our neigbour
+					bool changed = process_neighbor_tree_state(from, s, se);
+					if(changed) {
+						DBG("node %d SE %x.%x // new init remote addr: %d (p=%d #c=%d c[0]=%d c[-1]=%d)", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.next_token_node(),
+								(int)se.parent(), (int)se.childs(), (int)se.child_address(0), (int)se.child_address(se.childs() - 1));
+						DBG("node %d SE %x.%x // new recep remote addr: %d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.prev_token_node(radio_->id()));
+						
+						ring_transport_.set_remote_address(se.id(), true, se.next_token_node());
+						ring_transport_.set_remote_address(se.id(), false, se.prev_token_node(radio_->id()));
+						
+						// if the tree changed due to ths, resend token
+						// information as the ring has changed
+						//pass_on_state(se, false);
+						DBG("node %d // initiate handover because of tree change", (int)radio_->id());
+						DBG("node %d // push begin_handover (tree change)", (int)radio_->id());
+						push_caffeine();
+						initiate_handover(se);
+					}
+					
+					//DBG("node %d SE %d.%d t=%d // tree state update from %d", radio_->id(), se.id().rule(), se.id().value(), now(), from);
+					#if !WISELIB_DISABLE_DEBUG_MESSAGES
+						se.print_state(radio_->id(), now(), "tree state update");
+					#endif
+					
+					// If we are the first child, token state update
+					// from parent is interesting for us here.
+					// If we are not first child we will receive it as
+					// a token state forward!
+					// 
+					//on_receive_token_state(se, msg, i, t_recv, from);
+					
+					//se.print_state(radio_->id(), now(), "token state update/forward");
+				} // for se
+				
+			}
+			
+			/**
+			 * Forward token state to another node (called by
+			 * on_receive_token_state).
+			 */
+			void forward_ring(SemanticEntityT& se, node_id_t from, node_id_t to, abs_millis_t t_recv, typename RingTransport::Message& msg) {
+				if(msg.is_open() && msg.initiator() && !msg.is_ack() && msg.delay() == 0 ) {
+					se.learn_token_forward(clock_, radio_->id(), from, t_recv);
+					DBG("node %d fwd_window %d fwd_interval %d fwd_from %d-%d", (int)radio_->id(), (int)se.token_forward_window(clock_, from),
+							(int)se.token_forward_interval(clock_, from),
+							(int)from, (int)to);
+				}
+				
+				DBG("node %d // fwd to %d ack=%d init=%d open=%d delay=%d", (int)radio_->id(), (int)to, (int)msg.is_ack(), (int)msg.initiator(),
+						msg.is_open(), msg.delay());
+					
+				debug_->debug("node %d t %d // send forward ring", (int)radio_->id(), (int)now());
+				radio_->send(to, msg.size(), msg.data());
+				
+				if(msg.is_close() && msg.is_ack()) {
+					const node_id_t prev = se.token_ack_forward_for(radio_->id(), from);
+					DBG("node %d // end waiting for token from %d", (int)radio_->id(), (int)prev);
+					se.end_wait_for_token_forward(prev);
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "");
+				#endif
+					se.template schedule_token_forward<self_type, &self_type::begin_wait_for_token_forward,
+						&self_type::end_wait_for_token_forward>(clock_, timer_, this, prev, &se);
+				}
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "");
+				#endif
+			}
+			
+			/**
+			 * Process token state change relevant to us (called by on_receive_token_state).
+			 */
+			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t receive_time, abs_millis_t delay = 0) {
+				TokenState s = msg.token_state();
+				bool activating = false;
+				
+				bool active_before = se.is_active(radio_->id());
+				
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					size_type prev_count = se.prev_token_count();
+				#endif
+				
+				se.set_prev_token_count(s.count());
+				
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					DBG("node %d SE %x.%x active=%d active_before=%d prevcount_before=%d prevcount=%d count=%d isroot=%d t=%d // process_token_state", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()), (int)active_before,
+							(int)prev_count, (int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
+							(int)now()
+					);
+				#endif
+					
+				if(se.is_active(radio_->id()) && !active_before) {
+					activating = true;
+					se.learn_activating_token(clock_, radio_->id(), receive_time - delay); 
+					
+					#if !WISELIB_DISABLE_DEBUG_MESSAGES
+						DBG("node %d SE %x.%x window %u interval %u active 1 t=%d // because of token recv=%d delay=%d", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+								(int)se.activating_token_window(clock_),
+								(int)se.activating_token_interval(clock_),
+								(int)now(), (int)receive_time, (int)delay
+						);
+					#endif
+					
+					begin_activity(se);
+				}
+				else if(!se.is_active(radio_->id()) && active_before) {
+					end_activity(&se);
+				}
+				return activating;
+			}
+			
+			void begin_wait_for_token_forward(void* se_) {
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					SemanticEntityT& se = *reinterpret_cast<SemanticEntityT*>(se_);
+					DBG("node %d // push begin_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#endif
+				push_caffeine();
+			}
+			
+			void end_wait_for_token_forward(void* se_) {
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+					DBG("node %d // pop end_wait_for_token_forward SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#endif
+				pop_caffeine();
+			}
+			
+			/**
+			 * Wake the node up in order to wait for an activity generating
+			 * token from the given SE.
+			 */
+			void begin_wait_for_token(SemanticEntityT& se) {
+				DBG("node %d // push begin_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				push_caffeine();
+			}
+			
+			/// ditto.
+			void begin_wait_for_token(void* se_) {
+				begin_wait_for_token(*reinterpret_cast<SemanticEntityT*>(se_));
+			}
+			
+			void end_wait_for_token(void* se_) {
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+					DBG("node %d // pop end_wait_for_token SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				#endif
+				pop_caffeine();
+			}
+			
+			/**
+			 */
+			void begin_activity(void* se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				// begin_activity might have been called at beginning
+				// and then again (during the actual activity)
+				
+				if(se.in_activity_phase()) { return; }
+				
+				se.begin_activity_phase();
+				
+				DBG("node %d // push begin_activity SE %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+				push_caffeine();
+				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
+			}
+			
+			/// ditto.
+			void begin_activity(SemanticEntityT& se) { begin_activity((void*)&se); }
+			
+			
+			/**
+			 * Called by timeout at the end of an activity period.
+			 */
+			void end_activity(void* se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				// end_activity might have already been called during this
+				// activity period (e.g. because of a tree change,
+				// so make sure we actually need to do something
+				// (which should be the case only iff the se is active)
+				//if(!se.is_active(radio_->id())) {
+				
+				if(!se.in_activity_phase()) { return; }
+				se.end_activity_phase();
+				
+				if(end_activity_callback_) {
+					end_activity_callback_(se, aggregator_);
+				}
+				
+				// we can not assert the below as begin_activity() might have
+				// been called at initialization for keeping us awake at the
+				// beginning!
+				//assert(se.is_active(radio_->id()));
+				se.update_token_state(radio_->id());
+				assert(!se.is_active(radio_->id()));
+				
+				DBG("node %d SE %x.%x active=%d prevcount=%d count=%d isroot=%d t=%d // update_token_state", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.is_active(radio_->id()),
+						(int)se.prev_token_count(), (int)se.count(), (int)se.is_root(radio_->id()),
+						(int)now()
+				);
+				
+				// it might be the case that our activity period started
+				// before us waking up to wait for the token.
+				// In that case we will wake up in the middle of the activity
+				// period to listen for the token, so make sure to end this
+				// here in case (end_wait_for_token will just do nothing if
+				// not currently waiting).
+				
+				//pass_on_state(se);
+				DBG("node %d t=%d // pop end_activity SE %x.%x", (int)radio_->id(), (int)now(), (int)se.id().rule(), (int)se.id().value());
+				DBG("node %d // push begin_handover", (int)radio_->id());
+				//pop_caffeine(); // popped by initiate_handover
+				initiate_handover(se);
+				assert(!se.is_active(radio_->id()));
+				//DBG("node %d t=%d // scheduling wakeup", radio_->id(), now());
+				
+				se.end_wait_for_activating_token();
+				
+				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
+				
+				#if !WISELIB_DISABLE_DEBUG_MESSAGES
+					se.print_state(radio_->id(), now(), "end activity");
+				#endif
+			}
+			
+			/// ditto.
+			void end_activity(SemanticEntityT& se) { end_activity((void*)&se); }
+			
+			void begin_wait_for_regular_broadcast(void *from_) {
+				DBG("// beg wait for reg bcast");
+				
+				node_id_t n;
+				memcpy(&n, &from_, min(sizeof(node_id_t), sizeof(void*)));
+				DBG("node %d // push begin_wait_for_regular_broadcast %d", (int)radio_->id(), (int)n);
+				
+				push_caffeine();
+				
+				
+				bool waiting = false;
+				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
+					if(it->second.waiting()) {
+						waiting = true;
 						break;
 					}
 				}
-				
-				if(channel_count_ == 0) {
-					ch = &channels_[0];
-					ch->set_in(in);
-					ch->set_out(out);
-					ch->out_time_ = 0;
-				}
-				else {
-					node_id_t out_tmp = Radio::NULL_NODE_ID;
-					
-					ch = current_channel_;
-					
-					out_tmp = ch->out();
-					ch->set_out(out);
-					ch->out_time_ = 0;
-					
-					ch = next_free_channel(ch);
-					
-					if(!ch) {
-						debug_->debug("!!!!!!!!!!!! no space left for new channel!!\n");
-					}
-				
-					ch->set_in(in);
-					ch->set_out(out_tmp);
-					//ch->out_time_ = 0;
-					
-					// ensure, new current channel has the same out()
-					// value as previous (so time measurements make sense)
-					current_channel_ = ch;
-					debug_->debug("%d new current ch: (%d %d)\n", radio_->id(), current_channel_->in(),
-							current_channel_->out());
-				}
-				ch->flags_ = flags;
-				channel_count_++;
-				
-				return ch;
-			}
-
-			void debug_channels() {
-				debug_->debug("channels on %d:\n", radio_->id());
-				for(int i=0; i<MAX_CHANNELS; i++) {
-					if(channels_[i].used()) {
-						debug_->debug("[%d] %4d %4d %x\n", i, channels_[i].in(), channels_[i].out(), channels_[i].flags_);
-					}
-				}
-			}
-
-			void make_new_channels_old() {
-				Channel *ch;
-				for(ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
-					if(ch->is_old()) {
-						ch->flags_ &= ~CHANNEL_OLD;
-						ch->erase();
-					}
-					ch->flags_ &= ~CHANNEL_NEW;
-				}
+				DBG("node %d waiting_for_broadcast %d", (int)radio_->id(), (int)waiting);
 			}
 			
-			Channel* find_channel_by_in(node_id_t in) {
-				for(Channel *ch = channels_; ch < channels_ + MAX_CHANNELS; ch++) {
-					if(ch->used() && ch->in() == in) { return ch; }
+			void end_wait_for_regular_broadcast(void* from_) {
+				DBG("// end wait for reg bcast");
+				node_id_t from; //= (node_id_t)from_;
+				memcpy(&from, &from_, min(sizeof(node_id_t), sizeof(void*)));
+				//if(timing_controller_.end_wait_for_regular_broadcast(from)) {
+					DBG("node %d // pop end_wait_for_regular_broadcast %d", (int)radio_->id(), (int)from);
+					pop_caffeine();
+				//}
+				
+					
+				bool waiting = false;
+				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
+					if(it->second.waiting()) {
+						waiting = true;
+						break;
+					}
 				}
-				return 0;
+				DBG("node %d waiting_for_broadcast %d", (int)radio_->id(), (int)waiting);
 			}
 			
-			Channel* next_used_channel(Channel* ch) {
-				Channel *end = ch;
-				ch++;
-				while(!ch->used() && ch != end) {
-					ch++;
-					if(ch >= channels_ + MAX_CHANNELS) { ch = channels_; }
+			/**
+			 * @return if internal tree change actually has been changed.
+			 */
+			bool process_neighbor_tree_state(node_id_t source, TreeState& state, SemanticEntityT& se) {
+				//DBG("node %d // proc neigh tree state neigh=%d se.id=%d.%d neigh.parent=%d active(before)=%d", radio_->id(), source, se.id().rule(), se.id().value(), state.parent(), se.is_active(radio_->id()));
+				bool active_before = se.is_active(radio_->id());
+				
+				se.neighbor_state(source) = state;
+				bool r = se.update_state(radio_->id());
+				
+				if(se.is_active(radio_->id()) && !active_before) {
+					DBG("node %d SE %x.%x active=1 t=%d // because of tree change!", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)now());
+					begin_activity(se);
 				}
-				return ch;
+				else if(!se.is_active(radio_->id()) && active_before) {
+					DBG("node %d SE %x.%x active=0 t=%d // because of tree change!", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)now());
+					end_activity(se);
+				}
+				return r;
 			}
 			
-			Channel* next_free_channel(Channel* ch) {
-				Channel *end = ch;
-				ch++;
-				while(ch->used() && ch != end) {
-					ch++;
-					if(ch >= channels_ + MAX_CHANNELS) { ch = channels_; }
+			/**
+			 * check whether neighbors timed out and are to be considered
+			 * dead.
+			 */
+			void check_neighbors(void* =0) {
+				//// TODO
+				
+				for(typename RegularBroadcasts::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ) {
+					if(it->second.seen() && absolute_millis(it->second.last_encounter()) + 2 * it->second.interval() < now()) {
+						DBG("node %d t %d // lost neighbor %d last_encounter %d interval %d", (int)radio_->id(), (int)now(), (int)it->first,
+								(int)(it->second.last_encounter()), (int)(it->second.interval())
+						);
+						for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {
+							se_it->erase_neighbor(it->first);
+						}
+						it->second.cancel();
+						it = regular_broadcasts_.erase(it);
+					}
+					else { ++it; }
 				}
-				return ch;
+				for(typename SemanticEntities::iterator se_it = entities_.begin(); se_it != entities_.end(); ++se_it) {
+					se_it->update_state(radio_->id());
+				}
+				
 			}
-
+			
+			/*
+			void on_lost_neighbor(SemanticEntityT &se, node_id_t neighbor) {
+				se.update_state();
+			}
+			*/
+			
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
+			}
+			
 			typename Radio::self_pointer_t radio_;
 			typename Timer::self_pointer_t timer_;
 			typename Clock::self_pointer_t clock_;
+			SemanticEntities entities_;
+			//TimingControllerT timing_controller_;
+			size_type caffeine_level_;
 			typename Debug::self_pointer_t debug_;
-			typename TagDebug::self_pointer_t tagdebug_;
-			typename Rand::self_pointer_t rand_;
-			typename Actuator::self_pointer_t actuator_;
+			RegularBroadcasts regular_broadcasts_;
 			
-			Token last_non_keepalive_token_;
+			SemanticEntityAggregatorT aggregator_;
+			end_activity_callback_t end_activity_callback_;
 			
-			Channel *current_channel_, *current_keepalive_channel_;
-			Channels channels_;
-			size_t channel_count_;
+			///@{ Token Handover Stuff
 			
-			Beacon beacon_;
+			RingTransport ring_transport_;
 			
-			bool awake_;
-			bool stay_awake_;
-			bool have_token_;
-			bool merge_slave_;
-			bool merge_master_;
-			bool expect_token_active_;
-			bool scheduling_send_token_;
-			bool scheduling_wakeup_;
+			///@}
 			
-			//node_id_t merge_partner_;
-			MergeState merge_state_;
-			node_id_t renumbering_in_;
-			
-			uint32_t last_receive_;
-			
-			bool measure_out_time_;
-			Channel *measure_out_time_channel_;
-			uint32_t measure_out_time_begin_;
 	}; // TokenConstruction
 }
 

@@ -30,7 +30,7 @@ namespace wiselib
 
             char* in = reinterpret_cast<char*> (in_);
             size_type sz = encode_internal(in, 0);
-            bitarray_t *out = bitarray_t::make(sz);
+            bitarray_t *out = bitarray_t::make(get_allocator(), sz);
             encode_internal(in, out);
 			
 			//DBG("encode(%s) = %02x %02x %02x %02x len=%d",
@@ -155,7 +155,7 @@ namespace wiselib
             size_type in_len = strlen(in);
             size_type out_pos = 0;
 
-            bitarray_t *symbol = bitarray_t::make(MAX_BITS_PER_SYMBOL);
+            bitarray_t *symbol = bitarray_t::make(get_allocator(), MAX_BITS_PER_SYMBOL);
             for (size_type c = 0; c < in_len; c++)
             {
                 size_type symbol_pos = 0;

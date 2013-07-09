@@ -34,12 +34,12 @@
 #define DBG(...) DBG2(__VA_ARGS__, "")
 
 #include "external_interface/default_return_values.h"
-#include "com_isense_radio.h"
 #include "pc_clock.h"
 #include "pc_debug.h"
 #include "pc_rand.h"
 #include "pc_timer.h"
 #include "pc_com_uart.h"
+#include "com_isense_radio.h"
 #include "util/serialization/endian.h"
 
 #if USE_RAM_BLOCK_MEMORY
