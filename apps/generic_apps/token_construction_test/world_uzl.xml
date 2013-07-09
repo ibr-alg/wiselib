@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<!--
+	 from uzl wiseml (2013-05-22)
+	ignoring all nodes that are not isense48
+-->
+
+<scenario>
+<snapshot id="0">
+        <node id="urn:wisebed:uzl1:0x211c">
+            <location x="10.0" y="1.0" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2114">
+            <location x="1.0" y="6.0" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2104">
+            <location x="25.5" y="11.5" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x210c">
+            <location x="12.5" y="15.5" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2124">
+            <location x="25.5" y="1.0" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2134">
+            <location x="31.5" y="10.5" z="2.0" />
+        </node>
+		<node id="urn:wisebed:uzl1:0x4218">
+			<location x="25.5" y="12.0" z="2.0" />
+		</node>
+        <node id="urn:wisebed:uzl1:0x2118">
+            <location x="28.5" y="1.0" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2130">
+            <location x="34.5" y="10.5" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x212c">
+            <location x="17.0" y="16.5" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2128">
+            <location x="1.0" y="14.0" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2120">
+            <location x="1.0" y="11.0" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2138">
+            <location x="14.0" y="5.0" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x213c">
+            <location x="25.0" y="1.0" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2144">
+            <location x="10.5" y="6.0" z="1.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2140">
+            <location x="6.0" y="7.0" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2110">
+            <location x="14.5" y="12.0" z="2.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2108">
+            <location x="17.0" y="2.5" z="0.0" />
+        </node>
+        <node id="urn:wisebed:uzl1:0x2100">
+            <location x="2.0" y="1.0" z="1.0" />
+        </node>
+    </setup>
+</wiseml>
+

@@ -60,24 +60,24 @@ namespace wiselib {
 
         typedef AdaptiveMessaging<OsModel, Radio, Timer, Debug, Rand, ASCL> self_t;
 
-        struct node_info {
-            node_id_t id;
-            bool updated;
-            int8_t trust_counter;
-            int8_t trust_counter_inverse;
-            bool active;
-        };
-
-        typedef struct node_info node_info_t;
-
-#ifndef SHAWN
-        typedef wiselib::vector_static<OsModel, node_info_t, 50> node_info_vector_t;
-#else
-        typedef wiselib::vector_static<OsModel, node_info_t, 1300> node_info_vector_t;
-#endif
-        typedef typename node_info_vector_t::iterator node_info_vector_iterator_t;
-
-        node_info_vector_t neighbours;
+        //        struct node_info {
+        //            node_id_t id;
+        //            bool updated;
+        //            int8_t trust_counter;
+        //            int8_t trust_counter_inverse;
+        //            bool active;
+        //        };
+        //
+        //        typedef struct node_info node_info_t;
+        //
+        //#ifndef SHAWN
+        //        typedef wiselib::vector_static<OsModel, node_info_t, 50> node_info_vector_t;
+        //#else
+        //        typedef wiselib::vector_static<OsModel, node_info_t, 1300> node_info_vector_t;
+        //#endif
+        //        typedef typename node_info_vector_t::iterator node_info_vector_iterator_t;
+        //
+        //        node_info_vector_t neighbours;
 
         struct reg_alg_entry {
             uint8_t alg_id;
@@ -89,6 +89,7 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         enum states {
+            UNCHANGED = 0,
             CONSISTENCY = 1,
             INCONSISTENCY = 2
         };
@@ -117,12 +118,16 @@ namespace wiselib {
          * 
          * 
          */
-        void enable(uint8_t protocolID) {
+        void enable(uint8_t protocolID, uint16_t _SCLD_MAX, uint16_t _SCLD_MIN, uint32_t _monitoring_phase_counter)
+        {
             enabled_ = true;
+            SCLD_MAX = _SCLD_MAX;
+            SCLD_MIN = _SCLD_MIN;
+            monitoring_phase_counter = _monitoring_phase_counter;
             _protocolID = protocolID;
             //internal initialization
             initialization();
-            
+
             Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
             prot_ref->get_protocol_settings_ref()->set_min_link_stab_ratio_threshold(0);
         }
@@ -142,35 +147,34 @@ namespace wiselib {
         void initialization() {
 
             //initialization
-            I_ = (IMAX + IMIN) / 2;
-            state_ = INCONSISTENCY;
+            //            I_ = (IMAX + IMIN) / 2;
+            I_ = IMAX;
+            state_ = UNCHANGED;
             rate_changes_count = 0;
 
             neighbours.clear();
 
             Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
-            for (Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i) {
+            neighbours = prot_ref->get_neighborhood();
+            prev_neighbours = prot_ref->get_neighborhood();
+
+            prev_scld = 0;
+            init_scld = 0;
+            for (Neighbor_vector_iterator i = neighbours.begin(); i != neighbours.end(); ++i) {
                 if (i->get_active() == 1) {
-                    debug().debug("Node:%x:Neighbor:%x:is_active\n", radio().id(), i->get_id());
-                    add_neighbor(i->get_id(), i->get_trust_counter(), i->get_trust_counter_inverse());
+                    init_scld++;
+                    prev_avg_inverse_trust += i->get_trust_counter_inverse();
+                    debug().debug("Node:%x:Neighbor:%x:is_active:%d\n", radio().id(), i->get_id(),i->get_trust_counter_inverse());
                 }
             }
+            prev_scld = init_scld;
+            prev_avg_inverse_trust = prev_avg_inverse_trust / prev_scld;
 
 #ifdef STATISTICS_ADM_INTERVAL_CHANGES
             debug().debug("ADM:I_:set:%d\n", I_);
 #endif
             timer().template set_timer<self_t, &self_t::check_period>(20 * I_, this, (void *) 0);
         };
-
-        void add_neighbor(node_id_t id, int8_t trust_counter, int8_t trust_counter_inverse) {
-            node_info_t neighbor;
-            neighbor.id = id;
-            neighbor.updated = true;
-            neighbor.trust_counter = trust_counter;
-            neighbor.trust_counter_inverse = trust_counter_inverse;
-            neighbor.active = true;
-            neighbours.push_back(neighbor);
-        }
 
     private:
 
@@ -208,24 +212,24 @@ namespace wiselib {
          */
         void check_period(void *a) {
 
-            //Update my consistency
-            check_consistency();
-
-            //Change to the new Interval
-            if (state_ == CONSISTENCY) {
-                decrease_interval();
+            if (I_ == IMIN) {
+                debug().debug("Finished with I_==IMIN Node %d\n", radio().id());
             } else {
-                increase_interval();
-            }
 
-//            debug().debug("ADM:check_period:%d\n", rate_changes_count);
-//            rate_changes_count++;
-//
-//            if (rate_changes_count > 10) {
-//                debug().debug("ADM:I_:%d:locked:%d\n", I_, rate_changes_count);
-//            } else {
+                //Update my consistency
+                check_consistency();
+
+                //Change to the new Interval
+                if (state_ == CONSISTENCY) {
+                    decrease_interval();
+                } else if (state_ == INCONSISTENCY) {
+                    increase_interval();
+                } else if (state_ == UNCHANGED) {
+                    //donothing
+                }
+
                 timer().template set_timer<self_t, &self_t::check_period>(20 * I_, this, (void *) 0);
-//            }
+            }
         }
 
         /**
@@ -234,85 +238,80 @@ namespace wiselib {
          */
         void check_consistency() {
             uint8_t new_state = CONSISTENCY;
-            for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
-                it->updated = false;
-            }
-            size_t C_SCLD=0;
-            int diff_new = 0, diff_old = 0, diff_inverse_new = 0, diff_inverse_old = 0, new_count = 0, drop_count = 0;
+
+            size_t cur_scld = 0;
+            uint8_t diff_new = 0, diff_old = 0, diff_inverse_new = 0, diff_inverse_old = 0;
+            //uint8_t new_count = 0, drop_count = 0;
             //TODO: stabilize using mean values and stdevs <<-- inverse (ie. UP inc beaconing /  k% diff to average / count changed)
             Protocol* prot_ref = scl_->get_protocol_ref(ASCL::ATP_PROTOCOL_ID);
-            if (neighbours.size() > 0) {
-                for (Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i) {
+            if (prev_neighbours.size() > 0) {
+                for (Neighbor_vector_iterator scl_neighbor_ref = prot_ref->get_neighborhood_ref()->begin(); scl_neighbor_ref != prot_ref->get_neighborhood_ref()->end(); ++scl_neighbor_ref) {
                     bool found = false;
-                    for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
-                        //                        if (i->get_active() == 1) {
-                        if (it->id == i->get_id()) {
+
+                    //skip nodes not active at the beginning of time
+                    if (!was_initially_active(scl_neighbor_ref->get_id())) continue;
+
+                    for (Neighbor_vector_iterator prev_period_neighbor_ref = prev_neighbours.begin(); prev_period_neighbor_ref != prev_neighbours.end(); ++prev_period_neighbor_ref) {
+                        if (prev_period_neighbor_ref->get_id() == scl_neighbor_ref->get_id()) {
                             found = true;
 #ifdef DEBUG_ADM_NODE_CHANGES
-                            debug().debug("Node:%x:Neighbor:%x:%d->%d:%d->%d\n", radio().id(), i->get_id(), it->trust_counter, i->get_trust_counter(), it->trust_counter_inverse, i->get_trust_counter_inverse());
-#endif
-                            
-                            diff_old += it->trust_counter;
-                            diff_new += i->get_trust_counter();
-                            diff_inverse_old += it->trust_counter_inverse;
-                            diff_inverse_new += i->get_trust_counter_inverse();
+                            debug().debug("Node:%x:Neighbor:%x:%d->%d:%d->%d\n",
+                                    radio().id(),
 
-                            it->trust_counter = i->get_trust_counter();
-                            it->trust_counter_inverse = i->get_trust_counter_inverse();
-                            it->updated = true;
-                            
-                            if (i->get_trust_counter_inverse()>=3){
-                                C_SCLD++;
-                            }
+                                    scl_neighbor_ref->get_id(),
+
+                                    prev_period_neighbor_ref->get_trust_counter(),
+                                    scl_neighbor_ref->get_trust_counter(),
+
+                                    prev_period_neighbor_ref->get_trust_counter_inverse(),
+                                    scl_neighbor_ref->get_trust_counter_inverse());
+#endif
+
+                            diff_old += prev_period_neighbor_ref->get_trust_counter();
+                            diff_new += scl_neighbor_ref->get_trust_counter();
+                            diff_inverse_old += prev_period_neighbor_ref->get_trust_counter_inverse();
+                            diff_inverse_new += scl_neighbor_ref->get_trust_counter_inverse();
+
+
                         }
-                        //                        }
-//#ifdef ADM_CHECK_FOR_NEW
-//                        if (!found) {
-//#ifdef DEBUG_ADM_NODE_CHANGES
-//                            debug().debug("Node:%x:Neighbor:%x:new\n", radio().id(), i->get_id());
-//#endif                          
-//                            new_count++;
-//                            add_neighbor(i->get_id(), i->get_trust_counter(), i->get_trust_counter_inverse());
-//                            new_state = INCONSISTENCY;
-//                        }
-//#endif
+                    }
+                    if (scl_neighbor_ref->get_trust_counter_inverse() >= 3) {
+                        cur_scld++;
                     }
                 }
 
-//#ifdef ADM_CHECK_FOR_DROPPED
-//                for (node_info_vector_iterator_t it = neighbours.begin(); it != neighbours.end(); ++it) {
-//                    if (!it->updated) {
-//#ifdef DEBUG_ADM_NODE_CHANGES
-//                        debug().debug("Node:%x:Neighbor:%x:dropped\n", radio().id(), it->id);
-//#endif
-//                        drop_count++;
-//                        new_state = INCONSISTENCY;
-//                        neighbours.erase(it);
-//                        it--;
-//                    }
-//                }
-//#endif
-                
-//                if ((diff_new < diff_old) || (diff_inverse_new < diff_inverse_old) || (new_count < drop_count)) {
-//                    new_state = INCONSISTENCY;
-//                } else {
-//                    new_state = CONSISTENCY;
-//                }
-                debug().debug("Node:%x:C_SCLD:%d->%d\n", radio().id(), neighbours.size(),C_SCLD);
-                if (C_SCLD!=neighbours.size()) {
-                    new_state = INCONSISTENCY;
+                prev_neighbours = prot_ref->get_neighborhood();
+
+                uint8_t cur_avg_inverse_trust = diff_inverse_new / init_scld;
+
+                debug().debug("Node:%x:scld:%d->%d->%d\n", radio().id(), init_scld, prev_scld, cur_scld);
+                //                debug().debug("Node:%x:diff:%d->%d\n", radio().id(), diff_old, diff_new);
+                //                debug().debug("Node:%x:diff_inverse:%d->%d\n", radio().id(), diff_inverse_old, diff_inverse_new);
+                debug().debug("Node:%x:avg_inverse_trust:%d->%d:(%d)\n", radio().id(), prev_avg_inverse_trust, cur_avg_inverse_trust, cur_avg_inverse_trust >= prev_avg_inverse_trust);
+                //                debug().debug("Node:%x:count:%d:%d\n", radio().id(), new_count, drop_count);
+
+
+                //check condition 1
+                //if (cur_scld >= init_scld) {
+
+                if (cur_scld >= SCLD_MIN) {
+                    if (cur_avg_inverse_trust >= prev_avg_inverse_trust) {
+                        new_state = CONSISTENCY;
+                    } else {
+                        new_state = UNCHANGED;
+                    }
+
                 } else {
-                    new_state = CONSISTENCY;
+                    new_state = INCONSISTENCY;
                 }
 
-                debug().debug("Node:%x:diff:%d->%d\n", radio().id(), diff_old, diff_new);
-                debug().debug("Node:%x:diff_inverse:%d->%d\n", radio().id(), diff_inverse_old, diff_inverse_new);
-                debug().debug("Node:%x:count:%d:%d\n", radio().id(), new_count, drop_count);
 
                 state_ = new_state;
 #ifdef DEBUG_ADM_CONSISTENCY
                 debug().debug("Node:%x:Consistency:%d\n", radio().id(), state_);
 #endif
+                prev_scld = cur_scld;
+                prev_avg_inverse_trust = cur_avg_inverse_trust;
             } else {
                 state_ = INCONSISTENCY;
             }
@@ -321,10 +320,25 @@ namespace wiselib {
 
         }
 
+        bool was_initially_active(node_id_t node) {
+            for (Neighbor_vector_iterator init_period_neighbor_ref = neighbours.begin(); init_period_neighbor_ref != neighbours.end(); ++init_period_neighbor_ref) {
+                if (init_period_neighbor_ref->get_id() == node) {
+                    return init_period_neighbor_ref->get_active();
+                }
+            }
+            return false;
+        }
+
         bool enabled_;
+
+        Neighbor_vector neighbours;
+        Neighbor_vector prev_neighbours;
+        uint8_t prev_avg_inverse_trust;
 
         uint8_t rate_changes_count;
 
+        uint8_t prev_scld;
+        uint8_t init_scld;
         uint16_t I_;
         uint8_t _protocolID;
         uint8_t state_;
@@ -334,6 +348,10 @@ namespace wiselib {
         Debug * debug_;
         Rand * rand_;
         ASCL * scl_;
+
+		uint16_t SCLD_MAX;
+		uint16_t SCLD_MIN;
+		uint32_t monitoring_phase_counter;
 
         Radio& radio() {
             return *radio_;

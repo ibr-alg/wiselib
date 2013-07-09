@@ -86,6 +86,7 @@ namespace wiselib {
 			}
 			
 			key_type insert(mapped_type value) {
+				//DBG("bpd.insert %s", (char*)value);
 				typename HashSet::iterator it = hash_set_.insert(value);
 				assert(it != hash_set_.end());
 				return it.chunk_address();
@@ -96,13 +97,14 @@ namespace wiselib {
 			}
 			
 			key_type find(mapped_type value) {
-				DBG("bpd.find %s", (char*)value);
+				//DBG("bpd.find %s", (char*)value);
 				typename HashSet::iterator it = hash_set_.find(value);
-				DBG("bpd.find %s done", (char*)value);
+				//DBG("bpd.find %s done", (char*)value);
 				return it.chunk_address();
 			}
 			
 			void erase(key_type k) {
+				//DBG("bpd.erase");
 				Entry& e = *reinterpret_cast<Entry*>(entry_buffer_);
 				read_entry(e, k);
 				typename HashSet::iterator it = hash_set_.find(e.payload());

@@ -3,6 +3,7 @@
 #define BROKER_H
 
 #include <util/pstl/int_dictionary.h>
+#include <util/delegates/delegate.hpp>
 
 namespace wiselib {
 	
@@ -29,10 +30,11 @@ namespace wiselib {
 				COL_BITMASK = 3
 			};
 			
-			BrokerTuple() : bitmask_(0) {
-				for(size_type i=0; i<STRINGS; i++) {
-					spo_[i] = 0;
-				}
+			BrokerTuple() { // : bitmask_(0) {
+				//for(size_type i=0; i<STRINGS; i++) {
+					//spo_[i] = 0;
+				//}
+				memset(this, 0, sizeof(BrokerTuple));
 			}
 			
 			BrokerTuple(const BrokerTuple& other) { *this = other; }
@@ -67,7 +69,9 @@ namespace wiselib {
 				if(i < STRINGS) {
 					return reinterpret_cast<block_data_t*>(spo_[i]);
 				}
-				block_data_t* r = const_cast<block_data_t*>(reinterpret_cast<const block_data_t*>(&bitmask_));
+				//block_data_t* r = const_cast<block_data_t*>(reinterpret_cast<const block_data_t*>(&bitmask_));
+				block_data_t* r = 0;
+				memcpy(&r, &bitmask_, sizeof(bitmask_t));
 				return r;
 			}
 			
@@ -93,7 +97,7 @@ namespace wiselib {
 				}
 				
 				if(data) {
-					memcpy((void*)&bitmask_, (void*)data, sizeof(bitmask_t));
+					memcpy((void*)&bitmask_, (void*)&data, sizeof(bitmask_t));
 				}
 			}
 			
@@ -110,7 +114,7 @@ namespace wiselib {
 					}
 				}
 				else {
-					memcpy((void*)&bitmask_, (void*)data, sizeof(bitmask_t));
+					memcpy((void*)&bitmask_, (void*)&data, sizeof(bitmask_t));
 				}
 			}
 			
@@ -126,8 +130,8 @@ namespace wiselib {
 			static int compare(int col, ::uint8_t *a, int alen, ::uint8_t *b, int blen) {
 				if(col == COL_BITMASK) {
 					bitmask_t bm_a, bm_b;
-					memcpy(&bm_a, a, sizeof(bitmask_t));
-					memcpy(&bm_b, b, sizeof(bitmask_t));
+					memcpy(&bm_a, &a, sizeof(bitmask_t));
+					memcpy(&bm_b, &b, sizeof(bitmask_t));
 					return !(bm_a & bm_b);
 				}
 				
@@ -192,11 +196,15 @@ namespace wiselib {
 				COL_BITMASK = Tuple::COL_BITMASK
 			};
 			
-			typedef typename TupleStore::iterator iterator;
+			typedef typename TupleStore::iterator iterator; // Codec iterator
 			typedef typename CompressedTupleStore::iterator compressed_iterator;
 			
-			void init(typename Os::Debug::self_pointer_t debug) {
-				tuple_store_.init(debug);
+			//void init(typename Os::Debug::self_pointer_t debug) {
+				//tuple_store_.init(debug);
+			//}
+			
+			void init(typename TupleStore::self_pointer_t ts) {
+				tuple_store_ = ts;
 			}
 			
 			template<class T, void (T::*TMethod)(document_name_t)>
@@ -221,7 +229,8 @@ namespace wiselib {
 			//typename NameDictionary::key_type get_document_id(document_name_t name) { return name_dictionary_.find(name); }
 			
 			iterator end() {
-				return iterator(compressed_tuple_store().end(), compressed_tuple_store().end());
+				//return iterator(compressed_tuple_store().end(), compressed_tuple_store().end());
+				return tuple_store().end();
 			}
 			
 			compressed_iterator compressed_end() {
@@ -236,11 +245,14 @@ namespace wiselib {
 			
 			iterator begin_document(Tuple& query, column_mask_t column_mask, bitmask_t mask) {
 				query.set_bitmask(mask);
+				return tuple_store().begin(&query, (1 << COL_BITMASK) | column_mask);
+				/*
 				return iterator(
 						compressed_tuple_store().begin(),
 						compressed_tuple_store().end(),
 						&query, (1 << COL_BITMASK) | column_mask
 				);
+				*/
 			}
 			
 			iterator end_document(bitmask_t mask) {
@@ -265,7 +277,7 @@ namespace wiselib {
 					internal.set(i, tuple.get(i));
 				}
 				internal.set_bitmask(mask);
-				tuple_store_.insert(internal);
+				tuple_store().insert(internal);
 				document_has_changed(mask);
 			}
 			
@@ -286,8 +298,8 @@ namespace wiselib {
 				for(size_type i=0; i<STRINGS; i++) {
 					internal.set(i, query.get(i));
 				}
-				typename TupleStore::iterator r = tuple_store_.begin(&internal, columns); //find(internal, columns);
-				return iterator(r, tuple_store_.end(), docs);
+				typename TupleStore::iterator r = tuple_store().begin(&internal, columns); //find(internal, columns);
+				return iterator(r, tuple_store().end(), docs);
 			}
 			
 			template<typename QueryTuple>
@@ -300,8 +312,8 @@ namespace wiselib {
 				return compressed_iterator(r);
 			}
 			
-			TupleStore& tuple_store() { return tuple_store_; }
-			CompressedTupleStore& compressed_tuple_store() { return tuple_store_.parent_tuple_store(); }
+			TupleStore& tuple_store() { return *tuple_store_; }
+			CompressedTupleStore& compressed_tuple_store() { return tuple_store_->parent_tuple_store(); }
 			
 			void document_has_changed(bitmask_t mask) {
 				document_name_t docname = get_document_name(mask);
@@ -349,7 +361,8 @@ namespace wiselib {
 				return r;
 			}
 			
-			TupleStore tuple_store_;
+			//TupleStore tuple_store_;
+			typename TupleStore::self_pointer_t tuple_store_;
 			
 			NameDictionary name_dictionary_;
 			Subscriptions subscriptions_;

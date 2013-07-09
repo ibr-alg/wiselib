@@ -9,6 +9,7 @@ import os
 import os.path
 import re
 import itertools
+from optparse import OptionParser
 
 remove_namespaces = ['wiselib', 'std']
 depth = 0
@@ -43,7 +44,7 @@ def bracedepth(line, maxdepth, braces='<>', eat = False):
 					p = pos
 					
 		if eat:
-			if depth < maxdepth or (depth == maxdepth and c != braces[1] and not escaped):
+			if depth < maxdepth or (depth == maxdepth and c != braces[1] and not (escaped and c in braces)):
 				r += c
 			
 		if c == '-':
@@ -150,19 +151,59 @@ def compress(s):
 	return '\n'.join(lines)
 
 
-def filter(s, cutaway, filename_parts):
+def __filter(s, cutaway, filename_parts):
 	for ns in remove_namespaces:
 		s = s.replace(ns + '::', '')
 	s = bracedepth(s, cutaway, '<>')
-	s = bracedepth(s, 0, '[]', eat=True)
+	s = bracedepth(s, 0, '[]')
 	s = shorten_filenames(s, filename_parts)
 	#s = highlight_errors(s)
 	s = highlight_words(s)
 	#s = compress(s)
 	return s
-		
-if __name__ == '__main__':
-	print filter(sys.stdin.read(), depth, filename_parts)
 
+
+def filter(s, options):
+	for ns in options.strip_namespaces:
+		s = s.replace(ns + '::', '')
+		
+	if options.strip_instantiated:
+		s = '\n'.join((line for line in s.splitlines() if 'instantiated from' not in line and 'required from' not in line))
+		
+	if options.only_errors:
+		s = '\n'.join((line for line in s.splitlines() if 'error' in line))
+		
+	s = bracedepth(s, options.strip_template_args, '<>')
+	s = bracedepth(s, options.strip_aka, '[]')
+	s = shorten_filenames(s, options.shorten_filenames)
+	if options.colorize:
+		s = highlight_words(s)
+	return s
+
+def parse_options():
+	WISELIB_OPTIONS = "-n wiselib -n std -f 2 -c"
+	
+	parser = OptionParser()
+	parser.add_option("-w", "--wiselib", action="store_true", default=False, dest="wiselib", help="equivalent to " + WISELIB_OPTIONS)
+	parser.add_option("-n", "--strip-namespace", dest="strip_namespaces", action="append", metavar="NAMESPACE", default=[])
+	parser.add_option("-t", "--strip-template-args", dest="strip_template_args", help="depth, 0 to turn off", metavar="DEPTH", default=100, type="int")
+	parser.add_option("-a", "--strip-aka", dest="strip_aka", help="depth of [...] explanations, 0 to turn off", metavar="DEPTH", default=100, type="int")
+	parser.add_option("-f", "--shorten-filenames", dest="shorten_filenames", help="shorten filenames to this many components", type="int", default=100)
+	parser.add_option("-c", "--colorize", dest="colorize", action="store_true", default=False)
+	parser.add_option("-i", "--strip-instantiated", help="strip 'instantiated from' lines et al.", action="store_true", default=False, dest="strip_instantiated")
+	parser.add_option("-e", "--only-errors", help="only output lines with the word 'error' in them", action="store_true", default=False, dest="only_errors")
+	
+	options, args = parser.parse_args()
+	if options.wiselib:
+		new_options, args = parser.parse_args(args = WISELIB_OPTIONS.split(), values = options)
+		#new_options.update(options)
+		
+	return options, args
+
+
+if __name__ == '__main__':
+	#print filter(sys.stdin.read(), depth, filename_parts)
+	options, args = parse_options()
+	print filter(sys.stdin.read(), options)
 
 # vim: set ts=3 sw=3 tw=78 noexpandtab :

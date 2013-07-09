@@ -9,6 +9,14 @@
 	void free(void* p) { isense::free(p); }
 #endif
 
+#ifndef DBG
+	#define DBG(X)
+	#define DBG(X, ...)
+#endif
+	
+#if !defined(ISENSE) && !defined(PC)
+	void assert(int) { }
+#endif
 	
 typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;

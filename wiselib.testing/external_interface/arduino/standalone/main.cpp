@@ -31,10 +31,12 @@ int main(int argc, const char** argv )
 	USBDevice.attach();
 #endif
 	
-	//pinMode(13, OUTPUT);
-	//digitalWrite(13, HIGH);
-	
+	pinMode(13, OUTPUT);
+    Serial.begin(9600);
 	application_main(app_main_arg);
+	
+	for(;;) { }
+	
 	return 0;
 }
 

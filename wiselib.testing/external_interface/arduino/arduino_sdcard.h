@@ -22,15 +22,15 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Arduino.h>
+#include "arduino.h"
 #include <Sd2Card.h>
 
-#include "arduino_debug.h"
 #include "arduino_os.h"
+#include "arduino_debug.h"
 
 namespace wiselib { class ArduinoOsModel; }
 
-#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
+//#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
 
 namespace wiselib {
 
@@ -42,19 +42,24 @@ namespace wiselib {
 	class ArduinoSdCard {
 		public:
 			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
-			typedef size_type address_t; /// always refers to a block number
 			typedef ArduinoSdCard<OsModel> self_type;
 			typedef self_type* self_pointer_t;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef typename OsModel::size_t address_t;
 			
 			enum {
 				BLOCK_SIZE = 512,
-				SIZE = (1024UL * 1024UL * 1024UL / 512UL), ///< #blocks for 1GB 
+			};
+			
+			enum { 
+				NO_ADDRESS = (address_t)(-1),
 			};
 			
 			enum {
 				SUCCESS = OsModel::SUCCESS,
+				ERR_IO = OsModel::ERR_IO,
+				ERR_NOMEM = OsModel::ERR_NOMEM,
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
@@ -62,46 +67,45 @@ namespace wiselib {
 				//card_.init();
 			//}
 			
-			void init() {
+			int init() {
 #if ARDUINO_USE_ETHERNET
                 card_.init();
 #else
                 card_.init(0,4);
 #endif
+			return SUCCESS;
 			}
 			
-			int erase(address_t start_block, address_t blocks) {
-				bool r;
-				//delay(3);
-				r = card_.erase(start_block, start_block + blocks);
-				if(!r) return ERR_UNSPEC;
-				//delay(50);
-				return SUCCESS;
+			int init(typename OsModel::AppMainParameter& value) {
+				return init();
 			}
-			
+
 			/**
 			 */
-			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
+			int read(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
 				bool r;
-				for(size_type written = 0; written < blocks; written++) {
+				for(address_t written = 0; written < blocks; written++) {
 					//delay(3);
 					r = card_.readBlock(start_block + written, buffer + written * BLOCK_SIZE);
-					if(!r) return ERR_UNSPEC;
+					if(!r) {
+						DBG("read(%p, std=%d count=%d) fail, read=%d", buffer, start_block, blocks, written);
+						return ERR_UNSPEC;
+					}
 				}
 				//delay(50);
 				return SUCCESS;
 			}
-			
+
 			/**
 			 */
-			int write(block_data_t* buffer, address_t start_block, address_t blocks) {
+			int write(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
 				//delay(50);
 				uint8_t r = card_.writeStart(start_block, blocks);
 				if(!r) {
 					DBG("write(%p, st=%d, count=%d) start fail", buffer, start_block, blocks);
 					return ERR_UNSPEC;
 				}
-				for(size_type written = 0; written < blocks; written++) {
+				for(address_t written = 0; written < blocks; written++) {
 					//delay(3);
 					r = card_.writeData(buffer + written * BLOCK_SIZE);
 					if(!r) {
@@ -117,6 +121,24 @@ namespace wiselib {
 					return ERR_UNSPEC;
 				}
 				return SUCCESS;
+			}
+			
+			int erase(address_t start_block, address_t blocks = 1) {
+				bool r;
+				//delay(3);
+				r = card_.erase(start_block, start_block + blocks);
+				if(!r) return ERR_UNSPEC;
+				//delay(50);
+				return SUCCESS;
+			}
+			
+			int wipe() {
+				return erase(0, size());
+			}
+			
+			size_type size() { 
+				//assert(sizeof(address_t) >= sizeof(uint32_t));
+				return card_.cardSize(); //cardSize() returns a uint32_t
 			}
 			
 		private:

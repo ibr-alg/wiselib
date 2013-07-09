@@ -21,6 +21,10 @@
 #ifndef __WISELIB_UTIL_PSTL_LIST_DYNAMIC_H
 #define __WISELIB_UTIL_PSTL_LIST_DYNAMIC_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
+#include <util/delegates/delegate.hpp>
+
 namespace wiselib {
 	
 	namespace list_dynamic_impl {
@@ -99,6 +103,7 @@ namespace wiselib {
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::size_t size_t;
+			typedef size_t size_type;
 			typedef Value_P value_type;
 			typedef value_type& reference;
 			typedef const value_type& const_reference;

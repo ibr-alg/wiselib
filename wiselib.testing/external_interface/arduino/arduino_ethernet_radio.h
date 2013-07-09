@@ -28,6 +28,7 @@
 #include "util/serialization/simple_types.h"
 #include "util/pstl/vector_static.h"
 
+#include "arduino.h"
 #include <SPI.h>
 #include <Ethernet.h>
 #include <EthernetUdp.h>

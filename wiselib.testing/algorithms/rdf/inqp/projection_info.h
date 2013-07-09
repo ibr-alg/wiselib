@@ -53,6 +53,19 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			
+			ProjectionInfo() {
+			}
+			
+			template<typename T>
+			ProjectionInfo(T v) {
+				memset(columns_, 0, sizeof(columns_));
+				size_type i = 0;
+				while(v && i < COLUMN_BYTES) {
+					columns_[i] = v & 0xff;
+					v >>= 8;
+				}
+			}
+			
 			/**
 			 * Return the number of not-ignored columns.
 			 */
