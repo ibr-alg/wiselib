@@ -237,7 +237,7 @@ namespace wiselib
             {
                 node_pointer new_node = get_allocator().template allocate<Node > ().raw();
                 //printf("--- A\n");
-                typename bitarray_t::self_pointer_t bits_copy = bitarray_t::make(v_size);
+                typename bitarray_t::self_pointer_t bits_copy = bitarray_t::make(::get_allocator(), v_size);
                 v.copy(bits_copy, 0, 0, v_size);
                         new_node->init(bits_copy, 0, 0, root_, v_size);
                         root_->children_[v[0]] = new_node;
@@ -271,7 +271,7 @@ namespace wiselib
                     } else
                     {
                         // String has prefix in tree, tail will be added as new child node
-                        typename bitarray_t::self_pointer_t bits_left = bitarray_t::make(v_size - string_index);
+                        typename bitarray_t::self_pointer_t bits_left = bitarray_t::make(::get_allocator(), v_size - string_index);
 
                                 v.copy(bits_left, 0, string_index, v_size - string_index);
                                 node_pointer new_node = get_allocator().template allocate<Node > ().raw();
@@ -306,8 +306,8 @@ namespace wiselib
                 //current_node_string_index, current_node->data_->c_str(), v.c_str());
 
 
-                typename bitarray_t::self_pointer_t bit_string_front = bitarray_t::make(current_node_string_index),
-                        bit_string_back = bitarray_t::make(current_node->data_size() - current_node_string_index);
+                typename bitarray_t::self_pointer_t bit_string_front = bitarray_t::make(::get_allocator(), current_node_string_index),
+                        bit_string_back = bitarray_t::make(::get_allocator(), current_node->data_size() - current_node_string_index);
             size_type backsize = current_node->data_size() - current_node_string_index;
             size_type frontsize = current_node_string_index;
             
@@ -353,7 +353,7 @@ namespace wiselib
                 ///string shares prefix in tree up to string_index but has differnet suffix, append string as new branch after split
                 // valid here: current_node->data_[current_node_string_index] != value[string_index]
                 node_pointer value_rest = get_allocator().template allocate<Node > ().raw();
-                        typename bitarray_t::self_pointer_t bitString = bitarray_t::make(v_size - string_index);
+                        typename bitarray_t::self_pointer_t bitString = bitarray_t::make(::get_allocator(), v_size - string_index);
                         v.copy(bitString, 0, string_index, v_size - string_index);
                         //printf("--- D\n");
                         value_rest->init(bitString, 0, 0, current_node, v_size - string_index);
@@ -459,7 +459,7 @@ namespace wiselib
                 if (node_to_merge)
                 {
 
-                    typename bitarray_t::self_pointer_t bit_string = bitarray_t::make(current_node->data_size() + node_to_merge->data_size());
+                    typename bitarray_t::self_pointer_t bit_string = bitarray_t::make(::get_allocator(), current_node->data_size() + node_to_merge->data_size());
                             current_node->data_->copy(bit_string, 0, 0, current_node->data_size());
                             node_to_merge->data_->copy(bit_string, current_node->data_size(), 0, node_to_merge->data_size());
                             if(node_to_merge->data_ != 0) {
@@ -508,7 +508,7 @@ namespace wiselib
             //printf("get_value k=%p l=%d h=%d\n", k, l, h);
 
             // Now store path to root in a bitarray
-            typename bitarray_t::self_pointer_t path = bitarray_t::make(h);
+            typename bitarray_t::self_pointer_t path = bitarray_t::make(::get_allocator(), h);
                     size_type i = 0;
             for (current_node = reinterpret_cast<node_pointer>(k); !current_node->is_root(); current_node = current_node->parent_, i++)
             {
@@ -516,7 +516,7 @@ namespace wiselib
             }
 
             // Concatenate all bits into $out
-            typename bitarray_t::self_pointer_t out = bitarray_t::make(len + 8);
+            typename bitarray_t::self_pointer_t out = bitarray_t::make(::get_allocator(), len + 8);
                     size_type out_pos = 0;
                     size_type p;
             for (p = h - 1; p > 0; p--)

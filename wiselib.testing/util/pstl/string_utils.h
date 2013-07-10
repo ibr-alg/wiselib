@@ -2,6 +2,8 @@
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
+#include <external_interface/external_interface.h>
+
 namespace wiselib {
 	
 	/**
@@ -41,6 +43,26 @@ namespace wiselib {
 		for( ; *s != '\0'; s++) {
 			f /= 10;
 			r += (*s - '0') * f;
+		}
+		return r;
+	}
+	
+	size_t prefix_length(char *a, char *b) {
+		size_t r = 0;
+		for( ; *a && (*a == *b); ++a, ++b) {
+			++r;
+		}
+		return r;
+	}
+	
+	/**
+	 * In contrast to @a prefix_length, this will ignore 0-termination!
+	 */
+	template<typename S>
+	S prefix_length_n(S n, ::uint8_t *a, ::uint8_t *b) {
+		S r = 0;
+		for( ; (r < n) && (*a == *b); ++a, ++b) {
+			++r;
 		}
 		return r;
 	}

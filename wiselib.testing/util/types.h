@@ -33,7 +33,7 @@ namespace wiselib {
 	 */
 	template<typename A, typename B>
 	void hardcore_cast(A& a, const B& b) {
-		memcpy(&a, &b, Min<sizeof(A), sizeof(B)>::value);
+		memcpy(&a, &b, (Min<sizeof(A), sizeof(B)>::value) );
 	}
 }
 

@@ -31,6 +31,7 @@
 #include "external_interface/contiki/contiki_byte_com_uart.h"
 #include "external_interface/contiki/contiki_com_uart.h"
 #include "util/serialization/endian.h"
+#include <algorithms/rand/kiss.h>
 
 namespace wiselib
 {
@@ -45,13 +46,14 @@ namespace wiselib
 
       typedef ContikiTimer<ContikiOsModel> Timer;
       typedef ContikiExtendedDataRadioModel<ContikiOsModel> Radio;
-		typedef ContikiExtendedDataRadioModel<ContikiOsModel> TxRadio;
+      typedef ContikiExtendedDataRadioModel<ContikiOsModel> TxRadio;
       typedef ContikiExtendedDataRadioModel<ContikiOsModel> ExtendedRadio;
       typedef ContikiDebug<ContikiOsModel> Debug;
       typedef ContikiClockModel<ContikiOsModel> Clock;
       typedef ContikiDistanceModel<ContikiOsModel> Distance;
       typedef ContikiPositionModel<ContikiOsModel, ExtendedRadio::block_data_t> Position;
       typedef ContikiByteUartModel<ContikiOsModel> Uart;
+      typedef Kiss<ContikiOsModel> Rand;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
 
@@ -72,3 +74,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

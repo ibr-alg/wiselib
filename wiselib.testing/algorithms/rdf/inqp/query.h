@@ -70,6 +70,10 @@ namespace wiselib {
 			
 			Operators& operators() { return operators_; }
 			
+			template<typename OperatorT>
+			void add_operator(OperatorT* op) {
+				operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
+			}
 			
 			template<typename DescriptionT, typename OperatorT>
 			void add_operator(BOD *bod) {

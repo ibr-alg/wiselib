@@ -99,7 +99,8 @@ namespace wiselib
       // --------------------------------------------------------------------
       int disable_radio()
       {
-         contiki::contiki_register_receive( contiki::contiki_extended_receive_delegate_t() );
+         contiki::contiki_extended_receive_delegate_t d;
+         contiki::contiki_register_receive( d );
          return SUCCESS;
       }
       // --------------------------------------------------------------------

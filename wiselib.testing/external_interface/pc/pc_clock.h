@@ -22,6 +22,8 @@
 #ifndef PC_CLOCK_H
 #define PC_CLOCK_H
 
+#include <external_interface/external_interface.h>
+
 #define time_t posix_time_t
 #include <time.h>
 #undef time_t
@@ -56,58 +58,100 @@ namespace wiselib
       typedef PCClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
 
-      //typedef struct timespec time_t;
-      typedef uint16_t micros_t;
-      typedef uint16_t millis_t;
-      typedef uint32_t seconds_t;
+      typedef ::uint16_t micros_t;
+      typedef ::uint16_t millis_t;
+      typedef ::uint32_t seconds_t;
       
       class time_t {
          public:
             time_t() { }
             
+            time_t(::uint32_t milliseconds) {
+               timespec_.tv_sec = milliseconds / 1000000000L;
+               timespec_.tv_nsec = milliseconds % 1000000000L;
+            }
+            
             time_t(timespec& t) : timespec_(t) {
             }
             
-            time_t operator+(time_t& other) {
+            time_t operator+(const time_t& other) {
                time_t r(*this);
-               r.timespec_.tv_sec += other.timespec_.tv_sec;
-               r.timespec_.tv_nsec += other.timespec_.tv_nsec;
-               if(r.timespec_.tv_nsec >= 1000000000L) {
-                  r.timespec_.tv_sec++; r.timespec_.tv_nsec -= 1000000000L;
-               }
+               r += other;
                return r;
             }
             
-            time_t operator-(time_t& other) {
+            time_t& operator+=(const time_t& other) {
+               timespec_.tv_sec += other.timespec_.tv_sec;
+               timespec_.tv_nsec += other.timespec_.tv_nsec;
+               if(timespec_.tv_nsec >= 1000000000L) {
+                  timespec_.tv_sec++; timespec_.tv_nsec -= 1000000000L;
+               }
+               return *this;
+            }
+            
+            time_t operator-(const time_t& other) {
                time_t r(*this);
+               r -= other;
+               return r;
+            }
+            
+            time_t operator-=(const time_t& other) {
                if(*this < other) {
-                  r.timespec_.tv_sec = 0;
-                  r.timespec_.tv_nsec = 0;
+                  timespec_.tv_sec = 0;
+                  timespec_.tv_nsec = 0;
                }
                else {
-                  r.timespec_.tv_sec -= other.timespec_.tv_sec;
-                  r.timespec_.tv_nsec -= other.timespec_.tv_nsec;
+                  timespec_.tv_sec -= other.timespec_.tv_sec;
+                  timespec_.tv_nsec -= other.timespec_.tv_nsec;
                   if(timespec_.tv_nsec < other.timespec_.tv_nsec) {
-                     r.timespec_.tv_sec--;
-                     r.timespec_.tv_nsec += 1000000000L;
+                     timespec_.tv_sec--;
+                     timespec_.tv_nsec += 1000000000L;
                   }
                }
+               return *this;
+            }
+            
+            time_t operator*(unsigned long f) {
+               time_t r(*this);
+               r *= f;
                return r;
             }
             
-            int cmp(time_t& other) {
+            time_t& operator*=(unsigned long f) {
+               timespec_.tv_sec *= f;
+               timespec_.tv_nsec *= f;
+               if(timespec_.tv_nsec >= 1000000000L) {
+                  timespec_.tv_sec += timespec_.tv_nsec / 1000000000L;
+                  timespec_.tv_nsec %= 1000000000L;
+               }
+               return *this;
+            }
+            
+            time_t operator/(unsigned long f) {
+               time_t r(*this);
+               r /= f;
+               return r;
+            }
+            
+            time_t& operator/=(unsigned long f) {
+               timespec_.tv_sec /= f;
+               timespec_.tv_nsec /= f;
+               return *this;
+            }
+            
+            int cmp(const time_t& other) {
                if(timespec_.tv_sec == other.timespec_.tv_sec) {
                   return (timespec_.tv_nsec < other.timespec_.tv_nsec) ? -1 : (timespec_.tv_nsec > other.timespec_.tv_nsec);
                }
                return timespec_.tv_sec > other.timespec_.tv_sec ? 1 : -1;
             }
             
-            bool operator<(time_t& other) { return cmp(other) < 0; }
-            bool operator>(time_t& other) { return cmp(other) > 0; }
-            bool operator<=(time_t& other) { return cmp(other) <= 0; }
-            bool operator>=(time_t& other) { return cmp(other) >= 0; }
-            bool operator==(time_t& other) { return cmp(other) == 0; }
-            bool operator!=(time_t& other) { return cmp(other) != 0; }
+            bool operator< (const time_t& other) { return cmp(other) < 0; }
+            bool operator> (const time_t& other) { return cmp(other) > 0; }
+            bool operator<=(const time_t& other) { return cmp(other) <= 0; }
+            bool operator>=(const time_t& other) { return cmp(other) >= 0; }
+            bool operator==(const time_t& other) { return cmp(other) == 0; }
+            bool operator!=(const time_t& other) { return cmp(other) != 0; }
             
             struct timespec timespec_;
       };
@@ -179,3 +223,4 @@ namespace wiselib
 
 #endif // PC_CLOCK_H
 
+/* vim: set ts=3 sw=3 softtabstop=3 tw=78 expandtab :*/

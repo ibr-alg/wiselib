@@ -19,22 +19,26 @@
 #ifndef __ARDUINO_OS_MODEL_H__
 #define __ARDUINO_OS_MODEL_H__
 
-// #include <assert.h>
-#define assert(X)
-#define DBG(X)
-#define DBG(X, ...)
+#include <assert.h>
+
+#if WISELIB_DISABLE_DEBUG_MESSAGES
+	#define DBG(...)
+#else
+	#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
+#endif
 
 #include "external_interface/default_return_values.h"
 #include "external_interface/arduino/arduino_debug.h"
 #include "external_interface/arduino/arduino_clock.h"
 #include "external_interface/arduino/arduino_sdcard.h"
 #include "external_interface/arduino/arduino_ethernet_radio.h"
-
+#include "external_interface/arduino/arduino_bluetooth_radio.h"
+#include "external_interface/arduino/arduino_timer.h"
 #include "util/serialization/endian.h"
 
 /*routes the assert() error message into STDERR, TODO: route STDERR to the 
 serial port so that you can actually output the messages*/
-// #define __ASSERT_USE_STDERR 
+#define __ASSERT_USE_STDERR 
 
 namespace wiselib
 {
@@ -56,11 +60,16 @@ namespace wiselib
 
       typedef ArduinoDebug<ArduinoOsModel> Debug;
       typedef ArduinoClock<ArduinoOsModel> Clock;
+      typedef ArduinoTimer<ArduinoOsModel> Timer;
 #if ARDUINO_USE_ETHERNET
       typedef ArduinoEthernetRadio<ArduinoOsModel> EthernetRadio;
 	  typedef EthernetRadio Radio;
 #endif
-	  typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
+#if ARDUINO_USE_BLUETOOTH
+      typedef ArduinoBluetoothRadio<ArduinoOsModel> BluetoothRadio;
+#endif
+ 
+      typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };

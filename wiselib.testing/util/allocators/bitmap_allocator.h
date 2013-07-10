@@ -44,6 +44,29 @@ class BitmapAllocator {
 		typedef typename OsModel::block_data_t block_data_t;
 		typedef BitArray<OsModel> bitarray_t;
 		
+		template<typename T>
+		struct pointer_t {
+			public:
+				pointer_t() : p_(0) { }
+				pointer_t(T* p) : p_(p) { }
+				pointer_t(const pointer_t& other) : p_(other.p_) { }
+				pointer_t& operator=(const pointer_t& other) { p_ = other.p_; return *this; }
+				const T& operator*() const { return *raw(); }
+				T& operator*() { return *raw(); }
+				const T* operator->() const { return raw(); }
+				T* operator->() { return raw(); }
+				//T& operator[](size_t idx) { return raw()[idx]; }
+				const T& operator[](size_t idx) const { return p_[idx]; }
+				T& operator[](size_t idx) { return p_[idx]; }
+				bool operator==(const pointer_t& other) const { return p_ == other.p_; }
+				bool operator!=(const pointer_t& other) const { return p_ != other.p_; }
+				operator bool() const { return p_ != 0; }
+				T* raw() { return p_; }
+				const T* raw() const { return p_; }
+			protected:
+				T* p_;
+		}; // __attribute__((__packed__));
+		
 		BitmapAllocator() {
 			for(size_type i=0; i<BITMAP_SIZE; i++) {
 				used_[i] = 0;
@@ -52,19 +75,34 @@ class BitmapAllocator {
 		}
 		
 		template<typename T>
-		T* allocate() {
+		pointer_t<T> allocate() {
+			return pointer_t<T>(allocate_raw<T>());
+		}
+		
+		template<typename T>
+		T* allocate_raw() {
 			block_data_t* r = first_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			new((void*)r, true) T;
 			return (T*)r;
 		}
 		
 		template<typename T>
-		T* allocate_array(size_type n) {
+		pointer_t<T> allocate_array(size_type n) {
+			return pointer_t<T>(allocate_array_raw<T>(n));
+		}
+		
+		template<typename T>
+		T* allocate_array_raw(size_type n) {
 			block_data_t *r = first_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			for(size_type i=0; i<n; i++) {
 				new((T*)r + i, true) T;
 			}
 			return (T*)r;
+		}
+		
+		template<typename T>
+		int free(pointer_t<T> p) {
+			return free(p.raw());
 		}
 		
 		template<typename T>

@@ -26,6 +26,7 @@
 #include "external_interface/tinyos/tinyos_types.h"
 #include "external_interface/tinyos/tinyos_position.h"
 #include "external_interface/tinyos/tinyos_clock.h"
+#include <algorithms/rand/kiss.h>
 
 #ifndef WISELIB_BUILD_ONLY_STABLE
    #include "external_interface/tinyos/tinyos_com_uart.h"
@@ -63,6 +64,7 @@ namespace wiselib
       typedef TinyOsComUartModel<TinyOsModel> Uart;
 #endif
 #endif
+      typedef Kiss<TinyOsModel> Rand;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
@@ -70,3 +72,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

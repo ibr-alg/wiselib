@@ -45,6 +45,7 @@ namespace wiselib {
 			typedef ArduinoSdCard<OsModel> self_type;
 			typedef self_type* self_pointer_t;
 			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::size_t address_t;
 			
 			enum {
@@ -86,7 +87,10 @@ namespace wiselib {
 				for(address_t written = 0; written < blocks; written++) {
 					//delay(3);
 					r = card_.readBlock(start_block + written, buffer + written * BLOCK_SIZE);
-					if(!r) return ERR_UNSPEC;
+					if(!r) {
+						DBG("read(%p, std=%d count=%d) fail, read=%d", buffer, start_block, blocks, written);
+						return ERR_UNSPEC;
+					}
 				}
 				//delay(50);
 				return SUCCESS;
@@ -132,7 +136,7 @@ namespace wiselib {
 				return erase(0, size());
 			}
 			
-			address_t size() { 
+			size_type size() { 
 				//assert(sizeof(address_t) >= sizeof(uint32_t));
 				return card_.cardSize(); //cardSize() returns a uint32_t
 			}
