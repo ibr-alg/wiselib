@@ -6,10 +6,9 @@ namespace wiselib {
 	
 	template<typename OsModel_P, size_t COLUMNS_P, typename Debug_P>
 	void debug_buffer(Debug_P* debug_,
-			typename OsModel_P::block_data_t *buffer,
+			const typename OsModel_P::block_data_t *buffer,
 			typename OsModel_P::size_t length) {
 		typedef typename OsModel_P::size_t size_t;
-		typedef typename OsModel_P::block_data_t block_data_t;
 		
 		enum { SZ = COLUMNS_P * 8 + 10 };
 		char line[SZ];

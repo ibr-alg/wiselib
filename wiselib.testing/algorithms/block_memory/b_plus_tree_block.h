@@ -316,7 +316,7 @@ namespace wiselib {
 			// }}}
 			
 			address_t prev() const {
-				return *reinterpret_cast<address_t*>(data_ + POS_PREV);
+				return *reinterpret_cast<const address_t*>(data_ + POS_PREV);
 			}
 			
 			void set_prev(address_t p) {

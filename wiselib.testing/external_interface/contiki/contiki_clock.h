@@ -53,6 +53,7 @@ namespace wiselib
       typedef self_type* self_pointer_t;
 
       typedef clock_time_t time_t;
+      typedef uint16_t millis_t;
 
       // --------------------------------------------------------------------
       enum ErrorCodes
@@ -89,11 +90,11 @@ namespace wiselib
          return clock_time();
       }
       // --------------------------------------------------------------------
-      int set_time( time_t time )
-      {
-         //  timer_set(timer, time);
-         return SUCCESS;
-      }
+      //int set_time( time_t time )
+      //{
+         ////  timer_set(timer, time);
+         //return SUCCESS;
+      //}
       // --------------------------------------------------------------------
       uint16_t microseconds( time_t time )
       {
@@ -111,12 +112,13 @@ namespace wiselib
       }
 
    private:
-	  struct timer {
-	    time_t start;
-	    time_t interval;
-	  };
+	  //struct timer {
+		 //time_t start;
+		 //time_t interval;
+	  //};
 
    };
 }
 
 
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

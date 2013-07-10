@@ -66,6 +66,18 @@ namespace wiselib {
 				}
 			}
 			
+			void init(Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection,
+					bool affected0, bool affected1, bool affected2, Value value0, Value value1, Value value2) {
+				Base::init(Base::Description::GRAPH_PATTERN_SELECTION, query, id, parent_id, parent_port, projection);
+				
+				affected_[0] = affected0;
+				affected_[1] = affected1;
+				affected_[2] = affected2;
+				values_[0] = value0;
+				values_[1] = value1;
+				values_[2] = value2;
+			}
+			
 			void execute(TupleStoreT& ts) {
 				//DBG("GPS execute");
 				typedef typename TupleStoreT::TupleContainer Container;

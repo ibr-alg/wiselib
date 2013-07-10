@@ -33,4 +33,8 @@
 #define ZEROCONF_DISCOVER_SERVICE "_wiselib"
 #define ZEROCONF_PUBLISH_SERVICE "_node._wiselib"
 
+#define DEFAULT_BAUD_RATE 38400
+#define RXD 6
+#define TXD 7
+
 #endif

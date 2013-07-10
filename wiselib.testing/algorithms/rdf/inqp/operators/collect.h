@@ -65,6 +65,11 @@ namespace wiselib {
 			}
 			#pragma GCC diagnostic pop
 			
+			void init(Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection) {
+				Base::init(Base::Description::COLLECT, query, id, parent_id, parent_port, projection);
+				hardcore_cast(this->push_, &self_type::push);
+			}
+			
 			void push(size_type port, Row<OsModel>& row) {
 				if(&row) {
 				

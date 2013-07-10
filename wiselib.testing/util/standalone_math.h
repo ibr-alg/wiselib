@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 
+#undef log2
+
 namespace wiselib {
 
 template<typename OsModel_P>
