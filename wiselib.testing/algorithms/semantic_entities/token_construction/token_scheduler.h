@@ -44,7 +44,7 @@ namespace wiselib {
 			}
 			
 			void add_semantic_entity(const SemanticEntityId& se_id) {
-				// TODO
+				registry_.add(se_id);
 			}
 		
 		private:
@@ -140,6 +140,7 @@ namespace wiselib {
 			SemanticEntityRegistryT registry_;
 			ReliableTransportT transport_;
 			GlobalTreeT global_tree_;
+			NapControlT nap_control_;
 		
 	}; // TokenScheduler
 }
