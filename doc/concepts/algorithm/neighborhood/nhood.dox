@@ -24,6 +24,8 @@ namespace concepts
  */
 class Nhood_concept {
    public:
+
+      enum State { IN_EDGE, OUT_EDGE, BIDI_EDGE = IN_EDGE | OUT_EDGE };
    
       /**
        * Defines the type of a pointer to this neighborhood.
