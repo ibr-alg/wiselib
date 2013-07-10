@@ -42,6 +42,8 @@ namespace wiselib {
 		typename OsModel_P,
 		typename QueryProcessor_P,
 		typename Timer_P = typename OsModel_P::Timer,
+		
+		// Send queries via flooding constructing a directed tree towards root
 		typename QueryRadio_P =
 			PackingRadio<
 				OsModel_P,
@@ -50,6 +52,9 @@ namespace wiselib {
 					typename OsModel_P::Radio
 				>
 			>,
+			
+		// Send results along a directed nd (in this case: a directed nd that
+		// is the result of flooding a query)
 		typename ResultRadio_P =
 			PackingRadio<
 				OsModel_P,
