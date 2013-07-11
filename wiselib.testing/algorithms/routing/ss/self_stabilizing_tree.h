@@ -30,14 +30,25 @@ namespace wiselib {
 	 * @tparam 
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename Radio_P
 	>
 	class SelfStabilizingTree {
-		
 		public:
+			typedef SelfStabilizingTree<OsModel_P, Radio_P> self_type;
+				
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef Radio_P Radio;
+			
+			
+			enum { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
+			
+			void init(typename Radio::self_pointer_t radio) {
+				radio_ = radio;
+				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+			}
 			
 			iterator begin_neighbors() {
 			}
@@ -62,6 +73,7 @@ namespace wiselib {
 			void on_receive(...) {
 			}
 			
+			typename Radio::self_pointer_t radio_;
 		
 	}; // SelfStabilizingTree
 }

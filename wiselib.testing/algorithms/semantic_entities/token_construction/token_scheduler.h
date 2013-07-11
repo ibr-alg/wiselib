@@ -20,6 +20,23 @@
 #ifndef TOKEN_SCHEDULER_H
 #define TOKEN_SCHEDULER_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
+#include <util/pstl/vector_dynamic.h>
+#include <util/pstl/map_static_vector.h>
+#include <util/pstl/list_dynamic.h>
+
+#include <algorithms/protocols/reliable_transport/reliable_transport.h>
+#include <algorithms/routing/ss/self_stabilizing_tree.h>
+
+#include "regular_event.h"
+#include "semantic_entity.h"
+#include "semantic_entity_aggregator.h"
+#include "semantic_entity_amq_neighborhood.h"
+#include "semantic_entity_forwarding.h"
+#include "semantic_entity_id.h"
+#include "semantic_entity_registry.h"
+
 namespace wiselib {
 	
 	/**
@@ -31,15 +48,50 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename TupleStore_P,
+		typename Radio_P = typename OsModel_P::Radio,
+		typename Timer_P = typename OsModel_P::Timer,
+		typename Clock_P = typename OsModel_P::Clock,
+		typename Debug_P = typename OsModel_P::Debug,
+		typename Rand_P = typename OsModel_P::Rand
 	>
 	class TokenScheduler {
 		
 		public:
+			// Typedefs & Enums
+			// {{{
+			
+			typedef TokenScheduler<
+				OsModel_P, TupleStore_P, Radio_P, Timer_P, Clock_P, Debug_P, Rand_P
+			> self_type;
+			typedef self_type* self_pointer_t;
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
+			typedef Timer_P Timer;
+			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
+			typedef Debug_P Debug;
+			typedef Rand_P Rand;
+			typedef TupleStore_P TupleStore;
+			
+			enum Restrictions {
+				MAX_NEIGHBORS = 8
+			};
+			
+			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
+			typedef SemanticEntityAmqNeighborhood<OsModel> SemanticEntityNeighborhoodT;
+			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT> SemanticEntityForwardingT;
+			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
+			typedef SemanticEntityRegistry<OsModel> SemanticEntityRegistryT;
+			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
+			typedef SelfStabilizingTree<OsModel> GlobalTreeT;
+			typedef NapControl<OsModel, Radio> NapControlT;
+			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			
 			enum SpecialAddresses {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
@@ -54,6 +106,8 @@ namespace wiselib {
 				SUCCESS = OsModel::SUCCESS,
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
+			
+			// }}}
 			
 			class PacketInfo {
 				// {{{
@@ -86,7 +140,7 @@ namespace wiselib {
 				// }}}
 			};
 			
-			void init() {
+			void init(typename TupleStore::self_pointer_t tuplestore, typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug, typename Rand::self_pointer_t rand) {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
@@ -151,7 +205,7 @@ namespace wiselib {
 				block_data_t *data = packet_info->data();
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
-				bool r = forwarding.on_receive(from, len, data);
+				bool r = forwarding_.on_receive(from, len, data);
 				if(!r) {
 					transport_.on_receive(from, len, data);
 				}
@@ -243,7 +297,7 @@ namespace wiselib {
 					}
 					
 					case SemanticEntityT::CLOSE: {
-						mesasge.set_payload_size(0);
+						message.set_payload_size(0);
 						endpoint.request_close();
 						return false;
 					}
@@ -365,9 +419,65 @@ namespace wiselib {
 			//}}}
 			///@}
 			
-			void process_token_state(...) {
-				// TODO
+			void process_token_state(TokenStateMessageT msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
+				TokenState s = msg.token_state();
+				bool activating = false;
+				bool activating_before = se.is_active(radio_->id());
+				se.set_prev_token_count(s.count());
+				if(se.is_active(radio_->id()) && !active_before) {
+					activating = true;
+					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
+					begin_activity(se);
+				}
+				else if(!se.is_active(radio_->id()) && active_before) {
+					end_activity(&se);
+				}
+				return activating;
 			}
+			
+			void begin_activity(void* se_)  {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				// begin_activity might have been called at beginning
+				// and then again (during the actual activity)
+				
+				if(se.in_activity_phase()) { return; }
+				se.begin_activity_phase();
+				nap_control_.push_caffeine();
+				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
+			}
+			
+			/**
+			 * Called by timeout at the end of an activity period.
+			 */
+			void end_activity(SemanticEntityT& se) {
+				if(!se.in_activity_phase()) { return; }
+				se.end_activity_phase();
+				if(end_activity_callback_) {
+					end_activity_callback_(se, aggregator_);
+				}
+				initiate_handover(se);
+				assert(!se.is_active(radio_->id()));
+				se.end_wait_for_activating_token();
+				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
+			}
+			
+			/// ditto.
+			void end_activity(void* se_) { end_activity(*reinterpret_cast<SemanticEntityT*>(se_)); }
+			
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
+			}
+			
+			typename Radio::self_pointer_t radio_;
+			typename Timer::self_pointer_t timer_;
+			typename Clock::self_pointer_t clock_;
+			typename Debug::self_pointer_t debug_;
+			typename Rand::self_pointer_t rand_;
 			
 			SemanticEntityNeighborhoodT neighborhood_;
 			SemanticEntityForwardingT forwarding_;
@@ -376,7 +486,9 @@ namespace wiselib {
 			ReliableTransportT transport_;
 			GlobalTreeT global_tree_;
 			NapControlT nap_control_;
-		
+			
+			end_activity_callback_t end_activity_callback_;
+			
 	}; // TokenScheduler
 }
 

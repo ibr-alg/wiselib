@@ -70,11 +70,9 @@ namespace wiselib {
 			 */
 			void push_caffeine(void* = 0) {
 				if(caffeine_level_ == 0) {
-					//DBG("node %d on 1 t=%d", (int)radio_->id(), (int)now());
 					radio_->enable_radio();
 				}
 				caffeine_level_++;
-				//DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
 			}
 			
 			/**
@@ -84,12 +82,9 @@ namespace wiselib {
 				caffeine_level_--;
 				
 				if(caffeine_level_ == 0) {
-					//DBG("node %d on 0 t=%d", (int)radio_->id(), (int)now());
 					radio_->disable_radio();
 				}
-				//DBG("node %d caffeine=%d t=%d", (int)radio_->id(), (int)caffeine_level_, (int)now());
 			}
-				
 		
 		private:
 			size_type caffeine_;
