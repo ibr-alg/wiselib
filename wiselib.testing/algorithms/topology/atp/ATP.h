@@ -358,8 +358,9 @@ namespace wiselib
 				if (	( nd_active_size < SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) ) ||
-						( nd_active_size < SCLD_MIN_threshold ) )
+//				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) ) ||
+//						( nd_active_size < SCLD_MIN_threshold ) )
+						if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( transmission_power_status.try_lock() )
@@ -385,8 +386,9 @@ namespace wiselib
 				else if (	( nd_active_size > SCLD_MAX_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
-						( nd_active_size > SCLD_MAX_threshold ) )
+				//else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
+				//		( nd_active_size > SCLD_MAX_threshold ) )
+				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( transmission_power_status.try_lock() )
@@ -423,7 +425,8 @@ namespace wiselib
 					}
 				}
 #ifdef DEBUG_ATP_H_STATS
-				if ( nd_active_size < SCLD_MIN_threshold )
+				//if ( nd_active_size < SCLD_MIN_threshold )
+				if ( nd_active_size < ATP_H_SCLD_MIN_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MINIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
@@ -432,7 +435,8 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
-				else if ( nd_active_size > SCLD_MAX_threshold )
+				//else if ( nd_active_size > SCLD_MAX_threshold )
+				else if ( nd_active_size > ATP_H_SCLD_MAX_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
@@ -601,8 +605,9 @@ namespace wiselib
 				if ( ( nd_active_size < SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) )
-						|| ( nd_active_size < SCLD_MIN_threshold ) )
+				//if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) )
+				//		|| ( nd_active_size < SCLD_MIN_threshold ) )
+				if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( throughput_status.try_lock() )
@@ -628,8 +633,9 @@ namespace wiselib
 				else if ( ( nd_active_size >= SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
-							( nd_active_size >= SCLD_MIN_threshold ) )
+				//else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
+				//			( nd_active_size >= SCLD_MIN_threshold ) )
+				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( throughput_status.try_lock() )
@@ -666,7 +672,8 @@ namespace wiselib
 					}
 				}
 #ifdef DEBUG_ATP_H_STATS
-				if ( nd_active_size < SCLD_MIN_threshold )
+				//if ( nd_active_size < SCLD_MIN_threshold )
+				if ( nd_active_size < ATP_H_SCLD_MIN_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MINIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
@@ -675,7 +682,8 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
-				else if ( nd_active_size > SCLD_MAX_threshold )
+				//else if ( nd_active_size > SCLD_MAX_threshold )
+				else if ( nd_active_size > 	ATP_H_SCLD_MAX_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(), nd_active_size );
@@ -811,10 +819,10 @@ namespace wiselib
 					local_mins++;
 				}
 			}
-			if ( prot_ref->get_neighborhood_active_size() < SCLD_MIN_threshold )
-			{
-				local_mins++;
-			}
+			//if ( prot_ref->get_neighborhood_active_size() < SCLD_MIN_threshold )
+			//{
+			//	local_mins++;
+			//}
 			return local_mins;
 		}
 		// -----------------------------------------------------------------------
@@ -829,30 +837,30 @@ namespace wiselib
 					local_maxs++;
 				}
 			}
-			if ( prot_ref->get_neighborhood_active_size() > SCLD_MAX_threshold )
-			{
-				local_maxs++;
-			}
+			//if ( prot_ref->get_neighborhood_active_size() > SCLD_MAX_threshold )
+			//{
+			//	local_maxs++;
+			//}
 			return local_maxs;
 		}
 		// -----------------------------------------------------------------------
-		uint8_t check_local_SCLD_MINS()
-		{
-			if ( get_local_SCLD_MAXS() > ( ( SCLD_MIN_threshold + SCLD_MAX_threshold ) * 20 ) / ( 2 * 100 ) )
-			{
-				return 0;
-			}
-			return 1;
-		}
+		//uint8_t check_local_SCLD_MINS()
+		//{
+		//	if ( get_local_SCLD_MAXS() > ( ( SCLD_MIN_threshold + SCLD_MAX_threshold ) * 20 ) / ( 2 * 100 ) )
+		//	{
+		//		return 0;
+		//	}
+		//	return 1;
+		//}
 		// -----------------------------------------------------------------------
-		uint8_t check_local_SCLD_MAXS()
-		{
-			if ( get_local_SCLD_MINS() > ( ( SCLD_MIN_threshold + SCLD_MAX_threshold ) * 20 ) / ( 2 * 100 ) )
-			{
-				return 0;
-			}
-			return 1;
-		}
+		//uint8_t check_local_SCLD_MAXS()
+		//{
+		//	if ( get_local_SCLD_MINS() > ( ( SCLD_MIN_threshold + SCLD_MAX_threshold ) * 20 ) / ( 2 * 100 ) )
+		//	{
+		//		return 0;
+		//	}
+		//	return 1;
+		//}
 		// -----------------------------------------------------------------------
 #endif
 		// -----------------------------------------------------------------------
