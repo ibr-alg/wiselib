@@ -357,6 +357,9 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				if (	( nd_active_size < SCLD_MIN_threshold )
 #endif
+#ifdef CONFIG_ATP_H_HYBRID_PLUS
+				if ( ( ( nd_active_size < SCLD_MIN_threshold ) || ( get_local_SCLD_MINS() > 0 )	)
+#endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 //				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) ) ||
 //						( nd_active_size < SCLD_MIN_threshold ) )
@@ -384,6 +387,9 @@ namespace wiselib
 				}
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if (	( nd_active_size > SCLD_MAX_threshold )
+#endif
+#ifdef CONFIG_ATP_H_HYBRID_PLUS
+				else if ( ( ( nd_active_size >= SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				//else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
@@ -604,6 +610,9 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				if ( ( nd_active_size < SCLD_MIN_threshold )
 #endif
+#ifdef CONFIG_ATP_H_HYBRID_PLUS
+				if ( ( ( nd_active_size < SCLD_MIN_threshold ) || ( get_local_SCLD_MINS() > 0 )	)
+#endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				//if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) )
 				//		|| ( nd_active_size < SCLD_MIN_threshold ) )
@@ -631,6 +640,9 @@ namespace wiselib
 				}
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if ( ( nd_active_size >= SCLD_MIN_threshold )
+#endif
+#ifdef CONFIG_ATP_H_HYBRID_PLUS
+				else if ( ( ( nd_active_size >= SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				//else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
@@ -807,7 +819,6 @@ namespace wiselib
 			radio().unreg_recv_callback( radio_callback_id );
 		}
 		// -----------------------------------------------------------------------
-#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 		size_t get_local_SCLD_MINS()
 		{
 			size_t local_mins = 0;
@@ -862,7 +873,6 @@ namespace wiselib
 		//	return 1;
 		//}
 		// -----------------------------------------------------------------------
-#endif
 		// -----------------------------------------------------------------------
 		void events_callback( uint8_t _event, node_id_t _from, size_t _len, uint8_t* _data )
 		{
@@ -1017,9 +1027,9 @@ namespace wiselib
 		FrameStateStatus transmission_power_status;
 		FrameStateStatus throughput_status;
 		FrameStateStatus SCLD_status;
-#ifdef CONFIG_ATP_H_OSCILATION_CONTROL
 		SeriesStateStatus transmission_power_series_status;
 		SeriesStateStatus throughput_series_status;
+#ifdef CONFIG_ATP_H_OSCILATION_CONTROL
 		TimeSeries TM;
 #endif
 #endif
