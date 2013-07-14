@@ -164,8 +164,6 @@ namespace wiselib
 			packet_pool_mgr_ = packet_pool_mgr;
 			radio_dps_ = radio_dps;
 			
-			ip_packet_number = IP_PACKET_POOL_SIZE;
-			
 			//Construct link-local addresses for the interfaces
 			prefix_list[INTERFACE_RADIO][0].adv_valid_lifetime = 0xFFFFFFFF;
 			prefix_list[INTERFACE_RADIO][0].adv_prefered_lifetime = 0xFFFFFFFF;
@@ -320,7 +318,7 @@ namespace wiselib
 				DPS_node_id_t ID;
 				ID.Pid = IPv6_PID;
 				ID.Fid = IPv6_receive;
-				ID.ack_required = 0;
+				ID.ack_required = 1;
 				ID.target_address = receiver.get_iid();
 				
 				return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
@@ -332,7 +330,7 @@ namespace wiselib
 			DPS_node_id_t ID;
 			ID.Pid = IPv6_PID;
 			ID.Fid = IPv6_receive;
-			ID.ack_required = 0;
+			ID.ack_required = 1;
 			ID.target_address = Radio::NULL_NODE_ID;
 			
 			return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
@@ -390,11 +388,6 @@ namespace wiselib
 		* 
 		*/
 		block_data_t* manage_buffer( block_data_t* buffer, uint16_t length, bool get_buffer );
-		
-		/**
-		* Reference to the used IP packet from the pool
-		*/
-		uint8_t ip_packet_number;
 		
 		/**
 		 * 
@@ -455,7 +448,10 @@ namespace wiselib
 #endif
 	RPC_handler( DPS_node_id_t IDs, uint16_t length, block_data_t* buffer )
 	{
+		
+#if DPS_RADIO_DEBUG >= 1
 		debug_->debug( "RPC_handler is called at: %lx (%i/%i) buffer length: %i\n", (long long unsigned)(radio_dps().id()), IDs.Pid, IDs.Fid, length);
+#endif
 		
 		//Call the function which is associated with the F_id
 		if( IDs.Fid == NEW_CONNECTION )
@@ -483,7 +479,7 @@ namespace wiselib
 		}
 		else if( IDs.Fid == DELETE_CONNECTION )
 		{
-			#ifdef  DPS_IPv6_SKELETON
+#ifdef  DPS_IPv6_SKELETON
 			IPv6Address_t tmp_addr;
 			tmp_addr.set_prefix( prefix_list[INTERFACE_RADIO][1].ip_address.addr, 64 );
 			tmp_addr.set_long_iid(&(IDs.target_address), true);
@@ -491,12 +487,24 @@ namespace wiselib
 			radio_ipv6_->routing_.forwarding_table_.erase( radio_ipv6_->routing_.forwarding_table_.find( tmp_addr ) );
 			
 			radio_ipv6_->routing_.print_forwarding_table();
-			#endif
+#endif
 		}
 		else if( IDs.Fid == IPv6_receive )
 		{
-			radio_ipv6_->receive( Radio::NULL_NODE_ID, ip_packet_number, NULL );
-			manage_buffer( buffer, length, false );
+			int i = 0;
+			for( ; i < IP_PACKET_POOL_SIZE; i++ )
+			{
+				if( packet_pool_mgr_->packet_pool[i].buffer_ == buffer )
+				{
+					radio_ipv6_->receive( Radio::NULL_NODE_ID, i, NULL );
+					break;
+				}
+			}
+			
+			if( i == IP_PACKET_POOL_SIZE )
+				debug_->debug( "FATAL couldn't find the packet" );
+			else
+				manage_buffer( buffer, length, false );
 		}
 // #ifdef  DPS_IPv6_SKELETON
 // 		else if( IDs.Fid == Get_IPv6_Address )
@@ -556,25 +564,33 @@ namespace wiselib
 			//The IP header is 40 bytes, with 16 bytes this should be an IPAddress config
 			if( length == 16 )
 				return local_minibuffer;
-			else if( ip_packet_number == IP_PACKET_POOL_SIZE )
+			else
 			{
-				ip_packet_number = packet_pool_mgr_->get_unused_packet_with_number();
+				int number = packet_pool_mgr_->get_unused_packet_with_number();
 				//If no free packet, the reassembling canceled
-				if( ip_packet_number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
+				if( number == Packet_Pool_Mgr_t::NO_FREE_PACKET )
 					return NULL;
 				
-				IPv6Packet_t* ip_packet = packet_pool_mgr_->get_packet_pointer( ip_packet_number );
+				IPv6Packet_t* ip_packet = packet_pool_mgr_->get_packet_pointer( number );
 				
 				return ip_packet->buffer_;
 			}
-			else
-				return NULL;
 		}
 		else
 		{
-// 			debug_->debug( "RPC buffer has been freed up" );
-			packet_pool_mgr_->clean_packet_with_number( ip_packet_number );
-			ip_packet_number = IP_PACKET_POOL_SIZE;
+			//Local minibuffer
+			if( buffer == local_minibuffer )
+				return NULL;
+			
+			for( int i = 0; i < IP_PACKET_POOL_SIZE; i++ )
+			{
+				if( packet_pool_mgr_->packet_pool[i].buffer_ == buffer )
+				{
+					packet_pool_mgr_->clean_packet_with_number( i );
+					return NULL;
+				}
+			}
+			debug_->debug( "FATAL couldn't find the packet" );
 			return NULL;
 			
 		}

@@ -40,6 +40,8 @@ typedef wiselib::UDPSocket<IPv6Address_t> UDPSocket_t;
 
 uint8_t my_prefix[8] = IPv6_PREFIX
 
+
+
 class lowpanApp
 {
 public:
@@ -63,7 +65,7 @@ public:
 			uart_size = 16;
 		#endif
 	// --> Set the Radio Chanel in this line
-		debug_->debug( "Booting with ID: %lx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 18 ), 8*sizeof(radio_->id()), uart_size);
+		debug_->debug( "Booting with ID: %lx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 16 ), 8*sizeof(radio_->id()), uart_size);
 		debug_->debug( "MEM: %i",  mem->mem_free() );
 	#else
 		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
@@ -133,7 +135,7 @@ public:
 
 		destinationaddr.set_prefix( my_prefix, 64 );
 		destinationaddr.set_long_iid(&ll_id, true);
-		uint8_t mypayload[] = "UDPfrom: ____ #: __ ";
+		uint8_t mypayload[] = "UDPfrom: ____ #: __  TRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASH";
 		//9-10-11-12
 		//15-16
 		mypayload[9] = destinationaddr.get_hex((radio_->id() >> 12) & 0xF);
@@ -143,6 +145,8 @@ public:
 		
 		mypayload[17] = destinationaddr.get_hex((seq >> 4) & 0xF);
 		mypayload[18] = destinationaddr.get_hex((seq >> 0) & 0xF);
+		
+		mypayload[20] = '\0';
 		
 		//Set IPv6 header fields
 // 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
@@ -162,8 +166,8 @@ public:
 		if( socket != ipv6_stack_.udp.id() )
 		{
 			char str[43];
-			debug_->debug( "Application layer received msg at %lx from %s", (long long unsigned)(radio_->id()), socket.remote_host.get_address(str) );
-			debug_->debug( "    Size: %i Content: %s ", len, buf);
+			debug_->debug( "Application layer received msg at %lx from %s; %i: %s", (long long unsigned)(radio_->id()), socket.remote_host.get_address(str), len, buf );
+// 			debug_->debug( "    Size: %i Content: %s ", len, buf);
 		}
 	}
 
