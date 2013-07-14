@@ -42,8 +42,10 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			
-			
 			enum { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
+			enum {
+				BCAST_INTERVAL = 200
+			};
 			
 			void init(typename Radio::self_pointer_t radio) {
 				radio_ = radio;
@@ -70,10 +72,34 @@ namespace wiselib {
 		
 		private:
 			
+			void broadcast_state() {
+				nap_control_->push_caffeine();
+				radio_->send(BROADCAST_ADDRESS, tree_state_.size(), tree_state_.data());
+				nap_control_->pop_caffeine();
+			}
+			
 			void on_receive(...) {
+				TreeStateMessageT msg = ...;
+				node_id_t from = ...;
+				abs_millis_t t_recv = ...;
+				
+				msg.check();
+				if(msg.reason() == TreeStateMessage::REASON_REGULAR_BCAST) {
+					RegularEventT &event = regular_broadcasts_[from];
+					event.hit(t_recv, clock_, radio_->id());
+					event.end_waiting();
+					
+					void *v = hardcore_cast<void*>(from);
+					event.template start_waiting_timer<
+						self_type, &self_type::begin_wait_for_regular_broadcast,
+						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
+				}
 			}
 			
 			typename Radio::self_pointer_t radio_;
+			typename Clock::self_pointer_t clock_;
+			typename Timer::self_pointer_t timer_;
+			TreeStateMessageT tree_state_;
 		
 	}; // SelfStabilizingTree
 }
