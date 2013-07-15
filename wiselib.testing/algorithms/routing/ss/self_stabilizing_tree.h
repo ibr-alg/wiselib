@@ -20,6 +20,12 @@
 #ifndef SELF_STABILIZING_TREE_H
 #define SELF_STABILIZING_TREE_H
 
+#include <util/serialization/serialization.h>
+#include <algorithms/semantic_entities/token_construction/nap_control.h>
+#include "tree_state_message.h"
+#include <algorithms/semantic_entities/token_construction/regular_event.h>
+#include <util/types.h>
+
 namespace wiselib {
 	
 	/**
@@ -31,75 +37,324 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename Radio_P,
+		typename Clock_P,
+		typename Timer_P,
+		typename NapControl_P = NapControl<OsModel_P, Radio_P>
 	>
 	class SelfStabilizingTree {
 		public:
-			typedef SelfStabilizingTree<OsModel_P, Radio_P> self_type;
+			typedef SelfStabilizingTree<OsModel_P, Radio_P, Clock_P, NapControl_P> self_type;
 				
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
+			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
+			typedef Timer_P Timer;
+			typedef NapControl_P NapControl;
+			typedef TreeStateMessage<OsModel, Radio> TreeStateMessageT;
+			typedef typename TreeStateMessageT::TreeStateT TreeStateT;
+			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			
-			enum { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
+			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum {
-				BCAST_INTERVAL = 200
+				BCAST_INTERVAL = 200,
+				DEAD_INTERVAL = 2 * BCAST_INTERVAL
+			};
+			enum { NULL_NODE_ID = Radio::NULL_NODE_ID, BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS };
+			enum { npos = (size_type)(-1) };
+			enum { MAX_NEIGHBORS = 16 };
+			
+			struct NeighborEntry {
+				// {{{
+				NeighborEntry() : address_(NULL_NODE_ID) {
+				}
+				
+				bool used() {
+					return address_ != NULL_NODE_ID;
+				}
+				
+				TreeState state_;
+				node_id_t address_;
+				abs_millis_t last_update_;
+				// }}}
 			};
 			
-			void init(typename Radio::self_pointer_t radio) {
+			/**
+			 * @ingroup Neighbor_concept
+			 */
+			class Neighbor {
+				// {{{
+				public:
+					node_id_t id() { return id_; }
+					State state() { return state_; }
+					
+					node_id_t id_;
+					State state_;
+				// }}}
+			};
+			
+			class iterator {
+				// {{{
+				public:
+					iterator(NeighborEntry* neighbors, size_type index)
+						: neighbors_(neighbors), index_(index) {
+						update();
+					}
+					
+					Neighbor operator*() {
+						return neighbor_;
+					}
+					
+					bool at_end() {
+						return index_ == npos;
+					}
+					
+					iterator& operator++() {
+						if(index_ < MAX_NEIGHBORS - 1) {
+							index_ = npos;
+						}
+						else {
+							index_++;
+						}
+						update();
+					}
+					
+					void update() {
+						if(index_ == npos) {
+							neighbor_.address_ = NULL_NODE_ID;
+						}
+						else {
+							neighbor_.address_ = neighbors_[index_].address_;
+							neighbor_.state_ = (index_ == 0) ? OUT_EDGE : IN_EDGE;
+						}
+						if(neighbor_.address_ == NULL_NODE_ID) {
+							index_ = npos;
+						}
+					}
+					
+				private:
+					NeighborEntry *neighbors_;
+					size_type index_;
+					Neighbor neighbor_;
+				// }}}
+			}; // iterator
+			
+			void init(typename Radio::self_pointer_t radio, typename Clock::self_pointer_t clock, typename Timer::self_pointer_t timer, typename NapControl::self_pointer_t nap_control) {
 				radio_ = radio;
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+				clock_ = clock;
+				timer_ = timer;
+				new_neighbors_ = false;
+				lost_neighbors_ = false;
+				nap_control_ = nap_control;
 			}
 			
 			iterator begin_neighbors() {
+				return iterator(neighbors_, 0);
 			}
 			
 			iterator end_neighbors() {
+				return iterator(neighbors_, npos);
 			}
 			
 			node_id_t parent() {
+				return neighbors_[0].address_;
+			}
+			
+			TreeStateT& state() {
+				return tree_state_message_.tree_state();
 			}
 			
 			/**
 			 * @return The number of childs with a lower node id than n.
 			 */
 			size_type child_index(node_id_t n) {
+				size_type idx = find_neighbor_position(n);
+				return (neighbors_[idx].address_ == n) ? idx : npos;
 			}
 			
 			size_type size() {
+				return neighbors_count_;
 			}
+			
+			
 		
 		private:
 			
 			void broadcast_state() {
 				nap_control_->push_caffeine();
-				radio_->send(BROADCAST_ADDRESS, tree_state_.size(), tree_state_.data());
+				radio_->send(BROADCAST_ADDRESS, tree_state_message_.size(), tree_state_message_.data());
 				nap_control_->pop_caffeine();
 			}
 			
-			void on_receive(...) {
-				TreeStateMessageT msg = ...;
-				node_id_t from = ...;
-				abs_millis_t t_recv = ...;
+			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
+				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
+					return;
+				}
 				
+				TreeStateMessageT &msg = *reinterpret_cast<TreeStateMessageT*>(data);
+				abs_millis_t t_recv = now();
 				msg.check();
-				if(msg.reason() == TreeStateMessage::REASON_REGULAR_BCAST) {
+				
+				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
 					RegularEventT &event = regular_broadcasts_[from];
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					void *v = hardcore_cast<void*>(from);
+					void *v;
+					hardcore_cast(v, from);
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
 				}
+				
+				
+			}
+			
+			size_type find_neighbor_position(node_id_t a) {
+				if(neighbors_[0].address_ == a) { return 0; }
+				
+				node_id_t l = 1;
+				node_id_t r = neighbors_count_;
+				
+				while(l + 1 < r) {
+					node_id_t m = (l + r) / 2;
+					if(neighbors_[m].address_ == a) { return m; }
+					else if(neighbors_[m].address_ < a) { l = m; }
+					else { r = m; }
+				}
+				if(neighbors_[l].address_ == a) { return l; }
+				//if(neighbors_[r].address_ == a) { return r; }
+				//return npos;
+				return r;
+			}
+			
+			void add_neighbor(node_id_t addr, TreeStateT& state) {
+				if(neighbors_count_ == MAX_NEIGHBORS) {
+					return;
+				}
+				
+				size_type p = find_neighbor_position(addr);
+				if(neighbors_[p].address_ == addr) {
+					neighbors_[p].state_ = state;
+					neighbors_[p].last_update_ = now();
+				}
+				else {
+					if(p == 0) {
+						if(neighbors_count_ > 0) {
+							size_type pp = find_neighbor_position(neighbors_[0].address_);
+							insert_child(pp, neighbors_[0].address_, neighbors_[0].state_, neighbors_[0].last_update_);
+						}
+						neighbors_[0].address_ = addr;
+						neighbors_[0].state_ = state;
+						neighbors_[0].last_update_ = now();
+					}
+					else {
+						insert_child(p, addr, state, now());
+					}
+				}
+				new_neighbors_ = true;
+			}
+			
+			void insert_child(size_type p, node_id_t addr, TreeStateT& state, abs_millis_t last_update) {
+				assert(p > 0);
+				assert(p != npos);
+				
+				if(p < neighbors_count_) {
+					memmove(neighbors_ + p + 1, neighbors_ + p, (neighbors_count_ - p)*sizeof(NeighborEntry));
+				}
+				neighbors_[p].address_ = addr;
+				neighbors_[p].state_ = state;
+				neighbors_[p].last_update_ = last_update;
+				neighbors_count_++;
+			}
+			
+			void cleanup_dead_neighbors() {
+				size_type p = 0;
+				while(p < neighbors_count_) {
+					if(neighbors_[p].last_update_ + DEAD_INTERVAL <= now()) {
+						// TODO: cancel timers where necessary!
+						
+						//neighbors_[p].address_ = NULL_NODE_ID;
+						memmove(neighbors_ + p, neighbors_ + p + 1, (neighbors_count_ - p) * sizeof(NeighborEntry));
+						neighbors_count_--;
+						lost_neighbors_ = true;
+					}
+					else {
+						p++;
+					}
+				}
+			}
+			
+			bool update_state() {
+				cleanup_dead_neighbors();
+				
+				::uint8_t distance = -1;
+				node_id_t parent = radio_->id();
+				node_id_t root = radio_->id();
+				size_type parent_idx = npos;
+				
+				for(size_type i = 0; i < MAX_NEIGHBORS; i++) {
+					NeighborEntry &e = neighbors_[i];
+					if(e.state_.parent() == radio_->id()) { continue; }
+					if(e.state_.root() == NULL_NODE_ID || e.state_.distance() == (::uint8_t)(-1)) { continue; }
+					
+					if(e.state_.root() < root) {
+						parent = e.address_;
+						parent_idx = i;
+						root = e.state_.root();
+						distance = e.state_.distance() + 1;
+					}
+					else if(e.state_.root() == root && (e.state_.distance() + 1) < distance) {
+						parent = e.address_;
+						parent_idx = i;
+						distance = e.state_.distance() + 1;
+					}
+				}
+				
+				if(root == radio_->id()) {
+					distance = 0;
+					parent = radio_->id();
+					parent_idx = npos;
+				}
+				
+				bool c_a = state().set_distance(distance);
+				bool c_b = state().set_parent(parent);
+				bool c_c = state().set_root(root);
+				bool changed = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
+				
+				new_neighbors_ = false;
+				lost_neighbors_ = false;
+				
+				return changed;
+			}
+			
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
 			}
 			
 			typename Radio::self_pointer_t radio_;
 			typename Clock::self_pointer_t clock_;
 			typename Timer::self_pointer_t timer_;
-			TreeStateMessageT tree_state_;
+			typename NapControl::self_pointer_t nap_control_;
+			TreeStateMessageT tree_state_message_;
+			bool new_neighbors_;
+			bool lost_neighbors_;
+			
+			size_type neighbors_count_;
+			NeighborEntry neighbors_[MAX_NEIGHBORS];
+			RegularEventT regular_broadcasts_;
 		
 	}; // SelfStabilizingTree
 }

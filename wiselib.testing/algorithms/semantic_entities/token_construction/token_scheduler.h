@@ -89,8 +89,8 @@ namespace wiselib {
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
 			typedef SemanticEntityRegistry<OsModel> SemanticEntityRegistryT;
 			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
-			typedef SelfStabilizingTree<OsModel> GlobalTreeT;
 			typedef NapControl<OsModel, Radio> NapControlT;
+			typedef SelfStabilizingTree<OsModel, Radio, Clock, Timer, NapControlT> GlobalTreeT;
 			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			
 			enum SpecialAddresses {

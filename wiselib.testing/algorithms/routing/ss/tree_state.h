@@ -17,81 +17,50 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef SEMANTIC_ENTITY_AMQ_NEIGHBORHOOD_H
-#define SEMANTIC_ENTITY_AMQ_NEIGHBORHOOD_H
+#ifndef TREE_STATE_H
+#define TREE_STATE_H
 
 namespace wiselib {
 	
 	/**
 	 * @brief
 	 * 
-	 * @ingroup nhood_concept
-	 * @ingroup better_nhood_concept
+	 * @ingroup
 	 * 
 	 * @tparam 
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename Radio_P
 	>
-	class SemanticEntityAmqNeighborhood {
+	class TreeState {
 		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef Amq_P AmqT;
+			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
 			
-			typedef ... iterator;
-			typedef ... GlobalTreeT;
-			
-			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE };
-			
-			iterator begin_childs(const SemanticEntityId& se_id) {
-				// TODO
+			TreeState() : parent_(0), root_(-1), distance_(-1) {
 			}
 			
-			iterator end_childs() {
-				// TODO
-			}
+			node_id_t parent() { return parent_; }
+			void set_parent(node_id_t p) { parent_ = p; }
 			
-			void set_child_amq(node_id_t child_id, AmqT& amq) {
-				// TODO
-			}
+			node_id_t root() { return root_; }
+			void set_root(node_id_t r) { root_ = r; }
 			
-			/**
-			 * Find the next receiver in the ring that should receive
-			 * communication coming from @a sender.
-			 * That is, the next child with that se_id, if that doesnt exist
-			 * the parent, if it came from parent, we wanna receive the packet
-			 * ourselves.
-			 */
-			node_id_t forward_address(node_id_t my_node_id, const SemanticEntityId& se_id, node_id_t sender, bool forward) {
-				// TODO
-			}
-			
-			AmqT& amq() {
-				return global_tree_.user_data();
-			}
-			
-			void on_neighborhood_changed(...) {
-				AmqT a;
-				for(typename GlobalTreeT::iterator iter = global_tree_.begin_neighbors(); iter != global_tree_.end_neighbors(); ++iter) {
-					if(iter->state() == GlobalTreeT::IN_EDGE) {
-						a |= iter->user_data();
-					}
-				}
-				
-				global_tree_.set_user_data(a);
-			}
+			distance_t distance() { return distance_; }
+			void set_distance(distance_t s) { distance_ = s; }
 			
 		private:
-			
-			AmqT amq_;
-			GlobalTreeT *global_tree_;
-			ChildMapT childs_;
+			node_id_t parent_;
+			node_id_t root_;
+			::uint32_t distance_;
 		
-	}; // SemanticEntityAmqNeighborhood
+	}; // TreeState
 }
 
-#endif // SEMANTIC_ENTITY_AMQ_NEIGHBORHOOD_H
+#endif // TREE_STATE_H
 
