@@ -20,6 +20,8 @@
 #ifndef TREE_STATE_H
 #define TREE_STATE_H
 
+#include <external_interface/external_interface.h>
+
 namespace wiselib {
 	
 	/**
@@ -41,23 +43,24 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
+			typedef ::uint8_t distance_t;
 			
 			TreeState() : parent_(0), root_(-1), distance_(-1) {
 			}
 			
-			node_id_t parent() { return parent_; }
+			node_id_t parent() const { return parent_; }
 			void set_parent(node_id_t p) { parent_ = p; }
 			
-			node_id_t root() { return root_; }
+			node_id_t root() const { return root_; }
 			void set_root(node_id_t r) { root_ = r; }
 			
-			distance_t distance() { return distance_; }
+			distance_t distance() const { return distance_; }
 			void set_distance(distance_t s) { distance_ = s; }
 			
 		private:
 			node_id_t parent_;
 			node_id_t root_;
-			::uint32_t distance_;
+			distance_t distance_;
 		
 	}; // TreeState
 }

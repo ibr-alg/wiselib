@@ -20,6 +20,8 @@
 #ifndef SEMANTIC_ENTITY_REGISTRY_H
 #define SEMANTIC_ENTITY_REGISTRY_H
 
+#include "semantic_entity_id.h"
+
 namespace wiselib {
 	
 	/**
@@ -30,7 +32,8 @@ namespace wiselib {
 	 * @tparam 
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename SemanticEntity_P
 	>
 	class SemanticEntityRegistry {
 		
@@ -38,15 +41,24 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef SemanticEntity_P SemanticEntityT;
+			
+			enum { MAX_SEMANTIC_ENTITIES = 8 };
 			
 			typedef MapStaticVector<OsModel, SemanticEntityId, SemanticEntityT, MAX_SEMANTIC_ENTITIES> SemanticEntityMapT;
 			
-			void add(const SemanticEntityId& id) {
+			SemanticEntityT& add(const SemanticEntityId& id) {
 				// TODO
+				map_[id] = SemanticEntityT();
+				return map_[id];
 			}
 			
-			SemanticEntityT& get(const SemanticEntityId& id) {
+			SemanticEntityT* get(const SemanticEntityId& id) {
 				// TODO
+				if(map_.contains(id)) {
+					return &map_[id];
+				}
+				return 0;
 			}
 		
 		private:

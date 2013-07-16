@@ -28,6 +28,7 @@
 
 #include <algorithms/protocols/reliable_transport/reliable_transport.h>
 #include <algorithms/routing/ss/self_stabilizing_tree.h>
+#include <algorithms/bloom_filter/bloom_filter.h>
 
 #include "regular_event.h"
 #include "semantic_entity.h"
@@ -36,6 +37,7 @@
 #include "semantic_entity_forwarding.h"
 #include "semantic_entity_id.h"
 #include "semantic_entity_registry.h"
+#include "token_state_message.h"
 
 namespace wiselib {
 	
@@ -83,15 +85,18 @@ namespace wiselib {
 				MAX_NEIGHBORS = 8
 			};
 			
-			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
-			typedef SemanticEntityAmqNeighborhood<OsModel> SemanticEntityNeighborhoodT;
-			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT> SemanticEntityForwardingT;
-			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
-			typedef SemanticEntityRegistry<OsModel> SemanticEntityRegistryT;
-			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
 			typedef NapControl<OsModel, Radio> NapControlT;
-			typedef SelfStabilizingTree<OsModel, Radio, Clock, Timer, NapControlT> GlobalTreeT;
+			typedef BloomFilter<OsModel, SemanticEntityId, 256> AmqT;
+			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, NapControlT> GlobalTreeT;
+			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
+			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
+			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, Radio> SemanticEntityNeighborhoodT;
+			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, Radio> SemanticEntityForwardingT;
+			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
+			typedef SemanticEntityRegistry<OsModel, SemanticEntityT> SemanticEntityRegistryT;
 			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
+			typedef TokenStateMessage<OsModel, SemanticEntityT, Radio> TokenStateMessageT;
+			typedef typename TokenStateMessageT::TokenState TokenState;
 			
 			enum SpecialAddresses {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
@@ -105,6 +110,15 @@ namespace wiselib {
 			enum ReturnValues {
 				SUCCESS = OsModel::SUCCESS,
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
+			};
+			
+			enum Timings {
+				HANDOVER_RETRY_INTERVAL = 1000,
+				
+				/**
+				 * How long should we keep the token once we have it?
+				 */
+				ACTIVITY_PERIOD = 1000,
 			};
 			
 			// }}}
@@ -147,18 +161,23 @@ namespace wiselib {
 				debug_ = debug;
 				rand_ = rand;
 				
+				nap_control_.init(radio_);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
 				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
 				end_activity_callback_ = end_activity_callback_t();
 				
-				global_tree_.init();
-				forwarding_.init();
+				global_tree_.init(radio_, clock_, timer_, &nap_control_);
+				forwarding_.init(radio_, &neighborhood_);
 				
 				aggregator_.init(tuplestore);
 			}
 			
-			void add_semantic_entity(const SemanticEntityId& se_id) {
+			void set_end_activity_callback(end_activity_callback_t cb) {
+				end_activity_callback_ = cb;
+			}
+			
+			void add_entity(const SemanticEntityId& se_id) {
 				SemanticEntityT& se = registry_.add(se_id);
 				
 				transport_.register_endpoint(
@@ -213,18 +232,6 @@ namespace wiselib {
 				packet_info->destroy();
 			}
 			
-			void on_new_neighbor_payload(..., node_id_t from) {
-				if(state & GlobalTreeT::IN_EDGE) {
-					neighborhood_.set_child_amq(message.amq());
-				}
-			}
-			
-			void on_neighbor_lost(...) {
-				if(state & GlobalTreeT::IN_EDGE) {
-					neighborhood_.remove_child(from);
-				}
-			}
-			
 			///@name Token Handover
 			///@{
 			//{{{
@@ -264,7 +271,7 @@ namespace wiselib {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						msg.set_token_state(se->token());
 						message.set_payload_size(msg.size());
-						ring_transport_.expect_answer(endpoint);
+						transport_.expect_answer(endpoint);
 						return true;
 					}
 					
@@ -306,11 +313,11 @@ namespace wiselib {
 				return false;
 			}
 			
-			bool consume_handover_initiator(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) { return false; }
+			void consume_handover_initiator(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) { return; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return false; }
+				if(!se) { return; }
 				
 				if(*message.payload() == 'a') {
 					se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
@@ -321,16 +328,16 @@ namespace wiselib {
 				}
 			}
 			
-			bool event_handover_initiator(int event, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) { return false; }
+			void event_handover_initiator(int event, typename ReliableTransportT::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) { return; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return false; }
+				if(!se) { return; }
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
 						nap_control_.push_caffeine();
-						timer_->template set_timer<self_type, & self_type::initiator_handover>(HANDOVER_RETRY_INTERVAL, this, se);
+						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, se);
 						break;
 						
 					case ReliableTransportT::EVENT_OPEN:
@@ -373,11 +380,11 @@ namespace wiselib {
 				return false;
 			}
 			
-			bool consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) { return false; }
+			void consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) { return; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return false; }
+				if(!se) { return; }
 				
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::INIT: {
@@ -389,17 +396,17 @@ namespace wiselib {
 					}
 					
 					case SemanticEntityT::RECV_AGGREGATES: {
-						aggregator.read_buffer(message.channel(), message.payload(), message.payload_size());
+						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
 				} // switch()
 			}
 			
-			bool event_handover_recepient(int event, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) { return false; }
+			void event_handover_recepient(int event, typename ReliableTransportT::Endpoint& endpoint) {
+				if(endpoint.remote_address() == radio_->id()) { return; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return false; }
+				if(!se) { return; }
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_OPEN:
@@ -419,10 +426,10 @@ namespace wiselib {
 			//}}}
 			///@}
 			
-			void process_token_state(TokenStateMessageT msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
+			bool process_token_state(TokenStateMessageT msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
 				TokenState s = msg.token_state();
 				bool activating = false;
-				bool activating_before = se.is_active(radio_->id());
+				bool active_before = se.is_active(radio_->id());
 				se.set_prev_token_count(s.count());
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
@@ -437,6 +444,10 @@ namespace wiselib {
 			
 			void begin_activity(void* se_)  {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				begin_activity(se);
+			}
+				
+			void begin_activity(SemanticEntityT &se) {
 				
 				// begin_activity might have been called at beginning
 				// and then again (during the actual activity)
@@ -444,7 +455,7 @@ namespace wiselib {
 				if(se.in_activity_phase()) { return; }
 				se.begin_activity_phase();
 				nap_control_.push_caffeine();
-				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, se_);
+				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, reinterpret_cast<void*>(&se));
 			}
 			
 			/**
@@ -464,6 +475,15 @@ namespace wiselib {
 			
 			/// ditto.
 			void end_activity(void* se_) { end_activity(*reinterpret_cast<SemanticEntityT*>(se_)); }
+			
+			
+			void begin_wait_for_token(void* se_) {
+				// TODO
+			}
+			
+			void end_wait_for_token(void* se_) {
+				// TODO
+			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);

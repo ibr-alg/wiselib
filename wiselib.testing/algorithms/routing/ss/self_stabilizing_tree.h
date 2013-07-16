@@ -37,6 +37,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename UserData_P,
 		typename Radio_P,
 		typename Clock_P,
 		typename Timer_P,
@@ -44,7 +45,8 @@ namespace wiselib {
 	>
 	class SelfStabilizingTree {
 		public:
-			typedef SelfStabilizingTree<OsModel_P, Radio_P, Clock_P, NapControl_P> self_type;
+			typedef SelfStabilizingTree self_type;
+			typedef self_type* self_pointer_t;
 				
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
@@ -56,8 +58,9 @@ namespace wiselib {
 			typedef typename Clock::time_t time_t;
 			typedef ::uint32_t abs_millis_t;
 			typedef Timer_P Timer;
-			typedef NapControl_P NapControl;
-			typedef TreeStateMessage<OsModel, Radio> TreeStateMessageT;
+			typedef NapControl_P NapControlT;
+			typedef UserData_P UserData;
+			typedef TreeStateMessage<OsModel, Radio, UserData> TreeStateMessageT;
 			typedef typename TreeStateMessageT::TreeStateT TreeStateT;
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			
@@ -69,19 +72,30 @@ namespace wiselib {
 			enum { NULL_NODE_ID = Radio::NULL_NODE_ID, BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS };
 			enum { npos = (size_type)(-1) };
 			enum { MAX_NEIGHBORS = 16 };
+			enum EventType {
+				NEW_NEIGHBOR, LOST_NEIGHBOR, UPDATED_NEIGHBOR
+			};
+			
+			typedef delegate1<void, EventType> event_callback_t;
 			
 			struct NeighborEntry {
 				// {{{
 				NeighborEntry() : address_(NULL_NODE_ID) {
 				}
 				
+				void from_message(node_id_t addr, const TreeStateMessageT& m, abs_millis_t t) {
+					message_ = m;
+					last_update_ = t;
+					address_ = addr;
+				}
+				
 				bool used() {
 					return address_ != NULL_NODE_ID;
 				}
 				
-				TreeState state_;
-				node_id_t address_;
+				TreeStateMessageT message_;
 				abs_millis_t last_update_;
+				node_id_t address_;
 				// }}}
 			};
 			
@@ -145,7 +159,7 @@ namespace wiselib {
 				// }}}
 			}; // iterator
 			
-			void init(typename Radio::self_pointer_t radio, typename Clock::self_pointer_t clock, typename Timer::self_pointer_t timer, typename NapControl::self_pointer_t nap_control) {
+			void init(typename Radio::self_pointer_t radio, typename Clock::self_pointer_t clock, typename Timer::self_pointer_t timer, typename NapControlT::self_pointer_t nap_control) {
 				radio_ = radio;
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				clock_ = clock;
@@ -153,6 +167,10 @@ namespace wiselib {
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
 				nap_control_ = nap_control;
+			}
+			
+			void reg_event_callback(event_callback_t cb) {
+				event_callback_ = cb;
 			}
 			
 			iterator begin_neighbors() {
@@ -167,7 +185,15 @@ namespace wiselib {
 				return neighbors_[0].address_;
 			}
 			
-			TreeStateT& state() {
+			node_id_t child(size_type idx) {
+				return neighbors_[idx + 1].address_;
+			}
+			
+			UserData child_user_data(size_type idx) {
+				return neighbors_[idx + 1].message_.user_data();
+			}
+			
+			TreeStateT state() {
 				return tree_state_message_.tree_state();
 			}
 			
@@ -179,10 +205,13 @@ namespace wiselib {
 				return (neighbors_[idx].address_ == n) ? idx : npos;
 			}
 			
+			size_type childs() {
+				return (parent() == NULL_NODE_ID) ? neighbors_count_ : neighbors_count_ - 1;
+			}
+			
 			size_type size() {
 				return neighbors_count_;
 			}
-			
 			
 		
 		private:
@@ -215,7 +244,15 @@ namespace wiselib {
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
 				}
 				
-				
+				add_neighbor(from, msg);
+			}
+			
+			void begin_wait_for_regular_broadcast(void*) {
+				// TODO
+			}
+			
+			void end_wait_for_regular_broadcast(void*) {
+				// TODO
 			}
 			
 			size_type find_neighbor_position(node_id_t a) {
@@ -236,43 +273,47 @@ namespace wiselib {
 				return r;
 			}
 			
-			void add_neighbor(node_id_t addr, TreeStateT& state) {
+			void add_neighbor(node_id_t addr, const TreeStateMessageT& msg) {
 				if(neighbors_count_ == MAX_NEIGHBORS) {
 					return;
 				}
 				
 				size_type p = find_neighbor_position(addr);
 				if(neighbors_[p].address_ == addr) {
-					neighbors_[p].state_ = state;
-					neighbors_[p].last_update_ = now();
+					neighbors_[p].from_message(addr, msg, now());
+					
+					if(event_callback_) {
+						event_callback_(UPDATED_NEIGHBOR);
+					}
 				}
 				else {
 					if(p == 0) {
 						if(neighbors_count_ > 0) {
 							size_type pp = find_neighbor_position(neighbors_[0].address_);
-							insert_child(pp, neighbors_[0].address_, neighbors_[0].state_, neighbors_[0].last_update_);
+							insert_child(pp, neighbors_[0].address_, neighbors_[0].message_, neighbors_[0].last_update_);
 						}
-						neighbors_[0].address_ = addr;
-						neighbors_[0].state_ = state;
-						neighbors_[0].last_update_ = now();
+						neighbors_[0].from_message(addr, msg, now());
 					}
 					else {
-						insert_child(p, addr, state, now());
+						insert_child(p, addr, msg, now());
 					}
+					
+					neighbors_count_++;
+					if(event_callback_) {
+						event_callback_(NEW_NEIGHBOR);
+					}
+					new_neighbors_ = true;
 				}
-				new_neighbors_ = true;
 			}
 			
-			void insert_child(size_type p, node_id_t addr, TreeStateT& state, abs_millis_t last_update) {
+			void insert_child(size_type p, node_id_t addr, const TreeStateMessageT& msg, abs_millis_t last_update) {
 				assert(p > 0);
 				assert(p != npos);
 				
 				if(p < neighbors_count_) {
 					memmove(neighbors_ + p + 1, neighbors_ + p, (neighbors_count_ - p)*sizeof(NeighborEntry));
 				}
-				neighbors_[p].address_ = addr;
-				neighbors_[p].state_ = state;
-				neighbors_[p].last_update_ = last_update;
+				neighbors_[p].from_message(addr, msg, last_update);
 				neighbors_count_++;
 			}
 			
@@ -286,11 +327,14 @@ namespace wiselib {
 						memmove(neighbors_ + p, neighbors_ + p + 1, (neighbors_count_ - p) * sizeof(NeighborEntry));
 						neighbors_count_--;
 						lost_neighbors_ = true;
+						if(event_callback_) {
+							event_callback_(LOST_NEIGHBOR);
+						}
 					}
 					else {
 						p++;
 					}
-				}
+				} // while
 			}
 			
 			bool update_state() {
@@ -336,6 +380,14 @@ namespace wiselib {
 				return changed;
 			}
 			
+			UserData& user_data() {
+				return tree_state_message_.user_data();
+			}
+			
+			void set_user_data(UserData& ud) {
+				tree_state_message_.set_user_data(ud);
+			}
+			
 			abs_millis_t absolute_millis(const time_t& t) {
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
 			}
@@ -347,14 +399,15 @@ namespace wiselib {
 			typename Radio::self_pointer_t radio_;
 			typename Clock::self_pointer_t clock_;
 			typename Timer::self_pointer_t timer_;
-			typename NapControl::self_pointer_t nap_control_;
+			typename NapControlT::self_pointer_t nap_control_;
 			TreeStateMessageT tree_state_message_;
 			bool new_neighbors_;
 			bool lost_neighbors_;
 			
 			size_type neighbors_count_;
 			NeighborEntry neighbors_[MAX_NEIGHBORS];
-			RegularEventT regular_broadcasts_;
+			RegularEventT regular_broadcasts_[MAX_NEIGHBORS];
+			event_callback_t event_callback_;
 		
 	}; // SelfStabilizingTree
 }

@@ -94,11 +94,11 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_TREE_STATE, tree_state);
 			}
 			
-			UserDataT user_data() {
-				return wiselib::read<OsModel, block_data_t UserDataT>(data_ + POS_USER_DATA);
+			UserData user_data() {
+				return wiselib::read<OsModel, block_data_t, UserData>(data_ + POS_USER_DATA);
 			}
 			
-			void set_user_data(UserDataT& user_data) {
+			void set_user_data(UserData& user_data) {
 				wiselib::write<OsModel>(data_ + POS_USER_DATA, user_data);
 			}
 			

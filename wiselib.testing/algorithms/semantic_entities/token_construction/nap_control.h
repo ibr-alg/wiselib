@@ -57,6 +57,9 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef Radio_P Radio;
+			typedef NapControl self_type;
+			typedef self_type* self_pointer_t;
 			
 			NapControl() : caffeine_(0) {
 			}
@@ -69,19 +72,19 @@ namespace wiselib {
 			/**
 			 */
 			void push_caffeine(void* = 0) {
-				if(caffeine_level_ == 0) {
+				if(caffeine_ == 0) {
 					radio_->enable_radio();
 				}
-				caffeine_level_++;
+				caffeine_++;
 			}
 			
 			/**
 			 */
 			void pop_caffeine(void* = 0) {
-				assert(caffeine_level_ > 0);
-				caffeine_level_--;
+				assert(caffeine_ > 0);
+				caffeine_--;
 				
-				if(caffeine_level_ == 0) {
+				if(caffeine_ == 0) {
 					radio_->disable_radio();
 				}
 			}

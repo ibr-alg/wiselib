@@ -33,6 +33,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename Value_P,
 		int Size_P = 256
 	>
 	class BloomFilter {
@@ -41,10 +42,11 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef Value_P value_type;
 			
 			enum { SIZE = Size_P, SIZE_BYTES = DivCeil<SIZE, 8>::value };
 			
-			typedef BloomFilter<OsModel, SIZE> self_type;
+			typedef BloomFilter self_type;
 			
 			static self_type* create() {
 				self_type *r = reinterpret_cast<self_type*>(
@@ -61,9 +63,25 @@ namespace wiselib {
 				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
 			}
 			
+			void insert(const value_type& v) {
+				add(v.hash());
+			}
+			
+			bool contains(const value_type& v) {
+				return test(v.hash());
+			}
+			
+			
+			
+			
 			void add(size_type v) {
 				v %= SIZE;
 				data_[byte(v)] |= (1 << bit(v));
+			}
+			
+			bool test(size_type v) {
+				v %= SIZE;
+				return data_[byte(v)] & (1 << bit(v));
 			}
 			
 			void operator|=(self_type& other) {
