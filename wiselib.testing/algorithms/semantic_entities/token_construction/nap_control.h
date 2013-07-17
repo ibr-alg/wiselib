@@ -17,88 +17,84 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef BLOOM_FILTER_H
-#define BLOOM_FILTER_H
-
-#include <util/meta.h>
+#ifndef NAP_CONTROL_H
+#define NAP_CONTROL_H
 
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Control sleep state of the node.
+	 * 
+	 * 
+	 * 
+	 *            COFFEE !!!
+	 *
+	 * 
+	 *                (
+	 *             )  )  )
+	 *            (  (  (
+	 *            )  )  )
+	 *            ,-----.
+	 *           ' ~ ~ ~ `,
+	 *          |\~ ~ ~ ~,|--.
+	 *          | `-._.-' | )|
+	 *          |         |_/
+	 *          |         |
+	 *          \         |
+	 *           `-.___.-'
 	 * 
 	 * @ingroup
 	 * 
-	 * @tparam Size_P size in bits
+	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
-		typename Value_P,
-		int Size_P = 256
+		typename Radio_P
 	>
-	class BloomFilter {
+	class NapControl {
 		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef Value_P value_type;
+			typedef Radio_P Radio;
+			typedef NapControl self_type;
+			typedef self_type* self_pointer_t;
 			
-			enum { SIZE = Size_P, SIZE_BYTES = DivCeil<SIZE, 8>::value };
-			
-			typedef BloomFilter self_type;
-			
-			static self_type* create() {
-				self_type *r = reinterpret_cast<self_type*>(
-						::get_allocator().template allocate_array<block_data_t>(SIZE_BYTES)
-				);
-				r->clear();
+			NapControl() : caffeine_(0) {
 			}
 			
-			void clear() {
-				memset(data_, 0x00, SIZE_BYTES);
-			}
-		
-			void destroy() {
-				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
+			void init(typename Radio::self_pointer_t radio) {
+				radio_ = radio;
+				caffeine_ = 0;
 			}
 			
-			void insert(const value_type& v) {
-				add(v.hash());
+			/**
+			 */
+			void push_caffeine(void* = 0) {
+				if(caffeine_ == 0) {
+					radio_->enable_radio();
+				}
+				caffeine_++;
 			}
 			
-			bool contains(const value_type& v) {
-				return test(v.hash());
-			}
-			
-			
-			
-			
-			void add(size_type v) {
-				v %= SIZE;
-				data_[byte(v)] |= (1 << bit(v));
-			}
-			
-			bool test(size_type v) {
-				v %= SIZE;
-				return data_[byte(v)] & (1 << bit(v));
-			}
-			
-			void operator|=(self_type& other) {
-				for(size_type i = 0; i < SIZE_BYTES; i++) {
-					data_[i] |= other.data_[i];
+			/**
+			 */
+			void pop_caffeine(void* = 0) {
+				assert(caffeine_ > 0);
+				caffeine_--;
+				
+				if(caffeine_ == 0) {
+					radio_->disable_radio();
 				}
 			}
-			
-		private:
-			
-			static size_type byte(size_type n) { return n / 8; }
-			static size_type bit(size_type n) { return n % 8; }
-			
-			block_data_t data_[0];
 		
-	}; // BloomFilter
+		private:
+			size_type caffeine_;
+			typename Radio::self_pointer_t radio_;
+		
+	}; // NapControl
 }
 
-#endif // BLOOM_FILTER_H
+#endif // NAP_CONTROL_H
 

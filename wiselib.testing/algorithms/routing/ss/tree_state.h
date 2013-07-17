@@ -17,10 +17,10 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef BLOOM_FILTER_H
-#define BLOOM_FILTER_H
+#ifndef TREE_STATE_H
+#define TREE_STATE_H
 
-#include <util/meta.h>
+#include <external_interface/external_interface.h>
 
 namespace wiselib {
 	
@@ -29,76 +29,53 @@ namespace wiselib {
 	 * 
 	 * @ingroup
 	 * 
-	 * @tparam Size_P size in bits
+	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
-		typename Value_P,
-		int Size_P = 256
+		typename Radio_P
 	>
-	class BloomFilter {
+	class TreeState {
 		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef Value_P value_type;
+			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			typedef ::uint8_t distance_t;
 			
-			enum { SIZE = Size_P, SIZE_BYTES = DivCeil<SIZE, 8>::value };
-			
-			typedef BloomFilter self_type;
-			
-			static self_type* create() {
-				self_type *r = reinterpret_cast<self_type*>(
-						::get_allocator().template allocate_array<block_data_t>(SIZE_BYTES)
-				);
-				r->clear();
+			TreeState() : parent_(0), root_(-1), distance_(-1) {
 			}
 			
-			void clear() {
-				memset(data_, 0x00, SIZE_BYTES);
-			}
-		
-			void destroy() {
-				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
-			}
-			
-			void insert(const value_type& v) {
-				add(v.hash());
+			node_id_t parent() const { return parent_; }
+			bool set_parent(node_id_t p) {
+				bool r = (p != parent_);
+				parent_ = p;
+				return r;
 			}
 			
-			bool contains(const value_type& v) {
-				return test(v.hash());
+			node_id_t root() const { return root_; }
+			bool set_root(node_id_t roo) {
+				bool r = (roo != root_);
+				root_ = roo;
+				return r;
 			}
 			
-			
-			
-			
-			void add(size_type v) {
-				v %= SIZE;
-				data_[byte(v)] |= (1 << bit(v));
-			}
-			
-			bool test(size_type v) {
-				v %= SIZE;
-				return data_[byte(v)] & (1 << bit(v));
-			}
-			
-			void operator|=(self_type& other) {
-				for(size_type i = 0; i < SIZE_BYTES; i++) {
-					data_[i] |= other.data_[i];
-				}
+			distance_t distance() const { return distance_; }
+			bool set_distance(distance_t s) {
+				bool r = (s != distance_);
+				distance_ = s;
+				return r;
 			}
 			
 		private:
-			
-			static size_type byte(size_type n) { return n / 8; }
-			static size_type bit(size_type n) { return n % 8; }
-			
-			block_data_t data_[0];
+			node_id_t parent_;
+			node_id_t root_;
+			distance_t distance_;
 		
-	}; // BloomFilter
+	}; // TreeState
 }
 
-#endif // BLOOM_FILTER_H
+#endif // TREE_STATE_H
 

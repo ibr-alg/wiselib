@@ -23,12 +23,7 @@
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
 #include <util/serialization/serialization.h>
-
-// important: include the serialization mechanism
-// for semantic entities, else we will write more info into the buffer
-// than we expect (because of using the default serialization impl)
-// and cause overflow!
-#include "semantic_entity.h"
+#include "tree_state.h"
 
 namespace wiselib {
 	
@@ -41,8 +36,9 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename SemanticEntity_P,
-		typename Radio_P
+		typename Radio_P,
+		typename UserData_P,
+		typename TreeState_P = TreeState<OsModel_P, Radio_P>
 	>
 	class TreeStateMessage {
 		
@@ -54,8 +50,8 @@ namespace wiselib {
 			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
 			typedef ::uint8_t reason_t;
-			typedef ::uint8_t entity_count_t;
-			typedef SemanticEntity_P SemanticEntity;
+			typedef UserData_P UserData;
+			typedef TreeState_P TreeStateT;
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
@@ -64,49 +60,22 @@ namespace wiselib {
 			enum Positions {
 				POS_MESSAGE_ID = 0,
 				POS_REASON = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_ENTITY_COUNT = POS_REASON + sizeof(reason_t),
-				POS_ENTITIES = POS_ENTITY_COUNT + sizeof(entity_count_t),
+				POS_TREE_STATE = POS_REASON + sizeof(reason_t),
+				POS_USER_DATA = POS_TREE_STATE + sizeof(TreeStateT),
+				POS_END = POS_USER_DATA + sizeof(UserData)
 			};
 			
 			enum Reasons {
 				REASON_REGULAR_BCAST = 0,
 				REASON_DIRTY_BCAST = 1,
-				REASON_PASS_TOKEN = 2
 			};
 			
 			enum {
 				MESSAGE_TYPE = 0x77,
-				ENTITY_SIZE = sizeof(typename SemanticEntity::TreeState) + sizeof(SemanticEntityId)
 			};
-			
-			TreeStateMessage() {
-				init();
-			}
 			
 			void init() {
 				set_type(MESSAGE_TYPE);
-				set_entity_count(0);
-			}
-			
-			void add_entity_state(SemanticEntity& se) {
-				// TODO
-				assert(size() + ENTITY_SIZE < MAX_MESSAGE_LENGTH);
-				if(size() + ENTITY_SIZE >= MAX_MESSAGE_LENGTH) {
-					DBG("message full! current pos_ent=%d count=%d ent sz=%d maxlen=%d", (int)POS_ENTITIES, (int)entity_count(), (int)ENTITY_SIZE, (int)MAX_MESSAGE_LENGTH);
-				}
-				//DBG("writing ent desc to %p end=%p", entity_description(entity_count()), data_ + MAX_MESSAGE_LENGTH);
-				wiselib::write<OsModel>(entity_description(entity_count()), se.tree());
-				
-				wiselib::write<OsModel>(entity_description(entity_count()) + sizeof(typename SemanticEntity::TreeState), se.id());
-				set_entity_count(entity_count() + 1);
-			}
-			
-			typename SemanticEntity::TreeState get_entity_state(entity_count_t i) {
-				return wiselib::read<OsModel, block_data_t, typename SemanticEntity::TreeState>(entity_description(i));
-			}
-			
-			SemanticEntityId get_entity_id(entity_count_t i) {
-				return wiselib::read<OsModel, block_data_t, SemanticEntityId>(entity_description(i) + sizeof(typename SemanticEntity::TreeState));
 			}
 			
 			message_id_t type() {
@@ -117,18 +86,28 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, t);
 			}
 			
-			entity_count_t entity_count() {
-				return wiselib::read<OsModel, block_data_t, entity_count_t>(data_ + POS_ENTITY_COUNT);
-			}
-			void set_entity_count(entity_count_t c) {
-				wiselib::write<OsModel>(data_ + POS_ENTITY_COUNT, c);
-			}
-			
 			reason_t reason() {
 				return wiselib::read<OsModel, block_data_t, reason_t>(data_ + POS_REASON);
 			}
+			
 			void set_reason(reason_t c) {
 				wiselib::write<OsModel>(data_ + POS_REASON, c);
+			}
+			
+			TreeStateT tree_state() {
+				return wiselib::read<OsModel, block_data_t, TreeStateT>(data_ + POS_TREE_STATE);
+			}
+			
+			void set_tree_state(TreeStateT& tree_state) {
+				wiselib::write<OsModel>(data_ + POS_TREE_STATE, tree_state);
+			}
+			
+			UserData user_data() {
+				return wiselib::read<OsModel, block_data_t, UserData>(data_ + POS_USER_DATA);
+			}
+			
+			void set_user_data(UserData& user_data) {
+				wiselib::write<OsModel>(data_ + POS_USER_DATA, user_data);
 			}
 			
 			block_data_t* data() {
@@ -136,7 +115,7 @@ namespace wiselib {
 			}
 			
 			size_type size() {
-				return POS_ENTITIES + ENTITY_SIZE * entity_count();
+				return POS_END;
 			}
 			
 			void check() {
@@ -147,10 +126,6 @@ namespace wiselib {
 			}
 			
 		private:
-			block_data_t* entity_description(entity_count_t i) {
-				return data_ + POS_ENTITIES + ENTITY_SIZE * i;
-			}
-		
 			block_data_t data_[MAX_MESSAGE_LENGTH];
 		
 	}; // TreeStateMessage

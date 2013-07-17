@@ -17,10 +17,10 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef BLOOM_FILTER_H
-#define BLOOM_FILTER_H
+#ifndef SEMANTIC_ENTITY_REGISTRY_H
+#define SEMANTIC_ENTITY_REGISTRY_H
 
-#include <util/meta.h>
+#include "semantic_entity_id.h"
 
 namespace wiselib {
 	
@@ -29,76 +29,43 @@ namespace wiselib {
 	 * 
 	 * @ingroup
 	 * 
-	 * @tparam Size_P size in bits
+	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
-		typename Value_P,
-		int Size_P = 256
+		typename SemanticEntity_P
 	>
-	class BloomFilter {
+	class SemanticEntityRegistry {
 		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef Value_P value_type;
+			typedef SemanticEntity_P SemanticEntityT;
 			
-			enum { SIZE = Size_P, SIZE_BYTES = DivCeil<SIZE, 8>::value };
+			enum { MAX_SEMANTIC_ENTITIES = 8 };
 			
-			typedef BloomFilter self_type;
+			typedef MapStaticVector<OsModel, SemanticEntityId, SemanticEntityT, MAX_SEMANTIC_ENTITIES> SemanticEntityMapT;
 			
-			static self_type* create() {
-				self_type *r = reinterpret_cast<self_type*>(
-						::get_allocator().template allocate_array<block_data_t>(SIZE_BYTES)
-				);
-				r->clear();
+			SemanticEntityT& add(const SemanticEntityId& id) {
+				// TODO
+				map_[id] = SemanticEntityT();
+				return map_[id];
 			}
 			
-			void clear() {
-				memset(data_, 0x00, SIZE_BYTES);
-			}
-		
-			void destroy() {
-				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
-			}
-			
-			void insert(const value_type& v) {
-				add(v.hash());
-			}
-			
-			bool contains(const value_type& v) {
-				return test(v.hash());
-			}
-			
-			
-			
-			
-			void add(size_type v) {
-				v %= SIZE;
-				data_[byte(v)] |= (1 << bit(v));
-			}
-			
-			bool test(size_type v) {
-				v %= SIZE;
-				return data_[byte(v)] & (1 << bit(v));
-			}
-			
-			void operator|=(self_type& other) {
-				for(size_type i = 0; i < SIZE_BYTES; i++) {
-					data_[i] |= other.data_[i];
+			SemanticEntityT* get(const SemanticEntityId& id) {
+				// TODO
+				if(map_.contains(id)) {
+					return &map_[id];
 				}
+				return 0;
 			}
-			
-		private:
-			
-			static size_type byte(size_type n) { return n / 8; }
-			static size_type bit(size_type n) { return n % 8; }
-			
-			block_data_t data_[0];
 		
-	}; // BloomFilter
+		private:
+			SemanticEntityMapT map_;
+		
+	}; // SemanticEntityRegistry
 }
 
-#endif // BLOOM_FILTER_H
+#endif // SEMANTIC_ENTITY_REGISTRY_H
 

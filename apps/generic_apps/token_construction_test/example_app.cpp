@@ -29,7 +29,7 @@ using namespace wiselib;
 	#include <algorithms/hash/fnv.h>
 	typedef Fnv32<Os> Hash;
 
-	#include <algorithms/semantic_entities/token_construction/token_construction.h>
+	#include <algorithms/semantic_entities/token_construction/token_scheduler.h>
 	#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 
@@ -53,7 +53,7 @@ using namespace wiselib;
 		typedef wiselib::TupleStore<Os, TupleContainer, NullDictionary<Os>, Os::Debug, 0, &TupleT::compare> TS;
 	#endif
 
-	typedef wiselib::TokenConstruction<Os, TS, Os::Radio, Os::Timer> TC;
+	typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Debug, Os::Rand> TC;
 
 
 	#if USE_INQP
@@ -113,7 +113,7 @@ class ExampleApplication
 			#else
 				ts.init(0, &container, debug_);
 			#endif
-			token_construction_.init(radio_, timer_, clock_, debug_, rand_, &ts);
+			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
 			token_construction_.set_end_activity_callback(
 				TC::end_activity_callback_t::from_method<ExampleApplication, &ExampleApplication::on_end_activity>(this)
 			);

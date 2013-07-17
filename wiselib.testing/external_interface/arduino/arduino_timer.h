@@ -24,27 +24,142 @@
 
 #include <Arduino.h>
 #include "arduino_os.h"
+#include <MsTimer2.h>
 
 #include "util/delegates/delegate.hpp"
+#include "util/pstl/iterator.h"
 
+void func();
 namespace wiselib
 {
+   typedef delegate1<void, void*> arduino_timer_delegate_t;
    // -----------------------------------------------------------------------
+   static const int MAX_REGISTERED_ARDUINO_TIMER = 10;
+   // -----------------------------------------------------------------------            
+   uint32_t arduino_timer_max_count;
+   //------------------------------------------------------------------------
+   struct arduino_timer_item 
+   {
+      size_t timer_state;		//defines if the particular timer event is engaged already or not
+      uint32_t interval;		//defines the time interval for the timer event to occur in
+      uint32_t event_time;
+      arduino_timer_delegate_t cb;	//callback
+      void *ptr;			//userdata which is passed as a parameter to the callback function
+   };
+   //------------------------------------------------------------------------
+   arduino_timer_item current_arduino_timer;	//defines an array of timer events
+   //------------------------------------------------------------------------
+   //-------------------Arduino Timer Queue Implementation-------------------
+   //------------------------------------------------------------------------
+   template<int QUEUE_SIZE>
+   class ArduinoTimerQueue
+   {
+   public: 
+      typedef wiselib::ArduinoOsModel OsModel_P; 
+      typedef arduino_timer_item value_type;
+      typedef value_type* pointer;
+      typedef size_t size_type;
+      // --------------------------------------------------------------------
+      ArduinoTimerQueue()
+      {
+         start_ = &vec_[0];
+         finish_ = start_;
+         end_of_storage_ = start_ + QUEUE_SIZE;
+      }
+      // --------------------------------------------------------------------
+      ArduinoTimerQueue( const ArduinoTimerQueue& pq )
+      { 
+         *this = pq; 
+      }
+      // --------------------------------------------------------------------
+      ~ArduinoTimerQueue() {}
+      // --------------------------------------------------------------------
+      ArduinoTimerQueue& operator=( const ArduinoTimerQueue& pq )
+      {
+         memcpy( vec_, pq.vec_, sizeof(vec_) );
+         start_ = &vec_[0];
+         finish_ = start_ + (pq.finish_ - pq.start_);
+         end_of_storage_ = start_ + QUEUE_SIZE;
+         return *this;
+      }
+      // --------------------------------------------------------------------
+      ///@name Capacity
+      ///@{
+      size_type size(){ return size_type(finish_ - start_); }
+      // --------------------------------------------------------------------
+      size_type max_size(){ return QUEUE_SIZE; }
+      // --------------------------------------------------------------------
+      size_type capacity(){ return QUEUE_SIZE; }
+      // --------------------------------------------------------------------
+      bool empty(){ return size() == 0; }
+      // --------------------------------------------------------------------
+      pointer data(){ return pointer(this->start_); }
+      ///@}
+      // --------------------------------------------------------------------
+      ///@name Element Access
+      ///@{
+      value_type top()
+      {
+         return vec_[0];
+      }
+      ///@}
+      // --------------------------------------------------------------------
+      ///@name Modifiers
+      ///@{
+      void clear()
+      {
+         finish_ = start_;
+      }
+      // --------------------------------------------------------------------
+      void push( const value_type& x )
+      {
+         int i = size();
+         while ( i != 0 && x.event_time < vec_[i/2].event_time )
+         {
+            vec_[i] = vec_[i/2];
+            i = i/2;
+         }
+         vec_[i] = x;
+         ++finish_;
+      }
+      // --------------------------------------------------------------------
+      value_type pop()
+      {
+         int n = size() - 1;
+         value_type e = vec_[0];
+         value_type x = vec_[n];
+         --finish_;
+         int i = 0;
+         int c = 1;
+         while ( c <= n )
+         {
+            if ( c < n && vec_[c + 1].event_time < vec_[c].event_time )
+               ++c;
+            if ( !( vec_[c].event_time < x.event_time ) )
+               break;
+            vec_[i] = vec_[c];
+            i = c;
+            c = 2 * i;
+         }
+         vec_[i] = x;
+         return e;
+      }
+      ///@}
+
+   protected:
+      value_type vec_[QUEUE_SIZE];
+
+      pointer start_, finish_, end_of_storage_;
+   };
+
+   // --------------------------------------------------------------------------
+   ArduinoTimerQueue<MAX_REGISTERED_ARDUINO_TIMER> arduino_queue; 
+   // --------------------------------------------------------------------------  
+   
    template<typename OsModel_P>
    class ArduinoTimer
    {
    public:
-      typedef delegate1<void, void*> arduino_timer_delegate_t;
-      // -----------------------------------------------------------------------
-      struct arduino_timer_item 
-      {
-         size_t timer_state;		//defines if the particular timer event is engaged already or not
-         uint32_t interval;		//defines the time interval for the timer event to occur in
-         uint32_t start_millis;		//time stamp for the last time the timer event occured
-         arduino_timer_delegate_t cb;	//callback
-         void *ptr;			//userdata which is passed as a parameter to the callback function
-      };
-      
       typedef OsModel_P OsModel;
 
       typedef ArduinoTimer<OsModel> self_type;
@@ -52,37 +167,21 @@ namespace wiselib
 
       typedef uint32_t millis_t;
       // -----------------------------------------------------------------------
-      static const int MAX_REGISTERED_TIMER = 10;
-      // -----------------------------------------------------------------------      
       enum ErrorCodes
       {
          SUCCESS = OsModel::SUCCESS,
          ERR_UNSPEC = OsModel::ERR_UNSPEC
       };
       // --------------------------------------------------------------------
-      ArduinoTimer()
-      {
-         init_arduino_timer();		//initializes the timer variables
-      }
+      ArduinoTimer(){};
 
       ~ArduinoTimer(){};
 
       template<typename T, void (T::*TMethod)(void*)>
-      int set_timer( millis_t millis, T *obj_pnt, void *userdata )
-      {
-         if(add_arduino_timer(arduino_timer_delegate_t::from_method<T, TMethod>(obj_pnt), userdata, millis) != -1)
-	    return SUCCESS;
-         return ERR_UNSPEC;
-      }
-
-      void run_arduino_timer( void);	//function that calls the callback function if the timer event has occured
-   
-   private:
-      arduino_timer_item timer_items[MAX_REGISTERED_TIMER];	//defines an array of timer events
+      int set_timer( millis_t millis, T *obj_pnt, void *userdata );
+      
+   private:      
       uint32_t time_elapsed();					//returns current time
-      void init_arduino_timer( void);				
-      int add_arduino_timer(arduino_timer_delegate_t cb, void *data, uint32_t millis);	//adds new timer event
-      int get_free_arduino_timer( void);			//returns the id of available timer item
    };
    
    template<typename OsModel_P>
@@ -91,63 +190,42 @@ namespace wiselib
       return millis();
    }
 
-   template<typename OsModel_P>
-   void ArduinoTimer<OsModel_P>::init_arduino_timer(void)
-   {
-      for(int idx = 0;idx < MAX_REGISTERED_TIMER; idx++)
-      {
-	 arduino_timer_item *item = &timer_items[idx];
-	 item->timer_state = 0;
-	 item->start_millis = 0;
-      }
-   }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
-   int ArduinoTimer<OsModel_P>::get_free_arduino_timer(void)
-   {
-      for(int i=0; i<MAX_REGISTERED_TIMER;i++)
-      {
-         arduino_timer_item *item = &timer_items[i];
-	 if(item->timer_state == 0)
-	    return i;
-      }
-      return -1;
-   }
-   // -----------------------------------------------------------------------
-   template<typename OsModel_P>
-   int ArduinoTimer<OsModel_P>::add_arduino_timer(arduino_timer_delegate_t cb, void *data, uint32_t millis)
-   {
-      int idx = get_free_arduino_timer();
-      if(idx == -1)
-	 return -1;
-      arduino_timer_item *item = &timer_items[idx];
-      typedef ArduinoOsModel Os;
-      item->timer_state = 1;
-      item->interval = millis;
-      item->start_millis = time_elapsed();
-      item->cb = cb;
-      item->ptr = data;
-      return idx;
-   }
-   // -----------------------------------------------------------------------
-   template<typename OsModel_P>
-   void ArduinoTimer<OsModel_P>::run_arduino_timer( void)
-   {
-      for(int i = 0; i < MAX_REGISTERED_TIMER; i++)
-      {
-	 arduino_timer_item *item = &timer_items[i];
-	 if(item->timer_state != 0)
-	 {
-            millis_t current_millis = millis();
-	    if(current_millis - item->start_millis > item->interval)	//check if time corresponding to the specified interval has passed
-	    {
-	       item->cb(item->ptr);
-	       item->start_millis = item->start_millis + item->interval;
-	    }
-	 }
-      }
+   template<typename T, void (T::*TMethod)(void*)>
+   int ArduinoTimer<OsModel_P>::set_timer( millis_t millis, T *obj_pnt, void *userdata)
+   {  
+      MsTimer2::stop();
+      wiselib::arduino_timer_item item;
+      item.timer_state = 1;
+      item.interval = millis;
+      item.event_time = time_elapsed() + item.interval;
+      item.cb = wiselib::arduino_timer_delegate_t::from_method<T, TMethod>(obj_pnt);
+      item.ptr = userdata;
+      wiselib::arduino_queue.push(item);
+      wiselib::current_arduino_timer = wiselib::arduino_queue.top();      
+      wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - time_elapsed();    
+      MsTimer2::set(500, &func);
+      MsTimer2::start();
    }
 }
 
+void func()
+{
+   MsTimer2::stop();
+   
+   wiselib::current_arduino_timer = wiselib::arduino_queue.pop();
+   (wiselib::current_arduino_timer.cb)(wiselib::current_arduino_timer.ptr);
+   
+   if(!wiselib::arduino_queue.empty())
+   {
+      wiselib::current_arduino_timer = wiselib::arduino_queue.top();
+      wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - millis();
+      MsTimer2::set(wiselib::arduino_timer_max_count, &func);
+      MsTimer2::start();
+   }     
+}
+
 #endif // ARDUINO_TIMER_H
+
 
