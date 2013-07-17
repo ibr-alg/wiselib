@@ -164,12 +164,12 @@ namespace wiselib
 										ProtocolSettings::NB_REMOVED;
 				ProtocolSettings ps(
 #ifdef CONFIG_ATP_H_LQI_FILTERING
-						255, 0, 255, 0,
+						150, 100, 255, 0,
 #endif
 #ifdef CONFIG_ATP_H_RSSI_FILTERING
 						255, 0, 255, 0,
 #endif
-				100, 70, 100, 70, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
+				100, 90, 100, 90, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
 				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
@@ -232,6 +232,7 @@ namespace wiselib
 					debug().debug("MILLIS:%d:%d:%d\n", convergence_time,  monitoring_phases,  convergence_time/monitoring_phases);
 #endif
 					monitoring_phase_counter = monitoring_phase_counter + 1;
+
 					timer().template set_timer<self_type, &self_type::ATP_service_transmission_power> ( ATP_sevice_transmission_power_period, this, 0 );
 				}
 #ifdef DEBUG_ATP_H_ATP_SERVICE
@@ -480,11 +481,19 @@ namespace wiselib
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_transmission_power> ( ATP_sevice_transmission_power_period, this, 0 );
 				}
+#ifdef CONFIG_ATP_H_THROUGHPUT_CTRL
 				else
 				{
 					SCLD = nd_active_size;
 					timer().template set_timer<self_type, &self_type::ATP_service_throughput> ( ATP_sevice_throughput_period, this, 0 );
 				}
+#endif
+#ifdef CONFIG_ATP_H_DISABLE_SCL
+				else
+				{
+					ATP_service_disable();
+				}
+#endif
 			}
 		}
 		// -----------------------------------------------------------------------
@@ -493,6 +502,7 @@ namespace wiselib
 #define CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 #endif
 		// -----------------------------------------------------------------------
+#ifdef CONFIG_ATP_H_THROUGHPUT_CTRL
 		void ATP_service_throughput(void* _userdata = NULL )
 		{
 			if ( status == ACTIVE_STATUS )
@@ -741,6 +751,7 @@ namespace wiselib
 #endif
 			}
 		}
+#endif
 		// -----------------------------------------------------------------------
 #ifdef CONFIG_ATP_H_DISABLE_SCL
 		void ATP_service_disable( void* _userdata = NULL )
@@ -758,7 +769,6 @@ namespace wiselib
 			radio().set_power( tp );
 			radio().set_daemon_period( beacon_period );
 			radio().template reg_recv_callback<self_type, &self_type::receive>( this );
-
 			if (radio().id() == 0x96f4 )
 			{
 				ATP_Agent agent;
