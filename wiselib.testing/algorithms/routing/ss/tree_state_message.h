@@ -78,6 +78,14 @@ namespace wiselib {
 				set_type(MESSAGE_TYPE);
 			}
 			
+			message_id_t type() {
+				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID);
+			}
+			
+			void set_type(message_id_t t) {
+				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, t);
+			}
+			
 			reason_t reason() {
 				return wiselib::read<OsModel, block_data_t, reason_t>(data_ + POS_REASON);
 			}

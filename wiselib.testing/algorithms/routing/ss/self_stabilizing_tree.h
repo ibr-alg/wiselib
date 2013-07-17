@@ -41,6 +41,7 @@ namespace wiselib {
 		typename Radio_P,
 		typename Clock_P,
 		typename Timer_P,
+		typename Debug_P,
 		typename NapControl_P = NapControl<OsModel_P, Radio_P>
 	>
 	class SelfStabilizingTree {
@@ -49,17 +50,19 @@ namespace wiselib {
 			typedef self_type* self_pointer_t;
 				
 			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
-			typedef typename Radio::node_id_t node_id_t;
-			typedef typename Radio::message_id_t message_id_t;
 			typedef Clock_P Clock;
-			typedef typename Clock::time_t time_t;
-			typedef ::uint32_t abs_millis_t;
 			typedef Timer_P Timer;
 			typedef NapControl_P NapControlT;
 			typedef UserData_P UserData;
+			typedef Debug_P Debug;
+			
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
 			typedef TreeStateMessage<OsModel, Radio, UserData> TreeStateMessageT;
 			typedef typename TreeStateMessageT::TreeStateT TreeStateT;
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
@@ -87,11 +90,11 @@ namespace wiselib {
 					message_ = m;
 					last_update_ = t;
 					address_ = addr;
+					DBG("new neigh addr %d root %d parent %d dist %d", (int)address_, (int)state().root(), (int)state().parent(), (int)state().distance());
 				}
 				
-				bool used() {
-					return address_ != NULL_NODE_ID;
-				}
+				bool used() { return address_ != NULL_NODE_ID; }
+				TreeStateT state() { return message_.tree_state(); }
 				
 				TreeStateMessageT message_;
 				abs_millis_t last_update_;
@@ -159,14 +162,17 @@ namespace wiselib {
 				// }}}
 			}; // iterator
 			
-			void init(typename Radio::self_pointer_t radio, typename Clock::self_pointer_t clock, typename Timer::self_pointer_t timer, typename NapControlT::self_pointer_t nap_control) {
+			void init(typename Radio::self_pointer_t radio, typename Clock::self_pointer_t clock, typename Timer::self_pointer_t timer, typename Debug::self_pointer_t debug, typename NapControlT::self_pointer_t nap_control) {
 				radio_ = radio;
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				clock_ = clock;
 				timer_ = timer;
+				debug_ = debug;
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
 				nap_control_ = nap_control;
+				
+				broadcast_state_regular();
 			}
 			
 			void reg_event_callback(event_callback_t cb) {
@@ -193,8 +199,8 @@ namespace wiselib {
 				return neighbors_[idx + 1].message_.user_data();
 			}
 			
-			TreeStateT state() {
-				return tree_state_message_.tree_state();
+			TreeStateT& state() {
+				return tree_state_;
 			}
 			
 			/**
@@ -216,15 +222,30 @@ namespace wiselib {
 		
 		private:
 			
-			void broadcast_state() {
+			void broadcast_state(int reason) {
+				TreeStateMessageT msg;
+				msg.init();
+				msg.set_reason(reason);
+				msg.set_user_data(user_data());
+				
 				nap_control_->push_caffeine();
-				radio_->send(BROADCAST_ADDRESS, tree_state_message_.size(), tree_state_message_.data());
+				debug_->debug("node %d sending!", (int)radio_->id());
+				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				nap_control_->pop_caffeine();
 			}
 			
+			void broadcast_state_regular(void* = 0) {
+				//tree_state_message_.set_reason(TreeStateMessageT::REASON_REGULAR_BCAST);
+				broadcast_state(TreeStateMessageT::REASON_REGULAR_BCAST);
+				timer_->template set_timer<self_type, &self_type::broadcast_state_regular>(BCAST_INTERVAL, this, 0);
+			}
+			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				debug_->debug("node %d recv", (int)radio_->id());
+				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
+					debug_->debug("wrong msg type %d", message_type);
 					return;
 				}
 				
@@ -245,6 +266,7 @@ namespace wiselib {
 				}
 				
 				add_neighbor(from, msg);
+				update_state();
 			}
 			
 			void begin_wait_for_regular_broadcast(void*) {
@@ -342,30 +364,44 @@ namespace wiselib {
 				
 				::uint8_t distance = -1;
 				node_id_t parent = radio_->id();
+				assert(parent != NULL_NODE_ID);
+				DBG("0 p=%d", (int)parent);
+				
 				node_id_t root = radio_->id();
+				assert(root != NULL_NODE_ID);
+				
 				size_type parent_idx = npos;
+				int reason = -1;
 				
 				for(size_type i = 0; i < MAX_NEIGHBORS; i++) {
-					NeighborEntry &e = neighbors_[i];
-					if(e.state_.parent() == radio_->id()) { continue; }
-					if(e.state_.root() == NULL_NODE_ID || e.state_.distance() == (::uint8_t)(-1)) { continue; }
+					if(!neighbors_[i].used()) { break; }
 					
-					if(e.state_.root() < root) {
+					NeighborEntry &e = neighbors_[i];
+					if(e.state().parent() == radio_->id()) { continue; }
+					if(e.state().root() == NULL_NODE_ID || e.state().distance() == (::uint8_t)(-1)) { continue; }
+					
+					if(e.state().root() < root) {
+						reason = 1;
 						parent = e.address_;
 						parent_idx = i;
-						root = e.state_.root();
-						distance = e.state_.distance() + 1;
+						root = e.state().root();
+						DBG("a p=%d r=%d", (int)parent, (int)root);
+						distance = e.state().distance() + 1;
 					}
-					else if(e.state_.root() == root && (e.state_.distance() + 1) < distance) {
+					else if(e.state().root() == root && (e.state().distance() + 1) < distance) {
+						reason = 2;
 						parent = e.address_;
+						DBG("b p=%d", (int)parent);
 						parent_idx = i;
-						distance = e.state_.distance() + 1;
+						distance = e.state().distance() + 1;
 					}
 				}
 				
 				if(root == radio_->id()) {
+					reason |= 4;
 					distance = 0;
 					parent = radio_->id();
+					DBG("c p=%d", (int)parent);
 					parent_idx = npos;
 				}
 				
@@ -374,6 +410,9 @@ namespace wiselib {
 				bool c_c = state().set_root(root);
 				bool changed = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
+				debug_->debug("node %d parent %d distance %d root %d changed %d reason %d",
+						(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)changed, (int)reason);
+				
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
 				
@@ -381,11 +420,11 @@ namespace wiselib {
 			}
 			
 			UserData& user_data() {
-				return tree_state_message_.user_data();
+				return user_data_;
 			}
 			
 			void set_user_data(UserData& ud) {
-				tree_state_message_.set_user_data(ud);
+				user_data_ = ud;
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {
@@ -399,8 +438,11 @@ namespace wiselib {
 			typename Radio::self_pointer_t radio_;
 			typename Clock::self_pointer_t clock_;
 			typename Timer::self_pointer_t timer_;
+			typename Debug::self_pointer_t debug_;
 			typename NapControlT::self_pointer_t nap_control_;
-			TreeStateMessageT tree_state_message_;
+			//TreeStateMessageT tree_state_message_;
+			TreeStateT tree_state_;
+			UserData user_data_;
 			bool new_neighbors_;
 			bool lost_neighbors_;
 			

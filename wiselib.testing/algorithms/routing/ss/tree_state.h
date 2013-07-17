@@ -49,13 +49,25 @@ namespace wiselib {
 			}
 			
 			node_id_t parent() const { return parent_; }
-			void set_parent(node_id_t p) { parent_ = p; }
+			bool set_parent(node_id_t p) {
+				bool r = (p != parent_);
+				parent_ = p;
+				return r;
+			}
 			
 			node_id_t root() const { return root_; }
-			void set_root(node_id_t r) { root_ = r; }
+			bool set_root(node_id_t roo) {
+				bool r = (roo != root_);
+				root_ = roo;
+				return r;
+			}
 			
 			distance_t distance() const { return distance_; }
-			void set_distance(distance_t s) { distance_ = s; }
+			bool set_distance(distance_t s) {
+				bool r = (s != distance_);
+				distance_ = s;
+				return r;
+			}
 			
 		private:
 			node_id_t parent_;

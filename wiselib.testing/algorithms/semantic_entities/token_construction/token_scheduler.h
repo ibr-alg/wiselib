@@ -87,7 +87,7 @@ namespace wiselib {
 			
 			typedef NapControl<OsModel, Radio> NapControlT;
 			typedef BloomFilter<OsModel, SemanticEntityId, 256> AmqT;
-			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, NapControlT> GlobalTreeT;
+			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, Debug, NapControlT> GlobalTreeT;
 			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
 			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, Radio> SemanticEntityNeighborhoodT;
@@ -167,7 +167,7 @@ namespace wiselib {
 				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
 				end_activity_callback_ = end_activity_callback_t();
 				
-				global_tree_.init(radio_, clock_, timer_, &nap_control_);
+				global_tree_.init(radio_, clock_, timer_, debug_, &nap_control_);
 				forwarding_.init(radio_, &neighborhood_);
 				
 				aggregator_.init(tuplestore);
