@@ -226,10 +226,10 @@ namespace wiselib {
 				TreeStateMessageT msg;
 				msg.init();
 				msg.set_reason(reason);
+				msg.set_tree_state(tree_state_);
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				debug_->debug("node %d sending!", (int)radio_->id());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				nap_control_->pop_caffeine();
 			}
@@ -241,11 +241,8 @@ namespace wiselib {
 			}
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
-				debug_->debug("node %d recv", (int)radio_->id());
-				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
-					debug_->debug("wrong msg type %d", message_type);
 					return;
 				}
 				
@@ -365,7 +362,6 @@ namespace wiselib {
 				::uint8_t distance = -1;
 				node_id_t parent = radio_->id();
 				assert(parent != NULL_NODE_ID);
-				DBG("0 p=%d", (int)parent);
 				
 				node_id_t root = radio_->id();
 				assert(root != NULL_NODE_ID);
@@ -385,13 +381,11 @@ namespace wiselib {
 						parent = e.address_;
 						parent_idx = i;
 						root = e.state().root();
-						DBG("a p=%d r=%d", (int)parent, (int)root);
 						distance = e.state().distance() + 1;
 					}
 					else if(e.state().root() == root && (e.state().distance() + 1) < distance) {
 						reason = 2;
 						parent = e.address_;
-						DBG("b p=%d", (int)parent);
 						parent_idx = i;
 						distance = e.state().distance() + 1;
 					}
@@ -401,7 +395,6 @@ namespace wiselib {
 					reason |= 4;
 					distance = 0;
 					parent = radio_->id();
-					DBG("c p=%d", (int)parent);
 					parent_idx = npos;
 				}
 				
