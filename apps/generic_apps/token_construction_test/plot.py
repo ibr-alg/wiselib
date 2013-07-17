@@ -27,6 +27,8 @@ properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count'
 
 def getnodes(namepattern):
 	global gnodes
+	print "namepattern=", namepattern
+	print "keys=", gnodes.keys()
 	nodes = dict(
 			(k, v) for (k, v) in gnodes.items() if re.match(namepattern, k)
 	)
@@ -80,6 +82,7 @@ def parse(f):
 		name = nodename = get_value('node')
 		if name is None:
 			print ("[!!!] nodename is none in line: " + origline)
+			continue
 		
 		try: t = int(get_value('t')) / 1000
 		except: pass
@@ -139,7 +142,7 @@ def parse(f):
 					nodes[name][k]['t'] = np.append(nodes[name][k]['t'], t)
 					nodes[name][k]['v'] = np.append(nodes[name][k]['v'], int(v))
 
-def fig_count_onegraph(namepattern = '*'):
+def fig_count_onegraph(namepattern = '.*'):
 	global fig
 	nodes = getnodes(namepattern)
 	
@@ -173,7 +176,7 @@ def fig_count_onegraph(namepattern = '*'):
 	fig.savefig('counts_onegraph.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
 	
-def fig_count(namepattern = '*'):
+def fig_count(namepattern = '.*'):
 	global fig
 	nodes = getnodes(namepattern)
 	
@@ -280,7 +283,7 @@ def fig_timings():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 801))
+	last_ax.set_xlim((-1, 2001))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -341,7 +344,7 @@ def fig_forward_timings():
 			i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 1601))
+	last_ax.set_xlim((-1, 2001))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -418,7 +421,7 @@ def fig_duty_cycle(namepattern = '.*'):
 			
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
-	last_ax.set_xlim((-1, 1601))
+	last_ax.set_xlim((-1, 2001))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -429,7 +432,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	
 
 print("parsing data...")
-parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log.txt', 'r'))
+parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log_office.txt', 'r'))
 
 for k, v in parents.items():
 	print(k + ":")
