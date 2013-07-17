@@ -72,6 +72,6 @@ def output():
 		for name, pp in sorted(d2.items(), cmp = fnnamecmp):
 			print '   %-40s %5d %5d' % (name, pp[0], pp[1])
 			
-parse(open('log.txt', 'r'))
+parse(open('log_office.txt', 'r'))
 output()
 
