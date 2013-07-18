@@ -25,6 +25,7 @@
 
 #include "reliable_transport_message.h"
 #include <util/pstl/map_static_vector.h>
+#include <util/types.h>
 
 namespace wiselib {
 	
@@ -685,10 +686,12 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, (void*)ack_timer_);
 			}
 			
-			void ack_timeout(void *ack_timer) {
+			void ack_timeout(void *at_) {
 				//if(is_sending_ && sending_endpoint().used() && sending_endpoint().channel() == ack_timeout_channel_ &&
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
 					
+				size_type ack_timer;
+				hardcore_cast(ack_timer, at_);
 				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
 					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
 							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator());

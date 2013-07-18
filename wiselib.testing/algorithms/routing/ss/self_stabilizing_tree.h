@@ -226,6 +226,7 @@ namespace wiselib {
 				TreeStateMessageT msg;
 				msg.init();
 				msg.set_reason(reason);
+				msg.set_tree_state(tree_state_);
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();

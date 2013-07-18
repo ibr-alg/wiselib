@@ -74,7 +74,44 @@ namespace wiselib {
 			node_id_t root_;
 			distance_t distance_;
 		
+		template<
+			typename OsModel_,
+			Endianness Endianness_,
+			typename BlockData_,
+			typename Radio_
+		>
+		friend class Serialization;
+		
 	}; // TreeState
+	
+	template<
+		typename OsModel_P,
+		Endianness Endianness_P,
+		typename BlockData_P,
+		typename Radio_P
+	>
+	struct Serialization<OsModel_P, Endianness_P, BlockData_P, TreeState<OsModel_P, Radio_P> > {
+		typedef OsModel_P OsModel;
+		typedef BlockData_P block_data_t;
+		typedef typename OsModel::size_t size_type;
+		typedef TreeState<OsModel_P, Radio_P> TreeStateT;
+		typedef Radio_P Radio;
+		
+		static size_type write(block_data_t *data, TreeStateT& value) {
+			wiselib::write<OsModel>(data, value.parent_); data += sizeof(typename Radio::node_id_t);
+			wiselib::write<OsModel>(data, value.root_); data += sizeof(typename Radio::node_id_t);
+			wiselib::write<OsModel>(data, value.distance_); data += sizeof(typename TreeStateT::distance_t);
+			return 2 * sizeof(typename Radio::node_id_t) + sizeof(typename TreeStateT::distance_t);
+		}
+		
+		static TreeStateT read(block_data_t *data) {
+			TreeStateT value;
+			wiselib::read<OsModel>(data, value.parent_); data += sizeof(typename Radio::node_id_t);
+			wiselib::read<OsModel>(data, value.root_); data += sizeof(typename Radio::node_id_t);
+			wiselib::read<OsModel>(data, value.distance_); data += sizeof(typename TreeStateT::distance_t);
+			return value;
+		}
+	};
 }
 
 #endif // TREE_STATE_H
