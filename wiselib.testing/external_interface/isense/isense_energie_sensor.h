@@ -26,7 +26,7 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-
+#define SENSOR_CALLBACK_BASE_MAX_RECEIVERS 1
 #include "config_testing.h"
 #include "external_interface/isense/isense_types.h"
 #include "util/base_classes/sensor_callback_base.h"
@@ -71,8 +71,8 @@ namespace wiselib
         {
             em_ = new isense::EnergyModule(os);
 
-            if (em_ == 0)
-                os.fatal("Could not allocate energy module");
+           if (em_ == 0)
+               os.fatal("Could not allocate energy module");
             
         }
         // --------------------------------------------------------------------
@@ -90,6 +90,15 @@ namespace wiselib
             bs = em_->battery_state();            
             return bs;
         }
+
+        value_t BS()
+        {
+            isense::BatteryState bs;
+            memset(&bs, 0xFF, sizeof (bs));
+            bs = em_->battery_state();
+            return bs;
+        }
+
         
     private:
         // --------------------------------------------------------------------

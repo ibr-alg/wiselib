@@ -30,6 +30,7 @@
 #include "protocol_payload.h"
 #include "protocol.h"
 #include "beacon.h"
+#include "util/serialization/simple_types.h"
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef UNIGE_TESTBED
 #include "../topologies/UNIGE_ISENSE_topology.h"
@@ -46,7 +47,11 @@ namespace wiselib
 				typename Clock_P,
 				typename Timer_P,
 				typename Rand_P,
-				typename Debug_P>
+				typename Debug_P
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+				,typename iSenseBatterySensor_P
+#endif
+				>
 	class NeighborDiscovery_Type
 	{
 	public:
@@ -64,7 +69,12 @@ namespace wiselib
 		typedef typename Radio::ExtendedData ExData;
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Timer::millis_t millis_t;
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+		typedef iSenseBatterySensor_P iSenseBatterySensor;
+		typedef NeighborDiscovery_Type	<Os, Radio,	Clock, Timer, Rand, Debug, iSenseBatterySensor> self_t;
+#else
 		typedef NeighborDiscovery_Type	<Os, Radio,	Clock, Timer, Rand, Debug> self_t;
+#endif
 		typedef Message_Type<Os, Radio, Debug> Message;
 		typedef Neighbor_Type<Os, Radio, Clock, Timer, Debug> Neighbor;
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
@@ -81,6 +91,7 @@ namespace wiselib
 		typedef vector_static<Os, Protocol, ND_MAX_REGISTERED_PROTOCOLS> Protocol_vector;
 		typedef typename Protocol_vector::iterator Protocol_vector_iterator;
 		typedef delegate4<void, uint8_t, node_id_t, size_t, uint8_t*> event_notifier_delegate_t;
+
 		// --------------------------------------------------------------------
 		NeighborDiscovery_Type()	:
 			status								( WAITING_STATUS ),
@@ -114,7 +125,9 @@ namespace wiselib
 			clock_paradox_message_drops			( 0 ),
 			bytes_received_periodic				( 0 ),
 			metrics_counter						( 0 )
-
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+			,energy_counter						( 0 )
 #endif
 		{};
 		// --------------------------------------------------------------------
@@ -137,8 +150,7 @@ namespace wiselib
 			neighbors.push_back( n );
 			ProtocolPayload pp;
 			pp.set_protocol_id( ND_PROTOCOL_ID );
-			pp.set_payload_size( 0 );
-
+			pp.set_payload_size( 1 );
 			uint8_t events_flag = 	ProtocolSettings::NEW_NB|
 									ProtocolSettings::UPDATE_NB|
 									ProtocolSettings::NEW_PAYLOAD|
@@ -273,9 +285,9 @@ namespace wiselib
 			millis_t bp = get_beacon_period();
 			uint32_t backoff_beacon_period = rand()() % ( bp - 50 );
 			time_t current_time = clock().time();
-#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+//#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 //			debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
-#endif
+//#endif
 			timer().template set_timer<self_t, &self_t::beacons>( backoff_beacon_period, this, 0 );
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACON_SCHEDULER
@@ -424,9 +436,44 @@ namespace wiselib
 #endif
 #endif
 
-						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+						if ( (  radio().id() == 0x1c74 ) )
+						{
+							block_data_t bufff[12];
+							block_data_t* buffff = bufff;
+							size_t VOLTAGE_POS = 0;
+							size_t TEMP_POS = VOLTAGE_POS + sizeof(uint16_t);
+							size_t CURRENT_POS = TEMP_POS + sizeof(int16_t);
+							size_t CHARGE_POS = CURRENT_POS + sizeof(int32_t);
+							size_t payload_size = CHARGE_POS + sizeof(uint32_t);
+							uint16_t voltage = iSBS->BS().voltage;
+							int16_t temp = iSBS->BS().temp;
+							int32_t current = iSBS->BS().current;
+							uint32_t charge = iSBS->BS().charge;
+							//debug().debug("ENERGY_SCL:%x:%d:%i:%i:%d", radio().id(), voltage, temp, current, charge);//, payload_size );
+							write<Os, block_data_t, uint16_t>( buffff + VOLTAGE_POS, voltage );
+							write<Os, block_data_t, int16_t>( buffff + TEMP_POS, temp );
+							write<Os, block_data_t, int32_t>( buffff + CURRENT_POS, current );
+							write<Os, block_data_t, uint32_t>( buffff + CHARGE_POS, charge );
+
+							for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
+							{
+								if ( ppit->get_protocol_id() == ND_PROTOCOL_ID )
+								{
+									//debug().debug("payload_found for ND_PROTO_ID");
+									ppit->set_payload( buffff, payload_size );
+								}
+							}
+						}
+						//if ( beacon.get_beacon_period_update_counter() < 4000 )
+						{
+#endif
+							send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+						}
+#endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
-						debug().debug( "NeighborDiscovery - beacons - Sending beacon.\n" );
+						debug().debug( "NeighborDiscovery - beacons - Sending beacon %d.\n", beacon.get_beacon_period_update_counter() );
 #endif
 #ifndef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
 						timer().template set_timer<self_t, &self_t::beacons> ( bp, this, 0 );
@@ -497,7 +544,35 @@ namespace wiselib
 #endif
 #endif
 #endif
-
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+					if (radio().id() == 0x1b4c )
+					{
+						uint8_t found_flag = 0;
+						ProtocolPayload pp;
+						for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
+						{
+							if ( ppit->get_protocol_id() == ND_PROTOCOL_ID )
+							{
+								pp = *ppit;
+								found_flag = 1;
+							}
+						}
+						if ( found_flag )
+						{
+							size_t VOLTAGE_POS = 0;
+							size_t TEMP_POS = VOLTAGE_POS + sizeof(uint16_t);
+							size_t CURRENT_POS = TEMP_POS + sizeof(int16_t);
+							size_t CHARGE_POS = CURRENT_POS + sizeof(int32_t);
+							block_data_t* buff = pp.get_payload_data();
+							uint16_t voltage = read<Os, block_data_t, uint16_t>( buff + VOLTAGE_POS );
+							int16_t temp = read<Os, block_data_t, int16_t>( buff + TEMP_POS );
+							int32_t current = read<Os, block_data_t, int32_t>( buff + CURRENT_POS );
+							uint32_t charge = read<Os, block_data_t, uint32_t>( buff + CHARGE_POS );
+							debug().debug("ENERGY:%d:%x:%i:%d:%i:%i:%d:%d", energy_counter, _from, transmission_power_dB, voltage, temp, current, charge, pp.get_payload_size() );
+							energy_counter++;
+						}
+					}
+#endif
 					for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 					{
 						uint8_t found_flag = 0;
@@ -838,7 +913,7 @@ namespace wiselib
 							ProtocolPayload pp;
 							for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
 							{
-								if ( ppit->get_protocol_id() == pit->get_protocol_id() )
+								if ( ( ppit->get_protocol_id() == pit->get_protocol_id() ) && ( pit->get_protocol_id() != ND_PROTOCOL_ID ) )
 								{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 									debug().debug("NeighborDiscovery - receive - Beacon carried a payload for protocol %i.\n", pit->get_protocol_id() );
@@ -1590,13 +1665,20 @@ namespace wiselib
 		// --------------------------------------------------------------------
 #endif
 		// --------------------------------------------------------------------
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+		void init( Radio& _radio, Timer& _timer, Debug& _debug, Clock& _clock, Rand& _rand, iSenseBatterySensor& _iSBS )
+#else
 		void init( Radio& _radio, Timer& _timer, Debug& _debug, Clock& _clock, Rand& _rand )
+#endif
 		{
 			radio_ = &_radio;
 			timer_ = &_timer;
 			debug_ = &_debug;
 			clock_ = &_clock;
 			rand_ = &_rand;
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+			iSBS = &_iSBS;
+#endif
 		}
 		// --------------------------------------------------------------------
 		Radio& radio()
@@ -1690,6 +1772,7 @@ namespace wiselib
 		uint32_t clock_paradox_message_drops;
 		uint32_t bytes_received_periodic;
 #endif
+
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;
 #endif
@@ -1699,6 +1782,10 @@ namespace wiselib
         Debug * debug_;
         Rand * rand_;
         uint32_t metrics_counter;
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+        iSenseBatterySensor * iSBS;
+        uint32_t energy_counter;
+#endif
     };
 }
 #endif

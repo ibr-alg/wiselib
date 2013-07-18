@@ -23,6 +23,7 @@
 #include "ATP_source_config.h"
 #include "ATP_default_values_config.h"
 #include "../../../internal_interface/message/message.h"
+
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 #include "../../../internal_interface/state_status/state_status.h"
 #include "../../../internal_interface/state_status/time_series_status.h"
@@ -81,6 +82,7 @@ namespace wiselib
 		typedef typename ASCL::Neighbor_vector_iterator Neighbor_vector_iterator;
 		typedef typename ASCL::ProtocolPayload_vector ProtocolPayload_vector;
 		typedef typename ASCL::ProtocolPayload_vector_iterator ProtocolPayload_vector_iterator;
+
 		// -----------------------------------------------------------------------
 		ATP_Type() :
 			radio_callback_id						( 0 ),
@@ -164,12 +166,12 @@ namespace wiselib
 										ProtocolSettings::NB_REMOVED;
 				ProtocolSettings ps(
 #ifdef CONFIG_ATP_H_LQI_FILTERING
-						150, 100, 255, 0,
+						255, 130, 255, 130,
 #endif
 #ifdef CONFIG_ATP_H_RSSI_FILTERING
 						255, 0, 255, 0,
 #endif
-				100, 90, 100, 90, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
+				100, 0, 100, 0, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
 				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
@@ -491,7 +493,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_DISABLE_SCL
 				else
 				{
-					ATP_service_disable();
+					timer().template set_timer<self_type, &self_type::ATP_service_disable> ( ATP_sevice_throughput_period, this, 0 );
 				}
 #endif
 			}
