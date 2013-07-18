@@ -89,7 +89,7 @@ namespace wiselib {
 			typedef BloomFilter<OsModel, SemanticEntityId, 256> AmqT;
 			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, Debug, NapControlT> GlobalTreeT;
 			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
-			typedef SemanticEntity<OsModel, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
+			typedef SemanticEntity<OsModel, GlobalTreeT, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, Radio> SemanticEntityNeighborhoodT;
 			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, Radio> SemanticEntityForwardingT;
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
@@ -168,6 +168,9 @@ namespace wiselib {
 				end_activity_callback_ = end_activity_callback_t();
 				
 				global_tree_.init(radio_, clock_, timer_, debug_, &nap_control_);
+				global_tree_.reg_event_callback(
+						GlobalTreeT::event_callback_t::template from_method<self_type, &self_type::on_global_tree_event>(this)
+				);
 				forwarding_.init(radio_, &neighborhood_);
 				
 				aggregator_.init(tuplestore);
@@ -197,6 +200,10 @@ namespace wiselib {
 				se.template schedule_activating_token<
 					self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token
 				>(clock_, timer_, this, &se);
+				
+				debug_->debug("node %d // added SE %x.%x is_active %d",
+						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+						(int)se.is_active(radio_->id()));
 				
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
@@ -232,6 +239,25 @@ namespace wiselib {
 				packet_info->destroy();
 			}
 			
+			void on_global_tree_event(typename GlobalTreeT::EventType e, node_id_t neigh) {
+				if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
+					for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
+						SemanticEntityT &se = iter->second;
+						debug_->debug("node %d SE %x.%x active %d // because tree change",
+								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+								(int)se.is_active(radio_->id()));
+						
+						//if(se.is_active(radio_->id())) { begin_activity(se); }
+						//else { end_activity(se); }
+						transport_.set_remote_address(se.id(), true, neighborhood_.next_token_node(se.id()));
+						transport_.set_remote_address(se.id(), false, neighborhood_.prev_token_node(se.id()));
+						
+						nap_control_.push_caffeine();
+						initiate_handover(se); // tree has changed, (re-)send token info
+					} // for
+				}
+			} // global_tree_event()
+			
 			///@name Token Handover
 			///@{
 			//{{{
@@ -246,12 +272,15 @@ namespace wiselib {
 			void initiate_handover(SemanticEntityT& se) {
 				bool found;
 				typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se.id(), true, found);
-				if(!found) {
-					nap_control_.pop_caffeine();
-					return;
-				}
 				
-				if(ep.remote_address() != radio_->id() && transport_.open(ep, true) == SUCCESS) {
+				if(found &&
+						ep.remote_address() != NULL_NODE_ID &&
+						ep.remote_address() != radio_->id() &&
+						transport_.open(ep, true) == SUCCESS
+				) {
+					debug_->debug("// initiating token handover %d -> %d SE %x.%x",
+							(int)radio_->id(), (int)ep.remote_address(), (int)se.id().rule(),
+							(int)se.id().value());
 					se.set_handover_state_initiator(SemanticEntityT::INIT);
 					transport_.flush();
 				}
@@ -455,6 +484,11 @@ namespace wiselib {
 				if(se.in_activity_phase()) { return; }
 				se.begin_activity_phase();
 				nap_control_.push_caffeine();
+				
+				debug_->debug("node %d SE %x.%x active %d",
+						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+						(int)se.in_activity_phase());
+				
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, reinterpret_cast<void*>(&se));
 			}
 			
@@ -467,9 +501,17 @@ namespace wiselib {
 				if(end_activity_callback_) {
 					end_activity_callback_(se, aggregator_);
 				}
-				initiate_handover(se);
+				
+				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
+				
+				initiate_handover(se);
 				se.end_wait_for_activating_token();
+				
+				debug_->debug("node %d SE %x.%x active %d",
+						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+						(int)se.in_activity_phase());
+				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
 			}
 			
@@ -478,11 +520,11 @@ namespace wiselib {
 			
 			
 			void begin_wait_for_token(void* se_) {
-				// TODO
+				nap_control_.push_caffeine();
 			}
 			
 			void end_wait_for_token(void* se_) {
-				// TODO
+				nap_control_.pop_caffeine();
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {

@@ -418,7 +418,7 @@ def fig_duty_cycle(namepattern = '.*'):
 			
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
-	last_ax.set_xlim((-1, 1601))
+	last_ax.set_xlim((-1, 161))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -426,7 +426,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	
 	fig.savefig('duty_cycle.pdf', bbox_inches='tight') #, pad_inches=.1)
 	#plt.show()
-	
+
 
 print("parsing data...")
 parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log.txt', 'r'))

@@ -46,20 +46,22 @@ namespace wiselib {
 			enum { MAX_SEMANTIC_ENTITIES = 8 };
 			
 			typedef MapStaticVector<OsModel, SemanticEntityId, SemanticEntityT, MAX_SEMANTIC_ENTITIES> SemanticEntityMapT;
+			typedef typename SemanticEntityMapT::iterator iterator;
 			
 			SemanticEntityT& add(const SemanticEntityId& id) {
-				// TODO
-				map_[id] = SemanticEntityT();
+				map_[id] = SemanticEntityT(id);
 				return map_[id];
 			}
 			
 			SemanticEntityT* get(const SemanticEntityId& id) {
-				// TODO
 				if(map_.contains(id)) {
 					return &map_[id];
 				}
 				return 0;
 			}
+			
+			iterator begin() { return map_.begin(); }
+			iterator end() { return map_.end(); }
 		
 		private:
 			SemanticEntityMapT map_;

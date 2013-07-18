@@ -188,7 +188,7 @@ class ExampleApplication
 		typedef TC::SemanticEntityAggregatorT Aggregator;
 		
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
-			if(radio_->id() == se.root()) {
+			if(radio_->id() == 0) { //se.root()) {
 				//debug_->debug("node %d // aggr setting totals", radio_->id());
 				aggregator.set_totals(se.id());
 			}

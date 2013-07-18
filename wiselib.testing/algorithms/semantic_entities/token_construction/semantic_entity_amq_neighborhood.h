@@ -55,6 +55,7 @@ namespace wiselib {
 			typedef GlobalTree_P GlobalTreeT;
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE };
+			enum { npos = (size_type)(-1) };
 			
 			void init(typename GlobalTreeT::self_pointer_t global_tree) {
 				global_tree_ = global_tree;
@@ -76,6 +77,48 @@ namespace wiselib {
 			void set_child_amq(node_id_t child_id, AmqT& amq) {
 				// TODO
 			}
+			
+			/**
+			 * Assuming we have the token, where should we send it to?
+			 */
+			node_id_t next_token_node(const SemanticEntityId& se_id) {
+				size_type idx = find_first_se_child(se_id, 0);
+				if(idx == npos) {
+					if(global_tree_->root() == radio_->id()) { return radio_->id(); }
+					return global_tree_->parent();
+				}
+				return idx;
+			}
+			
+			/**
+			 * Assuming we have the token, where did we get it from?
+			 */
+			node_id_t prev_token_node(const SemanticEntityId& se_id) {
+				size_type idx = find_last_se_child(se_id);
+				
+				if(idx == npos) { return radio_->id(); }
+				if(global_tree_->root() == radio_->id()) { return idx; }
+				return global_tree_->parent();
+			}
+			
+			size_type find_first_se_child(const SemanticEntityId& se_id, size_type start) {
+				for(size_type i = start; i < global_tree_->childs(); i++) {
+					if(global_tree_->child_user_data(i).contains(se_id)) {
+						return i;
+					}
+				}
+				return npos;
+			}
+			
+			size_type find_last_se_child(const SemanticEntityId& se_id) {
+				for(int i =global_tree_->childs() - 1; i >= 0; i--) {
+					if(global_tree_->child_user_data(i).contains(se_id)) {
+						return i;
+					}
+				}
+				return npos;
+			}
+			
 			
 			/**
 			 * Find the next receiver in the ring that should receive

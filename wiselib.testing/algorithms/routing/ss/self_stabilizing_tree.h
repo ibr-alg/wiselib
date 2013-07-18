@@ -25,6 +25,7 @@
 #include "tree_state_message.h"
 #include <algorithms/semantic_entities/token_construction/regular_event.h>
 #include <util/types.h>
+#include <util/pstl/set_static.h>
 
 namespace wiselib {
 	
@@ -68,18 +69,25 @@ namespace wiselib {
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
-			enum {
+			enum Timing {
 				BCAST_INTERVAL = 200,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
-			enum { NULL_NODE_ID = Radio::NULL_NODE_ID, BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS };
+			enum SpecialNodeIds {
+				NULL_NODE_ID = Radio::NULL_NODE_ID,
+				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS
+			};
 			enum { npos = (size_type)(-1) };
-			enum { MAX_NEIGHBORS = 16 };
+			enum Restrictions {
+				MAX_NEIGHBORS = 16,
+				MAX_EVENT_LISTENERS = 4
+			};
 			enum EventType {
 				NEW_NEIGHBOR, LOST_NEIGHBOR, UPDATED_NEIGHBOR
 			};
 			
 			typedef delegate1<void, EventType> event_callback_t;
+			typedef set_static<OsModel, event_callback_t, MAX_EVENT_LISTENERS> EventCallbacks;
 			
 			struct NeighborEntry {
 				// {{{
@@ -176,7 +184,7 @@ namespace wiselib {
 			}
 			
 			void reg_event_callback(event_callback_t cb) {
-				event_callback_ = cb;
+				event_callbacks_.insert(cb);
 			}
 			
 			iterator begin_neighbors() {
@@ -187,15 +195,14 @@ namespace wiselib {
 				return iterator(neighbors_, npos);
 			}
 			
-			node_id_t parent() {
-				return neighbors_[0].address_;
-			}
+			node_id_t parent() { return neighbors_[0].address_; }
+			node_id_t root() { return tree_state_.root(); }
 			
 			node_id_t child(size_type idx) {
 				return neighbors_[idx + 1].address_;
 			}
 			
-			UserData child_user_data(size_type idx) {
+			UserData& child_user_data(size_type idx) {
 				return neighbors_[idx + 1].message_.user_data();
 			}
 			
@@ -305,9 +312,7 @@ namespace wiselib {
 				if(neighbors_[p].address_ == addr) {
 					neighbors_[p].from_message(addr, msg, now());
 					
-					if(event_callback_) {
-						event_callback_(UPDATED_NEIGHBOR);
-					}
+					notify_event(UPDATED_NEIGHBOR);
 				}
 				else {
 					if(p == 0) {
@@ -322,9 +327,7 @@ namespace wiselib {
 					}
 					
 					neighbors_count_++;
-					if(event_callback_) {
-						event_callback_(NEW_NEIGHBOR);
-					}
+					notify_event(NEW_NEIGHBOR);
 					new_neighbors_ = true;
 				}
 			}
@@ -350,14 +353,18 @@ namespace wiselib {
 						memmove(neighbors_ + p, neighbors_ + p + 1, (neighbors_count_ - p) * sizeof(NeighborEntry));
 						neighbors_count_--;
 						lost_neighbors_ = true;
-						if(event_callback_) {
-							event_callback_(LOST_NEIGHBOR);
-						}
+						notify_event(LOST_NEIGHBOR);
 					}
 					else {
 						p++;
 					}
 				} // while
+			}
+			
+			void notify_event(EventType t) {
+				for(typename EventCallbacks::iterator iter = event_callbacks_.begin(); iter != event_callbacks_.end(); ++iter) {
+					(*iter)(t);
+				}
 			}
 			
 			bool update_state() {
@@ -366,7 +373,6 @@ namespace wiselib {
 				::uint8_t distance = -1;
 				node_id_t parent = radio_->id();
 				assert(parent != NULL_NODE_ID);
-				DBG("0 p=%d", (int)parent);
 				
 				node_id_t root = radio_->id();
 				assert(root != NULL_NODE_ID);
@@ -386,13 +392,11 @@ namespace wiselib {
 						parent = e.address_;
 						parent_idx = i;
 						root = e.state().root();
-						DBG("a p=%d r=%d", (int)parent, (int)root);
 						distance = e.state().distance() + 1;
 					}
 					else if(e.state().root() == root && (e.state().distance() + 1) < distance) {
 						reason = 2;
 						parent = e.address_;
-						DBG("b p=%d", (int)parent);
 						parent_idx = i;
 						distance = e.state().distance() + 1;
 					}
@@ -402,7 +406,6 @@ namespace wiselib {
 					reason |= 4;
 					distance = 0;
 					parent = radio_->id();
-					DBG("c p=%d", (int)parent);
 					parent_idx = npos;
 				}
 				
@@ -450,7 +453,7 @@ namespace wiselib {
 			size_type neighbors_count_;
 			NeighborEntry neighbors_[MAX_NEIGHBORS];
 			RegularEventT regular_broadcasts_[MAX_NEIGHBORS];
-			event_callback_t event_callback_;
+			EventCallbacks event_callbacks_;
 		
 	}; // SelfStabilizingTree
 }
