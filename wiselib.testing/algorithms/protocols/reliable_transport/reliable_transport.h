@@ -387,19 +387,23 @@ namespace wiselib {
 				
 				switch(f) {
 					case Message::FLAG_OPEN:
+						DBG("node %d // receive_open", (int)radio_->id());
 						receive_open(ep, from, msg);
 						break;
 						
 					case Message::FLAG_CLOSE:
+						DBG("node %d // receive_close", (int)radio_->id());
 						receive_close(ep, from, msg);
 						break;
 						
 					case 0:
+						DBG("node %d // receive_data", (int)radio_->id());
 						receive_data(ep, from, msg);
 						break;
 						
 					case Message::FLAG_ACK:
 					case Message::FLAG_CLOSE | Message::FLAG_ACK:
+						DBG("node %d // receive_ack", (int)radio_->id());
 						receive_ack(ep, from, msg);
 						break;
 						
@@ -554,6 +558,7 @@ namespace wiselib {
 					
 					int flags = (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0);
 					
+					
 					if(sending_endpoint().wants_open()) {
 						flags |= Message::FLAG_OPEN;
 						sending_endpoint().open();
@@ -563,10 +568,9 @@ namespace wiselib {
 						flags |= Message::FLAG_CLOSE;
 						sending_endpoint().increase_sequence_number();
 					}
-					
+					sending_.set_flags(flags);
 					sending_.set_channel(sending_endpoint().channel());
 					sending_.set_sequence_number(sending_endpoint().sequence_number());
-					sending_.set_flags(flags);
 					sending_.set_delay(0);
 					sending_.set_payload(0, 0);
 					
@@ -581,6 +585,11 @@ namespace wiselib {
 							check_send();
 							return;
 						}
+						
+						if(sending_endpoint().wants_close()) {
+							flags |= Message::FLAG_CLOSE;
+						}
+						sending_.set_flags(flags);
 					}
 					
 					try_send();
