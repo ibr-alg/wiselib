@@ -451,7 +451,7 @@ namespace wiselib {
 							endpoint.request_send();
 						}
 						else {
-							DBG("node %d // done with aggregates, requesting close", (int)radio_->id());
+							DBG("node %d // done with aggregates, requesting close after first", (int)radio_->id());
 							endpoint.request_close();
 							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
@@ -467,6 +467,7 @@ namespace wiselib {
 							se.set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 						}
 						else {
+							DBG("node %d // done with aggregates, requesting close", (int)radio_->id());
 							endpoint.request_close();
 							//se.set_handover_state_initiator(SemanticEntityT::CLOSE);
 						}
