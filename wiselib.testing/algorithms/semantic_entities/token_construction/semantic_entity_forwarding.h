@@ -53,16 +53,18 @@ namespace wiselib {
 			
 			void init(typename Radio::self_pointer_t radio, AmqNHood* amq_nhood) {
 				radio_ = radio;
-				amq_nhood_ = amq_nhood_;
+				amq_nhood_ = amq_nhood;
 				//receive_callback_ = cb;
 				
 				//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+				check();
 			}
 			
 			/**
 			 * Return true if the packet has been forwarded, false else.
 			 */
 			bool on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				check();
 				
 				// for now, only forward messages from the reliable transport
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -87,6 +89,15 @@ namespace wiselib {
 					radio_->send(from, len, data);
 					return true;
 				}
+				
+				check();
+			}
+			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					assert(radio_);
+					assert(amq_nhood_);
+				#endif
 			}
 		
 		private:

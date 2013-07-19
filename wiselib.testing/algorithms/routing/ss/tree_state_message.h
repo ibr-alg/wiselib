@@ -126,7 +126,7 @@ namespace wiselib {
 			}
 			
 		private:
-			block_data_t data_[MAX_MESSAGE_LENGTH];
+			block_data_t data_[POS_END];
 		
 	}; // TreeStateMessage
 }

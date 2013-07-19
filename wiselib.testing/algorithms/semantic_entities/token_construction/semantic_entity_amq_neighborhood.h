@@ -57,11 +57,17 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE };
 			enum { npos = (size_type)(-1) };
 			
-			void init(typename GlobalTreeT::self_pointer_t global_tree) {
+			SemanticEntityAmqNeighborhood() : global_tree_(0) {
+			}
+			
+			void init(typename GlobalTreeT::self_pointer_t global_tree, typename Radio::self_pointer_t radio) {
 				global_tree_ = global_tree;
+				radio_ = radio;
+				
 				global_tree_->reg_event_callback(
 						GlobalTreeT::event_callback_t::template from_method<self_type, &self_type::on_neighborhood_changed>(this)
 				);
+				check();
 			}
 			
 			/*
@@ -82,11 +88,15 @@ namespace wiselib {
 			 * Assuming we have the token, where should we send it to?
 			 */
 			node_id_t next_token_node(const SemanticEntityId& se_id) {
+				check();
+				
 				size_type idx = find_first_se_child(se_id, 0);
 				if(idx == npos) {
 					if(global_tree_->root() == radio_->id()) { return radio_->id(); }
 					return global_tree_->parent();
 				}
+				
+				check();
 				return idx;
 			}
 			
@@ -94,28 +104,40 @@ namespace wiselib {
 			 * Assuming we have the token, where did we get it from?
 			 */
 			node_id_t prev_token_node(const SemanticEntityId& se_id) {
+				check();
+				
 				size_type idx = find_last_se_child(se_id);
 				
 				if(idx == npos) { return radio_->id(); }
 				if(global_tree_->root() == radio_->id()) { return idx; }
+				
+				check();
 				return global_tree_->parent();
 			}
 			
 			size_type find_first_se_child(const SemanticEntityId& se_id, size_type start) {
+				check();
+				
 				for(size_type i = start; i < global_tree_->childs(); i++) {
 					if(global_tree_->child_user_data(i).contains(se_id)) {
 						return i;
 					}
 				}
+				
+				check();
 				return npos;
 			}
 			
 			size_type find_last_se_child(const SemanticEntityId& se_id) {
+				check();
+				
 				for(int i =global_tree_->childs() - 1; i >= 0; i--) {
 					if(global_tree_->child_user_data(i).contains(se_id)) {
 						return i;
 					}
 				}
+				
+				check();
 				return npos;
 			}
 			
@@ -130,6 +152,8 @@ namespace wiselib {
 			 * TODO: Implement case forward=false (ie. forward acks the other way)
 			 */
 			node_id_t forward_address(const SemanticEntityId& se_id, node_id_t sender, bool forward) {
+				check();
+				
 				node_id_t next = sender;
 				do {
 					AmqT amq;
@@ -138,11 +162,15 @@ namespace wiselib {
 						return next;
 					}
 				} while(next != sender);
+				
+				check();
 				return radio_->id();
 			}
 			
 			
 			node_id_t tree_forward_address(node_id_t sender, bool forward, AmqT& amq) {
+				check();
+				
 				if(sender == global_tree_->parent()) { return radio_->id(); }
 				if(sender == radio_->id()) {
 					if(global_tree_->childs()) { return global_tree_->child(0); }
@@ -153,7 +181,7 @@ namespace wiselib {
 				if(child_idx == GlobalTreeT::npos) { return NULL_NODE_ID; }
 				
 				if(child_idx == global_tree_->childs() - 1) {
-					if(global_tree_->state().root() == radio_->id()) {
+					if(global_tree_->tree_state().root() == radio_->id()) {
 						amq = global_tree_->child_user_data(0);
 						return global_tree_->child(0);
 					}
@@ -161,14 +189,19 @@ namespace wiselib {
 				}
 				
 				amq = global_tree_->child_user_data(child_idx + 1);
+				
+				check();
 				return global_tree_->child(child_idx + 1);
 			}
 			
 			AmqT& amq() {
+				check();
 				return global_tree_->user_data();
 			}
 			
 			void on_neighborhood_changed(typename GlobalTreeT::EventType event_type) {
+				check();
+				
 				AmqT a;
 				for(typename GlobalTreeT::iterator iter = global_tree_->begin_neighbors(); iter != global_tree_->end_neighbors(); ++iter) {
 					if(iter->state() == GlobalTreeT::IN_EDGE) {
@@ -177,6 +210,15 @@ namespace wiselib {
 				}
 				
 				global_tree_->set_user_data(a);
+				
+				check();
+			}
+			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					assert(global_tree_);
+					assert(radio_);
+				#endif
 			}
 			
 		private:

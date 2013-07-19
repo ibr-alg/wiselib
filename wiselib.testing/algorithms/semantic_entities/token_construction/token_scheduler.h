@@ -93,7 +93,7 @@ namespace wiselib {
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, Radio> SemanticEntityNeighborhoodT;
 			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, Radio> SemanticEntityForwardingT;
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
-			typedef SemanticEntityRegistry<OsModel, SemanticEntityT> SemanticEntityRegistryT;
+			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT> SemanticEntityRegistryT;
 			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			typedef TokenStateMessage<OsModel, SemanticEntityT, Radio> TokenStateMessageT;
 			typedef typename TokenStateMessageT::TokenState TokenState;
@@ -171,6 +171,9 @@ namespace wiselib {
 				global_tree_.reg_event_callback(
 						GlobalTreeT::event_callback_t::template from_method<self_type, &self_type::on_global_tree_event>(this)
 				);
+				registry_.init(&global_tree_);
+				
+				neighborhood_.init(&global_tree_, radio_);
 				forwarding_.init(radio_, &neighborhood_);
 				
 				aggregator_.init(tuplestore);
@@ -225,11 +228,11 @@ namespace wiselib {
 			
 			void on_receive_task(void *p) {
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
-				abs_millis_t t_recv = absolute_millis(packet_info->received());
+				//abs_millis_t t_recv = absolute_millis(packet_info->received());
 				const node_id_t &from = packet_info->from();
 				const typename Radio::size_t &len = packet_info->length();
 				block_data_t *data = packet_info->data();
-				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
+				//message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				bool r = forwarding_.on_receive(from, len, data);
 				if(!r) {
@@ -239,8 +242,8 @@ namespace wiselib {
 				packet_info->destroy();
 			}
 			
-			void on_global_tree_event(typename GlobalTreeT::EventType e, node_id_t neigh) {
-				if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
+			void on_global_tree_event(typename GlobalTreeT::EventType e) {
+				//if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
 					for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 						SemanticEntityT &se = iter->second;
 						debug_->debug("node %d SE %x.%x active %d // because tree change",
@@ -255,7 +258,7 @@ namespace wiselib {
 						nap_control_.push_caffeine();
 						initiate_handover(se); // tree has changed, (re-)send token info
 					} // for
-				}
+				//}
 			} // global_tree_event()
 			
 			///@name Token Handover

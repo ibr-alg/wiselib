@@ -33,7 +33,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename SemanticEntity_P
+		typename SemanticEntity_P,
+		typename GlobalTree_P
 	>
 	class SemanticEntityRegistry {
 		
@@ -42,18 +43,32 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef SemanticEntity_P SemanticEntityT;
+			typedef GlobalTree_P GlobalTreeT;
 			
 			enum { MAX_SEMANTIC_ENTITIES = 8 };
 			
 			typedef MapStaticVector<OsModel, SemanticEntityId, SemanticEntityT, MAX_SEMANTIC_ENTITIES> SemanticEntityMapT;
 			typedef typename SemanticEntityMapT::iterator iterator;
 			
+			SemanticEntityRegistry() :  global_tree_(0) {
+			}
+			
+			void init(typename GlobalTreeT::self_pointer_t gt) {
+				global_tree_ = gt;
+				
+				check();
+			}
+			
 			SemanticEntityT& add(const SemanticEntityId& id) {
-				map_[id] = SemanticEntityT(id);
+				check();
+				
+				map_[id] = SemanticEntityT(id, global_tree_);
 				return map_[id];
 			}
 			
 			SemanticEntityT* get(const SemanticEntityId& id) {
+				check();
+				
 				if(map_.contains(id)) {
 					return &map_[id];
 				}
@@ -62,9 +77,16 @@ namespace wiselib {
 			
 			iterator begin() { return map_.begin(); }
 			iterator end() { return map_.end(); }
+			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					assert(global_tree_);
+				#endif
+			}
 		
 		private:
 			SemanticEntityMapT map_;
+			typename GlobalTreeT::self_pointer_t global_tree_;
 		
 	}; // SemanticEntityRegistry
 }

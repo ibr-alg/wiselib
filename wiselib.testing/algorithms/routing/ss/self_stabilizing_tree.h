@@ -98,11 +98,11 @@ namespace wiselib {
 					message_ = m;
 					last_update_ = t;
 					address_ = addr;
-					DBG("new neigh addr %d root %d parent %d dist %d", (int)address_, (int)state().root(), (int)state().parent(), (int)state().distance());
+					DBG("new neigh addr %d root %d parent %d dist %d", (int)address_, (int)tree_state().root(), (int)tree_state().parent(), (int)tree_state().distance());
 				}
 				
 				bool used() { return address_ != NULL_NODE_ID; }
-				TreeStateT state() { return message_.tree_state(); }
+				TreeStateT tree_state() { return message_.tree_state(); }
 				
 				TreeStateMessageT message_;
 				abs_millis_t last_update_;
@@ -116,11 +116,17 @@ namespace wiselib {
 			class Neighbor {
 				// {{{
 				public:
-					node_id_t id() { return id_; }
+					node_id_t id() {
+						if(!entry_) { return NULL_NODE_ID; }
+						return entry_->address_;
+					}
 					State state() { return state_; }
+					UserData user_data() {
+						return entry_->message_.user_data();
+					}
 					
-					node_id_t id_;
 					State state_;
+					NeighborEntry *entry_;
 				// }}}
 			};
 			
@@ -132,13 +138,10 @@ namespace wiselib {
 						update();
 					}
 					
-					Neighbor operator*() {
-						return neighbor_;
-					}
+					Neighbor operator*() { return neighbor_; }
+					Neighbor* operator->() { return &neighbor_; }
 					
-					bool at_end() {
-						return index_ == npos;
-					}
+					bool at_end() const { return index_ == npos; }
 					
 					iterator& operator++() {
 						if(index_ < MAX_NEIGHBORS - 1) {
@@ -148,17 +151,25 @@ namespace wiselib {
 							index_++;
 						}
 						update();
+						return *this;
+					}
+					
+					bool operator==(const iterator& other) {
+						return (at_end() && other.at_end()) || (neighbors_ == other.neighbors_ && index_ == other.index_);
+					}
+					bool operator!=(const iterator& other) {
+						return !(*this == other);
 					}
 					
 					void update() {
 						if(index_ == npos) {
-							neighbor_.address_ = NULL_NODE_ID;
+							neighbor_.entry_ = 0;
 						}
 						else {
-							neighbor_.address_ = neighbors_[index_].address_;
 							neighbor_.state_ = (index_ == 0) ? OUT_EDGE : IN_EDGE;
+							neighbor_.entry_ = neighbors_ + index_;
 						}
-						if(neighbor_.address_ == NULL_NODE_ID) {
+						if(neighbor_.id() == NULL_NODE_ID) {
 							index_ = npos;
 						}
 					}
@@ -169,6 +180,9 @@ namespace wiselib {
 					Neighbor neighbor_;
 				// }}}
 			}; // iterator
+			
+			SelfStabilizingTree() : radio_(0), clock_(0), timer_(0), debug_(0), nap_control_(0) {
+			}
 			
 			void init(typename Radio::self_pointer_t radio, typename Clock::self_pointer_t clock, typename Timer::self_pointer_t timer, typename Debug::self_pointer_t debug, typename NapControlT::self_pointer_t nap_control) {
 				radio_ = radio;
@@ -199,23 +213,24 @@ namespace wiselib {
 			node_id_t root() { return tree_state_.root(); }
 			
 			node_id_t child(size_type idx) {
+				assert(idx + 1 < neighbors_count_);
 				return neighbors_[idx + 1].address_;
 			}
 			
-			UserData& child_user_data(size_type idx) {
+			UserData child_user_data(size_type idx) {
+				assert(idx + 1 < neighbors_count_);
 				return neighbors_[idx + 1].message_.user_data();
 			}
 			
-			TreeStateT& state() {
-				return tree_state_;
-			}
+			TreeStateT& tree_state() { return tree_state_; }
 			
 			/**
 			 * @return The number of childs with a lower node id than n.
 			 */
 			size_type child_index(node_id_t n) {
 				size_type idx = find_neighbor_position(n);
-				return (neighbors_[idx].address_ == n) ? idx : npos;
+				assert(idx < neighbors_count_);
+				return (neighbors_[idx].address_ == n) ? idx - 1 : npos;
 			}
 			
 			size_type childs() {
@@ -224,6 +239,14 @@ namespace wiselib {
 			
 			size_type size() {
 				return neighbors_count_;
+			}
+			
+			UserData& user_data() {
+				return user_data_;
+			}
+			
+			void set_user_data(UserData& ud) {
+				user_data_ = ud;
 			}
 			
 		
@@ -257,7 +280,9 @@ namespace wiselib {
 					return;
 				}
 				
+				assert((size_type)len >= (size_type)sizeof(TreeStateMessageT));
 				TreeStateMessageT &msg = *reinterpret_cast<TreeStateMessageT*>(data);
+				
 				abs_millis_t t_recv = now();
 				msg.check();
 				
@@ -266,7 +291,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					void *v;
+					void *v = 0;
 					hardcore_cast(v, from);
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
@@ -384,21 +409,21 @@ namespace wiselib {
 					if(!neighbors_[i].used()) { break; }
 					
 					NeighborEntry &e = neighbors_[i];
-					if(e.state().parent() == radio_->id()) { continue; }
-					if(e.state().root() == NULL_NODE_ID || e.state().distance() == (::uint8_t)(-1)) { continue; }
+					if(e.tree_state().parent() == radio_->id()) { continue; }
+					if(e.tree_state().root() == NULL_NODE_ID || e.tree_state().distance() == (::uint8_t)(-1)) { continue; }
 					
-					if(e.state().root() < root) {
+					if(e.tree_state().root() < root) {
 						reason = 1;
 						parent = e.address_;
 						parent_idx = i;
-						root = e.state().root();
-						distance = e.state().distance() + 1;
+						root = e.tree_state().root();
+						distance = e.tree_state().distance() + 1;
 					}
-					else if(e.state().root() == root && (e.state().distance() + 1) < distance) {
+					else if(e.tree_state().root() == root && (e.tree_state().distance() + 1) < distance) {
 						reason = 2;
 						parent = e.address_;
 						parent_idx = i;
-						distance = e.state().distance() + 1;
+						distance = e.tree_state().distance() + 1;
 					}
 				}
 				
@@ -409,9 +434,9 @@ namespace wiselib {
 					parent_idx = npos;
 				}
 				
-				bool c_a = state().set_distance(distance);
-				bool c_b = state().set_parent(parent);
-				bool c_c = state().set_root(root);
+				bool c_a = tree_state().set_distance(distance);
+				bool c_b = tree_state().set_parent(parent);
+				bool c_c = tree_state().set_root(root);
 				bool changed = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
 				debug_->debug("node %d parent %d distance %d root %d changed %d reason %d",
@@ -421,14 +446,6 @@ namespace wiselib {
 				lost_neighbors_ = false;
 				
 				return changed;
-			}
-			
-			UserData& user_data() {
-				return user_data_;
-			}
-			
-			void set_user_data(UserData& ud) {
-				user_data_ = ud;
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {

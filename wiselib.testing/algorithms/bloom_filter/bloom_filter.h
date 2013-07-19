@@ -67,7 +67,7 @@ namespace wiselib {
 				add(v.hash());
 			}
 			
-			bool contains(const value_type& v) {
+			bool contains(const value_type& v) const {
 				return test(v.hash());
 			}
 			
@@ -79,15 +79,16 @@ namespace wiselib {
 				data_[byte(v)] |= (1 << bit(v));
 			}
 			
-			bool test(size_type v) {
+			bool test(size_type v) const {
 				v %= SIZE;
 				return data_[byte(v)] & (1 << bit(v));
 			}
 			
-			void operator|=(self_type& other) {
+			BloomFilter& operator|=(const self_type& other) {
 				for(size_type i = 0; i < SIZE_BYTES; i++) {
 					data_[i] |= other.data_[i];
 				}
+				return *this;
 			}
 			
 		private:

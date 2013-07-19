@@ -102,6 +102,9 @@ namespace wiselib {
 			class Endpoint {
 				// {{{
 				public:
+					Endpoint() : produce_(), consume_(), event_() {
+					}
+					
 					void init(node_id_t remote_address, const ChannelId& channel, bool initiator, produce_callback_t p, consume_callback_t c, event_callback_t a) {
 						remote_address_ = remote_address;
 						produce_ = p;
@@ -116,6 +119,8 @@ namespace wiselib {
 						request_close_ = false;
 						open_ = false;
 						expect_answer_ = false;
+						
+						check();
 					}
 					
 					//sequence_number_t sending_sequence_number() { return sending_sequence_number_; }
@@ -129,14 +134,17 @@ namespace wiselib {
 					const ChannelId& channel() { return channel_id_; }
 					
 					size_type produce(Message& msg) {
+						check();
 						return produce_(msg, *this);
 					}
 					
 					void consume(Message& msg) {
+						check();
 						consume_(msg, *this);
 					}
 					
 					void abort_produce() {
+						check();
 						event_(EVENT_ABORT, *this);
 						//produce_(0, 0, *this);
 						//DBG("+++++++++++++ TODO: pass abort_send to application!");
@@ -209,6 +217,14 @@ namespace wiselib {
 					
 					bool expects_answer() { return expect_answer_; }
 					void set_expect_answer(bool e) { expect_answer_ = e; }
+					
+					void check() {
+						#if !WISELIB_DISABLE_DEBUG
+							assert(produce_);
+							assert(consume_);
+							assert(event_);
+						#endif
+					}
 				
 				private:
 					node_id_t remote_address_;
@@ -230,6 +246,9 @@ namespace wiselib {
 			
 			enum { MAX_ENDPOINTS = 8 };
 			typedef Endpoint Endpoints[MAX_ENDPOINTS];
+			
+			ReliableTransport() : radio_(0), timer_(0), clock_(0), rand_(0), debug_(0) {
+			}
 		
 			int init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Rand::self_pointer_t rand, typename Debug::self_pointer_t debug, bool reg_receiver) {
 				radio_ = radio;
@@ -243,6 +262,8 @@ namespace wiselib {
 				if(reg_receiver) {
 					radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				}
+				
+				check();
 				return SUCCESS;
 			}
 			
@@ -261,10 +282,12 @@ namespace wiselib {
 			int register_endpoint(node_id_t addr, const ChannelId& channel, bool initiator, produce_callback_t produce, consume_callback_t consume, event_callback_t event) {
 				size_type idx = find_or_create_endpoint(channel, initiator, true);
 				if(idx == npos) {
+					assert(false);
 					return ERR_UNSPEC;
 				}
 				else {
 					endpoints_[idx].init(addr, channel, initiator, produce, consume, event);
+					check();
 					return SUCCESS;
 				}
 			}
@@ -414,6 +437,18 @@ namespace wiselib {
 				check_send();
 			}
 			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					assert(radio_);
+					assert(timer_);
+					assert(clock_);
+					assert(rand_);
+					
+					assert(sending_channel_idx_ >= 0);
+					assert(sending_channel_idx_ < MAX_ENDPOINTS);
+				#endif
+			}
+			
 		private:
 			
 			void receive_open(Endpoint& ep, node_id_t n, Message& msg) {
@@ -505,6 +540,8 @@ namespace wiselib {
 			 * Switch to next channel for sending.
 			 */
 			bool switch_sending_endpoint() {
+				check();
+				
 				size_type ole = sending_channel_idx_;
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
 					//DBG("switch idx %d used %d destruct %d send %d",
@@ -516,7 +553,7 @@ namespace wiselib {
 						return true;
 					}
 				}
-				for(sending_channel_idx_ = 0; sending_channel_idx_ <= ole; sending_channel_idx_++) {
+				for(sending_channel_idx_ = 0; sending_channel_idx_ < ole; sending_channel_idx_++) {
 					//DBG("switch idx %d used %d destruct %d send %d",
 							//sending_channel_idx_, sending_endpoint().used(),
 							//sending_endpoint().wants_destruct(), sending_endpoint().wants_send());
@@ -527,6 +564,7 @@ namespace wiselib {
 					}
 				}
 				is_sending_ = false;
+				check();
 				return false;
 			}
 			
@@ -683,7 +721,9 @@ namespace wiselib {
 				resends_++;
 				//ack_timeout_channel_ = sending_endpoint().channel();
 				//ack_timeout_sequence_number_ = sending_endpoint().sequence_number();
-				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, (void*)ack_timer_);
+				void *v;
+				hardcore_cast(v, ack_timer_);
+				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, v);
 			}
 			
 			void ack_timeout(void *at_) {

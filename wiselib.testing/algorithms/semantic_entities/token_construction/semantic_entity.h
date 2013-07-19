@@ -106,10 +106,13 @@ namespace wiselib {
 				// }}}
 			};
 			
-			SemanticEntity() : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0) {
+			SemanticEntity() : global_tree_(0) {
 			}
 			
-			SemanticEntity(const SemanticEntityId& id) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id) {
+			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t) {
+			}
+			
+			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t) {
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -203,61 +206,6 @@ namespace wiselib {
 			///@{
 			//{{{
 			
-			/**
-			 * Where should the token information be sent to after
-			 * we processed it?
-			 * Note this is different from forwarding a token we received but
-			 * dont process!
-			 */
-			/*
-			node_id_t next_token_node() {
-				if(childs() > 0) {
-					return childs_[0];
-				}
-				return parent();
-			}
-			
-			node_id_t prev_token_node(node_id_t mynodeid) {
-				if(mynodeid == root()) {
-					if(childs()) {
-						return childs_[childs() - 1];
-					}
-					return NULL_NODE_ID;
-				}
-				return parent();
-			}
-			*/
-			
-			/*
-			node_id_t token_forward_for(node_id_t mynodeid, node_id_t from) {
-				DBG("node %d // token_forward_for from %d childs %d root %d parent %d", (int)mynodeid, (int)from, (int)childs(), (int)root(), (int)parent());
-					
-				if(from == parent()) { return mynodeid; }
-				else {
-					size_type child_index = find_child(from);
-					DBG("node %d  // token_forward_for from %d childs %d child_idx %d root %d parent %d", (int)mynodeid, (int)from, (int)childs(), (int)child_index, (int)root(), (int)parent());
-					if(child_index == npos) { return NULL_NODE_ID; }
-					else if(child_index == childs() - 1) {
-						if(mynodeid == root()) { return mynodeid; }
-						else { return parent(); }
-					}
-					else { return child_address(child_index + 1); }
-				}
-			}
-			
-			node_id_t token_ack_forward_for(node_id_t mynodeid, node_id_t from) {
-				if(from == parent()) {
-					if(childs() == 0) { return mynodeid; }
-					else { return child_address(childs() - 1); }
-				}
-				else {
-					size_type child_index = find_child(from);
-					if(child_index == npos) { return NULL_NODE_ID; }
-					else if(child_index == 0) { return mynodeid; }
-					else { return child_address(child_index - 1); }
-				}
-			}
-			*/
 			void set_handover_state_initiator(int s) { handover_state_initiator_ = s; }
 			int handover_state_initiator() { return handover_state_initiator_; }
 			void set_handover_state_recepient(int s) { handover_state_recepient_ = s; }
@@ -274,34 +222,6 @@ namespace wiselib {
 			TokenState& token() { return token_; }
 			token_count_t count() { return token().count(); }
 			GlobalTreeT& tree() { return *global_tree_; }
-			
-			/**
-			 * Return length of ordered list of childs.
-			 */
-			//size_type childs() {
-				//return childs_.size();
-			//}
-			
-			/**
-			 * Return position of child in ordered list of childs.
-			 */
-			//size_type find_child(node_id_t id) {
-				//return find_child(id, childs_);
-			//}
-			
-			//static size_type find_child(node_id_t id, Childs& childs) {
-				//// TODO
-				//typename Childs::iterator it = childs.find(id);
-				//if(it == childs.end()) { return npos; }
-				//return it - childs.begin();
-			//}
-			
-			//node_id_t child_address(size_type idx) {
-				//if(idx >= childs_.size()) {
-					//return NULL_NODE_ID;
-				//}
-				//return childs_[idx];
-			//}
 			
 			bool operator==(SemanticEntity& other) { return id() == other.id(); }
 			bool operator<(SemanticEntity& other) { return id() < other.id(); }
@@ -380,20 +300,15 @@ namespace wiselib {
 			//{{{
 			
 			void print_state(node_id_t mynodeid, unsigned t, const char* comment) {
-				DBG("print_state");
-				
-				//DBG("// XXX node %d SE %x.%x active=%d ", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)is_active(mynodeid));
-				//DBG("// XXX awake=%d forwarding=%d count=%d t=%d", (int)is_awake(), (int)is_forwarding(), (int)count(), (int)t);
-				//DBG("// XXX parent=%d root=%d distance=%d", (int)tree().parent(), (int)tree().root(), (int)tree().distance());
-				
 				DBG("node %d SE %x.%x active=%d awake=%d forwarding=%d count=%d t=%d parent=%d root=%d distance=%d", (int)mynodeid, (int)id().rule(), (int)id().value(), (int)is_active(mynodeid),
 						(int)is_awake(), (int)is_forwarding(), (int)count(), (int)t,
 						(int)tree().parent(), (int)tree().root(), (int)tree().distance());
-						//comment);
-				
-				
-				//DBG(" parent=%d root=%d distance=%d", tree().parent(), tree().root(), tree().distance());
-				//DBG(" count=%d active=%d awake=%d", token().count(), is_active(mynodeid), is_awake());
+			}
+			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					assert(global_tree_);
+				#endif
 			}
 			
 			//}}}
@@ -419,9 +334,9 @@ namespace wiselib {
 			bool sending_token_;
 			int handover_state_initiator_;
 			int handover_state_recepient_;
-			typename GlobalTreeT::self_pointer_t global_tree_;
 			SemanticEntityId id_;
 			TokenState token_;
+			typename GlobalTreeT::self_pointer_t global_tree_;
 			
 	}; // SemanticEntity
 	
