@@ -24,7 +24,7 @@ LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -l
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_BLUETOOTH -DARDUINO_LITE -DARDUINO_STRING -Os -w \
+CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
 PORT=/dev/ttyUSB0
@@ -33,7 +33,7 @@ default: build-libs build upload
 
 build-libs: libarduino libzeroconf
 
-libarduino: 
+libarduino:
 	make -C $(ARDUINO_PATH)
 
 libzeroconf:
