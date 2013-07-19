@@ -48,7 +48,7 @@ ATP atp;
 #endif
 
 #ifdef CONFIG_SCLD_ATP_RELIABLE_RADIO
-ReliableRadio reliable_radio;
+	ReliableRadio reliable_radio;
 #endif
 
 void application_main(Os::AppMainParameter& value) {
@@ -73,11 +73,11 @@ void application_main(Os::AppMainParameter& value) {
 	#ifdef CONFIG_SCLD_ATP_NRG
     	iBS = new iSenseBatterySensor( value );
     	neighbor_discovery->init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ , *iBS );
-    	neighbor_discovery->enable();
+    	//neighbor_discovery->enable();
     #else
     	neighbor_discovery->init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ );
     #endif
-    //atp.init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
+    atp.init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
 #endif
-   // atp.enable();
+    atp.enable();
 }

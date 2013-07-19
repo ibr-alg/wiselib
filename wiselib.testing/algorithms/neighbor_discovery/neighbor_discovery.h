@@ -399,7 +399,6 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 						beacon.set_SCLD( SCLD );
-
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 						beacon.set_position( position );

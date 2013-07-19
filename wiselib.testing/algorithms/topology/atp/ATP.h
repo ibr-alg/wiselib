@@ -32,6 +32,14 @@
 #include "ATP_agent.h"
 #endif
 
+#ifdef CONFIG_ATP_H_HYBRID_PLUS
+#define CONFIG_ATP_H_SIMPLE_SCLD
+#endif
+
+#ifdef CONFIG_ATP_H_HYBRID
+#define CONFIG_ATP_H_SIMPLE_SCLD
+#endif
+
 namespace wiselib
 {
 	template<	typename Os_P,
@@ -116,10 +124,6 @@ namespace wiselib
 			SCLD									( 0 ),
 			random_enable_timer_range				( ATP_H_RANDOM_ENABLE_TIMER_RANGE ),
 			status									( WAITING_STATUS )
-#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-			,local_scld_mins_threshold_ratio		( ATP_H_LOCAL_SCLD_MINS_THRESHOLD_RATIO ),
-			local_scld_maxs_threshold_ratio			( ATP_H_LOCAL_SCLD_MAXS_THRESHOLD_RATIO )
-#endif
 		{
 		}
 		// -----------------------------------------------------------------------
@@ -171,7 +175,7 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_RSSI_FILTERING
 						255, 0, 255, 0,
 #endif
-				100, 0, 100, 0, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
+				100, 70, 100, 70, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
 				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
@@ -360,12 +364,10 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				if (	( nd_active_size < SCLD_MIN_threshold )
 #endif
-#ifdef CONFIG_ATP_H_HYBRID_PLUS
+#ifdef CONFIG_ATP_H_LOCAL_BALANCED
 				if ( ( ( nd_active_size < SCLD_MIN_threshold ) || ( get_local_SCLD_MINS() > 0 )	)
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-//				if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) ) ||
-//						( nd_active_size < SCLD_MIN_threshold ) )
 						if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
@@ -391,12 +393,10 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if (	( nd_active_size > SCLD_MAX_threshold )
 #endif
-#ifdef CONFIG_ATP_H_HYBRID_PLUS
+#ifdef CONFIG_ATP_H_LOCAL_BALANCED
 				else if ( ( ( nd_active_size >= SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				//else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
-				//		( nd_active_size > SCLD_MAX_threshold ) )
 				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
@@ -434,7 +434,6 @@ namespace wiselib
 					}
 				}
 #ifdef DEBUG_ATP_H_STATS
-				//if ( nd_active_size < SCLD_MIN_threshold )
 				if ( nd_active_size < ATP_H_SCLD_MIN_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
@@ -444,7 +443,6 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
-				//else if ( nd_active_size > SCLD_MAX_threshold )
 				else if ( nd_active_size > ATP_H_SCLD_MAX_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
@@ -489,8 +487,7 @@ namespace wiselib
 					SCLD = nd_active_size;
 					timer().template set_timer<self_type, &self_type::ATP_service_throughput> ( ATP_sevice_throughput_period, this, 0 );
 				}
-#endif
-#ifdef CONFIG_ATP_H_DISABLE_SCL
+#else
 				else
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_disable> ( ATP_sevice_throughput_period, this, 0 );
@@ -502,6 +499,11 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_HYBRID
 #undef CONFIG_ATP_H_SIMPLE_SCLD
 #define CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
+#endif
+
+#ifdef CONFIG_ATP_H_HYBRID_PLUS
+#undef CONFIG_ATP_H_SIMPLE_SCLD
+#define CONFIG_ATP_H_LOCAL_BALANCED
 #endif
 		// -----------------------------------------------------------------------
 #ifdef CONFIG_ATP_H_THROUGHPUT_CTRL
@@ -622,12 +624,10 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				if ( ( nd_active_size < SCLD_MIN_threshold )
 #endif
-#ifdef CONFIG_ATP_H_HYBRID_PLUS
+#ifdef CONFIG_ATP_H_LOCAL_BALANCED
 				if ( ( ( nd_active_size < SCLD_MIN_threshold ) || ( get_local_SCLD_MINS() > 0 )	)
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				//if (	( ( check_local_SCLD_MINS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 ) )
-				//		|| ( nd_active_size < SCLD_MIN_threshold ) )
 				if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
@@ -653,12 +653,10 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if ( ( nd_active_size >= SCLD_MIN_threshold )
 #endif
-#ifdef CONFIG_ATP_H_HYBRID_PLUS
+#ifdef CONFIG_ATP_H_LOCAL_BALANCED
 				else if ( ( ( nd_active_size >= SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-				//else if (	( ( check_local_SCLD_MAXS() && ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0  ) ) ||
-				//			( nd_active_size >= SCLD_MIN_threshold ) )
 				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
@@ -696,7 +694,6 @@ namespace wiselib
 					}
 				}
 #ifdef DEBUG_ATP_H_STATS
-				//if ( nd_active_size < SCLD_MIN_threshold )
 				if ( nd_active_size < ATP_H_SCLD_MIN_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
@@ -706,7 +703,6 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
-				//else if ( nd_active_size > SCLD_MAX_threshold )
 				else if ( nd_active_size > 	ATP_H_SCLD_MAX_THRESHOLD )
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
@@ -842,10 +838,6 @@ namespace wiselib
 					local_mins++;
 				}
 			}
-			//if ( prot_ref->get_neighborhood_active_size() < SCLD_MIN_threshold )
-			//{
-			//	local_mins++;
-			//}
 			return local_mins;
 		}
 		// -----------------------------------------------------------------------
@@ -860,31 +852,8 @@ namespace wiselib
 					local_maxs++;
 				}
 			}
-			//if ( prot_ref->get_neighborhood_active_size() > SCLD_MAX_threshold )
-			//{
-			//	local_maxs++;
-			//}
 			return local_maxs;
 		}
-		// -----------------------------------------------------------------------
-		//uint8_t check_local_SCLD_MINS()
-		//{
-		//	if ( get_local_SCLD_MAXS() > ( ( SCLD_MIN_threshold + SCLD_MAX_threshold ) * 20 ) / ( 2 * 100 ) )
-		//	{
-		//		return 0;
-		//	}
-		//	return 1;
-		//}
-		// -----------------------------------------------------------------------
-		//uint8_t check_local_SCLD_MAXS()
-		//{
-		//	if ( get_local_SCLD_MINS() > ( ( SCLD_MIN_threshold + SCLD_MAX_threshold ) * 20 ) / ( 2 * 100 ) )
-		//	{
-		//		return 0;
-		//	}
-		//	return 1;
-		//}
-		// -----------------------------------------------------------------------
 		// -----------------------------------------------------------------------
 		void events_callback( uint8_t _event, node_id_t _from, size_t _len, uint8_t* _data )
 		{
@@ -1031,10 +1000,6 @@ namespace wiselib
 		size_t SCLD;
 		uint32_t random_enable_timer_range;
 		uint8_t status;
-#ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-		size_t local_scld_mins_threshold_ratio;
-		size_t local_scld_maxs_threshold_ratio;
-#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 		FrameStateStatus transmission_power_status;
 		FrameStateStatus throughput_status;
