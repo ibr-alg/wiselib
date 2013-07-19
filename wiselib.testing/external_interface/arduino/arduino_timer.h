@@ -185,6 +185,7 @@ namespace wiselib
       
    private:      
       uint8_t ocr2a_;
+      float prescaler;
       uint32_t time_elapsed();					//returns current time
       void init_arduino_timer( void);				
    };
@@ -208,9 +209,26 @@ namespace wiselib
       ASSR &= ~(1<<AS2);			
       TIMSK2 &= ~(1<<OCIE2A);			//disable OCR match interrupt
 
-      TCCR2B |= (1<<CS22);
-      TCCR2B &= ~((1<<CS21) | (1<<CS20));
-      ocr2a_ = (int)((float)F_CPU * 0.001 / 64.0) - 1;
+      if ((F_CPU >= 1000000UL) && (F_CPU <= 16000000UL))
+      {	// prescaler set to 64
+	TCCR2B |= (1<<CS22);
+	TCCR2B &= ~((1<<CS21) | (1<<CS20));
+	prescaler = 64.0;
+      }
+      else if (F_CPU < 1000000UL)
+      {	// prescaler set to 8
+	TCCR2B |= (1<<CS21);
+	TCCR2B &= ~((1<<CS22) | (1<<CS20));
+	prescaler = 8.0;
+      }
+      else
+      { // F_CPU > 16Mhz, prescaler set to 128
+	TCCR2B |= ((1<<CS22) | (1<<CS20));
+	TCCR2B &= ~(1<<CS21);
+	prescaler = 128.0;
+      }
+      
+      ocr2a_ = (int)((float)F_CPU * 0.001 / prescaler) - 1;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
