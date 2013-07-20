@@ -98,7 +98,7 @@ namespace wiselib {
 					message_ = m;
 					last_update_ = t;
 					address_ = addr;
-					DBG("new neigh addr %d root %d parent %d dist %d", (int)address_, (int)tree_state().root(), (int)tree_state().parent(), (int)tree_state().distance());
+					//DBG("new neigh addr %d root %d parent %d dist %d", (int)address_, (int)tree_state().root(), (int)tree_state().parent(), (int)tree_state().distance());
 				}
 				
 				bool used() { return address_ != NULL_NODE_ID; }
@@ -260,7 +260,7 @@ namespace wiselib {
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				debug_->debug("node %d sending!", (int)radio_->id());
+				//debug_->debug("node %d sending!", (int)radio_->id());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				nap_control_->pop_caffeine();
 			}
@@ -272,11 +272,9 @@ namespace wiselib {
 			}
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
-				debug_->debug("node %d recv", (int)radio_->id());
-				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
-					debug_->debug("wrong msg type %d", message_type);
+					//debug_->debug("node %d // wrong msg type %d", message_type);
 					return;
 				}
 				
@@ -439,8 +437,10 @@ namespace wiselib {
 				bool c_c = tree_state().set_root(root);
 				bool changed = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
-				debug_->debug("node %d parent %d distance %d root %d changed %d reason %d",
-						(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)changed, (int)reason);
+				if(changed) {
+					debug_->debug("node %d parent %d distance %d root %d changed %d reason %d",
+							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)changed, (int)reason);
+				}
 				
 				new_neighbors_ = false;
 				lost_neighbors_ = false;

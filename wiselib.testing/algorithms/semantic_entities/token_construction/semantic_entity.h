@@ -166,8 +166,7 @@ namespace wiselib {
 			 */
 			bool is_active(node_id_t mynodeid) {
 				token_count_t l = prev_token_state_.count();
-				DBG("node %d l=%d is_root=%d root=%d tok.count=%d", (int)mynodeid, (int)l, (int)is_root(mynodeid),
-						(int)tree().root(), (int)token().count());
+				//DBG("node %d l=%d is_root=%d root=%d tok.count=%d", (int)mynodeid, (int)l, (int)is_root(mynodeid), (int)tree().root(), (int)token().count());
 				if(is_root(mynodeid)) {
 					return l == token().count();
 				}

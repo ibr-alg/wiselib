@@ -201,7 +201,7 @@ namespace wiselib {
 					void* userdata = 0
 			) {
 				if(waiting_ || waiting_timer_set_) {
-					DBG("t=%d // timer already set!", (int)absolute_millis(clock, clock->time()));
+					//DBG("t=%d // timer already set!", (int)absolute_millis(clock, clock->time()));
 					return true;
 				}
 				
@@ -210,9 +210,9 @@ namespace wiselib {
 				userdata_ = userdata;
 				
 				if(early()) {
-					DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)1, (long int)userdata);
-					DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)hits_, (long int)1);
-					DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)absolute_millis(clock, clock->time()), (int)1, (long int)1);
+					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)1, (long int)userdata);
+					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)hits_, (long int)1);
+					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)absolute_millis(clock, clock->time()), (int)1, (long int)1);
 					waiting_ = true;
 					if(begin_waiting_callback_) {
 						begin_waiting_callback_(userdata_);

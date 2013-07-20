@@ -94,7 +94,7 @@ namespace wiselib {
 			enum { npos = (size_type)(-1) };
 			
 			enum Events {
-				EVENT_ABORT, EVENT_OPEN, EVENT_CLOSE
+				EVENT_ABORT = 0, EVENT_OPEN = 1, EVENT_CLOSE = 2
 			};
 			
 			//}}}
@@ -385,7 +385,7 @@ namespace wiselib {
 				DBG("node %d // transport recv chan %x.%x msg.init=%d msg.ack=%d msg.s=%d msg.f=%d", (int)radio_->id(), (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.sequence_number(), (int)msg.flags());
 				
 				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
-				DBG("node %d // recv idx=%d sending_idx=%d", (int)radio_->id(), (int)idx, (int)sending_channel_idx_);
+				//DBG("node %d // recv idx=%d sending_idx=%d", (int)radio_->id(), (int)idx, (int)sending_channel_idx_);
 				
 				if(idx == npos) {
 					DBG("on_receive: ignoring message of unkonwn channel %x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
@@ -544,9 +544,9 @@ namespace wiselib {
 				
 				size_type ole = sending_channel_idx_;
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
-					//DBG("switch idx %d used %d destruct %d send %d",
-							//sending_channel_idx_, sending_endpoint().used(),
-							//sending_endpoint().wants_destruct(), sending_endpoint().wants_send());
+					DBG("switch idx %d used %d send %d",
+							sending_channel_idx_, sending_endpoint().used(),
+							sending_endpoint().wants_send());
 					
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
 						is_sending_ = true;
@@ -554,9 +554,9 @@ namespace wiselib {
 					}
 				}
 				for(sending_channel_idx_ = 0; sending_channel_idx_ < ole; sending_channel_idx_++) {
-					//DBG("switch idx %d used %d destruct %d send %d",
-							//sending_channel_idx_, sending_endpoint().used(),
-							//sending_endpoint().wants_destruct(), sending_endpoint().wants_send());
+					DBG("switch idx %d used %d send %d",
+							sending_channel_idx_, sending_endpoint().used(),
+							sending_endpoint().wants_send());
 					
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
 						is_sending_ = true;

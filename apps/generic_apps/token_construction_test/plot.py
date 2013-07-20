@@ -27,6 +27,7 @@ properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count'
 
 def getnodes(namepattern):
 	global gnodes
+	print "keys=", gnodes.keys()
 	nodes = dict(
 			(k, v) for (k, v) in gnodes.items() if re.match(namepattern, k)
 	)
@@ -80,6 +81,7 @@ def parse(f):
 		name = nodename = get_value('node')
 		if name is None:
 			print ("[!!!] nodename is none in line: " + origline)
+			continue
 		
 		try: t = int(get_value('t')) / 1000
 		except: pass

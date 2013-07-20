@@ -71,7 +71,7 @@ namespace wiselib {
 			};
 			
 			enum {
-				MESSAGE_TYPE = 0x77,
+				MESSAGE_TYPE = 't',
 			};
 			
 			void init() {
