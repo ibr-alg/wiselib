@@ -774,6 +774,7 @@ namespace wiselib
 		packet.length += payload_act_pointer - packet.get_payload();
 		
 #if DPS_FOOTER > 0
+// 		packet.set_debug( *debug_ );
 		packet.set_checksum( connection, use_requst_key_for_checksum );
 #endif
 		
@@ -882,7 +883,7 @@ namespace wiselib
 		else
 #endif
 		{
-			counter = &(act_buffer->connection_it->client_counter); //NOTE was this a bug? ->server_counter
+			counter = &(act_buffer->connection_it->client_counter);
 			packet.set_counter( act_buffer->connection_it->client_counter );
 		}
 		
@@ -1005,10 +1006,11 @@ namespace wiselib
 		{
 	#if DPS_FOOTER > 0
 			//Checksum validation based on the REQUEST key
+// 			packet.set_debug( *debug_ );
 			if( !(packet.validate_checksum( connection_list_.end(), true )) )
 			{
 				#if DPS_RADIO_DEBUG >= 0
-				debug().debug( "DPS CHKErr" );
+				debug().debug( "DPS D CHKErr" );
 				#endif
 				return;
 			}
@@ -1080,6 +1082,7 @@ namespace wiselib
 				//This is an expensive request...
 				bool server = protocol_list_[packet.pid()].server;
 #endif
+				
 				//validate counters and save the pointer of the actual one
 				//The counter value in the packet must be greater or equal compared to the expected,
 				uint32_t* counter = NULL;
@@ -1162,6 +1165,8 @@ namespace wiselib
 				#endif
 				
 			//-----------Connected messages----------
+				bool fragmented = ( packet.fragmentation_flag() == 1 );
+				
 				//The heartbeat is the most common message type
 				if( type == DPS_Packet_t::DPS_TYPE_HEARTBEAT )
 				{
@@ -1172,19 +1177,20 @@ namespace wiselib
 				}
 				else if( type == DPS_Packet_t::DPS_TYPE_RPC_ACK )
 				{
+					
 					for( Buffer_list_iterator act_buffer = buffer_list_.begin(); act_buffer != buffer_list_.end(); ++act_buffer )
 					{
 						if( (act_buffer->connection_it) == it )
 						{
-							if( ((packet.fragmentation_flag() == 1) && (act_buffer->processed_size == packet.fragmentation_header_shift())) ||
-								(packet.fragmentation_flag() == 0) )
+							if( ((fragmented) && (act_buffer->processed_size == packet.fragmentation_header_shift())) ||
+								(!fragmented) )
 							{
 								act_buffer->processed_size += act_buffer->last_fragment_size;
 							}
 							else
 							{
 									#if DPS_RADIO_DEBUG >= 1
-									debug().debug( "DPS DuplAck");
+									debug().debug( "DPS DuplAck %i", act_buffer->processed_size);
 									#endif
 									return;
 							}
@@ -1240,7 +1246,7 @@ namespace wiselib
 						buffer_element_t new_buffer;
 						
 						//Calculate the full length
-						if( packet.fragmentation_flag() == 1 )
+						if( fragmented )
 							new_buffer.buffer_length = packet.fragmentation_header_length();
 						else
 							new_buffer.buffer_length = actual_payload_length;
@@ -1270,7 +1276,7 @@ namespace wiselib
 					//The extra validation is to avoid the copy of a duplicated fragment. These cannot be dropped (return) before
 					//this since the reason can be the lost ACK and it must be repeated but that mechanism uses the same packet.
 					bool DF_drop = false; //reduce the number of if-s
-					if( packet.fragmentation_flag() == 1 )
+					if( fragmented )
 					{
 						if( act_buffer->processed_size == packet.fragmentation_header_shift() )
 							memcpy( act_buffer->buffer_pointer + packet.fragmentation_header_shift(), packet.buffer + packet.payload_position, actual_payload_length );
@@ -1298,8 +1304,8 @@ namespace wiselib
 					
 					if( DF_drop )
 					{
-						#if DPS_RADIO_DEBUG >= 0
-						debug().debug( "DPS: DF %lx", (long long unsigned)from);
+						#if DPS_RADIO_DEBUG >= 1
+						debug().debug( "DPS: OffsetDrop %lx %i", (long long unsigned)from, act_buffer->processed_size);
 // 						debug().debug( "DPS duplicated fragment %i %i!", act_buffer->processed_size, packet.fragmentation_header_shift() );
 						#endif
 						return;
@@ -1564,7 +1570,7 @@ namespace wiselib
 				it->client_counter = rand()() % (0xFFFFFFFF);
 				it->link_metric = 0xFFFF;
 // 				it->server_counter = 0;
-// 				it->partner_MAC = Radio::NULL_NODE_ID;
+				it->partner_MAC = Radio::NULL_NODE_ID;
 // 				it->connection_nonce = 0;
 				
 				int tmp = DPS_Packet_t::DPS_TYPE_DISCOVERY << 8;

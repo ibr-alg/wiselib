@@ -27,7 +27,7 @@
 	
 	#define DPS_MAX_PROTOCOLS 1
 	#define DPS_MAX_CONNECTIONS 1
-	#define DPS_MAX_BUFFER_LIST 1
+	#define DPS_MAX_BUFFER_LIST 2
 	
 	#undef IP_PACKET_POOL_SIZE
 	#define IP_PACKET_POOL_SIZE 1
@@ -64,7 +64,12 @@
 // 0 - unused 
 // 1 - XOR based 
 // 2 - AES* based
-#define DPS_FOOTER 1
+#define DPS_FOOTER 2
+
+#if DPS_FOOTER == 2 && not defined ISENSE
+	#error AES based MAC is only for iSense
+#endif
+#define DPG_AES_CBC_MAC_MAXIMUM_INPUT_LENGTH 31
 
 #define DPS_TIMER_DISCOVERY_MIN 3 //Not used at the moment
 #define DPS_ACK_MAX_RETRIES 3

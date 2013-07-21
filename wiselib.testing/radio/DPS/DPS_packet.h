@@ -30,6 +30,11 @@
 #include "util/serialization/bitwise_serialization.h"
 
 
+#if DPS_FOOTER == 2
+	#include <isense/aes.h>
+#endif
+
+
 /*
   DPS Header 
     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
@@ -304,7 +309,10 @@ namespace wiselib
 			if( memcmp( MAC, buffer + length - 4, 4 ) == 0 )
 				return true;
 			else
+			{
+// 				debug().debug("In packet: %x %x %x %x calc: %x %x %x %x", buffer[length-4],buffer[length-3],buffer[length-2],buffer[length-1],MAC[0],MAC[1],MAC[2],MAC[3]);
 				return false;
+			}
 		}
 #endif
 		
@@ -359,23 +367,69 @@ namespace wiselib
 	{
 		memset(MAC,0,4);
 		
+		uint8_t* key = connection->key;
+		
+		//Use the request key for the DISCOVERY and ADVERTISE messages
+		if( use_request_key )
+			key = (uint8_t*)DPS_REQUEST_KEY;
+		
+		
+#if DPS_FOOTER == 1
 		//XOR the byte of the buffer into the 4-byte-long MAC buffer
 		for ( uint8_t i = 0; i < length; i++ ) 
 		{
 			MAC[i%4] ^= buffer[i];
 		}
-#if DPS_FOOTER == 1
+		
 		//XOR the buffer with the connection key
 		for ( uint8_t i = 0; i < 16; i++ ) 
 		{
-			//Use the request key for the DISCOVERY and ADVERTISE messages
-			if( use_request_key )
-				MAC[i%4] ^= DPS_REQUEST_KEY[i];
-			else
-				MAC[i%4] ^= connection->key[i];
+			MAC[i%4] ^= key[i];
 		}
+#elif DPS_FOOTER == 2
+		//AES-CCM*
+		// The checksum will be calculated for blocks of 16 byte length.
+		// The checksums for each block will be XORed, forming the
+		// final checksum.
+		
+		uint8_t temp_mac[4];
+		memset(temp_mac,0,4);
+		
+		//Nonce from the counter
+		uint8_t nonce[16];
+		memset(nonce,0,16);
+
+		//Use the counter from the header as nonce
+		memcpy(nonce+12,buffer + 1, 4);
+
+		uint8_t start = 0;
+		uint8_t end = DPG_AES_CBC_MAC_MAXIMUM_INPUT_LENGTH;
+
+		while (start < length) {
+			end = start + DPG_AES_CBC_MAC_MAXIMUM_INPUT_LENGTH;
+
+			if (end > length) {
+				end = length;
+			}
+			if (start<end) {
+				GET_OS.aes().ccm_mac(end-start, buffer+start, 4, temp_mac, key, nonce);
+				GET_OS.radio().hardware_radio().hw_enable();
+// 				debug().debug("AES: %i", status);
+
+			}
+
+			MAC[0] ^= temp_mac[0];
+			MAC[1] ^= temp_mac[1];
+			MAC[2] ^= temp_mac[2];
+			MAC[3] ^= temp_mac[3];
+
+			//memset(temp_mac2, 0, 4);
+
+			start = start + DPG_AES_CBC_MAC_MAXIMUM_INPUT_LENGTH;
+		}
+// 		debug().debug("CHK: %x %x %x %x", MAC[0],MAC[1],MAC[2],MAC[3]);
 #else
-#error Implement AES based auth.
+#error Unexpected footer code
 #endif
 	}
 #endif //DPS_FOOTER > 0
