@@ -87,7 +87,7 @@ namespace wiselib {
 			};
 			
 			typedef delegate1<void, EventType> event_callback_t;
-			typedef set_static<OsModel, event_callback_t, MAX_EVENT_LISTENERS> EventCallbacks;
+			typedef vector_static<OsModel, event_callback_t, MAX_EVENT_LISTENERS> EventCallbacks;
 			
 			struct NeighborEntry {
 				// {{{
@@ -198,7 +198,7 @@ namespace wiselib {
 			}
 			
 			void reg_event_callback(event_callback_t cb) {
-				event_callbacks_.insert(cb);
+				event_callbacks_.push_back(cb);
 			}
 			
 			iterator begin_neighbors() {
@@ -327,9 +327,7 @@ namespace wiselib {
 			}
 			
 			void add_neighbor(node_id_t addr, const TreeStateMessageT& msg) {
-				if(neighbors_count_ == MAX_NEIGHBORS) {
-					return;
-				}
+				DBG("add_neighbor");
 				
 				size_type p = find_neighbor_position(addr);
 				if(neighbors_[p].address_ == addr) {
@@ -338,6 +336,11 @@ namespace wiselib {
 					notify_event(UPDATED_NEIGHBOR);
 				}
 				else {
+					if(neighbors_count_ == MAX_NEIGHBORS) {
+						DBG("WARNING: ignoring neighbor because of full neighbors list");
+						return;
+					}
+					
 					if(p == 0) {
 						if(neighbors_count_ > 0) {
 							size_type pp = find_neighbor_position(neighbors_[0].address_);
@@ -385,7 +388,9 @@ namespace wiselib {
 			}
 			
 			void notify_event(EventType t) {
+				DBG("notifying");
 				for(typename EventCallbacks::iterator iter = event_callbacks_.begin(); iter != event_callbacks_.end(); ++iter) {
+					DBG("notifying some guy in particular");
 					(*iter)(t);
 				}
 			}

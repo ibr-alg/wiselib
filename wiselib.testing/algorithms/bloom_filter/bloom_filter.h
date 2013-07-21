@@ -55,6 +55,10 @@ namespace wiselib {
 				r->clear();
 			}
 			
+			BloomFilter() {
+				memset(data_, 0x00, SIZE_BYTES);
+			}
+			
 			void clear() {
 				memset(data_, 0x00, SIZE_BYTES);
 			}
@@ -71,12 +75,11 @@ namespace wiselib {
 				return test(v.hash());
 			}
 			
-			
-			
-			
 			void add(size_type v) {
 				v %= SIZE;
+				DBG("filter add %d byte=%d bit=%d", (int)v, (int)byte(v), (int)bit(v));
 				data_[byte(v)] |= (1 << bit(v));
+				DBG("byte after: %02x", data_[byte(v)]);
 			}
 			
 			bool test(size_type v) const {
@@ -91,12 +94,14 @@ namespace wiselib {
 				return *this;
 			}
 			
+			block_data_t* data() { return data_; }
+			
 		private:
 			
 			static size_type byte(size_type n) { return n / 8; }
 			static size_type bit(size_type n) { return n % 8; }
 			
-			block_data_t data_[0];
+			block_data_t data_[SIZE_BYTES];
 		
 	}; // BloomFilter
 }

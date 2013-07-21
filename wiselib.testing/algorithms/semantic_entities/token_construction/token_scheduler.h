@@ -90,10 +90,10 @@ namespace wiselib {
 			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, Debug, NapControlT> GlobalTreeT;
 			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
 			typedef SemanticEntity<OsModel, GlobalTreeT, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
-			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, Radio> SemanticEntityNeighborhoodT;
+			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT> SemanticEntityRegistryT;
+			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, SemanticEntityRegistryT, Radio> SemanticEntityNeighborhoodT;
 			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, Radio> SemanticEntityForwardingT;
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
-			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT> SemanticEntityRegistryT;
 			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			typedef TokenStateMessage<OsModel, SemanticEntityT, Radio> TokenStateMessageT;
 			typedef typename TokenStateMessageT::TokenState TokenState;
@@ -173,7 +173,7 @@ namespace wiselib {
 				);
 				registry_.init(&global_tree_);
 				
-				neighborhood_.init(&global_tree_, radio_);
+				neighborhood_.init(&global_tree_, &registry_, radio_);
 				forwarding_.init(radio_, &neighborhood_);
 				
 				aggregator_.init(tuplestore);
@@ -285,9 +285,9 @@ namespace wiselib {
 						(ep.remote_address() != radio_->id()) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
-					debug_->debug("// initiating token handover %d -> %d SE %x.%x ep.wants_send %d",
-							(int)radio_->id(), (int)ep.remote_address(), (int)se.id().rule(),
-							(int)se.id().value(), (int)ep.wants_send());
+					debug_->debug("// initiating token handover %d -> t %d %d SE %x.%x ep.wants_send %d &ep %p",
+							(int)radio_->id(), (int)ep.remote_address(), (int)now(),
+							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep);
 					se.set_handover_state_initiator(SemanticEntityT::INIT);
 					transport_.flush();
 				}
@@ -302,8 +302,8 @@ namespace wiselib {
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return false; }
 				
-				debug_->debug("node %d SE %x.%x handover_state_initiator %d // produce_handover_initiator",
-						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator());
+				debug_->debug("node %d SE %x.%x handover_state_initiator %d t %d // produce_handover_initiator",
+						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				
 				switch(se->handover_state_initiator()) {
 					case SemanticEntityT::INIT: {
@@ -358,8 +358,8 @@ namespace wiselib {
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return; }
 				
-				debug_->debug("node %d SE %x.%x handover_state_initiator %d // consume_handover_initiator",
-						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator());
+				debug_->debug("node %d SE %x.%x handover_state_initiator %d t %d // consume_handover_initiator",
+						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				
 				if(*message.payload() == 'a') {
 					se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
@@ -376,8 +376,8 @@ namespace wiselib {
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return; }
 				
-				debug_->debug("node %d SE %x.%x handover_state_initiator %d event %d // event_handover_initiator",
-						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)event);
+				debug_->debug("node %d SE %x.%x handover_state_initiator %d event %d t %d // event_handover_initiator",
+						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)event, (int)now());
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
@@ -403,12 +403,12 @@ namespace wiselib {
 			//@{ Recepient (Token receiving side)
 			
 			bool produce_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
-				debug_->debug("// produce_handover_recepient");
-				
 				if(endpoint.remote_address() == radio_->id()) { return false; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return false; }
+				
+				debug_->debug("node %d SE %x.%x handover_state_recepient %d t %d // produce_handover_recepient", (int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)now());
 				
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::SEND_ACTIVATING:
@@ -428,16 +428,23 @@ namespace wiselib {
 			}
 			
 			void consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
-				debug_->debug("// consume_handover_recepient");
 				
-				if(endpoint.remote_address() == radio_->id()) { return; }
+				if(endpoint.remote_address() == radio_->id()) {
+					DBG("consume_handover_recepient: ignoring self-send at %d s %d",
+							(int)radio_->id(), message.sequence_number());
+					return;
+				}
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return; }
+				if(!se) {
+					DBG("consume_handover_recepient: at %d SE %x.%x not found",
+							(int)radio_->id(), (int)id.rule(), (int)id.value());
+					return;
+				}
 				
-				debug_->debug("node %d SE %x.%x recepient_state %d // consume_handover_recepient",
+				debug_->debug("node %d SE %x.%x recepient_state %d t %d // consume_handover_recepient",
 						(int)radio_->id(), (int)se->id().rule(), (int)se->id().value(),
-						(int)se->handover_state_recepient());
+						(int)se->handover_state_recepient(), (int)now());
 				
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::INIT: {
@@ -456,11 +463,13 @@ namespace wiselib {
 			}
 			
 			void event_handover_recepient(int event, typename ReliableTransportT::Endpoint& endpoint) {
-				debug_->debug("// event_handover_recepient");
 				if(endpoint.remote_address() == radio_->id()) { return; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return; }
+				
+				debug_->debug("node %d SE %x.%x handover_state_recepient %d event %d t %d // event_handover_receipient",
+						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)event, (int)now());
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_OPEN:

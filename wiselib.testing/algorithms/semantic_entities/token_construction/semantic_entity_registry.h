@@ -37,8 +37,10 @@ namespace wiselib {
 		typename GlobalTree_P
 	>
 	class SemanticEntityRegistry {
-		
 		public:
+			typedef SemanticEntityRegistry self_type;
+			typedef self_type* self_pointer_t;
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
