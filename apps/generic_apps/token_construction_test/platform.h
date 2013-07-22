@@ -24,8 +24,10 @@
 
 #define USE_DICTIONARY (USE_PRESCILLA || USE_TREEDICT)
 
-#define NEED_ALLOCATOR (defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ))
 
+// Allocator
+
+#define NEED_ALLOCATOR (defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ))
 
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
@@ -42,7 +44,10 @@ typedef wiselib::OSMODEL Os;
 	Allocator allocator_;
 	Allocator& get_allocator() { return allocator_; }
 #endif
-	
+
+
+// OS quirks
+
 #ifdef TINYOS
 	int strcmp(char* a, char* b) {
 		for( ; a && b; a++, b++) {
@@ -66,4 +71,14 @@ typedef wiselib::OSMODEL Os;
 	#warning "debug messages not implemented for this platform, disabling"
 	#define DBG(...)
 #endif
-
+	
+#ifdef SHAWN
+	#define WISELIB_TIME_FACTOR 50
+#endif
+	
+// Time scaling
+	
+#ifndef WISELIB_TIME_FACTOR
+	#define WISELIB_TIME_FACTOR 1
+#endif
+	

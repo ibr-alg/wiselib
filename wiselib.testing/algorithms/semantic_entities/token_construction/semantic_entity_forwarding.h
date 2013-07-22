@@ -77,7 +77,7 @@ namespace wiselib {
 				
 				// if reliable transport packet we should forward:
 				//   forward it by se_id using amq
-				node_id_t target = amq_nhood_->forward_address(se_id, from, true);
+				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator());
 				if(target == NULL_NODE_ID) { return true; }
 				
 				if(target == radio_->id()) {
@@ -87,7 +87,13 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					DBG("on_receive: %d -> %d -> %d", (int)from, (int)radio_->id(), (int)target);
+					if(msg.initiator()) {
+						DBG("on_receive: %d -> %d -> %d", (int)from, (int)radio_->id(), (int)target);
+					}
+					else {
+						DBG("on_receive: %d <- %d <- %d", (int)target, (int)radio_->id(), (int)from);
+					}
+						
 					radio_->send(target, len, data);
 					return true;
 				}

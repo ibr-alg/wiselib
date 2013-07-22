@@ -70,8 +70,8 @@ namespace wiselib {
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
-				PUSH_INTERVAL = 200 * 10,
-				BCAST_INTERVAL = 2000 * 10,
+				PUSH_INTERVAL = 100 * 10,
+				BCAST_INTERVAL = 5000 * 10,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -504,6 +504,20 @@ namespace wiselib {
 				check();
 			}
 			
+			// TODO: XXX
+			// unterscheiden zwischen gesehenen nachbarn und solchen die eine
+			// im baum wirklich relevant sind (letztere sollten sich nur bei
+			// update_state() ändern, während erstere sich bei gesehenen
+			// broadcasts verändern können.
+			// 
+			// Idee:
+			// - neighbors_ = unsortiertes array / set von gesehenen nachbarn
+			//   mit deren zuständen (NeighborEntry[...])
+			//   
+			// - sorted_neighbors_ = sortiertes array vom typ Neighbor, sorted_neighbors_[0] = parent,
+			//   sorted_neighbors_[1...1+childs()] = childs
+			// 
+			
 			bool update_state() {
 				check();
 				cleanup_dead_neighbors();
@@ -563,6 +577,10 @@ namespace wiselib {
 				if(c) {
 					debug_->debug("node %d parent %d distance %d root %d changed %d reason %d t %d // update_state",
 							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)reason, (int)now());
+					for(size_type i = 0; i < childs(); i++) {
+						debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
+					}
+					
 					changed();
 				}
 				

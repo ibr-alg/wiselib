@@ -83,8 +83,8 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 500 * 10, MAX_RESENDS = 3,
-				ANSWER_TIMEOUT = 1000 * 10,
+				RESEND_TIMEOUT = 100 * WISELIB_TIME_FACTOR, MAX_RESENDS = 3,
+				ANSWER_TIMEOUT = 2 * RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {
@@ -343,7 +343,10 @@ namespace wiselib {
 			void set_remote_address(const ChannelId& channel, bool initiator, node_id_t addr) {
 				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx == npos) { return; }
-				//DBG("node %d // init=%d remote_addr=%d", (int)radio_->id(), (int)initiator, (int)addr);
+				
+				if(endpoints_[idx].remote_address() != addr) {
+					DBG("node %d // set_remote_address SE %x.%x init=%d remote_addr=%d", (int)radio_->id(), (int)channel.rule(), (int)channel.value(), (int)initiator, (int)addr);
+				}
 				endpoints_[idx].set_remote_address(addr);
 			}
 			
@@ -406,7 +409,9 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					DBG("on_receive: ignoring message of wrong seqnr chan=%x.%x msg.s=%d msg.ack=%d msg.open=%d ep.s=%d", (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number());
+					DBG("node %d // on_receive: ignoring message of wrong seqnr chan=%x.%x msg.s=%d msg.ack=%d msg.open=%d ep.s=%d",
+							(int)radio_->id(),
+							(int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number());
 					return;
 				}
 				

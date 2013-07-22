@@ -113,12 +113,12 @@ namespace wiselib {
 			};
 			
 			enum Timings {
-				HANDOVER_RETRY_INTERVAL = 10000 * 10,
+				HANDOVER_RETRY_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
 				
 				/**
 				 * How long should we keep the token once we have it?
 				 */
-				ACTIVITY_PERIOD = 10000 * 10,
+				ACTIVITY_PERIOD = 1000 * WISELIB_TIME_FACTOR,
 			};
 			
 			// }}}
@@ -285,7 +285,7 @@ namespace wiselib {
 						(ep.remote_address() != radio_->id()) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
-					debug_->debug("// initiating token handover %d -> t %d %d SE %x.%x ep.wants_send %d &ep %p",
+					debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p",
 							(int)radio_->id(), (int)ep.remote_address(), (int)now(),
 							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep);
 					se.set_handover_state_initiator(SemanticEntityT::INIT);
