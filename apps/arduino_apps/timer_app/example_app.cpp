@@ -15,7 +15,7 @@ public:
    // --------------------------------------------------------------------
    ExampleApplication()
    {
-      timer = new Os::Timer(); 
+      timer = new Os::Timer();
       debug = new Os::Debug();
       timer->set_timer<ExampleApplication, &ExampleApplication::on_time>( 1000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_third_time>( 3000, this, ( void* )timer );
@@ -28,7 +28,7 @@ public:
       timer->set_timer<ExampleApplication, &ExampleApplication::on_eigth_time>( 8000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_tenth_time>( 10000, this, ( void* )timer );
    }
- 
+
    void on_time(void*)
    {
       debug->debug("One second timer event");
@@ -88,13 +88,12 @@ public:
 private:
    Os::Timer* timer;
    Os::Debug* debug;
-
 };
 // --------------------------------------------------------------------------
 //wiselib::WiselibApplication<Os, ExampleApplication> example_app;
 // --------------------------------------------------------------------------
-int main(Os::AppMainParameter& amp)
-{  
+int main()
+{
    init();
    pinMode(13, OUTPUT);
 #if defined(USBCON)
