@@ -34,7 +34,7 @@ default: build-libs build upload
 
 build-libs: libarduino libzeroconf
 
-libarduino: 
+libarduino:
 	make -C $(ARDUINO_PATH)
 
 libzeroconf:
