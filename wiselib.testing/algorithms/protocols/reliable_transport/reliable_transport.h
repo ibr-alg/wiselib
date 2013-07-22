@@ -83,8 +83,8 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 5000, MAX_RESENDS = 3,
-				ANSWER_TIMEOUT = 10000,
+				RESEND_TIMEOUT = 500 * 10, MAX_RESENDS = 3,
+				ANSWER_TIMEOUT = 1000 * 10,
 			};
 			
 			enum ReturnValues {
@@ -343,8 +343,7 @@ namespace wiselib {
 			void set_remote_address(const ChannelId& channel, bool initiator, node_id_t addr) {
 				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx == npos) { return; }
-				DBG("node %d // init=%d remote_addr=%d",
-						(int)radio_->id(), (int)initiator, (int)addr);
+				//DBG("node %d // init=%d remote_addr=%d", (int)radio_->id(), (int)initiator, (int)addr);
 				endpoints_[idx].set_remote_address(addr);
 			}
 			
@@ -553,9 +552,9 @@ namespace wiselib {
 				
 				size_type ole = sending_channel_idx_;
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
-					DBG("switch idx %d &ep %p used %d send %d",
-							sending_channel_idx_, &sending_endpoint(), sending_endpoint().used(),
-							sending_endpoint().wants_send());
+					//DBG("switch idx %d &ep %p used %d send %d",
+							//sending_channel_idx_, &sending_endpoint(), sending_endpoint().used(),
+							//sending_endpoint().wants_send());
 					
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
 						is_sending_ = true;
@@ -563,9 +562,9 @@ namespace wiselib {
 					}
 				}
 				for(sending_channel_idx_ = 0; sending_channel_idx_ <= ole; sending_channel_idx_++) {
-					DBG("switch idx %d &ep %p used %d send %d",
-							sending_channel_idx_, &sending_endpoint(), sending_endpoint().used(),
-							sending_endpoint().wants_send());
+					//DBG("switch idx %d &ep %p used %d send %d",
+							//sending_channel_idx_, &sending_endpoint(), sending_endpoint().used(),
+							//sending_endpoint().wants_send());
 					
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
 						is_sending_ = true;

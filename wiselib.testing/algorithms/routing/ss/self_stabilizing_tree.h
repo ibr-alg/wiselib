@@ -70,7 +70,8 @@ namespace wiselib {
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
-				BCAST_INTERVAL = 200,
+				PUSH_INTERVAL = 200 * 10,
+				BCAST_INTERVAL = 2000 * 10,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -194,7 +195,10 @@ namespace wiselib {
 				lost_neighbors_ = false;
 				nap_control_ = nap_control;
 				
+				last_push_ = 0;
+				check();
 				broadcast_state_regular();
+				check();
 			}
 			
 			void reg_event_callback(event_callback_t cb) {
@@ -212,14 +216,16 @@ namespace wiselib {
 			node_id_t parent() { return neighbors_[0].address_; }
 			node_id_t root() { return tree_state_.root(); }
 			
-			node_id_t child(size_type idx) {
-				assert(idx + 1 < neighbors_count_);
-				return neighbors_[idx + 1].address_;
+			node_id_t child(size_type c_idx) {
+				check();
+				assert(c_idx < childs());
+				return neighbors_[c_idx + 1].address_;
 			}
 			
-			UserData child_user_data(size_type idx) {
-				assert(idx + 1 < neighbors_count_);
-				return neighbors_[idx + 1].message_.user_data();
+			UserData child_user_data(size_type c_idx) {
+				check();
+				assert(c_idx < childs());
+				return neighbors_[c_idx + 1].message_.user_data();
 			}
 			
 			TreeStateT& tree_state() { return tree_state_; }
@@ -228,8 +234,9 @@ namespace wiselib {
 			 * @return The number of childs with a lower node id than n.
 			 */
 			size_type child_index(node_id_t n) {
+				check();
 				size_type idx = find_neighbor_position(n);
-				assert(idx < neighbors_count_);
+				assert(idx < neighbors_count_ || (idx == neighbors_count_ && neighbors_[0].address_ == NULL_NODE_ID));
 				return (neighbors_[idx].address_ == n) ? idx - 1 : npos;
 			}
 			
@@ -249,6 +256,30 @@ namespace wiselib {
 				user_data_ = ud;
 			}
 			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					//debug_->debug("// neighs at %d: [ %d | %d %d %d ]",
+							//(int)radio_->id(),
+							//(int)neighbors_[0].address_,
+							//(int)neighbors_[1].address_,
+							//(int)neighbors_[2].address_,
+							//(int)neighbors_[3].address_);
+				
+					bool has_parent = neighbors_[0].address_ != NULL_NODE_ID;
+					node_id_t n = npos;
+					bool n_valid = false;
+					for(size_type i = 1; i < neighbors_count_ + !has_parent; i++) {
+						assert(n_valid <= (neighbors_[i].address_ > n));
+						n = neighbors_[i].address_;
+						n_valid = true;
+						assert(neighbors_[i].address_ != NULL_NODE_ID);
+					}
+					
+					for(size_type i = neighbors_count_ + !has_parent; i < MAX_NEIGHBORS; i++) {
+						assert(neighbors_[i].address_ == NULL_NODE_ID);
+					}
+				#endif
+			}
 		
 		private:
 			
@@ -260,7 +291,7 @@ namespace wiselib {
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				//debug_->debug("node %d sending!", (int)radio_->id());
+				//debug_->debug("node %d t %d // bcast tree state", (int)radio_->id(), (int)now());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				nap_control_->pop_caffeine();
 			}
@@ -268,6 +299,7 @@ namespace wiselib {
 			void broadcast_state_regular(void* = 0) {
 				//tree_state_message_.set_reason(TreeStateMessageT::REASON_REGULAR_BCAST);
 				broadcast_state(TreeStateMessageT::REASON_REGULAR_BCAST);
+				last_push_ = now();
 				timer_->template set_timer<self_type, &self_type::broadcast_state_regular>(BCAST_INTERVAL, this, 0);
 			}
 			
@@ -298,6 +330,7 @@ namespace wiselib {
 				
 				add_neighbor(from, msg);
 				update_state();
+				check();
 			}
 			
 			void begin_wait_for_regular_broadcast(void*) {
@@ -308,30 +341,82 @@ namespace wiselib {
 				// TODO
 			}
 			
-			size_type find_neighbor_position(node_id_t a) {
-				if(neighbors_[0].address_ == a) { return 0; }
+			size_type find_neighbor_position(node_id_t a, bool allow_parent = true) {
+				check();
+				if(allow_parent && neighbors_[0].address_ == a) {
+					return 0;
+				}
 				
-				node_id_t l = 1;
-				node_id_t r = neighbors_count_;
+				if(childs() == 0) {
+					return 1;
+				}
+				
+				size_type l = 1;
+				size_type r = 1 + childs();
 				
 				while(l + 1 < r) {
-					node_id_t m = (l + r) / 2;
-					if(neighbors_[m].address_ == a) { return m; }
+					size_type m = (l + r) / 2;
+					if(neighbors_[m].address_ == a) {
+						assert(m > 0);
+						assert(m < 1 + childs());
+						return m;
+					}
 					else if(neighbors_[m].address_ < a) { l = m; }
 					else { r = m; }
 				}
-				if(neighbors_[l].address_ == a) { return l; }
+				if(neighbors_[l].address_ == a) {
+					assert(l > 0);
+					assert(l < 1 + childs());
+					return l;
+				}
 				//if(neighbors_[r].address_ == a) { return r; }
 				//return npos;
+				assert(r > 0);
+				assert(r < 2 + childs());
 				return r;
 			}
 			
+			void make_parent(size_type idx) {
+				assert(idx > 0);
+				assert(idx < MAX_NEIGHBORS);
+				
+				check();
+				
+				if(idx == 0) { return; }
+				
+				// remove new parent from childs list
+				NeighborEntry tmp = neighbors_[idx];
+				assert(tmp.address_ != NULL_NODE_ID);
+				
+				erase_child(idx);
+				//neighbors_count_++;
+				
+				if(neighbors_[0].address_ != NULL_NODE_ID) {
+					// make current parent a child
+					size_type p = find_neighbor_position(neighbors_[0].address_, false);
+					assert(p != npos);
+					insert_child(p, neighbors_[0].address_, neighbors_[0].message_, neighbors_[0].last_update_);
+					neighbors_count_--;
+				}
+				
+				// set new parent
+				neighbors_[0] = tmp;
+				neighbors_count_++;
+				
+				assert(neighbors_[0].address_ != NULL_NODE_ID);
+				
+				check();
+			}
+			
+			
 			void add_neighbor(node_id_t addr, const TreeStateMessageT& msg) {
-				DBG("add_neighbor");
+				check();
+				size_type old_c = neighbors_count_;
 				
 				size_type p = find_neighbor_position(addr);
 				if(neighbors_[p].address_ == addr) {
 					neighbors_[p].from_message(addr, msg, now());
+					check();
 					
 					notify_event(UPDATED_NEIGHBOR);
 				}
@@ -342,60 +427,85 @@ namespace wiselib {
 					}
 					
 					if(p == 0) {
+						assert(neighbors_[0].address_ == NULL_NODE_ID || neighbors_[0].address_ == addr);
+						/*
 						if(neighbors_count_ > 0) {
 							size_type pp = find_neighbor_position(neighbors_[0].address_);
 							insert_child(pp, neighbors_[0].address_, neighbors_[0].message_, neighbors_[0].last_update_);
 						}
+						*/
 						neighbors_[0].from_message(addr, msg, now());
+						neighbors_count_++;
 					}
 					else {
 						insert_child(p, addr, msg, now());
 					}
 					
-					neighbors_count_++;
+					check();
 					notify_event(NEW_NEIGHBOR);
 					new_neighbors_ = true;
 				}
+				
+				assert(neighbors_count_ <= old_c + 1);
+				check();
 			}
 			
 			void insert_child(size_type p, node_id_t addr, const TreeStateMessageT& msg, abs_millis_t last_update) {
+				check();
 				assert(p > 0);
 				assert(p != npos);
+				assert(neighbors_[p].address_ == NULL_NODE_ID);
 				
-				if(p < neighbors_count_) {
+				if(p < 1 + childs()) {
 					memmove(neighbors_ + p + 1, neighbors_ + p, (neighbors_count_ - p)*sizeof(NeighborEntry));
 				}
 				neighbors_[p].from_message(addr, msg, last_update);
 				neighbors_count_++;
+				check();
+			}
+			
+			void erase_child(size_type p) {
+				check();
+				assert(p > 0);
+				assert(p != npos);
+				memmove(neighbors_ + p, neighbors_ + p + 1, (1 + childs() - p - 1)*sizeof(NeighborEntry));
+				neighbors_[1 + childs() - 1].address_ = NULL_NODE_ID;
+				neighbors_count_--;
+				check();
 			}
 			
 			void cleanup_dead_neighbors() {
+				check();
 				size_type p = 0;
 				while(p < neighbors_count_) {
-					if(neighbors_[p].last_update_ + DEAD_INTERVAL <= now()) {
+					if(neighbors_[p].used() && neighbors_[p].last_update_ + DEAD_INTERVAL <= now()) {
 						// TODO: cancel timers where necessary!
 						
 						//neighbors_[p].address_ = NULL_NODE_ID;
 						memmove(neighbors_ + p, neighbors_ + p + 1, (neighbors_count_ - p) * sizeof(NeighborEntry));
+						neighbors_[MAX_NEIGHBORS - 1].address_ = NULL_NODE_ID;
 						neighbors_count_--;
 						lost_neighbors_ = true;
 						notify_event(LOST_NEIGHBOR);
+						changed();
 					}
 					else {
 						p++;
 					}
 				} // while
+				check();
 			}
 			
 			void notify_event(EventType t) {
-				DBG("notifying");
+				check();
 				for(typename EventCallbacks::iterator iter = event_callbacks_.begin(); iter != event_callbacks_.end(); ++iter) {
-					DBG("notifying some guy in particular");
 					(*iter)(t);
 				}
+				check();
 			}
 			
 			bool update_state() {
+				check();
 				cleanup_dead_neighbors();
 				
 				::uint8_t distance = -1;
@@ -409,9 +519,13 @@ namespace wiselib {
 				int reason = -1;
 				
 				for(size_type i = 0; i < MAX_NEIGHBORS; i++) {
-					if(!neighbors_[i].used()) { break; }
-					
 					NeighborEntry &e = neighbors_[i];
+					//DBG("node %d // update_state neigh %d root %d parent %d dist %d myroot %d myparent %d mydist %d",
+							//(int)radio_->id(), (int)e.address_, (int)e.tree_state().root(), (int)e.tree_state().parent(), (int)e.tree_state().distance(),
+							//(int)root, (int)parent, (int)distance
+							//);
+					
+					if(!e.used()) { continue; }
 					if(e.tree_state().parent() == radio_->id()) { continue; }
 					if(e.tree_state().root() == NULL_NODE_ID || e.tree_state().distance() == (::uint8_t)(-1)) { continue; }
 					
@@ -437,20 +551,26 @@ namespace wiselib {
 					parent_idx = npos;
 				}
 				
+				if(parent_idx != npos && parent_idx != 0) {
+					make_parent(parent_idx);
+				}
+				
 				bool c_a = tree_state().set_distance(distance);
 				bool c_b = tree_state().set_parent(parent);
 				bool c_c = tree_state().set_root(root);
-				bool changed = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
+				bool c = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
-				if(changed) {
-					debug_->debug("node %d parent %d distance %d root %d changed %d reason %d",
-							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)changed, (int)reason);
+				if(c) {
+					debug_->debug("node %d parent %d distance %d root %d changed %d reason %d t %d // update_state",
+							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)reason, (int)now());
+					changed();
 				}
 				
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
 				
-				return changed;
+				check();
+				return c;
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {
@@ -461,6 +581,17 @@ namespace wiselib {
 				return absolute_millis(clock_->time());
 			}
 			
+			void changed(void* = 0) {
+				if(last_push_ + PUSH_INTERVAL <= now()) {
+					broadcast_state(TreeStateMessageT::REASON_PUSH_BCAST);
+					last_push_ = now();
+				}
+				else {
+					timer_->template set_timer<self_type, &self_type::changed>(last_push_ + PUSH_INTERVAL - now(), this, 0);
+				}
+			}
+				
+				
 			typename Radio::self_pointer_t radio_;
 			typename Clock::self_pointer_t clock_;
 			typename Timer::self_pointer_t timer_;
@@ -471,6 +602,7 @@ namespace wiselib {
 			UserData user_data_;
 			bool new_neighbors_;
 			bool lost_neighbors_;
+			abs_millis_t last_push_;
 			
 			size_type neighbors_count_;
 			NeighborEntry neighbors_[MAX_NEIGHBORS];

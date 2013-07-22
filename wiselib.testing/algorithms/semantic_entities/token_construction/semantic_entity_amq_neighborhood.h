@@ -121,13 +121,14 @@ namespace wiselib {
 				check();
 				
 				
-				DBG("node %d // find first se child start=%d n=%d", (int)radio_->id(),
-						(int)start, (int)global_tree_->childs());
+				//DBG("node %d // find first se child start=%d n=%d", (int)radio_->id(),
+						//(int)start, (int)global_tree_->childs());
 				
 				for(size_type i = start; i < global_tree_->childs(); i++) {
-					DBG("node %d // find first se child i=%d contains=%d",
-							(int)radio_->id(), (int)i, (int)global_tree_->child_user_data(i).contains(se_id));
+					//DBG("node %d // find first se child i=%d contains=%d",
+							//(int)radio_->id(), (int)i, (int)global_tree_->child_user_data(i).contains(se_id));
 					
+				/*
 				DBG("node %d // find first se child userdata %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x",
 						(int)radio_->id(),
 						global_tree_->child_user_data(i).data()[0], global_tree_->child_user_data(i).data()[1], global_tree_->child_user_data(i).data()[2], global_tree_->child_user_data(i).data()[3],
@@ -139,6 +140,7 @@ namespace wiselib {
 						global_tree_->child_user_data(i).data()[24], global_tree_->child_user_data(i).data()[25], global_tree_->child_user_data(i).data()[26], global_tree_->child_user_data(i).data()[27],
 						global_tree_->child_user_data(i).data()[28], global_tree_->child_user_data(i).data()[29], global_tree_->child_user_data(i).data()[30], global_tree_->child_user_data(i).data()[31]
 				);
+				*/
 				
 					if(global_tree_->child_user_data(i).contains(se_id)) {
 						return i;
@@ -149,10 +151,10 @@ namespace wiselib {
 				return npos;
 			}
 			
-			size_type find_last_se_child(const SemanticEntityId& se_id) {
+			size_type find_last_se_child(const SemanticEntityId& se_id, size_type end = npos) {
 				check();
 				
-				for(int i =global_tree_->childs() - 1; i >= 0; i--) {
+				for(int i = (end == npos) ? global_tree_->childs() - 1 : (int)end - 1; i >= 0; i--) {
 					if(global_tree_->child_user_data(i).contains(se_id)) {
 						return i;
 					}
@@ -175,6 +177,40 @@ namespace wiselib {
 			node_id_t forward_address(const SemanticEntityId& se_id, node_id_t sender, bool forward) {
 				check();
 				
+				if(forward) {
+					if(sender == global_tree_->parent()) {
+						return radio_->id();
+					}
+					
+					size_type child_idx = global_tree_->child_index(sender);
+					if(child_idx == npos) { return NULL_NODE_ID; }
+					size_type idx = find_first_se_child(se_id, child_idx + 1);
+					if(idx == npos) {
+						if(radio_->id() == global_tree_->root()) { return radio_->id(); }
+						return global_tree_->parent();
+					}
+					return global_tree_->child(idx);
+				}
+				else {
+					if(sender == global_tree_->parent()) {
+						size_type last_child = find_last_se_child(se_id);
+						if(last_child == npos) { return radio_->id(); }
+						return global_tree_->child(last_child);
+					}
+					
+					size_type child_idx = global_tree_->child_index(sender);
+					if(child_idx == npos) { return NULL_NODE_ID; }
+					
+					// find predecessor-child
+					size_type idx = find_last_se_child(se_id, child_idx);
+					if(idx == npos) { return radio_->id(); }
+					return global_tree_->child(idx);
+				}
+				
+				check();
+			}
+				
+				/*
 				node_id_t next = sender;
 				do {
 					AmqT amq;
@@ -186,7 +222,8 @@ namespace wiselib {
 				
 				check();
 				return radio_->id();
-			}
+				*/
+			//}
 			
 			
 			node_id_t tree_forward_address(node_id_t sender, bool forward, AmqT& amq) {
@@ -221,7 +258,6 @@ namespace wiselib {
 			}
 			
 			void on_neighborhood_changed(typename GlobalTreeT::EventType event_type) {
-				DBG("setting filter");
 				check();
 				
 				AmqT a;
@@ -232,10 +268,10 @@ namespace wiselib {
 				}
 				
 				for(typename Registry::iterator iter = registry_->begin(); iter != registry_->end(); ++iter) {
-					DBG("ins to filter");
 					a.insert(iter->first);
 				}
 				
+				/*
 				DBG("node %d // setting filter to %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x",
 						(int)radio_->id(),
 						a.data()[0], a.data()[1], a.data()[2], a.data()[3],
@@ -247,6 +283,7 @@ namespace wiselib {
 						a.data()[24], a.data()[25], a.data()[26], a.data()[27],
 						a.data()[28], a.data()[29], a.data()[30], a.data()[31]
 				);
+				*/
 				global_tree_->set_user_data(a);
 				
 				check();
@@ -255,6 +292,7 @@ namespace wiselib {
 			void check() {
 				#if !WISELIB_DISABLE_DEBUG
 					assert(global_tree_);
+					global_tree_->check();
 					assert(radio_);
 				#endif
 			}

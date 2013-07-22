@@ -69,6 +69,7 @@ namespace wiselib {
 				// for now, only forward messages from the reliable transport
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != ReliableTransportT::Message::MESSAGE_TYPE) {
+					DBG("on_receive: wtf");
 					return false;
 				}
 				typename ReliableTransportT::Message &msg = *reinterpret_cast<typename ReliableTransportT::Message*>(data);
@@ -86,7 +87,8 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					radio_->send(from, len, data);
+					DBG("on_receive: %d -> %d -> %d", (int)from, (int)radio_->id(), (int)target);
+					radio_->send(target, len, data);
 					return true;
 				}
 				

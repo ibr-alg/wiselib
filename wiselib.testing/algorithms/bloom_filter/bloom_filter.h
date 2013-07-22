@@ -77,9 +77,7 @@ namespace wiselib {
 			
 			void add(size_type v) {
 				v %= SIZE;
-				DBG("filter add %d byte=%d bit=%d", (int)v, (int)byte(v), (int)bit(v));
 				data_[byte(v)] |= (1 << bit(v));
-				DBG("byte after: %02x", data_[byte(v)]);
 			}
 			
 			bool test(size_type v) const {

@@ -49,23 +49,26 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename Radio_P,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class NapControl {
-		
 		public:
+			typedef NapControl self_type;
+			typedef self_type* self_pointer_t;
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
-			typedef NapControl self_type;
-			typedef self_type* self_pointer_t;
+			typedef Debug_P Debug;
 			
-			NapControl() : caffeine_(0) {
+			NapControl() : caffeine_(0), radio_(0), debug_(0) {
 			}
 			
-			void init(typename Radio::self_pointer_t radio) {
+			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug) {
 				radio_ = radio;
+				debug_ = debug;
 				caffeine_ = 0;
 			}
 			
@@ -73,6 +76,7 @@ namespace wiselib {
 			 */
 			void push_caffeine(void* = 0) {
 				if(caffeine_ == 0) {
+					debug_->debug("node %d on 1", (int)radio_->id());
 					radio_->enable_radio();
 				}
 				caffeine_++;
@@ -85,6 +89,7 @@ namespace wiselib {
 				caffeine_--;
 				
 				if(caffeine_ == 0) {
+					debug_->debug("node %d on 0", (int)radio_->id());
 					radio_->disable_radio();
 				}
 			}
@@ -92,6 +97,7 @@ namespace wiselib {
 		private:
 			size_type caffeine_;
 			typename Radio::self_pointer_t radio_;
+			typename Debug::self_pointer_t debug_;
 		
 	}; // NapControl
 }

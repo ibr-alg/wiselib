@@ -67,7 +67,7 @@ namespace wiselib {
 			
 			enum Reasons {
 				REASON_REGULAR_BCAST = 0,
-				REASON_DIRTY_BCAST = 1,
+				REASON_PUSH_BCAST = 1,
 			};
 			
 			enum {

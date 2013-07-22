@@ -113,12 +113,12 @@ namespace wiselib {
 			};
 			
 			enum Timings {
-				HANDOVER_RETRY_INTERVAL = 1000 * 10,
+				HANDOVER_RETRY_INTERVAL = 10000 * 10,
 				
 				/**
 				 * How long should we keep the token once we have it?
 				 */
-				ACTIVITY_PERIOD = 1000 * 10,
+				ACTIVITY_PERIOD = 10000 * 10,
 			};
 			
 			// }}}
@@ -161,7 +161,7 @@ namespace wiselib {
 				debug_ = debug;
 				rand_ = rand;
 				
-				nap_control_.init(radio_);
+				nap_control_.init(radio_, debug_);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
 				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
@@ -235,7 +235,7 @@ namespace wiselib {
 				block_data_t *data = packet_info->data();
 				//message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
-				debug_->debug("node %d // on_receive_task from %d len %d msgtype %d", (int)radio_->id(), (int)from, (int)len, (int)data[0]);
+				//debug_->debug("node %d // on_receive_task from %d len %d msgtype %d", (int)radio_->id(), (int)from, (int)len, (int)data[0]);
 				
 				bool r = forwarding_.on_receive(from, len, data);
 				if(!r) {
