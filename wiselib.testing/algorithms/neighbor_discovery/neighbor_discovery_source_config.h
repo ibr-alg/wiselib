@@ -30,6 +30,7 @@ typedef uint8_t PositionNumber;
 #endif
 #endif
 //#define CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+//#define CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 
 #define DEBUG_NEIGHBOR_DISCOVERY
 #ifdef DEBUG_NEIGHBOR_DISCOVERY

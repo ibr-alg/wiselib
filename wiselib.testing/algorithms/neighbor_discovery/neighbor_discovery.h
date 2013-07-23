@@ -127,7 +127,8 @@ namespace wiselib
 			metrics_counter						( 0 )
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
-			,energy_counter						( 0 )
+			,energy_counter1						( 0 ),
+			energy_counter2							( 0 )
 #endif
 		{};
 		// --------------------------------------------------------------------
@@ -285,9 +286,9 @@ namespace wiselib
 			millis_t bp = get_beacon_period();
 			uint32_t backoff_beacon_period = rand()() % ( bp - 50 );
 			time_t current_time = clock().time();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
-//			debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
-//#endif
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+			//debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
+#endif
 			timer().template set_timer<self_t, &self_t::beacons>( backoff_beacon_period, this, 0 );
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACON_SCHEDULER
@@ -438,23 +439,29 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
 						if ( (  radio().id() == 0x1c74 ) )
 						{
-							block_data_t bufff[12];
+							block_data_t bufff[20];
 							block_data_t* buffff = bufff;
 							size_t VOLTAGE_POS = 0;
 							size_t TEMP_POS = VOLTAGE_POS + sizeof(uint16_t);
 							size_t CURRENT_POS = TEMP_POS + sizeof(int16_t);
 							size_t CHARGE_POS = CURRENT_POS + sizeof(int32_t);
-							size_t payload_size = CHARGE_POS + sizeof(uint32_t);
+							size_t COUNTER_POS = CHARGE_POS + sizeof(uint32_t);
+							size_t MILLIS_POS = COUNTER_POS + sizeof(uint32_t);
+							size_t payload_size = MILLIS_POS + sizeof(millis_t);
 							uint16_t voltage = iSBS->BS().voltage;
 							int16_t temp = iSBS->BS().temp;
 							int32_t current = iSBS->BS().current;
 							uint32_t charge = iSBS->BS().charge;
+							time_t current_time = clock().time();
+							millis_t mils = clock().milliseconds( current_time ) + clock().seconds( current_time ) * 1000;
 							//debug().debug("ENERGY_SCL:%x:%d:%i:%i:%d", radio().id(), voltage, temp, current, charge);//, payload_size );
 							write<Os, block_data_t, uint16_t>( buffff + VOLTAGE_POS, voltage );
 							write<Os, block_data_t, int16_t>( buffff + TEMP_POS, temp );
 							write<Os, block_data_t, int32_t>( buffff + CURRENT_POS, current );
 							write<Os, block_data_t, uint32_t>( buffff + CHARGE_POS, charge );
-
+							write<Os, block_data_t, uint32_t>( buffff + COUNTER_POS, energy_counter2 );
+							energy_counter2++;
+							write<Os, block_data_t, millis_t>( buffff + MILLIS_POS, mils );
 							for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
 							{
 								if ( ppit->get_protocol_id() == ND_PROTOCOL_ID )
@@ -464,11 +471,17 @@ namespace wiselib
 								}
 							}
 						}
-						//if ( beacon.get_beacon_period_update_counter() < 4000 )
+						if ( beacon.get_beacon_period_update_counter() < 28800 )
 						{
 #endif
 							send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+						}
+						else
+						{
+							Neighbor* n = p_ptr->get_neighbor_ref( radio().id() );
+							n->set_beacon_period_update_counter( 0 );
+							transmission_power_dB = transmission_power_dB + 6;
 						}
 #endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
@@ -562,13 +575,17 @@ namespace wiselib
 							size_t TEMP_POS = VOLTAGE_POS + sizeof(uint16_t);
 							size_t CURRENT_POS = TEMP_POS + sizeof(int16_t);
 							size_t CHARGE_POS = CURRENT_POS + sizeof(int32_t);
+							size_t COUNTER_POS = CHARGE_POS + sizeof(uint32_t);
+							size_t MILLIS_POS = COUNTER_POS + sizeof(uint32_t);
 							block_data_t* buff = pp.get_payload_data();
 							uint16_t voltage = read<Os, block_data_t, uint16_t>( buff + VOLTAGE_POS );
 							int16_t temp = read<Os, block_data_t, int16_t>( buff + TEMP_POS );
 							int32_t current = read<Os, block_data_t, int32_t>( buff + CURRENT_POS );
 							uint32_t charge = read<Os, block_data_t, uint32_t>( buff + CHARGE_POS );
-							debug().debug("ENERGY:%d:%x:%i:%d:%i:%i:%d:%d", energy_counter, _from, transmission_power_dB, voltage, temp, current, charge, pp.get_payload_size() );
-							energy_counter++;
+							uint32_t energy_counter3 = read<Os, block_data_t, uint32_t>( buff + COUNTER_POS );
+							millis_t mils = read<Os, block_data_t, millis_t>( buff + MILLIS_POS );
+							debug().debug("ENERGY:%d:%d:%d:%x:%i:%d:%i:%i:%d:%d", energy_counter1, energy_counter3, mils, _from, transmission_power_dB, voltage, temp, current, charge, pp.get_payload_size() );
+							energy_counter1++;
 						}
 					}
 #endif
@@ -627,6 +644,7 @@ namespace wiselib
 										}
 #endif
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.update_link_stab_ratio();
@@ -636,11 +654,16 @@ namespace wiselib
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -655,6 +678,7 @@ namespace wiselib
 										}
 #endif
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( ( dead_time / nit->get_beacon_period() ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
@@ -664,11 +688,16 @@ namespace wiselib
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -686,6 +715,7 @@ namespace wiselib
 										}
 #endif
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.update_link_stab_ratio();
@@ -695,11 +725,16 @@ namespace wiselib
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -707,12 +742,12 @@ namespace wiselib
 									}
 									else
 									{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID )/* && ( radio().id() == 0x96f4 )*/ )
 										{
 										debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is late and not as advertised for protocol %id with dead_time : %d.\n", radio().id(), _from, pit->get_protocol_id(), dead_time );
 										}
-//#endif
+#endif
 										//TODO overflow here.
 										//uint32_t last_beacon_period_update = beacon.get_beacon_period_update_counter() * beacon.get_beacon_period();
 										millis_t approximate_beacon_period = 0;
@@ -734,20 +769,26 @@ namespace wiselib
 										}
 										uint32_t dead_time_messages_lost = dead_time / approximate_beacon_period;
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( ( dead_time_messages_lost + 1 ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 										{
 										debug().debug( "LSR:%x:%x:%d:%d:%d:%d:%d\n", radio().id(), new_neighbor.get_id(), dead_time_messages_lost, beacon.get_beacon_period(), nit->get_beacon_period(), dead_time, pit->resolve_beacon_weight( _from ), new_neighbor.get_total_beacons_expected() );
 										}
-//#endif
+#endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -768,6 +809,7 @@ namespace wiselib
 							}
 #endif
 							new_neighbor.set_id( _from );
+							new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 							new_neighbor.set_position( beacon.get_position() );
 #endif
@@ -778,8 +820,13 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 							new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 							new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+							new_neighbor.set_avg_LQI( signal_quality );
+							new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 							new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 							new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -1783,7 +1830,8 @@ namespace wiselib
         uint32_t metrics_counter;
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
         iSenseBatterySensor * iSBS;
-        uint32_t energy_counter;
+        uint32_t energy_counter1;
+        uint32_t energy_counter2;
 #endif
     };
 }

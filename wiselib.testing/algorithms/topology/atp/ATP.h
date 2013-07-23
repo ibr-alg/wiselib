@@ -40,6 +40,10 @@
 #define CONFIG_ATP_H_SIMPLE_SCLD
 #endif
 
+#ifdef CONFIG_ATP_H_LINT
+#define CONFIG_ATP_H_SIMPLE_SCLD
+#include "path_loss_static.h"
+#endif
 namespace wiselib
 {
 	template<	typename Os_P,
@@ -170,12 +174,12 @@ namespace wiselib
 										ProtocolSettings::NB_REMOVED;
 				ProtocolSettings ps(
 #ifdef CONFIG_ATP_H_LQI_FILTERING
-						255, 130, 255, 130,
-#endif
-#ifdef CONFIG_ATP_H_RSSI_FILTERING
 						255, 0, 255, 0,
 #endif
-				100, 70, 100, 70, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
+#ifdef CONFIG_ATP_H_RSSI_FILTERING
+						255, 50, 255, 50,
+#endif
+				100, 80, 100, 0, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
 				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
@@ -253,6 +257,10 @@ namespace wiselib
 			{
 				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 				size_t nd_active_size = prot_ref->get_neighborhood_active_size();
+#ifdef CONFIG_ATP_H_LMN_PLUS
+				size_t nd_active_avg_SCLD = prot_ref->get_neighorhood_active_avg_SCLD();
+#endif
+
 #ifdef DEBUG_ATP_H_STATS
 				periodic_messages_received = scl().get_messages_received() - periodic_messages_received;
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
@@ -370,13 +378,21 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 						if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
 #endif
+#ifdef CONFIG_ATP_H_LMN_PLUS
+				if (	( nd_active_avg_SCLD < SCLD_MIN_threshold )
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( transmission_power_status.try_lock() )
 #endif
 						)
 				{
-					int8_t old_transmission_power_dB = transmission_power_dB;
+#ifdef CONFIG_ATP_H_LINT
+					Neighbor_vector N = prot_ref->get_neighborhood();
+					q_sort_neigh_active_con( 0, N.size(), N );
+					transmission_power_dB = find_tp( N.at(4).get_transmission_power_dB(), N.at(4).get_link_stab_ratio(), 80 );
+#else
 #ifdef CONFIG_ATP_H_FLEXIBLE_DB
+					int8_t old_transmission_power_dB = transmission_power_dB;
 					transmission_power_dB = transmission_power_dB + ATP_H_DB_STEP;
 #endif
 					if ( transmission_power_dB > ATP_H_MAX_DB_THRESHOLD )
@@ -389,7 +405,9 @@ namespace wiselib
 						debug().debug("%x - increasing radius from %i to %i\n", radio().id(), old_transmission_power_dB, transmission_power_dB );
 #endif
 					}
+#endif
 				}
+#ifndef CONFIG_ATP_H_DTPC
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if (	( nd_active_size > SCLD_MAX_threshold )
 #endif
@@ -399,13 +417,16 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
 #endif
+#ifdef CONFIG_ATP_H_LMN_PLUS
+				if (	( nd_active_avg_SCLD > SCLD_MAX_threshold )
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( transmission_power_status.try_lock() )
 #endif
 						)
 				{
-					int8_t old_transmission_power_dB = transmission_power_dB;
 #ifdef CONFIG_ATP_H_FLEXIBLE_DB
+					int8_t old_transmission_power_dB = transmission_power_dB;
 					transmission_power_dB = transmission_power_dB - ATP_H_DB_STEP;
 #endif
 					if ( transmission_power_dB < ATP_H_MIN_DB_THRESHOLD )
@@ -419,6 +440,7 @@ namespace wiselib
 #endif
 					}
 				}
+#endif
 				for ( Neighbor_vector_iterator i = prot_ref->get_neighborhood_ref()->begin(); i != prot_ref->get_neighborhood_ref()->end(); ++i )
 				{
 					if ( i->get_active() == 1 )
@@ -461,7 +483,7 @@ namespace wiselib
 					it->get_protocol_settings_ref()->set_lost_beacon_weight( monitoring_phase_counter );
 				}
 #endif
-				prot_ref->print( debug(), radio(), monitoring_phase_counter );
+			//	prot_ref->print( debug(), radio(), monitoring_phase_counter );
 				monitoring_phase_counter = monitoring_phase_counter + 1;
 #ifdef DEBUG_ATP_H_STATS
 				scl().set_bytes_send_0( 0 );
@@ -491,6 +513,16 @@ namespace wiselib
 				else
 				{
 					timer().template set_timer<self_type, &self_type::ATP_service_disable> ( ATP_sevice_throughput_period, this, 0 );
+#ifdef CONFIG_ATP_H_AGENT_BENCHMARK
+					TxPower tp;
+					tp.set_dB( transmission_power_dB );
+					radio().set_power( tp );
+					radio().set_daemon_period( beacon_period );
+					radio().template reg_recv_callback<self_type, &self_type::receive>( this );
+#ifdef CONFIG_ATP_H_DISABLE_SCL
+					scl().disable();
+#endif
+#endif
 				}
 #endif
 			}
@@ -513,6 +545,12 @@ namespace wiselib
 			{
 				Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 				size_t nd_active_size = prot_ref->get_neighborhood_active_size();
+
+#ifdef CONFIG_ATP_H_LMN_PLUS
+				size_t nd_active_avg_SCLD = prot_ref->get_neighorhood_active_avg_SCLD();
+#endif
+
+
 #ifdef DEBUG_ATP_H_STATS
 				periodic_messages_received = scl().get_messages_received() - periodic_messages_received;
 				periodic_messages_send = scl().get_messages_send() - periodic_messages_send;
@@ -630,6 +668,9 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
 #endif
+#ifdef CONFIG_ATP_H_LMN_PLUS
+				if (	( nd_active_avg_SCLD < SCLD_MIN_threshold )
+#endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( throughput_status.try_lock() )
 #endif
@@ -658,6 +699,9 @@ namespace wiselib
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
+#endif
+#ifdef CONFIG_ATP_H_LMN_PLUS
+				if (	( nd_active_avg_SCLD >= SCLD_MIN_threshold )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( throughput_status.try_lock() )
@@ -754,19 +798,8 @@ namespace wiselib
 #ifdef CONFIG_ATP_H_DISABLE_SCL
 		void ATP_service_disable( void* _userdata = NULL )
 		{
-			if ( status == ACTIVE_STATUS )
-			{
-				debug().debug( "ATP - ATP_service_disable %x - Entering.\n", radio().id() );
-#ifdef CONFIG_ATP_H_DISABLE_SCL
-				scl().disable();
-#endif
-			}
+			debug().debug( "ATP - ATP_service_disable %x - Entering.\n", radio().id() );
 #ifdef CONFIG_ATP_H_AGENT_BENCHMARK
-			TxPower tp;
-			tp.set_dB( transmission_power_dB );
-			radio().set_power( tp );
-			radio().set_daemon_period( beacon_period );
-			radio().template reg_recv_callback<self_type, &self_type::receive>( this );
 			if (radio().id() == 0x96f4 )
 			{
 				ATP_Agent agent;
@@ -794,11 +827,12 @@ namespace wiselib
 			tp.set_dB( transmission_power_dB );
 			radio().set_power( tp );
 			radio().send( _dest, message.serial_size(), message.serialize() );
-			debug().debug("SENDING2:%x -> %x\n", radio().id(), _dest );
+			debug().debug("SENDING2:%x -> %x [%i]\n", radio().id(), _dest, transmission_power_dB );
 		}
 		// -----------------------------------------------------------------------
 		void receive( node_id_t _from, size_t _len, block_data_t * _msg, ExtendedData const &_ex )
 		{
+			//debug().debug("AB:%x:---[%x->%x]", radio().id(), _from, radio().id() );
 			if ( _from != radio().id() )
 			{
 				message_id_t msg_id = *_msg;
@@ -812,10 +846,17 @@ namespace wiselib
 					Protocol* prot_ref = scl().get_protocol_ref( ASCL::ATP_PROTOCOL_ID );
 					Neighbor_vector v;
 					prot_ref->fill_active_neighborhood( v );
-					node_id_t dest = v.at( rand()() % v.size() ).get_id();
-					agent.print( debug(), radio() );
-					debug().debug("AGENT_HOP:%x:%x:%d - > %x\n",radio().id(), agent.get_agent_id(), agent.get_hop_count(), dest );
-					send( dest, agent.serial_size(), agent.serialize( buff ), AGENT_MESSAGE );
+					if ( v.size() != 0 )
+					{
+						node_id_t dest = v.at( rand()() % v.size() ).get_id();
+						agent.print( debug(), radio() );
+						debug().debug("AGENT_HOP:%x:%x:%d - > %x\n",radio().id(), agent.get_agent_id(), agent.get_hop_count(), dest );
+						send( dest, agent.serial_size(), agent.serialize( buff ), AGENT_MESSAGE );
+					}
+					else
+					{
+						debug().debug("AGENT_NO_HOPE:%x: no neighbors! [%d]\n",radio().id(), v.size() );
+					}
 				}
 			}
 		}
@@ -957,6 +998,43 @@ namespace wiselib
 		};
 #endif
 		// -----------------------------------------------------------------------
+#ifdef CONFIG_ATP_H_LINT
+		void q_sort_neigh_active_con( int8_t _left, int8_t _right, Neighbor_vector& _neighborhood )
+		{
+			int8_t i = _left;
+			int8_t j = _right;
+			Neighbor tmp;
+			Neighbor pivot = _neighborhood[ ( _left + _right ) / 2 ];
+			while (i <= j)
+			{
+				while ( _neighborhood[i].get_link_stab_ratio() < pivot.get_link_stab_ratio() )
+				{
+					i++;
+				}
+				while ( _neighborhood[j].get_link_stab_ratio() > pivot.get_link_stab_ratio() )
+				{
+					j--;
+				}
+				if ( i <= j )
+				{
+					tmp = _neighborhood[i];
+					_neighborhood[i] = _neighborhood[j];
+					_neighborhood[j] = tmp;
+					i++;
+					j--;
+				}
+			};
+			if ( _left < j )
+			{
+				q_sort_neigh_active_con( _left, j, _neighborhood );
+			}
+			if ( i < _right )
+			{
+				q_sort_neigh_active_con( i, _right, _neighborhood);
+			}
+		}
+#endif
+
 		Radio* _radio;
 		Timer* _timer;
 		Debug* _debug;

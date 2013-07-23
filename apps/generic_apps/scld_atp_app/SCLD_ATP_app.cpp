@@ -30,6 +30,7 @@ typedef uint32 AgentID;
 		typedef wiselib::NeighborDiscovery_Type<Os, ReliableRadio, Clock, Timer, Rand, Debug, iSenseBatterySensor> NeighborDiscovery;
 	#else
 		typedef wiselib::NeighborDiscovery_Type<Os, ReliableRadio, Clock, Timer, Rand, Debug> NeighborDiscovery;
+		//typedef wiselib::NeighborDiscovery_Type<Os, Radio, Clock, Timer, Rand, Debug> NeighborDiscovery;
 	#endif
 	typedef wiselib::ATP_Type<Os, ReliableRadio, NeighborDiscovery, Timer, Rand, Clock, Debug> ATP;
 #else
@@ -66,18 +67,22 @@ void application_main(Os::AppMainParameter& value) {
 	#ifdef CONFIG_SCLD_ATP_NRG
     	iBS = new iSenseBatterySensor( value );
     	neighbor_discovery->init( reliable_radio, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ , iBS );
+    	neighbor_discovery->enable();
     #else
     	neighbor_discovery->init( reliable_radio, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ );
+    	atp.init( reliable_radio, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
+    	atp.enable();
     #endif
 #else
 	#ifdef CONFIG_SCLD_ATP_NRG
     	iBS = new iSenseBatterySensor( value );
     	neighbor_discovery->init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ , *iBS );
-    	//neighbor_discovery->enable();
+    	neighbor_discovery->enable();
     #else
     	neighbor_discovery->init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_clock_, *wiselib_rand_ );
+    	atp.init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
+    	atp.enable();
     #endif
-    atp.init( *wiselib_radio_, *wiselib_timer_, *wiselib_debug_, *wiselib_rand_, *wiselib_clock_, *neighbor_discovery );
 #endif
-    atp.enable();
+
 }

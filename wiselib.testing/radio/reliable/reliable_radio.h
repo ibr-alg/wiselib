@@ -401,9 +401,9 @@ namespace wiselib
 							TxPower tp;
 							tp.set_dB( old_db );
 							radio().set_power( tp );
-#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
-							break;
-#endif
+//#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
+//							break;
+//#endif
 						}
 						else
 						{
@@ -416,9 +416,9 @@ namespace wiselib
 //#endif
 							radio().send( i->get_destination(), message.serial_size(), message.serialize() );
 							i->inc_counter();
-#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
-							break;
-#endif
+//#ifdef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
+//							break;
+//#endif
 						}
 					}
 					else if ( ( i->get_counter() ==  max_retries ) && ( i->get_delivered() == 0 ) )
@@ -452,9 +452,11 @@ namespace wiselib
 					}
 				}
 #ifndef CONFIG_RELIABLE_RADIO_H_TIGHT_DAEMON_CONTROL
-				millis_t offset = 0;
+
 #ifdef CONFIG_RELIABLE_RADIO_H_RANDOM_DAEMON_OFFSET
-				millis_t offset = rand()() % daemon_period;
+				millis_t offset = rand()() % (daemon_period / 3);
+#else
+				millis_t offset = 0;
 #endif
 				timer().template set_timer<self_t, &self_t::daemon> ( daemon_period + offset, this, 0 );
 #endif

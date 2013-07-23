@@ -81,6 +81,9 @@ namespace wiselib
 			,trust_counter					( ND_MIN_TRUST_COUNTER ),
 			trust_counter_inverse			( ND_MIN_TRUST_COUNTER_INVERSE )
 #endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			,transmission_power_dB			( 0 )
+#endif
 		{}
 		// --------------------------------------------------------------------
 		Neighbor_Type(	node_id_t _id,
@@ -418,6 +421,17 @@ namespace wiselib
 		}
 #endif
 		// --------------------------------------------------------------------
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+		int8_t get_transmission_power_dB()
+		{
+			return transmission_power_dB;
+		}
+		// --------------------------------------------------------------------
+		void set_transmission_power_dB( int8_t _tp_dB )
+		{
+			transmission_power_dB = _tp_dB;
+		}
+#endif
 		Neighbor_Type& operator=( const Neighbor_Type& _n )
 		{
 			id = _n.id;
@@ -446,6 +460,9 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 			position = _n.position;
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			transmission_power_dB = _n.transmission_power_dB;
 #endif
 			return *this;
 		}
@@ -508,6 +525,7 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 			avg_RSSI = read<Os, block_data_t, uint8_t> ( _buff + AVG_RSSI_POS + _offset );
 #endif
+
 			link_stab_ratio = read<Os, block_data_t, uint8_t> ( _buff + LINK_STAB_RATIO_POS + _offset );
 		}
 		// --------------------------------------------------------------------
@@ -533,7 +551,6 @@ namespace wiselib
 #endif
 #endif
 			return LINK_STAB_RATIO_POS + sizeof( uint8_t );
-
 		}
 		// --------------------------------------------------------------------
 #ifdef DEBUG_NEIGHBOR_H
@@ -651,6 +668,9 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+		int8_t transmission_power_dB;
 #endif
 	};
 }

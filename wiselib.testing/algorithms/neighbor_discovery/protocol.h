@@ -175,6 +175,22 @@ namespace wiselib
 			return active_size;
 		}
 		// --------------------------------------------------------------------
+		size_t get_neighorhood_active_avg_SCLD()
+		{
+			size_t sum = 0;
+			size_t active_size = 0;
+			for ( Neighbor_vector_iterator it = neighborhood.begin(); it != neighborhood.end(); ++it )
+			{
+				if ( it->get_active() == 1 )
+				{
+					active_size++;
+					sum = sum + it->get_active_connectivity();
+				}
+			}
+			if ( active_size == 0 ) { return 0; }
+			else { return sum / active_size; }
+		}
+		// --------------------------------------------------------------------
 		void resolve_overflow_strategy( node_id_t _nid )
 		{
 			Neighbor* n_ref = get_neighbor_ref( _nid );
