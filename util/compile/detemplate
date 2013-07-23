@@ -24,15 +24,19 @@ def bracedepth(line, maxdepth, braces='<>', eat = False):
 	r = ''
 	escaped = False
 	
-	for c in line:
-		if not escaped and c == braces[1]:
-			depth -= 1
-			#r += '[-%d]' % depth
-		if depth <= maxdepth: r += c
-		if c == braces[0]:
-			depth += 1
-			#r += '[+%d]' % depth
-		escaped = (c == '-')
+	for l in line.splitlines():
+		depth = 0
+		escaped = False
+		for c in l:
+			if not escaped and c == braces[1]:
+				depth -= 1
+				#r += '[-%d]' % depth
+			if depth <= maxdepth: r += c
+			if c == braces[0]:
+				depth += 1
+				#r += '[+%d]' % depth
+			escaped = (c == '-')
+		r += '\n'
 	return r
 	
 	

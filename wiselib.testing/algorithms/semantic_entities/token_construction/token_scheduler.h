@@ -250,7 +250,7 @@ namespace wiselib {
 				//if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
 					for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 						SemanticEntityT &se = iter->second;
-						debug_->debug("node %d SE %x.%x active %d // because tree change",
+						debug_->debug("node %d SE %x.%x is_active %d // global tree update",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(int)se.is_active(radio_->id()));
 						
@@ -259,6 +259,7 @@ namespace wiselib {
 						transport_.set_remote_address(se.id(), true, neighborhood_.next_token_node(se.id()));
 						transport_.set_remote_address(se.id(), false, neighborhood_.prev_token_node(se.id()));
 						
+						debug_->debug("node %d // push begin_handover (global tree update)", (int)radio_->id());
 						nap_control_.push_caffeine();
 						initiate_handover(se); // tree has changed, (re-)send token info
 					} // for
@@ -292,6 +293,7 @@ namespace wiselib {
 					transport_.flush();
 				}
 				else {
+					debug_->debug("node %d // pop end_handover", (int)radio_->id());
 					nap_control_.pop_caffeine();
 				}
 			}
@@ -381,18 +383,23 @@ namespace wiselib {
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
+						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
 						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, se);
 						break;
 						
 					case ReliableTransportT::EVENT_OPEN:
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
+						debug_->debug("node %d // push begin_handover_connection", (int)radio_->id());
 						nap_control_.push_caffeine();
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
+						debug_->debug("node %d // pop end_handover_connection", (int)radio_->id());
 						nap_control_.pop_caffeine();
+						
+						debug_->debug("node %d // pop end_handover", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						break;
 				}
@@ -473,11 +480,13 @@ namespace wiselib {
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_OPEN:
+						debug_->debug("node %d // push begin_handover_connection_r", (int)radio_->id());
 						nap_control_.push_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
+						debug_->debug("node %d // pop end_handover_connection_r", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
@@ -495,9 +504,10 @@ namespace wiselib {
 				bool active_before = se.is_active(radio_->id());
 				se.set_prev_token_count(s.count());
 				
-				debug_->debug("node %d SE %x.%x is_active_before %d is_active // process_token_state",
+				debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // process_token_state",
 						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-						(int)active_before, (int)se.is_active(radio_->id()));
+						(int)active_before, (int)se.is_active(radio_->id()),
+						(int)se.count(), (int)s.count(), (int)se.is_root(radio_->id()));
 				
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
@@ -524,6 +534,8 @@ namespace wiselib {
 						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.in_activity_phase(), (int)now());
 				
 				se.begin_activity_phase();
+				
+				debug_->debug("node %d // push begin_activity", (int)radio_->id());
 				nap_control_.push_caffeine();
 				
 				debug_->debug("node %d SE %x.%x active %d",
@@ -549,6 +561,9 @@ namespace wiselib {
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
 				
+				debug_->debug("node %d // pop end_activity", (int)radio_->id());
+				debug_->debug("node %d // push begin_handover", (int)radio_->id());
+				
 				initiate_handover(se);
 				se.end_wait_for_activating_token();
 				
@@ -564,10 +579,12 @@ namespace wiselib {
 			
 			
 			void begin_wait_for_token(void* se_) {
+				debug_->debug("node %d // push begin_wait_for_token", (int)radio_->id());
 				nap_control_.push_caffeine();
 			}
 			
 			void end_wait_for_token(void* se_) {
+				debug_->debug("node %d // pop end_wait_for_token", (int)radio_->id());
 				nap_control_.pop_caffeine();
 			}
 			

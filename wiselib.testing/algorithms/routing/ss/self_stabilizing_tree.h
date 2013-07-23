@@ -151,59 +151,6 @@ namespace wiselib {
 				// }}}
 			};
 			
-			/*
-			class iterator {
-				// {{{
-				public:
-					iterator(Neighbor* neighbors, size_type index)
-						: neighbors_(neighbors), index_(index) {
-						update();
-					}
-					
-					Neighbor operator*() { return neighbor_; }
-					Neighbor* operator->() { return &neighbor_; }
-					
-					bool at_end() const { return index_ == npos; }
-					
-					iterator& operator++() {
-						if(index_ < MAX_NEIGHBORS - 1) {
-							index_ = npos;
-						}
-						else {
-							index_++;
-						}
-						update();
-						return *this;
-					}
-					
-					bool operator==(const iterator& other) {
-						return (at_end() && other.at_end()) || (neighbors_ == other.neighbors_ && index_ == other.index_);
-					}
-					bool operator!=(const iterator& other) {
-						return !(*this == other);
-					}
-					
-					void update() {
-						if(index_ == npos) {
-							neighbor_.entry_ = 0;
-						}
-						else {
-							neighbor_.state_ = (index_ == 0) ? OUT_EDGE : IN_EDGE;
-							neighbor_.entry_ = neighbors_ + index_;
-						}
-						if(neighbor_.id() == NULL_NODE_ID) {
-							index_ = npos;
-						}
-					}
-					
-				private:
-					NeighborEntry *neighbors_;
-					size_type index_;
-					Neighbor neighbor_;
-				// }}}
-			}; // iterator
-			*/
-			
 			typedef set_static<OsModel, NeighborEntry, MAX_NEIGHBORS> NeighborEntries;
 			typedef vector_static<OsModel, Neighbor, MAX_NEIGHBORS> Neighbors;
 			
@@ -297,29 +244,6 @@ namespace wiselib {
 						assert(prev == NULL_NODE_ID || it->id() > prev);
 						prev = it->id();
 					}
-					
-					//debug_->debug("// neighs at %d: [ %d | %d %d %d ]",
-							//(int)radio_->id(),
-							//(int)neighbors_[0].address_,
-							//(int)neighbors_[1].address_,
-							//(int)neighbors_[2].address_,
-							//(int)neighbors_[3].address_);
-				
-				/*
-					bool has_parent = neighbors_[0].address_ != NULL_NODE_ID;
-					node_id_t n = npos;
-					bool n_valid = false;
-					for(size_type i = 1; i < neighbors_count_ + !has_parent; i++) {
-						assert(n_valid <= (neighbors_[i].address_ > n));
-						n = neighbors_[i].address_;
-						n_valid = true;
-						assert(neighbors_[i].address_ != NULL_NODE_ID);
-					}
-					
-					for(size_type i = neighbors_count_ + !has_parent; i < MAX_NEIGHBORS; i++) {
-						assert(neighbors_[i].address_ == NULL_NODE_ID);
-					}
-				*/
 				#endif
 			}
 		
@@ -344,7 +268,6 @@ namespace wiselib {
 			}
 			
 			void broadcast_state_regular(void* = 0) {
-				//tree_state_message_.set_reason(TreeStateMessageT::REASON_REGULAR_BCAST);
 				broadcast_state(TreeStateMessageT::REASON_REGULAR_BCAST);
 				last_push_ = now();
 				timer_->template set_timer<self_type, &self_type::broadcast_state_regular>(BCAST_INTERVAL, this, 0);
@@ -353,7 +276,6 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
-					//debug_->debug("node %d // wrong msg type %d", message_type);
 					return;
 				}
 				
@@ -381,10 +303,13 @@ namespace wiselib {
 			}
 			
 			void begin_wait_for_regular_broadcast(void*) {
-				// TODO
+				debug_->debug("node %d // push begin_wait_for_regular_broadcast", (int)radio_->id());
+				nap_control_->push_caffeine();
 			}
 			
 			void end_wait_for_regular_broadcast(void*) {
+				debug_->debug("node %d // pop end_wait_for_regular_broadcast", (int)radio_->id());
+				nap_control_->pop_caffeine();
 				// TODO
 			}
 			

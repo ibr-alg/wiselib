@@ -80,6 +80,7 @@ namespace wiselib {
 					radio_->enable_radio();
 				}
 				caffeine_++;
+				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
 			}
 			
 			/**
@@ -87,6 +88,7 @@ namespace wiselib {
 			void pop_caffeine(void* = 0) {
 				assert(caffeine_ > 0);
 				caffeine_--;
+				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
 				
 				if(caffeine_ == 0) {
 					debug_->debug("node %d on 0", (int)radio_->id());

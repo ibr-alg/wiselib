@@ -73,7 +73,7 @@ typedef wiselib::OSMODEL Os;
 #endif
 	
 #ifdef SHAWN
-	#define WISELIB_TIME_FACTOR 10
+	#define WISELIB_TIME_FACTOR 100
 #endif
 	
 // Time scaling
