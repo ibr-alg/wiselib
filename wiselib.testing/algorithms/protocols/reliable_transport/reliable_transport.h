@@ -27,6 +27,10 @@
 #include <util/pstl/map_static_vector.h>
 #include <util/types.h>
 
+#ifndef RELIABLE_TRANSPORT_PIGGYBACK_ACKS
+	#define RELIABLE_TRANSPORT_PIGGYBACK_ACKS 1
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -83,8 +87,8 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 100 * WISELIB_TIME_FACTOR, MAX_RESENDS = 3,
-				ANSWER_TIMEOUT = 2 * RESEND_TIMEOUT,
+				RESEND_TIMEOUT = 40 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 20 * WISELIB_TIME_FACTOR,
+				MAX_RESENDS = 3, ANSWER_TIMEOUT = 2 * RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {
@@ -502,7 +506,7 @@ namespace wiselib {
 				ep.set_expect_answer(false);
 				ep.consume(msg);
 				
-				if(!ep.wants_send() && !ep.wants_close()) {
+				if((!ep.wants_send() && !ep.wants_close()) || !RELIABLE_TRANSPORT_PIGGYBACK_ACKS) {
 					DBG("node %d // consume_data: sending ack to %d", (int)radio_->id(), (int)ep.remote_address());
 					send_ack_for(ep.remote_address(), msg);
 				}
@@ -520,7 +524,7 @@ namespace wiselib {
 				m.set_flags(ack_flags_for(msg.flags(), false));
 				m.set_payload(0, 0);
 				
-				debug_->debug("node %d t %d // send ack", (int)radio_->id(), (int)now());
+				debug_->debug("node %d t %d s %d // send ack", (int)radio_->id(), (int)now(), (int)msg.sequence_number());
 				radio_->send(to, m.size(), m.data());
 			}
 			
@@ -587,9 +591,10 @@ namespace wiselib {
 			//{{{
 			
 			void check_send() {
-				DBG("check_send");
+				DBG("node %d // check_send", (int)radio_->id());
 				if(is_sending_) {
-					DBG("check_send: currently sending idx %d", (int)sending_channel_idx_);
+					DBG("node %d // check_send: currently sending idx %d (s %d to %d)", (int)radio_->id(), (int)sending_channel_idx_,
+							(int)sending_endpoint().sequence_number(), (int)sending_endpoint().remote_address());
 					return;
 				}
 				if(switch_sending_endpoint()) {
@@ -638,7 +643,7 @@ namespace wiselib {
 					try_send();
 				}
 				else {
-					DBG("check_send: no sending endpoint found");
+					DBG("node %d // check_send: no sending endpoint found", (int)radio_->id());
 				}
 			}
 			
@@ -683,7 +688,7 @@ namespace wiselib {
 				//ack_timeout_sequence_number_ = sending_endpoint().sequence_number();
 				void *v;
 				hardcore_cast(v, ack_timer_);
-				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, v);
+				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT + rand_->operator()(RESEND_RAND_ADD), this, v);
 			}
 			
 			void ack_timeout(void *at_) {

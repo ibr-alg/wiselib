@@ -466,10 +466,12 @@ namespace wiselib {
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
 					*it = e;
+					notify_event(UPDATED_NEIGHBOR);
 				}
 				else {
 					neighbor_entries_.insert(e);
 					new_neighbors_ = true;
+					notify_event(NEW_NEIGHBOR);
 				}
 			}
 			
@@ -602,10 +604,10 @@ namespace wiselib {
 				
 					debug_->debug("node %d parent %d distance %d root %d changed %d t %d // update_state",
 							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now());
-					debug_->debug("node %d // update_state [ %d | %d %d %d ... ]",
+					debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
 							(int)radio_->id(),
 							(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-							(int)neighbors_[3].id());
+							(int)neighbors_[3].id(), childs());
 					for(size_type i = 0; i < childs(); i++) {
 						debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 					}

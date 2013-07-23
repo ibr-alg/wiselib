@@ -77,7 +77,7 @@ namespace wiselib {
 				
 				// if reliable transport packet we should forward:
 				//   forward it by se_id using amq
-				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator());
+				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator() != msg.is_ack());
 				if(target == NULL_NODE_ID) { return true; }
 				
 				if(target == radio_->id()) {
@@ -87,11 +87,11 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					if(msg.initiator()) {
-						DBG("on_receive: %d -> %d -> %d", (int)from, (int)radio_->id(), (int)target);
+					if(msg.initiator() != msg.is_ack()) {
+						DBG("on_receive: %d -> %d -> %d (%s, %d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number());
 					}
 					else {
-						DBG("on_receive: %d <- %d <- %d", (int)target, (int)radio_->id(), (int)from);
+						DBG("on_receive: %d <- %d <- %d (%s, %d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number());
 					}
 						
 					radio_->send(target, len, data);
