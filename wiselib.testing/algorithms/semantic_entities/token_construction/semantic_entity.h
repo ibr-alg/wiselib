@@ -250,10 +250,10 @@ namespace wiselib {
 				activating_token_.end_waiting();
 			}
 			
-			abs_millis_t activating_token_window(typename Clock::self_pointer_t clock) {
+			abs_millis_t activating_token_window() {
 				return activating_token_.window();
 			}
-			abs_millis_t activating_token_interval(typename Clock::self_pointer_t clock) {
+			abs_millis_t activating_token_interval() {
 				return activating_token_.interval();
 			}
 			

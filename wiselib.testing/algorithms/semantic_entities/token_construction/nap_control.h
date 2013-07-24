@@ -72,6 +72,10 @@ namespace wiselib {
 				caffeine_ = 0;
 			}
 			
+			bool on() {
+				return caffeine_ > 0;
+			}
+			
 			/**
 			 */
 			void push_caffeine(void* = 0) {

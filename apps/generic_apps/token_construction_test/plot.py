@@ -256,13 +256,14 @@ def fig_timings():
 		else:
 			ax = plt.subplot(len(nodes), 1, i + 1, sharex=first_ax)
 			
-		ax.spines['bottom'].set_visible(False)
+		#ax.spines['bottom'].set_visible(False)
 		ax.spines['top'].set_visible(False)
 		#ax.spines['left'].set_visible(False)
 		#ax.spines['right'].set_visible(False)
-		setp(ax.get_xticklabels(), visible = False)
+		#setp(ax.get_xticklabels(), visible = False)
+		ax.set_xticks(range(0, 10000, 500))
 		#ax.get_yaxis().set_visible(False)
-		ax.get_xaxis().set_tick_params(size=0)
+		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
 		if 'caffeine' in node:
@@ -282,7 +283,7 @@ def fig_timings():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 1001))
+	last_ax.set_xlim((-1, 10001))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -393,7 +394,7 @@ def fig_duty_cycle(namepattern = '.*'):
 		#ax.spines['right'].set_visible(False)
 		setp(ax.get_xticklabels(), visible = False)
 		ax.get_yaxis().set_visible(False)
-		ax.get_xaxis().set_tick_params(size=0)
+		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
 		if 'on' in node:
@@ -418,9 +419,11 @@ def fig_duty_cycle(namepattern = '.*'):
 				horizontalalignment = 'right')
 		i += 1
 			
+	last_ax.set_xticks(range(0, 10000, 500))
+	#last_ax.get_xaxis().set_tick_params(size=1)
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
-	last_ax.set_xlim((-1, 1001))
+	last_ax.set_xlim((-1, 10001))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())

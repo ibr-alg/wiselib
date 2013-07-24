@@ -259,9 +259,11 @@ namespace wiselib {
 						transport_.set_remote_address(se.id(), true, neighborhood_.next_token_node(se.id()));
 						transport_.set_remote_address(se.id(), false, neighborhood_.prev_token_node(se.id()));
 						
-						debug_->debug("node %d // push begin_handover (global tree update)", (int)radio_->id());
-						nap_control_.push_caffeine();
-						initiate_handover(se); // tree has changed, (re-)send token info
+						if(!se.in_activity_phase()) {
+							debug_->debug("node %d // push handover", (int)radio_->id());
+							nap_control_.push_caffeine();
+							initiate_handover(se); // tree has changed, (re-)send token info
+						}
 					} // for
 				//}
 			} // global_tree_event()
@@ -293,7 +295,7 @@ namespace wiselib {
 					transport_.flush();
 				}
 				else {
-					debug_->debug("node %d // pop end_handover", (int)radio_->id());
+					debug_->debug("node %d // pop handover", (int)radio_->id());
 					nap_control_.pop_caffeine();
 				}
 			}
@@ -373,7 +375,7 @@ namespace wiselib {
 			}
 			
 			void event_handover_initiator(int event, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) { return; }
+				//if(endpoint.remote_address() == radio_->id()) { return; }
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return; }
@@ -383,23 +385,25 @@ namespace wiselib {
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
+						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
 						timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, se);
+						*/
 						break;
 						
 					case ReliableTransportT::EVENT_OPEN:
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
-						debug_->debug("node %d // push begin_handover_connection", (int)radio_->id());
+						debug_->debug("node %d // push handover_connection", (int)radio_->id());
 						nap_control_.push_caffeine();
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
-						debug_->debug("node %d // pop end_handover_connection", (int)radio_->id());
+						debug_->debug("node %d // pop handover_connection", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						
-						debug_->debug("node %d // pop end_handover", (int)radio_->id());
+						debug_->debug("node %d // pop handover", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						break;
 				}
@@ -470,23 +474,29 @@ namespace wiselib {
 			}
 			
 			void event_handover_recepient(int event, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) { return; }
+				if(endpoint.remote_address() == radio_->id()) {
+					//debug_->debug("node %d // ignoring event of type %d (remote==self)", (int)radio_->id(), (int)event);
+					//return;
+				}
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return; }
+				if(!se) {
+					debug_->debug("node %d // ignoring event of type %d (se not found)", (int)radio_->id(), (int)event);
+					return;
+				}
 				
 				debug_->debug("node %d SE %x.%x handover_state_recepient %d event %d t %d // event_handover_receipient",
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)event, (int)now());
 				
 				switch(event) {
 					case ReliableTransportT::EVENT_OPEN:
-						debug_->debug("node %d // push begin_handover_connection_r", (int)radio_->id());
+						debug_->debug("node %d // push handover_connection_r", (int)radio_->id());
 						nap_control_.push_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
-						debug_->debug("node %d // pop end_handover_connection_r", (int)radio_->id());
+						debug_->debug("node %d // pop handover_connection_r", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
@@ -512,6 +522,9 @@ namespace wiselib {
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
+					debug_->debug("node %d SE %x.%x window %d interval %d",
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+							(int)se.activating_token_window(), (int)se.activating_token_interval());
 					begin_activity(se);
 				}
 				else if(!se.is_active(radio_->id()) && active_before) {
@@ -535,7 +548,7 @@ namespace wiselib {
 				
 				se.begin_activity_phase();
 				
-				debug_->debug("node %d // push begin_activity", (int)radio_->id());
+				debug_->debug("node %d // push activity", (int)radio_->id());
 				nap_control_.push_caffeine();
 				
 				debug_->debug("node %d SE %x.%x active %d",
@@ -561,8 +574,8 @@ namespace wiselib {
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
 				
-				debug_->debug("node %d // pop end_activity", (int)radio_->id());
-				debug_->debug("node %d // push begin_handover", (int)radio_->id());
+				debug_->debug("node %d // pop activity", (int)radio_->id());
+				debug_->debug("node %d // push handover", (int)radio_->id());
 				
 				initiate_handover(se);
 				se.end_wait_for_activating_token();
@@ -579,12 +592,12 @@ namespace wiselib {
 			
 			
 			void begin_wait_for_token(void* se_) {
-				debug_->debug("node %d // push begin_wait_for_token", (int)radio_->id());
+				debug_->debug("node %d // push wait_for_token", (int)radio_->id());
 				nap_control_.push_caffeine();
 			}
 			
 			void end_wait_for_token(void* se_) {
-				debug_->debug("node %d // pop end_wait_for_token", (int)radio_->id());
+				debug_->debug("node %d // pop wait_for_token", (int)radio_->id());
 				nap_control_.pop_caffeine();
 			}
 			

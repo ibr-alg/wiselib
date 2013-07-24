@@ -70,8 +70,8 @@ namespace wiselib {
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
-				PUSH_INTERVAL = 100 * 10,
-				BCAST_INTERVAL = 5000 * 10,
+				PUSH_INTERVAL = 100 * WISELIB_TIME_FACTOR,
+				BCAST_INTERVAL = 5000 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -84,7 +84,7 @@ namespace wiselib {
 				MAX_EVENT_LISTENERS = 4
 			};
 			enum EventType {
-				NEW_NEIGHBOR, LOST_NEIGHBOR, UPDATED_NEIGHBOR
+				NEW_NEIGHBOR, LOST_NEIGHBOR, UPDATED_NEIGHBOR, UPDATED_STATE
 			};
 			
 			typedef delegate1<void, EventType> event_callback_t;
@@ -290,6 +290,9 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
+					//debug_->debug("node %d window %d interval %d",
+							//(int)radio_->id(), (int)event.window(), (int)event.interval());
+					
 					void *v = 0;
 					hardcore_cast(v, from);
 					event.template start_waiting_timer<
@@ -303,12 +306,12 @@ namespace wiselib {
 			}
 			
 			void begin_wait_for_regular_broadcast(void*) {
-				debug_->debug("node %d // push begin_wait_for_regular_broadcast", (int)radio_->id());
+				debug_->debug("node %d // push wait_for_regular_broadcast", (int)radio_->id());
 				nap_control_->push_caffeine();
 			}
 			
 			void end_wait_for_regular_broadcast(void*) {
-				debug_->debug("node %d // pop end_wait_for_regular_broadcast", (int)radio_->id());
+				debug_->debug("node %d // pop wait_for_regular_broadcast", (int)radio_->id());
 				nap_control_->pop_caffeine();
 				// TODO
 			}
@@ -538,7 +541,9 @@ namespace wiselib {
 					}
 					
 				if(c) {
+					debug_->debug("node %d // update_state propagating changes", (int)radio_->id());
 					changed();
+					notify_event(UPDATED_STATE);
 				}
 				
 				//new_neighbors_ = false;
@@ -557,12 +562,12 @@ namespace wiselib {
 			}
 			
 			void changed(void* = 0) {
-				if(last_push_ + PUSH_INTERVAL <= now()) {
+				if(nap_control_->on() && last_push_ + PUSH_INTERVAL <= now()) {
 					broadcast_state(TreeStateMessageT::REASON_PUSH_BCAST);
 					last_push_ = now();
 				}
 				else {
-					timer_->template set_timer<self_type, &self_type::changed>(last_push_ + PUSH_INTERVAL - now(), this, 0);
+					timer_->template set_timer<self_type, &self_type::changed>(last_push_ + 2 * PUSH_INTERVAL - now(), this, 0);
 				}
 			}
 				
