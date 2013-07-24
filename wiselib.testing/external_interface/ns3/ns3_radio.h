@@ -65,30 +65,34 @@ namespace wiselib
       };
       // --------------------------------------------------------------------
       Ns3RadioModel( Ns3Os& os )
-         : os_(os)
+         : os_(os),
+           node_id_(0)
       {}
       // --------------------------------------------------------------------
       int send( node_id_t id, size_t len, block_data_t *data )
       {
-         os().proc.sendWiselibMessage( id, len, data );
+         os().proc.SendWiselibMessage( id, len, data, node_id_);
          return SUCCESS;
       };
       // --------------------------------------------------------------------
       int enable_radio()
-      { return SUCCESS; }
+      {
+        node_id_ = os().proc.EnableRadio (); 
+        return SUCCESS; 
+      }
       // --------------------------------------------------------------------
       int disable_radio()
       { return SUCCESS; }
       // --------------------------------------------------------------------
       node_id_t id()
       {
-         return os().proc.id();
+         return node_id_;
       }
       // --------------------------------------------------------------------
       template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
       int reg_recv_callback( T *obj_pnt )
       {
-         if (os().proc.template regRecvCallback<T, TMethod>( obj_pnt ))
+         if (os().proc.template RegRecvCallback<T, TMethod>( obj_pnt, node_id_))
             return SUCCESS;
 
          return ERR_UNSPEC;
@@ -97,16 +101,13 @@ namespace wiselib
       int unreg_recv_callback( int idx )
       { return ERR_NOTIMPL; }
 
-      // specific methods for NS-3
-      void init_radio ()
-      {
-        os().proc.initRadio ();
-      }
    private:
       Ns3Os& os()
       { return os_; }
       // --------------------------------------------------------------------
       Ns3Os& os_;
+
+      node_id_t node_id_; // the id of the node of radio located
    };
 }
 

@@ -59,7 +59,7 @@ namespace wiselib
 
          return ERR_UNSPEC;
       }
-
+     
    private:
       Ns3Os& os()
       { return os_; }
