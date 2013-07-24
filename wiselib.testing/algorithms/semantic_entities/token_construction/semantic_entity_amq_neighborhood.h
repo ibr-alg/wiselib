@@ -175,8 +175,8 @@ namespace wiselib {
 			node_id_t forward_address(const SemanticEntityId& se_id, node_id_t sender, bool forward) {
 				check();
 				
-				DBG("// forward_address from %d fwd %d self %d parent %d childs %d",
-						(int)sender, (int)forward, (int)radio_->id(), (int)global_tree_->parent(), (int)global_tree_->childs());
+				//DBG("// forward_address from %d fwd %d self %d parent %d childs %d",
+						//(int)sender, (int)forward, (int)radio_->id(), (int)global_tree_->parent(), (int)global_tree_->childs());
 				
 				if(forward) {
 					if(sender == global_tree_->parent()) {

@@ -61,12 +61,16 @@ namespace wiselib {
 			
 			enum Positions {
 				POS_MESSAGE_ID = 0,
-				//POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_FLAGS = POS_MESSAGE_ID + sizeof(message_id_t),
 				//POS_ENTITY_ID = POS_FLAGS + sizeof(flags_t), // sizeof(bool),
-				POS_TOKEN_STATE = POS_MESSAGE_ID + sizeof(message_id_t),
+				POS_TOKEN_STATE = POS_FLAGS + sizeof(flags_t),
 				//POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
 				
 				POS_END = POS_TOKEN_STATE + sizeof(TokenState)
+			};
+			
+			enum {
+				FLAGS_INFORMATIONAL = 1
 			};
 			
 			TokenStateMessage() {
@@ -75,6 +79,7 @@ namespace wiselib {
 			
 			void init() {
 				set_type(MESSAGE_TYPE);
+				set_informational(false);
 			}
 			
 			message_id_t type() {
@@ -99,6 +104,14 @@ namespace wiselib {
 			
 			size_type size() {
 				return POS_END;
+			}
+			
+			void set_informational(bool i) {
+				data_[POS_FLAGS] = (data_[POS_FLAGS] & ~FLAGS_INFORMATIONAL) | (i ? FLAGS_INFORMATIONAL : 0);
+			}
+			
+			bool informational() { 
+				return data_[POS_FLAGS] & FLAGS_INFORMATIONAL;
 			}
 			
 			void check() {

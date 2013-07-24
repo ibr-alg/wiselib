@@ -82,7 +82,7 @@ namespace wiselib {
 			typedef TupleStore_P TupleStore;
 			
 			enum Restrictions {
-				MAX_NEIGHBORS = 8
+				MAX_NEIGHBORS = 32
 			};
 			
 			typedef NapControl<OsModel, Radio> NapControlT;
@@ -269,7 +269,7 @@ namespace wiselib {
 						if(!se.in_activity_phase()) {
 							debug_->debug("node %d // push handover", (int)radio_->id());
 							nap_control_.push_caffeine();
-							initiate_handover(se); // tree has changed, (re-)send token info
+							initiate_handover(se, false); // tree has changed, (re-)send token info
 						}
 					} // for
 				//}
@@ -282,11 +282,11 @@ namespace wiselib {
 			
 			//@{ Initiator (Token sending side)
 			
-			void initiate_handover(void *se_) {
-				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_));
+			void initiate_handover(void *se_, bool main) {
+				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_), main);
 			}
 			
-			void initiate_handover(SemanticEntityT& se) {
+			void initiate_handover(SemanticEntityT& se, bool main) {
 				bool found;
 				typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se.id(), true, found);
 				
@@ -295,10 +295,10 @@ namespace wiselib {
 						(ep.remote_address() != radio_->id()) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
-					debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p",
+					debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p main %d",
 							(int)radio_->id(), (int)ep.remote_address(), (int)now(),
-							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep);
-					se.set_handover_state_initiator(SemanticEntityT::INIT);
+							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep, (int)main);
+					se.set_handover_state_initiator(main ? SemanticEntityT::INIT : SemanticEntityT::SUPPLEMENTARY_INIT);
 					transport_.flush();
 				}
 				else {
@@ -317,6 +317,10 @@ namespace wiselib {
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				
 				switch(se->handover_state_initiator()) {
+					case SemanticEntityT::SUPPLEMENTARY_INIT:
+						endpoint.set_supplementary();
+						message.set_supplementary();
+						
 					case SemanticEntityT::INIT: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						msg.set_token_state(se->token());
@@ -584,7 +588,7 @@ namespace wiselib {
 				debug_->debug("node %d // pop activity", (int)radio_->id());
 				debug_->debug("node %d // push handover", (int)radio_->id());
 				
-				initiate_handover(se);
+				initiate_handover(se, true);
 				se.end_wait_for_activating_token();
 				
 				debug_->debug("node %d SE %x.%x active %d",

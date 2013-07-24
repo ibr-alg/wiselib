@@ -271,7 +271,7 @@ def fig_timings():
 		#ax.spines['left'].set_visible(False)
 		#ax.spines['right'].set_visible(False)
 		#setp(ax.get_xticklabels(), visible = False)
-		ax.set_xticks(range(0, tmax, 500))
+		#ax.set_xticks(range(0, tmax, 500))
 		#ax.get_yaxis().set_visible(False)
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
@@ -353,7 +353,7 @@ def fig_forward_timings():
 					#horizontalalignment = 'right')
 			i += 1
 			
-	last_ax.set_xticks(range(0, tmax, 500))
+	#last_ax.set_xticks(range(0, tmax, 500))
 	last_ax.spines['bottom'].set_visible(True)
 	last_ax.set_xlim((-1, tmax))
 	setp(last_ax.get_xticklabels(), visible = True)
@@ -434,7 +434,7 @@ def fig_duty_cycle(namepattern = '.*'):
 				horizontalalignment = 'right')
 		i += 1
 			
-	last_ax.set_xticks(range(0, tmax, 500))
+	#last_ax.set_xticks(range(0, tmax, 500))
 	#last_ax.get_xaxis().set_tick_params(size=1)
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))

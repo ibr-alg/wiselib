@@ -81,7 +81,7 @@ namespace wiselib {
 			enum HandoverState {
 				INIT = 0, SEND_ACTIVATING = 1, SEND_NONACTIVATING = 2, SEND_AGGREGATES_START = 3, SEND_AGGREGATES = 4,
 				RECV_AGGREGATES = 5,
-				CLOSE = 6, DESTRUCT = 7
+				CLOSE = 6, DESTRUCT = 7, SUPPLEMENTARY_INIT = 8
 			};
 			
 			//}}}

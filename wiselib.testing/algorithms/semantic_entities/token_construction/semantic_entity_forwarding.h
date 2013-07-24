@@ -135,15 +135,15 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					if(msg.initiator() != msg.is_ack()) { DBG("// on_receive: %d -> %d -> %d (%s, %d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number()); }
-					else { DBG("// on_receive: %d <- %d <- %d (%s, %d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number()); }
+					if(msg.initiator() != msg.is_ack()) { DBG("// on_receive: %d -> %d -> %d (%s s=%d f=%d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
+					else { DBG("// on_receive: %d <- %d <- %d (%s s=%d f=%d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
 					
 					SemanticEntityT *se_ = registry_->get(se_id);
 					if(!se_) { return false; }
 					SemanticEntityT& se = *se_;
 						
-					if(msg.is_open() && msg.initiator() && !msg.is_ack()) {
-						se.learn_token_forward(clock_, radio_->id(), from, t_recv);
+					if(msg.is_open() && msg.initiator() && !msg.is_ack() && !msg.is_supplementary()) {
+						se.learn_token_forward(clock_, radio_->id(), from, t_recv - msg.delay());
 						debug_->debug("node %d SE %x.%x fwd_interval %d fwd_window %d fwd_from %d",
 								(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),
 								(int)se.token_forward_interval(from), (int)se.token_forward_window(from), (int)from);
@@ -151,11 +151,17 @@ namespace wiselib {
 					
 					radio_->send(target, len, data);
 					
-					if(msg.is_close() && msg.is_ack()) {
+					if(msg.is_close() && msg.is_ack() && !msg.is_supplementary()) {
 						const node_id_t prev = amq_nhood_->forward_address(se_id, from, false);
+						debug_->debug("node %d // learn forward prev %d", (int)radio_->id(), (int)prev);
 						se.end_wait_for_token_forward(prev);
 						se.template schedule_token_forward<self_type, &self_type::begin_wait_for_forward,
 							&self_type::end_wait_for_forward>(clock_, timer_, this, prev, &se);
+					}
+					else {
+						debug_->debug("couldnt learn: cl %d ack %d supl %d s %d",
+								(int)msg.is_close(), (int)msg.is_ack(), (int)msg.is_supplementary(),
+								(int)msg.sequence_number());
 					}
 					
 					/*

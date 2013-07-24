@@ -83,8 +83,8 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 40 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 0 * WISELIB_TIME_FACTOR,
-				MAX_RESENDS = 3, ANSWER_TIMEOUT = 2 * RESEND_TIMEOUT,
+				RESEND_TIMEOUT = 8 * 40 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 0 * WISELIB_TIME_FACTOR,
+				MAX_RESENDS = 3, ANSWER_TIMEOUT = 8 * 2 * RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {
@@ -119,6 +119,7 @@ namespace wiselib {
 						request_close_ = false;
 						open_ = false;
 						expect_answer_ = false;
+						supplementary_ = false;
 						
 						check();
 					}
@@ -159,6 +160,7 @@ namespace wiselib {
 					
 					void request_open(sequence_number_t s = 0) {
 						request_open_ = true;
+						supplementary_ = false;
 						if(open_) { close(); }
 						sequence_number_ = s;
 						event_(EVENT_OPEN, *this);
@@ -206,6 +208,9 @@ namespace wiselib {
 							assert(event_);
 						#endif
 					}
+					
+					void set_supplementary() { supplementary_ = true; }
+					bool supplementary() { return supplementary_; }
 				
 				private:
 					node_id_t remote_address_;
@@ -221,6 +226,7 @@ namespace wiselib {
 					bool request_close_;
 					bool open_;
 					bool expect_answer_;
+					bool supplementary_;
 				// }}}
 			};
 			
@@ -473,7 +479,7 @@ namespace wiselib {
 			}
 			
 			::uint8_t ack_flags_for(::uint8_t f, bool piggyback) {
-				::uint8_t r = f & (Message::FLAG_INITIATOR | Message::FLAG_CLOSE);
+				::uint8_t r = f & (Message::FLAG_SUPPLEMENTARY | Message::FLAG_INITIATOR | Message::FLAG_CLOSE);
 				
 				// ACK usually signals a non-piggybacked acknowledge,
 				// data with correct sequence number acks implicitely.
@@ -564,11 +570,16 @@ namespace wiselib {
 						sending_endpoint().increase_sequence_number();
 					}
 					
+					if(sending_endpoint().supplementary()) {
+						flags |= Message::FLAG_SUPPLEMENTARY;
+					}
+					
 					sending_.set_channel(sending_endpoint().channel());
 					sending_.set_sequence_number(sending_endpoint().sequence_number());
 					sending_.set_flags(flags);
 					sending_.set_delay(0);
 					sending_.set_payload(0, 0);
+					
 					
 					if(sending_endpoint().wants_send()) {
 						sending_endpoint().increase_sequence_number();
