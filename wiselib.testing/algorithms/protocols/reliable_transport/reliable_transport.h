@@ -473,7 +473,7 @@ namespace wiselib {
 			}
 			
 			::uint8_t ack_flags_for(::uint8_t f, bool piggyback) {
-				::uint8_t r = f & Message::FLAG_INITIATOR;
+				::uint8_t r = f & (Message::FLAG_INITIATOR | Message::FLAG_CLOSE);
 				
 				// ACK usually signals a non-piggybacked acknowledge,
 				// data with correct sequence number acks implicitely.

@@ -33,7 +33,13 @@ namespace wiselib {
 		typename OsModel_P,
 		typename AmqNHood_P,
 		typename ReliableTransport_P,
-		typename Radio_P = typename OsModel_P::Radio_P
+		typename NapControl_P,
+		typename Registry_P,
+		typename Radio_P = typename OsModel_P::Radio,
+		typename Timer_P = typename OsModel_P::Timer,
+		typename Clock_P = typename OsModel_P::Clock,
+		typename Debug_P = typename OsModel_P::Debug,
+		size_t MAX_NEIGHBORS_P = 8
 	>
 	class SemanticEntityForwarding {
 		
@@ -49,11 +55,51 @@ namespace wiselib {
 			typedef typename Radio::message_id_t message_id_t;
 			enum { NULL_NODE_ID = Radio::NULL_NODE_ID };
 			//typedef delegate3<void, node_id_t, typename Radio::size_t, block_data_t*> receive_callback_t;
+			typedef Timer_P Timer;
+			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
+			typedef Debug_P Debug;
 			typedef ReliableTransport_P ReliableTransportT;
+			typedef NapControl_P NapControlT;
+			typedef Registry_P RegistryT;
+			typedef typename RegistryT::SemanticEntityT SemanticEntityT;
 			
-			void init(typename Radio::self_pointer_t radio, AmqNHood* amq_nhood) {
+			enum Restrictions {
+				MAX_NEIGHBORS = MAX_NEIGHBORS_P
+			};
+			
+		private:
+			struct Route {
+				Route() : from(NULL_NODE_ID) {
+				}
+				
+				Route(const SemanticEntityId& s, node_id_t f, bool i)
+					: se_id(s), from(f), initiator(i) {
+				}
+				
+				bool operator==(const Route& other) {
+					return se_id == other.se_id && from == other.from && initiator == other.initiator;
+				}
+				
+				SemanticEntityId se_id;
+				node_id_t from;
+				bool initiator;
+			};
+			
+			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
+			typedef MapStaticVector<OsModel, Route, RegularEventT, MAX_NEIGHBORS * 4> RegularEvents;
+				
+		public:
+			
+			void init(typename Radio::self_pointer_t radio, AmqNHood* amq_nhood, typename NapControlT::self_pointer_t nap_control, typename RegistryT::self_pointer_t registry, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug) {
 				radio_ = radio;
 				amq_nhood_ = amq_nhood;
+				timer_ = timer;
+				clock_ = clock;
+				debug_ = debug;
+				nap_control_ = nap_control;
+				registry_ = registry;
 				//receive_callback_ = cb;
 				
 				//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
@@ -65,6 +111,8 @@ namespace wiselib {
 			 */
 			bool on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				check();
+				
+				abs_millis_t t_recv = now();
 				
 				// for now, only forward messages from the reliable transport
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -87,14 +135,39 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					if(msg.initiator() != msg.is_ack()) {
-						DBG("on_receive: %d -> %d -> %d (%s, %d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number());
-					}
-					else {
-						DBG("on_receive: %d <- %d <- %d (%s, %d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number());
-					}
+					if(msg.initiator() != msg.is_ack()) { DBG("// on_receive: %d -> %d -> %d (%s, %d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number()); }
+					else { DBG("// on_receive: %d <- %d <- %d (%s, %d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number()); }
+					
+					SemanticEntityT *se_ = registry_->get(se_id);
+					if(!se_) { return false; }
+					SemanticEntityT& se = *se_;
 						
+					if(msg.is_open() && msg.initiator() && !msg.is_ack()) {
+						se.learn_token_forward(clock_, radio_->id(), from, t_recv);
+						debug_->debug("node %d SE %x.%x fwd_interval %d fwd_window %d fwd_from %d",
+								(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),
+								(int)se.token_forward_interval(from), (int)se.token_forward_window(from), (int)from);
+					}
+					
 					radio_->send(target, len, data);
+					
+					if(msg.is_close() && msg.is_ack()) {
+						const node_id_t prev = amq_nhood_->forward_address(se_id, from, false);
+						se.end_wait_for_token_forward(prev);
+						se.template schedule_token_forward<self_type, &self_type::begin_wait_for_forward,
+							&self_type::end_wait_for_forward>(clock_, timer_, this, prev, &se);
+					}
+					
+					/*
+					RegularEventT &event = forwards_[Route(se_id, from, msg.initiator() != msg.is_ack())];
+					event.hit(t_recv, clock_, radio_->id());
+					event.end_waiting();
+					
+					event.template start_waiting_timer<
+						self_type, &self_type::begin_wait_for_forward,
+						&self_type::end_wait_for_forward>(clock_, timer_, this, 0);
+					*/
+					
 					return true;
 				}
 				
@@ -105,13 +178,42 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					assert(radio_);
 					assert(amq_nhood_);
+					assert(timer_);
+					assert(clock_);
 				#endif
 			}
 		
 		private:
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
+			}
+			
+			
+			void begin_wait_for_forward(void* se_) {
+				SemanticEntityT *se = reinterpret_cast<SemanticEntityT*>(se_);
+				debug_->debug("node %d // push forward_%x_%x", (int)radio_->id(), (int)se->id().rule(), (int)se->id().value());
+				nap_control_->push_caffeine();
+			}
+			
+			void end_wait_for_forward(void* se_) {
+				SemanticEntityT *se = reinterpret_cast<SemanticEntityT*>(se_);
+				debug_->debug("node %d // pop forward_%x_%x", (int)radio_->id(), (int)se->id().rule(), (int)se->id().value());
+				nap_control_->pop_caffeine();
+			}
+			
 			//receive_callback_t receive_callback_;
 			typename Radio::self_pointer_t radio_;
 			typename AmqNHood::self_pointer_t amq_nhood_;
+			typename Timer::self_pointer_t timer_;
+			typename Clock::self_pointer_t clock_;
+			typename NapControlT::self_pointer_t nap_control_;
+			typename Debug::self_pointer_t debug_;
+			typename RegistryT::self_pointer_t registry_;
+			//RegularEvents forwards_;
 		
 	}; // SemanticEntityForwarding
 }

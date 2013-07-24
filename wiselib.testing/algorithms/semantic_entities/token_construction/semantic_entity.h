@@ -276,10 +276,10 @@ namespace wiselib {
 				return token_forwards_[from].end_waiting();
 			}
 			
-			abs_millis_t token_forward_window(typename Clock::self_pointer_t clock,node_id_t from) {
+			abs_millis_t token_forward_window(node_id_t from) {
 				return token_forwards_[from].window();
 			}
-			abs_millis_t token_forward_interval(typename Clock::self_pointer_t clock, node_id_t from) {
+			abs_millis_t token_forward_interval(node_id_t from) {
 				return token_forwards_[from].interval();
 			}
 			

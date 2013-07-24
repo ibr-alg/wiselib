@@ -92,7 +92,7 @@ namespace wiselib {
 			typedef SemanticEntity<OsModel, GlobalTreeT, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
 			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT> SemanticEntityRegistryT;
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, SemanticEntityRegistryT, Radio> SemanticEntityNeighborhoodT;
-			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, Radio> SemanticEntityForwardingT;
+			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, NapControlT, SemanticEntityRegistryT, Radio, Timer, Clock, Debug, MAX_NEIGHBORS> SemanticEntityForwardingT;
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
 			typedef delegate2<void, SemanticEntityT&, SemanticEntityAggregatorT&> end_activity_callback_t;
 			typedef TokenStateMessage<OsModel, SemanticEntityT, Radio> TokenStateMessageT;
@@ -174,7 +174,7 @@ namespace wiselib {
 				registry_.init(&global_tree_);
 				
 				neighborhood_.init(&global_tree_, &registry_, radio_);
-				forwarding_.init(radio_, &neighborhood_);
+				forwarding_.init(radio_, &neighborhood_, &nap_control_, &registry_, timer_, clock_, debug_);
 				
 				aggregator_.init(tuplestore);
 			}
@@ -217,6 +217,13 @@ namespace wiselib {
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
+				
+				if(!nap_control_.on()) {
+					debug_->debug("node %d // sleeping, ignoring packet of type %d", (int)radio_->id(),
+							(int)message_type);
+					return;
+				}
+				
 				if(message_type != ReliableTransportT::Message::MESSAGE_TYPE) {
 					//debug_->debug("node %d // on_receive: wrong msg type %d", (int)radio_->id(), (int)message_type);
 					return;

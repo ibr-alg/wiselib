@@ -12,6 +12,11 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 
+tmax = 50000
+
+
+
+
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
@@ -27,7 +32,6 @@ properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count'
 
 def getnodes(namepattern):
 	global gnodes
-	print "keys=", gnodes.keys()
 	nodes = dict(
 			(k, v) for (k, v) in gnodes.items() if re.match(namepattern, k)
 	)
@@ -71,6 +75,8 @@ def parse(f):
 		if m is not None:
 			t = int(m.group(1))
 			continue
+		
+		if t > tmax: break
 		
 		# which node is this line about?
 		
@@ -142,6 +148,7 @@ def parse(f):
 					nodes[name][k]['v'] = np.append(nodes[name][k]['v'], int(v))
 
 def fig_count_onegraph(namepattern = '*'):
+	# {{{
 	global fig
 	nodes = getnodes(namepattern)
 	
@@ -174,8 +181,10 @@ def fig_count_onegraph(namepattern = '*'):
 	
 	fig.savefig('counts_onegraph.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
+	# }}}
 	
 def fig_count(namepattern = '*'):
+	# {{{
 	global fig
 	nodes = getnodes(namepattern)
 	
@@ -229,6 +238,7 @@ def fig_count(namepattern = '*'):
 	
 	fig.savefig('counts.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
+	# }}}
 	
 def fig_timings():
 	global fig
@@ -261,7 +271,7 @@ def fig_timings():
 		#ax.spines['left'].set_visible(False)
 		#ax.spines['right'].set_visible(False)
 		#setp(ax.get_xticklabels(), visible = False)
-		ax.set_xticks(range(0, 10000, 500))
+		ax.set_xticks(range(0, tmax, 500))
 		#ax.get_yaxis().set_visible(False)
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
@@ -283,7 +293,7 @@ def fig_timings():
 		i += 1
 			
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 10001))
+	last_ax.set_xlim((-1, tmax))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -321,13 +331,13 @@ def fig_forward_timings():
 			else:
 				ax = plt.subplot(len(nodes), 1, i + 1, sharex=first_ax)
 				
-			ax.spines['bottom'].set_visible(False)
-			ax.spines['top'].set_visible(False)
+			#ax.spines['bottom'].set_visible(False)
+			#ax.spines['top'].set_visible(False)
 			#ax.spines['left'].set_visible(False)
 			#ax.spines['right'].set_visible(False)
-			setp(ax.get_xticklabels(), visible = False)
+			#setp(ax.get_xticklabels(), visible = False)
 			#ax.get_yaxis().set_visible(False)
-			ax.get_xaxis().set_tick_params(size=0)
+			#ax.get_xaxis().set_tick_params(size=0)
 			last_ax = ax
 
 			if 'window' in forward:
@@ -337,14 +347,15 @@ def fig_forward_timings():
 				r, = ax.plot(forward['t'], forward['interval'], 'r-', label='interval', drawstyle='steps-post')
 				property_styles['interval'] = r
 			
-			ax.set_title(name + ' fwd from ' + from_)
+			ax.set_title(name + ' fwd from ' + str(from_))
 			#pos = list(ax.get_position().bounds)
 			#fig.text(pos[0] - 0.01, pos[1], name, fontsize = 8,
 					#horizontalalignment = 'right')
 			i += 1
 			
+	last_ax.set_xticks(range(0, tmax, 500))
 	last_ax.spines['bottom'].set_visible(True)
-	last_ax.set_xlim((-1, 1601))
+	last_ax.set_xlim((-1, tmax))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())
@@ -377,8 +388,12 @@ def fig_duty_cycle(namepattern = '.*'):
 		b = pb[0]
 		if ':' in a and ':' not in b: return 1
 		if ':' in b and ':' not in a: return -1
-		#if ':' not in a: return cmp(a, b)
-		return cmp(tuple(reversed(a.split(':'))), tuple(reversed(b.split(':'))))
+		if ':' not in a: return cmp(int(a), int(b))
+		ta = (a.split(':')[1:], int(a.split(':')[0]))
+		tb = (b.split(':')[1:], int(b.split(':')[0]))
+		return cmp(ta, tb)
+		
+		#return cmp(tuple(reversed(a.split(':'))), tuple(reversed(b.split(':'))))
 		#return cmp(a[a.find(':') + 1:], b[b.find(':') + 1:])
 		
 	for name, node in sorted(nodes.items(), cmp=sesort):
@@ -419,11 +434,11 @@ def fig_duty_cycle(namepattern = '.*'):
 				horizontalalignment = 'right')
 		i += 1
 			
-	last_ax.set_xticks(range(0, 10000, 500))
+	last_ax.set_xticks(range(0, tmax, 500))
 	#last_ax.get_xaxis().set_tick_params(size=1)
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
-	last_ax.set_xlim((-1, 10001))
+	last_ax.set_xlim((-1, tmax))
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())

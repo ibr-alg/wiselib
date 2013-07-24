@@ -26,6 +26,7 @@
 #include <algorithms/semantic_entities/token_construction/regular_event.h>
 #include <util/types.h>
 #include <util/pstl/set_static.h>
+#include <util/pstl/map_static_vector.h>
 
 namespace wiselib {
 	
@@ -71,7 +72,7 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
 				PUSH_INTERVAL = 100 * WISELIB_TIME_FACTOR,
-				BCAST_INTERVAL = 5000 * WISELIB_TIME_FACTOR,
+				BCAST_INTERVAL = 50000 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -89,6 +90,7 @@ namespace wiselib {
 			
 			typedef delegate1<void, EventType> event_callback_t;
 			typedef vector_static<OsModel, event_callback_t, MAX_EVENT_LISTENERS> EventCallbacks;
+			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularEvents;
 			
 			struct NeighborEntry {
 				// {{{
@@ -275,6 +277,12 @@ namespace wiselib {
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
+				if(!nap_control_->on()) {
+					debug_->debug("node %d // sleeping, ignoring packet of type %d", (int)radio_->id(),
+							(int)message_type);
+					return;
+				}
+				
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
 					return;
 				}
@@ -587,7 +595,7 @@ namespace wiselib {
 			NeighborEntries neighbor_entries_;
 			Neighbors neighbors_;
 			
-			RegularEventT regular_broadcasts_[MAX_NEIGHBORS];
+			RegularEvents regular_broadcasts_;
 			EventCallbacks event_callbacks_;
 		
 	}; // SelfStabilizingTree
