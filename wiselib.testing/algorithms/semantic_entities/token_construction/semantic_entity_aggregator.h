@@ -81,6 +81,11 @@ namespace wiselib {
 						se_id_(se_id), datatype_(datatype), uom_key_(uom), type_key_(sensor_type) {
 					}
 					
+					void init() {
+						uom_key_ = DictionaryT::NULL_KEY;
+						type_key_ = DictionaryT::NULL_KEY;
+					}
+					
 					bool operator==(const AggregationKey& other) const {
 						return (se_id_ == other.se_id_) &&
 							(datatype_ == other.datatype_) &&
@@ -230,6 +235,7 @@ namespace wiselib {
 				shdt_.reset();
 				fill_buffer_iterator_ = aggregation_entries_.begin();
 				fill_buffer_state_ = FIELD_UOM;
+					DBG("------------ FILL START:   shdt %p buf %p field_id %d", &shdt_, buffer, (int)fill_buffer_state_);
 				return fill_buffer(se_id, buffer, buffer_size, call_again);
 			}
 			
@@ -241,6 +247,8 @@ namespace wiselib {
 					call_again = false;
 					return 0;
 				}
+				
+					DBG("------------ FILL BUFSTART:   shdt %p buf %p field_id %d", &shdt_, buffer, (int)fill_buffer_state_);
 				
 				call_again = true;
 				block_data_t *buf = buffer, *buf_end = buffer + buffer_size;
@@ -256,6 +264,9 @@ namespace wiselib {
 				while(call_again && !ca && (buf_end - buf)) {
 					AggregationKey& key = fill_buffer_iterator_->first;
 					AggregationValue& aggregate = fill_buffer_iterator_->second;
+					
+					block_data_t *buf_dbg = buf;
+					int state_dbg = fill_buffer_state_;
 					
 					switch(fill_buffer_state_) {
 						case FIELD_UOM: {
@@ -281,6 +292,8 @@ namespace wiselib {
 							break;
 					} // switch()
 					
+					DBG("------------ FILL:   shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)state_dbg, (int)(buf_dbg - buffer), buf_dbg[0], buf_dbg[1], buf_dbg[2], buf_dbg[3]);
+					
 					
 					if(fill_buffer_state_ == FIELD_TOTAL_MEAN  && !ca) {
 						++fill_buffer_iterator_;
@@ -290,11 +303,13 @@ namespace wiselib {
 							call_again = false;
 						}
 					}
-					else {
+					else if(!ca) {
 						fill_buffer_state_++;
 					}
 					
 				} // while()
+				
+				DBG("------------ fill_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
 				
 				return buf - buffer;
 				
@@ -314,6 +329,7 @@ namespace wiselib {
 					else { ++iter; }
 				}
 				
+				read_buffer_key_.init();
 				read_buffer(id, buffer, buffer_size);
 			}
 			
@@ -328,18 +344,26 @@ namespace wiselib {
 				size_type data_size;
 				typename Shdt::field_id_t field_id = 0;
 				
+				DBG("------------ read_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
+				
 				while(!reader.done()) {
+					DBG("------------------ shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)field_id, (int)reader.position(), buffer[reader.position()], buffer[reader.position() + 1], buffer[reader.position() + 2], buffer[reader.position() + 3]);
+					
 					done = reader.read_field(field_id, data, data_size);
+					DBG("------------------ fild_id %d", (int)field_id);
+					
 					Value& v = reinterpret_cast<Value&>(*data);
 					if(!done) { break; }
 					switch(field_id) {
 						case FIELD_UOM: {
 							typename DictionaryT::key_type k = dictionary().insert(data);
+							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_uom_key(k);
 							break;
 						}
 						case FIELD_TYPE: {
 							typename DictionaryT::key_type k = dictionary().insert(data);
+							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_type_key(k);
 							break;
 						}
@@ -371,8 +395,9 @@ namespace wiselib {
 							break;
 						case FIELD_TOTAL_MEAN: {
 							read_buffer_value_.set_total_mean(v);
-							
 							read_buffer_key_.set_se_id(id);
+							assert(read_buffer_key_.uom_key() != DictionaryT::NULL_KEY);
+							assert(read_buffer_key_.type_key() != DictionaryT::NULL_KEY);
 							
 							if(aggregation_entries_.contains(read_buffer_key_)) {
 								// we are going to insert that key again, that
@@ -390,6 +415,7 @@ namespace wiselib {
 									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
 									//(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
 									//(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
+							read_buffer_key_.init();
 							break;
 						}
 					} // switch

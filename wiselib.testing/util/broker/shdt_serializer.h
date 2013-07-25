@@ -389,6 +389,7 @@ namespace wiselib {
 						return false;
 					}
 							
+					size_type position() { return buffer_current_ - buffer_start_; }
 					
 					bool done() {
 						return buffer_current_ >= buffer_end_;
