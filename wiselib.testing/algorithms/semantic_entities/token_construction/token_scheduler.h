@@ -434,7 +434,7 @@ namespace wiselib {
 				
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::SEND_ACTIVATING:
-						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES);
+						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES_START);
 						*message.payload() = 'a';
 						message.set_payload_size(1);
 						transport_.expect_answer(endpoint);
@@ -471,9 +471,24 @@ namespace wiselib {
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::INIT: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						
+						DBG("remote addr %d", (int)endpoint.remote_address());
+						DBG("now %d", (int)now());
+						DBG("delay %d", (int)message.delay());
+						DBG("&msg %p", &msg);
+						DBG("sz(TokMsg) %d", sizeof(TokenStateMessageT));
+						DBG("&se %p", se);
+						SemanticEntityT s2 = *se;
+						
 						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
 						se->set_handover_state_recepient(activating ? SemanticEntityT::SEND_ACTIVATING : SemanticEntityT::SEND_NONACTIVATING);
 						endpoint.request_send();
+						break;
+					}
+					
+					case SemanticEntityT::RECV_AGGREGATES_START: {
+						aggregator_.read_buffer_start(message.channel(), message.payload(), message.payload_size());
+						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES);
 						break;
 					}
 					
@@ -519,7 +534,7 @@ namespace wiselib {
 			//}}}
 			///@}
 			
-			bool process_token_state(TokenStateMessageT msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
+			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
 				TokenState s = msg.token_state();
 				bool activating = false;
 				bool active_before = se.is_active(radio_->id());

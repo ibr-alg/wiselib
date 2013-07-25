@@ -17,8 +17,8 @@
 #else
 	#define CHECK_INVARIANTS 0
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	//#define USE_PRESCILLA 1
-	#define USE_TREEDICT 1
+	#define USE_PRESCILLA 1
+	//#define USE_TREEDICT 1
 
 #endif
 

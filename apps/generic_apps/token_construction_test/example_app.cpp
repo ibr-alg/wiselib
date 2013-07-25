@@ -33,8 +33,8 @@ using namespace wiselib;
 	#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 
-	//#include "semantics_office1.h"
-	#include "semantics_uniform.h"
+	#include "semantics_office1.h"
+	//#include "semantics_uniform.h"
 
 	typedef Tuple<Os> TupleT;
 	typedef wiselib::list_dynamic<Os, TupleT> TupleList;

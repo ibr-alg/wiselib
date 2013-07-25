@@ -695,7 +695,7 @@ namespace wiselib {
 			}
 			
 			void set_table(table_id_t id, block_data_t* data, sz_t data_size) {
-				assert(strlen((char*)data) + 1 >= data_size);
+				//assert(strlen((char*)data) + 1 >= data_size);
 				
 				if(lookup_table_[id]) {
 					get_allocator().free_array(lookup_table_[id]);

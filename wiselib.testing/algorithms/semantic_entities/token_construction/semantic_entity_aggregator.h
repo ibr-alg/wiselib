@@ -26,7 +26,6 @@
 #include <util/pstl/map_static_vector.h>
 #include <util/broker/shdt_serializer.h>
 #include "semantic_entity_id.h"
-//#include "semantic_entity_aggregation_message.h"
 
 namespace wiselib {
 	
@@ -58,7 +57,7 @@ namespace wiselib {
 			 */
 			enum DataType { IGNORE = 0, INTEGER = 1, FLOAT = 2, STRING = 3 };
 			
-			enum Restrictions { MAX_ENTRIES = 8 };
+			enum Restrictions { MAX_ENTRIES = 16 };
 			
 			enum Fields {
 				FIELD_UOM = 0,
@@ -70,9 +69,6 @@ namespace wiselib {
 				
 				FIELDS = FIELD_TOTAL_MEAN + 1
 			};
-		
-			
-			//typedef vector_static<OsModel, AggregationEntry, MAX_ENTRIES> AggregationEntries;
 			
 		private:
 			class AggregationKey {
@@ -94,10 +90,12 @@ namespace wiselib {
 					
 					void free_dictionary_references(DictionaryT& dict, bool soft=false) {
 						if(uom_key_ != DictionaryT::NULL_KEY) {
+							assert(soft <= (dict.count(uom_key_) > 1));
 							dict.erase(uom_key_);
 							if(!soft) { uom_key_ = DictionaryT::NULL_KEY; }
 						}
 						if(type_key_ != DictionaryT::NULL_KEY) {
+							assert(soft <= (dict.count(type_key_) > 1));
 							dict.erase(type_key_);
 							if(!soft) { type_key_ = DictionaryT::NULL_KEY; }
 						}
@@ -139,7 +137,6 @@ namespace wiselib {
 					}
 					
 					void aggregate(Value v, ::uint8_t datatype) {
-						//DBG("aggr %ld before %2d/%2d/%2d", (long)v, (int)min_, (int)max_, (int)mean_);
 						if(count() == 0) {
 							init(v, false);
 						}
@@ -154,29 +151,7 @@ namespace wiselib {
 								assert(false && "datatype not supported for aggregation!");
 							}
 						}
-						
-						//DBG("aggr %ld after %2d/%2d/%2d", (long)v, (int)min_, (int)max_, (int)mean_);
 					}
-					
-					/*
-					Value& count() { return count_; }
-					void set_count(Value& x) { count_ = x; }
-					Value& min() { return min_; }
-					void set_min(Value& x) { min_ = x; }
-					Value& max() { return max_; }
-					void set_max(Value& x) { max_ = x; }
-					Value& mean() { return mean_; }
-					void set_mean(Value& x) { mean_ = x; }
-					
-					Value& total_count() { return total_count_; }
-					void set_total_count(Value& x) { total_count_ = x; }
-					Value& total_min() { return total_min_; }
-					void set_total_min(Value& x) { total_min_ = x; }
-					Value& total_max() { return total_max_; }
-					void set_total_max(Value& x) { total_max_ = x; }
-					Value& total_mean() { return total_mean_; }
-					void set_total_mean(Value& x) { total_mean_ = x; }
-					*/
 					
 					Value& count() { return values_[FIELD_COUNT - FIRST_VALUE_FIELD]; }
 					void set_count(Value& x) { count() = x; }
@@ -209,11 +184,6 @@ namespace wiselib {
 					
 				private:
 					Value values_[FIELDS - FIRST_VALUE_FIELD];
-					
-					/*
-					Value count_, min_, max_, mean_;
-					Value total_count_, total_min_, total_max_, total_mean_;
-					*/
 			};
 			
 		public:
@@ -233,10 +203,6 @@ namespace wiselib {
 					v.aggregate(value, datatype);
 				}
 				else {
-					//DBG("k not found, contains:");
-					//for(iterator iter=begin(); iter!=end(); ++iter) {
-						//DBG("contains %d.%08lx
-					
 					aggregation_entries_[k].init(value, true);
 				}
 			}
@@ -261,6 +227,7 @@ namespace wiselib {
 			 * @return number of bytes written
 			 */
 			size_type fill_buffer_start(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				shdt_.reset();
 				fill_buffer_iterator_ = aggregation_entries_.begin();
 				fill_buffer_state_ = FIELD_UOM;
 				return fill_buffer(se_id, buffer, buffer_size, call_again);
@@ -290,14 +257,11 @@ namespace wiselib {
 					AggregationKey& key = fill_buffer_iterator_->first;
 					AggregationValue& aggregate = fill_buffer_iterator_->second;
 					
-					DBG("aggr fill buffer state: %d", (int)fill_buffer_state_);
-					
 					switch(fill_buffer_state_) {
 						case FIELD_UOM: {
 							block_data_t *uom = dictionary().get_value(key.uom_key());
 							ca = shdt_.write_field(FIELD_UOM, uom, strlen((char*)uom) + 1, buf, buf_end);
 							dictionary().free_value(uom);
-							//if(!ca) { fill_buffer_state_ = FIELD_TYPE; }
 							break;
 						}
 						
@@ -305,69 +269,16 @@ namespace wiselib {
 							block_data_t *type = dictionary().get_value(key.type_key());
 							ca = shdt_.write_field(FIELD_TYPE, type, strlen((char*)type) + 1, buf, buf_end);
 							dictionary().free_value(type);
-							//if(!ca) { fill_buffer_state_ = FIELD_DATATYPE; }
 							break;
 						}
 						
 						case FIELD_DATATYPE:
 							ca = shdt_.write_field(FIELD_DATATYPE, &key.datatype(), sizeof(key.datatype()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_COUNT; }
 							break;
 							
 						default:
 							ca = shdt_.write_field(fill_buffer_state_, (block_data_t*)&(aggregate.values()[fill_buffer_state_ - FIRST_VALUE_FIELD]), sizeof(Value), buf, buf_end);
 							break;
-						
-							
-						/*
-						case FIELD_COUNT:
-							ca = shdt_.write_field(FIELD_COUNT, (block_data_t*)&aggregate.count(), sizeof(aggregate.count()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_MIN; }
-							break;
-							
-						case FIELD_MIN:
-							ca = shdt_.write_field(FIELD_MIN, (block_data_t*)&aggregate.min(), sizeof(aggregate.min()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_MAX; }
-							break;
-							
-						case FIELD_MAX:
-							ca = shdt_.write_field(FIELD_MAX, (block_data_t*)&aggregate.max(), sizeof(aggregate.max()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_MEAN; }
-							break;
-							
-						case FIELD_MEAN:
-							ca = shdt_.write_field(FIELD_MEAN, (block_data_t*)&aggregate.mean(), sizeof(aggregate.mean()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_COUNT; }
-							break;
-							
-						case FIELD_TOTAL_COUNT:
-							ca = shdt_.write_field(FIELD_TOTAL_COUNT, (block_data_t*)&aggregate.total_count(), sizeof(aggregate.total_count()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MIN; }
-							break;
-							
-						case FIELD_TOTAL_MIN:
-							ca = shdt_.write_field(FIELD_TOTAL_MIN, (block_data_t*)&aggregate.total_min(), sizeof(aggregate.total_min()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MAX; }
-							break;
-							
-						case FIELD_TOTAL_MAX:
-							ca = shdt_.write_field(FIELD_TOTAL_MAX, (block_data_t*)&aggregate.total_max(), sizeof(aggregate.total_max()), buf, buf_end);
-							//if(!ca) { fill_buffer_state_ = FIELD_TOTAL_MEAN; }
-							break;
-						
-							
-						case FIELD_TOTAL_MEAN:
-							ca = shdt_.write_field(FIELD_TOTAL_MEAN, (block_data_t*)&aggregate.total_mean(), sizeof(aggregate.total_mean()), buf, buf_end);
-							if(!ca) {
-								++fill_buffer_iterator_;
-								fill_buffer_state_ = FIELD_UOM;
-								
-								if(fill_buffer_iterator_ == aggregation_entries_.end()) {
-									call_again = false;
-								}
-							}
-							break;
-						*/
 					} // switch()
 					
 					
@@ -392,6 +303,22 @@ namespace wiselib {
 			
 			/**
 			 */
+			void read_buffer_start(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
+				shdt_.reset();
+				
+				typename AggregationEntries::iterator iter = aggregation_entries_.begin();
+				
+				// clear all former SE entries
+				while(iter != aggregation_entries_.end()) {
+					if(iter->first.se_id() == id) { iter = aggregation_entries_.erase(iter); }
+					else { ++iter; }
+				}
+				
+				read_buffer(id, buffer, buffer_size);
+			}
+			
+			/**
+			 */
 			void read_buffer(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
 				//{{{
 				
@@ -399,7 +326,7 @@ namespace wiselib {
 				bool done = true;
 				block_data_t *data;
 				size_type data_size;
-				typename Shdt::field_id_t field_id;
+				typename Shdt::field_id_t field_id = 0;
 				
 				while(!reader.done()) {
 					done = reader.read_field(field_id, data, data_size);
@@ -473,9 +400,6 @@ namespace wiselib {
 			DictionaryT& dictionary() { return tuple_store_->dictionary(); }
 			
 		private:
-			
-			//size_type find_entry(const SemanticEntityId& se_id, Value sensor_type, Value uom, ::uint8_t datatype) {
-			//}
 			
 			int fill_buffer_state_;
 			const char* entity_format_;

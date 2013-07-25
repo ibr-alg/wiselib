@@ -86,16 +86,22 @@ namespace wiselib {
 			}
 			
 			key_type insert(mapped_type v) {
+				check();
+				
 				int c;
 				Node *p = find_node(v, c);
 				
 				if(c == 0 && p) {
 					p->refcount++;
+					
+					check();
 					return to_key(p);
 				}
 				else if(c == 0 && !p) {
 					root_ = Node::make(v);
 					root_->parent = 0;
+					
+					check();
 					return to_key(root_);
 				}
 				else {
@@ -103,21 +109,28 @@ namespace wiselib {
 					n->parent = p;
 					if(c < 0) { p->childs[Node::LEFT] = n; }
 					else { p->childs[Node::RIGHT] = n; }
+					
+					check();
 					return to_key(n);
 				}
 			}
 			
 			size_type count(key_type k) {
-				return k->refcount;
+				check_node(to_node(k));
+				return to_node(k)->refcount;
 			}
 			
 			key_type find(mapped_type v) {
+				check();
+				
 				int c;
 				Node *p = find_node(v, c);
 				return (c == 0) ? to_key(p) : NULL_KEY;
 			}
 			
 			mapped_type get_value(key_type k) {
+				check();
+				check_node(to_node(k));
 				return to_node(k)->value;
 			}
 			
@@ -125,6 +138,8 @@ namespace wiselib {
 			}
 			
 			size_type erase(key_type p_) {
+				check();
+				
 				Node *p = to_node(p_);
 				//int c;
 				//Node *p = find_node(k, c);
@@ -132,6 +147,8 @@ namespace wiselib {
 				
 				if(p->refcount > 1) {
 					p->refcount--;
+					
+					check();
 					return 1;
 				}
 				
@@ -168,7 +185,29 @@ namespace wiselib {
 						reinterpret_cast<block_data_t*>(p)
 				);
 				
+				if(root_ == p) { root_ = 0; }
+				
+				check();
+				
 				return 1;
+			}
+			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					check_node(root_, 0, 0);
+				#endif
+			}
+			
+			void check_node(Node* n, block_data_t* v_l = 0, block_data_t* v_r = 0) {
+				#if !WISELIB_DISABLE_DEBUG
+					if(!n) { return; }
+					assert(!v_l || strcmp((char*)v_l, (char*)n->value) > 0);
+					assert(!v_r || strcmp((char*)v_r, (char*)n->value) < 0);
+					assert(!n->childs[0] || n->childs[0]->parent == n);
+					assert(!n->childs[1] || n->childs[1]->parent == n);
+					check_node(n->childs[0], v_l, n->value);
+					check_node(n->childs[1], n->value, v_r);
+				#endif
 			}
 		
 		private:

@@ -359,13 +359,14 @@ namespace wiselib {
 				return r;
 			}
 			
-			void set_parent(const Neighbor& n) {
+			void set_parent(Neighbor& n) {
 				check();
 				
 				if(neighbors_[0].id() != NULL_NODE_ID) {
 					insert_child(neighbors_[0]);
 				}
 				
+				n.state_ = OUT_EDGE;
 				neighbors_[0] = n;
 				
 				
@@ -411,7 +412,7 @@ namespace wiselib {
 				}
 			}
 			
-			void insert_child(const Neighbor& n) {
+			void insert_child(Neighbor& n) {
 				check();
 				
 					//debug_->debug("node %d // insert_child(%d) [ %d | %d %d %d ... ]",
@@ -420,6 +421,7 @@ namespace wiselib {
 							//(int)neighbors_[3].id());
 				
 				size_type pos = find_neighbor_position(n.id(), false);
+				n.state_ = IN_EDGE;
 				neighbors_.insert(typename Neighbors::iterator(&neighbors_[pos]), n);
 				
 					//debug_->debug("node %d // post insert_child(%d) [ %d | %d %d %d ... ]",
@@ -497,7 +499,8 @@ namespace wiselib {
 					
 					if(iter->tree_state().parent() == radio_->id()) {
 						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
-						insert_child(Neighbor(&*iter));
+						Neighbor n(&*iter);
+						insert_child(n);
 					}
 					
 					else if(iter->tree_state().root() < root) {
@@ -527,7 +530,8 @@ namespace wiselib {
 				if(parent_ptr) {
 					//typename Neighbors::iterator it = neighbors_.insert(Neighbor(parent_ptr));
 					//make_parent(it - neighbors_.begin());
-					set_parent(Neighbor(parent_ptr));
+					Neighbor n(parent_ptr);
+					set_parent(n);
 				}
 				
 				bool c_a = tree_state().set_distance(distance);

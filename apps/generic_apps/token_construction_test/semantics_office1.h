@@ -38,18 +38,18 @@ namespace wiselib {
 		typename node_id_t
 	>
 	void initial_semantics(TS& ts, node_id_t id) {
-		const char *table1 = "<table1>";
-		const char *table2 = "<table2>";
-		const char *window1 = "<window1>";
-		const char *door1 = "<door1>";
-		const char *door2 = "<door2>";
-		const char *door3 = "<door3>";
-		const char *couch1 = "<couch1>";
-		const char *chair1 = "<chair1>";
-		const char *laptop1 = "<laptop1>";
-		const char *cupboard1 = "<cupboard1>";
-		const char *whiteboard1 = "<whiteboard1>";
-		const char *room1 = "<officeroom1>";
+		static const char *table1 = "<table1>";
+		static const char *table2 = "<table2>";
+		static const char *window1 = "<window1>";
+		static const char *door1 = "<door1>";
+		static const char *door2 = "<door2>";
+		static const char *door3 = "<door3>";
+		static const char *couch1 = "<couch1>";
+		static const char *chair1 = "<chair1>";
+		static const char *laptop1 = "<laptop1>";
+		static const char *cupboard1 = "<cupboard1>";
+		static const char *whiteboard1 = "<whiteboard1>";
+		static const char *room1 = "<officeroom1>";
 		
 		enum { MAX_FOIS = 4 };
 		
