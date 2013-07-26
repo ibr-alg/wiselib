@@ -543,16 +543,24 @@ namespace wiselib {
 						(int)se->handover_state_recepient(), (int)now());
 				
 				switch(se->handover_state_recepient()) {
-					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL: {
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						SemanticEntityT s2 = *se;
+						
+						bool lock = false;
+						if(!lock) {
+							se->set_handover_state_recepient(SemanticEntityT::AGGREGATES_LOCKED_LOCAL);
+							endpoint.request_send();
+						}
+						else {
+							se->set_handover_state_recepient(SemanticEntityT::SEND_ACTIVATING);
+							endpoint.request_send();
+						}
+						break;
+					}
+						
 					case SemanticEntityT::INIT: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
-						
-						DBG("remote addr %d", (int)endpoint.remote_address());
-						DBG("now %d", (int)now());
-						DBG("delay %d", (int)message.delay());
-						DBG("&msg %p", &msg);
-						DBG("sz(TokMsg) %d", sizeof(TokenStateMessageT));
-						DBG("&se %p", se);
 						SemanticEntityT s2 = *se;
 						
 						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
