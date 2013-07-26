@@ -514,10 +514,11 @@ namespace wiselib {
 						
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
 						*message.payload() = 'l';
-						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES_START);
+						//se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES_START);
 						message.set_payload_size(1);
 						//transport_.expect_answer(endpoint);
-						endpoint.request_send();
+						//endpoint.request_send();
+						return true;
 				} // switch()
 				return false;
 			}
