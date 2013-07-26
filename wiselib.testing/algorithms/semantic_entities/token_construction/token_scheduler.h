@@ -328,7 +328,35 @@ namespace wiselib {
 						transport_.expect_answer(endpoint);
 						return true;
 					}
+						
+					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE:
+					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_1:
+					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_2: {
+						se->set_handover_state_initiator(se->handover_state_initiator() + 1);
+						
+						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						msg.set_token_state(se->token());
+						message.set_payload_size(msg.size());
+						transport_.expect_answer(endpoint);
+						return true;
+					}
 					
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_1:
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_2: {
+						bool lock = aggregator_.lock(id);
+						if(!lock) {
+							// if at first you don't succeed...
+							se->set_handover_state_initiator(se->handover_state_initiator() + 1);
+							endpoint.request_send();
+							message.set_payload_size(0);
+							return false;
+						}
+						se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
+						// NO break or return here, continue with send
+						// aggregates immediately!
+					}
+						
 					case SemanticEntityT::SEND_AGGREGATES_START: {
 						bool call_again;
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
@@ -357,6 +385,8 @@ namespace wiselib {
 						return true;
 					}
 					
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_GIVE_UP:
+					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP:
 					case SemanticEntityT::CLOSE: {
 						message.set_payload_size(0);
 						endpoint.request_close();
@@ -376,12 +406,48 @@ namespace wiselib {
 				debug_->debug("node %d SE %x.%x handover_state_initiator %d t %d // consume_handover_initiator",
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				
-				if(*message.payload() == 'a') {
-					se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
-					endpoint.request_send();
-				}
-				else {
-					endpoint.request_close();
+				switch(*message.payload()) {
+					case 'a': {
+						bool lock = aggregator_.lock(id);
+						if(!lock) {
+							int s = se->handover_state_initiator();
+							if(s >= SemanticEntityT::AGGREGATES_LOCKED_LOCAL && s < SemanticEntityT::AGGREGATES_LOCKED_LOCAL_GIVE_UP) {
+								se->set_handover_state_initiator(s + 1);
+								endpoint.request_send();
+							}
+							else if(s == SemanticEntityT::AGGREGATES_LOCKED_LOCAL_GIVE_UP) {
+								endpoint.request_close();
+							}
+							else {
+								se->set_handover_state_initiator(SemanticEntityT::AGGREGATES_LOCKED_LOCAL);
+								endpoint.request_send();
+							}
+						}
+						else {
+							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
+							endpoint.request_send();
+						}
+						break;
+					}
+						
+					case 'n':
+						endpoint.request_close();
+						break;
+						
+					case 'l':
+						int s = se->handover_state_initiator();
+						if(s >= SemanticEntityT::AGGREGATES_LOCKED_REMOTE && s < SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP) {
+							se->set_handover_state_initiator(s + 1);
+							endpoint.request_send();
+						}
+						else if(s == SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP) {
+							endpoint.request_close();
+						}
+						else {
+							se->set_handover_state_initiator(SemanticEntityT::AGGREGATES_LOCKED_REMOTE);
+							endpoint.request_send();
+						}
+						break;
 				}
 			}
 			
@@ -445,6 +511,13 @@ namespace wiselib {
 						message.set_payload_size(1);
 						transport_.expect_answer(endpoint);
 						return true;
+						
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
+						*message.payload() = 'l';
+						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES_START);
+						message.set_payload_size(1);
+						//transport_.expect_answer(endpoint);
+						endpoint.request_send();
 				} // switch()
 				return false;
 			}
@@ -469,6 +542,7 @@ namespace wiselib {
 						(int)se->handover_state_recepient(), (int)now());
 				
 				switch(se->handover_state_recepient()) {
+					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
 					case SemanticEntityT::INIT: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						
@@ -481,8 +555,23 @@ namespace wiselib {
 						SemanticEntityT s2 = *se;
 						
 						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
-						se->set_handover_state_recepient(activating ? SemanticEntityT::SEND_ACTIVATING : SemanticEntityT::SEND_NONACTIVATING);
-						endpoint.request_send();
+						bool lock = false;
+						if(activating) {
+							lock = aggregator_.lock(id);
+						}
+						
+						if(!activating) {
+							se->set_handover_state_recepient(SemanticEntityT::SEND_NONACTIVATING);
+							endpoint.request_send();
+						}
+						else if(!lock) {
+							se->set_handover_state_recepient(SemanticEntityT::AGGREGATES_LOCKED_LOCAL);
+							endpoint.request_send();
+						}
+						else {
+							se->set_handover_state_recepient(SemanticEntityT::SEND_ACTIVATING);
+							endpoint.request_send();
+						}
 						break;
 					}
 					
@@ -522,6 +611,7 @@ namespace wiselib {
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
+						aggregator_.release(id);
 						debug_->debug("node %d // pop handover_connection_r", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);

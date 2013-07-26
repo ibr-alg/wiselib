@@ -198,6 +198,7 @@ namespace wiselib {
 			void init(typename TupleStoreT::self_pointer_t ts) { //, const char* entity_format) {
 				tuple_store_ = ts;
 				shdt_.set_table_size(8);
+				lock_ = SemanticEntityId::invalid();
 				//entity_format_ = entity_format;
 			}
 			
@@ -425,6 +426,21 @@ namespace wiselib {
 			
 			DictionaryT& dictionary() { return tuple_store_->dictionary(); }
 			
+			bool lock(const SemanticEntityId& id) {
+				if(lock_ == SemanticEntityId::invalid()) {
+					lock_ = id;
+					return true;
+				}
+				
+				return false;
+			}
+			
+			void release(const SemanticEntityId& id) {
+				if(lock_ == id) {
+					lock_ = SemanticEntityId::invalid();
+				}
+			}
+			
 		private:
 			
 			int fill_buffer_state_;
@@ -435,6 +451,7 @@ namespace wiselib {
 			Shdt shdt_;
 			AggregationKey read_buffer_key_;
 			AggregationValue read_buffer_value_;
+			SemanticEntityId lock_;
 		
 	}; // SemanticEntityAggregator
 	
