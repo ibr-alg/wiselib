@@ -1,7 +1,13 @@
-#. ../generic_apps/Makefile.local
+# shell script
 
-WISELIB_BASE=/home/dizhi/git-repo/wiselib/
-NS3_INCLUDE_DIR=/home/dizhi/git-repo/ns-3-dev-git/
+# get the number of line having WISELIB_BASE variable in Makefile.local file
+#   first, we use "=" to split the line and then use " " to further split the left content
+wiselib_base_line=` echo "a" | cat ../generic_apps/Makefile.local | awk -F"=" '{print $1}' | awk -F" " '{if($2=="WISELIB_BASE") print NR}'`;
+# retrive path from awk script and save it to WISELIB_BASE
+WISELIB_BASE=` echo "b" | cat ../generic_apps/Makefile.local | awk -v line="$wiselib_base_line" -F" " '{if (NR== line ) print $2}' | awk -F"=" '{print $2}'`;
+
+ns3_include_line=` echo "c" | cat ../generic_apps/Makefile.local | awk -F"=" '{print $1}' | awk -F" " '{if($2=="NS3_INCLUDE_DIR") print NR}'`;
+NS3_INCLUDE_DIR=` echo "d" | cat ../generic_apps/Makefile.local | awk -v line="$ns3_include_line" -F" " '{if (NR== line ) print $2}' | awk -F"=" '{print $2}'`;
 
 cd $NS3_INCLUDE_DIR
 cd src/wiselib/examples
