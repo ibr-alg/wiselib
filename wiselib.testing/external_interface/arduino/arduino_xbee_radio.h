@@ -29,6 +29,8 @@
 #include "util/delegates/delegate.hpp"
 #include "util/serialization/simple_types.h"
 #include "util/pstl/vector_static.h"
+#include "arduino_timer.h"
+#include "arduino_os.h"
 
 namespace wiselib
 {
@@ -93,8 +95,11 @@ namespace wiselib
       int unreg_recv_callback( int idx );
       void received( unsigned char* data, size_t len, node_id_t from );
 
+      void read_recv_packet(void*);
+
    private:
       node_id_t id_;
+      typename OsModel::Timer* timer_;
       unsigned long baud_rate_;
       arduino_radio_delegate_t arduino_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
       XBee xbee_;
@@ -116,6 +121,7 @@ namespace wiselib
    {
 	baud_rate_ = DEFAULT_BAUD_RATE;
 	xbee_.begin(9600);
+	timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
 	id_ = id();
 	if(id_ == -1)
 	  return ERR_UNSPEC;
@@ -149,13 +155,17 @@ namespace wiselib
 	    return (MY_hb<<8)|(MY_lb);
 	  }
 	  else
-	    return -1;
+	    return -1;  char* from_id;
+     int i = 0;
+   
 	}
 	else
 	  return -1;
       }
       else
 	return -1;
+      
+      return id_;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
@@ -181,6 +191,29 @@ namespace wiselib
      }
      else
 	return ERR_UNSPEC;
+   }
+   // -----------------------------------------------------------------------
+   template<typename OsModel_P>
+   void ArduinoXBeeRadio<OsModel_P>::read_recv_packet(void*)
+   {
+     xbee_.readPacket();
+     if(xbee_.getResponse().isAvailable())
+     {
+       Rx16Response rx16 = Rx16Response();
+       node_id_t from_id;
+       size_t length;
+       block_data_t* data;
+
+       if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
+       {
+	 xbee_.getResponse().getRx16Response(rx16);
+	 from_id = rx16.getRemoteAddress16();
+	 data = rx16.getData();
+	 length = rx16.getDataLength();
+       }
+       received(data, length, from_id);
+     }
+     timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
