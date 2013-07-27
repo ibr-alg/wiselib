@@ -125,12 +125,18 @@ namespace wiselib {
 			};
 			
 			SemanticEntity() : global_tree_(0) {
+				set_prev_token_count(0);
+				set_count(0);
 			}
 			
 			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t) {
+				set_prev_token_count(0);
+				set_count(0);
 			}
 			
 			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t) {
+				set_prev_token_count(0);
+				set_count(0);
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -186,7 +192,7 @@ namespace wiselib {
 				token_count_t l = prev_token_state_.count();
 				//DBG("node %d l=%d is_root=%d root=%d tok.count=%d", (int)mynodeid, (int)l, (int)is_root(mynodeid), (int)tree().root(), (int)token().count());
 				if(is_root(mynodeid)) {
-					return l == token().count();
+					return l >= token().count();
 				}
 				else {
 					return l > token().count();
@@ -201,9 +207,12 @@ namespace wiselib {
 			void update_token_state(node_id_t mynodeid) {
 				token_count_t l = prev_token_state_.count();
 				if(is_root(mynodeid)) {
+					token().set_count(l + 1);
+					/*
 					if(l == token().count()) {
 						token().increment_count();
 					}
+					*/
 				}
 				else {
 					token().set_count(l);

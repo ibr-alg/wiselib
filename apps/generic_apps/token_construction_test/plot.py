@@ -271,7 +271,7 @@ def fig_timings():
 		#ax.spines['left'].set_visible(False)
 		#ax.spines['right'].set_visible(False)
 		#setp(ax.get_xticklabels(), visible = False)
-		#ax.set_xticks(range(0, tmax, 500))
+		#ax.set_xticks(range(0, tmax, 100))
 		#ax.get_yaxis().set_visible(False)
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
@@ -439,6 +439,8 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
 	last_ax.set_xlim((-1, tmax))
+	#last_ax.set_xlim((9000, 11000))
+	
 	setp(last_ax.get_xticklabels(), visible = True)
 	
 	kv = list(property_styles.items())

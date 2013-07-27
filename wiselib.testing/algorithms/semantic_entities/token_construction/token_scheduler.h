@@ -525,6 +525,10 @@ namespace wiselib {
 			
 			void consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
 				
+				if(message.payload_size() == 0) {
+					return;
+				}
+				
 				if(endpoint.remote_address() == radio_->id()) {
 					DBG("consume_handover_recepient: ignoring self-send at %d s %d",
 							(int)radio_->id(), message.sequence_number());
@@ -541,10 +545,11 @@ namespace wiselib {
 				debug_->debug("node %d SE %x.%x recepient_state %d t %d // consume_handover_recepient",
 						(int)radio_->id(), (int)se->id().rule(), (int)se->id().value(),
 						(int)se->handover_state_recepient(), (int)now());
-				
+						
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
 						SemanticEntityT s2 = *se;
 						
 						bool lock = false;
@@ -696,8 +701,15 @@ namespace wiselib {
 				debug_->debug("node %d SE %x.%x active %d t %d // end_activity",
 						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.in_activity_phase(), (int)now());
 				
+				bool active_before = se.is_active(radio_->id());
+				
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
+				
+				debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // process_token_state",
+						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+						(int)active_before, (int)se.is_active(radio_->id()),
+						(int)se.count(), (int)se.prev_token_count(), (int)se.is_root(radio_->id()));
 				
 				debug_->debug("node %d // pop activity", (int)radio_->id());
 				debug_->debug("node %d // push handover", (int)radio_->id());
