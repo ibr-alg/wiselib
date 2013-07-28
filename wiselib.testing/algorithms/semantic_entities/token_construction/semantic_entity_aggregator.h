@@ -426,18 +426,33 @@ namespace wiselib {
 			
 			DictionaryT& dictionary() { return tuple_store_->dictionary(); }
 			
-			bool lock(const SemanticEntityId& id) {
-				if(lock_ == SemanticEntityId::invalid()) {
+			bool lock(const SemanticEntityId& id, bool in) {
+				DBG("AGGREGATOR %p lock(%x.%x) lock_ = %x.%x",
+						this, (int)id.rule(), (int)id.value(),
+						(int)lock_.rule(), (int)lock_.value());
+				
+				
+				if(lock_ == SemanticEntityId::invalid() || (lock_ == id && lock_in_ == in)) {
+					DBG("AGGREGATOR %p locking.", this);
 					lock_ = id;
+					lock_in_ = in;
 					return true;
 				}
 				
+				DBG("AGGREGATOR %p NOT locking.", this);
 				return false;
 			}
 			
-			void release(const SemanticEntityId& id) {
-				if(lock_ == id) {
+			void release(const SemanticEntityId& id, bool in) {
+				DBG("AGGREGATOR %p release(%x.%x) lock_ = %x.%x",
+						this, (int)id.rule(), (int)id.value(),
+						(int)lock_.rule(), (int)lock_.value());
+				if(lock_ == id && lock_in_ == in) {
+					DBG("AGGREGATOR %p releasing.", this);
 					lock_ = SemanticEntityId::invalid();
+				}
+				else {
+					DBG("AGGREGATOR %p NOT releasing.", this);
 				}
 			}
 			
@@ -452,6 +467,7 @@ namespace wiselib {
 			AggregationKey read_buffer_key_;
 			AggregationValue read_buffer_value_;
 			SemanticEntityId lock_;
+			bool lock_in_;
 		
 	}; // SemanticEntityAggregator
 	

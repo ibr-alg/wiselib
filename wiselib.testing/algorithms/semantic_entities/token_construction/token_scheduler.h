@@ -82,15 +82,16 @@ namespace wiselib {
 			typedef TupleStore_P TupleStore;
 			
 			enum Restrictions {
-				MAX_NEIGHBORS = 32
+				MAX_NEIGHBORS = 32,
+				MAX_SEMANTIC_ENTITIES = 16
 			};
 			
 			typedef NapControl<OsModel, Radio> NapControlT;
 			typedef BloomFilter<OsModel, SemanticEntityId, 256> AmqT;
 			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, Debug, NapControlT> GlobalTreeT;
-			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug> ReliableTransportT;
+			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug, MAX_SEMANTIC_ENTITIES * 2> ReliableTransportT;
 			typedef SemanticEntity<OsModel, GlobalTreeT, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
-			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT> SemanticEntityRegistryT;
+			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT, MAX_SEMANTIC_ENTITIES> SemanticEntityRegistryT;
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, SemanticEntityRegistryT, Radio> SemanticEntityNeighborhoodT;
 			typedef SemanticEntityForwarding<OsModel, SemanticEntityNeighborhoodT, ReliableTransportT, NapControlT, SemanticEntityRegistryT, Radio, Timer, Clock, Debug, MAX_NEIGHBORS> SemanticEntityForwardingT;
 			typedef SemanticEntityAggregator<OsModel, TupleStore, ::uint32_t> SemanticEntityAggregatorT;
@@ -282,11 +283,30 @@ namespace wiselib {
 			
 			//@{ Initiator (Token sending side)
 			
-			void initiate_handover(void *se_, bool main) {
-				initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_), main);
+			void try_initiate_main_handover(void *se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				debug_->debug("node %d // initiate_main_handover %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
+							
+				nap_control_.push_caffeine();
+				bool r = initiate_handover(se_, true);
+				if(!r) {
+					se.set_initiating_main_handover(true);
+					debug_->debug("node %d // initiate_main_handover for %x.%x not possible right now, trying again at around %d.",
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+							(int)(now() + HANDOVER_RETRY_INTERVAL));
+					timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
+				}
+				else {
+					se.set_initiating_main_handover(false);
+				}
 			}
 			
-			void initiate_handover(SemanticEntityT& se, bool main) {
+			bool initiate_handover(void *se_, bool main) {
+				return initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_), main);
+			}
+			
+			bool initiate_handover(SemanticEntityT& se, bool main) {
 				bool found;
 				typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se.id(), true, found);
 				
@@ -298,12 +318,24 @@ namespace wiselib {
 					debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p main %d",
 							(int)radio_->id(), (int)ep.remote_address(), (int)now(),
 							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep, (int)main);
+					
+					se.set_initiating_main_handover(main);
 					se.set_handover_state_initiator(main ? SemanticEntityT::INIT : SemanticEntityT::SUPPLEMENTARY_INIT);
 					transport_.flush();
+					return true;
 				}
 				else {
+					debug_->debug("node %d // not initiating handover for SE %x.%x to %d main %d because busy",
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)ep.remote_address(), (int)main);
+							
 					debug_->debug("node %d // pop handover", (int)radio_->id());
 					nap_control_.pop_caffeine();
+					
+					if(!se.initiating_main_handover()) {
+						se.set_initiating_main_handover(true);
+						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
+					}
+					return false;
 				}
 			}
 			
@@ -313,8 +345,8 @@ namespace wiselib {
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) { return false; }
 				
-				debug_->debug("node %d SE %x.%x handover_state_initiator %d t %d // produce_handover_initiator",
-						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
+				debug_->debug("node %d SE %x.%x handover_state_initiator %d t %d count %d // produce_handover_initiator",
+						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now(), (int)se->token().count());
 				
 				switch(se->handover_state_initiator()) {
 					case SemanticEntityT::SUPPLEMENTARY_INIT:
@@ -344,7 +376,7 @@ namespace wiselib {
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_1:
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_2: {
-						bool lock = aggregator_.lock(id);
+						bool lock = aggregator_.lock(id, false);
 						if(!lock) {
 							// if at first you don't succeed...
 							se->set_handover_state_initiator(se->handover_state_initiator() + 1);
@@ -408,7 +440,7 @@ namespace wiselib {
 				
 				switch(*message.payload()) {
 					case 'a': {
-						bool lock = aggregator_.lock(id);
+						bool lock = aggregator_.lock(id, false);
 						if(!lock) {
 							int s = se->handover_state_initiator();
 							if(s >= SemanticEntityT::AGGREGATES_LOCKED_LOCAL && s < SemanticEntityT::AGGREGATES_LOCKED_LOCAL_GIVE_UP) {
@@ -476,6 +508,8 @@ namespace wiselib {
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
+						aggregator_.release(id, false);
+						//se->set_initiating_main_handover(false);
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
 						debug_->debug("node %d // pop handover_connection", (int)radio_->id());
 						nap_control_.pop_caffeine();
@@ -553,6 +587,7 @@ namespace wiselib {
 						SemanticEntityT s2 = *se;
 						
 						bool lock = false;
+						lock = aggregator_.lock(id, true);
 						if(!lock) {
 							se->set_handover_state_recepient(SemanticEntityT::AGGREGATES_LOCKED_LOCAL);
 							endpoint.request_send();
@@ -571,7 +606,7 @@ namespace wiselib {
 						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
 						bool lock = false;
 						if(activating) {
-							lock = aggregator_.lock(id);
+							lock = aggregator_.lock(id, true);
 						}
 						
 						if(!activating) {
@@ -625,7 +660,7 @@ namespace wiselib {
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
-						aggregator_.release(id);
+						aggregator_.release(id, true);
 						debug_->debug("node %d // pop handover_connection_r", (int)radio_->id());
 						nap_control_.pop_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
@@ -706,7 +741,7 @@ namespace wiselib {
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
 				
-				debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // process_token_state",
+				debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // end_activity",
 						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 						(int)active_before, (int)se.is_active(radio_->id()),
 						(int)se.count(), (int)se.prev_token_count(), (int)se.is_root(radio_->id()));

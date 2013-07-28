@@ -53,8 +53,14 @@ namespace wiselib {
 		
 		enum { MAX_FOIS = 4 };
 		
+		static const char *all_fois[] = {
+			table1, table2, window1, door1,
+			door2, door3, couch1, chair1,
+			laptop1, cupboard1, whiteboard1
+		};
+			
 		static const char *fois[][MAX_FOIS] = {
-			/*  0 */ { window1, table1, 0, 0 },
+			/*  0 */ { 0, 0, 0, 0 },
 			/*  1 */ { window1, 0, 0, 0 },
 			/*  2 */ { window1, 0, 0, 0 },
 			/*  3 */ { window1, 0, 0, 0 },
@@ -85,6 +91,7 @@ namespace wiselib {
 			/* 28 */ { whiteboard1, 0, 0, 0 },
 		};
 		
+		
 		enum { MAX_URI_LENGTH = 256 };
 		char myuri[MAX_URI_LENGTH];
 		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%d>", id);
@@ -92,8 +99,18 @@ namespace wiselib {
 		
 		
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
-		for(int idx = 0; idx < MAX_FOIS && fois[id][idx]; idx++) {
-		   ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", fois[id][idx]);
+		
+		if(id == 0) {
+			// 0 = sink = global root = member of all SEs
+			
+			for(int idx = 0; idx < sizeof(all_fois) / sizeof(all_fois[0]); ++idx) {
+				ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", all_fois[idx]);
+			}
+		}
+		else {
+			for(int idx = 0; idx < MAX_FOIS && fois[id][idx]; idx++) {
+			   ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", fois[id][idx]);
+			}
 		}
 	}
 	

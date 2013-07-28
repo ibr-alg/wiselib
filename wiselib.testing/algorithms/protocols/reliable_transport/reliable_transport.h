@@ -32,6 +32,15 @@ namespace wiselib {
 	/**
 	 * @brief
 	 * 
+	 * TODO:
+	 * - When there is only one active channel that has given away flow
+	 *   control because of a lock (e.g. a semantic entity aggregator lock),
+	 *   we should somehow wait a little before having it produce again, so
+	 *   the lock has time to be released.
+	 *   In other situations we want to send as fast as possible.
+	 *   Maybe feature something like endpoint.request_wait(1234)?
+	 * 
+	 * 
 	 * @ingroup
 	 * 
 	 * @tparam 
@@ -43,13 +52,14 @@ namespace wiselib {
 		typename Timer_P,
 		typename Clock_P,
 		typename Rand_P,
-		typename Debug_P = typename OsModel_P::Debug
+		typename Debug_P,
+		size_t MAX_ENDPOINTS_P
 	>
 	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
 		public:
 			//{{{ Typedefs & Enums
-			typedef ReliableTransport<OsModel_P, ChannelId_P, Radio_P, Timer_P, Clock_P, Rand_P, Debug_P> self_type;
+			typedef ReliableTransport self_type;
 			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
@@ -188,6 +198,7 @@ namespace wiselib {
 						
 						expect_answer_ = false;
 						sequence_number_ = 0;
+						request_send_ = false;
 						request_open_ = false;
 						request_close_ = false;
 						open_ = false;
@@ -230,7 +241,7 @@ namespace wiselib {
 				// }}}
 			};
 			
-			enum { MAX_ENDPOINTS = 8 };
+			enum { MAX_ENDPOINTS = MAX_ENDPOINTS_P };
 			typedef Endpoint Endpoints[MAX_ENDPOINTS];
 			
 			ReliableTransport() : radio_(0), timer_(0), clock_(0), rand_(0), debug_(0) {
@@ -344,7 +355,7 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("node %d // transport recv from %d chan %x.%x msg.init=%d msg.ack=%d msg.s=%d msg.f=%d msg.plen=%d *msg.p='%c'", (int)radio_->id(), (int)from, (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.sequence_number(), (int)msg.flags(), (int)msg.payload_size(), (char)*msg.payload());
+				DBG("node %d // transport recv from %d chan %x.%x msg.init=%d msg.ack=%d msg.s=%d msg.f=%d msg.plen=%d *msg.p=0x%x", (int)radio_->id(), (int)from, (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.sequence_number(), (int)msg.flags(), (int)msg.payload_size(), (char)*msg.payload());
 				
 				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
 				

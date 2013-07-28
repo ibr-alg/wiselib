@@ -34,7 +34,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename SemanticEntity_P,
-		typename GlobalTree_P
+		typename GlobalTree_P,
+		size_t MAX_SEMANTIC_ENTITIES_P
 	>
 	class SemanticEntityRegistry {
 		public:
@@ -47,7 +48,7 @@ namespace wiselib {
 			typedef SemanticEntity_P SemanticEntityT;
 			typedef GlobalTree_P GlobalTreeT;
 			
-			enum { MAX_SEMANTIC_ENTITIES = 8 };
+			enum { MAX_SEMANTIC_ENTITIES = MAX_SEMANTIC_ENTITIES_P };
 			
 			typedef MapStaticVector<OsModel, SemanticEntityId, SemanticEntityT, MAX_SEMANTIC_ENTITIES> SemanticEntityMapT;
 			typedef typename SemanticEntityMapT::iterator iterator;
