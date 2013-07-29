@@ -126,7 +126,12 @@ namespace wiselib {
 				// if reliable transport packet we should forward:
 				//   forward it by se_id using amq
 				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator() != msg.is_ack());
-				if(target == NULL_NODE_ID) { return true; }
+				if(target == NULL_NODE_ID) {
+					debug_->debug("node %d SE %x.%x // forwarding ignores s %d fwd %d",
+							(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),
+							(int)msg.sequence_number(), (int)(msg.initiator() != msg.is_ack()));
+					return true;
+				}
 				
 				if(target == radio_->id()) {
 					//if(receive_callback_) {
@@ -139,10 +144,17 @@ namespace wiselib {
 					else { DBG("// on_receive: %d <- %d <- %d (%s s=%d f=%d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
 					
 					SemanticEntityT *se_ = registry_->get(se_id);
+					
+					// TODO: forwarding must also work if the SE only exists
+					// in our bloom filters and not in the registry!
 					if(!se_) { return false; }
 					SemanticEntityT& se = *se_;
 						
 					if(msg.is_open() && msg.initiator() && !msg.is_ack() && !msg.is_supplementary()) {
+						
+						// TODO: XXX: learn token forwards for bloom-filtered
+						// SEs. Can we do that with constant memory???!
+						
 						se.learn_token_forward(clock_, radio_->id(), from, t_recv - msg.delay());
 						debug_->debug("node %d SE %x.%x fwd_interval %d fwd_window %d fwd_from %d",
 								(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),

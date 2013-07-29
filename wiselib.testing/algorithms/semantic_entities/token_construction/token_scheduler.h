@@ -259,9 +259,12 @@ namespace wiselib {
 				//if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
 					for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 						SemanticEntityT &se = iter->second;
-						debug_->debug("node %d SE %x.%x is_active %d // global tree update",
+						debug_->debug("node %d SE %x.%x is_active %d next %d prev %d // global tree update",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-								(int)se.is_active(radio_->id()));
+								(int)se.is_active(radio_->id()),
+								(int)neighborhood_.next_token_node(se.id()),
+								(int)neighborhood_.prev_token_node(se.id())
+								);
 						
 						if(se.is_active(radio_->id())) { begin_activity(se); }
 						else { end_activity(se); }

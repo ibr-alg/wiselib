@@ -52,6 +52,7 @@ def parse(f):
 	nodes = gnodes
 	parents = {}
 	t = 0
+	t_report = 1000
 	
 	for line in f:
 		
@@ -91,6 +92,10 @@ def parse(f):
 		
 		try: t = int(get_value('t')) / 1000
 		except: pass
+		
+		if t >= t_report:
+			print(t)
+			t_report += 1000
 		
 		#print "--------------"
 		#print re.findall(re_kv, line)

@@ -93,6 +93,8 @@ namespace wiselib {
 			node_id_t next_token_node(const SemanticEntityId& se_id) {
 				check();
 				
+				
+				node_id_t r = NULL_NODE_ID;
 				size_type idx = find_first_se_child(se_id, 0);
 				if(idx == npos) {
 					if(global_tree_->root() == radio_->id()) { return radio_->id(); }
@@ -121,26 +123,24 @@ namespace wiselib {
 				check();
 				
 				
-				//DBG("node %d // find first se child start=%d n=%d", (int)radio_->id(),
-						//(int)start, (int)global_tree_->childs());
+				//DBG("node %d // find first se child start=%d n=%d se %x.%x hash %d", (int)radio_->id(),
+						//(int)start, (int)global_tree_->childs(), (int)se_id.rule(), (int)se_id.value(), (int)se_id.hash());
 				
 				for(size_type i = start; i < global_tree_->childs(); i++) {
-					//DBG("node %d // find first se child i=%d contains=%d",
-							//(int)radio_->id(), (int)i, (int)global_tree_->child_user_data(i).contains(se_id));
+					//DBG("node %d // find first se child i=%d contains=%d id %d",
+							//(int)radio_->id(), (int)i, (int)global_tree_->child_user_data(i).contains(se_id), (int)global_tree_->child(i));
 					
-				/*
-				DBG("node %d // find first se child userdata %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x",
-						(int)radio_->id(),
-						global_tree_->child_user_data(i).data()[0], global_tree_->child_user_data(i).data()[1], global_tree_->child_user_data(i).data()[2], global_tree_->child_user_data(i).data()[3],
-						global_tree_->child_user_data(i).data()[4], global_tree_->child_user_data(i).data()[5], global_tree_->child_user_data(i).data()[6], global_tree_->child_user_data(i).data()[7],
-						global_tree_->child_user_data(i).data()[8], global_tree_->child_user_data(i).data()[9], global_tree_->child_user_data(i).data()[10], global_tree_->child_user_data(i).data()[11],
-						global_tree_->child_user_data(i).data()[12], global_tree_->child_user_data(i).data()[13], global_tree_->child_user_data(i).data()[14], global_tree_->child_user_data(i).data()[15],
-						global_tree_->child_user_data(i).data()[16], global_tree_->child_user_data(i).data()[17], global_tree_->child_user_data(i).data()[18], global_tree_->child_user_data(i).data()[19],
-						global_tree_->child_user_data(i).data()[20], global_tree_->child_user_data(i).data()[21], global_tree_->child_user_data(i).data()[22], global_tree_->child_user_data(i).data()[23],
-						global_tree_->child_user_data(i).data()[24], global_tree_->child_user_data(i).data()[25], global_tree_->child_user_data(i).data()[26], global_tree_->child_user_data(i).data()[27],
-						global_tree_->child_user_data(i).data()[28], global_tree_->child_user_data(i).data()[29], global_tree_->child_user_data(i).data()[30], global_tree_->child_user_data(i).data()[31]
-				);
-				*/
+				//DBG("node %d // find first se child userdata %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x",
+						//(int)radio_->id(),
+						//global_tree_->child_user_data(i).data()[0], global_tree_->child_user_data(i).data()[1], global_tree_->child_user_data(i).data()[2], global_tree_->child_user_data(i).data()[3],
+						//global_tree_->child_user_data(i).data()[4], global_tree_->child_user_data(i).data()[5], global_tree_->child_user_data(i).data()[6], global_tree_->child_user_data(i).data()[7],
+						//global_tree_->child_user_data(i).data()[8], global_tree_->child_user_data(i).data()[9], global_tree_->child_user_data(i).data()[10], global_tree_->child_user_data(i).data()[11],
+						//global_tree_->child_user_data(i).data()[12], global_tree_->child_user_data(i).data()[13], global_tree_->child_user_data(i).data()[14], global_tree_->child_user_data(i).data()[15],
+						//global_tree_->child_user_data(i).data()[16], global_tree_->child_user_data(i).data()[17], global_tree_->child_user_data(i).data()[18], global_tree_->child_user_data(i).data()[19],
+						//global_tree_->child_user_data(i).data()[20], global_tree_->child_user_data(i).data()[21], global_tree_->child_user_data(i).data()[22], global_tree_->child_user_data(i).data()[23],
+						//global_tree_->child_user_data(i).data()[24], global_tree_->child_user_data(i).data()[25], global_tree_->child_user_data(i).data()[26], global_tree_->child_user_data(i).data()[27],
+						//global_tree_->child_user_data(i).data()[28], global_tree_->child_user_data(i).data()[29], global_tree_->child_user_data(i).data()[30], global_tree_->child_user_data(i).data()[31]
+				//);
 				
 					if(global_tree_->child_user_data(i).contains(se_id)) {
 						return i;
@@ -164,6 +164,10 @@ namespace wiselib {
 				return npos;
 			}
 			
+			bool am_root() {
+				return radio_->id() == global_tree_->root();
+			}
+			
 			
 			/**
 			 * Find the next receiver in the ring that should receive
@@ -180,33 +184,45 @@ namespace wiselib {
 				
 				if(forward) {
 					if(sender == global_tree_->parent()) {
-						return radio_->id();
+						if(registry_->contains(se_id)) { return radio_->id(); }
+						size_type idx = find_first_se_child(se_id, 0);
+						if(idx == npos) { return global_tree_->parent(); }
+						return global_tree_->child(idx);
 					}
 					
 					size_type child_idx = global_tree_->child_index(sender);
 					if(child_idx == npos) { return NULL_NODE_ID; }
+					
 					size_type idx = find_first_se_child(se_id, child_idx + 1);
 					if(idx == npos) {
-						if(radio_->id() == global_tree_->root()) { return radio_->id(); }
+						// received from last child
+						if(am_root() && registry_->contains(se_id)) { return radio_->id(); }
 						return global_tree_->parent();
 					}
 					return global_tree_->child(idx);
 				}
-				else {
-					if(sender == global_tree_->parent()) {
-						size_type last_child = find_last_se_child(se_id);
-						if(last_child == npos) { return radio_->id(); }
-						return global_tree_->child(last_child);
+				
+				// forward == false
+				
+				if(sender == global_tree_->parent()) {
+					size_type last_child = find_last_se_child(se_id);
+					if(last_child == npos) {
+						if(registry_->contains(se_id)) { return radio_->id(); }
+						return global_tree_->parent();
 					}
-					
-					size_type child_idx = global_tree_->child_index(sender);
-					if(child_idx == npos) { return NULL_NODE_ID; }
-					
-					// find predecessor-child
-					size_type idx = find_last_se_child(se_id, child_idx);
-					if(idx == npos) { return radio_->id(); }
-					return global_tree_->child(idx);
+					return global_tree_->child(last_child);
 				}
+				
+				size_type child_idx = global_tree_->child_index(sender);
+				if(child_idx == npos) { return NULL_NODE_ID; }
+				
+				// find predecessor-child
+				size_type idx = find_last_se_child(se_id, child_idx);
+				if(idx == npos) {
+					if(registry_->contains(se_id)) { return radio_->id(); }
+					return global_tree_->parent();
+				}
+				return global_tree_->child(idx);
 				
 				check();
 			}

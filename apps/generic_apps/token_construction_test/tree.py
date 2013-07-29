@@ -77,7 +77,23 @@ def parse(f):
 			}
 		
 def compress_filter(s):
-	return s.replace('00000000', ':').replace('0000', '.')
+	#return s.replace('00000000', ':').replace('0000', '.')
+	s_orig = s
+	
+	k = 4
+	s_new = ''
+	for offs in range(0, len(s), k):
+		if s[offs:offs + k] == '0' * k:
+			s_new += '.'
+		else:
+			s_new += s[offs:offs + k]
+	s = s_new
+			
+	s = s.replace('..', ':')
+	#s = s.replace('::', '#')
+	
+	print("compress filter: {} -> {}".format(s_orig, s))
+	return s
 
 def print_dot(d, out):
 	out.write('digraph G {\n')
@@ -107,9 +123,22 @@ def generate_all(directory):
 		print_dot(d, f)
 		f.close()
 
+
+def test_compress():
+	l = """
+	0000000002040000401000000000444200000000000002000000004002000020
+	0000000000000000000000000000040000000000000000000000000002000000
+	0000000002000000000000000000440000000000000000000000000000000000
+	0000000000000000001000000000040000000000000000000000000000000000
+	""".split()
+
+	for x in l:
+		compress_filter(x)
+
+
 print("parsing...")
 parse(open('log.txt', 'r'))
 print("found {} tree states".format(len(nodes)))
 generate_all('dot')
-#print_dot(nodes[-1], sys.stdout)
+print_dot(nodes[-1], sys.stdout)
 			

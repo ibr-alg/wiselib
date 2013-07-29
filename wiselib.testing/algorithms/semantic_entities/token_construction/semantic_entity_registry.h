@@ -69,6 +69,10 @@ namespace wiselib {
 				return map_[id];
 			}
 			
+			bool contains(const SemanticEntityId& id) {
+				return map_.contains(id);
+			}
+			
 			SemanticEntityT* get(const SemanticEntityId& id) {
 				check();
 				

@@ -170,6 +170,7 @@ namespace wiselib {
 				debug_ = debug;
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
+				updated_neighbors_ = false;
 				nap_control_ = nap_control;
 				
 				clear_neighbors();
@@ -404,6 +405,7 @@ namespace wiselib {
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
 					*it = e;
+					updated_neighbors_ = true;
 					notify_event(UPDATED_NEIGHBOR);
 				}
 				else {
@@ -526,36 +528,43 @@ namespace wiselib {
 				bool c_c = tree_state().set_root(root);
 				bool c = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
-				new_neighbors_ = false;
-				lost_neighbors_ = false;
 				
-				
-				
-					char hex[sizeof(UserData) * 2 + 1];
-					for(size_type i = 0; i < sizeof(UserData); i++) {
-						hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
-						hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
-					}
-					hex[sizeof(UserData) * 2] = '\0';
-					
-					debug_->debug("node %d parent %d distance %d root %d changed %d t %d filter %s // update_state",
-							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now(), hex);
-					
-					
-					
-					debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
-							(int)radio_->id(),
-							(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-							(int)neighbors_[3].id(), childs());
-					for(size_type i = 0; i < childs(); i++) {
-						debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
-					}
-					
 				if(c) {
-					debug_->debug("node %d // update_state propagating changes", (int)radio_->id());
-					changed();
+					//debug_->debug("node %d // update_state propagating changes", (int)radio_->id());
 					notify_event(UPDATED_STATE);
 				}
+				
+				if(c || updated_neighbors_) {
+					// <DEBUG>
+					
+						char hex[sizeof(UserData) * 2 + 1];
+						for(size_type i = 0; i < sizeof(UserData); i++) {
+							hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
+							hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
+						}
+						hex[sizeof(UserData) * 2] = '\0';
+						
+						debug_->debug("node %d parent %d distance %d root %d changed %d t %d filter %s // update_state",
+								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now(), hex);
+						
+						
+						
+						debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
+								(int)radio_->id(),
+								(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
+								(int)neighbors_[3].id(), childs());
+						//for(size_type i = 0; i < childs(); i++) {
+							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
+						//}
+						
+					// </DEBUG>
+					
+					changed();
+				}
+				
+				new_neighbors_ = false;
+				lost_neighbors_ = false;
+				updated_neighbors_ = false;
 				
 				//new_neighbors_ = false;
 				//lost_neighbors_ = false;
@@ -593,6 +602,7 @@ namespace wiselib {
 			UserData user_data_;
 			bool new_neighbors_;
 			bool lost_neighbors_;
+			bool updated_neighbors_;
 			abs_millis_t last_push_;
 			
 			NeighborEntries neighbor_entries_;

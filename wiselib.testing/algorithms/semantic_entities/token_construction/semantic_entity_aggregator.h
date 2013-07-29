@@ -236,7 +236,7 @@ namespace wiselib {
 				shdt_.reset();
 				fill_buffer_iterator_ = aggregation_entries_.begin();
 				fill_buffer_state_ = FIELD_UOM;
-					DBG("------------ FILL START:   shdt %p buf %p field_id %d", &shdt_, buffer, (int)fill_buffer_state_);
+					//DBG("------------ FILL START:   shdt %p buf %p field_id %d", &shdt_, buffer, (int)fill_buffer_state_);
 				return fill_buffer(se_id, buffer, buffer_size, call_again);
 			}
 			
@@ -249,7 +249,7 @@ namespace wiselib {
 					return 0;
 				}
 				
-					DBG("------------ FILL BUFSTART:   shdt %p buf %p field_id %d", &shdt_, buffer, (int)fill_buffer_state_);
+					//DBG("------------ FILL BUFSTART:   shdt %p buf %p field_id %d", &shdt_, buffer, (int)fill_buffer_state_);
 				
 				call_again = true;
 				block_data_t *buf = buffer, *buf_end = buffer + buffer_size;
@@ -293,7 +293,7 @@ namespace wiselib {
 							break;
 					} // switch()
 					
-					DBG("------------ FILL:   shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)state_dbg, (int)(buf_dbg - buffer), buf_dbg[0], buf_dbg[1], buf_dbg[2], buf_dbg[3]);
+					//DBG("------------ FILL:   shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)state_dbg, (int)(buf_dbg - buffer), buf_dbg[0], buf_dbg[1], buf_dbg[2], buf_dbg[3]);
 					
 					
 					if(fill_buffer_state_ == FIELD_TOTAL_MEAN  && !ca) {
@@ -310,7 +310,7 @@ namespace wiselib {
 					
 				} // while()
 				
-				DBG("------------ fill_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
+				//DBG("------------ fill_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
 				
 				return buf - buffer;
 				
@@ -345,13 +345,13 @@ namespace wiselib {
 				size_type data_size;
 				typename Shdt::field_id_t field_id = 0;
 				
-				DBG("------------ read_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
+				//DBG("------------ read_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
 				
 				while(!reader.done()) {
-					DBG("------------------ shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)field_id, (int)reader.position(), buffer[reader.position()], buffer[reader.position() + 1], buffer[reader.position() + 2], buffer[reader.position() + 3]);
+					//DBG("------------------ shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)field_id, (int)reader.position(), buffer[reader.position()], buffer[reader.position() + 1], buffer[reader.position() + 2], buffer[reader.position() + 3]);
 					
 					done = reader.read_field(field_id, data, data_size);
-					DBG("------------------ fild_id %d", (int)field_id);
+					//DBG("------------------ fild_id %d", (int)field_id);
 					
 					Value& v = reinterpret_cast<Value&>(*data);
 					if(!done) { break; }
@@ -427,32 +427,32 @@ namespace wiselib {
 			DictionaryT& dictionary() { return tuple_store_->dictionary(); }
 			
 			bool lock(const SemanticEntityId& id, bool in) {
-				DBG("AGGREGATOR %p lock(%x.%x) lock_ = %x.%x",
-						this, (int)id.rule(), (int)id.value(),
-						(int)lock_.rule(), (int)lock_.value());
+				//DBG("AGGREGATOR %p lock(%x.%x) lock_ = %x.%x",
+						//this, (int)id.rule(), (int)id.value(),
+						//(int)lock_.rule(), (int)lock_.value());
 				
 				
 				if(lock_ == SemanticEntityId::invalid() || (lock_ == id && lock_in_ == in)) {
-					DBG("AGGREGATOR %p locking.", this);
+					//DBG("AGGREGATOR %p locking.", this);
 					lock_ = id;
 					lock_in_ = in;
 					return true;
 				}
 				
-				DBG("AGGREGATOR %p NOT locking.", this);
+				//DBG("AGGREGATOR %p NOT locking.", this);
 				return false;
 			}
 			
 			void release(const SemanticEntityId& id, bool in) {
-				DBG("AGGREGATOR %p release(%x.%x) lock_ = %x.%x",
-						this, (int)id.rule(), (int)id.value(),
-						(int)lock_.rule(), (int)lock_.value());
+				//DBG("AGGREGATOR %p release(%x.%x) lock_ = %x.%x",
+						//this, (int)id.rule(), (int)id.value(),
+						//(int)lock_.rule(), (int)lock_.value());
 				if(lock_ == id && lock_in_ == in) {
-					DBG("AGGREGATOR %p releasing.", this);
+					//DBG("AGGREGATOR %p releasing.", this);
 					lock_ = SemanticEntityId::invalid();
 				}
 				else {
-					DBG("AGGREGATOR %p NOT releasing.", this);
+					//DBG("AGGREGATOR %p NOT releasing.", this);
 				}
 			}
 			
