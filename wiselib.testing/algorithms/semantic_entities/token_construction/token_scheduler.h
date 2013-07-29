@@ -115,6 +115,7 @@ namespace wiselib {
 			
 			enum Timings {
 				HANDOVER_RETRY_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
+				AGGREGATES_LOCK_INTERVAL = 100 * WISELIB_TIME_FACTOR,
 				
 				/**
 				 * How long should we keep the token once we have it?
@@ -315,9 +316,9 @@ namespace wiselib {
 						(ep.remote_address() != radio_->id()) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
-					debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p main %d",
+					debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p main %d s %d",
 							(int)radio_->id(), (int)ep.remote_address(), (int)now(),
-							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep, (int)main);
+							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep, (int)main, (int)ep.sequence_number());
 					
 					se.set_initiating_main_handover(main);
 					se.set_handover_state_initiator(main ? SemanticEntityT::INIT : SemanticEntityT::SUPPLEMENTARY_INIT);
@@ -325,8 +326,8 @@ namespace wiselib {
 					return true;
 				}
 				else {
-					debug_->debug("node %d // not initiating handover for SE %x.%x to %d main %d because busy",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)ep.remote_address(), (int)main);
+					debug_->debug("node %d // not initiating handover for SE %x.%x to %d main %d because busy found %d open %d wants_open %d s %d",
+							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)ep.remote_address(), (int)main, (int)found, (int)ep.is_open(), (int)ep.wants_open(), (int)ep.sequence_number());
 							
 					debug_->debug("node %d // pop handover", (int)radio_->id());
 					nap_control_.pop_caffeine();
@@ -370,6 +371,7 @@ namespace wiselib {
 						msg.set_token_state(se->token());
 						message.set_payload_size(msg.size());
 						transport_.expect_answer(endpoint);
+						endpoint.request_wait_until(now() + AGGREGATES_LOCK_INTERVAL);
 						return true;
 					}
 					
@@ -382,6 +384,7 @@ namespace wiselib {
 							se->set_handover_state_initiator(se->handover_state_initiator() + 1);
 							endpoint.request_send();
 							message.set_payload_size(0);
+							endpoint.request_wait_until(now() + AGGREGATES_LOCK_INTERVAL);
 							return false;
 						}
 						se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);

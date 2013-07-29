@@ -130,6 +130,7 @@ namespace wiselib {
 						open_ = false;
 						expect_answer_ = false;
 						supplementary_ = false;
+						wait_ = 0;
 						
 						check();
 					}
@@ -202,7 +203,11 @@ namespace wiselib {
 						request_open_ = false;
 						request_close_ = false;
 						open_ = false;
+						wait_ = 0;
 					}
+					
+					void request_wait_until(abs_millis_t w) { wait_ = w; }
+					abs_millis_t wait_until() { return wait_; }
 					
 					bool initiator() { return initiator_; }
 					
@@ -231,13 +236,15 @@ namespace wiselib {
 					sequence_number_t sequence_number_;
 					
 					ChannelId channel_id_;
-					bool initiator_;
-					bool request_open_;
-					bool request_send_;
-					bool request_close_;
-					bool open_;
-					bool expect_answer_;
-					bool supplementary_;
+					abs_millis_t wait_;
+					
+					::uint8_t initiator_ : 1;
+					::uint8_t request_open_ : 1;
+					::uint8_t request_send_ : 1;
+					::uint8_t request_close_ : 1;
+					::uint8_t open_ : 1;
+					::uint8_t expect_answer_ : 1;
+					::uint8_t supplementary_ : 1;
 				// }}}
 			};
 			
@@ -519,28 +526,45 @@ namespace wiselib {
 			 */
 			bool switch_sending_endpoint() {
 				check();
+				abs_millis_t closest_wait = 0;
+				size_type closest_wait_idx = npos;
 				
 				size_type ole = sending_channel_idx_;
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
-					//DBG("switch idx %d &ep %p used %d send %d",
-							//sending_channel_idx_, &sending_endpoint(), sending_endpoint().used(),
-							//sending_endpoint().wants_send());
-					
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
-						is_sending_ = true;
-						return true;
+						if(sending_endpoint().wait_until() <= now()) {
+							is_sending_ = true;
+							return true;
+						}
+						else {
+							abs_millis_t w = sending_endpoint().wait_until() - now();
+							if(closest_wait == 0 || w < closest_wait) {
+								closest_wait = w;
+								closest_wait_idx = sending_channel_idx_;
+							}
+						}
 					}
 				}
 				for(sending_channel_idx_ = 0; sending_channel_idx_ <= ole; sending_channel_idx_++) {
-					//DBG("switch idx %d &ep %p used %d send %d",
-							//sending_channel_idx_, &sending_endpoint(), sending_endpoint().used(),
-							//sending_endpoint().wants_send());
-					
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
-						is_sending_ = true;
-						return true;
+						if(sending_endpoint().wait_until() <= now()) {
+							is_sending_ = true;
+							return true;
+						}
+						else {
+							abs_millis_t w = sending_endpoint().wait_until() - now();
+							if(closest_wait == 0 || w < closest_wait) {
+								closest_wait = w;
+								closest_wait_idx = sending_channel_idx_;
+							}
+						}
 					}
 				}
+				
+				if(closest_wait) {
+					timer_->template set_timer<self_type, &self_type::check_send>(closest_wait, this, 0);
+				}
+				
 				is_sending_ = false;
 				sending_channel_idx_ = ole;
 				check();
@@ -551,7 +575,7 @@ namespace wiselib {
 			///@{
 			//{{{
 			
-			void check_send() {
+			void check_send(void* = 0) {
 				if(is_sending_) {
 					DBG("node %d // check_send: currently sending idx %d (s %d to %d since %d)", (int)radio_->id(), (int)sending_channel_idx_,
 							(int)sending_endpoint().sequence_number(), (int)sending_endpoint().remote_address(), (int)send_start_);

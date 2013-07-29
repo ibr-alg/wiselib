@@ -27,6 +27,7 @@
 #include <util/types.h>
 #include <util/pstl/set_static.h>
 #include <util/pstl/map_static_vector.h>
+#include <util/string_util.h>
 
 namespace wiselib {
 	
@@ -469,20 +470,6 @@ namespace wiselib {
 				check();
 			}
 			
-			// TODO: XXX
-			// unterscheiden zwischen gesehenen nachbarn und solchen die eine
-			// im baum wirklich relevant sind (letztere sollten sich nur bei
-			// update_state() ändern, während erstere sich bei gesehenen
-			// broadcasts verändern können.
-			// 
-			// Idee:
-			// - neighbors_ = unsortiertes array / set von gesehenen nachbarn
-			//   mit deren zuständen (NeighborEntry[...])
-			//   
-			// - sorted_neighbors_ = sortiertes array vom typ Neighbor, sorted_neighbors_[0] = parent,
-			//   sorted_neighbors_[1...1+childs()] = childs
-			// 
-			
 			bool update_state() {
 				check();
 				
@@ -542,8 +529,20 @@ namespace wiselib {
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
 				
-					debug_->debug("node %d parent %d distance %d root %d changed %d t %d // update_state",
-							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now());
+				
+				
+					char hex[sizeof(UserData) * 2 + 1];
+					for(size_type i = 0; i < sizeof(UserData); i++) {
+						hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
+						hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
+					}
+					hex[sizeof(UserData) * 2] = '\0';
+					
+					debug_->debug("node %d parent %d distance %d root %d changed %d t %d filter %s // update_state",
+							(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now(), hex);
+					
+					
+					
 					debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
 							(int)radio_->id(),
 							(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),

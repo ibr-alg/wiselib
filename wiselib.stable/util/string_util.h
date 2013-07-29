@@ -35,6 +35,10 @@ namespace wiselib {
 		unsigned char uc = (unsigned char)c;
 		return (uc >= 0x20) && (uc <= 0x7e);
 	}
+	
+	char hexchar(::uint8_t n) {
+		return (n < 10) ? '0' + n : 'a' + n;
+	}
 }
 
 #endif // STRING_UTIL_H
