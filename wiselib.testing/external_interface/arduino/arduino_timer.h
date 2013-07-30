@@ -24,7 +24,7 @@
 
 #include <Arduino.h>
 #include "arduino_os.h"
-#include <MsTimer2.h>
+//#include <MsTimer2.h>
 
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/iterator.h"

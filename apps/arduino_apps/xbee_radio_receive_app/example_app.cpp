@@ -3,7 +3,7 @@
  */
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
-#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
+//#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
 #include "external_interface/arduino/arduino_xbee_radio.h"
 #include "external_interface/arduino/arduino_debug.h"
 
