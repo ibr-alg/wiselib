@@ -19,7 +19,9 @@
 #ifndef __ARDUINO_OS_MODEL_H__
 #define __ARDUINO_OS_MODEL_H__
 
-#include <assert.h>
+#if ARDUINO_USE_ASSERT
+	#include <assert.h>
+#endif
 
 #if WISELIB_DISABLE_DEBUG_MESSAGES
 	#define DBG(...)
