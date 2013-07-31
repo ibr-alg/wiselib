@@ -29,7 +29,9 @@ class WiselibExtIface;
 
    struct Ns3Os {
       // This class is implemented in NS-3
-      WiselibExtIface *proc;
+      // Note: we can not declare it as pointer. Otherwise the variables
+      //       in WiselibExtIface will be init randomly
+      WiselibExtIface proc;
    };
 }
 
