@@ -32,15 +32,6 @@ namespace wiselib {
 	/**
 	 * @brief
 	 * 
-	 * TODO:
-	 * - When there is only one active channel that has given away flow
-	 *   control because of a lock (e.g. a semantic entity aggregator lock),
-	 *   we should somehow wait a little before having it produce again, so
-	 *   the lock has time to be released.
-	 *   In other situations we want to send as fast as possible.
-	 *   Maybe feature something like endpoint.request_wait(1234)?
-	 * 
-	 * 
 	 * @ingroup
 	 * 
 	 * @tparam 
@@ -93,8 +84,8 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 8 * 40 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 0 * WISELIB_TIME_FACTOR,
-				MAX_RESENDS = 3, ANSWER_TIMEOUT = 8 * 2 * RESEND_TIMEOUT,
+				RESEND_TIMEOUT = 400 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 0 * WISELIB_TIME_FACTOR,
+				MAX_RESENDS = 1, ANSWER_TIMEOUT = 2 * RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {

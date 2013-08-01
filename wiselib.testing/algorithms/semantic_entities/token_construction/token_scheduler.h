@@ -259,11 +259,11 @@ namespace wiselib {
 				//if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
 					for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 						SemanticEntityT &se = iter->second;
-						debug_->debug("node %d SE %x.%x is_active %d next %d prev %d // global tree update",
+						debug_->debug("node %d SE %x.%x is_active %d next %d prev %d // global tree update evt %d",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(int)se.is_active(radio_->id()),
 								(int)neighborhood_.next_token_node(se.id()),
-								(int)neighborhood_.prev_token_node(se.id())
+								(int)neighborhood_.prev_token_node(se.id()), (int)e
 								);
 						
 						if(se.is_active(radio_->id())) { begin_activity(se); }
@@ -292,6 +292,7 @@ namespace wiselib {
 				
 				debug_->debug("node %d // initiate_main_handover %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
 							
+				debug_->debug("node %d // push handover", (int)radio_->id());
 				nap_control_.push_caffeine();
 				bool r = initiate_handover(se_, true);
 				if(!r) {
@@ -359,6 +360,7 @@ namespace wiselib {
 						
 					case SemanticEntityT::INIT: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
+						msg.set_cycle_time(se->activating_token_interval());
 						msg.set_token_state(se->token());
 						message.set_payload_size(msg.size());
 						transport_.expect_answer(endpoint);

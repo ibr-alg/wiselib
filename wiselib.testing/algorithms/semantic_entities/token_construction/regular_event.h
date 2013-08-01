@@ -56,14 +56,6 @@ namespace wiselib {
 			typedef delegate1<void, void*> begin_waiting_callback_t;
 			typedef delegate1<void, void*> end_waiting_callback_t;
 			
-			enum {
-				#ifdef SHAWN
-					TIMESCALE = 10
-				#else
-					TIMESCALE = 1
-				#endif
-			};
-			
 			/// Some fractions (in percent).
 			enum TimingFractions {
 				/**
@@ -75,8 +67,8 @@ namespace wiselib {
 				/// Analogue to @a CLOSE_HIT_WINDOW.
 				STABLE_HIT_WINDOW = 75,
 				/// If found interval is shorter than this, assume its a dupe
-				DUPE_INTERVAL = 100 * TIMESCALE,
-				MIN_INTERVAL = 100 * TIMESCALE,
+				DUPE_INTERVAL = 100 * WISELIB_TIME_FACTOR,
+				MIN_INTERVAL = 100 * WISELIB_TIME_FACTOR,
 				
 				/// How much a close hit influences expected timing.
 				ALPHA_CLOSE = 25,
@@ -87,11 +79,11 @@ namespace wiselib {
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
-			enum Restrictions { MIN_WINDOW_SIZE = 100 * TIMESCALE };
+			enum Restrictions { MIN_WINDOW_SIZE = 100 * WISELIB_TIME_FACTOR };
 			
 			// }}}
 			
-			RegularEvent() : last_encounter_(0), interval_(1000 * TIMESCALE), window_(1000 * TIMESCALE),
+			RegularEvent() : last_encounter_(0), interval_(1000 * WISELIB_TIME_FACTOR), window_(1000 * WISELIB_TIME_FACTOR),
 				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false) {
 			}
 			

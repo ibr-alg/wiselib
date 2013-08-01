@@ -20,6 +20,11 @@
 #ifndef SEMANTIC_ENTITY_FORWARDING_H
 #define SEMANTIC_ENTITY_FORWARDING_H
 
+#include <util/pstl/bit_array.h>
+#include <util/types.h>
+#include <util/string_util.h>
+#include "token_state_message.h"
+
 namespace wiselib {
 	
 	/**
@@ -64,9 +69,16 @@ namespace wiselib {
 			typedef NapControl_P NapControlT;
 			typedef Registry_P RegistryT;
 			typedef typename RegistryT::SemanticEntityT SemanticEntityT;
+			typedef BitArray<OsModel> BitArrayT;
+			typedef TokenStateMessage<OsModel, SemanticEntityT, Radio> TokenStateMessageT;
+			
+			enum { npos = (size_type)(-1) };
 			
 			enum Restrictions {
-				MAX_NEIGHBORS = MAX_NEIGHBORS_P
+				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
+				MAP_BITS = 512,
+				MAP_BYTES = MAP_BITS / 8,
+				DEFAULT_SLOT_LENGTH = 100 * WISELIB_TIME_FACTOR
 			};
 			
 		private:
@@ -102,16 +114,19 @@ namespace wiselib {
 				registry_ = registry;
 				//receive_callback_ = cb;
 				
+				map_index_ = false;
+				map_slots_ = MAP_BITS;
+				set_all_awake(next_map());
+				set_all_awake(slot_map());
+				slot_length_ = DEFAULT_SLOT_LENGTH;
+				next_cycle();
+				
 				//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				check();
 			}
 			
-			/**
-			 * Return true if the packet has been forwarded, false else.
-			 */
 			bool on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				check();
-				
 				abs_millis_t t_recv = now();
 				
 				// for now, only forward messages from the reliable transport
@@ -143,49 +158,15 @@ namespace wiselib {
 					if(msg.initiator() != msg.is_ack()) { DBG("// on_receive: %d -> %d -> %d (%s s=%d f=%d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
 					else { DBG("// on_receive: %d <- %d <- %d (%s s=%d f=%d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
 					
-					SemanticEntityT *se_ = registry_->get(se_id);
-					
-					// TODO: forwarding must also work if the SE only exists
-					// in our bloom filters and not in the registry!
-					if(!se_) { return false; }
-					SemanticEntityT& se = *se_;
-						
 					if(msg.is_open() && msg.initiator() && !msg.is_ack() && !msg.is_supplementary()) {
-						
-						// TODO: XXX: learn token forwards for bloom-filtered
-						// SEs. Can we do that with constant memory???!
-						
-						se.learn_token_forward(clock_, radio_->id(), from, t_recv - msg.delay());
-						debug_->debug("node %d SE %x.%x fwd_interval %d fwd_window %d fwd_from %d",
-								(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),
-								(int)se.token_forward_interval(from), (int)se.token_forward_window(from), (int)from);
+						TokenStateMessageT &m = *reinterpret_cast<TokenStateMessageT*>(msg.payload());
+						learn_token(m);
 					}
 					
 					radio_->send(target, len, data);
 					
-					if(msg.is_close() && msg.is_ack() && !msg.is_supplementary()) {
-						const node_id_t prev = amq_nhood_->forward_address(se_id, from, false);
-						debug_->debug("node %d // learn forward prev %d", (int)radio_->id(), (int)prev);
-						se.end_wait_for_token_forward(prev);
-						se.template schedule_token_forward<self_type, &self_type::begin_wait_for_forward,
-							&self_type::end_wait_for_forward>(clock_, timer_, this, prev, &se);
-					}
-					else {
-						debug_->debug("couldnt learn: cl %d ack %d supl %d s %d",
-								(int)msg.is_close(), (int)msg.is_ack(), (int)msg.is_supplementary(),
-								(int)msg.sequence_number());
-					}
-					
-					/*
-					RegularEventT &event = forwards_[Route(se_id, from, msg.initiator() != msg.is_ack())];
-					event.hit(t_recv, clock_, radio_->id());
-					event.end_waiting();
-					
-					event.template start_waiting_timer<
-						self_type, &self_type::begin_wait_for_forward,
-						&self_type::end_wait_for_forward>(clock_, timer_, this, 0);
-					*/
-					
+					// TODO: process closing message in some way?
+					// 
 					return true;
 				}
 				
@@ -213,7 +194,6 @@ namespace wiselib {
 			
 			void begin_wait_for_forward(void* se_) {
 				SemanticEntityT *se = reinterpret_cast<SemanticEntityT*>(se_);
-				debug_->debug("node %d // push forward_%x_%x", (int)radio_->id(), (int)se->id().rule(), (int)se->id().value());
 				nap_control_->push_caffeine();
 			}
 			
@@ -223,7 +203,127 @@ namespace wiselib {
 				nap_control_->pop_caffeine();
 			}
 			
-			//receive_callback_t receive_callback_;
+			BitArrayT& slot_map() {
+				return *reinterpret_cast<BitArrayT*>(activity_maps_[map_index_]);
+			}
+			
+			BitArrayT& next_map() {
+				return *reinterpret_cast<BitArrayT*>(activity_maps_[!map_index_]);
+			}
+			
+			void next_cycle(void * = 0) {
+				// <DEBUG>
+				
+				char hex[MAP_BYTES * 2 + 1];
+				memset(hex, 0, MAP_BYTES * 2 + 1);
+				for(size_type i = 0; i < MAP_BYTES; i++) {
+					hex[2 * i] = hexchar(activity_maps_[!map_index_][i] >> 4);
+					hex[2 * i + 1] = hexchar(activity_maps_[!map_index_][i] & 0x0f);
+				}
+				hex[MAP_BYTES * 2] = '\0';
+				
+				debug_->debug("node %d t %d // starting fwd cycle %s", (int)radio_->id(), (int)now(), hex);
+				
+				// </DEBUG>
+				
+				memset(activity_maps_[map_index_], 0, MAP_BYTES);
+				map_index_ = !map_index_;
+				position_ = 0;
+				position_time_ = now();
+				
+				size_type start = slot_map().first(true, 0, map_slots_);
+				if(start == npos) {
+					// this means we have no reason to wake up this cycle.
+					// Conclusively that would mean we never need to wake up
+					// again, which would make us pretty useless
+					// TODO: make sure we are awake the whole cycle again
+					// instead or go into a somehat-power saving discovery
+					// mode (i.e. be awake every k'th slot or so)
+					set_all_awake(slot_map());
+					start = 0;
+				}
+				
+				debug_->debug("node %d t %d // fwd cycle first wake phase in start=%d time=%d",
+						(int)radio_->id(), (int)now(), (int)start, (int)(slot_length_ * start));
+				
+				timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * start, this, (void*)start);
+			}
+			
+			void wakeup(void *p) {
+				//position_ = p;
+				position_ = 0;
+				hardcore_cast(position_, p);
+				position_time_ = now();
+				
+				debug_->debug("node %d // push forward", (int)radio_->id());
+				nap_control_->push_caffeine();
+				
+				size_type end = slot_map().first(false, position_, map_slots_);
+				if(end == npos) {
+					end = map_slots_;
+				}
+				assert(end > position_);
+				size_type len = end - position_;
+				//position_ = end;
+				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, (void*)end);
+			}
+			
+			void sleep(void* p) {
+				position_ = 0;
+				hardcore_cast(position_, p);
+				position_time_ = now();
+				
+				debug_->debug("node %d // pop forward", (int)radio_->id());
+				nap_control_->pop_caffeine();
+				
+				size_type start = slot_map().first(true, position_, map_slots_);
+				if(start == npos) {
+					assert(map_slots_ >= position_);
+					// no more wakeup this cycle, schedule start of the next
+					// one!
+					timer_->template set_timer<self_type, &self_type::next_cycle>(slot_length_ * (map_slots_ - position_), this, 0);
+				}
+				else {
+					assert(start > position_);
+					size_type len = start - position_;
+					//position_ = start;
+					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * len, this, (void*)start);
+				}
+			}
+			
+			size_type current_slot() {
+				return (now() - position_time_) / slot_length_ + position_;
+			}
+			
+			void learn_token(TokenStateMessageT& msg) {
+				abs_millis_t cycle_time = msg.cycle_time();
+				if(cycle_time == 0) {
+					set_all_awake(slot_map());
+					set_all_awake(next_map());
+				}
+				else {
+					size_type pos = current_slot() + (cycle_time / slot_length_);
+					if(pos < map_slots_) {
+						slot_map().set(pos, true);
+						slot_map().set(pos - 1, true);
+						if(pos >= 2) slot_map().set(pos - 2, true);
+						if(pos >= 3) slot_map().set(pos - 3, true);
+					}
+					else {
+						assert(pos - map_slots_ < map_slots_);
+						next_map().set(pos - map_slots_, true);
+						// mini-bug: this occasionally miht actually belong
+						// into slot_map, add an extra check
+						//next_map().set(pos - map_slots_ - 1, true);
+						//next_map().set(pos - map_slots_ - 2, true);
+						//next_map().set(pos - map_slots_ - 3, true);
+					}
+				}
+			}
+			
+			void set_all_awake(BitArrayT& map) { memset(&map, 0xff, MAP_BYTES); }
+			void set_all_asleep(BitArrayT& map) { memset(&map, 0x00, MAP_BYTES); }
+			
 			typename Radio::self_pointer_t radio_;
 			typename AmqNHood::self_pointer_t amq_nhood_;
 			typename Timer::self_pointer_t timer_;
@@ -231,7 +331,15 @@ namespace wiselib {
 			typename NapControlT::self_pointer_t nap_control_;
 			typename Debug::self_pointer_t debug_;
 			typename RegistryT::self_pointer_t registry_;
-			//RegularEvents forwards_;
+			
+			
+			// forwarding info
+			block_data_t activity_maps_[2][MAP_BYTES];
+			bool map_index_;
+			size_type map_slots_;
+			abs_millis_t slot_length_;
+			abs_millis_t position_time_;
+			size_type position_;
 		
 	}; // SemanticEntityForwarding
 }

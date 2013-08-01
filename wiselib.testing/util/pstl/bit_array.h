@@ -33,6 +33,34 @@ namespace wiselib {
 			}
 			*/
 			
+			size_type first(bool v, size_type start, size_type end) {
+				/*
+				block_data_t empty = v ? 0 : 0xff;
+				
+				size_type pos = start;
+				for( ; pos < 8 * ((start + 7) / 8) && pos < end; pos++) {
+					if(get(pos) == v) { return pos; }
+				}
+				
+				for( ; pos < 8 * (end / 8); pos += 8) {
+					if(data_[pos / 8] != empty) {
+						for( ; pos < end; pos++) {
+							if(get(pos) == v) { return pos; }
+						}
+						assert(false);
+					}
+				}
+				
+				for( ; pos < end; pos++) {
+					if(get(pos) == v) { return pos; }
+				}
+				*/
+				for(size_type pos = start; pos < end; pos++) {
+					if(get(pos) == v) { return pos; }
+				}
+				return -1;
+			}
+			
 			bool operator[](size_type idx) { return get(idx); }
 			
 			bool get(size_type idx) {

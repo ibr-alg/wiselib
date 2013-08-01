@@ -37,7 +37,8 @@ namespace wiselib {
 	}
 	
 	char hexchar(::uint8_t n) {
-		return (n < 10) ? '0' + n : 'a' + n;
+		assert(n < 16);
+		return (n < 10) ? ('0' + n) : ('a' + n - 10);
 	}
 }
 

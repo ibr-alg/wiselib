@@ -94,6 +94,13 @@ namespace wiselib {
 			
 			block_data_t* data() { return data_; }
 			
+			bool operator==(const self_type& other) {
+				return memcmp(data_, other.data_, SIZE_BYTES) == 0;
+			}
+			bool operator!=(const self_type& other) {
+				return !(*this == other);
+			}
+			
 		private:
 			
 			static size_type byte(size_type n) { return n / 8; }

@@ -73,7 +73,7 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
 				PUSH_INTERVAL = 100 * WISELIB_TIME_FACTOR,
-				BCAST_INTERVAL = 50000 * WISELIB_TIME_FACTOR,
+				BCAST_INTERVAL = 5000 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -114,6 +114,20 @@ namespace wiselib {
 				
 				bool operator==(const NeighborEntry& other) {
 					return address_ == other.address_;
+				}
+				
+				bool same_content(NeighborEntry& other) {
+					bool r = (address_ == other.address_) &&
+						(message_.tree_state() == other.message_.tree_state()) &&
+						(message_.user_data() == other.message_.user_data());
+					
+					if(!r) {
+						DBG("// not same content addr %d state %d ud %d",
+								(int)(address_ == other.address_),
+								(int)(message_.tree_state() == other.message_.tree_state()),
+								(int)(message_.user_data() == other.message_.user_data()));
+					}
+					return r;
 				}
 				
 				node_id_t id() { return address_; }
@@ -238,6 +252,7 @@ namespace wiselib {
 			
 			void check() {
 				#if !WISELIB_DISABLE_DEBUG
+				/*
 					assert(neighbors_.size() >= 1);
 					
 					typename Neighbors::iterator it = neighbors_.begin();
@@ -248,6 +263,7 @@ namespace wiselib {
 						assert(prev == NULL_NODE_ID || it->id() > prev);
 						prev = it->id();
 					}
+				*/
 				#endif
 			}
 		
@@ -404,9 +420,12 @@ namespace wiselib {
 					
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
-					*it = e;
-					updated_neighbors_ = true;
-					notify_event(UPDATED_NEIGHBOR);
+					if(!it->same_content(e)) {
+						assert(it->address_ == e.address_);
+						*it = e;
+						updated_neighbors_ = true;
+						notify_event(UPDATED_NEIGHBOR);
+					}
 				}
 				else {
 					neighbor_entries_.insert(e);
@@ -452,8 +471,24 @@ namespace wiselib {
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ) {
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
+						regular_broadcasts_[iter->address_].cancel();
+						
 						// TODO: cancel timers where necessary!
+						
+						//for(typename NeighborEntries::iterator itx = neighbor_entries_.begin();
+								//itx != neighbor_entries_.end(); ++itx) {
+							//debug_->debug("neighbor entries before: %d", (int)itx->address_);
+						//}
+						
+						size_type sz = neighbor_entries_.size();
 						iter = neighbor_entries_.erase(iter);
+						assert(neighbor_entries_.size() + 1 == sz);
+						
+						//for(typename NeighborEntries::iterator itx = neighbor_entries_.begin();
+								//itx != neighbor_entries_.end(); ++itx) {
+							//debug_->debug("neighbor entries after: %d", (int)itx->address_);
+						//}
+						
 						notify_event(LOST_NEIGHBOR);
 						//changed_ = true;
 						lost_neighbors_ = true;
@@ -582,12 +617,13 @@ namespace wiselib {
 			}
 			
 			void changed(void* = 0) {
-				if(nap_control_->on() && last_push_ + PUSH_INTERVAL <= now()) {
+				abs_millis_t n = now() + 0.1 * PUSH_INTERVAL;
+				if(nap_control_->on() && last_push_ + PUSH_INTERVAL <= n) {
 					broadcast_state(TreeStateMessageT::REASON_PUSH_BCAST);
 					last_push_ = now();
 				}
 				else {
-					timer_->template set_timer<self_type, &self_type::changed>(last_push_ + 2 * PUSH_INTERVAL - now(), this, 0);
+					timer_->template set_timer<self_type, &self_type::changed>(PUSH_INTERVAL, this, 0);
 				}
 			}
 				
