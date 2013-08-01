@@ -422,10 +422,10 @@ namespace wiselib {
 				if(it != neighbor_entries_.end()) {
 					if(!it->same_content(e)) {
 						assert(it->address_ == e.address_);
-						*it = e;
 						updated_neighbors_ = true;
 						notify_event(UPDATED_NEIGHBOR);
 					}
+					*it = e;
 				}
 				else {
 					neighbor_entries_.insert(e);
@@ -479,6 +479,9 @@ namespace wiselib {
 								//itx != neighbor_entries_.end(); ++itx) {
 							//debug_->debug("neighbor entries before: %d", (int)itx->address_);
 						//}
+						
+						debug_->debug("node %d // he's dead jim: %d",
+								(int)radio_->id(), (int)iter->address_);
 						
 						size_type sz = neighbor_entries_.size();
 						iter = neighbor_entries_.erase(iter);
