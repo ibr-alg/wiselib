@@ -17,62 +17,41 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef FNV_H
-#define FNV_H
+#ifndef BERNSTEIN_H
+#define BERNSTEIN_H
 
 namespace wiselib {
-
+	
+	/**
+	 * @brief
+	 * 
+	 * @ingroup
+	 * 
+	 * @tparam 
+	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename Hash_P = ::uint32_t
 	>
-	class Fnv32 {
+	class Bernstein {
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef ::uint32_t hash_t;
+			typedef Hash_P hash_t;
 			
 			enum { MAX_VALUE = (hash_t)(-1) };
 			
 			static hash_t hash(const block_data_t *s, size_type l) {
-				hash_t hashval = 0x811c9dc5UL;
-				const hash_t magicprime = 0x1000193UL;
-				const block_data_t *end = s + l;
-				for( ; s != end; s++) {
-					hashval ^= *s;
-					hashval *= magicprime;
+				hash_t h = 0;
+				block_data_t *end = s + l;
+				for( ; s < end; s++) {
+					h = 33 * h + *s;
 				}
-				return hashval;
+				return h;
 			}
-		
-	};
-	
-	template<
-		typename OsModel_P
-	>
-	class Fnv64 {
-		public:
-			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
-			typedef ::uint64_t hash_t;
-			
-			enum { MAX_VALUE = (hash_t)(-1) };
-			
-			static hash_t hash(const block_data_t *s, size_type l) {
-				hash_t hashval = 0xcbf29ce484222325ULL;
-				const hash_t magicprime = 0x00000100000001b3ULL;
-				const block_data_t *end = s + l;
-				for( ; s != end; s++) {
-					hashval ^= *s;
-					hashval *= magicprime;
-				}
-				return hashval;
-			}
-		
-	};
-	
+	}; // Bernstein
 }
 
-#endif // FNV_H
+#endif // BERNSTEIN_H
 

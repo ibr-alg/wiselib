@@ -17,15 +17,23 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef FNV_H
-#define FNV_H
+#ifndef JENKINS_H
+#define JENKINS_H
 
 namespace wiselib {
-
+	
+	/**
+	 * @brief The Jenkins One-at-a-time hash from
+	 * http://www.burtleburtle.net/bob/hash/doobs.html
+	 * 
+	 * @ingroup
+	 * 
+	 * @tparam 
+	 */
 	template<
 		typename OsModel_P
 	>
-	class Fnv32 {
+	class Jenkins {
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
@@ -35,44 +43,20 @@ namespace wiselib {
 			enum { MAX_VALUE = (hash_t)(-1) };
 			
 			static hash_t hash(const block_data_t *s, size_type l) {
-				hash_t hashval = 0x811c9dc5UL;
-				const hash_t magicprime = 0x1000193UL;
-				const block_data_t *end = s + l;
-				for( ; s != end; s++) {
-					hashval ^= *s;
-					hashval *= magicprime;
+				::uint32_t h, i;
+				for(h = i = 0; i < l; i++) {
+					h += s[i];
+					h += (h << 10);
+					h ^= (h >> 6);
 				}
-				return hashval;
+				h += (h << 3);
+				h ^= (h >> 11);
+				h += (h << 15);
+				return h;
 			}
 		
-	};
-	
-	template<
-		typename OsModel_P
-	>
-	class Fnv64 {
-		public:
-			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
-			typedef ::uint64_t hash_t;
-			
-			enum { MAX_VALUE = (hash_t)(-1) };
-			
-			static hash_t hash(const block_data_t *s, size_type l) {
-				hash_t hashval = 0xcbf29ce484222325ULL;
-				const hash_t magicprime = 0x00000100000001b3ULL;
-				const block_data_t *end = s + l;
-				for( ; s != end; s++) {
-					hashval ^= *s;
-					hashval *= magicprime;
-				}
-				return hashval;
-			}
-		
-	};
-	
+	}; // Jenkins
 }
 
-#endif // FNV_H
+#endif // JENKINS_H
 

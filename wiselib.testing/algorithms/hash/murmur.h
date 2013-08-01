@@ -17,62 +17,78 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef FNV_H
-#define FNV_H
+#ifndef MURMUR_H
+#define MURMUR_H
+
+#include <util/standalone_math.h>
 
 namespace wiselib {
-
+	
+	/**
+	 * @brief
+	 * 
+	 * @ingroup
+	 * 
+	 * @tparam 
+	 */
 	template<
 		typename OsModel_P
 	>
-	class Fnv32 {
+	class Murmur {
+		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef ::uint32_t hash_t;
+			typedef StandaloneMath<OsModel> Math;
 			
 			enum { MAX_VALUE = (hash_t)(-1) };
 			
 			static hash_t hash(const block_data_t *s, size_type l) {
-				hash_t hashval = 0x811c9dc5UL;
-				const hash_t magicprime = 0x1000193UL;
+				static const ::uint32_t seed = 0x12345678;
+				
+				::uint32_t c1 = 0xcc9e2d51, c2 = 0x1b873593,
+					r1 = 15, r2 = 13, m = 5,
+					n = 0xe6546b64, hash = seed;
+				
 				const block_data_t *end = s + l;
-				for( ; s != end; s++) {
-					hashval ^= *s;
-					hashval *= magicprime;
+				for( ; s + 4 <= end; s += 4) {
+					::uint32_t k = 0;
+					memcpy(&k, s, Math::min((size_type)4, (size_type)(end - s)));
+					k *= c1;
+					k = (k << r1) | (k >> (32 - r1));
+					k *= c2;
+					
+					hash ^= k;
+					hash = (hash << r2) | (hash >> (32 - r2));
+					hash = hash * m + n;
 				}
-				return hashval;
-			}
-		
-	};
-	
-	template<
-		typename OsModel_P
-	>
-	class Fnv64 {
-		public:
-			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
-			typedef ::uint64_t hash_t;
-			
-			enum { MAX_VALUE = (hash_t)(-1) };
-			
-			static hash_t hash(const block_data_t *s, size_type l) {
-				hash_t hashval = 0xcbf29ce484222325ULL;
-				const hash_t magicprime = 0x00000100000001b3ULL;
-				const block_data_t *end = s + l;
-				for( ; s != end; s++) {
-					hashval ^= *s;
-					hashval *= magicprime;
+				
+				if(end > s) {
+					::uint32_t k = 0;
+					for(int i = 0; i < end - s; i++) {
+						k |= s[i] << (8 * i);
+					}
+					
+					k *= c1;
+					k = (k << r1) | (k >> (32 - r1));
+					k *= c2;
+					hash ^= k;
 				}
-				return hashval;
+				
+				hash ^= (::uint32_t)l;
+				hash ^= (hash >> 16);
+				hash *= 0x85ebca6b;
+				hash ^= (hash >> 13);
+				hash *= 0xc2b2ae35;
+				hash ^= (hash >> 16);
+				return hash;
 			}
-		
-	};
-	
+	}; // Murmur
 }
 
-#endif // FNV_H
+#endif // MURMUR_H
+
+
 
