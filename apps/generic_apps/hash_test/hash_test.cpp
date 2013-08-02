@@ -22,6 +22,7 @@ typedef Os::size_t size_type;
 #include <algorithms/hash/murmur.h>
 #include <algorithms/hash/jenkins.h>
 #include <algorithms/hash/larson.h>
+#include <algorithms/hash/bernstein.h>
 //typedef Fnv32<Os> Hash;
 //typedef Fnv64<Os> Hash;
 
@@ -50,6 +51,9 @@ class App {
 			}
 			else if(strcmp(amp.argv[1], "larson") == 0) {
 				hash_cat< Larson<Os> >();
+			}
+			else if(strcmp(amp.argv[1], "bernstein") == 0) {
+				hash_cat< Bernstein<Os> >();
 			}
 			
 	#endif
