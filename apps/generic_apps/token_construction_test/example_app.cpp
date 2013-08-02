@@ -34,7 +34,8 @@ using namespace wiselib;
 
 
 	//#include "semantics_office1.h"
-	#include "semantics_uniform.h"
+	//#include "semantics_uniform.h"
+	#include "semantics_simple.h"
 
 	typedef Tuple<Os> TupleT;
 	typedef wiselib::list_dynamic<Os, TupleT> TupleList;

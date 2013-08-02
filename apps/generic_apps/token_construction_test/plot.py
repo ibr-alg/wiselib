@@ -444,7 +444,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
 	last_ax.set_xlim((-1, tmax))
-	#last_ax.set_xlim((9000, 11000))
+	#last_ax.set_xlim((4500, 5500))
 	
 	setp(last_ax.get_xticklabels(), visible = True)
 	

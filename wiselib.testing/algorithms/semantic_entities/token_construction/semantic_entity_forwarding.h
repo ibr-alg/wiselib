@@ -232,21 +232,21 @@ namespace wiselib {
 				position_time_ = now();
 				
 				size_type start = slot_map().first(true, 0, map_slots_);
+				assert(start == npos || slot_map().get(start) == true);
+				assert(start == npos || start >= position_);
+				
 				if(start == npos) {
-					// this means we have no reason to wake up this cycle.
-					// Conclusively that would mean we never need to wake up
-					// again, which would make us pretty useless
-					// TODO: make sure we are awake the whole cycle again
-					// instead or go into a somehat-power saving discovery
-					// mode (i.e. be awake every k'th slot or so)
-					set_all_awake(slot_map());
-					start = 0;
+					// no reason to wake up next cycle, we might be a leaf
+					//set_all_awake(slot_map());
+					DBG("node %d // fwd cycle schedule next cycle", (int)radio_->id());
+					timer_->template set_timer<self_type, &self_type::next_cycle>(slot_length_ * map_slots_, this, 0);
 				}
-				
-				debug_->debug("node %d t %d // fwd cycle first wake phase in start=%d time=%d",
-						(int)radio_->id(), (int)now(), (int)start, (int)(slot_length_ * start));
-				
-				timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * start, this, (void*)start);
+				else {
+					debug_->debug("node %d t %d // fwd cycle first wake phase in start=%d time=%d",
+							(int)radio_->id(), (int)now(), (int)start, (int)(slot_length_ * start));
+					
+					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * start, this, (void*)start);
+				}
 			}
 			
 			void wakeup(void *p) {
@@ -255,15 +255,20 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
+				DBG("node %d // fwd wakeup at %d", (int)radio_->id(), (int)position_);
+				
 				debug_->debug("node %d // push forward", (int)radio_->id());
 				nap_control_->push_caffeine();
 				
 				size_type end = slot_map().first(false, position_, map_slots_);
+				assert(end == npos || slot_map().get(end) == false);
+				assert(end == npos || end > position_);
+				
 				if(end == npos) {
 					end = map_slots_;
 				}
-				assert(end > position_);
 				size_type len = end - position_;
+				DBG("node %d // fwd wakeup schedule sleep at %d", (int)radio_->id(), (int)end);
 				//position_ = end;
 				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, (void*)end);
 			}
@@ -273,20 +278,27 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
+				DBG("node %d // fwd sleep at %d", (int)radio_->id(), (int)position_);
+				
 				debug_->debug("node %d // pop forward", (int)radio_->id());
 				nap_control_->pop_caffeine();
 				
 				size_type start = slot_map().first(true, position_, map_slots_);
+				assert(start == npos || slot_map().get(start) == true);
+				assert(start == npos || start >= position_);
+				
 				if(start == npos) {
 					assert(map_slots_ >= position_);
 					// no more wakeup this cycle, schedule start of the next
 					// one!
+					DBG("node %d // fwd sleep schedule cycle at %d", (int)radio_->id(), (int)(map_slots_ - position_));
 					timer_->template set_timer<self_type, &self_type::next_cycle>(slot_length_ * (map_slots_ - position_), this, 0);
 				}
 				else {
 					assert(start > position_);
 					size_type len = start - position_;
 					//position_ = start;
+					DBG("node %d // fwd sleep schedule wakeup at %d", (int)radio_->id(), (int)start);
 					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * len, this, (void*)start);
 				}
 			}
@@ -295,6 +307,25 @@ namespace wiselib {
 				return (now() - position_time_) / slot_length_ + position_;
 			}
 			
+			void schedule_wakeup(size_type pos) {
+				//if(pos > 3) { mark_awake(pos - 3); }
+				//if(pos > 2) { mark_awake(pos - 2); }
+				if(pos > 1) { mark_awake(pos - 1); }
+				mark_awake(pos);
+				mark_awake(pos + 1);
+				mark_awake(pos + 2);
+				mark_awake(pos + 3);
+			}
+			
+			void mark_awake(size_type pos) {
+				if(pos < map_slots_) {
+					slot_map().set(pos, true);
+				}
+				else if(pos - map_slots_ < map_slots_) {
+					next_map().set(pos - map_slots_, true);
+				}
+			}
+				
 			void learn_token(TokenStateMessageT& msg) {
 				abs_millis_t cycle_time = msg.cycle_time();
 				if(cycle_time == 0) {
@@ -303,21 +334,7 @@ namespace wiselib {
 				}
 				else {
 					size_type pos = current_slot() + (cycle_time / slot_length_);
-					if(pos < map_slots_) {
-						slot_map().set(pos, true);
-						slot_map().set(pos - 1, true);
-						if(pos >= 2) slot_map().set(pos - 2, true);
-						if(pos >= 3) slot_map().set(pos - 3, true);
-					}
-					else {
-						assert(pos - map_slots_ < map_slots_);
-						next_map().set(pos - map_slots_, true);
-						// mini-bug: this occasionally miht actually belong
-						// into slot_map, add an extra check
-						//next_map().set(pos - map_slots_ - 1, true);
-						//next_map().set(pos - map_slots_ - 2, true);
-						//next_map().set(pos - map_slots_ - 3, true);
-					}
+					schedule_wakeup(pos);
 				}
 			}
 			

@@ -16,6 +16,8 @@ namespace wiselib {
 			typedef self_type* self_pointer_t;
 			typedef typename OsModel::size_t size_type;
 			
+			enum { npos = (size_type)(-1) };
+			
 			template<typename Allocator>
 			static self_pointer_t make(Allocator& alloc, size_type bits) {
 				self_pointer_t r = reinterpret_cast<self_pointer_t>(
@@ -58,13 +60,13 @@ namespace wiselib {
 				for(size_type pos = start; pos < end; pos++) {
 					if(get(pos) == v) { return pos; }
 				}
-				return -1;
+				return npos;
 			}
 			
 			bool operator[](size_type idx) { return get(idx); }
 			
 			bool get(size_type idx) {
-				return data_[byte(idx)] & (1 << bit(idx));
+				return (data_[byte(idx)] & (1 << bit(idx))) != 0;
 			}
 			
 			void set(size_type i, bool v) {
