@@ -1,12 +1,15 @@
 #!/bin/bash
 
-HASHES="fnv32 fnv64 jenkins murmur larson"
-HASH="./out/pc/hash_test"
+HASHES="firstchar bernstein fnv32 fnv64 jenkins murmur larson"
+HASH="./hash_test"
+#HASH="./out/pc/hash_test"
 ELEMENTS="./elements"
-INPUT_PATH=/home/henning/data/billion_triple_challenge/projects/btc-2012/datahub
+INPUT_PATH=/mnt
+#INPUT_PATH=/home/henning/data/billion_triple_challenge/projects/btc-2012/datahub
 INPUT_FILES="$(echo $INPUT_PATH/data-?.nq)"
 #INPUT_FILES="$INPUT_PATH/data-0.nq.gz $INPUT_PATH/data-4.nq.gz"
-DATA_PATH="./data/datahub"
+DATA_PATH=/mnt/out
+#DATA_PATH="./data/datahub"
 
 function find_collisions { 
 	echo '{'
@@ -34,10 +37,11 @@ function find_collisions {
 			
 			collisions=0
 			collision_hashes=0
-			uniq -cd $DATA_PATH/${fn}.${hashfn} | while read n v; do
+			uniq -cd $DATA_PATH/${fn}.${hashfn}.sorted > $DATA_PATH/${fn}.${hashfn}.collisions
+			while read n v; do
 				collisions=$(($collisions + $n - 1))
 				collision_hashes=$(($collision_hashes + 1))
-			done
+			done < $DATA_PATH/${fn}.${hashfn}.collisions
 			echo '        "collisions": ' $collisions ','
 			echo '        "hashes": ' $collision_hashes
 			echo '      }'
@@ -89,10 +93,11 @@ function find_collisions {
 			
 			collisions=0
 			collision_hashes=0
-			uniq -cd $DATA_PATH/__all__.${hashfn} | while read n v; do
+			uniq -cd $DATA_PATH/__all__.${hashfn}.sorted > $DATA_PATH/__all__.${hashfn}.collisions
+			while read n v; do
 				collisions=$(($collisions + $n - 1))
 				collision_hashes=$(($collision_hashes + 1))
-			done
+			done < $DATA_PATH/__all__.${hashfn}.collisions
 			echo '  "collisions": ' $collisions ','
 			echo '  "hashes": ' $collision_hashes ','
 			echo '  }'

@@ -46,7 +46,8 @@ namespace wiselib {
 			static hash_t hash(const block_data_t *s, size_type l) {
 				static const hash_t seed = 0;
 				hash_t h = seed;
-				while(*s) {
+				const block_data_t *end = s + l;
+				while(s != end) {
 					h = h * 101 + *s++;
 				}
 				return h;

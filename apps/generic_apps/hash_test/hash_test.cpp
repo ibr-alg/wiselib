@@ -23,8 +23,7 @@ typedef Os::size_t size_type;
 #include <algorithms/hash/jenkins.h>
 #include <algorithms/hash/larson.h>
 #include <algorithms/hash/bernstein.h>
-//typedef Fnv32<Os> Hash;
-//typedef Fnv64<Os> Hash;
+#include <algorithms/hash/firstchar.h>
 
 class App {
 	public:
@@ -54,6 +53,9 @@ class App {
 			}
 			else if(strcmp(amp.argv[1], "bernstein") == 0) {
 				hash_cat< Bernstein<Os> >();
+			}
+			else if(strcmp(amp.argv[1], "firstchar") == 0) {
+				hash_cat< Firstchar<Os> >();
 			}
 			
 	#endif
@@ -86,13 +88,12 @@ class App {
 		
 		template<typename Hash>
 		void hash_cat() {
-			Hash h;
 			
 			char line[20480];
 			while(std::cin) {
 				std::cin.getline(line, 20480);
 				if(strlen(line) > 0) {
-					std::cout << h.hash((const block_data_t*)line, strlen(line)) << std::endl;
+					std::cout << Hash::hash((const block_data_t*)line, strlen(line)) << std::endl;
 				}
 			}
 		}
