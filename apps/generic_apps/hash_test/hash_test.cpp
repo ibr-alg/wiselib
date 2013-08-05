@@ -18,12 +18,20 @@ typedef Os::size_t size_type;
 	#include <iostream>
 #endif
 
-#include <algorithms/hash/fnv.h>
-#include <algorithms/hash/murmur.h>
-#include <algorithms/hash/jenkins.h>
-#include <algorithms/hash/larson.h>
 #include <algorithms/hash/bernstein.h>
+#include <algorithms/hash/elf.h>
 #include <algorithms/hash/firstchar.h>
+#include <algorithms/hash/fletcher.h>
+#include <algorithms/hash/fnv.h>
+#include <algorithms/hash/jenkins_lookup2.h>
+#include <algorithms/hash/jenkins_lookup3.h>
+#include <algorithms/hash/jenkins_one_at_a_time.h>
+#include <algorithms/hash/kr.h>
+#include <algorithms/hash/larson.h>
+#include <algorithms/hash/modified_bernstein.h>
+#include <algorithms/hash/murmur.h>
+#include <algorithms/hash/novak.h>
+#include <algorithms/hash/sdbm.h>
 
 class App {
 	public:
@@ -36,26 +44,45 @@ class App {
 			
 	#elif COMPILE_HASH_CAT
 			
-			if(strcmp(amp.argv[1], "fnv32") == 0) {
-				hash_cat< Fnv32<Os> >();
-			}
-			else if(strcmp(amp.argv[1], "fnv64") == 0) {
-				hash_cat< Fnv64<Os> >();
-			}
-			else if(strcmp(amp.argv[1], "murmur") == 0) {
-				hash_cat< Murmur<Os> >();
-			}
-			else if(strcmp(amp.argv[1], "jenkins") == 0) {
-				hash_cat< Jenkins<Os> >();
-			}
-			else if(strcmp(amp.argv[1], "larson") == 0) {
-				hash_cat< Larson<Os> >();
-			}
-			else if(strcmp(amp.argv[1], "bernstein") == 0) {
-				hash_cat< Bernstein<Os> >();
-			}
-			else if(strcmp(amp.argv[1], "firstchar") == 0) {
-				hash_cat< Firstchar<Os> >();
+			if(strcmp(amp.argv[1], "bernstein8") == 0) { hash_cat< Bernstein<Os, ::uint8_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein16") == 0) { hash_cat< Bernstein<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein32") == 0) { hash_cat< Bernstein<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein64") == 0) { hash_cat< Bernstein<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein2_8") == 0) { hash_cat< ModifiedBernstein<Os, ::uint8_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein2_16") == 0) { hash_cat< ModifiedBernstein<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein2_32") == 0) { hash_cat< ModifiedBernstein<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "bernstein2_64") == 0) { hash_cat< ModifiedBernstein<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "elf32") == 0) { hash_cat< Elf<Os> >(); }
+			else if(strcmp(amp.argv[1], "firstchar8") == 0) { hash_cat< Firstchar<Os> >(); }
+			else if(strcmp(amp.argv[1], "fletcher16") == 0) { hash_cat< Fletcher<Os, ::uint16_t> >(); }
+			
+			else if(strcmp(amp.argv[1], "fnv1_16") == 0) { hash_cat< Fnv1<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "fnv1_32") == 0) { hash_cat< Fnv1<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "fnv1_64") == 0) { hash_cat< Fnv1<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "fnv1a_16") == 0) { hash_cat< Fnv1a<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "fnv1a_32") == 0) { hash_cat< Fnv1a<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "fnv1a_64") == 0) { hash_cat< Fnv1a<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "lookup2_32") == 0) { hash_cat< JenkinsLookup2<Os> >(); }
+			else if(strcmp(amp.argv[1], "lookup3_32") == 0) { hash_cat< JenkinsLookup3<Os> >(); }
+			else if(strcmp(amp.argv[1], "oneatatime_32") == 0) { hash_cat< JenkinsOneAtATime<Os> >(); }
+			else if(strcmp(amp.argv[1], "kr8") == 0) { hash_cat< Kr<Os, ::uint8_t> >(); }
+			else if(strcmp(amp.argv[1], "kr16") == 0) { hash_cat< Kr<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "kr32") == 0) { hash_cat< Kr<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "kr64") == 0) { hash_cat< Kr<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "larson8") == 0) { hash_cat< Larson<Os, ::uint8_t> >(); }
+			else if(strcmp(amp.argv[1], "larson16") == 0) { hash_cat< Larson<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "larson32") == 0) { hash_cat< Larson<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "larson64") == 0) { hash_cat< Larson<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "novak8") == 0) { hash_cat< Novak<Os, ::uint8_t> >(); }
+			else if(strcmp(amp.argv[1], "novak16") == 0) { hash_cat< Novak<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "novak32") == 0) { hash_cat< Novak<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "novak64") == 0) { hash_cat< Novak<Os, ::uint64_t> >(); }
+			else if(strcmp(amp.argv[1], "sdbm8") == 0) { hash_cat< Sdbm<Os, ::uint8_t> >(); }
+			else if(strcmp(amp.argv[1], "sdbm16") == 0) { hash_cat< Sdbm<Os, ::uint16_t> >(); }
+			else if(strcmp(amp.argv[1], "sdbm32") == 0) { hash_cat< Sdbm<Os, ::uint32_t> >(); }
+			else if(strcmp(amp.argv[1], "sdbm64") == 0) { hash_cat< Sdbm<Os, ::uint64_t> >(); }
+			else {
+				debug_->debug("ALART! hash function '%s' not found!", amp.argv[1]);
 			}
 			
 	#endif
@@ -93,7 +120,7 @@ class App {
 			while(std::cin) {
 				std::cin.getline(line, 20480);
 				if(strlen(line) > 0) {
-					std::cout << Hash::hash((const block_data_t*)line, strlen(line)) << std::endl;
+					std::cout << (unsigned long long)Hash::hash((const block_data_t*)line, strlen(line)) << std::endl;
 				}
 			}
 		}
