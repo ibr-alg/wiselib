@@ -15,7 +15,8 @@ sdbm8 sdbm16 sdbm32 sdbm64 \
 #HASH="./hash_test"
 HASH="./out/pc/hash_test"
 ELEMENTS="./elements"
-INPUT_PATH=/home/henning/data/ec2_hashes_2013_08_03
+#INPUT_PATH=/home/henning/data/ec2_hashes_2013_08_03
+INPUT_PATH=/home/henning/annexe/rdf_datasets/btc2012/projects/btc-2012/datahub
 #INPUT_PATH=/mnt
 #INPUT_PATH=/home/henning/data/billion_triple_challenge/projects/btc-2012/datahub
 #INPUT_FILES="$(echo $INPUT_PATH/data-?.nq)"
@@ -97,8 +98,8 @@ function find_collisions {
 			echo '        "collisions": ' $collisions ','
 			echo '        "colliding_hashes": ' $collision_hashes ','
 			echo '        "non_colliding_hashes": ' $noncolliding ','
-			echo '        "values_per_hash_mean": ' $(echo "scale=8; $sum / $total_hashes" |bc -q) ','
-			echo '        "values_per_hash_variance": ' $(echo "scale=8; ($sqsum / $total_hashes) - (($sum * $sum) / ($total_hashes * $total_hashes))" |bc -q)
+			echo '        "values_per_hash_mean": ' $(echo "scale=20; $sum / $total_hashes" |bc -q) ','
+			echo '        "values_per_hash_variance": ' $(echo "scale=20; ($sqsum / $total_hashes) - (($sum * $sum) / ($total_hashes * $total_hashes))" |bc -q)
 			echo '      }'
 			comma=","
 		done

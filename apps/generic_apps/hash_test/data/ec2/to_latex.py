@@ -1,6 +1,7 @@
 
-import json
+import demjson
 import re
+from decimal import Decimal
 
 name_translate = {
 		'fnv1': 'FNV1',
@@ -16,9 +17,16 @@ name_translate = {
 }
 
 
-d = json.load(open('./run_experiments4.json', 'r'))
+d = demjson.decode(open('./run_experiments5.json', 'r').read())
 d = d['__all__']
 
+def d_to_s(d):
+	if type(d) is Decimal:
+		sign, digits, exp = d.as_tuple()
+		a = d.adjusted()
+		return '{:d}.{:s}e{:+03d}'.format(digits[0], ''.join(map(str, digits[1:7])), a)
+	else:
+		return '{:e}'.format(d)
 
 
 for k, v in d['hashes'].items():
@@ -44,6 +52,8 @@ for k, v in hashes:
 		oldbits = v['bits']
 		
 	v['hash_time_us'] = v['hash_time_user'] #+ v['hash_time_sys']
-	print(r'{name} & {bits:d} & {hash_time_us:f} & {collisions:d} & {values_per_hash_mean:f} & {values_per_hash_variance:f} \\'.format(**v))
+	v['values_per_hash_variance'] = d_to_s(v['values_per_hash_variance'])
+	v['values_per_hash_mean'] = d_to_s(v['values_per_hash_mean'])
+	print(r'{name} & {bits:d} & {hash_time_us:f} & {collisions:d} & {values_per_hash_mean:s} & {values_per_hash_variance:s} \\'.format(**v))
 print(r'\hline \hline')
 
