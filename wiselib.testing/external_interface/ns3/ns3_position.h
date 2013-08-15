@@ -112,6 +112,11 @@ namespace wiselib
          return pos;
       }
 
+      void set_position (float_t x, float_t y, float_t z, node_id_t id)
+      {
+        os().proc.SetPosition (x, y, z, id);
+      }
+
    private:
       Ns3Os& os()
       { return os_; }
