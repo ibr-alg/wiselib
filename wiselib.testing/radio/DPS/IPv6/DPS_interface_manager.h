@@ -135,9 +135,9 @@ namespace wiselib
 		
 		enum DPS_Fid
 		{
-			IPv6_receive = 1,
-			Get_IPv6_Address = 2,
-			Set_IPv6_Address = 3,
+			IPv6_receive = 0,
+			Get_IPv6_Address = 1,
+			Set_IPv6_Address = 2,
 			NEW_CONNECTION = Radio_DPS::NEW_CONNECTION,
 			DELETE_CONNECTION = Radio_DPS::DELETE_CONNECTION
 		};
@@ -146,7 +146,7 @@ namespace wiselib
 		//TODO
 		enum Pid_values
 		{
-			IPv6_PID = 41
+			IPv6_PID = 1
 		};
 		
 		
@@ -392,7 +392,7 @@ namespace wiselib
 		/**
 		 * 
 		 */
-		uint8_t local_minibuffer[16];
+		uint8_t local_minibuffer[17];
 			
 		typename Radio_IPv6::self_pointer_t radio_ipv6_;
 		typename Radio_DPS::self_pointer_t radio_dps_;
@@ -456,26 +456,38 @@ namespace wiselib
 		//Call the function which is associated with the F_id
 		if( IDs.Fid == NEW_CONNECTION )
 		{
-#ifdef  DPS_IPv6_SKELETON
-			//Copy to the local minibuffer
-			memcpy( local_minibuffer, prefix_list[INTERFACE_RADIO][1].ip_address.addr, 16 );
-			
-			IDs.Fid = Set_IPv6_Address;
+#ifdef DPS_IPv6_STUB
+			IDs.Fid = Get_IPv6_Address;
 			IDs.ack_required = 1;
-			//Target address is in the IDs
 			
-			radio_dps().send(IDs, sizeof(local_minibuffer), local_minibuffer );
+			node_id_t tmp_addr = radio_dps().id();
 			
-			//Add to the rouing table
-			IPv6Address_t tmp_addr;
-			tmp_addr.set_prefix( prefix_list[INTERFACE_RADIO][1].ip_address.addr, 64 );
-			tmp_addr.set_long_iid(&(IDs.target_address), true);
+			memcpy(local_minibuffer, (uint8_t*)(&tmp_addr), sizeof(node_id_t));
 			
-			typename wiselib::ForwardingTableValue<Radio_IPv6> entry(tmp_addr, 1, 0, INTERFACE_DPS);
-			radio_ipv6_->routing_.forwarding_table_[tmp_addr] = entry;
+			debug_->debug("DPS: Send GET IP");
 			
-			radio_ipv6_->routing_.print_forwarding_table();
+			radio_dps().send(IDs, sizeof(node_id_t), local_minibuffer );
 #endif
+// #ifdef  DPS_IPv6_SKELETON
+// 			//Copy to the local minibuffer
+// 			memcpy( local_minibuffer, prefix_list[INTERFACE_RADIO][1].ip_address.addr, 16 );
+// 			
+// 			IDs.Fid = Set_IPv6_Address;
+// 			IDs.ack_required = 1;
+// 			//Target address is in the IDs
+// 			
+// 			radio_dps().send(IDs, sizeof(local_minibuffer), local_minibuffer );
+// 			
+// 			//Add to the rouing table
+// 			IPv6Address_t tmp_addr;
+// 			tmp_addr.set_prefix( prefix_list[INTERFACE_RADIO][1].ip_address.addr, 64 );
+// 			tmp_addr.set_long_iid(&(IDs.target_address), true);
+// 			
+// 			typename wiselib::ForwardingTableValue<Radio_IPv6> entry(tmp_addr, 1, 0, INTERFACE_DPS);
+// 			radio_ipv6_->routing_.forwarding_table_[tmp_addr] = entry;
+// 			
+// 			radio_ipv6_->routing_.print_forwarding_table();
+// #endif
 		}
 		else if( IDs.Fid == DELETE_CONNECTION )
 		{
@@ -506,30 +518,41 @@ namespace wiselib
 			else
 				manage_buffer( buffer, length, false );
 		}
-// #ifdef  DPS_IPv6_SKELETON
-// 		else if( IDs.Fid == Get_IPv6_Address )
-// 		{
-// 			//TODO!? it would be enough to send only the prefix (8bytes) but the full address may required for the interoperability
-// 			
-// 			//Calculate the IPv6 address of the client node
-// 			node_id_t client_address = (node_id_t)bitwise_read<OsModel, block_data_t, uint64_t>( buffer, 0, length * 8 );
-// 			
-// 			IPv6Address_t client_ip( prefix_list[INTERFACE_RADIO][1].ip_address );
-// 			client_ip.set_long_iid( client_address, true );
-// 			
-// 			//Copy to the local minibuffer
-// 			memcpy( local_minibuffer, client_ip.addr, 16 );
-// 			
-// 			IDs.Fid = Set_IPv6_Address;
-// 			IDs.ack_required = 1;
-// 			
-// 			DPS_Radio_.send(IDs, sizeof(local_minibuffer), local_minibuffer );
-// 		}
-// #elif defined DPS_IPv6_STUB
+#ifdef  DPS_IPv6_SKELETON
+		else if( IDs.Fid == Get_IPv6_Address )
+		{
+			//Generate address
+			IPv6Address_t tmp_addr;
+			tmp_addr.set_prefix( prefix_list[INTERFACE_RADIO][1].ip_address.addr, 64 );
+			
+			node_id_t client_address = (node_id_t)bitwise_read<OsModel, block_data_t, uint64_t>( buffer, 0, length * 8 );
+			tmp_addr.set_long_iid(&client_address, true);
+			
+			debug_->debug("DPS: GET IP received from %lx", client_address);
+			
+			//Copy to the local minibuffer
+			memcpy( local_minibuffer, tmp_addr.addr, 16 );
+			//Set the prefix length
+			local_minibuffer[16] = 64;
+			
+			IDs.Fid = Set_IPv6_Address;
+			IDs.ack_required = 1;
+			
+			//Target address is in the IDs
+			radio_dps().send(IDs, sizeof(local_minibuffer), local_minibuffer );
+			
+			
+			//Add to the rouing table
+			typename wiselib::ForwardingTableValue<Radio_IPv6> entry(tmp_addr, 1, 0, INTERFACE_DPS);
+			radio_ipv6_->routing_.forwarding_table_[tmp_addr] = entry;
+			
+			radio_ipv6_->routing_.print_forwarding_table();
+		}
+#endif
 #ifdef DPS_IPv6_STUB
 		else if( IDs.Fid == Set_IPv6_Address )
 		{
-			set_prefix_for_interface( buffer, INTERFACE_RADIO, 64 );
+			set_prefix_for_interface( buffer, INTERFACE_RADIO, buffer[16] );
 		}
 #endif
 		
@@ -561,8 +584,8 @@ namespace wiselib
 	{
 		if( get_buffer )
 		{
-			//The IP header is 40 bytes, with 16 bytes this should be an IPAddress config
-			if( length == 16 )
+			//The IP header is 40 bytes, with 17 bytes this should be an IPAddress config
+			if( length <= 17 )
 				return local_minibuffer;
 			else
 			{

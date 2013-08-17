@@ -64,6 +64,19 @@
    |                      CBC-MAC checksum (32)                    |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    
+   Compressed DPS-RPC header
+    0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      DPS      |  COUNTER(LSB) |  Pid  |  Fid  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   
+   Compressed fragmentation header
+    0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      Length   |     Offset    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   
+   
 
 */
 namespace wiselib
@@ -95,7 +108,9 @@ namespace wiselib
 		///Buffer for the packet
 		block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
 		
-		uint8_t payload_max_length;
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+		bool compressed_headers;
+#endif
 		
 		///Constructor
 		DPS_Packet( uint8_t packet_type, bool fragmentation_needed = false )
@@ -112,9 +127,19 @@ namespace wiselib
 			
 			//F_id is needed for the RPC packets (1 byte) --> BASIC size +1
 			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE || packet_type == DPS_TYPE_RPC_ACK )
+			{
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+				compressed_headers = true;
+#endif
 				payload_position = DPS_RPC_HEADER_SIZE;
+			}
 			else
+			{
 				payload_position = DPS_BASIC_HEADER_SIZE;
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+				compressed_headers = false;
+#endif
+			}
 			
 			//Save the place for the fragmentation header (4 bytes)
 			if( fragmentation_needed )
@@ -122,9 +147,6 @@ namespace wiselib
 				set_fragmentation_flag( 1 );
 				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
 			}
-			
-			//Reserve 0 or 4 bytes for the footer
-			payload_max_length = Radio::MAX_MESSAGE_LENGTH - payload_position - DPS_FOOTER_SIZE;
 			
 			length = payload_position;
 		}
@@ -136,9 +158,19 @@ namespace wiselib
 			
 			uint8_t packet_type = type();
 			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE || packet_type == DPS_TYPE_RPC_ACK )
+			{
 				payload_position = DPS_RPC_HEADER_SIZE;
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+				compressed_headers = true;
+#endif
+			}
 			else
+			{
 				payload_position = DPS_BASIC_HEADER_SIZE;
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+				compressed_headers = false;
+#endif
+			}
 			
 			if( fragmentation_flag() == 1 )
 				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
@@ -168,8 +200,13 @@ namespace wiselib
 		enum DPS_Header_Sizes
 		{
 			DPS_BASIC_HEADER_SIZE = 6,
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			DPS_RPC_HEADER_SIZE = 3,
+			DPS_FRAGMENTATION_HEADER_SIZE = 2,
+#else
 			DPS_RPC_HEADER_SIZE = 7,
 			DPS_FRAGMENTATION_HEADER_SIZE = 4,
+#endif
 #if DPS_FOOTER > 0
 			DPS_FOOTER_SIZE = 4
 #else
@@ -205,30 +242,60 @@ namespace wiselib
 		
 		void set_counter( uint32_t value )
 		{
-			//byte: 1, bit: 0, length: 32
-			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 1, value, 0, 32 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 1, bit: 0, length: 8 --> LSB part
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 1, value, 0, 8 );
+			else
+#endif
+				//byte: 1, bit: 0, length: 32
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 1, value, 0, 32 );
 		}
 		
 		void set_pid( uint32_t value )
 		{
-			//byte: 5, bit: 0, length: 8
-			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 5, value, 0, 8 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 2, bit: 0, length: 4
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 2, value, 0, 4 );
+			else
+#endif
+				//byte: 5, bit: 0, length: 8
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 5, value, 0, 8 );
 		}
 		
 		void set_fid( uint32_t value )
 		{
 			//NOTE must be called only for RPC_* type packets
-			//byte: 6, bit: 0, length: 8
-			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 6, value, 0, 8 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 2, bit: 4, length: 4
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 2, value, 4, 4 );
+			else
+#endif
+				//byte: 6, bit: 0, length: 8
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 6, value, 0, 8 );
 		}
 		
 		void set_fragmentation_header( uint32_t length, uint32_t shift )
 		{
 			//NOTE must be called for packets with reserved fragmentation header positions
-			//byte: 7, bit: 0, length: 16
-			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 7, length, 0, 16 );
-			//byte: 9, bit: 0, length: 16
-			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 9, shift, 0, 16 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+			{
+				//byte: 3, bit: 0, length: 8
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 3, length, 0, 8 );
+				//byte: 4, bit: 0, length: 8
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 4, shift, 0, 8 );
+			}
+			else
+#endif
+			{
+				//byte: 7, bit: 0, length: 16
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 7, length, 0, 16 );
+				//byte: 9, bit: 0, length: 16
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 9, shift, 0, 16 );
+			}
 		}
 		
 #if ( DPS_FOOTER > 0 )
@@ -237,6 +304,7 @@ namespace wiselib
 			block_data_t MAC[4];
 			calculate_checksum( connection, MAC, use_request_key );
 			memcpy( buffer + length, MAC, 4 );
+// 			debug_->debug("CHK %x %x %x %x", MAC[0],MAC[1],MAC[2],MAC[3]);
 			length += 4;
 		}
 #endif
@@ -264,34 +332,64 @@ namespace wiselib
 		
 		inline uint32_t counter()
 		{
-			//byte: 1, bit: 0, length: 32
-			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 1, 0, 32 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 1, bit: 0, length: 8 --> LSB
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 1, 0, 8 );
+			else
+#endif
+				//byte: 1, bit: 0, length: 32
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 1, 0, 32 );
 		}
 		
 		inline uint8_t pid()
 		{
-			//byte: 5, bit: 0, length: 8
-			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 5, 0, 8 );
+			#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 2, bit: 0, length: 4
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 2, 0, 4 );
+			else
+#endif
+				//byte: 5, bit: 0, length: 8
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 5, 0, 8 );
 		}
 		
 		inline uint8_t fid()
 		{
 			//NOTE must be called only for RPC_* type packets
-			//byte: 6, bit: 0, length: 8
-			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 6, 0, 8 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 2, bit: 4, length: 4
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 2, 4, 4 );
+			else
+#endif
+				//byte: 6, bit: 0, length: 8
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 6, 0, 8 );
 		}
 		
 		inline uint16_t fragmentation_header_length()
 		{
 			//NOTE must be called for packets with reserved fragmentation header positions
-			//byte: 7, bit: 0, length: 16
-			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 7, 0, 16 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 3, bit: 0, length: 8
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 3, 0, 8 );
+			else
+#endif
+				//byte: 7, bit: 0, length: 16
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 7, 0, 16 );
 		}
 		
 		inline uint16_t fragmentation_header_shift()
 		{
-			//byte: 9, bit: 0, length: 16
-			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 9, 0, 16 );
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+			if( compressed_headers )
+				//byte: 4, bit: 0, length: 8
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 4, 0, 8 );
+			else
+#endif
+				//byte: 9, bit: 0, length: 16
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 9, 0, 16 );
 		}
 		
 		inline block_data_t* get_payload()
@@ -310,6 +408,7 @@ namespace wiselib
 				return true;
 			else
 			{
+// 				debug().debug("packet: %x %x %x %x %x %x %x %x %x", buffer[0], buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6],buffer[7],buffer[8] );
 // 				debug().debug("In packet: %x %x %x %x calc: %x %x %x %x", buffer[length-4],buffer[length-3],buffer[length-2],buffer[length-1],MAC[0],MAC[1],MAC[2],MAC[3]);
 				return false;
 			}
@@ -412,18 +511,15 @@ namespace wiselib
 				end = length;
 			}
 			if (start<end) {
+				//NOTE: these are direct iSense calls!
 				GET_OS.aes().ccm_mac(end-start, buffer+start, 4, temp_mac, key, nonce);
 				GET_OS.radio().hardware_radio().hw_enable();
-// 				debug().debug("AES: %i", status);
-
 			}
 
 			MAC[0] ^= temp_mac[0];
 			MAC[1] ^= temp_mac[1];
 			MAC[2] ^= temp_mac[2];
 			MAC[3] ^= temp_mac[3];
-
-			//memset(temp_mac2, 0, 4);
 
 			start = start + DPG_AES_CBC_MAC_MAXIMUM_INPUT_LENGTH;
 		}

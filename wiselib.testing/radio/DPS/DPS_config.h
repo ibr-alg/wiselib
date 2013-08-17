@@ -51,8 +51,8 @@
 	#undef NUMBER_OF_INTERFACES
 	#define NUMBER_OF_INTERFACES 3
 	
-	#define IPv6_TREE_ROUTING
-	#define IPv6_TREE_SINK 0x2144
+// 	#define IPv6_TREE_ROUTING
+// 	#define IPv6_TREE_SINK 0x2144
 #else
 	#error Neither STUB nor SKELETON was defined!
 #endif
@@ -60,11 +60,14 @@
 #define IPv6_PREFIX {0x20, 0x01, 0x63, 0x80, 0x70, 0xA0, 0xB0, 0x69};
 
 
+
+// #define DPS_ENABLE_RPC_HEADER_COMPRESSION
+
 //Footer mode
 // 0 - unused 
 // 1 - XOR based 
 // 2 - AES* based
-#define DPS_FOOTER 2
+#define DPS_FOOTER 1
 
 #if DPS_FOOTER == 2 && not defined ISENSE
 	#error AES based MAC is only for iSense
@@ -87,22 +90,22 @@
 	#define DPS_GENERAL_TIMER_FREQUENCY 100
 	
 	//Client DISCOVERY timeouts
-	#define DPS_TIMER_DISCOVERY_FREQUENCY 200
+	#define DPS_TIMER_DISCOVERY_FREQUENCY 100
 	#define DPS_WAIT_FOR_MORE_ADVERTISEMENTS_TIMEOUT 350
 	
 	//Delete-non connected entries
 	#define DPS_NON_CONNECTED_TIMEOUT 2 * DPS_WAIT_FOR_MORE_ADVERTISEMENTS_TIMEOUT
 	
 	//Connection timeouts
-	#define DPS_HEARTBEAT_THRESHOLD 4000
-	#define DPS_DELETE_CONNECTION_THRESHOLD 9000
+	#define DPS_HEARTBEAT_THRESHOLD 1000
+	#define DPS_DELETE_CONNECTION_THRESHOLD 4000
 	
 	//Communication timeouts
 	#define DPS_ACK_TIMEOUT 100
 	#define DPS_FRAGMENT_COLLECTION_TIMEOUT 500
 	
 	
-	#define DPS_PRINT_STATS 30000
+	#define DPS_PRINT_STATS 60000
 #endif
 
 #define DPS_IPv6

@@ -310,7 +310,7 @@ namespace wiselib
 		typedef vector_static<OsModel, buffer_element_t, DPS_MAX_BUFFER_LIST> Buffer_list_t;
 		typedef typename Buffer_list_t::iterator Buffer_list_iterator;
 		
-		typedef DPS_Packet<OsModel, Radio, Debug, Connection_list_iterator> DPS_Packet_t;
+		typedef DPS_Packet<OsModel, self_type, Debug, Connection_list_iterator> DPS_Packet_t;
 		
 		enum callback_values
 		{
@@ -335,10 +335,10 @@ namespace wiselib
 		};
 		
 		// --------------------------------------------------------------------
-// 		//TODO reduce the size?
-// 		enum Restrictions {
-// 			MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH  ///< Maximal number of bytes in payload
-// 		};
+		enum Restrictions {
+			MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH  ///< Maximal number of bytes in payload
+		};
+		
 		// --------------------------------------------------------------------
 		///@name Construction / Destruction
 		///@{
@@ -418,7 +418,7 @@ namespace wiselib
 			protocol_list_.push_back(newprotocol);
 			
 			#if DPS_RADIO_DEBUG >= 1
-			debug().debug( "DPS: Reg %i C/S: %x", Pid, server);
+			debug().debug( "DPS: Reg %i C/S: %lx", Pid, server);
 			#endif
 			
 			//Start the DISCOVERY if it is a client
@@ -781,8 +781,8 @@ namespace wiselib
 		
 		#if DPS_RADIO_DEBUG >= 2
 		if( type != DPS_Packet_t::DPS_TYPE_HEARTBEAT )
-		debug().debug( "DPS: send to %lx, T: %i", (long long unsigned)(destination), type);
-// 		debug().debug( "DPS: send from %lx to %lx, packet type: %i", (long long unsigned)(radio().id()), (long long unsigned)(destination), type);
+		debug().debug( "DPS: send to %lx, T: %i", (destination), type);
+// 		debug().debug( "DPS: send from %lx to %lx, packet type: %i", (radio().id()), (destination), type);
 		#endif
 		
 // 		packet.set_debug( *debug_ );
@@ -898,14 +898,13 @@ namespace wiselib
 				packet.set_fragmentation_header( act_buffer->buffer_length, act_buffer->processed_size );
 			}
 			
-			uint8_t act_payload_size;
+			
+			//This is the max length for the payload: MAX - Header - Footer
+			uint8_t act_payload_size = Radio::MAX_MESSAGE_LENGTH - packet.payload_position - DPS_Packet_t::DPS_FOOTER_SIZE;
 			//Calculate the payload size for this DPS packet
 			//If the remaining size (buffer_length-processed_size) is bigger than the max payload size
-			if( packet.payload_max_length < act_buffer->buffer_length - act_buffer->processed_size)
-				//Use the full available payload
-				act_payload_size = packet.payload_max_length;
-			else
-				//else: only the required size
+			if( act_payload_size > act_buffer->buffer_length - act_buffer->processed_size)
+				//only the required size
 				act_payload_size = act_buffer->buffer_length - act_buffer->processed_size;
 			
 			//Copy the payload into the packet
@@ -918,11 +917,11 @@ namespace wiselib
 			
 			#if DPS_RADIO_DEBUG >= 2
 			if( fragmentation )
-				debug().debug( "DPS: send RPC frag (%i/%i) to %lx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
-// 				debug().debug( "DPS: send RPC frag (%i/%i) from %lx to %lx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+				debug().debug( "DPS: send RPC frag (%i/%i) to %lx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+// 				debug().debug( "DPS: send RPC frag (%i/%i) from %lx to %lx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (radio().id()), (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
 			else
-				debug().debug( "DPS: send RPC to %lx (%i/%i)", (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
-// 				debug().debug( "DPS: send RPC from %lx to %lx (%i/%i)", (long long unsigned)(radio().id()), (long long unsigned)(act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+				debug().debug( "DPS: send RPC to %lx (%i/%i)", (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+// 				debug().debug( "DPS: send RPC from %lx to %lx (%i/%i)", (radio().id()), (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
 			#endif
 			
 			//Send the (fragment)
@@ -988,13 +987,15 @@ namespace wiselib
 		//used many times
 		uint8_t type = packet.type();
 		
-// 		packet.set_debug( *debug_ );
+// // 		packet.set_debug( *debug_ );
 // 		packet.print_header();
 		
 		#if DPS_RADIO_DEBUG >= 2
 		if( type != DPS_Packet_t::DPS_TYPE_HEARTBEAT )
-			debug().debug( "DPS: Rec from %lx, T: %i ", (long long unsigned)(from), type);
-// 		debug().debug( "DPS: Node %lx received from %lx, packet type: %i ", (long long unsigned)(radio().id()), (long long unsigned)(from), type);
+		{
+			debug().debug( "DPS: Rec from %lx, T: %i len %i Ctr %x", (from), type, length, packet.counter());
+// 			debug().debug("packet: %x %x %x %x %x %x %x %x %x", data[0], data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8] );
+		}
 		#endif
 		
 		//Handled in a different way since there is no connection in the list for this
@@ -1081,16 +1082,45 @@ namespace wiselib
 #ifndef DPS_COMPILE_ONLY_CLIENT_CODES
 				//This is an expensive request...
 				bool server = protocol_list_[packet.pid()].server;
+				
+				//Quick hack for the checksum interoperability
+				if( type == DPS_Packet_t::DPS_TYPE_CONNECT_REQUEST )
+					it->client_counter = packet.counter();
 #endif
 				
 				//validate counters and save the pointer of the actual one
 				//The counter value in the packet must be greater or equal compared to the expected,
 				uint32_t* counter = NULL;
 				
+				
+				bool packet_counter_acceptable_as_SERVER_counter = false;
+				bool packet_counter_acceptable_as_CLIENT_counter = false;
+				
+				uint32 packet_counter = packet.counter();
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+				if( packet.compressed_headers )
+				{
+					//Here we only have the last 8 bits from the counter, so we have to accept counter values "less" than
+					//the expected, now these are accepted if the difference is at least 250 to tolerate some packet loss.
+					packet_counter = packet_counter & 0x000000FF;
+					uint8_t LSB_server_counter = it->server_counter & 0x000000FF;
+					uint8_t LSB_client_counter = it->client_counter & 0x000000FF;
+					packet_counter_acceptable_as_SERVER_counter = ( LSB_server_counter <= packet_counter ) || ( LSB_server_counter-packet_counter > 250 );
+					packet_counter_acceptable_as_CLIENT_counter = ( LSB_client_counter <= packet_counter ) || ( LSB_client_counter-packet_counter > 250 );
+				}
+				else
+#endif
+				{
+					packet_counter_acceptable_as_SERVER_counter = it->server_counter <= packet_counter;
+					packet_counter_acceptable_as_CLIENT_counter = it->client_counter <= packet_counter;
+				}
+				
+				
+				
 				//For connection messages we always use the client counter
 				if (type <= DPS_Packet_t::DPS_TYPE_DISCONNECT_FINISH )
 				{
-					if( it->client_counter <= packet.counter() )
+					if( packet_counter_acceptable_as_CLIENT_counter )
 						counter = &(it->client_counter);
 				}
 				//For ACK-s the own counter value is used (server - server) (client -client)
@@ -1098,11 +1128,11 @@ namespace wiselib
 				{
 #ifndef DPS_COMPILE_ONLY_CLIENT_CODES
 					if( server )
-						if( it->server_counter <= packet.counter() )
+						if( packet_counter_acceptable_as_SERVER_counter )
 							counter = &(it->server_counter);
 					else 
 #endif
-						if ( it->client_counter <= packet.counter() )
+						if ( packet_counter_acceptable_as_CLIENT_counter )
 							counter = &(it->client_counter);
 				}
 				//For normal RPC messages, the other partie's counter is used
@@ -1111,13 +1141,13 @@ namespace wiselib
 #ifndef DPS_COMPILE_ONLY_CLIENT_CODES
 					if( server )
 					{
-						if ( it->client_counter <= packet.counter() )
+						if ( packet_counter_acceptable_as_CLIENT_counter )
 							counter = &(it->client_counter);
 					}
 					else 
 #endif
 					{
-						if( it->server_counter <= packet.counter() )
+						if( packet_counter_acceptable_as_SERVER_counter )
 							counter = &(it->server_counter);
 					}
 				}
@@ -1127,11 +1157,14 @@ namespace wiselib
 				{
 					#if DPS_RADIO_DEBUG >= 0
 // 					debug().debug( "DPS CNTErr " );
-					debug().debug( "DPS CNTErr from: %lx type: %i S: %lx C: %lx P: %lx", (long long unsigned)(from), type, (long long unsigned)(it->server_counter), (long long unsigned)(it->client_counter), (long long unsigned)(packet.counter()) );
+					debug().debug( "DPS CNTErr from: %lx type: %i", (from), type);
+					debug().debug( "Server: %x",(it->server_counter));
+					debug().debug( "Client: %x",(it->client_counter));
+					debug().debug( "Packet: %x",(packet.counter()) );
 					#endif
 					return;
 				}
-// 				debug().debug( "DPS: packet S: %lx C: %lx P: %lx", (long long unsigned)(it->server_counter), (long long unsigned)(it->client_counter), (long long unsigned)(packet.counter()) );
+// 				debug().debug( "DPS: packet S: %lx C: %lx P: %lx", (it->server_counter), (it->client_counter), (packet.counter()) );
 				
 				//Reset the connection timer
 				it->last_received_timer = 0;
@@ -1170,10 +1203,8 @@ namespace wiselib
 				//The heartbeat is the most common message type
 				if( type == DPS_Packet_t::DPS_TYPE_HEARTBEAT )
 				{
-					//increment the timer
-// 					(*counter)++;
-					(*counter) = packet.counter();
-// 					send_connection_message( from, DPS_Packet_t::DPS_TYPE_HEARTBEAT, it );
+					//increment the counter, these are never compressed
+					(*counter) = packet_counter;
 				}
 				else if( type == DPS_Packet_t::DPS_TYPE_RPC_ACK )
 				{
@@ -1203,7 +1234,6 @@ namespace wiselib
 								
 								//Sending completed, increment the counter
 								(*counter)++;
-// 								(*counter) = packet.counter();
 								
 								//remove from the list
 								buffer_list_.erase( act_buffer );
@@ -1282,7 +1312,7 @@ namespace wiselib
 							memcpy( act_buffer->buffer_pointer + packet.fragmentation_header_shift(), packet.buffer + packet.payload_position, actual_payload_length );
 						else
 						{
-// 							debug().debug( "DPS: DF %lx ST: %i P: %i", (long long unsigned)from, act_buffer->processed_size, packet.fragmentation_header_shift());
+// 							debug().debug( "DPS: DF %lx ST: %i P: %i", from, act_buffer->processed_size, packet.fragmentation_header_shift());
 							DF_drop = true;
 						}
 					}
@@ -1305,7 +1335,7 @@ namespace wiselib
 					if( DF_drop )
 					{
 						#if DPS_RADIO_DEBUG >= 1
-						debug().debug( "DPS: OffsetDrop %lx %i", (long long unsigned)from, act_buffer->processed_size);
+						debug().debug( "DPS: OffsetDrop %lx %i", from, act_buffer->processed_size);
 // 						debug().debug( "DPS duplicated fragment %i %i!", act_buffer->processed_size, packet.fragmentation_header_shift() );
 						#endif
 						return;
@@ -1318,8 +1348,15 @@ namespace wiselib
 					//Notify the the RPC_handler if the full RPC is here
 					if( act_buffer->processed_size == act_buffer->buffer_length )
 					{
-// 						(*counter)++;
-						(*counter) = packet.counter();
+#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+					if( counter == &(it->server_counter) )
+						(*counter) = (it->server_counter & 0xFFFFFF00) | packet_counter;
+					else
+						(*counter) = (it->client_counter & 0xFFFFFF00) | packet_counter;
+#else
+					//If the counter is not compressed, just get it from the packet
+					(*counter) = packet_counter;
+#endif
 						
 						(protocol_list_[packet.pid()].rpc_handler_delegate)( act_buffer->RPC_parameters, act_buffer->buffer_length, act_buffer->buffer_pointer );
 						
@@ -1354,7 +1391,7 @@ namespace wiselib
 						it->link_metric = ex.link_metric();
 						
 						#if DPS_RADIO_DEBUG >= 1
-						debug().debug( "DPS: candidate (%lx) stored with link_metric: %i", (long long unsigned)(from), it->link_metric );
+						debug().debug( "DPS: candidate (%lx) stored with link_metric: %i", (from), it->link_metric );
 						#endif
 					}
 				}
@@ -1371,8 +1408,8 @@ namespace wiselib
 					it->server_counter = bitwise_read<OsModel, block_data_t, uint32_t>( payload, 0, 32 );
 					
 					#if DPS_RADIO_DEBUG >= 1
-					debug().debug( "DPS: Client (%lx) connected to %lx, protocol: %i", (long long unsigned)(radio().id()), (long long unsigned)(from), it->Pid);
-					debug().debug( "DPS CNT_c: %lx, CNT_s: %lx, nonce: %lx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
+					debug().debug( "DPS: Client (%lx) connected to %lx, protocol: %i", (radio().id()), (from), it->Pid);
+					debug().debug( "DPS CNT_c: %x, CNT_s: %x, nonce: %x", (it->client_counter), (it->server_counter), (it->connection_nonce) );
 					#endif
 					
 					send_connection_message( from, DPS_Packet_t::DPS_TYPE_CONNECT_FINISH, it );
@@ -1390,8 +1427,8 @@ namespace wiselib
 					it->connection_status = connection_type::CONNECTED;
 					
 					#if DPS_RADIO_DEBUG >= 1
-					debug().debug( "DPS: Server (%lx) connected to %lx, protocol: %i", (long long unsigned)(radio().id()), (long long unsigned)(from), it->Pid);
-					debug().debug( "DPS CNT_c: %lx, CNT_s: %lx, nonce: %lx", (long long unsigned)(it->client_counter), (long long unsigned)(it->server_counter), (long long unsigned)(it->connection_nonce) );
+					debug().debug( "DPS: Server (%lx) connected to %lx, protocol: %i", (radio().id()), (from), it->Pid);
+					debug().debug( "DPS CNT_c: %x, CNT_s: %x, nonce: %x", (it->client_counter), (it->server_counter), (it->connection_nonce) );
 					#endif
 					
 					//Call back the handler because of the new connection
@@ -1411,8 +1448,8 @@ namespace wiselib
 			}
 		}
 		#if DPS_RADIO_DEBUG >= 0
-		debug().debug( "DPS MsgNoConn from %lx", (long long unsigned)from );
-// 		debug().debug( "DPS: Error, (%lx) received from %lx, no conn!", (long long unsigned)(radio().id()), (long long unsigned)(from));
+		debug().debug( "DPS MsgNoConn from %lx", from );
+// 		debug().debug( "DPS: Error, (%lx) received from %lx, no conn!", (radio().id()), (from));
 		#endif
 	}
 	
@@ -1518,7 +1555,7 @@ namespace wiselib
 			if( server_remove_connection )
 			{
 				#if DPS_RADIO_DEBUG >= 0
-				debug().debug( "DPS: rm client (%lx/%i)", (long long unsigned)(it->partner_MAC), it->Pid);
+				debug().debug( "DPS: rm client (%lx/%i)", (it->partner_MAC), it->Pid);
 				#endif
 				
 				//TODO check for buffer in use!
@@ -1550,7 +1587,7 @@ namespace wiselib
 			if( client_restart_discovery )
 			{
 				#if DPS_RADIO_DEBUG >= 0
-				debug().debug( "DPS: reDISC (%lx/%i)", (long long unsigned)(it->partner_MAC), it->Pid);
+				debug().debug( "DPS: reDISC (%lx/%i)", (it->partner_MAC), it->Pid);
 				#endif
 				
 #ifdef DPS_COLLECT_STATS
@@ -1606,7 +1643,7 @@ namespace wiselib
 					buffer_timeouts++;
 #endif
 				
-#if DPS_RADIO_DEBUG >= 0
+#if DPS_RADIO_DEBUG >= 1
 				if( it->processed_size != it->buffer_length )
 					debug().debug( "DPS: Timeout rm buffer");
 #endif
