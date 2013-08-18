@@ -466,11 +466,13 @@ namespace wiselib
 	{
 		memset(MAC,0,4);
 		
-		uint8_t* key = connection->key;
+		uint8_t* key;
 		
 		//Use the request key for the DISCOVERY and ADVERTISE messages
 		if( use_request_key )
 			key = (uint8_t*)DPS_REQUEST_KEY;
+		else
+			key = connection->key;
 		
 		
 #if DPS_FOOTER == 1

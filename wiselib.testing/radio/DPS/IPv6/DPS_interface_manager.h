@@ -350,9 +350,6 @@ namespace wiselib
 #ifdef DPS_IPv6_SKELETON
 			callback_ids_[INTERFACE_RADIO] = radio_lowpan().template reg_recv_callback<Radio_IPv6, &Radio_IPv6::receive>( ipv6 );
 			callback_ids_[INTERFACE_UART] = radio_uart().template reg_recv_callback<Radio_IPv6, &Radio_IPv6::receive>( ipv6 );
-// 			radio_dps().template reg_recv_callback<self_type,&self_type::RPC_handler, &self_type::manage_buffer>( this, 10, true );
-// #elif defined DPS_IPv6_STUB
-// 			radio_dps().template reg_recv_callback<self_type,&self_type::RPC_handler, &self_type::manage_buffer>( this, 10, false );
 #endif
 			
 		}
@@ -515,8 +512,6 @@ namespace wiselib
 			
 			if( i == IP_PACKET_POOL_SIZE )
 				debug_->debug( "FATAL couldn't find the packet" );
-			else
-				manage_buffer( buffer, length, false );
 		}
 #ifdef  DPS_IPv6_SKELETON
 		else if( IDs.Fid == Get_IPv6_Address )
