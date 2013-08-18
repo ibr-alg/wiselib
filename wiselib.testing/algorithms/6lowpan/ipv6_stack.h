@@ -37,6 +37,10 @@
 #include "algorithms/6lowpan/icmpv6.h"
 #include "algorithms/6lowpan/udp.h"
 
+#ifdef RPL_DEFINED
+#include "algorithms/routing/rpl/rpl_routing.h"
+#endif
+
 
 namespace wiselib
 {
@@ -92,6 +96,10 @@ namespace wiselib
 		typedef wiselib::UDP<OsModel, IPv6_t, Radio, Debug> UDP_t;
 		typedef wiselib::ICMPv6<OsModel, IPv6_t, Radio, Debug, Timer> ICMPv6_t;
 		typedef wiselib::IPv6PacketPoolManager<OsModel, Radio, Debug> Packet_Pool_Mgr_t;
+
+		#ifdef RPL_DEFINED
+		typedef wiselib::RPLRouting<OsModel, IPv6_t, Radio, Debug, Timer/*, Clock*/> RPL_t;	
+		#endif
 		
 		enum ErrorCodes
 		{
@@ -149,12 +157,26 @@ namespace wiselib
 			
 // 			if( !lowpan.nd_storage_.is_router )
 // 				icmpv6.ND_timeout_manager_function( NULL );
+
+			#ifdef RPL_DEFINED
+			//Init RPLRouting
+			rpl.init( ipv6, *radio_, *debug_, *timer_, &packet_pool_mgr);
+									
+			//Just register callback, not enable IP radio
+			if( SUCCESS != rpl.enable_radio() )
+				debug_->debug( "Fatal error: RPL protocol enabling failed! " );
+
+			#endif			
+
 		}
 		
 		ICMPv6_t icmpv6; 
 		UDP_t udp;
 		IPv6_t ipv6;
 		InterfaceManager_t interface_manager;
+		#ifdef RPL_DEFINED
+		RPL_t rpl;
+		#endif
 		
 	private:
 		typename Radio::self_pointer_t radio_;
