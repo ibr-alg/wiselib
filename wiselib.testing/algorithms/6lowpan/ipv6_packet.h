@@ -240,7 +240,7 @@ namespace wiselib
 		}
 		
 		//NOTE This function returns the used transport layer's value!
-		inline uint8_t transport_next_header()
+		uint8_t transport_next_header()
 		{
 			if( transport_next_header_ == 0 )
 			{

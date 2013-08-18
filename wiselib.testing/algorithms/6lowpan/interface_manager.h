@@ -218,16 +218,20 @@ namespace wiselib
 			/*
 				Generate checksum
 			*/
-			uint8_t* transport_payload = ip_packet->payload();
+// 			uint8_t* transport_payload = ip_packet->payload();
 			
-			if( ((transport_payload[2] << 8 ) | transport_payload[3] ) == 0 && ip_packet->transport_next_header() == Radio_LoWPAN::ICMPV6 )
+			if( /*((transport_payload[2] << 8 ) | transport_payload[3] ) == 0 && */ ip_packet->transport_next_header() == Radio_LoWPAN::ICMPV6 )
 			{
-				uint16_t checksum = ip_packet->generate_checksum();
+				uint16_t checksum = 0;
+				ip_packet->template set_payload<uint16_t>( &checksum, 2 );
+				checksum = ip_packet->generate_checksum();
 				ip_packet->template set_payload<uint16_t>( &checksum, 2 );
 			}
-			if( ((transport_payload[6] << 8 ) | transport_payload[7] ) == 0 && ip_packet->transport_next_header() == Radio_LoWPAN::UDP )
+			else if( /*((transport_payload[6] << 8 ) | transport_payload[7] ) == 0 && */ ip_packet->transport_next_header() == Radio_LoWPAN::UDP )
 			{
-				uint16_t checksum = ip_packet->generate_checksum();
+				uint16_t checksum = 0;
+				ip_packet->template set_payload<uint16_t>( &checksum, 6 );
+				checksum = ip_packet->generate_checksum();
 				ip_packet->template set_payload<uint16_t>( &checksum, 6 );
 			}
 			
