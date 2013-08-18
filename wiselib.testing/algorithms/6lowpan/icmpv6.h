@@ -857,7 +857,7 @@ namespace wiselib
 			}
 		}
 	//----------------  ECHO messages processing part END----------------
-		#ifdef RPL_CONFIGURED
+		#ifdef RPL_DEFINED
 		//If this a RPL control message, it is handled by the RPL class
 		else if( typecode == RPL_CONTROL_MESSAGE )
 		{
