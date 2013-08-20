@@ -41,6 +41,7 @@
 // ---------------- Routing -------------------------------------------------
 #define ROUTING_FLOODING_DEBUG
 #define ROUTING_STATIC_DEBUG
+//#define ROUTING_RPL_DEBUG
 
 
 // ---------------- 6LoWPAN -------------------------------------------------

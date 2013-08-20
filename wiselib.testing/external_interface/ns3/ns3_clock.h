@@ -16,50 +16,60 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef CONNECTOR_NS3_TIMER_H
-#define CONNECTOR_NS3_TIMER_H
+#ifndef CONNECTOR_NS3_CLOCK_H
+#define CONNECTOR_NS3_CLOCK_H
 
 #include "external_interface/ns3/ns3_types.h"
+#include <cstdlib>
 
 namespace wiselib
 {
-   /** \brief NS-3 Implementation of \ref timer_concept "Timer Concept".
-    *
-    *  \ingroup timer_concept
+   /** \brief Ns3 Implementation of \ref clock_concept "Clock Concept"
+    *  \ingroup clock_concept
     *  \ingroup ns3_facets
     *
-    *  NS-3 implementation of the \ref timer_concept "Timer Concept" ...
+    * Ns3 implementation of the \ref clock_concept "Clock Concept" ...
     */
    template<typename OsModel_P>
-   class Ns3TimerModel
+   class Ns3ClockModel
    {
    public:
       typedef OsModel_P OsModel;
 
-      typedef Ns3TimerModel<OsModel> self_type;
+      typedef Ns3ClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
 
-      typedef uint32_t millis_t;
+      typedef double time_t;
+
       // --------------------------------------------------------------------
-      enum ErrorCodes
-      {
-         SUCCESS = OsModel::SUCCESS,
-         ERR_UNSPEC = OsModel::ERR_UNSPEC
+      enum {
+         CLOCKS_PER_SECOND = 1000
       };
       // --------------------------------------------------------------------
-      Ns3TimerModel( Ns3Os& os )
+      Ns3ClockModel( Ns3Os& os )
          : os_(os)
       {}
       // --------------------------------------------------------------------
-      template<typename T, void (T::*TMethod)(void*)>
-      int set_timer( millis_t millis, T *obj_pnt, void *userdata )
+      time_t time()
       {
-         if (os().proc.template SetTimeout<T, TMethod>( millis, obj_pnt, userdata ))
-           return SUCCESS;
-
-         return ERR_UNSPEC;
+         return os().proc.GetNs3Time ();
       }
-     
+      // --------------------------------------------------------------------
+      uint16_t microseconds( time_t time )
+      {
+         return (uint16_t)((time - int(time)) * 1000);
+      }
+      // --------------------------------------------------------------------
+      uint16_t milliseconds( time_t time )
+      {
+         return (uint16_t)((time - int(time)) * 1000);
+      }
+      // --------------------------------------------------------------------
+      uint32_t seconds( time_t time )
+      {
+         return (uint32_t)time;
+      }
+
    private:
       Ns3Os& os()
       { return os_; }

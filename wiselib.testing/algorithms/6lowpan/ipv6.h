@@ -408,20 +408,17 @@
 			//New TLV
 			if( add )
 			{
+				HOHO_header_size += length;
+				
 				//It fits into the padding
-				if( length < HOHO_header_padding )
+				if( length <= HOHO_header_padding )
 				{
 					HOHO_header_padding -= length;
-					HOHO_header_size += length;
 				}
 				//New 8-octet block(s) are needed
 				else
 				{
-					//Calculate the new padding size: old + new TLV sizes rounded to 8 octet units
-					uint8_t new_padding = 8 - (( HOHO_header_size - HOHO_header_padding + length ) % 8 );
-					
-					HOHO_header_size = HOHO_header_size - HOHO_header_padding + length + new_padding;
-					HOHO_header_padding = new_padding;
+					HOHO_header_padding = 8 - (( HOHO_header_size ) % 8 );
 				}
 			}
 			//remove TLV
@@ -429,18 +426,15 @@
 			{
 				//If this is the only TLV: switch off HOHO
 				// -2 because of the HOHO header
-				if( length == (HOHO_header_size - HOHO_header_padding - 2) )
+				if( length == (HOHO_header_size - 2) )
 				{
 					HOHO_header_padding = 0;
 					HOHO_header_size = 0;
 				}
 				else
 				{
-					//Calculate the new padding size: old - new TLV sizes rounded to 8 octet units
-					uint8_t new_padding = 8 - (( HOHO_header_size - HOHO_header_padding - length ) % 8 );
-					
-					HOHO_header_size = HOHO_header_size - HOHO_header_padding - length + new_padding;
-					HOHO_header_padding = new_padding;
+					HOHO_header_size -= length;
+					HOHO_header_padding = 8 - (( HOHO_header_size ) % 8 );
 				}
 			}
 		}
@@ -946,6 +940,7 @@
 			packet_pool_mgr_->clean_packet( message );
 			return;
 		}
+		
 		
 		// Process Extension Headers
 		if( message->real_next_header() != message->transport_next_header() )
