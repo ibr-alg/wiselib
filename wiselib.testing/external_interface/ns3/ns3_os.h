@@ -23,6 +23,8 @@
 #include "external_interface/ns3/ns3_types.h"
 #include "external_interface/ns3/ns3_debug.h"
 #include "external_interface/ns3/ns3_timer.h"
+#include "external_interface/ns3/ns3_radio.h"
+#include "external_interface/ns3/ns3_clock.h"
 #include "util/serialization/endian.h"
 
 
@@ -49,6 +51,8 @@ namespace wiselib
 
       typedef Ns3DebugModel<Ns3OsModel> Debug;
       typedef Ns3TimerModel<Ns3OsModel> Timer;
+      typedef Ns3RadioModel<Ns3OsModel> Radio;
+      typedef Ns3ClockModel<Ns3OsModel> Clock;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };
