@@ -12,8 +12,9 @@ from parse_rdftemplate import parse_rdftemplate
 import threading
 
 javaprog_path = os.path.dirname(sys.argv[0])
+java_flags = ['-Djava.library.path=/usr/lib']
 #java_flags = ['-Djava.library.path=' + javaprog_path]
-java_flags = ['-Djava.library.path=/usr/lib/jni:java.library.path=/usr/lib:java.library.path=/Volumes/HDD/Users/ctemail/Desktop/flash_rdfprovider:' + javaprog_path]
+#java_flags = ['-Djava.library.path=/usr/lib/jni:java.library.path=/usr/lib:java.library.path=/Volumes/HDD/Users/ctemail/Desktop/flash_rdfprovider:' + javaprog_path]
 jar = javaprog_path + '/rsc.apps.flashloader-0.3-SNAPSHOT.one-jar.jar'
 javacall = ['java'] + java_flags + ['-jar', jar]
 
