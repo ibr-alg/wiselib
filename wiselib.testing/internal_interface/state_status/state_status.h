@@ -179,6 +179,7 @@ namespace wiselib
 				sum_yy = sum_yy + _v.get_ss_vector_ref()->at(i) * _v.get_ss_vector_ref()->at(i) * 100;
 				sum_xy = sum_xy + _v.get_ss_vector_ref()->at(i) * ss_vector[i] * 100;
 			}
+			if ( sqrt32( ( SS_VECTOR_SIZE * sum_xx - ( sum_x ) * ( sum_x ) ) * ( SS_VECTOR_SIZE * sum_yy - ( sum_y ) * ( sum_y ) ) ) == 0 ){ return 0; }
 			return ( ( SS_VECTOR_SIZE * sum_xy ) - ( sum_x * sum_y ) ) * 100 / sqrt32( ( SS_VECTOR_SIZE * sum_xx - ( sum_x ) * ( sum_x ) ) * ( SS_VECTOR_SIZE * sum_yy - ( sum_y ) * ( sum_y ) ) );
 		}
 		// --------------------------------------------------------------------

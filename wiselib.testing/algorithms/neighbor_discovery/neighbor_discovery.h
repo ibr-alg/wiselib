@@ -33,10 +33,10 @@
 #include "util/serialization/simple_types.h"
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef UNIGE_TESTBED
-#include "../topologies/UNIGE_ISENSE_topology.h"
+#include "../../../apps/generic_apps/topologies/UNIGE_ISENSE_topology.h"
 #endif
 #ifdef CTI_TESTBED
-#include "../topologies/CTI_ISENSE_topology.h"
+#include "../../../apps/generic_apps/topologies/CTI_ISENSE_topology.h"
 #endif
 #endif
 
@@ -143,7 +143,7 @@ namespace wiselib
 			Neighbor n;
 			n.set_id( radio().id() );
 			n.set_active();
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_ISENSE
 			n.set_position( get_node_info<Position, Radio>( &radio() ) );
 			set_position( get_node_info<Position, Radio>( &radio() ).get_x(), get_node_info<Position, Radio>( &radio() ).get_y(), get_node_info<Position, Radio>( &radio() ).get_z() );
 #endif
@@ -330,7 +330,9 @@ namespace wiselib
 						beacon.set_protocol_payloads( protocols );
 						beacon.set_beacon_period( bp );
 						beacon.set_beacon_period_update_counter( n->get_beacon_period_update_counter() );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
 						beacon.set_TP( get_transmission_power_dB() );
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_SMALL_PAYLOAD
 						Neighbor_vector nv_SCL;
 						Neighbor_vector nv_non_SCL;
@@ -395,11 +397,11 @@ namespace wiselib
 								i->print( debug(), radio() );
 							}
 #endif
-#else
-						Neighbor_vector nv = p_ptr->get_neighborhood();
-#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 						beacon.set_SCLD( SCLD );
+#endif
+#else
+						Neighbor_vector nv = p_ptr->get_neighborhood();
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 						beacon.set_position( position );

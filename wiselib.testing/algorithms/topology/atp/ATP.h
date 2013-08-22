@@ -44,6 +44,11 @@
 #define CONFIG_ATP_H_SIMPLE_SCLD
 #include "path_loss_static.h"
 #endif
+
+#ifdef CONFIG_ATP_H_DTPC_OPEN_LOOP
+#define CONFIG_ATP_H_SIMPLE_SCLD
+#endif
+
 namespace wiselib
 {
 	template<	typename Os_P,
@@ -177,9 +182,9 @@ namespace wiselib
 						255, 0, 255, 0,
 #endif
 #ifdef CONFIG_ATP_H_RSSI_FILTERING
-						255, 50, 255, 50,
+						255, 0, 255, 0,
 #endif
-				100, 80, 100, 0, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
+				100, 80, 100, 80, events_flag, ProtocolSettings::RATIO_DIVIDER, 2, ProtocolSettings::NEW_DEAD_TIME_PERIOD, 100, 100, ProtocolSettings::R_NR_WEIGHTED, 1, 1, pp );
 				scl(). template register_protocol<self_type, &self_type::events_callback>( ASCL::ATP_PROTOCOL_ID, ps, this  );
 #ifdef CONFIG_ATP_H_RANDOM_DB
 				transmission_power_dB = ( rand()()%5 ) * ( -1 ) * ATP_H_DB_STEP;
@@ -232,7 +237,7 @@ namespace wiselib
 					debug().debug("TT_PER_OUT:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_send_0, periodic_bytes_send_6, periodic_bytes_send_12, periodic_bytes_send_18, periodic_bytes_send_24, periodic_bytes_send_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
-					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12(, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
@@ -364,7 +369,7 @@ namespace wiselib
 					debug().debug("TT_PER_OUT:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_send_0, periodic_bytes_send_6, periodic_bytes_send_12, periodic_bytes_send_18, periodic_bytes_send_24, periodic_bytes_send_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
 #ifdef DEBUG_ATP_H_STATS_SHAWN
-					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12(, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
+					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%f:%f\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
 #endif
 #ifdef	DEBUG_ATP_H_STATS_ISENSE
 					debug().debug("TT_PER_IN:%d:%x:%d:%d:%d:%d:%d:%d:%d:%d\n", monitoring_phase_counter, radio().id(), periodic_bytes_received_0, periodic_bytes_received_6, periodic_bytes_received_12, periodic_bytes_received_18, periodic_bytes_received_24, periodic_bytes_received_30, scl().get_position().get_x(), scl().get_position().get_y() );
@@ -376,10 +381,13 @@ namespace wiselib
 				if ( ( ( nd_active_size < SCLD_MIN_threshold ) || ( get_local_SCLD_MINS() > 0 )	)
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
-						if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) >= 0 )
+						if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) > 0 )
 #endif
 #ifdef CONFIG_ATP_H_LMN_PLUS
 				if (	( nd_active_avg_SCLD < SCLD_MIN_threshold )
+#endif
+#ifdef CONFIG_ATP_H_DTPC_CLOSED_LOOP
+				if (	(nd_active_size < (SCLD_MIN_threshold + SCLD_MAX_threshold)/2 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( transmission_power_status.try_lock() )
@@ -407,18 +415,21 @@ namespace wiselib
 					}
 #endif
 				}
-#ifndef CONFIG_ATP_H_DTPC
+#ifndef CONFIG_ATP_H_DTPC_OPEN_LOOP
 #ifdef CONFIG_ATP_H_SIMPLE_SCLD
 				else if (	( nd_active_size > SCLD_MAX_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_BALANCED
-				else if ( ( ( nd_active_size >= SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
+				else if ( ( ( nd_active_size > SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )
 #endif
 #ifdef CONFIG_ATP_H_LMN_PLUS
 				if (	( nd_active_avg_SCLD > SCLD_MAX_threshold )
+#endif
+#ifdef CONFIG_ATP_H_DTPC_CLOSED_LOOP
+				if (	(nd_active_size > (SCLD_MIN_threshold + SCLD_MAX_threshold)/2 )
 #endif
 #ifdef CONFING_ATP_H_STATUS_CONTROL
 						&& ( transmission_power_status.try_lock() )
@@ -456,7 +467,11 @@ namespace wiselib
 					}
 				}
 #ifdef DEBUG_ATP_H_STATS
+#ifdef CONFIG_ATP_H_DTPC_CLOSED_LOOP
+				if ( nd_active_size < (SCLD_MIN_threshold + SCLD_MAX_threshold)/2 )
+#else
 				if ( nd_active_size < ATP_H_SCLD_MIN_THRESHOLD )
+#endif
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MINIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
@@ -465,7 +480,11 @@ namespace wiselib
 					debug().debug( "LOCAL_MINIMUM:%d:%x:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
 #endif
 				}
+#ifdef CONFIG_ATP_H_DTPC_CLOSED_LOOP
+				else if ( nd_active_size > (SCLD_MIN_threshold + SCLD_MAX_threshold)/2 )
+#else
 				else if ( nd_active_size > ATP_H_SCLD_MAX_THRESHOLD )
+#endif
 				{
 #ifdef	DEBUG_ATP_H_STATS_SHAWN
 					debug().debug( "LOCAL_MAXIMUM:%d:%d:%d\n", monitoring_phase_counter, radio().id(),  nd_active_size );
@@ -695,7 +714,7 @@ namespace wiselib
 				else if ( ( nd_active_size >= SCLD_MIN_threshold )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_BALANCED
-				else if ( ( ( nd_active_size >= SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
+				else if ( ( ( nd_active_size > SCLD_MAX_threshold ) && ( get_local_SCLD_MINS() == 0 ) )
 #endif
 #ifdef CONFIG_ATP_H_LOCAL_SCLD_MINS_MAXS
 				else if ( ( ( get_local_SCLD_MINS() - get_local_SCLD_MAXS() ) < 0 )

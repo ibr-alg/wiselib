@@ -60,7 +60,7 @@ namespace wiselib
       };
       // --------------------------------------------------------------------
       enum Restrictions {
-         MAX_MESSAGE_LENGTH = 0xff   ///< Maximal number of bytes in payload
+         MAX_MESSAGE_LENGTH = 0xfff   ///< Maximal number of bytes in payload
       };
       // --------------------------------------------------------------------
       class TxPower;
@@ -263,15 +263,37 @@ namespace wiselib
       return TxPower(std::pow(10.0,db/10.0));
    }
    //------------------------------------------------------------------------
+   // template<typename OsModel_P>
+   //void ShawnTxRadioModel<OsModel_P>::TxPower::set_dB(int db){
+   //    if(db<=0)
+   //      value=std::pow(10.0,db/10.0);
+   //}
+   //------------------------------------------------------------------------
    template<typename OsModel_P>
    void ShawnTxRadioModel<OsModel_P>::TxPower::set_dB(int db){
-      if(db<=0)
-         value=std::pow(10.0,db/10.0);
+      if ( db < -30 )
+      {
+    	  db = -30;
+      }
+	  if ( db >= 0 )
+	  {
+		  db = 0;
+	  }
+	  if( db <= 0 )
+      {
+         value=std::pow(10.0,db/30.0);
+      }
+  //  printf("that cursed value : %f\n", value );
    }
+   //------------------------------------------------------------------------
+   //template<typename OsModel_P>
+   //inline int ShawnTxRadioModel<OsModel_P>::TxPower::to_dB() const {
+   //   return std::log10(value)*10.0+.5;
+   //}
    //------------------------------------------------------------------------
    template<typename OsModel_P>
    inline int ShawnTxRadioModel<OsModel_P>::TxPower::to_dB() const {
-      return std::log10(value)*10.0+.5;
+	   return std::log10(value) * 30.0 - .5;
    }
    //------------------------------------------------------------------------
    template<typename OsModel_P>
