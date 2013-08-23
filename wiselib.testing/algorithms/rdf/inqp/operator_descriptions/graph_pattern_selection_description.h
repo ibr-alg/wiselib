@@ -46,18 +46,13 @@ namespace wiselib {
 		typename Processor_P
 	>
 	class GraphPatternSelectionDescription : public OperatorDescription<OsModel_P, Processor_P> {
-		
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef OperatorDescription<OsModel_P, Processor_P> Base;
-			//typedef typename Base::Value Value;
 			typedef Processor_P Processor;
 			typedef typename Processor::Value Value;;
-			
-			//typedef ... Dictionary;
-			//typedef ... DictionaryKey;
 			
 			enum {
 				OFFSET_AFFECTS = Base::OFFSET_BASE_END,
@@ -70,14 +65,10 @@ namespace wiselib {
 			}
 			
 			size_type affected_columns() {
-				// funktioniert bestimmt...
-				
 				return (size_type)affects(0) + (size_type)affects(1) + (size_type)affects(2);
 			}
 			
 			Value value(size_type column) {
-				// funktioniert bestimmt...
-				
 				block_data_t &affects = *(this->data_ + OFFSET_AFFECTS);
 				if(!(affects & (1 << column))) {
 					return 0;
@@ -90,7 +81,6 @@ namespace wiselib {
 					b >>= 1;
 				}
 				
-				//return *reinterpret_cast<Value*>(this->data_ + OFFSET_VALUES + offs * sizeof(Value));
 				Value value;
 				wiselib::read<OsModel, block_data_t, Value>(this->data_ + OFFSET_VALUES + offs * sizeof(Value), value);
 				return value;
@@ -99,10 +89,6 @@ namespace wiselib {
 			size_type size() {
 				return OperatorDescription<OsModel, Processor>::size() + 1 + this->affected_columns() * sizeof(Value);
 			}
-		
-		private:
-
-		
 	}; // GraphPatternSelectionDescription
 }
 

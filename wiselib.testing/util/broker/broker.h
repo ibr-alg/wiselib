@@ -127,12 +127,21 @@ namespace wiselib {
 				return bitmask_ < other.bitmask_;
 			}
 			
+			bool operator==(const self_type& other) const {
+				for(size_type i=0; i<STRINGS; i++) {
+					if(spo_[i] != other.spo_[i]) { return false; }
+				}
+				return bitmask_ == other.bitmask_;
+			}
+			
 			static int compare(int col, ::uint8_t *a, int alen, ::uint8_t *b, int blen) {
 				if(col == COL_BITMASK) {
 					bitmask_t bm_a, bm_b;
 					memcpy(&bm_a, &a, sizeof(bitmask_t));
 					memcpy(&bm_b, &b, sizeof(bitmask_t));
-					return !(bm_a & bm_b);
+					
+					// 0 = equal = there is an intersection in bitmasks
+					return !(bm_a & bm_b) && (bm_a || bm_b);
 				}
 				
 				if(alen != blen) { return (int)blen - (int)alen; }

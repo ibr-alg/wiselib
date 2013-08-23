@@ -40,8 +40,8 @@ char *test_tuples_mini[] = {
 
 char *test_tuples_btcsample[][3] = {
 	//#include "ssp.cpp"
-	//#include "btcsample0.cpp"
-	#include "incontextsensing.cpp"
+	#include "btcsample0.cpp"
+	//#include "incontextsensing.cpp"
 	0
 };
 
@@ -61,15 +61,15 @@ class ExampleApplication {
 			
 			//shdt_encode(100);
 			
-			//for(size_type packet_size = 20; packet_size <= 120; packet_size += 20) {
-			//	for(size_type table_size = 8; table_size <= Shdt::MAX_TABLE_SIZE; table_size *= 2) {
-			size_type packet_size = 100;
-			size_type table_size=64;
+			for(size_type packet_size = 20; packet_size <= 140; packet_size += 40) {
+				for(size_type table_size = 10; table_size <= Shdt::MAX_TABLE_SIZE; table_size += 1) {
+			//size_type packet_size = 100;
+			//size_type table_size=64;
 					sender.reset();
 					receiver.reset();
 					test_shdt_tuples(table_size, packet_size, (block_data_t**)test_tuples_btcsample);
-			//	}
-			//}
+				}
+			}
 		}
 		
 		
@@ -122,7 +122,7 @@ class ExampleApplication {
 		}
 		
 		void shdt_test_receive_tuples(Shdt::Writer& w) { //block_data_t *buffer, size_type buffer_size) {
-			debug_buffer<Os, 16, Os::Debug>(debug_, w.buffer(), w.buffer_used());
+			//debug_buffer<Os, 16, Os::Debug>(debug_, w.buffer(), w.buffer_used());
 			
 			packets_++;
 			shdt_size_ += w.buffer_used();

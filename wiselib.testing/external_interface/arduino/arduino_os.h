@@ -19,11 +19,16 @@
 #ifndef __ARDUINO_OS_MODEL_H__
 #define __ARDUINO_OS_MODEL_H__
 
+namespace wiselib {
+	class ArduinoOsModel;
+	template<typename OsModel_P> class ArduinoTimer;
+}
+
 #if ARDUINO_USE_ASSERT
 	#include <assert.h>
 #endif
 
-#if WISELIB_DISABLE_DEBUG_MESSAGES
+#if (WISELIB_DISABLE_DEBUG_MESSAGES || WISELIB_DISABLE_DEBUG)
 	#define DBG(...)
 #else
 	#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
@@ -48,10 +53,16 @@
 
 #include "external_interface/arduino/arduino_timer.h"
 #include "util/serialization/endian.h"
+#include <algorithms/rand/kiss.h>
 
-/*routes the assert() error message into STDERR, TODO: route STDERR to the 
-serial port so that you can actually output the messages*/
-#define __ASSERT_USE_STDERR 
+#if WISELIB_DISABLE_DEBUG
+	#undef assert
+	#define assert(X)
+#else
+	/*routes the assert() error message into STDERR, TODO: route STDERR to the 
+	serial port so that you can actually output the messages*/
+	#define __ASSERT_USE_STDERR 
+#endif
 
 namespace wiselib
 {
@@ -80,11 +91,14 @@ namespace wiselib
 #endif
 #if ARDUINO_USE_BLUETOOTH
       typedef ArduinoBluetoothRadio<ArduinoOsModel> BluetoothRadio;
+	  typedef BluetoothRadio Radio;
 #endif
 #if ARDUINO_USE_XBEE
       typedef ArduinoXBeeRadio<ArduinoOsModel> XBeeRadio;
+	  typedef XBeeRadio Radio;
 #endif
       typedef ArduinoSdCard<ArduinoOsModel> BlockMemory;
+      typedef Kiss<ArduinoOsModel> Rand;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
    };

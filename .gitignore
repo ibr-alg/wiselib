@@ -12,6 +12,7 @@ build/
 *.so
 *.pdf
 doxygen_output/
+data/
 Wiselib.config
 Wiselib.creator
 Wiselib.creator.user

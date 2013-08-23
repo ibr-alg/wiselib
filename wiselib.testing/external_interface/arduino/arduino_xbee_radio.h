@@ -70,6 +70,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum SpecialNodeIds
       {
+         NULL_NODE_ID = 0,
          BROADCAST_ADDRESS = 0xFFFF       ///< Unknown/No node id
       };
       // --------------------------------------------------------------------
@@ -155,9 +156,9 @@ namespace wiselib
 	    return (MY_hb<<8)|(MY_lb);
 	  }
 	  else
-	    return -1;  char* from_id;
-     int i = 0;
-   
+     {
+	    return -1;
+     }
 	}
 	else
 	  return -1;
@@ -188,6 +189,7 @@ namespace wiselib
        }
        else if (xbee_.getResponse().isError())
 	 return ERR_UNSPEC;
+       return SUCCESS;
      }
      else
 	return ERR_UNSPEC;
@@ -210,8 +212,8 @@ namespace wiselib
 	 from_id = rx16.getRemoteAddress16();
 	 data = rx16.getData();
 	 length = rx16.getDataLength();
-       }
        received(data, length, from_id);
+       }
      }
      timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
    }
@@ -263,3 +265,4 @@ namespace wiselib
 #endif // ARDUINO_USE_XBEE
 
 #endif // ARDUINO_XBEE_RADIO_H
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

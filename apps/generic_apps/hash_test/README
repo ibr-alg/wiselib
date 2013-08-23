@@ -1,0 +1,32 @@
+
+Some tips:
+
+find length of longest line in file
+(for fixing up buffers or excluding strange things):
+
+	awk ' { if ( length > L ) { L=length} }END{ print L}' data-0.nq 
+
+Split .nq file into tuple elements:
+- Make sure hash_test.cpp runs (only) splitn3_cat() when started.
+- Use like this:
+  
+	out/pc/hash_test < ./data-0.nq > data-0.elements
+
+Sort and remove duplicates:
+
+	sort -u data-0.elements > data-0.elements.unique
+
+Calculate hash values:
+- Make sure hash_test.cpp runs (only) hash_cat() when started.
+- Use like this:
+  
+	out/pc/hash_test < ./data-0.elements.unique > data-0.hashes
+
+Only sort:
+
+	sort data-0.hashes > data-0.hashes.sorted
+
+Find collisions:
+
+	uniq -dc data-0.hashes.sorted
+

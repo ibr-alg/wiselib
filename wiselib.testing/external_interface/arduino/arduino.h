@@ -36,6 +36,7 @@
 
 #undef PI
 #undef RANDOM_MAX
+#undef BIN
 
 #endif // WISELIB_ARDUINO_H
 

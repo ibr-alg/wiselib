@@ -64,7 +64,8 @@ struct enable_if : public enable_if_c<Cond::value, T> { };
 /*
  * STATIC PRINT
  */
-#define static_print(X) typedef StaticPrint<X> _print_ ## __LINE__
+#define static_print(X) StaticPrint<X> _print_var_ ## __LINE__;
+//typedef StaticPrint<X> _print_ ## __LINE__; _print_ ## __LINE__ var_print_ ## __LINE__;
 template<int x> struct StaticPrint;
 
 
@@ -153,13 +154,19 @@ template<> struct SmallUint<0x100000001ULL> { typedef ::uint64_t t; };
 
 
 /**
- * Find the unisigned integer type that has exactly N_ bytes (if exists).
+ * Find the unsigned integer type that has exactly N_ bytes (if exists).
  */
 template<int N_> struct Uint { };
 template<> struct Uint<1> { typedef ::uint8_t t; };
 template<> struct Uint<2> { typedef ::uint16_t t; };
 template<> struct Uint<4> { typedef ::uint32_t t; };
 template<> struct Uint<8> { typedef ::uint64_t t; };
+
+template<int N_> struct Sint { };
+template<> struct Sint<1> { typedef ::int8_t t; };
+template<> struct Sint<2> { typedef ::int16_t t; };
+template<> struct Sint<4> { typedef ::int32_t t; };
+template<> struct Sint<8> { typedef ::int64_t t; };
 
 
 /**

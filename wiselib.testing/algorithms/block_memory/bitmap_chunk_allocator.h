@@ -91,6 +91,9 @@ namespace wiselib {
 					ChunkAddress(const ChunkAddress& other) : addr_(other.addr_) {
 					}
 					
+					ChunkAddress(typename Uint<sizeof(address_t)>::t addr) : addr_(addr) {
+					}
+					
 					/*ChunkAddress(address_t a) : addr_(a) {
 					}*/
 					
@@ -125,6 +128,8 @@ namespace wiselib {
 					size_type absolute_chunk() const {
 						return address() * CHUNKS_PER_BLOCK + offset();
 					}
+					
+					operator typename Uint<sizeof(address_t)>::t() { return addr_; }
 					
 					bool operator==(const ChunkAddress& other) const { return other.addr_ == addr_; }
 					bool operator!=(const ChunkAddress& other) const { return !(*this == other); }

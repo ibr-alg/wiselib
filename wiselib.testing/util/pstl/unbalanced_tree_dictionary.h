@@ -27,7 +27,7 @@ namespace wiselib {
 	/**
 	 * @brief 
 	 * 
-	 * @ingroup
+	 * @ingroup Dictionary_concept
 	 * 
 	 * @tparam 
 	 */
@@ -40,11 +40,12 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-         typedef UnbalancedTreeDictionary<OsModel_P> self_type;
-         typedef self_type* self_pointer_t;
+			typedef UnbalancedTreeDictionary<OsModel_P> self_type;
+			typedef self_type* self_pointer_t;
 			
 		private:
 			struct Node {
+				// {{{
 				enum { LEFT = 0, RIGHT = 1 };
 				
 				static Node* make(block_data_t *s) {
@@ -65,19 +66,59 @@ namespace wiselib {
 				
 				Node *childs[2], *parent;
 				::uint16_t refcount;
-				//::uint16_t length;
 				block_data_t value[];
+				// }}}
 			};
 		
 		public:
 			typedef typename Uint<sizeof(Node*)>::t key_type;
 			typedef block_data_t* mapped_type;
 			
+			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum { NULL_KEY = 0 };
 			enum { ABSTRACT_KEYS = false };
 			
-			void init() {
+			class iterator {
+				public:
+					iterator(Node* node) : node_(node) { forward(); }
+					iterator(const iterator& other) { node_ = other.node_; }
+					
+					bool operator==(const iterator& other) { return node_ == other.node_; }
+					bool operator!=(const iterator& other) { return !(*this == other); }
+					
+					key_type operator*() { return to_key(node_); }
+					
+					iterator& operator++() {
+						// inorder traversal
+						if(node_->childs[Node::RIGHT]) {
+							node_ = node_->childs[Node::RIGHT];
+							forward();
+							return *this;
+						}
+						
+						if(node_->parent) {
+							bool right;
+							do {
+								right = (node_ == node_->parent->childs[Node::RIGHT]);
+								node_ = node_->parent;
+							} while(right);
+							return *this;
+						}
+						
+						node_ = 0;
+						return *this;
+					}
+					
+				private:
+					void forward() {
+						while(node_ && node_->childs[Node::LEFT]) { node_ = node_->childs[Node::LEFT]; }
+					}
+					Node *node_;
+			};
+			
+			int init() {
 				root_ = 0;
+				return SUCCESS;
 			}
 			
 			template<typename Debug>
@@ -86,16 +127,22 @@ namespace wiselib {
 			}
 			
 			key_type insert(mapped_type v) {
+				check();
+				
 				int c;
 				Node *p = find_node(v, c);
 				
 				if(c == 0 && p) {
 					p->refcount++;
+					
+					check();
 					return to_key(p);
 				}
 				else if(c == 0 && !p) {
 					root_ = Node::make(v);
 					root_->parent = 0;
+					
+					check();
 					return to_key(root_);
 				}
 				else {
@@ -103,21 +150,31 @@ namespace wiselib {
 					n->parent = p;
 					if(c < 0) { p->childs[Node::LEFT] = n; }
 					else { p->childs[Node::RIGHT] = n; }
+					
+					check();
 					return to_key(n);
 				}
 			}
 			
+			iterator begin_keys() { return iterator(root_); }
+			iterator end_keys() { return iterator(0); }
+			
 			size_type count(key_type k) {
-				return k->refcount;
+				check_node(to_node(k));
+				return to_node(k)->refcount;
 			}
 			
 			key_type find(mapped_type v) {
+				check();
+				
 				int c;
 				Node *p = find_node(v, c);
 				return (c == 0) ? to_key(p) : NULL_KEY;
 			}
 			
 			mapped_type get_value(key_type k) {
+				check();
+				check_node(to_node(k));
 				return to_node(k)->value;
 			}
 			
@@ -125,6 +182,8 @@ namespace wiselib {
 			}
 			
 			size_type erase(key_type p_) {
+				check();
+				
 				Node *p = to_node(p_);
 				//int c;
 				//Node *p = find_node(k, c);
@@ -132,6 +191,8 @@ namespace wiselib {
 				
 				if(p->refcount > 1) {
 					p->refcount--;
+					
+					check();
 					return 1;
 				}
 				
@@ -168,7 +229,29 @@ namespace wiselib {
 						reinterpret_cast<block_data_t*>(p)
 				);
 				
+				if(root_ == p) { root_ = 0; }
+				
+				check();
+				
 				return 1;
+			}
+			
+			void check() {
+				#if !WISELIB_DISABLE_DEBUG
+					check_node(root_, 0, 0);
+				#endif
+			}
+			
+			void check_node(Node* n, block_data_t* v_l = 0, block_data_t* v_r = 0) {
+				#if !WISELIB_DISABLE_DEBUG
+					if(!n) { return; }
+					assert(!v_l || strcmp((char*)v_l, (char*)n->value) > 0);
+					assert(!v_r || strcmp((char*)v_r, (char*)n->value) < 0);
+					assert(!n->childs[0] || n->childs[0]->parent == n);
+					assert(!n->childs[1] || n->childs[1]->parent == n);
+					check_node(n->childs[0], v_l, n->value);
+					check_node(n->childs[1], n->value, v_r);
+				#endif
 			}
 		
 		private:
@@ -192,7 +275,7 @@ namespace wiselib {
 				while(p) {
 					assert(p->value != 0);
 					
-					DBG("strcmp(%lx, %lx, %lx)", (long int)(void*)p, (long int)(void*)p->value, (long int)(void*)v);
+					//DBG("strcmp(%lx, %lx, %lx)", (long int)(void*)p, (long int)(void*)p->value, (long int)(void*)v);
 					c = strcmp((char*)p->value, (char*)v);
 					if(c == 0) {
 						return p;

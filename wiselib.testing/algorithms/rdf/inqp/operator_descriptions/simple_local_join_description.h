@@ -44,7 +44,12 @@ namespace wiselib {
 			typedef OperatorDescription<OsModel_P, Processor_P> Base;
 			
 			enum {
-			  OFFSET_COLUMNS = Base::OFFSET_BASE_END,
+				OFFSET_COLUMNS = Base::OFFSET_BASE_END,
+			};
+			
+			enum {
+				LEFT_COLUMN_INVALID = 0x0f,
+				RIGHT_COLUMN_INVALID = 0x0f
 			};
 			
 			block_data_t left_column() {

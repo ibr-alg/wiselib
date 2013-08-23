@@ -46,11 +46,9 @@ namespace wiselib {
 			typedef Hash_P Hash;
 			typedef typename Hash::hash_t hash_t;
 			
-			enum { NULL_KEY = Dictionary::NULL_KEY };
-			
 			class KeyHashPair {
 				public:
-					KeyHashPair() : dict_key_(NULL_KEY) {
+					KeyHashPair() : dict_key_(Dictionary::NULL_KEY) {
 					}
 					
 					KeyHashPair(dict_key_t dk, hash_t h = 0)
@@ -70,7 +68,6 @@ namespace wiselib {
 			void init(typename Dictionary::self_pointer_t dict) {
 				dictionary_ = dict;
 			}
-			
 			
 			hash_t translate(dict_key_t dict_key) {
 				size_type idx = dict_key_to_index(dict_key);

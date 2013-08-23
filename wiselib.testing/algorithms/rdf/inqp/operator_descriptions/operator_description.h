@@ -48,9 +48,12 @@ namespace wiselib {
 			
 			enum {
 				GRAPH_PATTERN_SELECTION = 'g',
+				SELECTION = 's',
 				SIMPLE_LOCAL_JOIN = 'j',
 				COLLECT = 'c',
+				CONSTRUCT = 'C',
 				AGGREGATE = 'a',
+				DELETE = 'D',
 			};
 			
 			enum {

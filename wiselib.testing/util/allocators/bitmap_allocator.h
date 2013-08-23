@@ -36,8 +36,10 @@ class BitmapAllocator {
 	public:
 		typedef OsModel_P OsModel;
 		enum { BUFFER_SIZE = BUFFER_SIZE_P };
-		enum { BITMAP_SIZE = (BUFFER_SIZE + 1 + 7) / 8 };
+		//enum { BITMAP_SIZE = (BUFFER_SIZE + 1 + 7) / 8 };
 		enum { BLOCK_SIZE = BLOCK_SIZE_P };
+		enum { BITMAP_BLOCKS = ((BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE) };
+		enum { BITMAP_SIZE = ((BITMAP_BLOCKS + 7) / 8) };
 		
 		typedef BitmapAllocator<OsModel, BUFFER_SIZE> self_type;
 		typedef typename OsModel::size_t size_type;

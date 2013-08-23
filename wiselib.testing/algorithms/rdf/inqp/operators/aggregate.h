@@ -339,9 +339,9 @@ namespace wiselib {
 						if(
 							a[operations_[i].aggregate_column_] != b[operations_[i].aggregate_column_]
 						) {
-							DBG("-------- GROUP MISMATCH WHILE MERGING i=%d aggrcol=%d ga=%08x gb=%08x",
-									i, operations_[i].aggregate_column_,
-									a[operations_[i].aggregate_column_], b[operations_[i].aggregate_column_]
+							DBG("-------- GROUP MISMATCH WHILE MERGING i=%d aggrcol=%d ga=%08lx gb=%08lx",
+									(int)i, (int)operations_[i].aggregate_column_,
+									(long)a[operations_[i].aggregate_column_], (long)b[operations_[i].aggregate_column_]
 							);
 						}
 					}

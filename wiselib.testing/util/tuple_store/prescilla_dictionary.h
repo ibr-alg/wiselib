@@ -485,6 +485,11 @@ namespace wiselib
         iterator end_keys() {
            return iterator(0);
         }
+        
+        size_type count(key_type k) {
+           node_pointer current_node = reinterpret_cast<node_pointer>(k);
+           return current_node->count_;
+        }
 
         value_type get_copy(key_type k)
         {
