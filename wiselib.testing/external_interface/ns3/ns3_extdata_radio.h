@@ -47,7 +47,7 @@ namespace wiselib
       typedef WiselibExtIface::size_t size_t;
       typedef WiselibExtIface::message_id_t message_id_t;
 
-      typedef ExtendedDataClass ExtendedData; 
+      typedef ExtendedDataClass ExtendedData;  // extended data class in NS-3
 
       //typedef delegate3<void, int, long, unsigned char*> radio_delegate_t;
       // --------------------------------------------------------------------
