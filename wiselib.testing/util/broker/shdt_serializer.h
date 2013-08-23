@@ -5,7 +5,7 @@
 #include <external_interface/external_interface.h>
 #include <util/serialization/serialization.h>
 #include <util/meta.h>
-#include <util/pstl/string_utils.h>
+#include <util/string_util.h>
 #include <util/pstl/algorithm.h>
 
 namespace wiselib {
@@ -389,6 +389,7 @@ namespace wiselib {
 						return false;
 					}
 							
+					size_type position() { return buffer_current_ - buffer_start_; }
 					
 					bool done() {
 						return buffer_current_ >= buffer_end_;
@@ -695,7 +696,7 @@ namespace wiselib {
 			}
 			
 			void set_table(table_id_t id, block_data_t* data, sz_t data_size) {
-				assert(strlen((char*)data) + 1 >= data_size);
+				//assert(strlen((char*)data) + 1 >= data_size);
 				
 				if(lookup_table_[id]) {
 					get_allocator().free_array(lookup_table_[id]);

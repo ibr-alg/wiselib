@@ -30,10 +30,10 @@ namespace wiselib {
 			
 			bool empty() { return size() == 0; }
 			
-			/**
-			 * does not check for duplicates!
-			 */
 			iterator insert(value_type& v) {
+				iterator it = find(v);
+				if(it != end()) { return it; }
+				
 				vector_.push_back(v);
 				return end() - (typename OsModel::size_t)1;
 			}
@@ -52,6 +52,9 @@ namespace wiselib {
 				return iter;
 			}
 			
+			void clear() {
+				vector_.clear();
+			}
 			
 		private:
 			vector_t vector_;

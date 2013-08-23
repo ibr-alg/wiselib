@@ -33,7 +33,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		int Size_P = 256
+		typename Value_P,
+		int Size_P
 	>
 	class BloomFilter {
 		
@@ -41,16 +42,21 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef Value_P value_type;
 			
 			enum { SIZE = Size_P, SIZE_BYTES = DivCeil<SIZE, 8>::value };
 			
-			typedef BloomFilter<OsModel, SIZE> self_type;
+			typedef BloomFilter self_type;
 			
 			static self_type* create() {
 				self_type *r = reinterpret_cast<self_type*>(
 						::get_allocator().template allocate_array<block_data_t>(SIZE_BYTES)
 				);
 				r->clear();
+			}
+			
+			BloomFilter() {
+				memset(data_, 0x00, SIZE_BYTES);
 			}
 			
 			void clear() {
@@ -61,15 +67,38 @@ namespace wiselib {
 				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
 			}
 			
+			void insert(const value_type& v) {
+				add(v.hash());
+			}
+			
+			bool contains(const value_type& v) const {
+				return test(v.hash());
+			}
+			
 			void add(size_type v) {
 				v %= SIZE;
 				data_[byte(v)] |= (1 << bit(v));
 			}
 			
-			void operator|=(self_type& other) {
+			bool test(size_type v) const {
+				v %= SIZE;
+				return data_[byte(v)] & (1 << bit(v));
+			}
+			
+			BloomFilter& operator|=(const self_type& other) {
 				for(size_type i = 0; i < SIZE_BYTES; i++) {
 					data_[i] |= other.data_[i];
 				}
+				return *this;
+			}
+			
+			block_data_t* data() { return data_; }
+			
+			bool operator==(const self_type& other) {
+				return memcmp(data_, other.data_, SIZE_BYTES) == 0;
+			}
+			bool operator!=(const self_type& other) {
+				return !(*this == other);
 			}
 			
 		private:
@@ -77,7 +106,7 @@ namespace wiselib {
 			static size_type byte(size_type n) { return n / 8; }
 			static size_type bit(size_type n) { return n % 8; }
 			
-			block_data_t data_[0];
+			block_data_t data_[SIZE_BYTES];
 		
 	}; // BloomFilter
 }

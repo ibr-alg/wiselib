@@ -17,6 +17,14 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
+
+/****
+ 
+ main() is now in arduino_application.h, so all
+ code can exist in a single compilation unit.
+
+ 
+ 
 #include "external_interface/arduino/arduino_os.h"
 
 void application_main(wiselib::ArduinoOsModel&);
@@ -39,4 +47,5 @@ int main(int argc, const char** argv )
 	
 	return 0;
 }
+****/
 

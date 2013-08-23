@@ -23,19 +23,24 @@
 #include "query.h"
 #include "operators/operator.h"
 #include "operators/graph_pattern_selection.h"
+#include "operators/selection.h"
 #include "operators/collect.h"
+#include "operators/construct.h"
+#include "operators/delete.h"
 #include "operators/aggregate.h"
 #include "operators/simple_local_join.h"
 #include "operator_descriptions/operator_description.h"
 #include "operator_descriptions/aggregate_description.h"
 #include "operator_descriptions/graph_pattern_selection_description.h"
+#include "operator_descriptions/selection_description.h"
 #include "operator_descriptions/collect_description.h"
+#include "operator_descriptions/construct_description.h"
+#include "operator_descriptions/delete_description.h"
 #include "operator_descriptions/simple_local_join_description.h"
 #include <util/pstl/map_static_vector.h>
 #include "row.h"
 #include "dictionary_translator.h"
 #include "hash_translator.h"
-#include <algorithms/hash/fnv.h>
 
 namespace wiselib {
 	
@@ -49,7 +54,7 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename TupleStore_P,
-		typename Hash_P = Fnv32<OsModel_P>,
+		typename Hash_P,
 		typename Dictionary_P = typename TupleStore_P::Dictionary,
 		typename Translator_P = DictionaryTranslator<OsModel_P, Dictionary_P, Hash_P, 64>,
 		typename ReverseTranslator_P = HashTranslator<OsModel_P, Dictionary_P, Hash_P, 64>,
@@ -78,10 +83,6 @@ namespace wiselib {
 				MAX_QUERIES = MAX_QUERIES_P
 			};
 			
-			enum {
-				DICTIONARY_NULL_KEY = Dictionary::NULL_KEY
-			};
-			
 			/// @{ Operators
 			
 			typedef OperatorDescription<OsModel, self_type> BasicOperatorDescription;
@@ -90,10 +91,16 @@ namespace wiselib {
 			
 			typedef GraphPatternSelection<OsModel, self_type> GraphPatternSelectionT;
 			typedef GraphPatternSelectionDescription<OsModel, self_type> GraphPatternSelectionDescriptionT;
+			typedef Selection<OsModel, self_type> SelectionT;
+			typedef SelectionDescription<OsModel, self_type> SelectionDescriptionT;
 			typedef SimpleLocalJoin<OsModel, self_type> SimpleLocalJoinT;
 			typedef SimpleLocalJoinDescription<OsModel, self_type> SimpleLocalJoinDescriptionT;
 			typedef Collect<OsModel, self_type> CollectT;
+			typedef Construct<OsModel, self_type> ConstructT;
+			typedef Delete<OsModel, self_type> DeleteT;
 			typedef CollectDescription<OsModel, self_type> CollectDescriptionT;
+			typedef ConstructDescription<OsModel, self_type> ConstructDescriptionT;
+			typedef DeleteDescription<OsModel, self_type> DeleteDescriptionT;
 			typedef Aggregate<OsModel, self_type> AggregateT;
 			typedef AggregateDescription<OsModel, self_type> AggregateDescriptionT;
 			
@@ -152,9 +159,8 @@ namespace wiselib {
 			}
 				
 
-			void execute(Query *query, int id = 0) {
+			void execute(Query *query) {
 				assert(query->ready());
-				DBG("executing query @%d", id);
 				query->build_tree();
 				
 				for(operator_id_t id = 0; id < MAX_OPERATOR_ID; id++) {
@@ -166,6 +172,9 @@ namespace wiselib {
 						case BOD::GRAPH_PATTERN_SELECTION:
 							(reinterpret_cast<GraphPatternSelectionT*>(op))->execute(*tuple_store_);
 							break;
+						case BOD::SELECTION:
+							(reinterpret_cast<SelectionT*>(op))->execute();
+							break;
 						case BOD::SIMPLE_LOCAL_JOIN:
 							(reinterpret_cast<SimpleLocalJoinT*>(op))->execute();
 							break;
@@ -175,9 +184,47 @@ namespace wiselib {
 						case BOD::COLLECT:
 							(reinterpret_cast<CollectT*>(op))->execute();
 							break;
+						case BOD::CONSTRUCT:
+							(reinterpret_cast<ConstructT*>(op))->execute();
+							break;
+						case BOD::DELETE:
+							(reinterpret_cast<DeleteT*>(op))->execute();
+							break;
 						default:
 							DBG("unexpected op type: %d", op->type());
 					}
+				}
+			}
+			
+			void handle_operator(Query* query, BOD *bod) {
+				switch(bod->type()) {
+					case BOD::GRAPH_PATTERN_SELECTION:
+						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
+						break;
+					case BOD::SELECTION:
+						query->template add_operator<SelectionDescriptionT, SelectionT>(bod);
+						break;
+					case BOD::SIMPLE_LOCAL_JOIN:
+						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
+						break;
+					case BOD::COLLECT:
+						query->template add_operator<CollectDescriptionT, CollectT>(bod);
+						break;
+					case BOD::CONSTRUCT:
+						query->template add_operator<ConstructDescriptionT, ConstructT>(bod);
+						break;
+					case BOD::DELETE:
+						query->template add_operator<DeleteDescriptionT, DeleteT>(bod);
+						break;
+					case BOD::AGGREGATE:
+						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
+						break;
+					default:
+						DBG("unexpected op type: %d!", bod->type());
+						break;
+				}
+				if(query->ready()) {
+					execute(query);
 				}
 			}
 			
@@ -189,26 +236,7 @@ namespace wiselib {
 					query = create_query(msg->query_id());
 				}
 				
-				switch(bod->type()) {
-					case BOD::GRAPH_PATTERN_SELECTION:
-						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
-						break;
-					case BOD::SIMPLE_LOCAL_JOIN:
-						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
-						break;
-					case BOD::COLLECT:
-						query->template add_operator<CollectDescriptionT, CollectT>(bod);
-						break;
-					case BOD::AGGREGATE:
-						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
-						break;
-					default:
-						DBG("unexpected op type: %d!", bod->type());
-						break;
-				}
-				if(query->ready()) {
-					execute(query, from);
-				}
+				handle_operator(query, bod);
 			}
 			
 			template<typename Message, typename node_id_t>
@@ -220,14 +248,14 @@ namespace wiselib {
 				}
 				query->set_expected_operators(msg->operators());
 				if(query->ready()) {
-					execute(query, from);
+					execute(query);
 				}
 			}
 			
 			template<typename Message, typename node_id_t>
 			void handle_resolve(Message *msg, node_id_t from, size_type size) {
 				typename Dictionary::key_type k = reverse_translator_.translate(msg->hash());
-				if(k != DICTIONARY_NULL_KEY) {
+				if(k != Dictionary::NULL_KEY) {
 					block_data_t *s = dictionary().get_value(k);
 					resolve_callback_(msg->hash(), (char*)s);
 					dictionary().free_value(s);
@@ -240,8 +268,11 @@ namespace wiselib {
 				BasicOperator &op = *query->operators()[msg->operator_id()];
 				switch(op.type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
+					case BOD::SELECTION:
 					case BOD::SIMPLE_LOCAL_JOIN:
 					case BOD::COLLECT:
+					case BOD::CONSTRUCT:
+					case BOD::DELETE:
 						break;
 					case BOD::AGGREGATE: {
 						size_type payload_length = size - Message::HEADER_SIZE;
@@ -286,6 +317,7 @@ namespace wiselib {
 				queries_[qid] = query;
 			}
 			
+			TupleStoreT& tuple_store() { return *tuple_store_; }
 			Dictionary& dictionary() { return tuple_store_->dictionary(); }
 			Translator& translator() { return translator_; }
 			ReverseTranslator& reverse_translator() { return reverse_translator_; }

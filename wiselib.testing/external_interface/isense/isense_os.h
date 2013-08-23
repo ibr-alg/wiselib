@@ -47,7 +47,7 @@
 //#include <util/allocators/malloc_free_allocator.h>
 
 
-#if WISELIB_DISABLE_DEBUG_MESSAGES
+#if (WISELIB_DISABLE_DEBUG_MESSAGES || WISELIB_DISABLE_DEBUG)
 	#define DBG(...)
 #else
    #include <isense/util/get_os.h>

@@ -9,6 +9,7 @@ ARDUINO_BOARD=$(BOARD)
 
 ARDUINO_USE_RAWSD=1
 #ARDUINO_USE_SD=1
+ARDUINO_USE_XBEE=1
 
 export MCU=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.mcu)
 export CPU_SPEED=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.f_cpu)
@@ -25,9 +26,10 @@ WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
 SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
 ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
 SD_PATH=$(ARDUINO_PATH)/libraries/SD
+XBEE_PATH=$(ARDUINO_PATH)/libraries/XBee
 
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
-	-I$(ETHERNET_PATH)/utility -I$(SD_PATH)/utility
+	-I$(ETHERNET_PATH)/utility -I$(SD_PATH)/utility -I$(XBEE_PATH)
 
 ZEROCONF_PATH=/home/henning/repos/EthernetBonjour-rraf
 
@@ -48,6 +50,10 @@ ifeq ($(ARDUINO_USE_SD),1)
 	LIBS += -lsd 
 	FLAGS += -DARDUINO_USE_SD
 endif
+ifeq ($(ARDUINO_USE_XBEE),1)
+	LIBS += -lxbee
+	FLAGS += -DARDUINO_USE_XBEE
+endif
 LIBS += -Wl,--end-group
 
 
@@ -58,7 +64,7 @@ ifeq ($(PARTNO),uno)
 endif
 
 
-CXXFLAGS=-mmcu=$(MCU) -DF_CPU=$(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
+CXXFLAGS=-mmcu=$(MCU) -DF_CPU=$(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums $(INCLUDE) $(LIBS) $(FLAGS) \
 	-DOSMODEL=ArduinoOsModel -DARDUINO -fno-exceptions -fno-use-cxa-atexit 
 

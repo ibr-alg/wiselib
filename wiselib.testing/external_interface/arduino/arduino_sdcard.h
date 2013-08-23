@@ -1,20 +1,20 @@
 /***************************************************************************
- ** This file is part of the generic algorithm library Wiselib.           **
- ** Copyright (C) 2012 by the Wisebed (www.wisebed.eu) project.           **
- **                                                                       **
+ ** This file is part of the generic algorithm library Wiselib.			  **
+ ** Copyright (C) 2012 by the Wisebed (www.wisebed.eu) project.			  **
+ **																		  **
  ** The Wiselib is free software: you can redistribute it and/or modify   **
- ** it under the terms of the GNU Lesser General Public License as        **
- ** published by the Free Software Foundation, either version 3 of the    **
- ** License, or (at your option) any later version.                       **
- **                                                                       **
- ** The Wiselib is distributed in the hope that it will be useful,        **
- ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
- ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
- ** GNU Lesser General Public License for more details.                   **
- **                                                                       **
- ** You should have received a copy of the GNU Lesser General Public      **
- ** License along with the Wiselib.                                       **
- ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ** it under the terms of the GNU Lesser General Public License as		  **
+ ** published by the Free Software Foundation, either version 3 of the	  **
+ ** License, or (at your option) any later version.						  **
+ **																		  **
+ ** The Wiselib is distributed in the hope that it will be useful,		  **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of		  **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the		  **
+ ** GNU Lesser General Public License for more details.					  **
+ **																		  **
+ ** You should have received a copy of the GNU Lesser General Public	  **
+ ** License along with the Wiselib.										  **
+ ** If not, see <http://www.gnu.org/licenses/>.							  **
  ***************************************************************************/
 
 #ifndef __ARDUINO_SDCARD_H__
@@ -27,10 +27,6 @@
 
 #include "arduino_os.h"
 #include "arduino_debug.h"
-
-namespace wiselib { class ArduinoOsModel; }
-
-//#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
 
 namespace wiselib {
 
@@ -63,17 +59,13 @@ namespace wiselib {
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
-			//ArduinoSdCard() {
-				//card_.init();
-			//}
-			
 			int init() {
 #if ARDUINO_USE_ETHERNET
-                card_.init();
+				card_.init();
 #else
-                card_.init(0,4);
+				card_.init(0,4);
 #endif
-			return SUCCESS;
+				return SUCCESS;
 			}
 			
 			int init(typename OsModel::AppMainParameter& value) {

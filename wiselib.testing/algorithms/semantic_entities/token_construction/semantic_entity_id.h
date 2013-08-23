@@ -44,6 +44,8 @@ namespace wiselib {
 			SemanticEntityId(Rule r, Value v) : value_(v), rule_(r) {
 			}
 			
+			static SemanticEntityId invalid() { return SemanticEntityId(); }
+			
 			bool operator==(const SemanticEntityId& other) const {
 				return value_ == other.value_ && rule_ == other.rule_;
 			}
@@ -59,11 +61,13 @@ namespace wiselib {
 			Value value() const { return value_; }
 			Rule rule() const { return rule_; }
 			
-			::uint8_t hash8() {
+			::uint8_t hash8() const {
 				::uint32_t a = rule_ ^ value_;
-				::uint16_t b = (a & 0xffff) ^ (a >> 16);
-				return (b & 0xff) ^ (b >> 8);
+				::uint16_t b = ((a * 101) & 0xffff) ^ ((a * 127) >> 16);
+				return ((b * 5) & 0xff) ^ ((b * 11) >> 8);
 			}
+			
+			::uint8_t hash() const { return hash8(); }
 			
 		private:
 			Value value_;

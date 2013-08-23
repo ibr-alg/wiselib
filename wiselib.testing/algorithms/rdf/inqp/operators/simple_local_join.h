@@ -54,10 +54,11 @@ namespace wiselib {
 			typedef SimpleLocalJoin<OsModel, Processor> self_type;
 			typedef Row<OsModel> RowT;
 			typedef Table<OsModel, RowT> TableT;
+			typedef SimpleLocalJoinDescription<OsModel, Processor> SLJD;
 			
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
-			void init(SimpleLocalJoinDescription<OsModel, Processor> *sljd, Query *query) {
+			void init(SLJD *sljd, Query *query) {
 				Base::init(reinterpret_cast<OperatorDescription<OsModel, Processor>* >(sljd), query);
 				
 				left_column_ = sljd->left_column();
@@ -116,9 +117,16 @@ namespace wiselib {
 						}
 						
 						for(typename TableT::iterator iter = table_.begin(); iter != table_.end(); ++iter) {
-							assert(l.result_type(left_column_) == r.result_type(right_column_));
+							int c;
 							
-							int c = compare_values(l.result_type(left_column_), (*iter)[left_column_], row[right_column_]);
+							if(left_column_ == SLJD::LEFT_COLUMN_INVALID && right_column_ == SLJD::RIGHT_COLUMN_INVALID) {
+								c = 0;
+							}
+							else {
+								assert(l.result_type(left_column_) == r.result_type(right_column_));
+								
+								c = compare_values(l.result_type(left_column_), (*iter)[left_column_], row[right_column_]);
+							}
 							if(c == 0) {
 								j = 0;
 								for(size_type i = 0; i < l.columns(); i++) {

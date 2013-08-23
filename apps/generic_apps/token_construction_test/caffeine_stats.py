@@ -3,6 +3,10 @@
 import re
 import sys
 
+# d = {
+# 	node => { name => (push, push) }
+# }
+
 d = {}
 caff = {}
 tmax = None #285000
@@ -54,11 +58,18 @@ def parse(f):
 		name = m.group(3).strip()
 		
 		if node not in d: d[node] = {}
-		if name not in d[node]: d[node][name] = [0, 0]
+		if name not in d[node]: d[node][name] = { 'pushes': 0, 'pops': 0, 'level': 0,
+				'earliest_unresolved_push': -1 }
 		if action == 'push':
-			d[node][name][0] += 1
+			d[node][name]['pushes'] += 1
+			d[node][name]['level'] += 1
+			if d[node][name]['level'] == 1:
+				d[node][name]['earliest_unresolved_push'] = t
 		else:
-			d[node][name][1] += 1
+			d[node][name]['pops'] += 1
+			d[node][name]['level'] -= 1
+			if d[node][name]['level'] == 0:
+				d[node][name]['earliest_unresolved_push'] = -1
 
 def output():
 	global d
@@ -70,7 +81,8 @@ def output():
 		
 		print '\n%d: caffeine = %s' % (node, caff[node])
 		for name, pp in sorted(d2.items(), cmp = fnnamecmp):
-			print '   %-40s %5d %5d' % (name, pp[0], pp[1])
+			print '   %-40s %5d %5d     lvl %4d   t_push %7d' % (name, pp['pushes'], pp['pops'],
+					pp['level'], pp['earliest_unresolved_push'])
 			
 parse(open('log_office.txt', 'r'))
 output()

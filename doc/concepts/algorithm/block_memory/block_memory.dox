@@ -69,6 +69,15 @@ namespace concepts {
 			 * @return SUCCESS iff the block was erased successfully
 			 */
 			int erase(address_t addr, address_t blocks = 1);
+			
+			/**
+			 * Erase the whole disk, should behave equivalent to erase(0, size()),
+			 * but depending on the actual device might be implemented much
+			 * more efficiently.
+			 * 
+			 * @return SUCCESS iff the memory was wiped successfully
+			 */
+			int wipe() { return erase(0, size()); }
 
 			/**
 			 *@return size of the block memory device in blocks

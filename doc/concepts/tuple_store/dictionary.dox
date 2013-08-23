@@ -5,11 +5,18 @@ namespace concepts {
 	 */
 	class Dictionary_concept {
 		public:
+			/**
+			 * key_type should be an unsigned integral type such that
+			 * @code sizeof(key_type) <= 4 @endcode holds or implicitely
+          * convertible to ::uint32_t.
+			 */
 			typedef ... key_type;
 			typedef block_data_t* mapped_type;
 			typedef ... size_type;
 			
 			typedef ... iterator;
+			
+			enum { SUCCESS = ... };
 			
 			/**
 			 * Key that is used to represent an exception condition,
@@ -35,12 +42,34 @@ namespace concepts {
 			enum { ABSTRACT_KEYS = ... };
 			
 			/**
+			 * (Re-)initialize the dictionary.
+			 * Usually a dictionary will also have a init(...) method
+			 * for first initialization. The signature of that is unspecified
+			 * though and thus may differ between implementations.
+			 * 
+			 * @return SUCCESS if successful.
+			 */
+			int init();
+			
+			/**
 			 * Insert given value into the dictionary.
 			 * The dictionary is expected to do a deep copy of v in some way
 			 * such that the caller can free v deeply without destroying
 			 * dictionary content.
 			 */
 			key_type insert(mapped_type v);
+			
+			/**
+			 * Iteration over dictionaries keys.
+			 * Note: Each key will be reported only once.
+			 */
+			iterator begin_keys();
+			
+			/**
+			 * Iteration over dictionaries keys.
+			 * Note: Each key will be reported only once.
+			 */
+			iterator end_keys();
 			
 			/**
 			 * OPTIONAL but recommended.

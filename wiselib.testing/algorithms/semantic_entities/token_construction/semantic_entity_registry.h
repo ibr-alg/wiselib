@@ -17,11 +17,10 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef STATE_MESSAGE_H
-#define STATE_MESSAGE_H
+#ifndef SEMANTIC_ENTITY_REGISTRY_H
+#define SEMANTIC_ENTITY_REGISTRY_H
 
-#include "tree_state_message.h"
-#include "token_state_message.h"
+#include "semantic_entity_id.h"
 
 namespace wiselib {
 	
@@ -35,86 +34,69 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename SemanticEntity_P,
-		typename Radio_P
+		typename GlobalTree_P,
+		size_t MAX_SEMANTIC_ENTITIES_P
 	>
-	class StateMessage {
+	class SemanticEntityRegistry {
 		public:
+			typedef SemanticEntityRegistry self_type;
+			typedef self_type* self_pointer_t;
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			
 			typedef SemanticEntity_P SemanticEntityT;
-			typedef Radio_P Radio;
-			typedef typename Radio::message_id_t message_id_t;
-			typedef typename Radio::node_id_t node_id_t;
+			typedef GlobalTree_P GlobalTreeT;
 			
-			typedef TokenStateMessage<OsModel, SemanticEntityT, Radio> TokenStateMessageT;
-			typedef TreeStateMessage<OsModel, SemanticEntityT, Radio> TreeStateMessageT;
+			enum { MAX_SEMANTIC_ENTITIES = MAX_SEMANTIC_ENTITIES_P };
 			
-			enum Restrictions {
-				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH
-			};
+			typedef MapStaticVector<OsModel, SemanticEntityId, SemanticEntityT, MAX_SEMANTIC_ENTITIES> SemanticEntityMapT;
+			typedef typename SemanticEntityMapT::iterator iterator;
 			
-			enum {
-				MESSAGE_TYPE = 0x99
-			};
-			
-			enum {
-				POS_MESSAGE_ID = 0,
-				POS_TOKEN_STATE_MESSAGE = POS_MESSAGE_ID + sizeof(message_id_t),
-				POS_TREE_STATE_MESSAGE = POS_TOKEN_STATE_MESSAGE + TokenStateMessageT::POS_END,
-				//POS_END = POS_TOKEN_STATE_MESSAGE + TokenStateMessageT::POS_END
-			};
-			
-			StateMessage() {
-				init();
+			SemanticEntityRegistry() :  global_tree_(0) {
 			}
 			
-			void init() {
-				set_type(MESSAGE_TYPE);
-				token().init();
-				tree().init();
+			void init(typename GlobalTreeT::self_pointer_t gt) {
+				global_tree_ = gt;
+				
+				check();
 			}
 			
-			message_id_t type() {
-				return wiselib::read<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID);
+			SemanticEntityT& add(const SemanticEntityId& id) {
+				check();
+				
+				map_[id] = SemanticEntityT(id, global_tree_);
+				return map_[id];
 			}
 			
-			void set_type(message_id_t t) {
-				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, t);
+			bool contains(const SemanticEntityId& id) {
+				return map_.contains(id);
 			}
 			
-			TokenStateMessageT& token() {
-				return *reinterpret_cast<TokenStateMessageT*>(data_ + POS_TOKEN_STATE_MESSAGE);
+			SemanticEntityT* get(const SemanticEntityId& id) {
+				check();
+				
+				if(map_.contains(id)) {
+					return &map_[id];
+				}
+				return 0;
 			}
 			
-			TreeStateMessageT& tree() {
-				return *reinterpret_cast<TreeStateMessageT*>(data_ + POS_TREE_STATE_MESSAGE);
-			}
-			
-			block_data_t* data() {
-				return data_;
-			}
-			
-			size_type size() {
-				return POS_TOKEN_STATE_MESSAGE + token().size() + tree().size();
-			}
+			iterator begin() { return map_.begin(); }
+			iterator end() { return map_.end(); }
 			
 			void check() {
-				#if CHECK_INVARIANTS
-					//DBG("// sizeof(StateMessage::message_id_t) = %d", sizeof(message_id_t));
-					assert(type() == MESSAGE_TYPE);
-					tree().check();
-					token().check();
+				#if !WISELIB_DISABLE_DEBUG
+					assert(global_tree_ != 0);
 				#endif
 			}
 		
 		private:
-			block_data_t data_[MAX_MESSAGE_LENGTH];
+			SemanticEntityMapT map_;
+			typename GlobalTreeT::self_pointer_t global_tree_;
 		
-	}; // StateMessage
-	
+	}; // SemanticEntityRegistry
 }
 
-#endif // STATE_MESSAGE_H
+#endif // SEMANTIC_ENTITY_REGISTRY_H
 

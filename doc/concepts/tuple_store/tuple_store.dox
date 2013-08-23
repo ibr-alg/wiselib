@@ -7,8 +7,20 @@ class TupleStore_concept : public Algorithm_concept {
 	public:
 		typedef ... iterator;
 		typedef ... size_type;
-		typedef ... Tuple;
 		typedef ... column_mask_t;
+		
+		typedef ... Tuple;
+		typedef ... TupleContainer;
+		typedef ... Dictionary;
+		
+		enum {
+			COLUMNS = Tuple::SIZE,
+			MASK_ALL = (column_mask_t)(1 << COLUMNS) - 1)
+		};
+		enum { SUCCESS = ..., ERR_UNSPEC = ... };
+		
+		Dictionary& dictionary();
+		TupleContainer& container();
 		
 		/**
 		 * Insert the given tuple into the store.
@@ -18,7 +30,14 @@ class TupleStore_concept : public Algorithm_concept {
 		 * Else, insert t and return an iterator to the inserted copy.
 		 */
 		template<typename T>
-		iterator insert(const T& t);
+		iterator insert(T& t);
+		
+		/**
+		 * Like @a insert() but expect a tuple containing dictionary keys
+		 * instead of the referenced strings.
+		 */
+		template<typename UserTuple>
+		iterator insert_raw(UserTuple& t);
 		
 		/**
 		 * Delete the tuple pointed to by iter from the store.
@@ -35,8 +54,13 @@ class TupleStore_concept : public Algorithm_concept {
 		 * is in the store.
 		 * Return end() if no such tuple was found.
 		 */
-		template<typename T>
-		iterator find(const T& t);
+		iterator find(Tuple& query);
+		
+		/**
+		 * Like @a find(), but expect a raw tuple, that is a tuple
+		 * that contains dictionary keys instead of the resolved strings.
+		 */
+		iterator find_raw(Tuple& query);
 		
 		/**
 		 * begin iteration over the TS.

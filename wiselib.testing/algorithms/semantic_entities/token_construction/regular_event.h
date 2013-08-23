@@ -56,14 +56,6 @@ namespace wiselib {
 			typedef delegate1<void, void*> begin_waiting_callback_t;
 			typedef delegate1<void, void*> end_waiting_callback_t;
 			
-			enum {
-				#ifdef SHAWN
-					TIMESCALE = 10
-				#else
-					TIMESCALE = 1
-				#endif
-			};
-			
 			/// Some fractions (in percent).
 			enum TimingFractions {
 				/**
@@ -75,8 +67,8 @@ namespace wiselib {
 				/// Analogue to @a CLOSE_HIT_WINDOW.
 				STABLE_HIT_WINDOW = 75,
 				/// If found interval is shorter than this, assume its a dupe
-				DUPE_INTERVAL = 100 * TIMESCALE,
-				MIN_INTERVAL = 100 * TIMESCALE,
+				DUPE_INTERVAL = 100 * WISELIB_TIME_FACTOR,
+				MIN_INTERVAL = 100 * WISELIB_TIME_FACTOR,
 				
 				/// How much a close hit influences expected timing.
 				ALPHA_CLOSE = 25,
@@ -87,11 +79,11 @@ namespace wiselib {
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
-			enum Restrictions { MIN_WINDOW_SIZE = 100 * TIMESCALE };
+			enum Restrictions { MIN_WINDOW_SIZE = 100 * WISELIB_TIME_FACTOR, EARLY_HITS = 2 };
 			
 			// }}}
 			
-			RegularEvent() : last_encounter_(0), interval_(1000 * TIMESCALE), window_(1000 * TIMESCALE),
+			RegularEvent() : last_encounter_(0), interval_(1000 * WISELIB_TIME_FACTOR), window_(1000 * WISELIB_TIME_FACTOR),
 				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false) {
 			}
 			
@@ -150,7 +142,9 @@ namespace wiselib {
 							(int) interval_, (int)h, (int) old_window, (int) window_, (int)hits_);
 				#endif
 				
-				hits_++;
+				if(hits_ <= EARLY_HITS) {
+					hits_++;
+				}
 				//DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
 				last_encounter_ = t;
 			}
@@ -175,7 +169,7 @@ namespace wiselib {
 			 * That is, it can not be assumed to yield useful
 			 * next_expected() values yet.
 			 */
-			bool early() { return hits_ <= 2; }
+			bool early() { return hits_ <= EARLY_HITS; }
 			
 			/**
 			 * Set waiting timer.
@@ -201,7 +195,7 @@ namespace wiselib {
 					void* userdata = 0
 			) {
 				if(waiting_ || waiting_timer_set_) {
-					DBG("t=%d // timer already set!", (int)absolute_millis(clock, clock->time()));
+					//DBG("t=%d // timer already set!", (int)absolute_millis(clock, clock->time()));
 					return true;
 				}
 				
@@ -210,7 +204,9 @@ namespace wiselib {
 				userdata_ = userdata;
 				
 				if(early()) {
-					DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)absolute_millis(clock, clock->time()), (int)hits_, (long int)userdata);
+					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)1, (long int)userdata);
+					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)hits_, (long int)1);
+					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)absolute_millis(clock, clock->time()), (int)1, (long int)1);
 					waiting_ = true;
 					if(begin_waiting_callback_) {
 						begin_waiting_callback_(userdata_);
@@ -322,19 +318,24 @@ namespace wiselib {
 				assert(interval_ >= window_);
 			}
 	
-			begin_waiting_callback_t begin_waiting_callback_;
-			end_waiting_callback_t end_waiting_callback_;
+			begin_waiting_callback_t begin_waiting_callback_; // 4
 			
-			abs_millis_t last_encounter_;
-			abs_millis_t interval_;
-			abs_millis_t window_;
-			size_type hits_;
-			void *userdata_;
 			
+			end_waiting_callback_t end_waiting_callback_; // 4
+			void *userdata_; // 2
+			abs_millis_t last_encounter_; // 4
+			//abs_millis_t interval_;
+			//abs_millis_t window_;
+			::uint16_t interval_; // 2
+			::uint16_t window_; // 2
+			//size_type hits_;
+			
+			// 1
+			::uint8_t hits_ : 2;
 			/// true iff there is currently a timer waiting for this
-			bool waiting_;
-			bool waiting_timer_set_;
-			bool cancel_;
+			::uint8_t waiting_ : 1;
+			::uint8_t waiting_timer_set_ : 1;
+			::uint8_t cancel_ : 1;
 	};
 }
 

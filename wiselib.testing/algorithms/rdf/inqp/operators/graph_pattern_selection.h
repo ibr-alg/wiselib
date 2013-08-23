@@ -54,10 +54,10 @@ namespace wiselib {
 			typedef typename RowT::Value Value;
 			
 			enum { MAX_STRING_LENGTH = 256 };
+			enum { TS_SEMANTIC_COLUMNS = 3 };
 			
 			void init(GraphPatternSelectionDescription<OsModel, Processor> *gpsd, Query *query) {
 				Base::init(reinterpret_cast<OperatorDescription<OsModel, Processor>* >(gpsd), query);
-				
 				for(size_type i = 0; i < 3; i++) {
 					affected_[i] = gpsd->affects(i);
 					if(affected_[i]) {
@@ -76,6 +76,7 @@ namespace wiselib {
 				values_[0] = value0;
 				values_[1] = value1;
 				values_[2] = value2;
+				
 			}
 			
 			void execute(TupleStoreT& ts) {
@@ -88,11 +89,13 @@ namespace wiselib {
 				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
 					bool match = true;
 					size_type row_idx = 0;
-					for(size_type i = 0; i < TupleStoreT::COLUMNS; i++) {
-						typename Processor::Value v = this->translator().translate(TupleStoreT::to_key(iter->get(i)));
+					for(size_type i = 0; i < TS_SEMANTIC_COLUMNS; i++) {
+						typename Processor::Value v = this->translator().translate(iter->get_key(i));
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
+								//DBG("not matching because [%d] = %08lx != %08lx",
+										//(int)i, (unsigned long)values_[i], (unsigned long)v);
 								match = false;
 								break;
 							}
@@ -104,7 +107,7 @@ namespace wiselib {
 								break;
 							case ProjectionInfoBase::INTEGER: {
 								//DBG("col %d INT", i);
-								block_data_t *s = this->dictionary().get_value(TupleStoreT::to_key(iter->get(i)));
+								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
 								this->dictionary().free_value(s);
@@ -112,7 +115,7 @@ namespace wiselib {
 							}
 							case ProjectionInfoBase::FLOAT: {
 								//DBG("col %d FLOAT", i);
-								block_data_t *s = this->dictionary().get_value(TupleStoreT::to_key(iter->get(i)));
+								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
 								this->dictionary().free_value(s);
@@ -121,7 +124,7 @@ namespace wiselib {
 							case ProjectionInfoBase::STRING:
 								//DBG("col %d STRING", i);
 								(*row)[row_idx++] = v;
-								this->reverse_translator().offer(TupleStoreT::to_key(iter->get(i)), v);
+								this->reverse_translator().offer(iter->get_key(i), v);
 								break;
 						}
 					}

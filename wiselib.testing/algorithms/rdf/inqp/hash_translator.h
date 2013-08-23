@@ -23,7 +23,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Translates hash values into dictionary keys.
 	 * 
 	 * @ingroup
 	 * 
@@ -47,12 +47,10 @@ namespace wiselib {
 			typedef typename Hash::hash_t hash_t;
 			
 			enum { MAX_SIZE = MAX_SIZE_P };
-			enum { NULL_KEY = Dictionary::NULL_KEY };
-			
 			
 			class HashKeyPair {
 				public:
-					HashKeyPair() : dict_key_(NULL_KEY) {
+					HashKeyPair() : dict_key_(Dictionary::NULL_KEY) {
 					}
 					dict_key_t& dict_key() { return dict_key_; }
 					hash_t& hash() { return hash_; }
@@ -68,7 +66,7 @@ namespace wiselib {
 			dict_key_t translate(hash_t hash) {
 				size_type idx = hash_to_index(hash);
 				HashKeyPair &p = lookup_table_[idx];
-				if(p.dict_key() != NULL_KEY && p.hash() == hash) {
+				if(p.dict_key() != Dictionary::NULL_KEY && p.hash() == hash) {
 					return p.dict_key();
 				}
 				
@@ -89,7 +87,7 @@ namespace wiselib {
 					}
 				}
 				
-				return NULL_KEY;
+				return Dictionary::NULL_KEY;
 			}
 			
 			void fill() {
@@ -107,7 +105,7 @@ namespace wiselib {
 			void offer(dict_key_t key, hash_t hash) {
 				size_type idx = hash_to_index(hash);
 				HashKeyPair &p = lookup_table_[idx];
-				if(p.dict_key() == NULL_KEY) {
+				if(p.dict_key() == Dictionary::NULL_KEY) {
 					p.hash() = hash;
 					p.dict_key() = key;
 					

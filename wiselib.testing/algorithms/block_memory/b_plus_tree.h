@@ -403,7 +403,7 @@ namespace wiselib {
 						Block& block = *reinterpret_cast<Block*>(&block_);
 						Block other;
 						address_t a_other = NO_ADDRESS;
-						key_type pivot_old, pivot_new;
+						key_type pivot_old, pivot_new = 0;
 						
 						if(a_right != NO_ADDRESS) {
 							tree_->read_block(other, a_right);

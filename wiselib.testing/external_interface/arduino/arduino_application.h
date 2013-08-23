@@ -41,4 +41,26 @@ namespace wiselib
    };
 }
 
+void application_main(wiselib::ArduinoOsModel&);
+
+int main(int argc, const char** argv) {
+   wiselib::ArduinoOsModel app_main_arg;
+   init();
+   
+   #if defined(USBCON)
+      USBDevice.attach();
+   #endif
+      
+   pinMode(13, OUTPUT);
+   Serial.begin(9600);
+   application_main(app_main_arg);
+   
+   while(true) {
+   }
+   
+   return 0;
+}
+
 #endif
+
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

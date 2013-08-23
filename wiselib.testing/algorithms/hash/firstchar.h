@@ -17,25 +17,39 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef STRING_UTIL_H
-#define STRING_UTIL_H
+#ifndef FIRSTCHAR_H
+#define FIRSTCHAR_H
 
 namespace wiselib {
 	
-	bool is_whitespace(char c) {
-		return (c == ' ') || (c == '\t') || (c == '\x0a') || (c == '\x0d');
-	}
-	
-	char* skip_whitespace(char* p) {
-		for( ; is_whitespace(*p); p++) { }
-		return p;
-	}
-	
-	bool is_printable(char c) {
-		unsigned char uc = (unsigned char)c;
-		return (uc >= 0x20) && (uc <= 0x7e);
-	}
+	/**
+	 * @brief
+	 * 
+	 * @ingroup
+	 * 
+	 * @tparam 
+	 */
+	template<
+		typename OsModel_P
+	>
+	class Firstchar {
+		
+		public:
+			typedef OsModel_P OsModel;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef ::uint8_t hash_t;
+			
+			enum { MAX_VALUE = (hash_t)(-1) };
+			
+			static hash_t hash(const block_data_t *s, size_type l) {
+				return (l > 0) ? s[0] : 0;
+			}
+		
+		private:
+		
+	}; // Firstchar
 }
 
-#endif // STRING_UTIL_H
+#endif // FIRSTCHAR_H
 
