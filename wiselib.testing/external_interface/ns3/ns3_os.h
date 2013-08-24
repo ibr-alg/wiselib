@@ -25,6 +25,7 @@
 #include "external_interface/ns3/ns3_timer.h"
 #include "external_interface/ns3/ns3_radio.h"
 #include "external_interface/ns3/ns3_extdata_radio.h"
+#include "external_interface/ns3/ns3_tx_radio.h"
 #include "external_interface/ns3/ns3_clock.h"
 #include "external_interface/ns3/ns3_position.h"
 #include "external_interface/ns3/ns3_distance.h"
@@ -58,6 +59,7 @@ namespace wiselib
       typedef Ns3TimerModel<Ns3OsModel> Timer;
       typedef Ns3RadioModel<Ns3OsModel> Radio;
       typedef Ns3ExtendedDataRadioModel<Ns3OsModel> ExtendedDataRadio;
+      typedef Ns3TxRadioModel<Ns3OsModel> TxRadio;
       typedef Ns3ClockModel<Ns3OsModel> Clock;
       typedef Ns3PositionModel<Ns3OsModel,block_data_t> Position;
       typedef Ns3DistanceModel<Ns3OsModel,Radio> Distance;
