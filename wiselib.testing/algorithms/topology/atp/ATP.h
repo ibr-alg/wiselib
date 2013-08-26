@@ -399,8 +399,9 @@ namespace wiselib
 					q_sort_neigh_active_con( 0, N.size(), N );
 					transmission_power_dB = find_tp( N.at(4).get_transmission_power_dB(), N.at(4).get_link_stab_ratio(), 80 );
 #else
-#ifdef CONFIG_ATP_H_FLEXIBLE_DB
 					int8_t old_transmission_power_dB = transmission_power_dB;
+#ifdef CONFIG_ATP_H_FLEXIBLE_DB
+
 					transmission_power_dB = transmission_power_dB + ATP_H_DB_STEP;
 #endif
 					if ( transmission_power_dB > ATP_H_MAX_DB_THRESHOLD )
@@ -436,8 +437,9 @@ namespace wiselib
 #endif
 						)
 				{
-#ifdef CONFIG_ATP_H_FLEXIBLE_DB
 					int8_t old_transmission_power_dB = transmission_power_dB;
+#ifdef CONFIG_ATP_H_FLEXIBLE_DB
+
 					transmission_power_dB = transmission_power_dB - ATP_H_DB_STEP;
 #endif
 					if ( transmission_power_dB < ATP_H_MIN_DB_THRESHOLD )
