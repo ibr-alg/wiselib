@@ -30,6 +30,12 @@
 namespace wiselib {
 	
 	/**
+	 * 
+	 * TODO: Implement Chandy/Misra solution to dining philosophers here for
+	 * locking nodes (= forks) for the use by communication channels (=
+	 * philosophers). That way, locking on higher layers e.g. on aggregator
+	 * level is not necessary anymore.
+	 * 
 	 * @brief
 	 * 
 	 * @ingroup

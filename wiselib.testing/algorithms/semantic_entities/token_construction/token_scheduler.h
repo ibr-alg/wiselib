@@ -379,6 +379,14 @@ namespace wiselib {
 				#endif
 				
 				switch(se->handover_state_initiator()) {
+					
+					case SemanticEntityT::TOKEN_STATE:
+						// send token state, excepet other TS as answer
+					
+					
+					
+					
+					
 					case SemanticEntityT::SUPPLEMENTARY_INIT:
 						endpoint.set_supplementary();
 						message.set_supplementary();
