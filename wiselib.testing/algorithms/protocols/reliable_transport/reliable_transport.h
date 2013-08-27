@@ -79,9 +79,6 @@ namespace wiselib {
 			
 			class Endpoint;
 			
-			//typedef delegate2<bool, Message&, Endpoint&> produce_callback_t;
-			//typedef delegate2<void, Message&, Endpoint&> consume_callback_t;
-			//typedef delegate2<void, int, Endpoint&> event_callback_t;
 			typedef delegate3<bool, int, Message*, Endpoint*> callback_t;
 			
 			enum SpecialNodeIds {
@@ -766,7 +763,6 @@ namespace wiselib {
 			size_type sending_channel_idx_;
 			size_type ack_timer_;
 			size_type resends_;
-			//sequence_number_t ack_timeout_sequence_number_;
 			bool is_sending_;
 			abs_millis_t send_start_;
 		
