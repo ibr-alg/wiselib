@@ -66,7 +66,7 @@ endif
 
 CXXFLAGS=-mmcu=$(MCU) -DF_CPU=$(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums $(INCLUDE) $(LIBS) $(FLAGS) \
-	-DOSMODEL=ArduinoOsModel -DARDUINO -fno-exceptions -fno-use-cxa-atexit 
+	-DOSMODEL=ArduinoOsModel -DARDUINO -fno-exceptions -fno-use-cxa-atexit -Wno-strict-aliasing
 
 OUTPUT = out/arduino
 
