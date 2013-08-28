@@ -144,9 +144,11 @@ namespace wiselib
          //xbee_.begin(9600);
          timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
          initialized_ = true;
-         enabled_ = true;
       }
-         
+      
+      enabled_ = true;
+      digitalWrite(10, enabled_ ? HIGH : LOW);
+      
       id_ = id();
       if(id_ == -1)
          return ERR_UNSPEC;
@@ -157,6 +159,7 @@ namespace wiselib
    int ArduinoXBeeRadio<OsModel_P>::disable_radio()
    {
       enabled_ = false;
+      digitalWrite(10, enabled_ ? HIGH : LOW);
       return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -226,7 +229,6 @@ namespace wiselib
    void ArduinoXBeeRadio<OsModel_P>::read_recv_packet(void*)
    {
       if(enabled_) {
-         digitalWrite(10, HIGH);
          xbee_.readPacket();
          if(xbee_.getResponse().isAvailable())
          {
@@ -245,7 +247,6 @@ namespace wiselib
                received(data, length, from_id);
             }
          }
-         digitalWrite(10, LOW);
       } // enabled_
       timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
    }
@@ -297,5 +298,6 @@ namespace wiselib
 #endif // ARDUINO_USE_XBEE
 
 #endif // ARDUINO_XBEE_RADIO_H
+
 /* vim: set ts=3 sw=3 tw=78 expandtab :*/
-/* vim: set ts=3 sw=3 tw=78 expandtab :*/
+

@@ -24,12 +24,12 @@
 
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/iterator.h"
-
 #include "external_interface/arduino/arduino_debug.h"
 
 namespace wiselib {
    class ArduinoOsModel;
    template<typename OsModel_P> class ArduinoTimer;
+   class ArduinoTask;
 }
 
 namespace wiselib
@@ -248,29 +248,6 @@ namespace wiselib
       TIMSK2 |= (1<<OCIE2A);
       sei();
       return 0;
-   }
-}
-
-ISR(TIMER2_COMPA_vect)
-{
-   wiselib::arduino_timer_count = wiselib::arduino_timer_count + 1;
-   if(wiselib::arduino_timer_count >= wiselib::arduino_timer_max_count)
-   {
-      TIMSK2 &= ~(1<<OCIE2A);
-      wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.pop();
-      
-   digitalWrite(13, HIGH);
-   
-      (wiselib::current_arduino_timer.cb)(wiselib::current_arduino_timer.ptr);
-   digitalWrite(13, LOW);
-      
-      if(!wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.empty())
-      {
-         wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.top();
-         wiselib::arduino_timer_count = 0;
-         wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - millis();
-         TIMSK2 |= (1<<OCIE2A);
-      }
    }
 }
 

@@ -21,6 +21,7 @@
 
 #include "external_interface/wiselib_application.h"
 #include "external_interface/arduino/arduino_os.h"
+#include "arduino_task.h"
 
 namespace wiselib
 {
@@ -32,13 +33,15 @@ namespace wiselib
       typedef ArduinoOsModel OsModel;
       typedef Application_P Application;
       // --------------------------------------------------------------------
-      void init(typename OsModel::AppMainParameter& amp)
+      //void init(typename OsModel::AppMainParameter& amp)
+      void init(ArduinoOsModel& amp)
       {
          app.init(amp);
       };
    private:
       Application app;
    };
+
 }
 
 void application_main(wiselib::ArduinoOsModel&);
@@ -56,10 +59,49 @@ int main(int argc, const char** argv) {
    application_main(app_main_arg);
    
    while(true) {
+      if(!wiselib::ArduinoTask::tasks_.empty()) {
+      //   Serial.println("<task>");
+         digitalWrite(13, HIGH);
+         wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+         wiselib::ArduinoTask::tasks_.pop();
+         
+         //wiselib::ArduinoDebug<wiselib::ArduinoOsModel>(true).debug("pop'd task %d", (int)wiselib::ArduinoTask::tasks_.size());
+         
+         t.callback_(t.userdata_);
+         digitalWrite(13, LOW);
+      //   Serial.println("</task>");
+      }
+      else {
+      }
+      delay(100);
    }
-   
    return 0;
 }
+
+ISR(TIMER2_COMPA_vect)
+{
+   wiselib::arduino_timer_count = wiselib::arduino_timer_count + 1;
+   if(wiselib::arduino_timer_count >= wiselib::arduino_timer_max_count)
+   {
+      TIMSK2 &= ~(1<<OCIE2A);
+      wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.pop();
+      
+   //digitalWrite(13, ~digitalRead(13));
+   
+      //(wiselib::current_arduino_timer.cb)(wiselib::current_arduino_timer.ptr);
+   wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
+   //digitalWrite(13, LOW);
+      
+      if(!wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.empty())
+      {
+         wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.top();
+         wiselib::arduino_timer_count = 0;
+         wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - millis();
+         TIMSK2 |= (1<<OCIE2A);
+      }
+   }
+}
+
 
 #endif
 
