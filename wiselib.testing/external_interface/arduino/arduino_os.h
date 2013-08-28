@@ -25,6 +25,7 @@ namespace wiselib {
 }
 
 #if ARDUINO_USE_ASSERT
+	#warning "Assertions enabled on arduino"
 	#include <assert.h>
 #endif
 
@@ -56,6 +57,7 @@ namespace wiselib {
 #include <algorithms/rand/kiss.h>
 
 #if WISELIB_DISABLE_DEBUG
+	#warning "Assertions disabled due to WISELIB_DISABLE_DEBUG"
 	#undef assert
 	#define assert(X)
 #else

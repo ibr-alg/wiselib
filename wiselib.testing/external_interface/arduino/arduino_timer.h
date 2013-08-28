@@ -258,7 +258,12 @@ ISR(TIMER2_COMPA_vect)
    {
       TIMSK2 &= ~(1<<OCIE2A);
       wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.pop();
+      
+   digitalWrite(13, HIGH);
+   
       (wiselib::current_arduino_timer.cb)(wiselib::current_arduino_timer.ptr);
+   digitalWrite(13, LOW);
+      
       if(!wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.empty())
       {
          wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.top();

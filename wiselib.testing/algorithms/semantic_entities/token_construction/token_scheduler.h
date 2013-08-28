@@ -165,22 +165,34 @@ namespace wiselib {
 				debug_ = debug;
 				rand_ = rand;
 				
+				debug_->debug("a0");
 				nap_control_.init(radio_, debug_);
+				debug_->debug("a1");
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+				debug_->debug("a2");
 				radio_->enable_radio();
+				debug_->debug("a3");
 				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
+				debug_->debug("a4");
 				end_activity_callback_ = end_activity_callback_t();
+				debug_->debug("a5");
 				
 				global_tree_.init(radio_, clock_, timer_, debug_, &nap_control_);
+				debug_->debug("a6");
 				global_tree_.reg_event_callback(
 						GlobalTreeT::event_callback_t::template from_method<self_type, &self_type::on_global_tree_event>(this)
 				);
+				debug_->debug("a7");
 				registry_.init(&global_tree_);
+				debug_->debug("a8");
 				
 				neighborhood_.init(&global_tree_, &registry_, radio_);
+				debug_->debug("a9 %d", ArduinoMonitor<OsModel, Debug>::free());
 				forwarding_.init(radio_, &neighborhood_, &nap_control_, &registry_, timer_, clock_, debug_);
+				debug_->debug("aA");
 				
 				aggregator_.init(tuplestore);
+				debug_->debug("aB");
 			}
 			
 			void set_end_activity_callback(end_activity_callback_t cb) {
@@ -218,6 +230,7 @@ namespace wiselib {
 		private:
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				debug_->debug("rcv");
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				if(!nap_control_.on()) {
@@ -239,6 +252,7 @@ namespace wiselib {
 			}
 			
 			void on_receive_task(void *p) {
+				debug_->debug("rcvt");
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				//abs_millis_t t_recv = absolute_millis(packet_info->received());
 				const node_id_t &from = packet_info->from();
@@ -260,6 +274,7 @@ namespace wiselib {
 			}
 			
 			void on_global_tree_event(typename GlobalTreeT::EventType e) {
+				debug_->debug("Tev");
 				//if(e & GlobalTreeT::TOPOLOGY_CHANGES) {
 					for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 						SemanticEntityT &se = iter->second;

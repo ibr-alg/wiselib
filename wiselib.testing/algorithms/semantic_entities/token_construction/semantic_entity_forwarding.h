@@ -251,6 +251,8 @@ namespace wiselib {
 			}
 			
 			void wakeup(void *p) {
+				digitalWrite(8, HIGH);
+				
 				//position_ = p;
 				position_ = 0;
 				hardcore_cast(position_, p);
@@ -261,8 +263,8 @@ namespace wiselib {
 				nap_control_->push_caffeine();
 				
 				size_type end = slot_map().first(false, position_, map_slots_);
-				assert(end == npos || slot_map().get(end) == false);
-				assert(end == npos || end > position_);
+				//assert(end == npos || slot_map().get(end) == false);
+				//assert(end == npos || end > position_);
 				
 				if(end == npos) {
 					end = map_slots_;
@@ -271,9 +273,11 @@ namespace wiselib {
 				DBG("node %d // fwd wakeup schedule sleep at %d", (int)radio_->id(), (int)end);
 				//position_ = end;
 				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, (void*)end);
+				digitalWrite(8, LOW);
 			}
 			
 			void sleep(void* p) {
+				digitalWrite(9, HIGH);
 				position_ = 0;
 				hardcore_cast(position_, p);
 				position_time_ = now();
@@ -300,6 +304,7 @@ namespace wiselib {
 					DBG("node %d // fwd sleep schedule wakeup at %d", (int)radio_->id(), (int)start);
 					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * len, this, (void*)start);
 				}
+				digitalWrite(9, LOW);
 			}
 			
 			size_type current_slot() {
