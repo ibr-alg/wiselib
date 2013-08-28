@@ -1,3 +1,6 @@
+*.map
+*.a
+*.out
 *.orig
 *.o
 *.d
