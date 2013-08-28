@@ -277,6 +277,7 @@ namespace wiselib {
 			}
 			
 			void broadcast_state(int reason) {
+				debug_->debug("Tbc");
 				TreeStateMessageT msg;
 				msg.init();
 				msg.set_reason(reason);
@@ -292,12 +293,17 @@ namespace wiselib {
 			}
 			
 			void broadcast_state_regular(void* = 0) {
+				digitalWrite(8, HIGH);
+				digitalWrite(9, HIGH);
 				broadcast_state(TreeStateMessageT::REASON_REGULAR_BCAST);
 				last_push_ = now();
 				timer_->template set_timer<self_type, &self_type::broadcast_state_regular>(BCAST_INTERVAL, this, 0);
+				digitalWrite(8, LOW);
+				digitalWrite(9, LOW);
 			}
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				debug_->debug("Trcv");
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(!nap_control_->on()) {
 					#if !WISELIB_DISABLE_DEBUG
@@ -593,29 +599,29 @@ namespace wiselib {
 				
 				if(c || updated_neighbors_) {
 					// <DEBUG>
-					#if !WISELIB_DISABLE_DEBUG
+				//	#if !WISELIB_DISABLE_DEBUG
 					
-						char hex[sizeof(UserData) * 2 + 1];
-						for(size_type i = 0; i < sizeof(UserData); i++) {
-							hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
-							hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
-						}
-						hex[sizeof(UserData) * 2] = '\0';
+						//char hex[sizeof(UserData) * 2 + 1];
+						//for(size_type i = 0; i < sizeof(UserData); i++) {
+							//hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
+							//hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
+						//}
+						//hex[sizeof(UserData) * 2] = '\0';
 						
-						debug_->debug("node %d parent %d distance %d root %d changed %d t %d filter %s // update_state",
-								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now(), hex);
+						debug_->debug("node %d parent %d distance %d root %d changed %d t %d filter  // update_state",
+								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now()/*, hex*/);
 						
 						
 						
-						debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
-								(int)radio_->id(),
-								(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-								(int)neighbors_[3].id(), childs());
+						//debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
+								//(int)radio_->id(),
+								//(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
+								//(int)neighbors_[3].id(), childs());
 						//for(size_type i = 0; i < childs(); i++) {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}
 						
-					#endif
+				//	#endif
 					// </DEBUG>
 					
 					changed();

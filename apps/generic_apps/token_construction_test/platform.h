@@ -21,7 +21,7 @@
 	#define WISELIB_DISABLE_DEBUG (!defined(PC))
 	#define WISELIB_DISABLE_DEBUG_MESSAGES (!defined(PC))
 	
-	#define USE_LIST_CONTAINER 0
+	#define USE_LIST_CONTAINER 1
 	#define USE_BLOCK_CONTAINER !USE_LIST_CONTAINER
 	#define BLOCK_CACHE_SIZE          2
 	#define BLOCK_CACHE_SPECIAL       1
@@ -30,10 +30,10 @@
 	#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
 	
 	#define USE_PRESCILLA_DICTIONARY 0
-	#define USE_TREE_DICTIONARY      0
-	#define USE_BLOCK_DICTIONARY     1
+	#define USE_TREE_DICTIONARY      1
+	#define USE_BLOCK_DICTIONARY     0
 
-	#define USE_INQP 1
+	#define USE_INQP 0
 
 #endif
 

@@ -66,7 +66,7 @@ namespace wiselib {
 				debug_->debug("free: %d // %s", free(), remark);
 			}
 			
-			int free() {
+			static int free() {
 				int free_memory;
 				if ((int)__brkval == 0) {
 					free_memory = ((int)&free_memory) - ((int)&__heap_start);
@@ -79,7 +79,7 @@ namespace wiselib {
 			}
 			
 		private:
-			int free_list_size() {
+			static int free_list_size() {
 				struct __freelist* current;
 				int total = 0;
 				for(current = __flp; current; current = current->nx) {

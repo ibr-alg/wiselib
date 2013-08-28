@@ -180,6 +180,7 @@ namespace wiselib {
 				calculate_limits();
 
 
+				#if !WISELIB_DISABLE_DEBUG
 				
 				debug_->debug("bitmap chunk allocator init");
 				debug_->debug("chunk size          : %lu", (unsigned long)CHUNK_SIZE);
@@ -202,6 +203,8 @@ namespace wiselib {
 				debug_->debug("end                 : %lu", (unsigned long)((layer_start(summary_height_) + layer_size(summary_height_))));
 				
 				assert(total_map_blocks_ == layer_start(summary_height_) + layer_size(summary_height_));
+				
+				#endif // WISELIB_DISABLE_DEBUG
 			}
 
 			size_type size() { return parent_size() - total_map_blocks_; }

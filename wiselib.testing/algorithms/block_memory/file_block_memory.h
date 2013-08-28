@@ -62,6 +62,10 @@ namespace wiselib {
 			size_type size() {
 				return filesize_ / BLOCK_SIZE;
 			}
+			
+			void set_size(size_type sz) {
+				filesize_ = sz;
+			}
 
 			int init() {
 				return SUCCESS;

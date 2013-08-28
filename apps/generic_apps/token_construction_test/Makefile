@@ -12,6 +12,11 @@ all: pc
 
 export APP_SRC=example_app.cpp
 export BIN_OUT=example_app
+
+#export APP_SRC=format_sd.cpp
+#export BIN_OUT=format_sd
+
+
 export PC_COMPILE_DEBUG=1
 #export ADD_CXXFLAGS="-Wall"
 

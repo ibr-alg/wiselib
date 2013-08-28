@@ -119,7 +119,20 @@ class ExampleApplication
 		
 		void init( Os::AppMainParameter& value )
 		{
-			debug_->debug("\n++++ BOOT ++++");
+			pinMode(8, OUTPUT);
+			pinMode(9, OUTPUT);
+			pinMode(10, OUTPUT);
+			pinMode(13, OUTPUT);
+			
+			
+			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
+			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
+			
+			debug_->debug("\nboot");
+			/*
 			debug_->debug("free %d sizes: TC %d EP %d ND %d Fwd %d",
 					monitor_.free(),
 					(int)sizeof(TC),
@@ -156,19 +169,22 @@ class ExampleApplication
 			debug_->debug("App %d treestate %d treestatemsg %d", (int)sizeof(ExampleApplication),
 					(int)sizeof(TC::GlobalTreeT::TreeStateT),
 					(int)sizeof(TC::GlobalTreeT::TreeStateMessageT));
+			*/
 			
-			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
-			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
-			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
-			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
-			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
-			
+			#if ARDUINO
+			radio_->set_pins(11, 12);
+			#endif
 			
 			monitor_.init(debug_);
 			
 			radio_->enable_radio();
 			
 			//debug_->debug( "Hello World from Example Application! my id=%d\n", (int)radio_->id());
+			#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
+				block_memory_.physical().init();
+				block_memory_.init();
+				block_allocator_.init(&block_memory_, debug_);
+			#endif
 			
 			#if USE_DICTIONARY
 				#if USE_PRESCILLA
@@ -181,14 +197,15 @@ class ExampleApplication
 				ts.init(0, &container, debug_);
 			#endif
 				
-			monitor_.report("before tc init");
+			monitor_.report("tc init");
 			
 			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
+			monitor_.report("tc i2");
 			token_construction_.set_end_activity_callback(
 				TC::end_activity_callback_t::from_method<ExampleApplication, &ExampleApplication::on_end_activity>(this)
 			);
 			
-			monitor_.report("before rp init");
+			monitor_.report("rp init");
 			
 			#if USE_INQP
 				query_processor_.init(&ts, timer_);
@@ -199,7 +216,7 @@ class ExampleApplication
 				rule_processor_.init(&ts, &token_construction_);
 			#endif
 				
-			monitor_.report("before rdf");
+			monitor_.report("rdf");
 			
 			// Insert some URIs we need for generating aggregation info into
 			// the dictionary
@@ -213,9 +230,10 @@ class ExampleApplication
 			// end aggregation URIs
 			
 			
+			monitor_.report("rdf2");
 			initial_semantics(ts, radio_->id()); // included from semantics_XXX.h
 			
-			monitor_.report("before rules");
+			monitor_.report("rules");
 			
 			create_rules();
 			rule_processor_.execute_all();
@@ -321,6 +339,11 @@ class ExampleApplication
 		#if USE_DICTIONARY
 			Dictionary::key_type aggr_key_temp_;
 			Dictionary::key_type aggr_key_centigrade_;
+		#endif
+			
+		#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
+			BlockMemory block_memory_;
+			BlockAllocator block_allocator_;
 		#endif
 		
 	#endif // not def CODESIZE_EMPTY
