@@ -712,7 +712,7 @@ namespace wiselib {
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
 				size_type ack_timer;
 				//hardcore_cast(ack_timer, at_);
-            ack_timer = (size_type)at_;
+            ack_timer = *reinterpret_cast<size_type*>(&at_); // = (size_type)at_;
             //debug_->debug("ackto s %d at=%lu state %lu", (int)is_sending_, (unsigned long)ack_timer, (unsigned long)ack_timer_);
 				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
                //debug_->debug("ackto y");

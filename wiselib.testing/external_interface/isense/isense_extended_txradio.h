@@ -142,6 +142,7 @@ namespace wiselib {
             os_.srand(os_.id());
 #endif
             enabled_ = true;
+            id_ = id();
         }
         // --------------------------------------------------------------------
 
@@ -211,14 +212,15 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         int disable_radio() {
-            os().radio().disable();
             enabled_ = false;
+            os().radio().disable();
             return SUCCESS;
         }
         // --------------------------------------------------------------------
 
         node_id_t id() {
-            return os().id();
+            return id_;
+            //return os().id();
         }
         // --------------------------------------------------------------------
         //---------- From concept VariablePowerRadio ------------
@@ -304,6 +306,7 @@ namespace wiselib {
         isense_radio_delegate_t isense_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
         extended_radio_delegate_t isense_ext_radio_callbacks_[MAX_EXTENDED_RECEIVERS];
         bool enabled_;
+        node_id_t id_;
     };
     // --------------------------------------------------------------------
 

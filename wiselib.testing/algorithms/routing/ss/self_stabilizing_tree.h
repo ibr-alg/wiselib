@@ -285,9 +285,9 @@ namespace wiselib {
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				#if !WISELIB_DISABLE_DEBUG
+				//#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d t %d // bcast tree state", (int)radio_->id(), (int)now());
-				#endif
+				//#endif
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				nap_control_->pop_caffeine();
 			}
@@ -305,7 +305,7 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				if(!is_node_id_sane(from)) { return; }
 				
-				//debug_->debug("Trcv");
+				debug_->debug("Trcv");
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(!nap_control_->on()) {
 					#if !WISELIB_DISABLE_DEBUG
@@ -338,8 +338,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					//debug_->debug("node %d window %d interval %d",
-							//(int)radio_->id(), (int)event.window(), (int)event.interval());
+					debug_->debug("node %d window %d interval %d", (int)radio_->id(), (int)event.window(), (int)event.interval());
 					
 					void *v = 0;
 					hardcore_cast(v, from);

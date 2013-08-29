@@ -25,10 +25,13 @@ namespace wiselib {
 	
 	template<typename TS>
 	void ins(TS& ts, const char* s, const char* p, const char* o) {
+		DBG("ins(%s %s %s)", s, p, o);
 		typename TS::Tuple t;
 		t.set(0, (typename TS::block_data_t*)s);
 		t.set(1, (typename TS::block_data_t*)p);
 		t.set(2, (typename TS::block_data_t*)o);
+		
+		DBG("ins t (%s %s %s)", s, p, o);
 		ts.insert(t);
 	}
 	
@@ -38,6 +41,8 @@ namespace wiselib {
 		typename node_id_t
 	>
 	void initial_semantics(TS& ts, node_id_t id) {
+		DBG("initial semantics");
+		
 		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
 		
 		enum { MAX_URI_LENGTH = 256 };

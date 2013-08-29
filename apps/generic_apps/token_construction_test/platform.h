@@ -116,14 +116,16 @@ typedef wiselib::OSMODEL Os;
 	#define WISELIB_TIME_FACTOR 1
 #endif
 
+template<typename OsModel_P>
 class NullMonitor {
 	public:
-		template<typename Dbg>
-		void init(Dbg*) { }
+		void init(typename OsModel_P::Debug* d) { debug_ = d; }
 		
 		void report() { }
-		void report(const char *remark) { }
+		void report(const char *remark) { debug_->debug(remark); }
 		int free() { return 666; }
+		
+		typename OsModel_P::Debug* debug_;
 };
 	
 /* vim: set ts=4 sw=4 tw=78 noexpandtab :*/

@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS = -g -I. -I$(SHAWN_INCLUDE_DIR)/src -I$(SHAWN_INCLUDE_DIR)/buildfiles \
 	-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) -I$(WISELIB_BASE)/doc \
 	-I/usr/local/lib -I/opt/local/lib \
-	-Wall -Wno-unknown-pragmas -Wno-sign-compare \
+	-Wall -Wno-reorder -Wno-unknown-pragmas -Wno-sign-compare \
 	-DOSMODEL=ShawnOsModel -DSHAWN $(ADD_CXXFLAGS) \
 	-DCHECK_CONCEPTS
 LDFLAGS = -L$(SHAWN_LIB_DIR) $(SHAWN_LINK_LIBS)
