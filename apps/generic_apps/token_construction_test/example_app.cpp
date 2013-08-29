@@ -23,8 +23,8 @@ using namespace wiselib;
 	#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 	//#include "semantics_office1.h"
-	//#include "semantics_uniform.h"
-	#include "semantics_simple.h"
+	#include "semantics_uniform.h"
+	//#include "semantics_simple.h"
 
 	typedef Tuple<Os> TupleT;
 	

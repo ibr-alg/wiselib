@@ -61,19 +61,20 @@ int main(int argc, const char** argv) {
    while(true) {
       if(!wiselib::ArduinoTask::tasks_.empty()) {
       //   Serial.println("<task>");
-         digitalWrite(13, HIGH);
+         digitalWrite(9, HIGH);
          wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
          wiselib::ArduinoTask::tasks_.pop();
          
          //wiselib::ArduinoDebug<wiselib::ArduinoOsModel>(true).debug("pop'd task %d", (int)wiselib::ArduinoTask::tasks_.size());
          
          t.callback_(t.userdata_);
-         digitalWrite(13, LOW);
+         digitalWrite(9, LOW);
       //   Serial.println("</task>");
       }
       else {
+         //Serial.print(".");
       }
-      delay(100);
+      delay(10);
    }
    return 0;
 }
@@ -95,8 +96,14 @@ ISR(TIMER2_COMPA_vect)
       if(!wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.empty())
       {
          wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.top();
+         ::uint32_t now = millis();
+         if(wiselib::current_arduino_timer.event_time > now) {
+            wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - now;
+         }
+         else {
+            wiselib::arduino_timer_max_count = 0;
+         }
          wiselib::arduino_timer_count = 0;
-         wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - millis();
          TIMSK2 |= (1<<OCIE2A);
       }
    }

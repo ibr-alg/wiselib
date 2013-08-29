@@ -239,8 +239,16 @@ namespace wiselib
       item.cb = wiselib::arduino_timer_delegate_t::from_method<T, TMethod>(obj_pnt);
       item.ptr = userdata;
       arduino_queue.push(item);
+      
       wiselib::current_arduino_timer = arduino_queue.top();
-      wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - time_elapsed();
+      
+      ::uint32_t now = time_elapsed();
+      if(wiselib::current_arduino_timer.event_time > now) {
+         wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - now;
+      }
+      else {
+         wiselib::arduino_timer_max_count = 0;
+      }
       wiselib::arduino_timer_count = 0;
 
       TCNT2 = 0;
