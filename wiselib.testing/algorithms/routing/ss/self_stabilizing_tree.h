@@ -285,9 +285,9 @@ namespace wiselib {
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				//#if !WISELIB_DISABLE_DEBUG
+				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d t %d // bcast tree state", (int)radio_->id(), (int)now());
-				//#endif
+				#endif
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				nap_control_->pop_caffeine();
 			}
@@ -338,7 +338,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					debug_->debug("node %d window %d interval %d", (int)radio_->id(), (int)event.window(), (int)event.interval());
+					//debug_->debug("node %d window %d interval %d", (int)radio_->id(), (int)event.window(), (int)event.interval());
 					
 					void *v = 0;
 					hardcore_cast(v, from);
@@ -605,7 +605,7 @@ namespace wiselib {
 				if(c || updated_neighbors_) {
 					notify_event(UPDATED_STATE);
 					// <DEBUG>
-				//	#if !WISELIB_DISABLE_DEBUG
+					#if !WISELIB_DISABLE_DEBUG
 					
 						//char hex[sizeof(UserData) * 2 + 1];
 						//for(size_type i = 0; i < sizeof(UserData); i++) {
@@ -627,7 +627,7 @@ namespace wiselib {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}
 						
-				//	#endif
+					#endif
 					// </DEBUG>
 					
 					changed();
