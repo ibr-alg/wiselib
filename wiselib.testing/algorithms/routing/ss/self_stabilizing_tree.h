@@ -552,6 +552,8 @@ namespace wiselib {
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
 					
+					DBG("neigh: %lu p %lu r %lu d %d", (unsigned long)iter->id(), (unsigned long)iter->tree_state().parent(),
+							(unsigned long)iter->tree_state().root(), (int)iter->tree_state().distance());
 					if(iter->tree_state().parent() == radio_->id()) {
 						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
 						Neighbor n(&*iter);

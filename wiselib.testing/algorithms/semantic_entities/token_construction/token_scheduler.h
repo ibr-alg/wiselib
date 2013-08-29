@@ -410,6 +410,7 @@ namespace wiselib {
 						return true;
 					}
 						
+					/*
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE:
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_1:
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_2: {
@@ -441,24 +442,28 @@ namespace wiselib {
 						// NO break or return here, continue with send
 						// aggregates immediately!
 					}
+					*/
 						
 					case SemanticEntityT::SEND_AGGREGATES_START: {
 						debug_->debug("phi as");
 						bool call_again;
-						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
+						size_type sz = 0; //aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
+						/*
 						if(call_again) {
 							debug_->debug("phi as will send more");
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 							endpoint.request_send();
 						}
 						else {
+						*/
 							debug_->debug("phi as requesting close");
 							endpoint.request_close();
-						}
+						//}
 						return true;
 					}
 					
+						/*
 					case SemanticEntityT::SEND_AGGREGATES: {
 						debug_->debug("phi a");
 						bool call_again;
@@ -475,7 +480,9 @@ namespace wiselib {
 						endpoint.request_send();
 						return true;
 					}
+					*/
 					
+					/*
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_GIVE_UP:
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP:
 					case SemanticEntityT::CLOSE: {
@@ -484,6 +491,7 @@ namespace wiselib {
 						endpoint.request_close();
 						return false;
 					}
+					*/
 				} // switch();
 				
 				return false;
@@ -505,6 +513,7 @@ namespace wiselib {
 				switch(*message.payload()) {
 					case 'a': {
 						debug_->debug("chi a");
+						/*
 						bool lock = aggregator_.lock(id, false);
 						if(!lock) {
 							int s = se->handover_state_initiator();
@@ -521,9 +530,10 @@ namespace wiselib {
 							}
 						}
 						else {
+						*/
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES_START);
 							endpoint.request_send();
-						}
+						//}
 						break;
 					}
 						
@@ -532,6 +542,7 @@ namespace wiselib {
 						endpoint.request_close();
 						break;
 						
+					/*
 					case 'l':
 						debug_->debug("chi l");
 						int s = se->handover_state_initiator();
@@ -547,6 +558,7 @@ namespace wiselib {
 							endpoint.request_send();
 						}
 						break;
+					*/
 				}
 			}
 			
@@ -643,6 +655,7 @@ namespace wiselib {
 						transport_.expect_answer(endpoint);
 						return true;
 						
+					/*
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
 						debug_->debug("phr l");
 						*message.payload() = 'l';
@@ -651,6 +664,7 @@ namespace wiselib {
 						//transport_.expect_answer(endpoint);
 						//endpoint.request_send();
 						return true;
+					*/
 					default:
 						debug_->debug("phr WTF");
 				} // switch()
@@ -689,6 +703,7 @@ namespace wiselib {
 				#endif
 						
 				switch(se->handover_state_recepient()) {
+					/*
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL: {
 						debug_->debug("chr l");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
@@ -708,6 +723,7 @@ namespace wiselib {
 						}
 						break;
 					}
+					*/
 						
 					case SemanticEntityT::INIT: {
 						debug_->debug("chr i");
@@ -740,16 +756,18 @@ namespace wiselib {
 					
 					case SemanticEntityT::RECV_AGGREGATES_START: {
 						debug_->debug("chr as");
-						aggregator_.read_buffer_start(message.channel(), message.payload(), message.payload_size());
+						//aggregator_.read_buffer_start(message.channel(), message.payload(), message.payload_size());
 						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES);
 						break;
 					}
 					
+					/*
 					case SemanticEntityT::RECV_AGGREGATES: {
 						debug_->debug("chr a");
 						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
+					*/
 				} // switch()
 			}
 			
