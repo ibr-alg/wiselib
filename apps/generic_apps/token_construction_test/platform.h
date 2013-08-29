@@ -35,6 +35,7 @@
 
 	#define USE_INQP 0
 
+	#define INSE_USE_AGGREGATOR 0
 #endif
 
 
@@ -63,7 +64,7 @@ typedef wiselib::OSMODEL Os;
 
 // OS quirks
 
-#if defined(TINYOS)
+#if defined(TINYOS) || defined(CONTIKI_TARGET_MSB430)
 	int strcmp(char* a, char* b) {
 		for( ; a && b; a++, b++) {
 			if(a != b) { return b - a; }
@@ -72,7 +73,7 @@ typedef wiselib::OSMODEL Os;
 	}
 #endif
 
-#if defined(CONTIKI) && !defined(memset)
+#if (defined(TINYOS) || defined(CONTIKI)) && !defined(memset)
 	#include <string.h>
 
 	void* memset(void* p, int v, unsigned int n) {

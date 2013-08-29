@@ -581,8 +581,7 @@ namespace wiselib {
 			
 			void check_send(void* = 0) {
 				if(is_sending_) {
-               debug_->debug("still sending to %d since %lu now %lu", (int)sending_endpoint().remote_address(),
-                     (unsigned long)send_start_, (unsigned long)now());
+               //debug_->debug("still sending to %d since %lu now %lu", (int)sending_endpoint().remote_address(), (unsigned long)send_start_, (unsigned long)now());
 					DBG("node %d // check_send: currently sending idx %d (s %d to %d since %d)", (int)radio_->id(), (int)sending_channel_idx_,
 							(int)sending_endpoint().sequence_number(), (int)sending_endpoint().remote_address(), (int)send_start_);
 					return;
