@@ -44,6 +44,10 @@ namespace wiselib {
          }
          
          static void enqueue(delegate1<void, void*> cb, void* ud) {
+            if(tasks_.full()) {
+               Serial.println("tq full!");
+               while(true) ;
+            }
             tasks_.push(ArduinoTask(cb, ud));
          //ArduinoDebug<ArduinoOsModel>(true).debug("push'd task %d", (int)tasks_.size());
          }
