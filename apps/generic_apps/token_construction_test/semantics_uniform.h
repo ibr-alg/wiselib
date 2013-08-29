@@ -47,7 +47,7 @@ namespace wiselib {
 		
 		enum { MAX_URI_LENGTH = 256 };
 		char myuri[MAX_URI_LENGTH];
-		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%d>", id);
+		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)id);
 		myuri[MAX_URI_LENGTH - 1] = '\0';
 		
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
