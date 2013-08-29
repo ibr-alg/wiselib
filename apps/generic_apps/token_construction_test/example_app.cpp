@@ -119,11 +119,12 @@ class ExampleApplication
 		
 		void init( Os::AppMainParameter& value )
 		{
-			pinMode(8, OUTPUT);
-			pinMode(9, OUTPUT);
-			pinMode(10, OUTPUT);
-			pinMode(13, OUTPUT);
-			
+			#ifdef ARDUINO
+				pinMode(8, OUTPUT);
+				pinMode(9, OUTPUT);
+				pinMode(10, OUTPUT);
+				pinMode(13, OUTPUT);
+			#endif
 			
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
@@ -189,7 +190,7 @@ class ExampleApplication
 			#if USE_DICTIONARY
 				#if USE_PRESCILLA
 					dictionary.init(debug_);
-				#elif USE_TREEDICT
+				#elif USE_TREE_DICTIONARY
 					dictionary.init();
 				#endif
 				ts.init(&dictionary, &container, debug_);
@@ -236,6 +237,7 @@ class ExampleApplication
 			monitor_.report("rules");
 			
 			create_rules();
+			monitor_.report("exec rules");
 			rule_processor_.execute_all();
 			
 			
@@ -325,7 +327,7 @@ class ExampleApplication
 		#if defined(ARDUINO)
 			ArduinoMonitor<Os, Os::Debug> monitor_;
 		#else
-			NullMonitor monitor_;
+			NullMonitor<Os> monitor_;
 		#endif
 		
 		TC token_construction_;

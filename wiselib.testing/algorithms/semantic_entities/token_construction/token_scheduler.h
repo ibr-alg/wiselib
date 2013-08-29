@@ -165,34 +165,23 @@ namespace wiselib {
 				debug_ = debug;
 				rand_ = rand;
 				
-				debug_->debug("a0");
 				nap_control_.init(radio_, debug_);
-				debug_->debug("a1");
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-				debug_->debug("a2");
 				radio_->enable_radio();
-				debug_->debug("a3");
 				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
-				debug_->debug("a4");
 				end_activity_callback_ = end_activity_callback_t();
-				debug_->debug("a5");
 				
 				global_tree_.init(radio_, clock_, timer_, debug_, &nap_control_);
-				debug_->debug("a6");
 				global_tree_.reg_event_callback(
 						GlobalTreeT::event_callback_t::template from_method<self_type, &self_type::on_global_tree_event>(this)
 				);
-				debug_->debug("a7");
 				registry_.init(&global_tree_);
-				debug_->debug("a8");
 				
 				neighborhood_.init(&global_tree_, &registry_, radio_);
-				debug_->debug("a9 %d", ArduinoMonitor<OsModel, Debug>::free());
+			//	debug_->debug("a9 %d", ArduinoMonitor<OsModel, Debug>::free());
 				forwarding_.init(radio_, &neighborhood_, &nap_control_, &registry_, timer_, clock_, debug_);
-				debug_->debug("aA");
 				
 				aggregator_.init(tuplestore);
-				debug_->debug("aB");
 			}
 			
 			void set_end_activity_callback(end_activity_callback_t cb) {
@@ -852,7 +841,9 @@ namespace wiselib {
 				// and then again (during the actual activity)
 				if(se.in_activity_phase()) { return; }
          
-	digitalWrite(13, HIGH);
+				#ifdef ARDUINO
+					digitalWrite(13, HIGH);
+				#endif
 				
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d SE %x.%x active %d t %d // begin_activity",
@@ -917,8 +908,10 @@ namespace wiselib {
 				#endif
 				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
-				digitalWrite(13, LOW);
-	
+				
+				#ifdef ARDUINO
+					digitalWrite(13, LOW);
+				#endif
 			}
 			
 			/// ditto.

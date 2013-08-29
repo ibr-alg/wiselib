@@ -275,7 +275,6 @@ namespace wiselib {
 				while(p) {
 					assert(p->value != 0);
 					
-					//DBG("strcmp(%lx, %lx, %lx)", (long int)(void*)p, (long int)(void*)p->value, (long int)(void*)v);
 					c = strcmp((char*)p->value, (char*)v);
 					if(c == 0) {
 						return p;
