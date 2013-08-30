@@ -86,7 +86,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
 				RESEND_TIMEOUT = 300 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
-				MAX_RESENDS = 3, ANSWER_TIMEOUT = MAX_RESENDS * RESEND_TIMEOUT,
+				MAX_RESENDS = 3, ANSWER_TIMEOUT = RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {
@@ -325,8 +325,8 @@ namespace wiselib {
 			}
 			
 			void expect_answer(Endpoint& ep) {
-				ep.set_expect_answer(true);
-				timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
+				//ep.set_expect_answer(true);
+				//timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
 			}
 			
 			node_id_t remote_address(const ChannelId& channel, bool initiator) {
@@ -581,8 +581,9 @@ namespace wiselib {
 			
 			void check_send(void* = 0) {
 				if(is_sending_) {
-               debug_->debug("still sending to %d since %lu now %lu", (int)sending_endpoint().remote_address(),
-                     (unsigned long)send_start_, (unsigned long)now());
+			   debug_->debug("busy to %d init %d wants send %d since %lu now %lu", (int)sending_endpoint().remote_address(), (int)sending_endpoint().initiator(), (int)sending_endpoint().wants_send(), (unsigned long)send_start_, (unsigned long)now());
+			   
+			   
 					DBG("node %d // check_send: currently sending idx %d (s %d to %d since %d)", (int)radio_->id(), (int)sending_channel_idx_,
 							(int)sending_endpoint().sequence_number(), (int)sending_endpoint().remote_address(), (int)send_start_);
 					return;
@@ -701,7 +702,7 @@ namespace wiselib {
 				//ack_timeout_sequence_number_ = sending_endpoint().sequence_number();
 				void *v;
 				//hardcore_cast(v, ack_timer_);
-            v = (void*)ack_timer_;
+            v = (void*)(size_t)ack_timer_;
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, v);
 				//timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT + (RESEND_RAND_ADD ? (rand_->operator()() % RESEND_RAND_ADD) : 0), this, v);
 			}
@@ -710,11 +711,12 @@ namespace wiselib {
             
 				//if(is_sending_ && sending_endpoint().used() && sending_endpoint().channel() == ack_timeout_channel_ &&
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
-				size_type ack_timer;
+				::uint8_t ack_timer;
 				//hardcore_cast(ack_timer, at_);
-            ack_timer = (size_type)at_;
-            //debug_->debug("ackto s %d at=%lu state %lu", (int)is_sending_, (unsigned long)ack_timer, (unsigned long)ack_timer_);
-				if(is_sending_ && ((size_type)ack_timer == ack_timer_)) {
+            //ack_timer = *reinterpret_cast<size_type*>(&at_); // = (size_type)at_;
+			ack_timer = (::uint8_t)(unsigned long)(at_);
+			debug_->debug("ackto s %d at=%lu state %lu", (int)is_sending_, (unsigned long)ack_timer, (unsigned long)ack_timer_);
+				if(is_sending_ && (ack_timer == ack_timer_)) {
                //debug_->debug("ackto y");
 					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
 							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator());
@@ -770,11 +772,11 @@ namespace wiselib {
 			
 			ChannelId ack_timeout_channel_;
 			size_type sending_channel_idx_;
-			size_type ack_timer_;
 			size_type resends_;
 			//sequence_number_t ack_timeout_sequence_number_;
-			bool is_sending_;
 			abs_millis_t send_start_;
+			::uint8_t ack_timer_;
+			bool is_sending_;
 		
 	}; // ReliableTransport
 }

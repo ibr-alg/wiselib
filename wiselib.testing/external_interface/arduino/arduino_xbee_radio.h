@@ -88,7 +88,9 @@ namespace wiselib
       };
       
       enum {
-         POLL_INTERVAL = 20
+         POLL_INTERVAL = 20,
+         BAUDRATE = 57600
+         //BAUDRATE = 115200
       };
 
       ArduinoXBeeRadio();
@@ -113,14 +115,14 @@ namespace wiselib
       void set_pins(int rx, int tx) {
          software_serial_ = new SoftwareSerial(rx, tx);
          //software_serial_ = new AltSoftSerial(rx, tx);
-         software_serial_->begin(9600);
+         software_serial_->begin(BAUDRATE);
          xbee_.setSerial(*software_serial_);
       }
 
    private:
       node_id_t id_;
       typename OsModel::Timer* timer_;
-      unsigned long baud_rate_;
+      //unsigned long baud_rate_;
       arduino_radio_delegate_t arduino_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
       XBee xbee_;
       
@@ -147,12 +149,12 @@ namespace wiselib
    int ArduinoXBeeRadio<OsModel_P>::enable_radio()
    {
       if(!initialized_) {
-         baud_rate_ = DEFAULT_BAUD_RATE;
+         //baud_rate_ = DEFAULT_BAUD_RATE;
          if(software_serial_ == 0) {
-            Serial.begin(9600);
-            xbee_.setSerial(Serial);
+            Serial1.begin(BAUDRATE);
+            xbee_.setSerial(Serial1);
          }
-         //xbee_.begin(9600);
+         //xbee_.begin(BAUDRATE);
          timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
          initialized_ = true;
       }
@@ -213,7 +215,7 @@ namespace wiselib
       TxStatusResponse txStatus = TxStatusResponse();
 
       xbee_.send(tx);
-      if (xbee_.readPacket(5000))
+      if (xbee_.readPacket(100))
       {
          if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
          {
@@ -224,11 +226,26 @@ namespace wiselib
             {
                return SUCCESS;
             }
+            else {
+            Serial.print("send() stat ");
+            Serial.write((int)txStatus.getStatus());
+            Serial.println();
+               ArduinoDebug<ArduinoOsModel>(true).debug("send() status %d", (int)txStatus.getStatus());
+            }
          }
          else if (!xbee_.getResponse().isError())
          {
             return SUCCESS;
          }
+         else {
+            Serial.print("send() errorecode ");
+            Serial.write((int)xbee_.getResponse().getErrorCode());
+            Serial.println();
+            ArduinoDebug<ArduinoOsModel>(true).debug("send() errorcode %d", (int)xbee_.getResponse().getErrorCode());
+         }
+      }
+      else {
+         Serial.println("send() no xbee response");
       }
       
       Serial.println("send() err");

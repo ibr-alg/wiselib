@@ -662,8 +662,9 @@ namespace wiselib {
 						//transport_.expect_answer(endpoint);
 						//endpoint.request_send();
 						return true;
+			#endif
 					default:
-						debug_->debug("phr WTF");
+						debug_->debug("phr WTF %d", (int)se->handover_state_recepient());
 				} // switch()
 				return false;
 			}
