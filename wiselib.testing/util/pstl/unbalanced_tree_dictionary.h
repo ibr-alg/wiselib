@@ -217,12 +217,21 @@ namespace wiselib {
 						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
 						p->parent->childs[child_idx] = s;
 					}
+					/*
 					if(p->childs[!successor_side]) { p->childs[!successor_side]->parent = s; }
 					if(p->childs[successor_side]) { p->childs[successor_side]->parent = s; }
+					*/
+					if(p->childs[0]) { p->childs[0]->parent = s; }
+					if(p->childs[1]) { p->childs[1]->parent = s; }
 					
 					s->parent = p->parent;
+					
+					/*
 					s->childs[!successor_side] = p->childs[!successor_side];
 					s->childs[successor_side] = p->childs[successor_side];
+					*/
+					s->childs[0] = p->childs[0];
+					s->childs[1] = p->childs[1];
 				}
 				
 				get_allocator().free_array(

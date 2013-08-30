@@ -126,7 +126,7 @@ class BitmapAllocator {
 		block_data_t* first_fit(size_type required_blocks) {
 			size_type start_pos = 0, length = 0;
 			for(size_type i=0; i<BITMAP_SIZE; i++) {
-				if(used()[i]) {
+				if(used().get(i)) {
 					length = 0;
 					start_pos = i+1;
 				}
@@ -142,10 +142,10 @@ class BitmapAllocator {
 		
 		block_data_t* allocate_chunk(size_type pos, size_type required_blocks) {
 			start().set(pos, true);
+			start().set(pos + required_blocks, true);
 			for(size_type i=pos; i<pos + required_blocks; i++) {
 				used().set(i, true);
 			}
-			start().set(pos + required_blocks, true);
 			return buffer_ + BLOCK_SIZE * pos;
 		}
 		

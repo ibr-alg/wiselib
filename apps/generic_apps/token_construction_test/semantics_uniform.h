@@ -45,10 +45,17 @@ namespace wiselib {
 		
 		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
 		
-		enum { MAX_URI_LENGTH = 256 };
+		enum { MAX_URI_LENGTH = 256, DIGITPOS = 45 };
 		char myuri[MAX_URI_LENGTH];
+		
 		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)id);
 		myuri[MAX_URI_LENGTH - 1] = '\0';
+		
+		/*
+		strncpy(myuri, "<http://spitfire-project.eu/sensor/office1/v", MAX_URI_LENGTH);
+		int n = ltoa(MAX_URI_LENGTH - DIGITPOS - 1, myuri + DIGITPOS, id, 16);
+		myuri[DIGITPOS + n] = '\0';
+		*/
 		
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
 	}

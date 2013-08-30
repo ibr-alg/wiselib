@@ -75,7 +75,8 @@ namespace wiselib {
 				/// How much a stable hit influences expected timing
 				ALPHA_STABLE = 50,
 				/// How much a far hit influences expected timing
-				ALPHA_FAR = 50
+				ALPHA_FAR = 50,
+				alpha = 50
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
@@ -107,11 +108,11 @@ namespace wiselib {
 						//DBG("------ Close hit, halving window");
 						window_ /= 2;
 						if(window_ < MIN_WINDOW_SIZE) { window_ = MIN_WINDOW_SIZE; }
-						update_interval(new_interval, ALPHA_CLOSE);
+						update_interval(new_interval); //, ALPHA_CLOSE);
 						break;
 					case HIT_STABLE:
 						//DBG("------ stable hit");
-						update_interval(new_interval, ALPHA_STABLE);
+						update_interval(new_interval); //, ALPHA_STABLE);
 						break;
 					case HIT_FAR: {
 						//DBG("------ far hit, doubling window");
@@ -120,7 +121,7 @@ namespace wiselib {
 						abs_millis_t old_window = window_;
 						abs_millis_t old_interval = interval_;
 						
-						update_interval(new_interval, ALPHA_FAR);
+						update_interval(new_interval); //, ALPHA_FAR);
 						
 						window_ *= 2;
 						
@@ -299,7 +300,7 @@ namespace wiselib {
 				else { return HIT_FAR; }
 			}
 			
-			void update_interval(abs_millis_t new_interval, ::uint8_t alpha) {
+			void update_interval(abs_millis_t new_interval) { //, ::uint8_t alpha) {
 				//assert(new_interval > time_t(0));
 				//if(new_interval < window_) { new_interval = window_; }
 				

@@ -21,21 +21,27 @@
 	#define WISELIB_DISABLE_DEBUG (!defined(PC))
 	#define WISELIB_DISABLE_DEBUG_MESSAGES (!defined(PC))
 	
-	#define USE_LIST_CONTAINER 1
-	#define USE_BLOCK_CONTAINER !USE_LIST_CONTAINER
+	#define USE_LIST_CONTAINER   0
+    #define USE_VECTOR_CONTAINER 1
+	#define USE_BLOCK_CONTAINER  0
+
 	#define BLOCK_CACHE_SIZE          2
 	#define BLOCK_CACHE_SPECIAL       1
 	#define BLOCK_CACHE_WRITE_THROUGH 1
 	#define BLOCK_CHUNK_SIZE          8
 	#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
 	
-	#define USE_PRESCILLA_DICTIONARY 0
-	#define USE_TREE_DICTIONARY      1
-	#define USE_BLOCK_DICTIONARY     0
+	#define USE_PRESCILLA_DICTIONARY   0
+	#define USE_TREE_DICTIONARY        0
+	#define USE_BLOCK_DICTIONARY       0
+	#define USE_NULL_DICTIONARY        1
 
 	#define USE_INQP 0
 
 	#define INSE_USE_AGGREGATOR 0
+
+
+	#define BITMAP_ALLOCATOR_RAM_SIZE 1024
 #endif
 
 
@@ -51,7 +57,7 @@ typedef wiselib::OSMODEL Os;
 	#warning "Using BITMAP allocator"
 
 	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, 1024> Allocator;
+	typedef wiselib::BitmapAllocator<Os, BITMAP_ALLOCATOR_RAM_SIZE> Allocator;
 	Allocator allocator_;
 	Allocator& get_allocator() { return allocator_; }
 #else
@@ -65,8 +71,8 @@ typedef wiselib::OSMODEL Os;
 // OS quirks
 
 #if defined(TINYOS) || defined(CONTIKI_TARGET_MSB430)
-	int strcmp(char* a, char* b) {
-		for( ; a && b; a++, b++) {
+	int strcmp(const char* a, const char* b) {
+		for( ; *a && *b; a++, b++) {
 			if(a != b) { return b - a; }
 		}
 		return b - a;
@@ -90,6 +96,17 @@ typedef wiselib::OSMODEL Os;
 		}
 		return 0;
 	}
+
+/*
+	char *strncpy(char *dest, const char *src, size_t n) {
+		const char *end = src + n;
+		for( ; src < end && *src; src++, dest++) {
+			*dest = *src;
+		}
+		if(src < end) { *dest = '\0'; }
+		return dest;
+	}
+	*/
 #endif
 
 #if defined(ISENSE)
@@ -99,7 +116,8 @@ typedef wiselib::OSMODEL Os;
 	
 #if defined(ISENSE) || defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ)
 	#warning "assertions messages not implemented for this platform, disabling"
-	extern "C" void assert(int) { }
+	//extern "C" void assert(int) { }
+	#define assert(X)
 #endif
 	
 #ifndef DBG

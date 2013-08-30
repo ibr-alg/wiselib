@@ -219,7 +219,7 @@ namespace wiselib {
 				return neighbors_[c_idx + 1].id();
 			}
 			
-			UserData child_user_data(size_type c_idx) {
+			UserData& child_user_data(size_type c_idx) {
 				check();
 				assert(c_idx < childs());
 				return neighbors_[c_idx + 1].entry_->message_.user_data();
@@ -248,7 +248,7 @@ namespace wiselib {
 				return user_data_;
 			}
 			
-			void set_user_data(UserData& ud) {
+			void set_user_data(const UserData& ud) {
 				user_data_ = ud;
 			}
 			
@@ -340,11 +340,9 @@ namespace wiselib {
 					
 					//debug_->debug("node %d window %d interval %d", (int)radio_->id(), (int)event.window(), (int)event.interval());
 					
-					void *v = 0;
-					hardcore_cast(v, from);
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
-						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
+						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
 				}
 				
 				add_neighbor_entry(from, msg);
@@ -560,7 +558,8 @@ namespace wiselib {
 						insert_child(n);
 					}
 					
-					else if(iter->tree_state().root() < root) {
+					else if((iter->tree_state().root() < root) ||
+						(iter->tree_state().root() == root && (iter->tree_state().distance() + 1) < distance)) {
 						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
 						//parent_idx = (it - neighbors_.begin());
 						parent_ptr = &*iter;
@@ -569,6 +568,7 @@ namespace wiselib {
 						distance = iter->tree_state().distance() + 1;
 					}
 					
+					/*
 					else if(iter->tree_state().root() == root && (iter->tree_state().distance() + 1) < distance) {
 						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
 						//parent_idx = (it - neighbors_.begin());
@@ -576,6 +576,7 @@ namespace wiselib {
 						parent = iter->id();
 						distance = iter->tree_state().distance() + 1;
 					}
+					*/
 				}
 				
 				if(root == radio_->id()) {

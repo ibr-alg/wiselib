@@ -241,6 +241,7 @@ namespace wiselib {
 			//}
 			
 			
+			/*
 			node_id_t tree_forward_address(node_id_t sender, bool forward, AmqT& amq) {
 				check();
 				
@@ -266,6 +267,7 @@ namespace wiselib {
 				check();
 				return global_tree_->child(child_idx + 1);
 			}
+			*/
 			
 			AmqT& amq() {
 				check();
