@@ -215,6 +215,7 @@ namespace wiselib {
 			void next_cycle(void * = 0) {
 				// <DEBUG>
 				
+			#if !WISELIB_DISABLE_DEBUG
 				char hex[MAP_BYTES * 2 + 1];
 				memset(hex, 0, MAP_BYTES * 2 + 1);
 				for(size_type i = 0; i < MAP_BYTES; i++) {
@@ -224,14 +225,18 @@ namespace wiselib {
 				hex[MAP_BYTES * 2] = '\0';
 				
 				DBG("node %d t %d // starting fwd cycle %s", (int)radio_->id(), (int)now(), hex);
+			#endif
 				
 				// </DEBUG>
 				
 				memset(activity_maps_[map_index_], 0, MAP_BYTES);
 				map_index_ = !map_index_;
-				position_ = 0;
-				position_time_ = now();
+				nap_control_->push_caffeine();
+				//position_ = 0;
+				//position_time_ = now();
+				//sleep(0);
 				
+				/*
 				size_type start = slot_map().first(true, 0, map_slots_);
 				assert(start == npos || slot_map().get(start) == true);
 				assert(start == npos || start >= position_);
@@ -248,6 +253,7 @@ namespace wiselib {
 					
 					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * start, this, (void*)start);
 				}
+				*/
 			}
 			
 			void wakeup(void *p) {
@@ -309,11 +315,17 @@ namespace wiselib {
 			void schedule_wakeup(size_type pos) {
 				//if(pos > 3) { mark_awake(pos - 3); }
 				//if(pos > 2) { mark_awake(pos - 2); }
+				
+				for(int d = -1; d <= 3; d++) {
+					if(pos > -d) { mark_awake(pos + d); }
+				}
+				/*
 				if(pos > 1) { mark_awake(pos - 1); }
 				mark_awake(pos);
 				mark_awake(pos + 1);
 				mark_awake(pos + 2);
 				mark_awake(pos + 3);
+				*/
 			}
 			
 			void mark_awake(size_type pos) {
@@ -351,11 +363,11 @@ namespace wiselib {
 			
 			// forwarding info
 			block_data_t activity_maps_[2][MAP_BYTES];
-			bool map_index_;
 			size_type map_slots_;
+			size_type position_;
 			abs_millis_t slot_length_;
 			abs_millis_t position_time_;
-			size_type position_;
+			bool map_index_;
 		
 	}; // SemanticEntityForwarding
 }

@@ -39,6 +39,9 @@ class Tuple {
 
 		// operator= as default
 
+		const block_data_t* get(size_type i) const {
+			return *reinterpret_cast<block_data_t* const *>(data_ + i);
+		}
 		block_data_t* get(size_type i) {
 			return *reinterpret_cast<block_data_t**>(data_ + i);
 		}

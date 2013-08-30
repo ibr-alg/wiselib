@@ -44,6 +44,12 @@ using namespace wiselib;
 		#include <util/pstl/unique_container.h>
 		typedef wiselib::list_dynamic<Os, TupleT> TupleList;
 		typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+	#elif USE_VECTOR_CONTAINER
+		#include <util/pstl/vector_static.h>
+		#include <util/pstl/unique_container.h>
+		typedef wiselib::vector_static<Os, TupleT, 100> TupleList;
+		typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+		
 	#elif USE_BLOCK_CONTAINER
 		#include <algorithms/block_memory/b_plus_hash_set.h>
 		typedef BPlusHashSet<Os, BlockAllocator, Hash, TupleT, true> TupleContainer;
@@ -69,7 +75,7 @@ using namespace wiselib;
 		typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
 		typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 	#else
-		#warning "Using NULL dictionary"
+		#warning "++++++ Using NULL dictionary (by fallthrough) ++++++"
 		#include <util/tuple_store/null_dictionary.h>
 		typedef wiselib::TupleStore<Os, TupleContainer, NullDictionary<Os>, Os::Debug, 0, &TupleT::compare> TS;
 	#endif
@@ -131,6 +137,8 @@ class ExampleApplication
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
+			
+			debug_->debug("hello, world");
 			
 			radio_->enable_radio();
 			
@@ -199,15 +207,10 @@ class ExampleApplication
 				ts.init(0, &container, debug_);
 			#endif
 				
-			monitor_.report("tc init");
-			
 			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
-			monitor_.report("tc i2");
 			token_construction_.set_end_activity_callback(
 				TC::end_activity_callback_t::from_method<ExampleApplication, &ExampleApplication::on_end_activity>(this)
 			);
-			
-			monitor_.report("rp init");
 			
 			#if USE_INQP
 				query_processor_.init(&ts, timer_);
@@ -218,13 +221,17 @@ class ExampleApplication
 				rule_processor_.init(&ts, &token_construction_);
 			#endif
 				
-			monitor_.report("rdf");
+			monitor_.report("r1");
 			
 			// Insert some URIs we need for generating aggregation info into
 			// the dictionary
 			
-			aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
-			aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
+			#if USE_DICTIONARY
+				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
+				monitor_.report("r2");
+				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
+			#endif
+			monitor_.report("r3");
 			
 			//debug_->debug("node %d // temp=%8lx centigrate=%8lx", (int)radio_->id(),
 					//(long)aggr_key_temp_, (long)aggr_key_centigrade_);
@@ -232,13 +239,13 @@ class ExampleApplication
 			// end aggregation URIs
 			
 			
-			monitor_.report("rdf2");
+			//monitor_.report("rdf2");
 			initial_semantics(ts, radio_->id()); // included from semantics_XXX.h
 			
-			monitor_.report("rules");
+			//monitor_.report("rules");
 			
 			create_rules();
-			monitor_.report("exec rules");
+			//monitor_.report("exec rules");
 			rule_processor_.execute_all();
 			
 			

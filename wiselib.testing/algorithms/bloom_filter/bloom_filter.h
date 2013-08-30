@@ -85,6 +85,13 @@ namespace wiselib {
 				return data_[byte(v)] & (1 << bit(v));
 			}
 			
+			/*
+			BloomFilter& operator=(const self_type& other) {
+				memcpy(data_, other.data_, SIZE_BYTES);
+				return *this;
+			}
+			*/
+			
 			BloomFilter& operator|=(const self_type& other) {
 				for(size_type i = 0; i < SIZE_BYTES; i++) {
 					data_[i] |= other.data_[i];

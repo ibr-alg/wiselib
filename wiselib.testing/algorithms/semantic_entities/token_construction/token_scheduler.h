@@ -191,7 +191,6 @@ namespace wiselib {
 				registry_.init(&global_tree_);
 				
 				neighborhood_.init(&global_tree_, &registry_, radio_);
-			//	debug_->debug("a9 %d", ArduinoMonitor<OsModel, Debug>::free());
 				forwarding_.init(radio_, &neighborhood_, &nap_control_, &registry_, timer_, clock_, debug_);
 				
 				#if INSE_USE_AGGREGATOR
@@ -369,7 +368,7 @@ namespace wiselib {
 					return true;
 				}
 				else {
-					debug_->debug("ih: no ep me %d rem %d", (int)radio_->id(), ep.remote_address());
+					//debug_->debug("ih: no ep me %d rem %d", (int)radio_->id(), ep.remote_address());
 					transport_.flush();
 					
 					#if !WISELIB_DISABLE_DEBUG
@@ -382,7 +381,7 @@ namespace wiselib {
 					
 					if(!se.initiating_main_handover()) {
 						se.set_initiating_main_handover(true);
-						debug_->debug("ih: again in %d", (int)HANDOVER_RETRY_INTERVAL);
+						//debug_->debug("ih: again in %d", (int)HANDOVER_RETRY_INTERVAL);
 						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
 					}
 					return false;
@@ -409,14 +408,15 @@ namespace wiselib {
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now(), (int)se->token().count());
 				#endif
 				
+				debug_->debug("phi");
 				switch(se->handover_state_initiator()) {
 					case SemanticEntityT::SUPPLEMENTARY_INIT:
-						debug_->debug("phi si");
+						//debug_->debug("phi si");
 						endpoint.set_supplementary();
 						message.set_supplementary();
 						
 					case SemanticEntityT::INIT: {
-						debug_->debug("phi i");
+						//debug_->debug("phi i");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						msg.set_cycle_time(se->activating_token_interval());
 						msg.set_token_state(se->token());
@@ -429,7 +429,7 @@ namespace wiselib {
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE:
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_1:
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_2: {
-						debug_->debug("phi lr");
+						//debug_->debug("phi lr");
 						se->set_handover_state_initiator(se->handover_state_initiator() + 1);
 						
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
@@ -443,7 +443,7 @@ namespace wiselib {
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_1:
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_2: {
-						debug_->debug("phi ll");
+						//debug_->debug("phi ll");
 						bool lock = aggregator_.lock(id, false);
 						if(!lock) {
 							// if at first you don't succeed...
@@ -460,19 +460,19 @@ namespace wiselib {
 				#endif
 						
 					case SemanticEntityT::SEND_AGGREGATES_START: {
-						debug_->debug("phi as");
+						//debug_->debug("phi as");
 						bool call_again;
 						
 				#if INSE_USE_AGGREGATOR
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						
 						if(call_again) {
-							debug_->debug("phi as+");
+							//debug_->debug("phi as+");
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 							endpoint.request_send();
 						}
 						else {
-							debug_->debug("phi as cl");
+							//debug_->debug("phi as cl");
 							endpoint.request_close();
 						}
 				#else
@@ -487,16 +487,16 @@ namespace wiselib {
 					
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::SEND_AGGREGATES: {
-						debug_->debug("phi a");
+						//debug_->debug("phi a");
 						bool call_again;
 						size_type sz = aggregator_.fill_buffer(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
 						if(call_again) {
-							debug_->debug("phi a+");
+							//debug_->debug("phi a+");
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 						}
 						else {
-							debug_->debug("phi a cl");
+							//debug_->debug("phi a cl");
 							endpoint.request_close();
 						}
 						endpoint.request_send();
@@ -506,7 +506,7 @@ namespace wiselib {
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL_GIVE_UP:
 					case SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP:
 					case SemanticEntityT::CLOSE: {
-						debug_->debug("phi c");
+						//debug_->debug("phi c");
 						message.set_payload_size(0);
 						endpoint.request_close();
 						return false;
@@ -530,9 +530,10 @@ namespace wiselib {
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				#endif
 				
+				debug_->debug("chi");
 				switch(*message.payload()) {
 					case 'a': {
-						debug_->debug("chi a");
+						//debug_->debug("chi a");
 						
 			#if INSE_USE_AGGREGATOR
 						bool lock = aggregator_.lock(id, false);
@@ -562,13 +563,13 @@ namespace wiselib {
 					}
 						
 					case 'n':
-						debug_->debug("chi n");
+						//debug_->debug("chi n");
 						endpoint.request_close();
 						break;
 						
 			#if INSE_USE_AGGREGATOR
 					case 'l':
-						debug_->debug("chi l");
+						//debug_->debug("chi l");
 						int s = se->handover_state_initiator();
 						if(s >= SemanticEntityT::AGGREGATES_LOCKED_REMOTE && s < SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP) {
 							se->set_handover_state_initiator(s + 1);
@@ -600,9 +601,10 @@ namespace wiselib {
 							(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)event, (int)now());
 				#endif
 				
+				debug_->debug("ehi%c", event);
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
-						debug_->debug("ehi abort");
+						//debug_->debug("abrt i");
 						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
@@ -612,7 +614,7 @@ namespace wiselib {
 						break;
 						
 					case ReliableTransportT::EVENT_OPEN:
-						debug_->debug("ehi open");
+						//debug_->debug("ehi open");
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection", (int)radio_->id());
@@ -621,7 +623,7 @@ namespace wiselib {
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
-						debug_->debug("ehi close");
+						//debug_->debug("ehi close");
 						
 						#if INSE_USE_AGGREGATOR
 							aggregator_.release(id, false);
@@ -669,7 +671,7 @@ namespace wiselib {
 				
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::SEND_ACTIVATING:
-						debug_->debug("phr a");
+						//debug_->debug("phr a");
 						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES_START);
 						*message.payload() = 'a';
 						message.set_payload_size(1);
@@ -677,7 +679,7 @@ namespace wiselib {
 						return true;
 						
 					case SemanticEntityT::SEND_NONACTIVATING:
-						debug_->debug("phr n");
+						//debug_->debug("phr n");
 						*message.payload() = 'n';
 						message.set_payload_size(1);
 						transport_.expect_answer(endpoint);
@@ -685,7 +687,7 @@ namespace wiselib {
 						
 			#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL:
-						debug_->debug("phr l");
+						//debug_->debug("phr l");
 						*message.payload() = 'l';
 						//se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES_START);
 						message.set_payload_size(1);
@@ -693,17 +695,15 @@ namespace wiselib {
 						//endpoint.request_send();
 						return true;
 			#endif
-					default:
-						debug_->debug("phr WTF %d", (int)se->handover_state_recepient());
+					//default:
+						//debug_->debug("phr WTF %d", (int)se->handover_state_recepient());
 				} // switch()
 				return false;
 			}
 			
 			void consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
-				debug_->debug("chr");
-				
 				if(message.payload_size() == 0) {
-					debug_->debug("----- no pl");
+					debug_->debug("pl0");
 					//return;
 				}
 				
@@ -718,7 +718,7 @@ namespace wiselib {
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) {
-					debug_->debug("no se");
+					//debug_->debug("no se");
 					DBG("consume_handover_recepient: at %d SE %x.%x not found",
 							(int)radio_->id(), (int)id.rule(), (int)id.value());
 					return;
@@ -730,10 +730,11 @@ namespace wiselib {
 							(int)se->handover_state_recepient(), (int)now());
 				#endif
 						
+				debug_->debug("chr");
 				switch(se->handover_state_recepient()) {
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL: {
-						debug_->debug("chr l");
+						//debug_->debug("chr l");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						//bool activating =
 						process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
@@ -754,7 +755,7 @@ namespace wiselib {
 				#endif
 						
 					case SemanticEntityT::INIT: {
-						debug_->debug("chr i");
+						//debug_->debug("chr i");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						SemanticEntityT s2 = *se;
 						
@@ -769,24 +770,24 @@ namespace wiselib {
 						
 						if(!activating) {
 							se->set_handover_state_recepient(SemanticEntityT::SEND_NONACTIVATING);
-							debug_->debug("chr i n");
+							//debug_->debug("chr i n");
 							endpoint.request_send();
 						}
 						else if(INSE_USE_AGGREGATOR && !lock) {
 							se->set_handover_state_recepient(SemanticEntityT::AGGREGATES_LOCKED_LOCAL);
-							debug_->debug("chr i l");
+							//debug_->debug("chr i l");
 							endpoint.request_send();
 						}
 						else {
 							se->set_handover_state_recepient(SemanticEntityT::SEND_ACTIVATING);
-							debug_->debug("chr i a");
+							//debug_->debug("chr i a");
 							endpoint.request_send();
 						}
 						break;
 					}
 					
 					case SemanticEntityT::RECV_AGGREGATES_START: {
-						debug_->debug("chr as");
+						//debug_->debug("chr as");
 						
 				#if INSE_USE_AGGREGATOR
 						aggregator_.read_buffer_start(message.channel(), message.payload(), message.payload_size());
@@ -797,7 +798,7 @@ namespace wiselib {
 					
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::RECV_AGGREGATES: {
-						debug_->debug("chr a");
+						//debug_->debug("chr a");
 						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
@@ -824,9 +825,10 @@ namespace wiselib {
 							(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)event, (int)now());
 				#endif
 				
+				debug_->debug("ehr%c", event);
 				switch(event) {
 					case ReliableTransportT::EVENT_OPEN:
-						debug_->debug("ehr open");
+						//debug_->debug("ehr open");
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection_r", (int)radio_->id());
 						#endif
@@ -835,7 +837,7 @@ namespace wiselib {
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
-						debug_->debug("ehr close");
+						//debug_->debug("ehr close");
 						#if INSE_USE_AGGREGATOR
 							aggregator_.release(id, true);
 						#endif

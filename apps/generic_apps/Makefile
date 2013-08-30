@@ -120,6 +120,18 @@ flash-inga:
 flash-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino flash ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
+###############################################################
+##
+## Observe node output
+#####
+
+monitor-tinyos-telosb:
+	# requires tinyos-tools
+	java net.tinyos.tools.Listen -comm serial@/dev/ttyUSB0:telosb
+	
+monitor-contiki-telosb:
+	$(CONTIKI_PATH)/tools/sky/serialdump-linux -b115200 /dev/ttyUSB0
+
 monitor-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino monitor ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 

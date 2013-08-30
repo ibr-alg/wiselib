@@ -68,19 +68,19 @@ namespace wiselib {
 	}
 	
 	template<typename Value>
-	int ltoa(unsigned long buflen, char* buffer, Value v) {
+	int ltoa(unsigned long buflen, char* buffer, Value v, int base = 10) {
 		int digits = 0;
 		Value v2 = v;
-		int base = 10;
+		//int base = 10;
 		for( ; v2; digits++) { v2 /= base; }
-		if(digits >= buflen) { return -1; }
+		if(digits >= buflen) { return 0; }
 		
 		buffer[digits + 1] = '\0';
 		for( ; digits; digits--) {
 			buffer[digits] = v % 10 + '0';
 			v /= 10;
 		}
-		return 0;
+		return digits;
 	}
 	
 	float atof(char *s) {
@@ -148,26 +148,6 @@ namespace wiselib {
 	}
 	
 	
-	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
-	 */
-	template<
-		typename OsModel_P
-	>
-	class StringUtil {
-		
-		public:
-			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
-		
-		private:
-		
-	}; // StringUtil
 }
 
 #endif // STRING_UTIL_H
