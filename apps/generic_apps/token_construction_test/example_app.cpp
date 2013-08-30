@@ -172,7 +172,7 @@ class ExampleApplication
 			*/
 			
 			#if ARDUINO
-			radio_->set_pins(11, 12);
+			//radio_->set_pins(11, 12);
 			#endif
 			
 			monitor_.init(debug_);
