@@ -132,7 +132,10 @@ class ExampleApplication
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 			
-			debug_->debug("\nboot");
+			radio_->enable_radio();
+			
+			debug_->debug("\nboot %d\n", (int)radio_->id());
+			rand_->srand(radio_->id());
 			/*
 			debug_->debug("free %d sizes: TC %d EP %d ND %d Fwd %d",
 					monitor_.free(),
@@ -177,8 +180,6 @@ class ExampleApplication
 			#endif
 			
 			monitor_.init(debug_);
-			
-			radio_->enable_radio();
 			
 			//debug_->debug( "Hello World from Example Application! my id=%d\n", (int)radio_->id());
 			#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
