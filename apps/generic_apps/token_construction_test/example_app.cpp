@@ -119,11 +119,12 @@ class ExampleApplication
 		
 		void init( Os::AppMainParameter& value )
 		{
-			pinMode(8, OUTPUT);
-			pinMode(9, OUTPUT);
-			pinMode(10, OUTPUT);
-			pinMode(13, OUTPUT);
-			
+			#ifdef ARDUINO
+				pinMode(8, OUTPUT);
+				pinMode(9, OUTPUT);
+				pinMode(10, OUTPUT);
+				pinMode(13, OUTPUT);
+			#endif
 			
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
@@ -189,7 +190,7 @@ class ExampleApplication
 			#if USE_DICTIONARY
 				#if USE_PRESCILLA
 					dictionary.init(debug_);
-				#elif USE_TREEDICT
+				#elif USE_TREE_DICTIONARY
 					dictionary.init();
 				#endif
 				ts.init(&dictionary, &container, debug_);
@@ -236,6 +237,7 @@ class ExampleApplication
 			monitor_.report("rules");
 			
 			create_rules();
+			monitor_.report("exec rules");
 			rule_processor_.execute_all();
 			
 			
@@ -284,28 +286,37 @@ class ExampleApplication
 			}
 		#endif
 		
-		typedef TC::SemanticEntityAggregatorT Aggregator;
+		#if INSE_USE_AGGREGATOR
+			typedef TC::SemanticEntityAggregatorT Aggregator;
+		#endif
 		
+	#if INSE_USE_AGGREGATOR
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
-			if(radio_->id() == 0) { //se.root()) {
-				//debug_->debug("node %d // aggr setting totals", radio_->id());
-				aggregator.set_totals(se.id());
-			}
+	#else
+		void on_end_activity(TC::SemanticEntityT& se) {
+	#endif
+			#if INSE_USE_AGGREGATOR
 			
-			//debug_->debug("node %d // aggr local value", radio_->id());
-			aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
-			
-			//debug_->debug("node %d // aggr begin list", (int)radio_->id());
-			for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-				/*
-				debug_->debug("node %d // aggr SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-						(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
-						(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
-						(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
-						(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
-				*/
-			}
-			//debug_->debug("node %d // aggr end list", (int)radio_->id());
+				if(radio_->id() == 0) { //se.root()) {
+					//debug_->debug("node %d // aggr setting totals", radio_->id());
+					aggregator.set_totals(se.id());
+				}
+				
+				//debug_->debug("node %d // aggr local value", radio_->id());
+				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
+				
+				//debug_->debug("node %d // aggr begin list", (int)radio_->id());
+				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
+					/*
+					debug_->debug("node %d // aggr SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+							(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
+							(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
+							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
+							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
+					*/
+				}
+				//debug_->debug("node %d // aggr end list", (int)radio_->id());
+			#endif
 		}
 			
 		#if USE_DICTIONARY
@@ -325,7 +336,7 @@ class ExampleApplication
 		#if defined(ARDUINO)
 			ArduinoMonitor<Os, Os::Debug> monitor_;
 		#else
-			NullMonitor monitor_;
+			NullMonitor<Os> monitor_;
 		#endif
 		
 		TC token_construction_;

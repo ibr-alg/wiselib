@@ -1,20 +1,20 @@
 /***************************************************************************
- ** This file is part of the generic algorithm library Wiselib.           **
- ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
- **                                                                       **
+ ** This file is part of the generic algorithm library Wiselib.			  **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.	  **
+ **																		  **
  ** The Wiselib is free software: you can redistribute it and/or modify   **
- ** it under the terms of the GNU Lesser General Public License as        **
- ** published by the Free Software Foundation, either version 3 of the    **
- ** License, or (at your option) any later version.                       **
- **                                                                       **
- ** The Wiselib is distributed in the hope that it will be useful,        **
- ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
- ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
- ** GNU Lesser General Public License for more details.                   **
- **                                                                       **
- ** You should have received a copy of the GNU Lesser General Public      **
- ** License along with the Wiselib.                                       **
- ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ** it under the terms of the GNU Lesser General Public License as		  **
+ ** published by the Free Software Foundation, either version 3 of the	  **
+ ** License, or (at your option) any later version.						  **
+ **																		  **
+ ** The Wiselib is distributed in the hope that it will be useful,		  **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of		  **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the		  **
+ ** GNU Lesser General Public License for more details.					  **
+ **																		  **
+ ** You should have received a copy of the GNU Lesser General Public	  **
+ ** License along with the Wiselib.										  **
+ ** If not, see <http://www.gnu.org/licenses/>.							  **
  ***************************************************************************/
 
 #ifndef RELIABLE_TRANSPORT_H
@@ -301,7 +301,7 @@ namespace wiselib {
 				if(found) {
 					return open(ep);
 				}
-            debug_->debug("op: no ep");
+			debug_->debug("op: no ep");
 				return ERR_UNSPEC;
 			}
 				
@@ -311,7 +311,7 @@ namespace wiselib {
 					if(request_send) { ep.request_send(); }
 					return SUCCESS;
 				}
-            //debug_->debug("op: is %d wants %d", (int)ep.is_open(), (int)ep.wants_open());
+			//debug_->debug("op: is %d wants %d", (int)ep.is_open(), (int)ep.wants_open());
 				return ERR_UNSPEC;
 			}
 			
@@ -484,8 +484,8 @@ namespace wiselib {
 			
 			/**
 			 * @param msg reference to message to send an ack for.
-			 *   This method promises not to cahnge anything on msg (in real
-			 *   C++ you would use a const &)
+			 *	 This method promises not to cahnge anything on msg (in real
+			 *	 C++ you would use a const &)
 			 */
 			void send_ack_for(node_id_t to, Message& msg) {
 				Message m;
@@ -494,9 +494,7 @@ namespace wiselib {
 				m.set_flags(ack_flags_for(msg.flags(), false));
 				m.set_payload(0, 0);
 				
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("node %d t %d s %d // to %d send ack", (int)radio_->id(), (int)now(), (int)msg.sequence_number(), (int)to);
-				#endif
+				debug_->debug("--- node %d t %d s %d // to %d send ack", (int)radio_->id(), (int)now(), (int)msg.sequence_number(), (int)to);
 				radio_->send(to, m.size(), m.data());
 			}
 			
@@ -702,26 +700,26 @@ namespace wiselib {
 				//ack_timeout_sequence_number_ = sending_endpoint().sequence_number();
 				void *v;
 				//hardcore_cast(v, ack_timer_);
-            v = (void*)(size_t)ack_timer_;
+			v = (void*)(size_t)ack_timer_;
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, v);
 				//timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT + (RESEND_RAND_ADD ? (rand_->operator()() % RESEND_RAND_ADD) : 0), this, v);
 			}
 			
 			void ack_timeout(void *at_) {
-            
+			
 				//if(is_sending_ && sending_endpoint().used() && sending_endpoint().channel() == ack_timeout_channel_ &&
 						//sending_endpoint().sequence_number() == ack_timeout_sequence_number_) {
 				::uint8_t ack_timer;
 				//hardcore_cast(ack_timer, at_);
-            //ack_timer = *reinterpret_cast<size_type*>(&at_); // = (size_type)at_;
+			//ack_timer = *reinterpret_cast<size_type*>(&at_); // = (size_type)at_;
 			ack_timer = (::uint8_t)(unsigned long)(at_);
 			debug_->debug("ackto s %d at=%lu state %lu", (int)is_sending_, (unsigned long)ack_timer, (unsigned long)ack_timer_);
 				if(is_sending_ && (ack_timer == ack_timer_)) {
-               //debug_->debug("ackto y");
+			   //debug_->debug("ackto y");
 					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
 							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator());
 					//DBG("sending chan is open: %d", (int)sending_endpoint().is_open());
-                  debug_->debug("---- ack to r=%d", (int)resends_);
+					debug_->debug("---- ack to r=%d s=%d", (int)resends_, (int)sending_endpoint().sequence_number());
 					if(resends_ >= MAX_RESENDS) {
 						sending_endpoint().abort_produce();
 						DBG("node %d // closing init=%d because timeout", (int)radio_->id(), (int)sending_endpoint().initiator());
@@ -741,7 +739,7 @@ namespace wiselib {
 					DBG("node %d // expected answer from %d not received closing channel", (int)radio_->id(),
 							(int)ep.remote_address());
 					ack_timer_++; // invalidate running ack timer
-               debug_->debug("ans to");
+			   debug_->debug("ans to");
 					ep.abort_produce();
 					ep.close();
 					is_sending_ = false;

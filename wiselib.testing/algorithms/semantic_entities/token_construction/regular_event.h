@@ -294,8 +294,8 @@ namespace wiselib {
 				abs_millis_t diff_t = (t > expected()) ? (t - expected()) : (expected() - t);
 				//millis_t diff_m  = clock_->milliseconds(diff_t);
 				
-				if(diff_t < window_ * CLOSE_HIT_WINDOW / 100) { return HIT_CLOSE; }
-				else if(diff_t < window_ * STABLE_HIT_WINDOW / 100) { return HIT_STABLE; }
+				if(diff_t < (abs_millis_t)window_ * (abs_millis_t)CLOSE_HIT_WINDOW / (abs_millis_t)100) { return HIT_CLOSE; }
+				else if(diff_t < (abs_millis_t)window_ * (abs_millis_t)STABLE_HIT_WINDOW / (abs_millis_t)100) { return HIT_STABLE; }
 				else { return HIT_FAR; }
 			}
 			

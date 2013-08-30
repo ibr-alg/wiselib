@@ -305,7 +305,7 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				if(!is_node_id_sane(from)) { return; }
 				
-				//debug_->debug("Trcv");
+				debug_->debug("Trcv");
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(!nap_control_->on()) {
 					#if !WISELIB_DISABLE_DEBUG
@@ -338,8 +338,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					//debug_->debug("node %d window %d interval %d",
-							//(int)radio_->id(), (int)event.window(), (int)event.interval());
+					//debug_->debug("node %d window %d interval %d", (int)radio_->id(), (int)event.window(), (int)event.interval());
 					
 					void *v = 0;
 					hardcore_cast(v, from);
@@ -553,6 +552,8 @@ namespace wiselib {
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
 					
+					DBG("neigh: %lu p %lu r %lu d %d", (unsigned long)iter->id(), (unsigned long)iter->tree_state().parent(),
+							(unsigned long)iter->tree_state().root(), (int)iter->tree_state().distance());
 					if(iter->tree_state().parent() == radio_->id()) {
 						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
 						Neighbor n(&*iter);
@@ -604,7 +605,7 @@ namespace wiselib {
 				if(c || updated_neighbors_) {
 					notify_event(UPDATED_STATE);
 					// <DEBUG>
-				//	#if !WISELIB_DISABLE_DEBUG
+					#if !WISELIB_DISABLE_DEBUG
 					
 						//char hex[sizeof(UserData) * 2 + 1];
 						//for(size_type i = 0; i < sizeof(UserData); i++) {
@@ -626,7 +627,7 @@ namespace wiselib {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}
 						
-				//	#endif
+					#endif
 					// </DEBUG>
 					
 					changed();

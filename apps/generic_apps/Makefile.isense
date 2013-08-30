@@ -60,7 +60,7 @@ LOCAL_COMMON_FLAGS += -D$(ISENSE_HARDWARE_TYPE)
 LOCAL_COMMON_FLAGS += -DNDEBUG -DOSMODEL=iSenseOsModel -DISENSE
 LOCAL_COMMON_FLAGS += -Os -finline-limit=40
 #this was introduced later
-LOCAL_COMMON_FLAGS += -fno-strength-reduce -pipe -fno-builtin -nostdlib
+LOCAL_COMMON_FLAGS += -fno-strength-reduce -pipe -fno-builtin -nostdlib -Wno-reorder
 
 LOCAL_CFLAGS = -Wstrict-prototypes -Werror-implicit-function-declaration
 
