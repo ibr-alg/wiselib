@@ -24,7 +24,17 @@
 #include "config_testing.h"
 #include <isense/os.h>
 #include <isense/radio.h>
+
+#define class struct
+#define private public
+#define protected public
+
 #include <isense/hardware_radio.h>
+
+#undef private
+#undef protected
+#undef class
+
 #include <isense/dispatcher.h>
 #include <isense/time.h>
 
@@ -142,6 +152,7 @@ namespace wiselib {
             os_.srand(os_.id());
 #endif
             enabled_ = true;
+            id_ = id();
         }
         // --------------------------------------------------------------------
 
@@ -163,6 +174,17 @@ namespace wiselib {
 #endif
 
             //os().debug("isense::send(%d, %d)\n", (uint32)(id & 0xffffffff), (uint32)(len & 0xffffffff));
+            
+            
+            //node_id_t isense::HardwareRadio::*p = &isense::HardwareRadio::src_addr_;
+            //unsigned long long d = *reinterpret_cast<unsigned long long*>(p);
+            *(&os().radio().hardware_radio().src_addr_) = id_;
+            //unsigned long d = reinterpret_cast<unsigned long>(&isense::HardwareRadio::src_addr_);
+            //*(node_id_t*)((uint8_t*)os().radio() + d) = id_;
+            
+            
+            
+            
 #ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
             uint8 options = isense::Radio::ISENSE_RADIO_TX_OPTION_NONE;
             if ( id != BROADCAST_ADDRESS ) {
@@ -211,14 +233,15 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         int disable_radio() {
-            os().radio().disable();
             enabled_ = false;
+            os().radio().disable();
             return SUCCESS;
         }
         // --------------------------------------------------------------------
 
         node_id_t id() {
-            return os().id();
+            return id_;
+            //return os().id();
         }
         // --------------------------------------------------------------------
         //---------- From concept VariablePowerRadio ------------
@@ -304,6 +327,7 @@ namespace wiselib {
         isense_radio_delegate_t isense_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
         extended_radio_delegate_t isense_ext_radio_callbacks_[MAX_EXTENDED_RECEIVERS];
         bool enabled_;
+        node_id_t id_;
     };
     // --------------------------------------------------------------------
 
