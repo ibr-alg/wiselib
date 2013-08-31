@@ -73,20 +73,6 @@ namespace wiselib {
 				check();
 			}
 			
-			/*
-			iterator begin_childs(const SemanticEntityId& se_id) {
-				// TODO
-			}
-			
-			iterator end_childs() {
-				// TODO
-			}
-			*/
-			
-			//void set_child_amq(node_id_t child_id, AmqT& amq) {
-				//// TODO
-			//}
-			
 			/**
 			 * Assuming we have the token, where should we send it to?
 			 */
@@ -120,29 +106,8 @@ namespace wiselib {
 			size_type find_first_se_child(const SemanticEntityId& se_id, size_type start) {
 				check();
 				
-				
-				//DBG("node %d // find first se child start=%d n=%d se %x.%x hash %d", (int)radio_->id(),
-						//(int)start, (int)global_tree_->childs(), (int)se_id.rule(), (int)se_id.value(), (int)se_id.hash());
-				
 				for(size_type i = start; i < global_tree_->childs(); i++) {
-					//DBG("node %d // find first se child i=%d contains=%d id %d",
-							//(int)radio_->id(), (int)i, (int)global_tree_->child_user_data(i).contains(se_id), (int)global_tree_->child(i));
-					
-				//DBG("node %d // find first se child userdata %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x",
-						//(int)radio_->id(),
-						//global_tree_->child_user_data(i).data()[0], global_tree_->child_user_data(i).data()[1], global_tree_->child_user_data(i).data()[2], global_tree_->child_user_data(i).data()[3],
-						//global_tree_->child_user_data(i).data()[4], global_tree_->child_user_data(i).data()[5], global_tree_->child_user_data(i).data()[6], global_tree_->child_user_data(i).data()[7],
-						//global_tree_->child_user_data(i).data()[8], global_tree_->child_user_data(i).data()[9], global_tree_->child_user_data(i).data()[10], global_tree_->child_user_data(i).data()[11],
-						//global_tree_->child_user_data(i).data()[12], global_tree_->child_user_data(i).data()[13], global_tree_->child_user_data(i).data()[14], global_tree_->child_user_data(i).data()[15],
-						//global_tree_->child_user_data(i).data()[16], global_tree_->child_user_data(i).data()[17], global_tree_->child_user_data(i).data()[18], global_tree_->child_user_data(i).data()[19],
-						//global_tree_->child_user_data(i).data()[20], global_tree_->child_user_data(i).data()[21], global_tree_->child_user_data(i).data()[22], global_tree_->child_user_data(i).data()[23],
-						//global_tree_->child_user_data(i).data()[24], global_tree_->child_user_data(i).data()[25], global_tree_->child_user_data(i).data()[26], global_tree_->child_user_data(i).data()[27],
-						//global_tree_->child_user_data(i).data()[28], global_tree_->child_user_data(i).data()[29], global_tree_->child_user_data(i).data()[30], global_tree_->child_user_data(i).data()[31]
-				//);
-				
-					if(global_tree_->child_user_data(i).contains(se_id)) {
-						return i;
-					}
+					if(global_tree_->child_user_data(i).contains(se_id)) { return i; }
 				}
 				
 				check();
@@ -176,9 +141,6 @@ namespace wiselib {
 			 */
 			node_id_t forward_address(const SemanticEntityId& se_id, node_id_t sender, bool forward) {
 				check();
-				
-				//DBG("// forward_address from %d fwd %d self %d parent %d childs %d",
-						//(int)sender, (int)forward, (int)radio_->id(), (int)global_tree_->parent(), (int)global_tree_->childs());
 				
 				if(forward) {
 					if(sender == global_tree_->parent()) {
@@ -224,51 +186,6 @@ namespace wiselib {
 				
 				check();
 			}
-				
-				/*
-				node_id_t next = sender;
-				do {
-					AmqT amq;
-					next = tree_forward_address(next, forward, amq);
-					if((next == global_tree_->parent()) || (next == radio_->id()) || amq.contains(se_id)) {
-						return next;
-					}
-				} while(next != sender);
-				
-				check();
-				return radio_->id();
-				*/
-			//}
-			
-			
-			/*
-			node_id_t tree_forward_address(node_id_t sender, bool forward, AmqT& amq) {
-				check();
-				
-				if(sender == global_tree_->parent()) { return radio_->id(); }
-				if(sender == radio_->id()) {
-					if(global_tree_->childs()) { return global_tree_->child(0); }
-					else { return global_tree_->parent(); } // TODO: what if we also are root?
-				}
-				
-				size_type child_idx = global_tree_->child_index(sender);
-				if(child_idx == GlobalTreeT::npos) { return NULL_NODE_ID; }
-				
-				if(child_idx == global_tree_->childs() - 1) {
-					if(global_tree_->tree_state().root() == radio_->id()) {
-						amq = global_tree_->child_user_data(0);
-						return global_tree_->child(0);
-					}
-					else { return global_tree_->parent(); }
-				}
-				
-				amq = global_tree_->child_user_data(child_idx + 1);
-				
-				check();
-				return global_tree_->child(child_idx + 1);
-			}
-			*/
-			
 			AmqT& amq() {
 				check();
 				return global_tree_->user_data();
@@ -287,22 +204,7 @@ namespace wiselib {
 				for(typename Registry::iterator iter = registry_->begin(); iter != registry_->end(); ++iter) {
 					a.insert(iter->first);
 				}
-				
-				/*
-				DBG("node %d // setting filter to %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x%02x%02x",
-						(int)radio_->id(),
-						a.data()[0], a.data()[1], a.data()[2], a.data()[3],
-						a.data()[4], a.data()[5], a.data()[6], a.data()[7],
-						a.data()[8], a.data()[9], a.data()[10], a.data()[11],
-						a.data()[12], a.data()[13], a.data()[14], a.data()[15],
-						a.data()[16], a.data()[17], a.data()[18], a.data()[19],
-						a.data()[20], a.data()[21], a.data()[22], a.data()[23],
-						a.data()[24], a.data()[25], a.data()[26], a.data()[27],
-						a.data()[28], a.data()[29], a.data()[30], a.data()[31]
-				);
-				*/
 				global_tree_->set_user_data(a);
-				
 				check();
 			}
 			

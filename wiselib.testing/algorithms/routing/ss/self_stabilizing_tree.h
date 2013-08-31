@@ -110,7 +110,6 @@ namespace wiselib {
 					message_ = m;
 					last_update_ = t;
 					address_ = addr;
-					//DBG("new neigh addr %d root %d parent %d dist %d", (int)address_, (int)tree_state().root(), (int)tree_state().parent(), (int)tree_state().distance());
 				}
 				
 				bool used() const { return address_ != NULL_NODE_ID; }
@@ -283,7 +282,6 @@ namespace wiselib {
 			}
 			
 			void broadcast_state(int reason) {
-				//debug_->debug("Tbc");
 				TreeStateMessageT msg;
 				msg.init();
 				msg.set_reason(reason);
@@ -291,14 +289,14 @@ namespace wiselib {
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				//#if !WISELIB_DISABLE_DEBUG
+				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d t %d // bcast tree state r%d p%d d%d | r%d p%d d%d",
 							(int)radio_->id(), (int)now(),
 							(int)tree_state_.root(), (int)tree_state_.parent(), (int)tree_state_.distance(),
 							(int)msg.tree_state().root(), (int)msg.tree_state().parent(), (int)msg.tree_state().distance()
 					);
-				//#endif
-				debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
+					debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
+				#endif
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				
 				
@@ -334,16 +332,16 @@ namespace wiselib {
 				assert((size_type)len >= (size_type)sizeof(TreeStateMessageT));
 				TreeStateMessageT &msg = *reinterpret_cast<TreeStateMessageT*>(data);
 				
-				
-				debug_->debug("SSTREE RECV");
-				debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
-				
+				#if !WISELIB_DISABLE_DEBUG
+					debug_->debug("SSTREE RECV");
+					debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
+				#endif
 				
 				abs_millis_t t_recv = now();
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
-					debug_->debug("Trcv R %d t %d", (int)from, (int)t_recv);
+					//debug_->debug("Trcv R %d t %d", (int)from, (int)t_recv);
 					if(regular_broadcasts_.full() && !regular_broadcasts_.contains(from)) {
 						debug_->debug("ign neigh %d", (int)from);
 						
@@ -365,7 +363,7 @@ namespace wiselib {
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
 				}
 				else {
-					debug_->debug("Trcv X %d t %d", (int)from, (int)t_recv);
+					//debug_->debug("topo %d t %d", (int)from, (int)t_recv);
 				}
 				
 				add_neighbor_entry(from, msg);
@@ -377,6 +375,7 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_regular_broadcast", (int)radio_->id());
 				#endif
+				debug_->debug("bcwait");
 				nap_control_->push_caffeine();
 			}
 			
@@ -384,6 +383,7 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_regular_broadcast", (int)radio_->id());
 				#endif
+				debug_->debug("/bcwait");
 				nap_control_->pop_caffeine();
 			}
 			
@@ -466,6 +466,7 @@ namespace wiselib {
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
 					if(!it->same_content(e)) {
+						/*
 						debug_->debug("+++ neigh content diff @%d, before", (int)it->address_);
 						print_filter(it->user_data());
 						debug_->debug("+++ now:");
@@ -474,6 +475,7 @@ namespace wiselib {
 								(int)it->id(), (int)it->root(), (int)it->parent(), (int)it->distance());
 						debug_->debug("new: a %d r %d p %d d %d",
 								(int)e.id(), (int)e.root(), (int)e.parent(), (int)e.distance());
+						*/
 						
 						assert(it->address_ == e.address_);
 						updated_neighbors_ = true;
@@ -482,7 +484,7 @@ namespace wiselib {
 					*it = e;
 				}
 				else {
-					debug_->debug("NN: %d", (int)addr);
+					debug_->debug("new %d", (int)addr);
 					neighbor_entries_.insert(e);
 					new_neighbors_ = true;
 					notify_event(NEW_NEIGHBOR);
@@ -492,19 +494,9 @@ namespace wiselib {
 			void insert_child(Neighbor& n) {
 				check();
 				
-					//debug_->debug("node %d // insert_child(%d) [ %d | %d %d %d ... ]",
-							//(int)radio_->id(), (int)n.id(),
-							//(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-							//(int)neighbors_[3].id());
-				
 				size_type pos = find_neighbor_position(n.id(), false);
 				n.state_ = IN_EDGE;
 				neighbors_.insert(typename Neighbors::iterator(&neighbors_[pos]), n);
-				
-					//debug_->debug("node %d // post insert_child(%d) [ %d | %d %d %d ... ]",
-							//(int)radio_->id(), (int)n.id(),
-							//(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-							//(int)neighbors_[3].id());
 				
 				check();
 			}
@@ -535,11 +527,7 @@ namespace wiselib {
 							//debug_->debug("neighbor entries before: %d", (int)itx->address_);
 						//}
 						
-						debug_->debug("ND: %d", (int)iter->address_);
-						#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("node %d // he's dead jim: %d",
-								(int)radio_->id(), (int)iter->address_);
-						#endif
+						debug_->debug("lost %d", (int)iter->address_);
 						
 						size_type sz = neighbor_entries_.size();
 						iter = neighbor_entries_.erase(iter);
@@ -636,6 +624,8 @@ namespace wiselib {
 				//}
 				
 				if(c || updated_neighbors_) {
+					debug_->debug("@%d p=%d d=%d rt=%d c=%d t=%d",
+								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now()/*, hex*/);
 					notify_event(UPDATED_STATE);
 					// <DEBUG>
 					//#if !WISELIB_DISABLE_DEBUG
@@ -647,15 +637,13 @@ namespace wiselib {
 						//}
 						//hex[sizeof(UserData) * 2] = '\0';
 						
-						debug_->debug("node %d parent %d distance %d root %d changed %d t %d filter  // update_state",
-								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now()/*, hex*/);
 						
 						
 						
-						debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
-								(int)radio_->id(),
-								(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-								(int)neighbors_[3].id(), childs());
+						//debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
+								//(int)radio_->id(),
+								//(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
+								//(int)neighbors_[3].id(), childs());
 						//for(size_type i = 0; i < childs(); i++) {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}

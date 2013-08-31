@@ -58,11 +58,6 @@ namespace wiselib {
 			
 			/// Some fractions (in percent).
 			enum TimingFractions {
-				/**
-				 * 1/x window size in which a hit is considered close.
-				 * E.g. CLOSE_HIT_WINDOW = 4 --> hit in 1/4 of current window
-				 * size is considered close.
-				 */ 
 				CLOSE_HIT_WINDOW = 25,
 				/// Analogue to @a CLOSE_HIT_WINDOW.
 				STABLE_HIT_WINDOW = 75,
@@ -70,6 +65,7 @@ namespace wiselib {
 				DUPE_INTERVAL = 100 * WISELIB_TIME_FACTOR,
 				MIN_INTERVAL = 100 * WISELIB_TIME_FACTOR,
 				
+				/*
 				/// How much a close hit influences expected timing.
 				ALPHA_CLOSE = 25,
 				/// How much a stable hit influences expected timing
@@ -77,6 +73,7 @@ namespace wiselib {
 				/// How much a far hit influences expected timing
 				ALPHA_FAR = 50,
 				alpha = 20
+				*/
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
@@ -91,12 +88,8 @@ namespace wiselib {
 			void hit(abs_millis_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
 				abs_millis_t new_interval = t - last_encounter_;
 				
-				if(new_interval < DUPE_INTERVAL) {
-					return;
-				}
+				if(new_interval < DUPE_INTERVAL) { return; }
 				
-				//DBG("------- HIT id %u current window size: %llu hit at %llu expected: %llu", mynodeid, window_, t, expected());
-				//
 				#if !WISELIB_DISABLE_DEBUG_MESSAGES
 					abs_millis_t old_interval = interval_;
 					abs_millis_t old_window = window_;
@@ -105,27 +98,20 @@ namespace wiselib {
 				int h = hit_type(t, clock);
 				switch(h) {
 					case HIT_CLOSE:
-						//DBG("------ Close hit, halving window");
 						window_ /= 2;
 						if(window_ < MIN_WINDOW_SIZE) { window_ = MIN_WINDOW_SIZE; }
 						update_interval(new_interval); //, ALPHA_CLOSE);
 						break;
+						
 					case HIT_STABLE:
-						//DBG("------ stable hit");
 						update_interval(new_interval); //, ALPHA_STABLE);
 						break;
+						
 					case HIT_FAR: {
-						//DBG("------ far hit, doubling window");
-						//DBG("------- HIT window before double %llu", window_);
-						//DBG("------- HIT window after double %llu", window_);
 						abs_millis_t old_window = window_;
 						abs_millis_t old_interval = interval_;
-						
 						update_interval(new_interval); //, ALPHA_FAR);
-						
 						window_ *= 2;
-						
-						//if(interval_ > old_interval_ && interval_ - window_ > old_interval - old_window) {
 						if(interval_ > old_interval && interval_ + old_window > old_interval + window_) {
 							window_ = interval_ - old_interval + old_window;
 						}
@@ -143,10 +129,7 @@ namespace wiselib {
 							(int) interval_, (int)h, (int) old_window, (int) window_, (int)hits_);
 				#endif
 				
-				if(hits_ <= EARLY_HITS) {
-					hits_++;
-				}
-				//DBG("------- HIT id %u current window new: %llu hits=%d", mynodeid, window_, hits_);
+				if(hits_ <= EARLY_HITS) { hits_++; }
 				last_encounter_ = t;
 			}
 			
@@ -195,19 +178,13 @@ namespace wiselib {
 					begin_waiting_callback_t begin, end_waiting_callback_t end,
 					void* userdata = 0
 			) {
-				if(waiting_ || waiting_timer_set_) {
-					//DBG("t=%d // timer already set!", (int)absolute_millis(clock, clock->time()));
-					return true;
-				}
+				if(waiting_ || waiting_timer_set_) { return true; }
 				
 				begin_waiting_callback_ = begin; // begin_waiting_callback_t::template from_method<T, BeginWaiting>(obj);
 				end_waiting_callback_ = end; // end_waiting_callback_t::template from_method<T, EndWaiting>(obj);
 				userdata_ = userdata;
 				
 				if(early()) {
-					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)1, (long int)userdata);
-					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)1, (int)hits_, (long int)1);
-					//DBG("t=%d // EARLY! hits=%d userdata=%lx", (int)absolute_millis(clock, clock->time()), (int)1, (long int)1);
 					waiting_ = true;
 					if(begin_waiting_callback_) {
 						begin_waiting_callback_(userdata_);
@@ -255,11 +232,7 @@ namespace wiselib {
 			}
 			
 			void cancel() {
-				if(!end_waiting()) {
-					//DBG("// cancel without end_waiting_callback");
-					cancel_ = true;
-				}
-				//DBG("// cancelled without end_waiting_callback");
+				if(!end_waiting()) { cancel_ = true; }
 			}
 			
 			bool waiting() { return waiting_; }
@@ -276,7 +249,6 @@ namespace wiselib {
 				waiting_timer_set_ = false;
 				if(!waiting_) {
 					if(cancel_) {
-						//DBG("// begin_waiting: net executing because cancel");
 						waiting_ = false;
 						cancel_ = false;
 					}
@@ -293,31 +265,35 @@ namespace wiselib {
 	
 			HitType hit_type(abs_millis_t t, typename Clock::self_pointer_t clock_) {
 				abs_millis_t diff_t = (t > expected()) ? (t - expected()) : (expected() - t);
-				//millis_t diff_m  = clock_->milliseconds(diff_t);
+				//ArduinoDebug<ArduinoOsModel>(true).debug(
+					//"---- diff_t %lu win %lu", (unsigned long)diff_t, (unsigned long)window_);
 				
-				if(diff_t < (abs_millis_t)window_ * (abs_millis_t)CLOSE_HIT_WINDOW / (abs_millis_t)100) { return HIT_CLOSE; }
-				else if(diff_t < (abs_millis_t)window_ * (abs_millis_t)STABLE_HIT_WINDOW / (abs_millis_t)100) { return HIT_STABLE; }
-				else { return HIT_FAR; }
+				if(diff_t < (abs_millis_t)window_ * (abs_millis_t)CLOSE_HIT_WINDOW / (abs_millis_t)100) {
+					//Serial.println("->close");
+					return HIT_CLOSE;
+				}
+				else if(diff_t < (abs_millis_t)window_ * (abs_millis_t)STABLE_HIT_WINDOW / (abs_millis_t)100) {
+					//Serial.println("->stable");
+					return HIT_STABLE;
+				}
+				else {
+					//Serial.println("->far");
+					return HIT_FAR;
+				}
 			}
 			
-			void update_interval(abs_millis_t new_interval) { //, ::uint8_t alpha) {
-				//assert(new_interval > time_t(0));
-				//if(new_interval < window_) { new_interval = window_; }
-				
-				ArduinoDebug<ArduinoOsModel>(true).debug("window int %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
+			void update_interval(abs_millis_t new_interval) {
+				//ArduinoDebug<ArduinoOsModel>(true).debug("window int %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
 				if(early()) {
 					interval_ = new_interval;
 				}
 				else {
-					//interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
-					
-					
 					// mean value without overflow
 					// source: http://www.ragestorm.net/blogs/?p=29
 					interval_ = (interval_ & new_interval) + ((interval_ ^ new_interval) >> 1);
+					//interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
 				}
-				ArduinoDebug<ArduinoOsModel>(true).debug("window corrected %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
-				
+				//ArduinoDebug<ArduinoOsModel>(true).debug("window corrected %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
 				//check_invariant();
 			}
 			
@@ -336,7 +312,6 @@ namespace wiselib {
 			//abs_millis_t window_;
 			::uint16_t interval_; // 2
 			::uint16_t window_; // 2
-			//size_type hits_;
 			
 			// 1
 			::uint8_t hits_ : 2;
