@@ -20,6 +20,8 @@
 #ifndef SELF_STABILIZING_TREE_H
 #define SELF_STABILIZING_TREE_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
 #include <util/serialization/serialization.h>
 #include <algorithms/semantic_entities/token_construction/nap_control.h>
 #include "tree_state_message.h"

@@ -32,9 +32,9 @@
 	#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
 	
 	#define USE_PRESCILLA_DICTIONARY   0
-	#define USE_TREE_DICTIONARY        0
+	#define USE_TREE_DICTIONARY        1
 	#define USE_BLOCK_DICTIONARY       0
-	#define USE_NULL_DICTIONARY        1
+	#define USE_NULL_DICTIONARY        0
 
 	#define USE_INQP 0
 
