@@ -56,7 +56,7 @@ namespace wiselib {
 			};
 			
 			enum {
-				MESSAGE_TYPE = 0x78
+				MESSAGE_TYPE = 'x'
 			};
 			
 			enum Positions {

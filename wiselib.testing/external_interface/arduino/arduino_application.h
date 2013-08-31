@@ -54,6 +54,7 @@ int main(int argc, const char** argv) {
       USBDevice.attach();
    #endif
       
+   pinMode(12, OUTPUT);
    pinMode(13, OUTPUT);
    Serial.begin(9600);
    application_main(app_main_arg);
