@@ -106,7 +106,7 @@ serialization.h:66: error: candidates are: struct Serialization<OsModel_P, WISEL
 tree_state.h:109: error:                 struct Serialization<OsModel_P, Endianness_P, BlockData_P, TreeState<> >
 serialization.h:113: error: incomplete type 'Serialization<iSenseOsModel, WISELIB_BIG_ENDIAN, unsigned char, TreeState<> >' used in nested name specifier
 	 * 
-	 * 
+	 */ 
 	template<
 		typename OsModel_P,
 		Endianness Endianness_P,
@@ -135,7 +135,7 @@ serialization.h:113: error: incomplete type 'Serialization<iSenseOsModel, WISELI
 			return value;
 		}
 	};
-	*/
+	/**/
 }
 
 #endif // TREE_STATE_H

@@ -192,6 +192,7 @@ namespace wiselib {
 				return absolute_millis(clock_->time());
 			}
 			
+			/*
 			
 			void begin_wait_for_forward(void* se_) {
 				SemanticEntityT *se = reinterpret_cast<SemanticEntityT*>(se_);
@@ -203,6 +204,8 @@ namespace wiselib {
 				DBG("node %d // pop forward_%x_%x", (int)radio_->id(), (int)se->id().rule(), (int)se->id().value());
 				nap_control_->pop_caffeine();
 			}
+			
+			*/
 			
 			BitArrayT& slot_map() {
 				return *reinterpret_cast<BitArrayT*>(activity_maps_[map_index_]);
@@ -234,7 +237,7 @@ namespace wiselib {
 				nap_control_->push_caffeine();
 				//position_ = 0;
 				//position_time_ = now();
-				//sleep(0);
+				sleep(0);
 				
 				/*
 				size_type start = slot_map().first(true, 0, map_slots_);

@@ -138,7 +138,10 @@ class ExampleApplication
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 			
-			debug_->debug("hello, world");
+			debug_->debug("POS_TREE_STATE %d sz(TS) %d POS_USER_DATA %d",
+					(int)TC::GlobalTreeT::TreeStateMessageT::POS_TREE_STATE,
+					(int)sizeof(typename TC::GlobalTreeT::TreeStateMessageT::TreeStateT),
+					(int)TC::GlobalTreeT::TreeStateMessageT::POS_USER_DATA);
 			
 			radio_->enable_radio();
 			

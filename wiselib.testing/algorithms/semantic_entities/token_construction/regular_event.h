@@ -76,7 +76,7 @@ namespace wiselib {
 				ALPHA_STABLE = 50,
 				/// How much a far hit influences expected timing
 				ALPHA_FAR = 50,
-				alpha = 50
+				alpha = 20
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
@@ -304,12 +304,19 @@ namespace wiselib {
 				//assert(new_interval > time_t(0));
 				//if(new_interval < window_) { new_interval = window_; }
 				
+				ArduinoDebug<ArduinoOsModel>(true).debug("window int %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
 				if(early()) {
 					interval_ = new_interval;
 				}
 				else {
-					interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
+					//interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
+					
+					
+					// mean value without overflow
+					// source: http://www.ragestorm.net/blogs/?p=29
+					interval_ = (interval_ & new_interval) + ((interval_ ^ new_interval) >> 1);
 				}
+				ArduinoDebug<ArduinoOsModel>(true).debug("window corrected %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
 				
 				//check_invariant();
 			}

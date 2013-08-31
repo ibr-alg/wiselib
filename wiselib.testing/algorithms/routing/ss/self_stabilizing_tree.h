@@ -76,7 +76,7 @@ namespace wiselib {
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
-				PUSH_INTERVAL = 100 * WISELIB_TIME_FACTOR,
+				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR,
 				BCAST_INTERVAL = 5000 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 3 * BCAST_INTERVAL
 			};
@@ -115,6 +115,10 @@ namespace wiselib {
 				
 				bool used() const { return address_ != NULL_NODE_ID; }
 				TreeStateT tree_state() { return message_.tree_state(); }
+				UserData& user_data() { return message_.user_data(); }
+				node_id_t root() { return message_.tree_state().root(); }
+				node_id_t parent() { return message_.tree_state().parent(); }
+				node_id_t distance() { return message_.tree_state().distance(); }
 				
 				bool operator==(const NeighborEntry& other) {
 					return address_ == other.address_;
@@ -287,10 +291,17 @@ namespace wiselib {
 				msg.set_user_data(user_data());
 				
 				nap_control_->push_caffeine();
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("node %d t %d // bcast tree state", (int)radio_->id(), (int)now());
-				#endif
+				//#if !WISELIB_DISABLE_DEBUG
+					debug_->debug("node %d t %d // bcast tree state r%d p%d d%d | r%d p%d d%d",
+							(int)radio_->id(), (int)now(),
+							(int)tree_state_.root(), (int)tree_state_.parent(), (int)tree_state_.distance(),
+							(int)msg.tree_state().root(), (int)msg.tree_state().parent(), (int)msg.tree_state().distance()
+					);
+				//#endif
+				debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
+				
+				
 				nap_control_->pop_caffeine();
 			}
 			
@@ -307,7 +318,6 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				if(!is_node_id_sane(from)) { return; }
 				
-				debug_->debug("Trcv");
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(!nap_control_->on()) {
 					#if !WISELIB_DISABLE_DEBUG
@@ -324,11 +334,19 @@ namespace wiselib {
 				assert((size_type)len >= (size_type)sizeof(TreeStateMessageT));
 				TreeStateMessageT &msg = *reinterpret_cast<TreeStateMessageT*>(data);
 				
+				
+				debug_->debug("SSTREE RECV");
+				debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
+				
+				
 				abs_millis_t t_recv = now();
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
+					debug_->debug("Trcv R %d t %d", (int)from, (int)t_recv);
 					if(regular_broadcasts_.full() && !regular_broadcasts_.contains(from)) {
+						debug_->debug("ign neigh %d", (int)from);
+						
 						// Just ignore this neighbor.
 						// Note / TODO: for stable behaviour make this
 						// hold a defined subset of the neighbors, e.g. the
@@ -345,6 +363,9 @@ namespace wiselib {
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
+				}
+				else {
+					debug_->debug("Trcv X %d t %d", (int)from, (int)t_recv);
 				}
 				
 				add_neighbor_entry(from, msg);
@@ -445,6 +466,15 @@ namespace wiselib {
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
 					if(!it->same_content(e)) {
+						debug_->debug("+++ neigh content diff @%d, before", (int)it->address_);
+						print_filter(it->user_data());
+						debug_->debug("+++ now:");
+						print_filter(e.user_data());
+						debug_->debug("ole: a %d r %d p %d d %d",
+								(int)it->id(), (int)it->root(), (int)it->parent(), (int)it->distance());
+						debug_->debug("new: a %d r %d p %d d %d",
+								(int)e.id(), (int)e.root(), (int)e.parent(), (int)e.distance());
+						
 						assert(it->address_ == e.address_);
 						updated_neighbors_ = true;
 						notify_event(UPDATED_NEIGHBOR);
@@ -608,7 +638,7 @@ namespace wiselib {
 				if(c || updated_neighbors_) {
 					notify_event(UPDATED_STATE);
 					// <DEBUG>
-					#if !WISELIB_DISABLE_DEBUG
+					//#if !WISELIB_DISABLE_DEBUG
 					
 						//char hex[sizeof(UserData) * 2 + 1];
 						//for(size_type i = 0; i < sizeof(UserData); i++) {
@@ -630,7 +660,7 @@ namespace wiselib {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}
 						
-					#endif
+					//#endif
 					// </DEBUG>
 					
 					changed();
@@ -645,6 +675,16 @@ namespace wiselib {
 				
 				check();
 				return c;
+			}
+			
+			void print_filter(const UserData& ud) {
+				char hex[sizeof(UserData) * 2 + 1];
+				for(size_type i = 0; i < sizeof(UserData); i++) {
+					hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
+					hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
+				}
+				hex[sizeof(UserData) * 2] = '\0';
+				debug_->debug(hex);
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {

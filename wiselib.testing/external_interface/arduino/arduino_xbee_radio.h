@@ -137,7 +137,7 @@ namespace wiselib
    template<typename OsModel_P>
    ArduinoXBeeRadio<OsModel_P>::ArduinoXBeeRadio() : software_serial_(0), initialized_(false), enabled_(false), id_(NULL_NODE_ID)
    {
-      digitalWrite(10, enabled_ ? HIGH : LOW);
+      digitalWrite(12, enabled_ ? HIGH : LOW);
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
@@ -160,7 +160,7 @@ namespace wiselib
       }
       
       enabled_ = true;
-      digitalWrite(10, enabled_ ? HIGH : LOW);
+      digitalWrite(12, enabled_ ? HIGH : LOW);
       
       //id_ = id();
       //if(id_ == -1)
@@ -172,7 +172,7 @@ namespace wiselib
    int ArduinoXBeeRadio<OsModel_P>::disable_radio()
    {
       enabled_ = false;
-      digitalWrite(10, enabled_ ? HIGH : LOW);
+      digitalWrite(12, enabled_ ? HIGH : LOW);
       return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -208,7 +208,7 @@ namespace wiselib
    int ArduinoXBeeRadio<OsModel_P>::
    send( node_id_t dest, size_t len, block_data_t* data )
    {
-      digitalWrite(10, enabled_ ? HIGH : LOW);
+      //digitalWrite(12, enabled_ ? HIGH : LOW);
       if(!enabled_) { return ERR_UNSPEC; }
       
       //ArduinoDebug<ArduinoOsModel>(true).debug("send() start %d l %d", (int)millis(), (int)len);
@@ -259,7 +259,7 @@ namespace wiselib
    template<typename OsModel_P>
    void ArduinoXBeeRadio<OsModel_P>::read_recv_packet(void*)
    {
-      digitalWrite(10, enabled_ ? HIGH : LOW);
+      //digitalWrite(12, enabled_ ? HIGH : LOW);
       if(enabled_) {
          ::uint32_t t_read = millis();
          //ArduinoDebug<ArduinoOsModel>(true).debug("recv() %d", (int)t_read);

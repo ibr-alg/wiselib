@@ -316,6 +316,7 @@ namespace wiselib {
 								debug_->debug("node %d // push handover", (int)radio_->id());
 							#endif
 							nap_control_.push_caffeine();
+							debug_->debug("-- h/o tree");
 							initiate_handover(se, false); // tree has changed, (re-)send token info
 						}
 					} // for
@@ -338,7 +339,8 @@ namespace wiselib {
 					debug_->debug("node %d // push handover", (int)radio_->id());
 				#endif
 				nap_control_.push_caffeine();
-				bool r = initiate_handover(se_, true);
+				debug_->debug("-- h/o retry");
+				bool r = initiate_handover(se_, false);
 				if(!r) {
 					//se.set_initiating_main_handover(true);
 					#if !WISELIB_DISABLE_DEBUG
@@ -390,10 +392,10 @@ namespace wiselib {
 					#endif
 					nap_control_.pop_caffeine();
 					
-					if(!se.initiating_main_handover()) {
+					if(main && !se.initiating_main_handover()) {
 						se.set_initiating_main_handover(true);
 						//debug_->debug("ih: again in %d", (int)HANDOVER_RETRY_INTERVAL);
-						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
+						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(0, this, &se);
 					}
 					return false;
 				}
@@ -427,12 +429,13 @@ namespace wiselib {
 						message.set_supplementary();
 						
 					case SemanticEntityT::INIT: {
-						//debug_->debug("phi i");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						msg.set_cycle_time(se->activating_token_interval());
 						msg.set_token_state(se->token());
 						message.set_payload_size(msg.size());
 						transport_.expect_answer(endpoint);
+						
+						debug_->debug("phi c=%d", (int)msg.token_state().count());
 						return true;
 					}
 						
@@ -872,23 +875,23 @@ namespace wiselib {
 				bool active_before = se.is_active(radio_->id());
 				se.set_prev_token_count(s.count());
 				
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // process_token_state",
+				//#if !WISELIB_DISABLE_DEBUG
+					debug_->debug("tok @%d SE %x.%x act bef %d is_act %d cnt %d prvcnt %d root %d",
 							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 							(int)active_before, (int)se.is_active(radio_->id()),
 							(int)se.count(), (int)s.count(), (int)se.is_root(radio_->id()));
-				#endif
+				//#endif
 				
 					//debug_->debug("tok");
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
-					#if !WISELIB_DISABLE_DEBUG
+					//#if !WISELIB_DISABLE_DEBUG
 						debug_->debug("node %d SE %x.%x window %lu interval %lu",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval());
-					#endif
+					//#endif
 						
 					begin_activity(se);
 				}
@@ -967,6 +970,7 @@ namespace wiselib {
 					debug_->debug("node %d // push handover", (int)radio_->id());
 				#endif
 				
+				debug_->debug("-> h/o end act");
 				initiate_handover(se, true);
 				se.end_wait_for_activating_token();
 				
