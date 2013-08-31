@@ -333,32 +333,20 @@ namespace wiselib {
 			void try_initiate_main_handover(void *se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("node %d // initiate_main_handover %x.%x", (int)radio_->id(), (int)se.id().rule(), (int)se.id().value());
-							
-					debug_->debug("node %d // push handover", (int)radio_->id());
-				#endif
 				nap_control_.push_caffeine();
 				debug_->debug("-- h/o retry");
-				bool r = initiate_handover(se_, false);
-				if(!r) {
-					//se.set_initiating_main_handover(true);
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("node %d // initiate_main_handover for %x.%x not possible right now, trying again at around %d.",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-							(int)(now() + HANDOVER_RETRY_INTERVAL));
-					#endif
-					//timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, &se);
-				}
-				else {
-					//se.set_initiating_main_handover(false);
-				}
+				bool r = initiate_handover(se_, true);
 			}
 			
 			bool initiate_handover(void *se_, bool main) {
 				return initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_), main);
 			}
 			
+			/**
+			 * @param se Semantic Entity to forward token for.
+			 * @param main True iff this is a 'main' handover, eg. because of
+			 * 	end_activity and not eg. tree change.
+			 */
 			bool initiate_handover(SemanticEntityT& se, bool main) {
 				bool found;
 				typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se.id(), true, found);
@@ -368,14 +356,11 @@ namespace wiselib {
 						(ep.remote_address() != radio_->id()) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("// initiating token handover %d -> %d t %d SE %x.%x ep.wants_send %d &ep %p main %d s %d",
-							(int)radio_->id(), (int)ep.remote_address(), (int)now(),
-							(int)se.id().rule(), (int)se.id().value(), (int)ep.wants_send(), &ep, (int)main, (int)ep.sequence_number());
-					#endif
-					debug_->debug("handover via %d", (int)ep.remote_address());
+					debug_->debug("h/o via %d", (int)ep.remote_address());
 					
-					se.set_initiating_main_handover(main);
+					if(main) {
+						se.set_main_handover_phase(SemanticEntityT::PHASE_EXECUTING);
+					}
 					se.set_handover_state_initiator(main ? SemanticEntityT::INIT : SemanticEntityT::SUPPLEMENTARY_INIT);
 					transport_.flush();
 					return true;
@@ -383,19 +368,13 @@ namespace wiselib {
 				else {
 					//debug_->debug("ih: no ep me %d rem %d", (int)radio_->id(), ep.remote_address());
 					transport_.flush();
-					
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("node %d // not initiating handover for SE %x.%x to %d main %d because busy found %d open %d wants_open %d s %d",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)ep.remote_address(), (int)main, (int)found, (int)ep.is_open(), (int)ep.wants_open(), (int)ep.sequence_number());
-							
-						debug_->debug("node %d // pop handover", (int)radio_->id());
-					#endif
 					nap_control_.pop_caffeine();
 					
 					if(main && !se.initiating_main_handover()) {
-						se.set_initiating_main_handover(true);
+						se.set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
+						//se.set_initiating_main_handover(true);
 						//debug_->debug("ih: again in %d", (int)HANDOVER_RETRY_INTERVAL);
-						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(0, this, &se);
+						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>((int)HANDOVER_RETRY_INTERVAL, this, &se);
 					}
 					return false;
 				}
@@ -548,6 +527,9 @@ namespace wiselib {
 				switch(*message.payload()) {
 					case 'a': {
 						//debug_->debug("chi a");
+						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
+							se->set_main_handover_phase(SemanticEntityT::PHASE_INIT);
+						}
 						
 			#if INSE_USE_AGGREGATOR
 						bool lock = aggregator_.lock(id, false);
@@ -577,6 +559,9 @@ namespace wiselib {
 					}
 						
 					case 'n':
+						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
+							se->set_main_handover_phase(SemanticEntityT::PHASE_INIT);
+						}
 						//debug_->debug("chi n");
 						endpoint.request_close();
 						break;
@@ -623,7 +608,10 @@ namespace wiselib {
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
 						*/
-						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, se);
+						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
+							se->set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
+							timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, se);
+						}
 						//timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, se);
 						break;
 						
@@ -642,6 +630,7 @@ namespace wiselib {
 						#if INSE_USE_AGGREGATOR
 							aggregator_.release(id, false);
 						#endif
+							
 						//se->set_initiating_main_handover(false);
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
 						#if !WISELIB_DISABLE_DEBUG
