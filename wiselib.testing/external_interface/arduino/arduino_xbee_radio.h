@@ -138,6 +138,8 @@ namespace wiselib
    ArduinoXBeeRadio<OsModel_P>::ArduinoXBeeRadio() : software_serial_(0), initialized_(false), enabled_(false), id_(NULL_NODE_ID)
    {
       digitalWrite(12, enabled_ ? HIGH : LOW);
+      pinMode(9, OUTPUT);
+      digitalWrite(9, LOW);
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
@@ -159,6 +161,10 @@ namespace wiselib
          initialized_ = true;
       }
       
+      pinMode(9, OUTPUT);
+      digitalWrite(9, LOW);
+      
+      
       enabled_ = true;
       digitalWrite(12, enabled_ ? HIGH : LOW);
       
@@ -173,6 +179,9 @@ namespace wiselib
    {
       enabled_ = false;
       digitalWrite(12, enabled_ ? HIGH : LOW);
+      pinMode(9, INPUT);
+      digitalWrite(9, HIGH);
+      
       return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -208,10 +217,7 @@ namespace wiselib
    int ArduinoXBeeRadio<OsModel_P>::
    send( node_id_t dest, size_t len, block_data_t* data )
    {
-      //digitalWrite(12, enabled_ ? HIGH : LOW);
       if(!enabled_) { return ERR_UNSPEC; }
-      
-      //ArduinoDebug<ArduinoOsModel>(true).debug("send() start %d l %d", (int)millis(), (int)len);
       
       Tx16Request tx = Tx16Request(dest, data, len);
       TxStatusResponse txStatus = TxStatusResponse();
@@ -223,46 +229,33 @@ namespace wiselib
          {
             //xbee_.getResponse().getZBTxStatusResponse(txStatus);
             xbee_.getResponse().getTxStatusResponse(txStatus);
-         //ArduinoDebug<ArduinoOsModel>(true).debug("status %d", (int)txStatus.getStatus());
             if (txStatus.getStatus() == XBEE_SUCCESS)
             {
-      //ArduinoDebug<ArduinoOsModel>(true).debug("send() done %d", (int)millis());
                return SUCCESS;
             }
             else {
-            Serial.print("send() stat ");
-            Serial.write((int)txStatus.getStatus());
-            Serial.println();
-               ArduinoDebug<ArduinoOsModel>(true).debug("send() status %d", (int)txStatus.getStatus());
+               ArduinoDebug<ArduinoOsModel>(true).debug("snd tx %d", (int)txStatus.getStatus());
             }
          }
          else if (!xbee_.getResponse().isError())
          {
-      //ArduinoDebug<ArduinoOsModel>(true).debug("send() done? %d api id %d", (int)millis(), (int)xbee_.getResponse().getApiId());
             return SUCCESS;
          }
          else {
-            Serial.print("send() errorecode ");
-            Serial.write((int)xbee_.getResponse().getErrorCode());
-            Serial.println();
-            ArduinoDebug<ArduinoOsModel>(true).debug("send() errorcode %d", (int)xbee_.getResponse().getErrorCode());
+            ArduinoDebug<ArduinoOsModel>(true).debug("snd err %d", (int)xbee_.getResponse().getErrorCode());
          }
       }
       else {
-         Serial.println("send() no xbee response");
+         Serial.println("snd xb to");
       }
-      
-      Serial.println("send() err");
       return ERR_UNSPEC;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
    void ArduinoXBeeRadio<OsModel_P>::read_recv_packet(void*)
    {
-      //digitalWrite(12, enabled_ ? HIGH : LOW);
       if(enabled_) {
          ::uint32_t t_read = millis();
-         //ArduinoDebug<ArduinoOsModel>(true).debug("recv() %d", (int)t_read);
          xbee_.readPacket();
          if(xbee_.getResponse().isAvailable())
          {
@@ -271,15 +264,12 @@ namespace wiselib
             size_t length;
             block_data_t* data;
 
-         //ArduinoDebug<ArduinoOsModel>(true).debug("resp.api=%d", (int)xbee_.getResponse().getApiId());
             if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
             {
-               //ArduinoDebug<ArduinoOsModel>(true).debug("recv() %d-%d", (int)t_read, (int)millis());
                xbee_.getResponse().getRx16Response(rx16);
                from_id = rx16.getRemoteAddress16();
                data = rx16.getData();
                length = rx16.getDataLength();
-         //ArduinoDebug<ArduinoOsModel>(true).debug("recv f=%d [0]=%d", (int)from_id, (int)data[0]);
                received(data, length, from_id);
             }
             else if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
@@ -287,11 +277,9 @@ namespace wiselib
                TxStatusResponse txStatus = TxStatusResponse();
                //xbee_.getResponse().getZBTxStatusResponse(txStatus);
                xbee_.getResponse().getTxStatusResponse(txStatus);
-         //ArduinoDebug<ArduinoOsModel>(true).debug("r status %d", (int)txStatus.getStatus());
                
             }
          }
-         //ArduinoDebug<ArduinoOsModel>(true).debug("recv() end %d", (int)millis());
       } // enabled_
       timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
    }

@@ -81,7 +81,7 @@ namespace wiselib {
 			void push_caffeine(void* = 0) {
 				if(caffeine_ == 0) {
 					radio_->enable_radio();
-					debug_->debug("node %d on 1", (int)radio_->id());
+					debug_->debug("on"); // (int)radio_->id());
 				}
 				caffeine_++;
 				#if !WISELIB_DISABLE_DEBUG
@@ -99,7 +99,7 @@ namespace wiselib {
 				#endif
 				
 				if(caffeine_ == 0) {
-					debug_->debug("node %d on 0", (int)radio_->id());
+					debug_->debug("off"); //, (int)radio_->id());
 					radio_->disable_radio();
 				}
 			}

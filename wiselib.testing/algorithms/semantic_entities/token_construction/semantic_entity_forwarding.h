@@ -150,14 +150,15 @@ namespace wiselib {
 				}
 				
 				if(target == radio_->id()) {
-					//if(receive_callback_) {
-						//receive_callback_(from, len, data);
-					//}
 					return false;
 				}
 				else {
-					if(msg.initiator() != msg.is_ack()) { DBG("// on_receive: %d -> %d -> %d (%s s=%d f=%d)", (int)from, (int)radio_->id(), (int)target, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
-					else { DBG("// on_receive: %d <- %d <- %d (%s s=%d f=%d)", (int)target, (int)radio_->id(), (int)from, msg.is_ack() ? "ack" : "data", (int)msg.sequence_number(), (int)msg.flags()); }
+					if(msg.initiator() != msg.is_ack()) {
+						debug_->debug("%d > %d > %d", (int)from, (int)radio_->id(), (int)target);
+					}
+					else {
+						debug_->debug("%d < %d < %d", (int)target, (int)radio_->id(), (int)from);
+					}
 					
 					if(msg.is_open() && msg.initiator() && !msg.is_ack() && !msg.is_supplementary()) {
 						TokenStateMessageT &m = *reinterpret_cast<TokenStateMessageT*>(msg.payload());
@@ -184,28 +185,8 @@ namespace wiselib {
 			}
 		
 		private:
-			abs_millis_t absolute_millis(const time_t& t) {
-				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
-			}
-			
-			abs_millis_t now() {
-				return absolute_millis(clock_->time());
-			}
-			
-			/*
-			
-			void begin_wait_for_forward(void* se_) {
-				SemanticEntityT *se = reinterpret_cast<SemanticEntityT*>(se_);
-				nap_control_->push_caffeine();
-			}
-			
-			void end_wait_for_forward(void* se_) {
-				SemanticEntityT *se = reinterpret_cast<SemanticEntityT*>(se_);
-				DBG("node %d // pop forward_%x_%x", (int)radio_->id(), (int)se->id().rule(), (int)se->id().value());
-				nap_control_->pop_caffeine();
-			}
-			
-			*/
+			abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+			abs_millis_t now() { return absolute_millis(clock_->time()); }
 			
 			BitArrayT& slot_map() {
 				return *reinterpret_cast<BitArrayT*>(activity_maps_[map_index_]);
@@ -235,38 +216,16 @@ namespace wiselib {
 				memset(activity_maps_[map_index_], 0, MAP_BYTES);
 				map_index_ = !map_index_;
 				nap_control_->push_caffeine();
-				//position_ = 0;
-				//position_time_ = now();
 				sleep(0);
-				
-				/*
-				size_type start = slot_map().first(true, 0, map_slots_);
-				assert(start == npos || slot_map().get(start) == true);
-				assert(start == npos || start >= position_);
-				
-				if(start == npos) {
-					// no reason to wake up next cycle, we might be a leaf
-					//set_all_awake(slot_map());
-					DBG("node %d // fwd cycle schedule next cycle", (int)radio_->id());
-					timer_->template set_timer<self_type, &self_type::next_cycle>(slot_length_ * map_slots_, this, 0);
-				}
-				else {
-					DBG("node %d t %d // fwd cycle first wake phase in start=%d time=%d",
-								(int)radio_->id(), (int)now(), (int)start, (int)(slot_length_ * start));
-					
-					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * start, this, (void*)start);
-				}
-				*/
 			}
 			
 			void wakeup(void *p) {
-				//position_ = p;
+				
 				position_ = 0;
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
-				DBG("node %d // fwd wakeup at %d", (int)radio_->id(), (int)position_);
-				DBG("node %d // push forward", (int)radio_->id());
+				debug_->debug("fwd");
 				nap_control_->push_caffeine();
 				
 				size_type end = slot_map().first(false, position_, map_slots_);
@@ -277,8 +236,6 @@ namespace wiselib {
 					end = map_slots_;
 				}
 				size_type len = end - position_;
-				DBG("node %d // fwd wakeup schedule sleep at %d", (int)radio_->id(), (int)end);
-				//position_ = end;
 				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, (void*)end);
 			}
 			
@@ -287,8 +244,7 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
-				DBG("node %d // fwd sleep at %d", (int)radio_->id(), (int)position_);
-				DBG("node %d // pop forward", (int)radio_->id());
+				debug_->debug("/fwd");
 				nap_control_->pop_caffeine();
 				
 				size_type start = slot_map().first(true, position_, map_slots_);
@@ -299,14 +255,11 @@ namespace wiselib {
 					assert(map_slots_ >= position_);
 					// no more wakeup this cycle, schedule start of the next
 					// one!
-					DBG("node %d // fwd sleep schedule cycle at %d", (int)radio_->id(), (int)(map_slots_ - position_));
 					timer_->template set_timer<self_type, &self_type::next_cycle>(slot_length_ * (map_slots_ - position_), this, 0);
 				}
 				else {
 					assert(start >= position_);
 					size_type len = start - position_;
-					//position_ = start;
-					DBG("node %d // fwd sleep schedule wakeup at %d", (int)radio_->id(), (int)start);
 					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * len, this, (void*)start);
 				}
 			}
@@ -316,19 +269,9 @@ namespace wiselib {
 			}
 			
 			void schedule_wakeup(size_type pos) {
-				//if(pos > 3) { mark_awake(pos - 3); }
-				//if(pos > 2) { mark_awake(pos - 2); }
-				
 				for(int d = -1; d <= 3; d++) {
 					if(pos > -d) { mark_awake(pos + d); }
 				}
-				/*
-				if(pos > 1) { mark_awake(pos - 1); }
-				mark_awake(pos);
-				mark_awake(pos + 1);
-				mark_awake(pos + 2);
-				mark_awake(pos + 3);
-				*/
 			}
 			
 			void mark_awake(size_type pos) {
