@@ -102,6 +102,12 @@ namespace wiselib {
 				CLOSE = 16
 			};
 			
+			enum MainHandoverPhase {
+				PHASE_INIT = 0x01,
+				PHASE_PENDING = 0x02,
+				PHASE_EXECUTING = 0x03
+			};
+			
 			//}}}
 			
 			/**
@@ -124,7 +130,7 @@ namespace wiselib {
 				// }}}
 			};
 			
-			SemanticEntity() : global_tree_(0) {
+			SemanticEntity() : global_tree_(0), main_handover_phase_(PHASE_INIT) {
 				set_prev_token_count(0);
 				set_count(0);
 			}
@@ -142,6 +148,9 @@ namespace wiselib {
 			SemanticEntity(const SemanticEntity& other) {
 				*this = other;
 			}
+			
+			int main_handover_phase() { return main_handover_phase_; }
+			void set_main_handover_phase(int p) { main_handover_phase_ = p; }
 			
 			/**
 			 * @return true iff the entity is currently in an activity phase.
@@ -370,6 +379,7 @@ namespace wiselib {
 			abs_millis_t token_send_start_;
 			SemanticEntityId id_;
 			TokenState token_;
+			int main_handover_phase_;
 			typename GlobalTreeT::self_pointer_t global_tree_;
 			::uint8_t handover_state_initiator_;
 			::uint8_t handover_state_recepient_;
