@@ -250,8 +250,15 @@ namespace wiselib {
 				}
 				
 				time_t now = clock_->time();
-				PacketInfo *p = PacketInfo::create(now, from, len, data);
-				timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
+				
+				#if ARDUINO
+					// On arduino on_receive will never be triggered in an
+					// interrupt context so we don't need to set up a timer
+					on_receive_task(from, len, data);
+				#else
+					PacketInfo *p = PacketInfo::create(now, from, len, data);
+					timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
+				#endif
 			}
 			
 			void on_receive_task(void *p) {
@@ -261,6 +268,12 @@ namespace wiselib {
 				const node_id_t &from = packet_info->from();
 				const typename Radio::size_t &len = packet_info->length();
 				block_data_t *data = packet_info->data();
+				
+				on_receive_task(packet_info->from(), packet_info->length(), packet_info->data());
+				packet_info->destroy();
+			}
+			
+			void on_receive_task(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				//message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				//debug_->debug("node %d // on_receive_task from %d len %d msgtype %d", (int)radio_->id(), (int)from, (int)len, (int)data[0]);
@@ -272,8 +285,6 @@ namespace wiselib {
 					#endif
 					transport_.on_receive(from, len, data);
 				}
-				
-				packet_info->destroy();
 			}
 			
 			void on_global_tree_event(typename GlobalTreeT::EventType e) {

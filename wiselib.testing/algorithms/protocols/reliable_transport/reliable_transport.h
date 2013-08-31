@@ -82,8 +82,8 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 300 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
-				MAX_RESENDS = 5, ANSWER_TIMEOUT = RESEND_TIMEOUT,
+				RESEND_TIMEOUT = 500 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
+				MAX_RESENDS = 3, ANSWER_TIMEOUT = RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {
@@ -309,8 +309,10 @@ namespace wiselib {
 			}
 			
 			void expect_answer(Endpoint& ep) {
-				ep.set_expect_answer(true);
-				timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
+				if(!ep.expects_answer()) {
+					//ep.set_expect_answer(true);
+					//timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
+				}
 			}
 			
 			node_id_t remote_address(const ChannelId& channel, bool initiator) {
@@ -343,12 +345,12 @@ namespace wiselib {
 				if(msg.type() != Message::MESSAGE_TYPE) { return; }
 				if(from == radio_->id()) { return; }
 				
-				//debug_->debug("node %d // transport recv from %d chan %x.%x msg.init=%d msg.ack=%d msg.s=%d msg.f=%d msg.plen=%d *msg.p=0x%x", (int)radio_->id(), (int)from, (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.sequence_number(), (int)msg.flags(), (int)msg.payload_size(), (char)*msg.payload());
+				debug_->debug("%d recv t %d src %d ch %x.%x m.i=%d m.a=%d m.s=%d m.f=%d m.plen=%d *msg.p=0x%x", (int)radio_->id(), (int)now(), (int)from, (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.sequence_number(), (int)msg.flags(), (int)msg.payload_size(), (char)*msg.payload());
 				
 				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
 				
 				if(idx == npos) {
-					//debug_->debug("ign wrong ch=%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
+					debug_->debug("ign wrong ch=%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
 					return;
 				}
 				Endpoint &ep = endpoints_[idx];
@@ -361,11 +363,9 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					/*
-					debug_->debug("node %d // ign s ch=%x.%x msg.s=%d msg.init=%d msg.ack=%d msg.open=%d ep.s=%d ep.init=%d",
+					debug_->debug("%d ign s ch=%x.%x m.s=%d m.init=%d m.ack=%d m.open=%d ep.s=%d ep.init=%d",
 							(int)radio_->id(),
 							(int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
-					*/
 					return;
 				}
 				
@@ -688,23 +688,23 @@ namespace wiselib {
 				}
 				
 				node_id_t addr = sending_endpoint().remote_address();
+				resends_++;
+				void *v;
+				v = (void*)(size_t)ack_timer_;
 				
 				if(addr != radio_->id() && addr != NULL_NODE_ID) {
 					sending_.set_delay(now() - send_start_);
 					
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("node %d t %d s %d a %d // to %d send idx %d init %d flags 0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(), (int)sending_.is_ack(), (int)addr, (int)sending_channel_idx_, (int)sending_.initiator(), (int)sending_.flags());
-					#endif
+					//#if !WISELIB_DISABLE_DEBUG
+						debug_->debug("%d t %d s %d a %d // to %d send idx %d i %d f 0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(), (int)sending_.is_ack(), (int)addr, (int)sending_channel_idx_, (int)sending_.initiator(), (int)sending_.flags());
+					//#endif
 					radio_->send(addr, sending_.size(), sending_.data());
 				}
 				else {
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("node %d // not sending to %d", (int)radio_->id(), (int)addr);
-					#endif
+					//#if !WISELIB_DISABLE_DEBUG
+						debug_->debug("%d not send to %d", (int)radio_->id(), (int)addr);
+					//#endif
 				}
-				resends_++;
-				void *v;
-				v = (void*)(size_t)ack_timer_;
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, v);
 				//timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT + (RESEND_RAND_ADD ? (rand_->operator()() % RESEND_RAND_ADD) : 0), this, v);
 			}
@@ -738,7 +738,7 @@ namespace wiselib {
 					DBG("node %d // expected answer from %d not received closing channel", (int)radio_->id(),
 							(int)ep.remote_address());
 					ack_timer_++; // invalidate running ack timer
-					debug_->debug("noans");
+					debug_->debug("noans s%d", (int)ep.sequence_number());
 					ep.abort_produce();
 					ep.close();
 					is_sending_ = false;

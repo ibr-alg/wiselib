@@ -5,368 +5,269 @@ template: auto
 firmware: None
 nodetype: arduino
 ------------------
-Tr to 2 send idx 0 init 1 flags 0x9
+T via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+hello, world
 
-boot 0
+boot 1
 
-free: 4149 // tc init
-node 3 on 1
-node 3 on 0
-free: 4155 // tc i2
-free: 4155 // rp init
-free: 4155 // rdf
-free: 4041 // rdf2
-free: 3847 // rules
-free: 3847 // exec rules
-node 3 on 1
-free: 3847 // init end
-Trcv
-NN: 1
-ih: no ep me 3 rem 0
-ih: again in 10000
-ehi open
-handover via 1
-phi si
-phi i
-node 3 t 1051 s 12666 a 0 // to 1 send idx 0 init 1 flags 0x9
-Trcv
-ackto s 1 at=0 state 0
----- ack to r=1 s=12666 t 1467
-node 3 t 1517 s 12666 a 0 // to 1 send idx 0 init 1 flags 0x9
-ackto s 1 at=0 state 0
----- ack to r=2 s=12666 t 1932
-node 3 t 1983 s 12666 a 0 // to 1 send idx 0 init 1 flags 0x9
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=12667 msg.f=0 msg.plen=1 *msg.p=0x6e
-chi n
-node 3 t 2368 s 12668 a 0 // to 1 send idx 0 init 1 flags 0x1c
-ackto s 1 at=0 state 1
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=12667 msg.f=0 msg.plen=1 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=12667 msg.init=0 msg.ack=0 msg.open=0 ep.s=12668 ep.init=1
+node 1 on 1
+node 1 on 0
+node 1 on 1
+free: 3655 // r1
+free: 3595 // r2
+free: 3541 // r3
+free: 3363 // init end
 Trcv
 NN: 2
-ih: no ep me 3 rem 1
-busy to 1 init 1 wants send 0 since 2368 now 3010
-ih: again in 10000
-ih: no ep me 3 rem 1
-busy to 1 init 1 wants send 0 since 2368 now 3163
-ackto s 1 at=1 state 1
----- ack to r=1 s=12668 t 3279
-node 3 t 3331 s 12668 a 0 // to 1 send idx 0 init 1 flags 0x1c
 Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=9133 msg.f=9 msg.plen=6 *msg.p=0x0
-ehr open
+Trcv
+Trcv
+NN: 3
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehrO
 chr
-chr i
-chr i n
---- node 3 t 3773 s 9133 // to 1 send ack
-busy to 1 init 1 wants send 0 since 2368 now 3828
-Trcv
-ackto s 1 at=1 state 1
----- ack to r=2 s=12668 t 4000
-node 3 t 4050 s 12668 a 0 // to 1 send idx 0 init 1 flags 0x1c
-send() no xbee response
-send() err
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=12667 msg.f=0 msg.plen=1 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=12667 msg.init=0 msg.ack=0 msg.open=0 ep.s=12668 ep.init=1
-ackto s 1 at=1 state 1
----- ack to r=3 s=12668 t 4469
-node 3 t 4520 s 12668 a 0 // to 1 send idx 0 init 1 flags 0x1c
-ackto s 1 at=1 state 1
----- ack to r=4 s=12668 t 4938
-node 3 t 4989 s 12668 a 0 // to 1 send idx 0 init 1 flags 0x1c
-ackto s 1 at=1 state 1
----- ack to r=5 s=12668 t 5412
-ehi abort
-ehi close
 phr
-phr n
-node 3 t 5664 s 9134 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=1 state 1
----- ack to r=1 s=9134 t 6072
-node 3 t 6123 s 9134 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=1 state 1
----- ack to r=2 s=9134 t 6532
-node 3 t 6582 s 9134 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=1 state 1
----- ack to r=3 s=9134 t 6995
-node 3 t 7047 s 9134 a 0 // to 1 send idx 1 init 0 flags 0x0
+ehiO
+handover via 2
 Trcv
-ackto s 1 at=1 state 1
----- ack to r=4 s=9134 t 7455
-node 3 t 7506 s 9134 a 0 // to 1 send idx 1 init 0 flags 0x0
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=9135 msg.f=28 msg.plen=0 *msg.p=0x6e
+pl0
 chr
------ no pl
---- node 3 t 8007 s 9135 // to 1 send ack
-ehr close
-ackto s 0 at=1 state 2
-ehi open
-handover via 1
-phi i
-node 3 t 11003 s -29250 a 0 // to 1 send idx 0 init 1 flags 0x9
-ackto s 1 at=2 state 2
----- ack to r=1 s=-29250 t 11418
-node 3 t 11469 s -29250 a 0 // to 1 send idx 0 init 1 flags 0x9
-ackto s 1 at=2 state 2
----- ack to r=2 s=-29250 t 11888
-node 3 t 11939 s -29250 a 0 // to 1 send idx 0 init 1 flags 0x9
+ehrC
+phi
+Trcv
+chi
+phi
+Trcv
+ehiC
 Trcv
 Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=-29249 msg.f=0 msg.plen=1 *msg.p=0x6e
-chi n
-node 3 t 12402 s -29248 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=2 state 3
 Trcv
-ackto s 1 at=3 state 3
----- ack to r=1 s=-29248 t 12877
-node 3 t 12928 s -29248 a 0 // to 1 send idx 0 init 1 flags 0xc
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=-29249 msg.f=0 msg.plen=1 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=-29249 msg.init=0 msg.ack=0 msg.open=0 ep.s=-29248 ep.init=1
 Trcv
-ih: no ep me 3 rem 1
-busy to 1 init 1 wants send 0 since 12402 now 13313
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=6037 msg.f=9 msg.plen=6 *msg.p=0x6e
-ehr open
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehrO
 chr
-chr i
-chr i n
---- node 3 t 13670 s 6037 // to 1 send ack
-busy to 1 init 1 wants send 0 since 12402 now 13725
-Trcv
-ackto s 1 at=3 state 3
----- ack to r=2 s=-29248 t 13897
-node 3 t 13948 s -29248 a 0 // to 1 send idx 0 init 1 flags 0xc
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=1 msg.s=-29248 msg.f=14 msg.plen=0 *msg.p=0x6e
-ehi close
 phr
-phr n
-node 3 t 14273 s 6038 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=3 state 4
 Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=6037 msg.f=9 msg.plen=6 *msg.p=0x6e
-ehr close
-ehr open
+pl0
 chr
-chr i
-chr i n
+ehrC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehrO
+chr
 phr
-phr n
-node 3 t 14950 s 6038 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=4 state 5
-ackto s 1 at=5 state 5
----- ack to r=1 s=6038 t 15358
-node 3 t 15409 s 6038 a 0 // to 1 send idx 1 init 0 flags 0x0
-ehi open
-handover via 1
-busy to 1 init 0 wants send 0 since 14850 now 15622
-ackto s 1 at=5 state 5
----- ack to r=2 s=6038 t 15823
-node 3 t 15874 s 6038 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=5 state 5
----- ack to r=3 s=6038 t 16292
-node 3 t 16343 s 6038 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=5 state 5
----- ack to r=4 s=6038 t 16751
-node 3 t 16802 s 6038 a 0 // to 1 send idx 1 init 0 flags 0x0
 Trcv
-ackto s 1 at=5 state 5
----- ack to r=5 s=6038 t 17242
-ehr close
-phi i
-node 3 t 17392 s -21238 a 0 // to 1 send idx 0 init 1 flags 0x9
-ackto s 1 at=5 state 5
----- ack to r=1 s=-21238 t 17802
-node 3 t 17852 s -21238 a 0 // to 1 send idx 0 init 1 flags 0x9
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=-21237 msg.f=0 msg.plen=1 *msg.p=0x6e
-chi n
-node 3 t 18214 s -21236 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=5 state 6
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=-21237 msg.f=0 msg.plen=1 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=-21237 msg.init=0 msg.ack=0 msg.open=0 ep.s=-21236 ep.init=1
-ackto s 1 at=6 state 6
----- ack to r=1 s=-21236 t 18839
-node 3 t 18889 s -21236 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=6 state 6
----- ack to r=2 s=-21236 t 19298
-node 3 t 19348 s -21236 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=6 state 6
----- ack to r=3 s=-21236 t 19762
-node 3 t 19812 s -21236 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=6 state 6
----- ack to r=4 s=-21236 t 20236
-node 3 t 20286 s -21236 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=6 state 6
----- ack to r=5 s=-21236 t 20700
-ehi abort
-ehi close
-Trcv
-Trcv
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=15086 msg.f=9 msg.plen=6 *msg.p=0x6e
-ehr open
+pl0
 chr
-chr i
-chr i n
+ehrC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+Trcv
+ehrO
+chr
+noans
+ehiA
+ehiC
 phr
-phr n
-node 3 t 26371 s 15087 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=6 state 6
----- ack to r=1 s=15087 t 26779
-node 3 t 26829 s 15087 a 0 // to 1 send idx 1 init 0 flags 0x0
+noans
+ehrA
+ehrC
 Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=15088 msg.f=12 msg.plen=0 *msg.p=0x6e
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+ehrO
 chr
------ no pl
---- node 3 t 27351 s 15088 // to 1 send ack
-ehr close
-ackto s 0 at=6 state 7
-Trcv
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=-13401 msg.f=9 msg.plen=6 *msg.p=0x6e
-ehr open
-chr
-chr i
-chr i n
 phr
-phr n
-node 3 t 28804 s -13400 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=8 state 8
----- ack to r=1 s=-13400 t 29221
-node 3 t 29273 s -13400 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=8 state 8
----- ack to r=2 s=-13400 t 29680
-node 3 t 29731 s -13400 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=8 state 8
----- ack to r=3 s=-13400 t 30145
-node 3 t 30196 s -13400 a 0 // to 1 send idx 1 init 0 flags 0x0
-ackto s 1 at=8 state 8
----- ack to r=4 s=-13400 t 30619
-node 3 t 30670 s -13400 a 0 // to 1 send idx 1 init 0 flags 0x0
-ehi open
-handover via 1
-busy to 1 init 0 wants send 0 since 28702 now 30903
-ackto s 1 at=8 state 8
----- ack to r=5 s=-13400 t 31084
-ehr close
-phi i
-node 3 t 31236 s 3455 a 0 // to 1 send idx 0 init 1 flags 0x9
-send() stat 
-send() status 1
-send() err
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=-13399 msg.f=12 msg.plen=0 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=-13399 msg.init=1 msg.ack=0 msg.open=0 ep.s=0 ep.init=0
-ackto s 1 at=8 state 8
----- ack to r=1 s=3455 t 31711
-node 3 t 31762 s 3455 a 0 // to 1 send idx 0 init 1 flags 0x9
-ackto s 1 at=8 state 8
----- ack to r=2 s=3455 t 32177
-node 3 t 32227 s 3455 a 0 // to 1 send idx 0 init 1 flags 0x9
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=3456 msg.f=0 msg.plen=1 *msg.p=0x6e
-chi n
-node 3 t 32581 s 3457 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=8 state 9
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=3456 msg.f=0 msg.plen=1 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=3456 msg.init=0 msg.ack=0 msg.open=0 ep.s=3457 ep.init=1
-ackto s 1 at=9 state 9
----- ack to r=1 s=3457 t -32291
-node 3 t -32240 s 3457 a 0 // to 1 send idx 0 init 1 flags 0xc
-Trcv
-ackto s 1 at=9 state 9
----- ack to r=2 s=3457 t -31821
-node 3 t -31770 s 3457 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=9 state 9
----- ack to r=3 s=3457 t -31357
-node 3 t -31306 s 3457 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=9 state 9
----- ack to r=4 s=3457 t -30894
-node 3 t -30842 s 3457 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=9 state 9
----- ack to r=5 s=3457 t -30419
-ehi abort
-ehi close
+noans
+ehrA
+ehrC
 Trcv
 Trcv
 Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=16923 msg.f=9 msg.plen=6 *msg.p=0x6e
-ehr open
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 2
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+ehrO
 chr
-chr i
-chr i n
 phr
-phr n
-node 3 t -22932 s 16924 a 0 // to 1 send idx 1 init 0 flags 0x0
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=16923 msg.f=9 msg.plen=6 *msg.p=0x6e
-ehr close
-ehr open
-chr
-chr i
-chr i n
-phr
-phr n
-node 3 t -22356 s 16924 a 0 // to 1 send idx 1 init 0 flags 0x0
-Trcv
-ackto s 1 at=9 state 10
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=16925 msg.f=12 msg.plen=0 *msg.p=0x6e
-chr
------ no pl
---- node 3 t -21970 s 16925 // to 1 send ack
-ehr close
-Trcv
-ackto s 0 at=10 state 11
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=0 msg.s=16925 msg.f=12 msg.plen=0 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=16925 msg.init=1 msg.ack=0 msg.open=0 ep.s=0 ep.init=0
-ehi open
-handover via 1
-phi i
-node 3 t -20166 s -14652 a 0 // to 1 send idx 0 init 1 flags 0x9
-ackto s 1 at=11 state 11
----- ack to r=1 s=-14652 t -19741
-node 3 t -19691 s -14652 a 0 // to 1 send idx 0 init 1 flags 0x9
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=-14651 msg.f=0 msg.plen=1 *msg.p=0x6e
-chi n
-node 3 t -19358 s -14650 a 0 // to 1 send idx 0 init 1 flags 0xc
-ackto s 1 at=11 state 12
-Trcv
-ackto s 1 at=12 state 12
----- ack to r=1 s=-14650 t -18883
-node 3 t -18833 s -14650 a 0 // to 1 send idx 0 init 1 flags 0xc
-node 3 // transport recv from 1 chan 1.726c msg.init=0 msg.ack=0 msg.s=-14651 msg.f=0 msg.plen=1 *msg.p=0x6e
-node 3 // ign s ch=1.726c msg.s=-14651 msg.init=0 msg.ack=0 msg.open=0 ep.s=-14650 ep.init=1
-Trcv
-node 3 // transport recv from 1 chan 1.726c msg.init=1 msg.ack=1 msg.s=-14650 msg.f=14 msg.plen=0 *msg.p=0x6e
-ehi close
-ackto s 0 at=12 state 13
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
-Trcv
+noans
+ehrA
+ehrC
 Trcv
 Trcv
 Trcv

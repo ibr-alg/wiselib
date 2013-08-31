@@ -143,6 +143,7 @@ namespace wiselib
          vec_[i] = x;
          return e;
       }
+      bool full() { return finish_ == end_of_storage_; }
       ///@}
 
    protected:
@@ -238,6 +239,11 @@ namespace wiselib
       item.event_time = time_elapsed() + item.interval;
       item.cb = wiselib::arduino_timer_delegate_t::from_method<T, TMethod>(obj_pnt);
       item.ptr = userdata;
+      
+      if(arduino_queue.full()) {
+         Serial.println("tq full!");
+      }
+      
       arduino_queue.push(item);
       
       wiselib::current_arduino_timer = arduino_queue.top();

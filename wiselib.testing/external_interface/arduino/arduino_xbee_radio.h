@@ -211,6 +211,8 @@ namespace wiselib
       digitalWrite(10, enabled_ ? HIGH : LOW);
       if(!enabled_) { return ERR_UNSPEC; }
       
+      //ArduinoDebug<ArduinoOsModel>(true).debug("send() start %d l %d", (int)millis(), (int)len);
+      
       Tx16Request tx = Tx16Request(dest, data, len);
       TxStatusResponse txStatus = TxStatusResponse();
 
@@ -224,6 +226,7 @@ namespace wiselib
          //ArduinoDebug<ArduinoOsModel>(true).debug("status %d", (int)txStatus.getStatus());
             if (txStatus.getStatus() == XBEE_SUCCESS)
             {
+      //ArduinoDebug<ArduinoOsModel>(true).debug("send() done %d", (int)millis());
                return SUCCESS;
             }
             else {
@@ -235,6 +238,7 @@ namespace wiselib
          }
          else if (!xbee_.getResponse().isError())
          {
+      //ArduinoDebug<ArduinoOsModel>(true).debug("send() done? %d api id %d", (int)millis(), (int)xbee_.getResponse().getApiId());
             return SUCCESS;
          }
          else {
@@ -257,6 +261,8 @@ namespace wiselib
    {
       digitalWrite(10, enabled_ ? HIGH : LOW);
       if(enabled_) {
+         ::uint32_t t_read = millis();
+         //ArduinoDebug<ArduinoOsModel>(true).debug("recv() %d", (int)t_read);
          xbee_.readPacket();
          if(xbee_.getResponse().isAvailable())
          {
@@ -268,6 +274,7 @@ namespace wiselib
          //ArduinoDebug<ArduinoOsModel>(true).debug("resp.api=%d", (int)xbee_.getResponse().getApiId());
             if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
             {
+               //ArduinoDebug<ArduinoOsModel>(true).debug("recv() %d-%d", (int)t_read, (int)millis());
                xbee_.getResponse().getRx16Response(rx16);
                from_id = rx16.getRemoteAddress16();
                data = rx16.getData();
@@ -284,6 +291,7 @@ namespace wiselib
                
             }
          }
+         //ArduinoDebug<ArduinoOsModel>(true).debug("recv() end %d", (int)millis());
       } // enabled_
       timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
    }
