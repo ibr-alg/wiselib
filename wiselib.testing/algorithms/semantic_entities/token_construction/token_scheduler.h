@@ -89,7 +89,7 @@ namespace wiselib {
 				MAX_AGGREGATOR_ENTRIES = 4,
 				MAX_SHDT_TABLE_SIZE = 8,
 				MAX_SSTREE_LISTENERS = 4,
-				FORWARDING_MAP_BITS = 128
+				FORWARDING_MAP_BITS = 512
 			};
 			
 			typedef NapControl<OsModel, Radio> NapControlT;
@@ -135,7 +135,7 @@ namespace wiselib {
 				/**
 				 * How long should we keep the token once we have it?
 				 */
-				ACTIVITY_PERIOD = 30000 * WISELIB_TIME_FACTOR,
+				ACTIVITY_PERIOD = 10000 * WISELIB_TIME_FACTOR,
 			};
 			
 			// }}}

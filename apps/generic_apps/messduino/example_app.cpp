@@ -95,7 +95,7 @@ class ExampleApplication
                //cli();
                //Serial.println("conv started");
             }
-            else {
+            if(started) {
                set_sleep_mode(SLEEP_MODE_ADC);
                sleep_mode();
             }

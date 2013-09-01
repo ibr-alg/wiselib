@@ -41,6 +41,7 @@ rc('text', usetex=True)
 fig = None
 ts = []
 p1s = []
+p1s_mean = []
 p2s = []
 c1s = []
 c2s = []
@@ -53,6 +54,7 @@ def parse(f):
 	global vs
 	global p1s
 	global p2s
+	global p1s_mean
 	
 	#np.loadtxt(fname, delimiter=' ', dtype={
 		#'names': ('t', 'I', 'U'),
@@ -91,16 +93,18 @@ def parse(f):
 		c2s.append(c2)
 		#ps.append(((c) * F_I) * (v * F_U)) # * float(v))
 		p1s.append(((c1) * F_I) * (v * F_U)) # * float(v))
+		#p1s_mean.append(ema((((c1) * F_I) * (v * F_U))))
 		p2s.append(((c2) * F_I) * (v * F_U)) # * float(v))
 		n += 1
 		
-	p1s = gliding_mean(p1s)
+	#p1s_mean = gliding_mean(p1s, 1000)
+	p1s = gliding_mean(p1s, 100)
 
 
 running_avg_prev = 0.0
 def ema(x):
 	global running_avg_prev
-	running_avg_prev = running_avg_prev * 0.5 + x * 0.5
+	running_avg_prev = running_avg_prev * 0.995 + x * 0.005
 	return running_avg_prev
 
 def mma(x, n):
@@ -129,6 +133,7 @@ def fig_p():
 	#ax.set_xlim((19000, 20000))
 	#ax.set_ylim((0, 150))
 	ax.plot(ts, p1s, 'b-', )
+	#ax.plot(ts, p1s_mean, 'k-', )
 	
 	fig.savefig('p.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
