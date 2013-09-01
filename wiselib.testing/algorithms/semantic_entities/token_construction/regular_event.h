@@ -310,8 +310,8 @@ namespace wiselib {
 			abs_millis_t last_encounter_; // 4
 			//abs_millis_t interval_;
 			//abs_millis_t window_;
-			::uint16_t interval_; // 2
-			::uint16_t window_; // 2
+			::uint32_t interval_; // 2
+			::uint32_t window_; // 2
 			
 			// 1
 			::uint8_t hits_ : 2;

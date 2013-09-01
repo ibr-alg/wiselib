@@ -77,7 +77,7 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR,
-				BCAST_INTERVAL = 7000 * WISELIB_TIME_FACTOR,
+				BCAST_INTERVAL = 60000 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -288,6 +288,7 @@ namespace wiselib {
 				msg.set_tree_state(tree_state_);
 				msg.set_user_data(user_data());
 				
+				debug_->debug("bc");
 				nap_control_->push_caffeine();
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d t %d // bcast tree state r%d p%d d%d | r%d p%d d%d",
@@ -300,6 +301,7 @@ namespace wiselib {
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				
 				nap_control_->pop_caffeine();
+				debug_->debug("/bc");
 			}
 			
 			void broadcast_state_regular(void* = 0) {
@@ -355,7 +357,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					//debug_->debug("node %d window %d interval %d", (int)radio_->id(), (int)event.window(), (int)event.interval());
+					debug_->debug("@%d tre %d win %d int %d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval());
 					
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
@@ -374,7 +376,7 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_regular_broadcast", (int)radio_->id());
 				#endif
-				//debug_->debug("bcwait");
+				debug_->debug("bcwait");
 				nap_control_->push_caffeine();
 			}
 			
@@ -382,7 +384,7 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_regular_broadcast", (int)radio_->id());
 				#endif
-				//debug_->debug("/bcwait");
+				debug_->debug("/bcwait");
 				nap_control_->pop_caffeine();
 			}
 			
