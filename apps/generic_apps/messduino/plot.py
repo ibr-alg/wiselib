@@ -12,9 +12,17 @@ import io
 # U = 4.8V, I ~= 200mA
 # measured values: u ~= 261, i1 ~= 18
 
-F_U = (4.8 / 261.0)
-F_I = (200.0 / 18.0)
+#F_U = (4.8 / 261.0)
+#F_I = (200.0 / 18.0)
 
+# Measurement: 1st sep 2013, 100 Ohm resistor
+# U = 5.05V
+# I = 50.5 mA
+# c = 23.1383370125
+# v = 1.5556
+
+F_U = (5.5 / 270.271936186)
+F_I = (50.5 / 44.7316896302)
 
 from matplotlib import rc
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
@@ -32,11 +40,19 @@ rc('text', usetex=True)
 
 fig = None
 ts = []
-ps = []
+p1s = []
+p2s = []
+c1s = []
+c2s = []
+vs = []
 
 def parse(f):
 	global ts
-	global ps
+	global c1s
+	global c2s
+	global vs
+	global p1s
+	global p2s
 	
 	#np.loadtxt(fname, delimiter=' ', dtype={
 		#'names': ('t', 'I', 'U'),
@@ -51,14 +67,15 @@ def parse(f):
 			start = True
 			continue
 		try:
-			t, c, v = line.split()
+			t, c2, c1, v = line.split()
 		except ValueError:
 			continue;
 		
 		
 		try:
 			t = int(t)
-			c = int(c)
+			c1 = int(c1)
+			c2 = int(c2)
 			v = int(v)
 		except Exception:
 			continue
@@ -69,16 +86,21 @@ def parse(f):
 		#if c == 0: continue
 		
 		ts.append((t))
-		ps.append(((c) * F_I)) # * float(v))
+		vs.append(v)
+		c1s.append(c1)
+		c2s.append(c2)
+		#ps.append(((c) * F_I) * (v * F_U)) # * float(v))
+		p1s.append(((c1) * F_I) * (v * F_U)) # * float(v))
+		p2s.append(((c2) * F_I) * (v * F_U)) # * float(v))
 		n += 1
 		
-	ps = gliding_mean(ps)
+	p1s = gliding_mean(p1s)
 
 
 running_avg_prev = 0.0
 def ema(x):
 	global running_avg_prev
-	running_avg_prev = running_avg_prev * 0.2 + x * 0.8
+	running_avg_prev = running_avg_prev * 0.5 + x * 0.5
 	return running_avg_prev
 
 def mma(x, n):
@@ -87,7 +109,7 @@ def mma(x, n):
 	return running_avg_prev
 
 
-def gliding_mean(l, n = 20):
+def gliding_mean(l, n = 100):
 	l_new = []
 	for i, x in enumerate(l):
 		values = min(n, i+1)
@@ -99,22 +121,36 @@ def gliding_mean(l, n = 20):
 def fig_p():
 	global fig
 	global ts
-	global ps
+	global p1s
+	global p2s
 	
 	fig = plt.figure()
 	ax = plt.subplot(111)
 	#ax.set_xlim((19000, 20000))
-	ax.set_ylim((0, 500))
-	ax.plot(ts, ps, 'b-', )
+	#ax.set_ylim((0, 150))
+	ax.plot(ts, p1s, 'b-', )
 	
 	fig.savefig('p.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
 	
+
+def means():
+	global ts
+	global c1s
+	global c2s
+	global vs
 	
+	print "c1: ", float(sum(c1s)) / len(c1s)
+	print "c2: ", float(sum(c2s)) / len(c2s)
+	print "v: ", float(sum(vs)) / len(vs)
+
 
 print("parsing data...")
 #parse(open('acm5_usb.log', 'r'))
 #parse(open('acm5_hibernate.log', 'r'))
 parse(open('acm5_hibernate_sleep.log', 'r'))
 fig_p()
+
+#parse(open('eich.log', 'r'))
+#means()
 

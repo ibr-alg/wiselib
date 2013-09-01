@@ -135,7 +135,7 @@ namespace wiselib {
 				/**
 				 * How long should we keep the token once we have it?
 				 */
-				ACTIVITY_PERIOD = 10000 * WISELIB_TIME_FACTOR,
+				ACTIVITY_PERIOD = 30000 * WISELIB_TIME_FACTOR,
 			};
 			
 			// }}}
@@ -864,9 +864,9 @@ namespace wiselib {
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
 					//#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("@%d SE %x.%x window %lu interval %lu",
+						debug_->debug("@%d SE %x.%x win %lu int %lu trcv %lu",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval());
+								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(), (unsigned long)now());
 					//#endif
 						
 					begin_activity(se);

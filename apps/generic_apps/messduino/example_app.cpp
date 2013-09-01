@@ -12,72 +12,107 @@ typedef wiselib::OSMODEL Os;
 #define CALIB_CURRENT (48.0 / 183.0)
 #define CALIB_VOLTAGE (4.973 / 566.0)
 
+enum { SAMPLE_START_PIN = 1, SAMPLE_PINS = 3 };
+
+class ExampleApplication;
+
+volatile ::uint16_t samples[SAMPLE_PINS];
+volatile ::uint8_t sample_idx = 0;
+volatile bool adc_done = false;
+
+ISR(ADC_vect) {
+   // trigged when a reading is available
+   
+   sample_idx = (ADMUX & 0x07) - SAMPLE_START_PIN;
+   //low = ADCL;
+   //high = ADCH;
+   samples[sample_idx] = ADCW; //(high << 8) | low;
+   sample_idx++;
+   
+   if(sample_idx >= SAMPLE_PINS) {
+      ADMUX = (ADMUX & 0xf8) | (SAMPLE_START_PIN & 0x07);
+      sample_idx = 0;
+      adc_done = true;
+      ADCSRA &= ~_BV( ADIE );  // turn off ADC interrupt
+         //_BV(REFS0) | (SAMPLE_START_PIN & 0x07);
+   }
+   else {
+      ADMUX = (ADMUX & 0xf8) | ((sample_idx + SAMPLE_START_PIN) & 0x07);
+      ADCSRA |= _BV(ADIE);
+      sbi(ADCSRA, ADSC);
+      //set_sleep_mode(SLEEP_MODE_ADC);
+      //sleep_mode();
+   }
+}
+
 class ExampleApplication
 {
    public:
-      void init( Os::AppMainParameter& value )
-      {
-         //radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
-         //clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
-         //timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
-         //debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
-
-         Serial.println("messduino start v1.0");
+      
+      void init(Os::AppMainParameter& amp) {
+         Serial.begin(115200);
+         delay(500);
+         Serial.println("messduino v1.0 ");
+         delay(500);
+         Serial.println(SAMPLE_START_PIN);
+         delay(500);
+         // set the analog reference (high two bits of ADMUX) and select the
+         // channel (low 4 bits).  this also sets ADLAR (left-adjust result)
+         // to 0 (the default).
+         ADMUX = _BV(REFS0) | (SAMPLE_START_PIN & 0x07);
          
-  // CPU Sleep Modes 
-  // SM2 SM1 SM0 Sleep Mode
-  // 0    0  0 Idle
-  // 0    0  1 ADC Noise Reduction
-  // 0    1  0 Power-down
-  // 0    1  1 Power-save
-  // 1    0  0 Reserved
-  // 1    0  1 Reserved
-  // 1    1  0 Standby(1)
-
-  cbi( SMCR, SE );     // sleep enable, power down mode
-  cbi( SMCR,SM0 );     // ADC noise reduction
-  cbi( SMCR,SM1 );     // ADC noise reduction
-  sbi( SMCR,SM2 );     // ADC noise reduction
-
-
-         
-         analogReference(INTERNAL2V56);
+         bool started = false;
          
          while(true) {
-             //debug_->debug("%lu ms %f mA %f V", (unsigned long)millis(),
-                     //(float)analogRead(A0) * CALIB_CURRENT,
-                     //(float)analogRead(A1) * CALIB_VOLTAGE);
-             Serial.print(millis());
-             Serial.print(" ");
-             //Serial.print((double)analogRead(A0) * CALIB_CURRENT);
-             Serial.print(analogRead(A0));
-             Serial.print(" ");
-             Serial.println(analogRead(A1));
-             //Serial.println((double)analogRead(A1) * CALIB_VOLTAGE);
-             
-             /*
-             
-             pinMode(12, OUTPUT);
-             digitalWrite(12, HIGH);
-             
-             pinMode(9, OUTPUT);
-             digitalWrite(9, LOW);
-             
-             delay(3000);
-             
-             pinMode(12, OUTPUT);
-             digitalWrite(12, LOW);
-             
-             pinMode(9, INPUT);
-             digitalWrite(9, HIGH);
-             */
-             
+            //Serial.println(sample_idx);
+            //delay(100);
+            if(adc_done) {
+               started = false;
+               //Serial.print(sample_idx);
+               if(sample_idx == 0) {
+                  Serial.print(millis());
+                  Serial.print(" ");
+                  Serial.print(samples[0]);
+                  Serial.print(" ");
+                  Serial.print(samples[1]);
+                  Serial.print(" ");
+                  Serial.print(samples[2]);
+                  Serial.println();
+                  delay(10);
+               }
+               adc_done = false;
+            }
+            
+            if(!started) {
+               started = true;
+               //sei();
+               // start conversion
+               ADCSRA |= _BV(ADSC) | _BV(ADIE);
+               set_sleep_mode(SLEEP_MODE_ADC);
+               sbi(ADCSRA, ADSC);
+               //sei();
+               sleep_mode();
+               //cli();
+               //Serial.println("conv started");
+            }
+            else {
+               set_sleep_mode(SLEEP_MODE_ADC);
+               sleep_mode();
+            }
          }
       }
-   private:
-      //Os::Clock::self_pointer_t clock_;
-      //Os::Debug::self_pointer_t debug_;
 };
+
+   
+  //uint8_t sampleIndex;
+//digitalWrite( 13, HIGH );
+  // save this sample, start next; if we've just collected a set of three, pass them to the orientation object and stop ADC (Sample( -1 ))
+  //samples[ sampleIndex = ( ADMUX & 0x07 ) - startPin ] = ADCW;  // get sampled pin number from the MUX
+  //Sample( ++sampleIndex < 3 ? sampleIndex : ( orientation.AcceptSample( samples ), -1 ) );
+//digitalWrite( 13, LOW );
+//}
+
+
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, ExampleApplication> example_app;
 // --------------------------------------------------------------------------
@@ -85,3 +120,4 @@ void application_main( Os::AppMainParameter& value )
 {
   example_app.init( value );
 }
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

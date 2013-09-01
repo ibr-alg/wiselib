@@ -682,14 +682,19 @@ namespace wiselib {
 				return absolute_millis(clock_->time());
 			}
 			
-			void changed(void* = 0) {
+			void changed(void* p = 0) {
+				if(p) {
+					// we have been called by timer
+					timer_pending_ = false;
+				}
 				abs_millis_t n = now() + (abs_millis_t)(0.1 * PUSH_INTERVAL);
 				if(nap_control_->on() && last_push_ + PUSH_INTERVAL <= n) {
 					broadcast_state(TreeStateMessageT::REASON_PUSH_BCAST);
 					last_push_ = now();
 				}
-				else {
-					timer_->template set_timer<self_type, &self_type::changed>(PUSH_INTERVAL, this, 0);
+				else if(!timer_pending_) {
+					timer_pending_ = true;
+					timer_->template set_timer<self_type, &self_type::changed>(PUSH_INTERVAL, this, (void*)(::uint8_t*)1);
 				}
 			}
 				
@@ -713,6 +718,7 @@ namespace wiselib {
 			::uint8_t new_neighbors_ : 1;
 			::uint8_t lost_neighbors_ : 1;
 			::uint8_t updated_neighbors_ : 1;
+			::uint8_t timer_pending_ : 1;
 		
 	}; // SelfStabilizingTree
 }
