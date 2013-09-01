@@ -77,8 +77,8 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR,
-				BCAST_INTERVAL = 5000 * WISELIB_TIME_FACTOR,
-				DEAD_INTERVAL = 3 * BCAST_INTERVAL
+				BCAST_INTERVAL = 7000 * WISELIB_TIME_FACTOR,
+				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
@@ -299,7 +299,6 @@ namespace wiselib {
 				#endif
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				
-				
 				nap_control_->pop_caffeine();
 			}
 			
@@ -375,7 +374,7 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_regular_broadcast", (int)radio_->id());
 				#endif
-				debug_->debug("bcwait");
+				//debug_->debug("bcwait");
 				nap_control_->push_caffeine();
 			}
 			
@@ -383,7 +382,7 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_regular_broadcast", (int)radio_->id());
 				#endif
-				debug_->debug("/bcwait");
+				//debug_->debug("/bcwait");
 				nap_control_->pop_caffeine();
 			}
 			

@@ -92,6 +92,10 @@ namespace wiselib
          BAUDRATE = 57600
          //BAUDRATE = 115200
       };
+      
+      enum {
+         ENABLED_LED_PIN = -1
+      };
 
       ArduinoXBeeRadio();
       ~ArduinoXBeeRadio();
@@ -120,6 +124,24 @@ namespace wiselib
       }
 
    private:
+      
+      void disable() {
+         enabled_ = false;
+         
+         pinMode(9, INPUT);
+         digitalWrite(9, HIGH);
+         delay(300);
+         update_led();
+         disabling_ = false;
+      }
+      
+      void update_led() {
+         if(ENABLED_LED_PIN != -1) {
+            digitalWrite(ENABLED_LED_PIN, enabled_ ? HIGH : LOW);
+         }
+      }
+         
+      
       node_id_t id_;
       typename OsModel::Timer* timer_;
       //unsigned long baud_rate_;
@@ -130,14 +152,15 @@ namespace wiselib
       SoftwareSerial *software_serial_;
       bool initialized_;
       bool enabled_;
+      bool disabling_;
       bool id_retrieved_;
    };
 
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
-   ArduinoXBeeRadio<OsModel_P>::ArduinoXBeeRadio() : software_serial_(0), initialized_(false), enabled_(false), id_(NULL_NODE_ID)
+   ArduinoXBeeRadio<OsModel_P>::ArduinoXBeeRadio() : id_(NULL_NODE_ID), software_serial_(0), initialized_(false), enabled_(false), disabling_(false)
    {
-      digitalWrite(12, enabled_ ? HIGH : LOW);
+      update_led();
       pinMode(9, OUTPUT);
       digitalWrite(9, LOW);
    }
@@ -157,16 +180,25 @@ namespace wiselib
             xbee_.setSerial(Serial1);
          }
          //xbee_.begin(BAUDRATE);
-         timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
          initialized_ = true;
       }
       
-      pinMode(9, OUTPUT);
-      digitalWrite(9, LOW);
+      // We were just about to shut it off next time
+      // recv() would have been called, abort that idea
+      if(enabled_ && disabling_) {
+         disabling_ = false;
+      }
       
+      if(!enabled_) {
+         pinMode(9, OUTPUT);
+         digitalWrite(9, LOW);
+         delay(300);
       
-      enabled_ = true;
-      digitalWrite(12, enabled_ ? HIGH : LOW);
+         timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
+         
+         enabled_ = true;
+         update_led();
+      }
       
       //id_ = id();
       //if(id_ == -1)
@@ -177,11 +209,7 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoXBeeRadio<OsModel_P>::disable_radio()
    {
-      enabled_ = false;
-      digitalWrite(12, enabled_ ? HIGH : LOW);
-      pinMode(9, INPUT);
-      digitalWrite(9, HIGH);
-      
+      disabling_ = true;
       return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -189,6 +217,10 @@ namespace wiselib
    typename ArduinoXBeeRadio<OsModel_P>::node_id_t ArduinoXBeeRadio<OsModel_P>::id()
    {
       if(id_ != NULL_NODE_ID) { return id_; }
+      
+      bool enabled_backup = enabled_;
+      
+      enable_radio();
       
       size_t myCmd[] = {'M','Y'};
       AtCommandRequest atRequest = AtCommandRequest(myCmd);
@@ -210,6 +242,11 @@ namespace wiselib
          }
       }
       }
+      
+      if(!enabled_backup) {
+         disable();
+      }
+      
       return NULL_NODE_ID;
    }
    // -----------------------------------------------------------------------
@@ -254,33 +291,37 @@ namespace wiselib
    template<typename OsModel_P>
    void ArduinoXBeeRadio<OsModel_P>::read_recv_packet(void*)
    {
-      if(enabled_) {
-         ::uint32_t t_read = millis();
-         xbee_.readPacket();
-         if(xbee_.getResponse().isAvailable())
-         {
-            Rx16Response rx16 = Rx16Response();
-            node_id_t from_id;
-            size_t length;
-            block_data_t* data;
+      if(!enabled_) { return; }
+      if(disabling_) {
+         disable();
+         return;
+      }
+      
+      ::uint32_t t_read = millis();
+      xbee_.readPacket();
+      if(xbee_.getResponse().isAvailable())
+      {
+         Rx16Response rx16 = Rx16Response();
+         node_id_t from_id;
+         size_t length;
+         block_data_t* data;
 
-            if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
-            {
-               xbee_.getResponse().getRx16Response(rx16);
-               from_id = rx16.getRemoteAddress16();
-               data = rx16.getData();
-               length = rx16.getDataLength();
-               received(data, length, from_id);
-            }
-            else if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
-            {
-               TxStatusResponse txStatus = TxStatusResponse();
-               //xbee_.getResponse().getZBTxStatusResponse(txStatus);
-               xbee_.getResponse().getTxStatusResponse(txStatus);
-               
-            }
+         if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
+         {
+            xbee_.getResponse().getRx16Response(rx16);
+            from_id = rx16.getRemoteAddress16();
+            data = rx16.getData();
+            length = rx16.getDataLength();
+            received(data, length, from_id);
          }
-      } // enabled_
+         else if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
+         {
+            TxStatusResponse txStatus = TxStatusResponse();
+            //xbee_.getResponse().getZBTxStatusResponse(txStatus);
+            xbee_.getResponse().getTxStatusResponse(txStatus);
+            
+         }
+      }
       timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
    }
    // -----------------------------------------------------------------------
