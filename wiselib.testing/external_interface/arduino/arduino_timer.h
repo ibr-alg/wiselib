@@ -175,16 +175,43 @@ namespace wiselib
       int set_timer( millis_t millis, T *obj_pnt, void *userdata );
 
       static ArduinoTimerQueue<MAX_REGISTERED_ARDUINO_TIMER> arduino_queue;
+      
+      static void fix_rate() {
+         if(arduino_queue.empty()) {
+            TIMSK2 &= ~(1<<OCIE2A);
+         }
+         else {
+            TIMSK2 |= (1<<OCIE2A);
+         }
+         
+         current_arduino_timer = arduino_queue.top();
+         ::uint32_t now = millis();
+         ::uint32_t delta = 1;
+         if(current_arduino_timer.event_time > now) {
+            delta = current_arduino_timer.event_time - now;
+         }
+         float want = (F_CPU * delta * 0.001 / prescaler) - 1.0;
+         if(want >= 255.0) {
+            OCR2A = 255;
+         }
+         else {
+            OCR2A = (::uint8_t)want;
+         }
+         TCNT2 = 0;
+      }
 
    private:
       uint8_t ocr2a_;
-      float prescaler;
+      static float prescaler;
       uint32_t time_elapsed();					//returns current time
       void init_arduino_timer( void);
    };
    
    template<typename OsModel_P>
    ArduinoTimerQueue<MAX_REGISTERED_ARDUINO_TIMER> ArduinoTimer<OsModel_P>::arduino_queue;
+   
+   template<typename OsModel_P>
+   float ArduinoTimer<OsModel_P>::prescaler;
 
    template<typename OsModel_P>
    uint32_t ArduinoTimer<OsModel_P>::time_elapsed(void)
@@ -224,7 +251,7 @@ namespace wiselib
 	prescaler = 128.0;
       }
 
-      ocr2a_ = (int)((float)F_CPU * 0.001 / prescaler) - 1;
+      ocr2a_ = (int)((float)F_CPU * 0.010 / prescaler) - 1;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
@@ -246,9 +273,10 @@ namespace wiselib
       
       arduino_queue.push(item);
       
-      wiselib::current_arduino_timer = arduino_queue.top();
+      //wiselib::current_arduino_timer = arduino_queue.top();
       
-      ::uint32_t now = time_elapsed();
+      //::uint32_t now = time_elapsed();
+      /*
       if(wiselib::current_arduino_timer.event_time > now) {
          wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - now;
       }
@@ -256,10 +284,14 @@ namespace wiselib
          wiselib::arduino_timer_max_count = 0;
       }
       wiselib::arduino_timer_count = 0;
-
-      TCNT2 = 0;
-      OCR2A = ocr2a_;
-      TIMSK2 |= (1<<OCIE2A);
+      */
+      fix_rate();
+      
+      //
+      //ocr2a_ = delta * ((int)((float)F_CPU * 0.001 / prescaler) - 1);
+      
+      //OCR2A = ocr2a_;
+      //TIMSK2 |= (1<<OCIE2A);
       sei();
       return 0;
    }

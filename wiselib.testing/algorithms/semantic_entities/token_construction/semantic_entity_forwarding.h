@@ -215,6 +215,7 @@ namespace wiselib {
 				
 				memset(activity_maps_[map_index_], 0, MAP_BYTES);
 				map_index_ = !map_index_;
+				debug_->debug("fwd");
 				nap_control_->push_caffeine();
 				sleep(0);
 			}

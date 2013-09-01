@@ -143,30 +143,19 @@ ISR(WDT_vect) {
 
 ISR(TIMER2_COMPA_vect)
 {
-   wiselib::arduino_timer_count = wiselib::arduino_timer_count + 1;
-   if(wiselib::arduino_timer_count >= wiselib::arduino_timer_max_count)
-   {
-      TIMSK2 &= ~(1<<OCIE2A);
-      wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.pop();
-      
+   typedef wiselib::ArduinoTimer<wiselib::ArduinoOsModel> Timer;
    
-      //(wiselib::current_arduino_timer.cb)(wiselib::current_arduino_timer.ptr);
-   wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
-      
-      if(!wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.empty())
-      {
-         wiselib::current_arduino_timer = wiselib::ArduinoTimer<wiselib::ArduinoOsModel>::arduino_queue.top();
-         ::uint32_t now = millis();
-         if(wiselib::current_arduino_timer.event_time > now) {
-            wiselib::arduino_timer_max_count = wiselib::current_arduino_timer.event_time - now;
-         }
-         else {
-            wiselib::arduino_timer_max_count = 0;
-         }
-         wiselib::arduino_timer_count = 0;
-         TIMSK2 |= (1<<OCIE2A);
-      }
+   TIMSK2 &= ~(1<<OCIE2A);
+   
+   ::uint32_t now = millis();
+   if(wiselib::current_arduino_timer.event_time <= now) {
+      wiselib::current_arduino_timer = Timer::arduino_queue.pop();
+      wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
    }
+   
+   Timer::fix_rate();
+   //TIMSK2 |= (1<<OCIE2A); // fix_rate() does this for us (if it deems
+   //necessary, that is!)
 }
 
 
