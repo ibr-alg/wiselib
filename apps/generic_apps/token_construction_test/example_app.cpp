@@ -126,9 +126,10 @@ class ExampleApplication
 		void init( Os::AppMainParameter& value )
 		{
 			#ifdef ARDUINO
-				pinMode(8, OUTPUT);
-				pinMode(9, OUTPUT);
-				pinMode(10, OUTPUT);
+				//pinMode(8, OUTPUT);
+				//pinMode(9, OUTPUT);
+				//pinMode(10, OUTPUT);
+				pinMode(12, OUTPUT);
 				pinMode(13, OUTPUT);
 			#endif
 			
