@@ -16,43 +16,31 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-#ifndef __EXTERNAL_INTERFACE_CONTIKI_FACET_PROVIDER_H__
-#define __EXTERNAL_INTERFACE_CONTIKI_FACET_PROVIDER_H__
 
-#include "project-conf.h"
+#ifndef PROJECT_CONF_H_INCLUDED__
+	#define PROJECT_CONF_H_INCLUDED__
 
-#include "external_interface/facet_provider.h"
-#include "external_interface/contiki/contiki_os.h"
+	#undef QUEUEBUF_CONF_NUM
+	#define QUEUEBUF_CONF_NUM 1
 
-namespace wiselib
-{
+	#undef QUEUEBUFRAM_NUM
+	#define QUEUEBUFRAM_NUM 1
 
-   class ContikiOsModel;
+	#undef PROCESS_CONF_NO_PROCESS_NAMES
+	#define PROCESS_CONF_NO_PROCESS_NAMES 1
 
-   template<typename Facet_P>
-   class FacetProvider<ContikiOsModel, Facet_P>
-   {
-   public:
-      typedef ContikiOsModel OsModel;
-      typedef Facet_P Facet;
-      // --------------------------------------------------------------------
-      static Facet& get_facet( ContikiOsModel& os )
-      {
-         facet_.init();
-         return facet_;
-      }
+	#undef UIP_CONF_TCP
+	#define UIP_CONF_TCP 0
 
-   private:
-      static Facet facet_;
-   };
-   // -----------------------------------------------------------------------
-   // -----------------------------------------------------------------------
-   // -----------------------------------------------------------------------
-   template<typename Facet_P>
-   typename FacetProvider<ContikiOsModel, Facet_P>::Facet
-      FacetProvider<ContikiOsModel, Facet_P>::facet_ =
-      typename FacetProvider<ContikiOsModel, Facet_P>::Facet();
+	#undef UIP_CONF_UDP
+	#define UIP_CONF_UDP 0
 
-}
+	#undef UIP_BROADCAST
+	#define UIP_BROADCAST 0
 
-#endif
+	#undef NETSTACK_CONF_RDC
+	#define NETSTACK_CONF_RDC nullrdc_driver
+
+	
+#endif // PROJECT_CONF_H
+

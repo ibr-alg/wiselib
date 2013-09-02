@@ -41,7 +41,7 @@
 	#define INSE_USE_AGGREGATOR 0
 
 
-	#define BITMAP_ALLOCATOR_RAM_SIZE 1024
+	#define BITMAP_ALLOCATOR_RAM_SIZE 4096
 #endif
 
 
@@ -70,12 +70,12 @@ typedef wiselib::OSMODEL Os;
 
 // OS quirks
 
-#if defined(TINYOS) || defined(CONTIKI_TARGET_MSB430)
+#if defined(TINYOS) || defined(CONTIKI)
 	int strcmp(const char* a, const char* b) {
 		for( ; *a && *b; a++, b++) {
-			if(a != b) { return b - a; }
+			if(*a != *b) { return *b - *a; }
 		}
-		return b - a;
+		return *b - *a;
 	}
 #endif
 
