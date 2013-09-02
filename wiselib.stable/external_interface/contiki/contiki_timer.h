@@ -19,6 +19,7 @@
 #ifndef CONNECTOR_CONTIKI_TIMER_H
 #define CONNECTOR_CONTIKI_TIMER_H
 
+#include "project-conf.h"
 #include "external_interface/contiki/contiki_types.h"
 #include "util/delegates/delegate.hpp"
 

@@ -19,6 +19,8 @@
 #ifndef CONNECTOR_CONTIKI_DEBUGOUTPUT_H
 #define CONNECTOR_CONTIKI_DEBUGOUTPUT_H
 
+#include "project-conf.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 extern "C" {

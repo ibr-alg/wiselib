@@ -220,7 +220,7 @@ namespace wiselib {
 				sleep(0);
 			}
 			
-			void wakeup(void *p) {
+			void wake_up(void *p) {
 				
 				position_ = 0;
 				hardcore_cast(position_, p);
@@ -261,7 +261,7 @@ namespace wiselib {
 				else {
 					assert(start >= position_);
 					size_type len = start - position_;
-					timer_->template set_timer<self_type, &self_type::wakeup>(slot_length_ * len, this, (void*)start);
+					timer_->template set_timer<self_type, &self_type::wake_up>(slot_length_ * len, this, (void*)start);
 				}
 			}
 			
