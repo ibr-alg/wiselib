@@ -36,14 +36,14 @@ namespace wiselib
 {
    typedef delegate1<void, void*> arduino_timer_delegate_t;
    // -----------------------------------------------------------------------
-   static const int MAX_REGISTERED_ARDUINO_TIMER = 10;
+   static const int MAX_REGISTERED_ARDUINO_TIMER = 20;
    // -----------------------------------------------------------------------
-   uint32_t arduino_timer_count, arduino_timer_max_count;
+   uint32_t arduino_timer_count; // arduino_timer_max_count;
    //------------------------------------------------------------------------
    struct arduino_timer_item
    {
-      size_t timer_state;		//defines if the particular timer event is engaged already or not
-      uint32_t interval;		//defines the time interval for the timer event to occur in
+      //size_t timer_state;		//defines if the particular timer event is engaged already or not
+      //uint32_t interval;		//defines the time interval for the timer event to occur in
       uint32_t event_time;
       arduino_timer_delegate_t cb;	//callback
       void *ptr;			//userdata which is passed as a parameter to the callback function
@@ -258,18 +258,25 @@ namespace wiselib
    template<typename T, void (T::*TMethod)(void*)>
    int ArduinoTimer<OsModel_P>::set_timer( millis_t millis, T *obj_pnt, void *userdata)
    {
+      if(arduino_queue.full()) {
+         Serial.print("tq full! t=");
+         Serial.println(millis);
+         while(arduino_queue.full()) {
+            wiselib::current_arduino_timer = arduino_queue.pop();
+            Serial.println(wiselib::current_arduino_timer.event_time);
+         }
+         delay(1000);
+         while(true) ;
+      }
+      
       TIMSK2 &= ~(1<<TOIE2);
       TIMSK2 &= ~(1<<OCIE2A);
       wiselib::arduino_timer_item item;
-      item.timer_state = 1;
-      item.interval = millis;
-      item.event_time = time_elapsed() + item.interval;
+      //item.timer_state = 1;
+      //item.interval = millis;
+      item.event_time = time_elapsed() + millis;
       item.cb = wiselib::arduino_timer_delegate_t::from_method<T, TMethod>(obj_pnt);
       item.ptr = userdata;
-      
-      if(arduino_queue.full()) {
-         Serial.println("tq full!");
-      }
       
       arduino_queue.push(item);
       
