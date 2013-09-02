@@ -83,7 +83,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
 				RESEND_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
-				MAX_RESENDS = 3, ANSWER_TIMEOUT = RESEND_TIMEOUT,
+				MAX_RESENDS = 3, ANSWER_TIMEOUT = 3 * RESEND_TIMEOUT,
 			};
 			
 			enum ReturnValues {
@@ -310,8 +310,8 @@ namespace wiselib {
 			
 			void expect_answer(Endpoint& ep) {
 				if(!ep.expects_answer()) {
-					//ep.set_expect_answer(true);
-					//timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
+					ep.set_expect_answer(true);
+					timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
 				}
 			}
 			
