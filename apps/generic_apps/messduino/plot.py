@@ -92,9 +92,9 @@ def parse(f):
 		c1s.append(c1)
 		c2s.append(c2)
 		#ps.append(((c) * F_I) * (v * F_U)) # * float(v))
-		p1s.append(((c1) * F_I) * (v * F_U)) # * float(v))
+		p1s.append(((c1) * F_I)) # * (v * F_U)) # * float(v))
 		#p1s_mean.append(ema((((c1) * F_I) * (v * F_U))))
-		p2s.append(((c2) * F_I) * (v * F_U)) # * float(v))
+		p2s.append(((c2) * F_I)) # * (v * F_U)) # * float(v))
 		n += 1
 		
 	#p1s_mean = gliding_mean(p1s, 1000)
@@ -130,9 +130,9 @@ def fig_p():
 	
 	fig = plt.figure()
 	ax = plt.subplot(111)
-	#ax.set_xlim((19000, 20000))
+	ax.set_xlim((600000, 900000))
 	#ax.set_ylim((0, 150))
-	ax.plot(ts, p1s, 'b-', )
+	ax.plot(ts, p1s, 'k-', )
 	#ax.plot(ts, p1s_mean, 'k-', )
 	
 	fig.savefig('p.pdf') #, bbox_inches='tight', pad_inches=.1)

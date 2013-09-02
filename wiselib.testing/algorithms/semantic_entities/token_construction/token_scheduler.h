@@ -356,7 +356,7 @@ namespace wiselib {
 				else {
 					transport_.flush();
 					nap_control_.pop_caffeine();
-					debug_->debug("/ho");
+					debug_->debug("/ho via %d", (int)(ep.remote_address()));
 					
 					if(main && !se.initiating_main_handover()) {
 						se.set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
