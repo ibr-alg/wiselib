@@ -35,16 +35,23 @@ namespace wiselib {
 			typedef ::uint32_t Value;
 			typedef ::uint32_t Rule;
 			
+			enum SpecialRules {
+				RULE_SPECIAL = (Rule)(-1),
+			};
+			
+			enum SpecialValues {
+				VALUE_ALL = 0,
+				VALUE_INVALID = (Value)(-1),
+			};
+			
 			/**
 			 * Create the invalid SE id.
 			 */
-			SemanticEntityId() : value_(-1), rule_(-1) {
+			SemanticEntityId() : value_(VALUE_INVALID), rule_(RULE_SPECIAL) {
 			}
 			
 			SemanticEntityId(Rule r, Value v) : value_(v), rule_(r) {
 			}
-			
-			static SemanticEntityId invalid() { return SemanticEntityId(); }
 			
 			bool operator==(const SemanticEntityId& other) const {
 				return value_ == other.value_ && rule_ == other.rule_;
@@ -68,6 +75,21 @@ namespace wiselib {
 			}
 			
 			::uint8_t hash() const { return hash8(); }
+			
+			void set(Rule r, Value v) {
+				rule_ = r;
+				value_ = v;
+			}
+			
+			///@name Special values
+			///@{
+			
+			static SemanticEntityId invalid() { return SemanticEntityId(); }
+			
+			bool is_special() { return rule_ == RULE_SPECIAL; }
+			bool is_invalid() { return rule_ == RULE_SPECIAL && value_ == VALUE_INVALID; }
+			
+			///@}
 			
 		private:
 			Value value_;
