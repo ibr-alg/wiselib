@@ -32,11 +32,13 @@ class App {
 			
 			assert(value.argc == 2);
 			
+			debug_->debug("init...");
 			//mem.init(value.argv[1]);
 			cache.physical().init(value.argv[1]);
 			cache.init();
 			alloc.init(&cache, debug_);
 			
+			debug_->debug("formatting...");
 			alloc.format();
 			debug_->debug("done.");
 		}

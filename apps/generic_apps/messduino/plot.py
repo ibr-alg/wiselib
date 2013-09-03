@@ -97,8 +97,8 @@ def parse(f):
 		p2s.append(((c2) * F_I)) # * (v * F_U)) # * float(v))
 		n += 1
 		
-	#p1s_mean = gliding_mean(p1s, 1000)
-	p1s = gliding_mean(p1s, 100)
+	#p1s_mean = gliding_mean(p1s, 100)
+	p1s = gliding_mean(p1s, 50)
 
 
 running_avg_prev = 0.0
@@ -130,7 +130,8 @@ def fig_p():
 	
 	fig = plt.figure()
 	ax = plt.subplot(111)
-	ax.set_xlim((600000, 900000))
+	ax.set_xlim((100000, 150000))
+	#ax.set_xlim((600000, 900000))
 	#ax.set_ylim((0, 150))
 	ax.plot(ts, p1s, 'k-', )
 	#ax.plot(ts, p1s_mean, 'k-', )
@@ -153,7 +154,9 @@ def means():
 print("parsing data...")
 #parse(open('acm5_usb.log', 'r'))
 #parse(open('acm5_hibernate.log', 'r'))
-parse(open('acm5_hibernate_sleep.log', 'r'))
+#parse(open('acm5_hibernate_sleep.log', 'r'))
+#parse(open('/home/henning/repos/wiselib/util/isense/flash_rdfprovider/ts_ssp_insert_block_arduino.log', 'r'))
+parse(open('/home/henning/repos/wiselib/util/isense/flash_rdfprovider/antelope_ssp_insert_block_telosb.log', 'r'))
 fig_p()
 
 #parse(open('eich.log', 'r'))

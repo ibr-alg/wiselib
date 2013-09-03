@@ -179,6 +179,7 @@ namespace wiselib
       static void fix_rate() {
          if(arduino_queue.empty()) {
             TIMSK2 &= ~(1<<OCIE2A);
+            return;
          }
          else {
             TIMSK2 |= (1<<OCIE2A);
@@ -251,7 +252,7 @@ namespace wiselib
 	prescaler = 128.0;
       }
 
-      ocr2a_ = (int)((float)F_CPU * 0.010 / prescaler) - 1;
+      ocr2a_ = (int)((float)F_CPU * 0.001 / prescaler) - 1;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>

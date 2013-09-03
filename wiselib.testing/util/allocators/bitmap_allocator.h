@@ -137,6 +137,11 @@ class BitmapAllocator {
 					}
 				}
 			}
+			
+			#ifdef CONTIKI
+			printf("!alloc %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
+			#endif
+			
 			return 0;
 		}
 		
