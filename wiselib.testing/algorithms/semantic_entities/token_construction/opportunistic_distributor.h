@@ -32,7 +32,7 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Radio_P,
-		typename Neighborhood_P,
+		typename Neighborhood_P
 	>
 	class OpportunisticDistributor {
 		
@@ -40,8 +40,27 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			typedef Neighborhood_P Neighborhood;
+			typedef Timer_P Timer;
+			typedef Clock_P Clock;
+			typedef Rand_P Rand;
+			typedef Debug_P Debug;
+			
+			enum {
+				MAX_NEIGHBORS = MAX_NEIGHBORS_P
+			};
+			
+			enum {
+				TARGET_DIRECT, TARGET_ROOT, TARGET_BCAST
+			};
+			
+			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS> TransportT;
 			
 			void init(...) {
+				radio_ = radio;
+				nd_ = nd;
 				current_se_.set(SemanticEntityId::RULE_SPECIAL, SemanticEntityId::VALUE_INVALID);
 				
 				nd_.reg_on_awake_hint(
@@ -52,42 +71,64 @@ namespace wiselib {
 			void reg_receive_callback(...) {
 			}
 			
-			void send(...) {
-				if(...) {
-					packets_upward_[...];
+			void send(node_id_t target, size_type length, block_data_t* data) {
+				if(is_parent(target)) {
+					upward_.enqueue(length, data);
 				}
 				else {
-					packets_downward_[...];
+					downward_.enqueue(length, data);
 				}
 			}
 			
 			void produce_handover_initiator(...) {
-				switch(...) {
+				switch(state_initiator_[remote]) {
 					case INIT:
-						// TODO: send current SE & wake request
+						assert(!current_se_.invalid());
+						// send current SE & wake request
+						// TODO: maybe check if we are still awake at all!
+						wiselib::write(message.payload(), current_se_);
+						wiselib::write(message.payload() + sizeof(current_se_), (::uint32_t)(wake_request_ - now());
 						break;
-					case SEND_BLOCKS:
-						// TODO: send block according to block_pos_,
-						// if all blocks send, close connection
+					case SEND_BLOCKS: {
+						PacketPool &pool = is_parent(remote) ? upward_ : downward_;
+						
+						size_type packet_pos = 0;
+						size_type local_pos = pool_position_initiator_[remote];
+						while(true) {
+							::uint8_t len = pool.size(local_pos);
+							block_data_t *data = pool.data(local_pos);
+							
+							if(len == 0 || packet_pos + len + 1 > MessageT::MAX_PAYLOAD_SIZE) {
+								if(len == 0) { ep.request_close(); }
+								pool_position_initiator_[remote] = local_pos;
+								break;
+							}
+							message.payload()[packet_pos] = len;
+							memcpy(message.payload() + packet_pos + 1, data);
+							packet_pos += len;
+							local_pos += len;
+						} 
 						break;
-				}
-			}
+					}
+				} // switch
+			} // produce_handover_initiator
 			
 			void consume_handover_initiator(...) {
 				switch(...) {
 					case INIT:
 						switch(...) {
-							case SEND_BUSY:
-								childs_failed_.insert(remote);
-								break;
 							case SEND_STATS:
 								// TODO: receive stats, decide what to send
 								// now
-								state_[remote] = SEND_BLOCKS;
-								block_pos_[remote] = 0;
+								state_initiator_[remote] = SEND_BLOCKS;
+								pool_position_initiator_[remote] = 0;
 								break;
+								
+							case SEND_BUSY:
+								// mark for retry
+								childs_failed_.insert(remote);
+								
 							case SEND_SE_FALSE_POSITIVE:
-								// nothing to do here anymore
 								ep.request_close();
 								break;
 						}
@@ -119,13 +160,17 @@ namespace wiselib {
 			
 			
 			void produce_handover_recepient(...) {
-				switch(...) {
+				
+				*message.payload() = (::uint8_t)state_recepient_[remote];
+				
+				switch(state_recepient_[remote]) {
 					case SEND_STATS:
 						// TODO: send INQP stats (current known queries, rules, tasks)
 						// other things that might be interesting here?
-						state_[remote] = RECEIVE_BLOCKS;
+						state_recepient_[remote] = RECEIVE_BLOCKS;
 						break;
 					case SEND_SE_FALSE_POSITIVE:
+						*message.payload() = (::uint8_t)SEND_SE_FALSE_POSITIVE;
 						// TODO
 						break;
 					case SEND_BUSY:
@@ -139,7 +184,12 @@ namespace wiselib {
 					case INIT:
 						// TODO: recv SE & wake request, verify SE
 						state_[remote] = SEND_STATS;
-						state_[remote] = SEND_SE_FALSE_POSITIVE;
+						
+						SemanticEntityId id;
+						wiselib::read(se_id, message.payload());
+						if(!registry_->contains(se_id) && !amq_->any_child_contains(se_id)) {
+							state_[remote] = SEND_SE_FALSE_POSITIVE;
+						}
 						
 						if((is_parent(remote) && busy_sending_down_) ||
 								(is_child(remote) && busy_sending_up_)) {
@@ -148,11 +198,35 @@ namespace wiselib {
 						break;
 					case RECEIVE_PACKETS:
 						// TODO: receive blocks ;)
-						if(is_parent(remote)) {
-							packets_downward_[...];
-						}
-						else {
-							packets_upward_[...];
+						PacketPool &pool = is_parent(remote) ? downward_ : upward_;
+						
+						while(...) {
+							::uint8_t len = data[0];
+							::uint8_t target = data[1];
+							
+							switch(target) {
+								case TARGET_DIRECT:
+									notify_receivers(data + 2, len - 1);
+									break;
+								case TARGET_NEXT_IN_SE:
+									if(registry_.cntains(current_se_)) {
+										notify_receivers(data + 2, len - 1);
+									}
+									else {
+										pool.enqueue(len, data + 1);
+									}
+									break;
+								case TARGET_ROOT:
+									assert(is_child(remote));
+									if(is_root()) {
+										notify_receivers(data + 2, len - 1);
+									}
+									else {
+										pool.enqueue(len, data + 1);
+									}
+									break;
+							}
+							// TODO
 						}
 						break;
 				}
@@ -187,15 +261,39 @@ namespace wiselib {
 				return busy_sending_ || busy_receiving_;
 			}
 			
-			void start(SemanticEntityId se_id) {
-				current_se_
+			//void start(SemanticEntityId se_id) {
+				//current_se_ = se_id;
+			//}
+			
+			void on_receive(...) {
+				if(current_se_.invalid() || se == current_se_) {
+					current_se_ = se;
+					transport_.on_receive(...);
+				}
+			}
 			
 		private:
+				
+			struct PacketPool {
+				int enqueue(::uint8_t length, block_data_t* data) {
+					if(size_ + length + 1 > POOL_SIZE) {
+						return ERR_UNSPEC;
+					}
+					data_[size_ - 1] = length;
+					memcpy(data_ + size_, data, length);
+					size_ += length + 1;
+					data_[size_ - 1] = 0;
+				}
+				
+				block_data_t data_[POOL_SIZE];
+				size_type size_;
+			};
+			
 			
 			// format:
 			// [ len | data ..... | len | data ..... | 0 | .... ]
-			block_data_t packets_downward_[...];
-			block_data_t packets_upward_[...];
+			PacketPool downward_;
+			PacketPool upward_;
 			
 			ChildSet childs_done_;
 			ChildSet childs_failed_;
