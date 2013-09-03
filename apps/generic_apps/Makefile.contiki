@@ -1,11 +1,12 @@
 export CONTIKI=$(CONTIKI_PATH)
+APPS += antelope
 CFLAGS += -DPROJECT_CONF_H=\"$(WISELIB_PATH)/external_interface/contiki/project-conf.h\"
-export SMALL=1
+SMALL = 1
 #CONTIKI_NO_NET=1
 include $(CONTIKI_PATH)/Makefile.include
 
 CXXFLAGS += $(CFLAGS)
-CXXFLAGS += -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH)
+CXXFLAGS += -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) -I$(CONTIKI_PATH)/apps
 CXXFLAGS += -fno-defer-pop -fno-exceptions -fno-rtti -fomit-frame-pointer \
 		-fno-strength-reduce -fno-use-cxa-atexit 
 # -pedantic
@@ -13,6 +14,7 @@ CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel $(ADD_CXXFLAGS
 
 LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
+	$(OBJECTDIR)/antelope.o \
    contiki-$(TARGET).a
 
 ADD_LDFLAGS :=

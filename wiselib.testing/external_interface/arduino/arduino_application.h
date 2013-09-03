@@ -78,6 +78,7 @@ int main(int argc, const char** argv) {
    //cbi( SMCR,SM2 );     // power down mode
    
    //set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+   
    digitalWrite(13, LOW);
    digitalWrite(12, HIGH);
    
@@ -86,11 +87,12 @@ int main(int argc, const char** argv) {
       while(true) {
          cli();
          if(wiselib::ArduinoTask::tasks_.empty()) {
-            //Serial.println("empty");
+         //#if ARDUINO_ALLOW_SLEEP
             sleep_enable();
             sei();
             sleep_cpu();
             sleep_disable();
+         //#endif
             sei();
             delay(10);
          }
@@ -148,6 +150,7 @@ ISR(TIMER2_COMPA_vect)
    TIMSK2 &= ~(1<<OCIE2A);
    
    ::uint32_t now = millis();
+   wiselib::current_arduino_timer = Timer::arduino_queue.top();
    if(wiselib::current_arduino_timer.event_time <= now) {
       wiselib::current_arduino_timer = Timer::arduino_queue.pop();
       wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
