@@ -29,6 +29,12 @@
 	#undef PROCESS_CONF_NO_PROCESS_NAMES
 	#define PROCESS_CONF_NO_PROCESS_NAMES 1
 
+	#undef UIP_CONF_IPV6_RPL
+	#define UIP_CONF_IPV6_RPL 0
+
+	#undef UIP_CONF_IPV6
+	#define UIP_CONF_IPV6 0
+
 	#undef UIP_CONF_TCP
 	#define UIP_CONF_TCP 0
 
@@ -38,8 +44,8 @@
 	#undef UIP_BROADCAST
 	#define UIP_BROADCAST 0
 
-	#undef NETSTACK_CONF_RDC
-	#define NETSTACK_CONF_RDC nullrdc_driver
+	//#undef NETSTACK_CONF_RDC
+	//#define NETSTACK_CONF_RDC nullrdc_driver
 
 	
 #endif // PROJECT_CONF_H

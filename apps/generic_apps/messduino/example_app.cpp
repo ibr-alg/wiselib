@@ -12,32 +12,41 @@ typedef wiselib::OSMODEL Os;
 #define CALIB_CURRENT (48.0 / 183.0)
 #define CALIB_VOLTAGE (4.973 / 566.0)
 
-enum { SAMPLE_START_PIN = 1, SAMPLE_PINS = 3 };
+enum { SAMPLE_START_PIN = 1, SAMPLE_PINS = 3, SAMPLES = 16 };
 
 class ExampleApplication;
 
 volatile ::uint16_t samples[SAMPLE_PINS];
-volatile ::uint8_t sample_idx = 0;
+volatile ::uint8_t pin_idx = 0;
 volatile bool adc_done = false;
+volatile ::uint8_t sample_idx = 0;
 
 ISR(ADC_vect) {
    // trigged when a reading is available
    
-   sample_idx = (ADMUX & 0x07) - SAMPLE_START_PIN;
+   pin_idx = (ADMUX & 0x07) - SAMPLE_START_PIN;
    //low = ADCL;
    //high = ADCH;
-   samples[sample_idx] = ADCW; //(high << 8) | low;
-   sample_idx++;
+   samples[pin_idx] += ADCW; //(high << 8) | low;
+   pin_idx++;
    
-   if(sample_idx >= SAMPLE_PINS) {
+   if(pin_idx >= SAMPLE_PINS) {
+      pin_idx = 0;
+      sample_idx++;
       ADMUX = (ADMUX & 0xf8) | (SAMPLE_START_PIN & 0x07);
-      sample_idx = 0;
-      adc_done = true;
-      ADCSRA &= ~_BV( ADIE );  // turn off ADC interrupt
+      if(sample_idx >= SAMPLES) {
+         ADCSRA &= ~_BV( ADIE );  // turn off ADC interrupt
+         for(int i = 0; i< SAMPLE_PINS; i++) {
+            samples[i] /= SAMPLES;
+         }
+      
+         sample_idx = 0;
+         adc_done = true;
          //_BV(REFS0) | (SAMPLE_START_PIN & 0x07);
+      }
    }
    else {
-      ADMUX = (ADMUX & 0xf8) | ((sample_idx + SAMPLE_START_PIN) & 0x07);
+      ADMUX = (ADMUX & 0xf8) | ((pin_idx + SAMPLE_START_PIN) & 0x07);
       ADCSRA |= _BV(ADIE);
       sbi(ADCSRA, ADSC);
       //set_sleep_mode(SLEEP_MODE_ADC);
@@ -59,17 +68,30 @@ class ExampleApplication
          // set the analog reference (high two bits of ADMUX) and select the
          // channel (low 4 bits).  this also sets ADLAR (left-adjust result)
          // to 0 (the default).
-         ADMUX = _BV(REFS0) | (SAMPLE_START_PIN & 0x07);
+         // 
+         // REFS1 REFS0
+         // 0     0     external AREF
+         // 0     1     AVcc
+         // 1     0     reserved
+         // 1     1     internal 2,56V
+         // 
+         // source: https://www.mikrocontroller.net/articles/AVR-GCC-Tutorial/Analoge_Ein-_und_Ausgabe
+         // 
+         ADMUX = _BV(REFS1) | _BV(REFS0) | (SAMPLE_START_PIN & 0x07);
          
          bool started = false;
+         for(int i = 0; i< SAMPLE_PINS; i++) {
+            samples[i] = 0;
+         }
+         
          
          while(true) {
-            //Serial.println(sample_idx);
+            //Serial.println(pin_idx);
             //delay(100);
             if(adc_done) {
                started = false;
-               //Serial.print(sample_idx);
-               if(sample_idx == 0) {
+               //Serial.print(pin_idx);
+               //if(pin_idx == 0) {
                   Serial.print(millis());
                   Serial.print(" ");
                   Serial.print(samples[0]);
@@ -78,8 +100,11 @@ class ExampleApplication
                   Serial.print(" ");
                   Serial.print(samples[2]);
                   Serial.println();
-                  delay(10);
-               }
+         for(int i = 0; i< SAMPLE_PINS; i++) {
+            samples[i] = 0;
+         }
+                  delay(5);
+               //}
                adc_done = false;
             }
             

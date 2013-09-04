@@ -20,6 +20,11 @@
 #ifndef NAP_CONTROL_H
 #define NAP_CONTROL_H
 
+#if defined(CONTIKI)
+	#include <contiki.h>
+	#include <netstack.h>
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -50,7 +55,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Radio_P,
-		typename Debug_P = typename OsModel_P::Debug
+		typename Debug_P = typename OsModel_P::Debug,
+		typename Clock_P = typename OsModel_P::Clock
 	>
 	class NapControl {
 		public:
@@ -62,13 +68,17 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			typedef Debug_P Debug;
+			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
 			
 			NapControl() : caffeine_(0), radio_(0), debug_(0) {
 			}
 			
-			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug) {
+			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug, typename Clock::self_pointer_t clock) {
 				radio_ = radio;
 				debug_ = debug;
+				clock_ = clock;
 				caffeine_ = 0;
 			}
 			
@@ -80,8 +90,13 @@ namespace wiselib {
 			 */
 			void push_caffeine(void* = 0) {
 				if(caffeine_ == 0) {
+					
+					#if defined(CONTIKI)
+						NETSTACK_RDC.on();
+					#endif
+					
 					radio_->enable_radio();
-					debug_->debug("on"); // (int)radio_->id());
+					debug_->debug("on t%u", (unsigned)now()); // (int)radio_->id());
 				}
 				caffeine_++;
 				#if !WISELIB_DISABLE_DEBUG
@@ -99,15 +114,27 @@ namespace wiselib {
 				#endif
 				
 				if(caffeine_ == 0) {
-					debug_->debug("off"); //, (int)radio_->id());
+					#if defined(CONTIKI)
+						NETSTACK_RDC.off(false);
+					#endif
 					radio_->disable_radio();
+					debug_->debug("off t%u", (unsigned)now()); //, (int)radio_->id());
 				}
 			}
 		
 		private:
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
+			}
+			
 			size_type caffeine_;
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
+			typename Clock::self_pointer_t clock_;
 		
 	}; // NapControl
 }

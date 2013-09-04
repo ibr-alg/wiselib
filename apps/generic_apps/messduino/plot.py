@@ -15,14 +15,18 @@ import io
 #F_U = (4.8 / 261.0)
 #F_I = (200.0 / 18.0)
 
-# Measurement: 1st sep 2013, 100 Ohm resistor
-# U = 5.05V
-# I = 50.5 mA
-# c = 23.1383370125
-# v = 1.5556
-
 F_U = (5.5 / 270.271936186)
 F_I = (50.5 / 44.7316896302)
+
+# Measurement: 4th sep 2013, 220 Ohm resistor
+# U = 5.04V
+# I = 22.4 mA
+# c = 42.6372445553
+# v = 520.366288731
+# Aref = 2,56V internal
+ 
+F_U = (5.04 / 520.366288731)
+F_I = (22.4 / 42.6372445553)
 
 from matplotlib import rc
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
@@ -48,13 +52,20 @@ c2s = []
 vs = []
 
 def parse(f):
-	global ts
-	global c1s
-	global c2s
-	global vs
-	global p1s
-	global p2s
-	global p1s_mean
+	#global ts
+	#global c1s
+	#global c2s
+	#global vs
+	#global p1s
+	#global p2s
+	#global p1s_mean
+	
+	ts = []
+	vs = []
+	p1s = []
+	p2s = []
+	c1s = []
+	c2s = []
 	
 	#np.loadtxt(fname, delimiter=' ', dtype={
 		#'names': ('t', 'I', 'U'),
@@ -65,9 +76,9 @@ def parse(f):
 	n = 1
 	start = False
 	for line in f:
-		if "messduino" in line:
-			start = True
-			continue
+		#if "messduino" in line:
+			#start = True
+			#continue
 		try:
 			t, c2, c1, v = line.split()
 		except ValueError:
@@ -82,7 +93,7 @@ def parse(f):
 		except Exception:
 			continue
 			
-		if t < 10: start = True
+		if t < 1510 and t >= 1500: start = True
 		if not start: continue
 		
 		#if c == 0: continue
@@ -92,13 +103,15 @@ def parse(f):
 		c1s.append(c1)
 		c2s.append(c2)
 		#ps.append(((c) * F_I) * (v * F_U)) # * float(v))
-		p1s.append(((c1) * F_I)) # * (v * F_U)) # * float(v))
+		p1s.append(((c1) * F_I) ) # * (v * F_U)) # * float(v))
 		#p1s_mean.append(ema((((c1) * F_I) * (v * F_U))))
-		p2s.append(((c2) * F_I)) # * (v * F_U)) # * float(v))
+		p2s.append(((c2) * F_I) ) #* (v * F_U)) # * float(v))
 		n += 1
 		
 	#p1s_mean = gliding_mean(p1s, 100)
-	p1s = gliding_mean(p1s, 50)
+	p1s = gliding_mean(p1s, 10)
+	
+	return (ts, vs, p1s, p2s, c1s, c2s)
 
 
 running_avg_prev = 0.0
@@ -122,7 +135,7 @@ def gliding_mean(l, n = 100):
 
 
 
-def fig_p():
+def fig_p(*args):
 	global fig
 	global ts
 	global p1s
@@ -130,24 +143,21 @@ def fig_p():
 	
 	fig = plt.figure()
 	ax = plt.subplot(111)
-	ax.set_xlim((100000, 150000))
-	#ax.set_xlim((600000, 900000))
-	#ax.set_ylim((0, 150))
-	ax.plot(ts, p1s, 'k-', )
+	#ax.set_xlim((0, 60000))
+	#ax.set_xlim((200000, 600000))
+	#ax.set_ylim((00, 3100))
+	
+	for d in args:
+		ax.plot(d['x'], d['y'], *d['args'])
+	
 	#ax.plot(ts, p1s_mean, 'k-', )
 	
 	fig.savefig('p.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
 	
 
-def means():
-	global ts
-	global c1s
-	global c2s
-	global vs
-	
-	print "c1: ", float(sum(c1s)) / len(c1s)
-	print "c2: ", float(sum(c2s)) / len(c2s)
+def means(t, vs, cs):
+	print "c: ", float(sum(cs)) / len(cs)
 	print "v: ", float(sum(vs)) / len(vs)
 
 
@@ -156,9 +166,28 @@ print("parsing data...")
 #parse(open('acm5_hibernate.log', 'r'))
 #parse(open('acm5_hibernate_sleep.log', 'r'))
 #parse(open('/home/henning/repos/wiselib/util/isense/flash_rdfprovider/ts_ssp_insert_block_arduino.log', 'r'))
-parse(open('/home/henning/repos/wiselib/util/isense/flash_rdfprovider/antelope_ssp_insert_block_telosb.log', 'r'))
-fig_p()
+#parse(open('/home/henning/repos/wiselib/util/isense/flash_rdfprovider/antelope_ssp_insert_block_telosb.log', 'r'))
 
-#parse(open('eich.log', 'r'))
-#means()
+#t1_insert, _, p1_insert, _, _, _ = parse(open('./antelope_telosb_ssp_uart_insert.log', 'r'))
+#t1_insert2, _, p1_insert2, _, _, _ = parse(open('./antelope_telosb_ssp_uart_insert_defaultrdc.log', 'r'))
+#t1_idle, _, p1_idle, _, _, _ = parse(open('./antelope_telosb_ssp_uart_idle.log', 'r'))
+#t1_idle2, _, p1_idle2, _, _, _ = parse(open('./antelope_telosb_ssp_uart_idle_defaultrdc.log', 'r'))
+#fig_p(
+		##{ 'x': t1_insert, 'y': p1_insert, 'args': ('k-',) },
+		#{ 'x': t1_insert2, 'y': p1_insert2, 'args': ('r-',) },
+		##{ 'x': t1_idle, 'y': p1_idle, 'args': ('b-',) },
+		#{ 'x': t1_idle2, 'y': p1_idle2, 'args': ('g-',) }
+	#)
+
+#t, _, p, _, _, _ = parse(open('./inse_vector_tree_arduino_nouart.log', 'r'))
+#fig_p( { 'x': t, 'y': p, 'args': ('k-',) })
+
+#t, _, v, _, c, _ = parse(open('eich.log', 'r'))
+#means(t, v, c)
+
+
+t, _, p, _, _, _ = parse(open('./inse_dutycycle_telosb_test.log', 'r'))
+fig_p( { 'x': t, 'y': p, 'args': ('k-',) })
+
+
 

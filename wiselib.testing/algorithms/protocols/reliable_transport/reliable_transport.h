@@ -82,7 +82,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
+				RESEND_TIMEOUT = 300 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
 				MAX_RESENDS = 3, ANSWER_TIMEOUT = 3 * RESEND_TIMEOUT,
 			};
 			
@@ -708,6 +708,8 @@ namespace wiselib {
 				if(is_sending_ && (ack_timer == ack_timer_)) {
 					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
 							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator());
+					
+					debug_->debug("loss s%d t%u", (int)sending_endpoint().sequence_number(), (unsigned)now());
 					if(resends_ >= MAX_RESENDS) {
 						debug_->debug("abrt s%d t%d", (int)sending_endpoint().sequence_number(), (int)now());
 						sending_endpoint().abort_produce();
@@ -727,7 +729,7 @@ namespace wiselib {
 					DBG("node %d // expected answer from %d not received closing channel", (int)radio_->id(),
 							(int)ep.remote_address());
 					ack_timer_++; // invalidate running ack timer
-					debug_->debug("noans s%d", (int)ep.sequence_number());
+					debug_->debug("noans s%d t%d", (int)ep.sequence_number(), (int)now());
 					ep.abort_produce();
 					ep.close();
 					is_sending_ = false;
