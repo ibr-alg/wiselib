@@ -30,6 +30,10 @@
 #include "regular_event.h"
 #include "semantic_entity.h"
 
+#ifndef INSE_USE_AGGREGATOR
+	#define INSE_USE_AGGREGATOR 0
+#endif
+
 #if INSE_USE_AGGREGATOR
 	#include "semantic_entity_aggregator.h"
 #endif
@@ -178,7 +182,7 @@ namespace wiselib {
 				debug_ = debug;
 				rand_ = rand;
 				
-				nap_control_.init(radio_, debug_);
+				nap_control_.init(radio_, debug_, clock_);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
 				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
@@ -864,9 +868,9 @@ namespace wiselib {
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
 					//#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("@%d SE %x.%x win %lu int %lu trcv %lu",
+						debug_->debug("@%d SE %x.%x win %d int %lu trcv %d",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(), (unsigned long)now());
+								(int)se.activating_token_window(), (int)se.activating_token_interval(), (int)now());
 					//#endif
 						
 					begin_activity(se);
@@ -902,7 +906,7 @@ namespace wiselib {
 					debug_->debug("node %d // push activity", (int)radio_->id());
 				#endif
 					
-				debug_->debug("ACT");
+				debug_->debug("ACT %d", (int)now());
 				nap_control_.push_caffeine();
 				
 				#if !WISELIB_DISABLE_DEBUG
@@ -947,7 +951,7 @@ namespace wiselib {
 					debug_->debug("node %d // push handover", (int)radio_->id());
 				#endif
 				
-				debug_->debug("/ACT");
+				debug_->debug("/ACT %d", (int)now());
 				debug_->debug("ho endact");
 				initiate_handover(se, true);
 				se.end_wait_for_activating_token();

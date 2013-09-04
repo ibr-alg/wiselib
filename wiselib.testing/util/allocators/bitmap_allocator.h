@@ -70,10 +70,14 @@ class BitmapAllocator {
 		}; // __attribute__((__packed__));
 		
 		BitmapAllocator() {
-			for(size_type i=0; i<BITMAP_SIZE; i++) {
+			/*
+			for(size_type i=0; i<BITMAP_BLOCKS; i++) {
 				used_[i] = 0;
 				start_[i] = 0;
 			}
+			*/
+			memset(used_, 0, BITMAP_SIZE);
+			memset(start_, 0, BITMAP_SIZE);
 		}
 		
 		template<typename T>
@@ -83,7 +87,7 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate_raw() {
-			block_data_t* r = first_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			block_data_t* r = best_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			new((void*)r, true) T;
 			return (T*)r;
 		}
@@ -95,7 +99,7 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate_array_raw(size_type n) {
-			block_data_t *r = first_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			block_data_t *r = best_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			for(size_type i=0; i<n; i++) {
 				new((T*)r + i, true) T;
 			}
@@ -125,7 +129,7 @@ class BitmapAllocator {
 		
 		block_data_t* first_fit(size_type required_blocks) {
 			size_type start_pos = 0, length = 0;
-			for(size_type i=0; i<BITMAP_SIZE; i++) {
+			for(size_type i=0; i<BITMAP_BLOCKS; i++) {
 				if(used().get(i)) {
 					length = 0;
 					start_pos = i+1;
@@ -139,18 +143,65 @@ class BitmapAllocator {
 			}
 			
 			#ifdef CONTIKI
-			printf("!alloc %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
+			printf("!allocf %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
 			#endif
 			
 			return 0;
 		}
 		
+		block_data_t* best_fit(size_type required_blocks) {
+			#ifdef CONTIKI
+			//printf("a(%d)", required_blocks);
+			#endif
+			
+			size_type best_start_pos = 0, best_length = -1;
+			size_type start_pos = 0, length = 0;
+			for(size_type i=0; i<BITMAP_BLOCKS; i++) {
+				if(used().get(i)) {
+					//printf("u%d", (int)i);
+					if(length >= required_blocks && length < best_length) {
+						best_length = length;
+						best_start_pos = start_pos;
+						if(best_length == required_blocks) {
+							break;
+						}
+					}
+					length = 0;
+					start_pos = i+1;
+				}
+				else {
+					length++;
+					/*
+					if(length >= required_blocks) {
+						return allocate_chunk(start_pos, required_blocks);
+					}
+					*/
+				}
+			}
+			
+			
+			if(length >= required_blocks && length < best_length) {
+				best_length = length;
+				best_start_pos = start_pos;
+			}
+			
+			if(best_length == -1) {
+				#ifdef CONTIKI
+				printf("!allocb %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
+				#endif
+				return 0;
+			}
+			
+			return allocate_chunk(best_start_pos, required_blocks);
+		}
+		
 		block_data_t* allocate_chunk(size_type pos, size_type required_blocks) {
-			start().set(pos, true);
-			start().set(pos + required_blocks, true);
 			for(size_type i=pos; i<pos + required_blocks; i++) {
+				start().set(i, false);
 				used().set(i, true);
 			}
+			start().set(pos, true);
+			start().set(pos + required_blocks, true);
 			return buffer_ + BLOCK_SIZE * pos;
 		}
 		
@@ -161,6 +212,10 @@ class BitmapAllocator {
 			do {
 				used().set(pos, false);
 			} while(!start()[pos++]);
+			
+			if(!used()[pos]) {
+				start().set(pos, false);
+			}
 		}
 		
 		bitarray_t& start() { return *((bitarray_t*)start_); }

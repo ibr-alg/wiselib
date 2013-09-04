@@ -130,7 +130,8 @@ monitor-tinyos-telosb:
 	java net.tinyos.tools.Listen -comm serial@/dev/ttyUSB0:telosb
 	
 monitor-contiki-telosb:
-	$(CONTIKI_PATH)/tools/sky/serialdump-linux -b115200 /dev/ttyUSB0
+	$(CONTIKI_PATH)/tools/sky/serialdump-linux -b115200 $(PORT)
+	#/dev/ttyUSB0
 
 monitor-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino monitor ADD_CXXFLAGS=$(ADD_CXXFLAGS)

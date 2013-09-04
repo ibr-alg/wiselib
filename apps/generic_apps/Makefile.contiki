@@ -1,8 +1,13 @@
 export CONTIKI=$(CONTIKI_PATH)
-APPS += antelope
-CFLAGS += -DPROJECT_CONF_H=\"$(WISELIB_PATH)/external_interface/contiki/project-conf.h\"
+#APPS += antelope
 SMALL = 1
+
+# if you change these also check ext_iface/contiki/project-conf.h for
+# consistency!
+#UIP_CONF_IPV6=0
 #CONTIKI_NO_NET=1
+CFLAGS += -DUIP_CONF_IPV6=0 -DUIP_CONF_IPV6_RPL=0 -DLPM_CONF_ON=3 -DPROJECT_CONF_H=\"$(WISELIB_PATH)/external_interface/contiki/project-conf.h\"
+
 include $(CONTIKI_PATH)/Makefile.include
 
 CXXFLAGS += $(CFLAGS)
@@ -14,8 +19,10 @@ CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel $(ADD_CXXFLAGS
 
 LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
-	$(OBJECTDIR)/antelope.o \
    contiki-$(TARGET).a
+	#$(OBJECTDIR)/antelope.o \
+	#$(OBJECTDIR)/fakeuip.o \
+
 
 ADD_LDFLAGS :=
 ifeq ($(TARGET), sky)
@@ -47,8 +54,6 @@ contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
 		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_byte_com_uart.cpp
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_sky_button_listener.o \
 		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_sky_button_listener.cpp
-	#msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/fakeuip.o \
-		#-c $(CONTIKI)/tools/sky/uip6-bridge//fakeuip.c
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
 	@echo "linking..."
 	msp430-g++ $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).o \
