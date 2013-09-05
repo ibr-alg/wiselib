@@ -44,8 +44,8 @@
 	#undef UIP_BROADCAST
 	#define UIP_BROADCAST 0
 
-	//#undef NETSTACK_CONF_RDC
-	//#define NETSTACK_CONF_RDC nullrdc_driver
+	#undef NETSTACK_CONF_RDC
+	#define NETSTACK_CONF_RDC nullrdc_driver
 
 	
 #endif // PROJECT_CONF_H

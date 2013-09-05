@@ -15,8 +15,8 @@ import io
 #F_U = (4.8 / 261.0)
 #F_I = (200.0 / 18.0)
 
-F_U = (5.5 / 270.271936186)
-F_I = (50.5 / 44.7316896302)
+#F_U = (5.5 / 270.271936186)
+#F_I = (50.5 / 44.7316896302)
 
 # Measurement: 4th sep 2013, 220 Ohm resistor
 # U = 5.04V
@@ -186,7 +186,7 @@ print("parsing data...")
 #means(t, v, c)
 
 
-t, _, p, _, _, _ = parse(open('./inse_dutycycle_telosb_test.log', 'r'))
+t, _, p, _, _, _ = parse(open('./inse_telosb_nullrdc_act10k_energy.log', 'r'))
 fig_p( { 'x': t, 'y': p, 'args': ('k-',) })
 
 

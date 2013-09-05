@@ -96,7 +96,7 @@ namespace wiselib {
 					#endif
 					
 					radio_->enable_radio();
-					debug_->debug("on t%u", (unsigned)now()); // (int)radio_->id());
+					debug_->debug("on t%d", (int)(now() & 0xffff)); // (int)radio_->id());
 				}
 				caffeine_++;
 				#if !WISELIB_DISABLE_DEBUG
@@ -118,7 +118,7 @@ namespace wiselib {
 						NETSTACK_RDC.off(false);
 					#endif
 					radio_->disable_radio();
-					debug_->debug("off t%u", (unsigned)now()); //, (int)radio_->id());
+					debug_->debug("off t%d", (int)(now() & 0xffff)); //, (int)radio_->id());
 				}
 			}
 		

@@ -358,7 +358,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					debug_->debug("@%d tre %d win %d int %d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval());
+					debug_->debug("@%d tre %d win %d int %d", (int)radio_->id(), (int)from, (int)(event.window() % 65536), (int)(event.interval() % 65536));
 					
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
@@ -627,7 +627,7 @@ namespace wiselib {
 				
 				if(c || updated_neighbors_) {
 					debug_->debug("@%d p=%d d=%d rt=%d c=%d t=%d",
-								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)now()/*, hex*/);
+								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)(now() % 65536)/*, hex*/);
 					notify_event(UPDATED_STATE);
 					// <DEBUG>
 					//#if !WISELIB_DISABLE_DEBUG

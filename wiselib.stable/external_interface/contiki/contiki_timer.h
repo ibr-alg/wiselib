@@ -87,9 +87,9 @@ namespace wiselib
    ContikiTimer<OsModel_P>::
    set_timer( millis_t millis, T *obj_pnt, void *userdata )
    {
-      uint16_t secs = millis >> 10;
-      if (secs == 0)
-         secs = 1;
+      //uint16_t secs = millis >> 10;
+      //if (secs == 0)
+         //secs = 1;
       timer_item *item = get_timer_item_ref();
       if ( !item )
          return ERR_UNSPEC;
@@ -98,7 +98,7 @@ namespace wiselib
       item->ptr = userdata;
 
       PROCESS_CONTEXT_BEGIN( &timer_process );
-      etimer_set( &item->etimer, CLOCK_SECOND * secs );
+      etimer_set( &item->etimer, millis * (CLOCK_SECOND / 1000.0)); //CLOCK_SECOND * secs );
       PROCESS_CONTEXT_END( &timer_process );
 
       return SUCCESS;
