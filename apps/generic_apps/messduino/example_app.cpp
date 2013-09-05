@@ -36,9 +36,6 @@ ISR(ADC_vect) {
       ADMUX = (ADMUX & 0xf8) | (SAMPLE_START_PIN & 0x07);
       if(sample_idx >= SAMPLES) {
          ADCSRA &= ~_BV( ADIE );  // turn off ADC interrupt
-         for(int i = 0; i< SAMPLE_PINS; i++) {
-            samples[i] /= SAMPLES;
-         }
       
          sample_idx = 0;
          adc_done = true;
@@ -90,6 +87,9 @@ class ExampleApplication
             //delay(100);
             if(adc_done) {
                started = false;
+               for(int i = 0; i< SAMPLE_PINS; i++) {
+                  samples[i] /= SAMPLES;
+               }
                //Serial.print(pin_idx);
                //if(pin_idx == 0) {
                   Serial.print(millis());

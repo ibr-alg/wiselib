@@ -22,6 +22,12 @@ from matplotlib import rc
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
+t0 = 300000
+
+def correct_arduino_time(t):
+	return t * 1.795 # nullrdc, contikimac8_nooff
+	#return t * 2.2 # contikimac8
+
 def gliding_mean(l, n = 100):
 	l_new = []
 	for i, x in enumerate(l):
@@ -58,8 +64,12 @@ def parse_events(f):
 		if t_new is not None:
 			if t_new + toffs < t: toffs += 65536
 			t = t_new + toffs
+			
+		if t < t0: continue
 		
 		#print(line)
+		if 'off' in line or 'on ' in line or 'win ' in line:
+			print (t, line)
 		
 		if '/ACT' in line:
 			#print(line)
@@ -126,20 +136,23 @@ def parse_energy(f):
 		if t < 1510 and t >= 1500: start = True
 		if not start: continue
 		
+		t = correct_arduino_time(t)
+		
+		if t < t0: continue
 		#if c == 0: continue
 		
-		ts.append((t))
+		ts.append(t)
 		vs.append(v)
 		c1s.append(c1)
 		c2s.append(c2)
 		#ps.append(((c) * F_I) * (v * F_U)) # * float(v))
-		p1s.append(((c1) * F_I) ) # * (v * F_U)) # * float(v))
+		p1s.append(((c1) * F_I) * (v * F_U)) # * float(v))
 		#p1s_mean.append(ema((((c1) * F_I) * (v * F_U))))
 		p2s.append(((c2) * F_I) ) #* (v * F_U)) # * float(v))
 		n += 1
 		
 	#p1s_mean = gliding_mean(p1s, 100)
-	p1s = gliding_mean(p1s, 10)
+	#p1s = gliding_mean(p1s, 10)
 	
 	return (ts, vs, p1s, p2s, c1s, c2s)
 
@@ -148,25 +161,45 @@ def parse_energy(f):
 def plot_events(d, pon, pact, pev):
 	#penergy = fig.add_subplot(313)
 	
-	#pon.set_xlim((0, 700000))
-	#pact.set_xlim((0, 700000))
-	#pev.set_xlim((0, 1000000))
+	#pon.set_xlim((0,  600000))
+	#pact.set_xlim((0, 600000))
+	#pev.set_xlim((0,  600000))
+	
 	
 	pon.set_ylim((0, 1.1))
 	pact.set_ylim((0, 1.1))
 	#pev.set_ylim((0, 1.1))
 	
-	pon.plot(d['on']['t'], d['on']['v'], drawstyle='steps-post')
-	pact.plot(d['activity']['t'], d['activity']['v'], drawstyle='steps-post')
-	pev.plot(d['send']['t'], d['send']['v'], 'k-')
+	pon.plot(d['on']['t'], d['on']['v'], 'k-', drawstyle='steps-post')
+	pact.plot(d['activity']['t'], d['activity']['v'], 'k-', drawstyle='steps-post')
+	pev.plot(d['send']['t'], d['send']['v'], 'k-', drawstyle='steps-post')
 	#print(d['loss'])
-	pev.vlines(d['loss']['t'], [d['send']['v'][-1]], d['loss']['v'], 'r')
+	#pev.vlines(d['loss']['t'], [d['send']['v'][-1]], d['loss']['v'], 'r')
+	pev.plot(d['loss']['t'], d['loss']['v'], 'r-', drawstyle='steps-post')
 	#pev.plot(d['loss']['t'], d['loss']['v'], 'r^-')
 	
 
 def plot_energy(d, p):
-	p.plot(d['x'], d['y'], *d.get('args', []))
+	p.plot(d['x'], d['y'], 'k-', *d.get('args', []))
+	
+	
 
+def cum(t, y):
+	rt = t[1:]
+	ry = []
+
+	cy = y[0]
+	ct = t[1] - t[0]
+	
+	t_prev = t[0]
+	pv = 0
+	#ry.append(0)
+	for ct, cy in zip(t[1:], y[1:]):
+		pv += cy #(ct - t_prev) * cy
+		ry.append(pv / 1000000) # mA * V * mS / 10^6 = Joule
+		t_prev = ct
+	return rt, ry
+		
 fig = plt.figure()
 pon = fig.add_subplot(411)
 pact = fig.add_subplot(412)
@@ -174,13 +207,18 @@ pev = fig.add_subplot(413)
 penergy = fig.add_subplot(414)
 
 for p in (pon, pact, pev, penergy):
-	p.set_xlim((0,240000))
+	p.set_xlim((t0,t0 + 600000))
+	
+#penergy.set_ylim((0, 10))
 
-d = parse_events(open(sys.argv[1], 'r'))
+d = parse_events(open(sys.argv[1], 'r', encoding='latin1'))
 plot_events(d, pon, pact, pev)
 
 ts, vs, p1s, p2s, c1s, c2s = parse_energy(open(sys.argv[2], 'r'))
-plot_energy(dict(x=ts, y=p1s), penergy)
+#plot_energy(dict(x=ts, y=p1s), penergy)
+
+cx, cy = cum(ts, p1s)
+plot_energy(dict(x=cx, y=cy), penergy)
 
 fig.savefig('p.pdf')
 

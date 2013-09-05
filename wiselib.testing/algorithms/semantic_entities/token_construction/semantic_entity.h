@@ -298,6 +298,10 @@ namespace wiselib {
 				return activating_token_.interval();
 			}
 			
+			bool activating_token_early() {
+				return activating_token_.early();
+			}
+			
 			
 			/*
 			void learn_token_forward(typename Clock::self_pointer_t clock, node_id_t mynodeid, node_id_t from, abs_millis_t hit) {
