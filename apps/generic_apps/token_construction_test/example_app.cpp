@@ -105,6 +105,8 @@ using namespace wiselib;
 
 #define STRHASH(X) Hash::hash((const block_data_t*)(X), strlen_compiletime(X))
 
+typedef Os::Clock::time_t time_t;
+typedef ::uint32_t abs_millis_t;
 
 //static_print(sizeof(void*));
 
@@ -123,6 +125,14 @@ class ExampleApplication
 			ts.insert(t);
 		}
 		
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
+			}
+			
 		void init( Os::AppMainParameter& value )
 		{
 			#ifdef ARDUINO
@@ -146,7 +156,7 @@ class ExampleApplication
 			
 			radio_->enable_radio();
 			
-			debug_->debug("\nboot %d\n", (int)radio_->id());
+			debug_->debug("\nboot @%d t%d\n", (int)radio_->id(), (int)now());
 			rand_->srand(radio_->id());
 			/*
 			debug_->debug("free %d sizes: TC %d EP %d ND %d Fwd %d",
