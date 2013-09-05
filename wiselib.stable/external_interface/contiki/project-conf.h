@@ -45,7 +45,11 @@
 	#define UIP_BROADCAST 0
 
 	#undef NETSTACK_CONF_RDC
-	#define NETSTACK_CONF_RDC nullrdc_driver
+	#define NETSTACK_CONF_RDC contikimac_driver
+
+	#undef NETSTACK_RDC_CHANNEL_CHECK_RATE 
+	#define NETSTACK_RDC_CHANNEL_CHECK_RATE 8
+	
 
 	
 #endif // PROJECT_CONF_H

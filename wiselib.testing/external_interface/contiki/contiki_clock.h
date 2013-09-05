@@ -105,7 +105,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return (time % CLOCKS_PER_SEC) * (1000.0 / CLOCKS_PER_SEC);
+         return ((time % CLOCKS_PER_SEC) * 1000.0) / CLOCKS_PER_SEC;
             //(uint16_t)(time - int(time)) * 1000;
       }
       // --------------------------------------------------------------------

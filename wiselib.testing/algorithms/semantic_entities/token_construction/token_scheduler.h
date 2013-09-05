@@ -869,9 +869,10 @@ namespace wiselib {
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
 					//#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("@%d tok SE %x.%x win %d int %d t%d",
+						debug_->debug("@%d tok SE %x.%x win %d int %d t%d e%d",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-								(int)se.activating_token_window(), (int)se.activating_token_interval(), (int)(now() % 65536));
+								(int)se.activating_token_window(), (int)se.activating_token_interval(),
+								(int)now(), (int)se.activating_token_early());
 					//#endif
 						
 					begin_activity(se);

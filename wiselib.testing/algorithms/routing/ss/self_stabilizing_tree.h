@@ -358,7 +358,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					debug_->debug("@%d tre %d win %d int %d", (int)radio_->id(), (int)from, (int)(event.window() % 65536), (int)(event.interval() % 65536));
+					debug_->debug("@%d tre %d win %d int %d e%d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval(), (int)event.early());
 					
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
