@@ -82,7 +82,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 300 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
+				RESEND_TIMEOUT = 600 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
 				MAX_RESENDS = 3, ANSWER_TIMEOUT = 3 * RESEND_TIMEOUT,
 			};
 			
@@ -296,6 +296,7 @@ namespace wiselib {
 					if(request_send) { ep.request_send(); }
 					return SUCCESS;
 				}
+				debug_->debug("op: is%d wa%d", (int)ep.is_open(), (int)ep.wants_open());
 				return ERR_UNSPEC;
 			}
 			
@@ -346,7 +347,7 @@ namespace wiselib {
 					return;
 				}
 				if(from == radio_->id()) {
-					debug_->debug("ign from self");
+					debug_->debug("ign self");
 					return;
 				}
 				
@@ -355,7 +356,7 @@ namespace wiselib {
 				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
 				
 				if(idx == npos) {
-					debug_->debug("ign wrong ch=%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
+					debug_->debug("ign ch%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
 					return;
 				}
 				Endpoint &ep = endpoints_[idx];
@@ -377,8 +378,7 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					debug_->debug("%d ign s ch=%x.%x m.s=%d m.init=%d m.ack=%d m.open=%d ep.s=%d ep.init=%d",
-							(int)radio_->id(),
+					debug_->debug("ign ch%x.%x m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
 							(int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
 					return;
 				}
@@ -437,6 +437,7 @@ namespace wiselib {
 			
 			void receive_open(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
+					debug_->debug("reopen");
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -447,6 +448,7 @@ namespace wiselib {
 			
 			void receive_close(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
+					debug_->debug("cc");
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -665,7 +667,7 @@ namespace wiselib {
 						}
 						
 						if(!send) {
-							debug_->debug("no prod i%d", (int)sending_endpoint().initiator());
+							debug_->debug("prod0 i%d", (int)sending_endpoint().initiator());
 							is_sending_ = false;
 							check_send();
 							return;
@@ -747,6 +749,9 @@ namespace wiselib {
 					else {
 						try_send(0);
 					}
+				}
+				else {
+					debug_->debug("nls%d/%d", (int)ack_timer, (int)ack_timer_);
 				}
 			}
 			
