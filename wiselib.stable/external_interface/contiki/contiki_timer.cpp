@@ -23,7 +23,7 @@
 
 namespace wiselib
 {
-   static const int MAX_REGISTERED_TIMER = 10;
+   static const int MAX_REGISTERED_TIMER = 20;
    // -----------------------------------------------------------------------
    timer_item timer_item_;
    timer_item timer_items[MAX_REGISTERED_TIMER];
@@ -70,6 +70,7 @@ namespace wiselib
             return &timer_items[i];
          }
 
+	  printf("tq!");
       return 0;
    }
 }

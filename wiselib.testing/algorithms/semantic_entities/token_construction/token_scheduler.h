@@ -285,10 +285,13 @@ namespace wiselib {
 				}
 			}
 			
-			void on_global_tree_event(typename GlobalTreeT::EventType e) {
-				if(e != GlobalTreeT::UPDATED_STATE) {
+			void on_global_tree_event(typename GlobalTreeT::EventType e, node_id_t addr) {
+				if(e == GlobalTreeT::SEEN_NEIGHBOR) {
+					//on_neighbor_awake(addr);
 					return;
 				}
+				
+				if(e != GlobalTreeT::UPDATED_STATE) { return; }
 				
 				for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 					SemanticEntityT &se = iter->second;
@@ -322,12 +325,36 @@ namespace wiselib {
 			
 			//@{ Initiator (Token sending side)
 			
+			//void on_neighbor_awake(node_id_t n) {
+				//for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
+					//if(neighborhood_.next_token_node(iter->first) == n) {
+						//if(!iter->second.in_activity_phase()) {
+							//nap_control_.push_caffeine();
+							//initiate_handover(iter->second, false);
+						//}
+					//}
+				//}
+			//}
+			
+			/*
+			void try_initiate_recovery_handover(void *se_) {
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				if(se.recovering()) {
+					nap_control_.push_caffeine();
+					debug_->debug("ho recover");
+					initiate_handover(se_, false);
+					timer_->template set_timer<self_type, &self_type::try_initiate_recovery_handover>((int)HANDOVER_RETRY_INTERVAL, this, se_);
+				}
+			}
+			*/
+			
 			void try_initiate_main_handover(void *se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
 				nap_control_.push_caffeine();
 				debug_->debug("ho retry");
-				bool r = initiate_handover(se_, true);
+				initiate_handover(se_, true);
 			}
 			
 			bool initiate_handover(void *se_, bool main) {
@@ -361,7 +388,10 @@ namespace wiselib {
 				else {
 					transport_.flush();
 					nap_control_.pop_caffeine();
-					debug_->debug("/ho via %d", (int)(ep.remote_address()));
+					debug_->debug("/ho via %d f%d is%d ch%d cond%d", (int)(ep.remote_address()),
+							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_endpoint().channel() != se.id()),
+							(int)(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id()))
+							);
 					
 					if(main && !se.initiating_main_handover()) {
 						se.set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
@@ -512,9 +542,10 @@ namespace wiselib {
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				#endif
 				
-				//debug_->debug("chi");
+				debug_->debug("chi: %c", (char)*message.payload());
 				switch(*message.payload()) {
 					case 'a': {
+						//se->set_recovering(false);
 						//debug_->debug("chi a");
 						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
 							se->set_main_handover_phase(SemanticEntityT::PHASE_INIT);
@@ -547,14 +578,6 @@ namespace wiselib {
 						break;
 					}
 						
-					case 'n':
-						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
-							se->set_main_handover_phase(SemanticEntityT::PHASE_INIT);
-						}
-						//debug_->debug("chi n");
-						endpoint.request_close();
-						break;
-						
 			#if INSE_USE_AGGREGATOR
 					case 'l':
 						//debug_->debug("chi l");
@@ -572,6 +595,16 @@ namespace wiselib {
 						}
 						break;
 			#endif
+					case 'n':
+					default:
+						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
+							se->set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
+							timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, se);
+						}
+						//debug_->debug("chi n");
+						endpoint.request_close();
+						break;
+						
 				}
 			}
 			
@@ -981,6 +1014,14 @@ namespace wiselib {
 				#endif
 				debug_->debug("wait");
 				nap_control_.push_caffeine();
+				
+				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				
+				//if(!se.recovering()) {
+					//se.set_recovering(true);
+					//timer_->template set_timer<self_type, &self_type::try_initiate_recovery_handover>(
+						//ACTIVITY_PERIOD + HANDOVER_RETRY_INTERVAL, this, se_);
+				//}
 			}
 			
 			void end_wait_for_token(void* se_) {

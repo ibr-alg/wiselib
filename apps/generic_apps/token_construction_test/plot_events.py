@@ -22,7 +22,9 @@ from matplotlib import rc
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
-t0 = 300000
+t0 = 600000
+tdelta = 600000
+#t0 = 0
 
 def correct_arduino_time(t):
 	return t * 1.795 # nullrdc, contikimac8_nooff
@@ -68,7 +70,7 @@ def parse_events(f):
 		if t < t0: continue
 		
 		#print(line)
-		if 'off' in line or 'on ' in line or 'win ' in line:
+		if 'loss' in line and ('noloss' not in line): #'off' in line or 'on ' in line :
 			print (t, line)
 		
 		if '/ACT' in line:
@@ -96,7 +98,7 @@ def parse_events(f):
 			send['t'].append(t)
 			send['v'].append(1 if len(send['v']) == 0 else send['v'][-1] + 1)
 			
-		if 'loss' in line:
+		if 'loss' in line and not 'noloss' in line:
 			loss['t'].append(t)
 			loss['v'].append(1 if len(loss['v']) == 0 else loss['v'][-1] + 1)
 
@@ -152,7 +154,7 @@ def parse_energy(f):
 		n += 1
 		
 	#p1s_mean = gliding_mean(p1s, 100)
-	#p1s = gliding_mean(p1s, 10)
+	p1s = gliding_mean(p1s, 200)
 	
 	return (ts, vs, p1s, p2s, c1s, c2s)
 
@@ -179,8 +181,8 @@ def plot_events(d, pon, pact, pev):
 	#pev.plot(d['loss']['t'], d['loss']['v'], 'r^-')
 	
 
-def plot_energy(d, p):
-	p.plot(d['x'], d['y'], 'k-', *d.get('args', []))
+def plot_energy(d, p, **kws):
+	p.plot(d['x'], d['y'], *d.get('args', []), **kws)
 	
 	
 
@@ -195,8 +197,9 @@ def cum(t, y):
 	pv = 0
 	#ry.append(0)
 	for ct, cy in zip(t[1:], y[1:]):
-		pv += cy #(ct - t_prev) * cy
-		ry.append(pv / 1000000) # mA * V * mS / 10^6 = Joule
+		#print(cy, (ct - t_prev), cy * (ct - t_prev))
+		pv += cy * (ct - t_prev)
+		ry.append(pv / 1000000.0) # mA * V * mS / 10^6 = Joule
 		t_prev = ct
 	return rt, ry
 		
@@ -207,7 +210,7 @@ pev = fig.add_subplot(413)
 penergy = fig.add_subplot(414)
 
 for p in (pon, pact, pev, penergy):
-	p.set_xlim((t0,t0 + 600000))
+	p.set_xlim((t0,t0 + tdelta))
 	
 #penergy.set_ylim((0, 10))
 
@@ -215,10 +218,10 @@ d = parse_events(open(sys.argv[1], 'r', encoding='latin1'))
 plot_events(d, pon, pact, pev)
 
 ts, vs, p1s, p2s, c1s, c2s = parse_energy(open(sys.argv[2], 'r'))
-#plot_energy(dict(x=ts, y=p1s), penergy)
+plot_energy(dict(x=ts, y=p1s, args=('k-',)), penergy)
 
 cx, cy = cum(ts, p1s)
-plot_energy(dict(x=cx, y=cy), penergy)
+plot_energy(dict(x=cx, y=cy, args=('g-',)), penergy)
 
 fig.savefig('p.pdf')
 

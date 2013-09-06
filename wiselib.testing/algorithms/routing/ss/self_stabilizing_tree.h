@@ -90,10 +90,10 @@ namespace wiselib {
 				MAX_EVENT_LISTENERS = MAX_EVENT_LISTENERS_P
 			};
 			enum EventType {
-				NEW_NEIGHBOR, LOST_NEIGHBOR, UPDATED_NEIGHBOR, UPDATED_STATE
+				SEEN_NEIGHBOR, NEW_NEIGHBOR, LOST_NEIGHBOR, UPDATED_NEIGHBOR, UPDATED_STATE
 			};
 			
-			typedef delegate1<void, EventType> event_callback_t;
+			typedef delegate2<void, EventType, node_id_t> event_callback_t;
 			typedef vector_static<OsModel, event_callback_t, MAX_EVENT_LISTENERS> EventCallbacks;
 			typedef MapStaticVector<OsModel, node_id_t, RegularEventT, MAX_NEIGHBORS> RegularEvents;
 			
@@ -464,6 +464,8 @@ namespace wiselib {
 			void add_neighbor_entry(node_id_t addr, const TreeStateMessageT& msg) {
 				check();
 				NeighborEntry e(addr, msg, now());
+				
+				notify_event(SEEN_NEIGHBOR, addr);
 					
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
@@ -481,7 +483,7 @@ namespace wiselib {
 						
 						assert(it->address_ == e.address_);
 						updated_neighbors_ = true;
-						notify_event(UPDATED_NEIGHBOR);
+						notify_event(UPDATED_NEIGHBOR, addr);
 					}
 					*it = e;
 				}
@@ -489,7 +491,7 @@ namespace wiselib {
 					debug_->debug("new %d", (int)addr);
 					neighbor_entries_.insert(e);
 					new_neighbors_ = true;
-					notify_event(NEW_NEIGHBOR);
+					notify_event(NEW_NEIGHBOR, addr);
 				}
 			}
 			
@@ -529,7 +531,8 @@ namespace wiselib {
 							//debug_->debug("neighbor entries before: %d", (int)itx->address_);
 						//}
 						
-						debug_->debug("lost %d", (int)iter->address_);
+						node_id_t addr = iter->address_;
+						debug_->debug("lost %d", (int)addr);
 						
 						size_type sz = neighbor_entries_.size();
 						iter = neighbor_entries_.erase(iter);
@@ -540,7 +543,7 @@ namespace wiselib {
 							//debug_->debug("neighbor entries after: %d", (int)itx->address_);
 						//}
 						
-						notify_event(LOST_NEIGHBOR);
+						notify_event(LOST_NEIGHBOR, addr);
 						//changed_ = true;
 						lost_neighbors_ = true;
 					}
@@ -550,10 +553,10 @@ namespace wiselib {
 				check();
 			}
 			
-			void notify_event(EventType t) {
+			void notify_event(EventType t, node_id_t addr) {
 				check();
 				for(typename EventCallbacks::iterator iter = event_callbacks_.begin(); iter != event_callbacks_.end(); ++iter) {
-					(*iter)(t);
+					(*iter)(t, addr);
 				}
 				check();
 			}
@@ -628,7 +631,7 @@ namespace wiselib {
 				if(c || updated_neighbors_) {
 					debug_->debug("@%d p=%d d=%d rt=%d c=%d t=%d",
 								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)(now() % 65536)/*, hex*/);
-					notify_event(UPDATED_STATE);
+					notify_event(UPDATED_STATE, radio_->id());
 					// <DEBUG>
 					//#if !WISELIB_DISABLE_DEBUG
 					

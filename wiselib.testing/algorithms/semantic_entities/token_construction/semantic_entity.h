@@ -130,17 +130,17 @@ namespace wiselib {
 				// }}}
 			};
 			
-			SemanticEntity() : global_tree_(0), main_handover_phase_(PHASE_INIT) {
+			SemanticEntity() : global_tree_(0), main_handover_phase_(PHASE_INIT), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
 			}
 			
-			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), initiating_main_handover_(false) {
+			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), initiating_main_handover_(false), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
 			}
 			
-			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), initiating_main_handover_(false) {
+			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), initiating_main_handover_(false), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
 			}
@@ -229,6 +229,10 @@ namespace wiselib {
 					token().set_count(l);
 				}
 			}
+			
+			
+			bool recovering() { return recovering_; }
+			void set_recovering(bool r) { recovering_ = r; }
 			
 			/**
 			 * @return true iff this node is currently root of the SE tree.
@@ -390,6 +394,7 @@ namespace wiselib {
 			::uint8_t activity_phase_ : 1;
 			::uint8_t sending_token_ : 1;
 			::uint8_t initiating_main_handover_ : 1;
+			::uint8_t recovering_ : 1;
 			
 	}; // SemanticEntity
 	
