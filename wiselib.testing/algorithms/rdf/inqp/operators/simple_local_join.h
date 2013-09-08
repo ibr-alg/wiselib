@@ -60,6 +60,8 @@ namespace wiselib {
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
 			void init(SLJD *sljd, Query *query) {
 				Base::init(reinterpret_cast<OperatorDescription<OsModel, Processor>* >(sljd), query);
+				//this->destruct_ = reinterpret_cast<typename Base::my_destruct_t>(&self_type::destruct);
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				left_column_ = sljd->left_column();
 				right_column_ = sljd->right_column();
@@ -69,6 +71,11 @@ namespace wiselib {
 				post_inited_ = false;
 			}
 			#pragma GCC diagnostic pop
+			
+			void destruct() {
+				DBG("sle destr");
+				table_.destruct();
+			}
 			
 			void post_init() {
 				if(!post_inited_) {

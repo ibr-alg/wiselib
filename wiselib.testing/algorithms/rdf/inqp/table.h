@@ -116,6 +116,12 @@ namespace wiselib {
 				buffer_ = 0;
 			}
 			
+			void destruct() {
+				DBG("table destr");
+				clear();
+				DBG("table destr end");
+			}
+			
 			void insert(const RowT& row) {
 				if(size_ >= capacity_) {
 					grow();

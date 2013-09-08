@@ -8,8 +8,11 @@
 	void* malloc(size_t n) { return isense::malloc(n); }
 	void free(void* p) { isense::free(p); }
 #endif
+	
 #if defined(ARDUINO)
 	#include <external_interface/arduino/arduino_monitor.h>
+#elif defined(ISENSE)
+	#include <external_interface/isense/isense_monitor.h>
 #endif
 
 #ifndef DBG
@@ -111,6 +114,17 @@ typedef INQPCommunicator<Os, Processor> Communicator;
 
 #define SINK 1
 
+template<typename OsModel_P>
+class NullMonitor {
+	public:
+		void init(typename OsModel_P::Debug* d) { debug_ = d; }
+		
+		void report() { }
+		void report(const char *remark) { debug_->debug(remark); }
+		int free() { return 666; }
+		
+		typename OsModel_P::Debug* debug_;
+};
 
 static const char* tuples[][3] = {
 	#include "incontextsensing.cpp"
@@ -164,11 +178,15 @@ class ExampleApplication
 			
 			//print_memstat();
 			
+			debug_->debug("boot %d", (int)radio_->id());
+			
 			
 			init_ts();
 			
-			monitor_.report();
+			//monitor_.report();
 			
+			be_standalone();
+			/*
 			if(radio_->id() == SINK) {
 				debug_->debug("sink\n");
 				//be_sink();
@@ -179,6 +197,7 @@ class ExampleApplication
 			else {
 				be();
 			}
+			*/
 		}
 		
 		Dictionary dictionary;
@@ -258,6 +277,59 @@ class ExampleApplication
 			debug_->debug("ins don");
 			
 		}
+		
+		void process(int sz, block_data_t* op) {
+			//ian_.handle_operator(op100, 0, sizeof(op100));
+			communicator_.on_receive_query(radio_->id(), sz, op);
+		}
+		
+		void be_standalone() {
+			insert_tuples();
+			
+			ian_.init(&ts, timer_);
+			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
+			communicator_.set_sink(radio_->id());
+			// we play in-network node
+			fndradio_.set_parent(SINK);
+			
+			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
+			
+			timer_->set_timer<ExampleApplication, &ExampleApplication::test_query>(1000, this, 0);
+		}
+		
+		
+		void test_query(void*) {
+			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+			enum { ROOT = 0 };
+			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+			block_data_t qid = 1;
+			
+			debug_->debug("-- qry");
+			
+			
+			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(01), BIN(0), BIN(0), BIN(0) };
+			
+			process(sizeof(op100), op100);
+			
+			block_data_t op90[]  = { OP, qid,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
+			process(sizeof(op90), op90);
+			
+			block_data_t op80[]  = { OP, qid,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
+			process(sizeof(op80), op80);
+			
+			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
+			process(sizeof(op70), op70);
+			
+			block_data_t cmd[]   = { Q, qid, 4 };
+			process(sizeof(cmd), cmd);
+			
+			ian_.erase_query(qid);
+			
+			timer_->set_timer<ExampleApplication, &ExampleApplication::test_query>(1000, this, 0);
+			debug_->debug("-- /qry");
+		}
+		
 		
 		
 		#pragma GCC diagnostic push
@@ -354,7 +426,7 @@ class ExampleApplication
 			send(sizeof(cmd), cmd);
 			
 			query_radio_.flush();
-			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+			//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
 			
 			/*
 			 * Some hash values:
@@ -529,6 +601,8 @@ class ExampleApplication
 		
 		#if defined(ARDUINO)
 			ArduinoMonitor<Os, Os::Debug> monitor_;
+		#elif defined(ISENSE)
+			IsenseMonitor<Os, Os::Debug> monitor_;
 		#else
 			NullMonitor<Os> monitor_;
 		#endif

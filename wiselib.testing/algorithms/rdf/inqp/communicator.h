@@ -140,6 +140,7 @@ namespace wiselib {
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
+						DBG("srow sink");
 						//Serial.println("inqp send result");
 						result_radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
@@ -149,9 +150,10 @@ namespace wiselib {
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 						if(ni == nd_->neighbors_end()) {
 						//Serial.println("inqp send aggr no parent");
-							DBG("com aggr no nd par me%d", result_radio_->id());
+							DBG("com aggr no nd par me%d", (int)result_radio_->id());
 						}
 						else {
+						DBG("srow aggr %d", (int)ni->id());
 						//Serial.println("inqp send aggr send");
 							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						}
@@ -176,7 +178,7 @@ namespace wiselib {
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
-				Serial.println("recv query");
+				//Serial.println("recv query");
 				
 				packet->from = from;
 				packet->len = len;
@@ -194,7 +196,7 @@ namespace wiselib {
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
-				Serial.println("recv result");
+				//Serial.println("recv result");
 				
 				packet->from = from;
 				packet->len = len;

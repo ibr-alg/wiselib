@@ -169,7 +169,7 @@ namespace wiselib {
 			void push(size_type port, RowT& row) {
 				post_init();
 				
-				DBG("aggr row F%d", (int)ArduinoMonitor<Os>::free());
+				//DBG("aggr row F%d", (int)ArduinoMonitor<Os>::free());
 				
 				if(&row) {
 					size_type idx = find_matching_group(local_aggregates_, row);
@@ -274,7 +274,7 @@ namespace wiselib {
 			}
 			
 			void on_receive_row(RowT& row, node_id_t from) {
-				DBG("aggr recv row");
+				DBG("*-*-* aggr recv row -*-*-");
 				if(!child_states_.contains(from)) {
 					child_states_[from].init(aggregation_columns_physical_);
 				}
@@ -293,7 +293,7 @@ namespace wiselib {
 			}
 			
 			void on_sending_time(void*) {
-				Serial.println("aggr snd");
+				//Serial.println("aggr snd");
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
 					DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
 					this->processor().send_row(
