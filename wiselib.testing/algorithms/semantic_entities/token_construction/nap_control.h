@@ -99,6 +99,7 @@ namespace wiselib {
 					debug_->debug("on t%d", (int)(now() & 0xffff)); // (int)radio_->id());
 				}
 				caffeine_++;
+				debug_->debug("caf%d", (int)caffeine_);
 				#if !WISELIB_DISABLE_DEBUG
 				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
 				#endif
@@ -113,6 +114,7 @@ namespace wiselib {
 				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
 				#endif
 				
+				debug_->debug("caf%d", (int)caffeine_);
 				if(caffeine_ == 0) {
 					#if defined(CONTIKI)
 						NETSTACK_RDC.off(false);

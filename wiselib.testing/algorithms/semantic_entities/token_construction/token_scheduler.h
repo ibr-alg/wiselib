@@ -311,6 +311,7 @@ namespace wiselib {
 					transport_.set_remote_address(se.id(), false, neighborhood_.prev_token_node(se.id()));
 					
 					if(!se.in_activity_phase()) {
+						// will be popped by initiate_handover
 						nap_control_.push_caffeine();
 						debug_->debug("ho tree");
 						initiate_handover(se, false); // tree has changed, (re-)send token info
@@ -352,9 +353,11 @@ namespace wiselib {
 			void try_initiate_main_handover(void *se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
-				nap_control_.push_caffeine();
 				debug_->debug("ho retry");
-				initiate_handover(se_, true);
+				if(se.main_handover_phase() == SemanticEntityT::PHASE_PENDING) {
+					nap_control_.push_caffeine();
+					initiate_handover(se_, true);
+				}
 			}
 			
 			bool initiate_handover(void *se_, bool main) {
@@ -388,7 +391,7 @@ namespace wiselib {
 				else {
 					transport_.flush();
 					nap_control_.pop_caffeine();
-					debug_->debug("/ho via %d f%d is%d ch%d cond%d", (int)(ep.remote_address()),
+					debug_->debug("/ho via %d m%d f%d is%d ch%d cond%d", (int)(ep.remote_address()), (int)main,
 							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_endpoint().channel() != se.id()),
 							(int)(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id()))
 							);
@@ -902,9 +905,9 @@ namespace wiselib {
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
 					//#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("@%d tok SE %x.%x win %d int %d t%d e%d",
+						debug_->debug("@%d tok SE %x.%x win %lu int %lu t%d e%d",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-								(int)se.activating_token_window(), (int)se.activating_token_interval(),
+								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
 								(int)now(), (int)se.activating_token_early());
 					//#endif
 						
