@@ -103,8 +103,6 @@ namespace wiselib {
 				MESSAGE_ID_RESOLVE_HASHVALUE
 			};
 			
-			enum { MAX_QUERIES = 8 };
-			
 			typedef typename QueryProcessor::CommunicationType CommunicationType;
 			typedef QueryMessage<OsModel, QueryRadio, Query> QMessage;
 			
@@ -142,15 +140,19 @@ namespace wiselib {
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
+						//Serial.println("inqp send result");
 						result_radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
 					}
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
+						//Serial.println("inqp send aggre");
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 						if(ni == nd_->neighbors_end()) {
-							DBG("Want to aggregate but my ND doesnt know a parent! me=%d", result_radio_->id());
+						//Serial.println("inqp send aggr no parent");
+							DBG("com aggr no nd par me%d", result_radio_->id());
 						}
 						else {
+						//Serial.println("inqp send aggr send");
 							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						}
 						break;
@@ -174,6 +176,8 @@ namespace wiselib {
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
+				Serial.println("recv query");
+				
 				packet->from = from;
 				packet->len = len;
 				memcpy(data, buf, len);
@@ -189,6 +193,8 @@ namespace wiselib {
 				
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
+				
+				Serial.println("recv result");
 				
 				packet->from = from;
 				packet->len = len;

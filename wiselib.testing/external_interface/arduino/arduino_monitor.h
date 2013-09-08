@@ -59,11 +59,11 @@ namespace wiselib {
 			}
 			
 			void report() {
-				debug_->debug("free: %d", free());
+				debug_->debug("f: %d", free());
 			}
 			
 			void report(const char *remark) {
-				debug_->debug("free: %d // %s", free(), remark);
+				debug_->debug("f: %d %s", free(), remark);
 			}
 			
 			static int free() {

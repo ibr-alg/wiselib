@@ -130,6 +130,7 @@ namespace wiselib {
 					}
 					
 					operator typename Uint<sizeof(address_t)>::t() { return addr_; }
+					operator const typename Uint<sizeof(address_t)>::t() const { return addr_; }
 					
 					bool operator==(const ChunkAddress& other) const { return other.addr_ == addr_; }
 					bool operator!=(const ChunkAddress& other) const { return !(*this == other); }

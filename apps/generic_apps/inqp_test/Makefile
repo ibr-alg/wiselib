@@ -13,6 +13,7 @@ all: pc
 export APP_SRC=example_app.cpp
 export BIN_OUT=example_app
 export PC_COMPILE_DEBUG=1
-export WISELIB_DISABLE_DEBUG_MESSAGES=1
+#export WISELIB_DISABLE_DEBUG_MESSAGES=1
+#export WISELIB_DISABLE_DEBUG=1
 
 include ../Makefile

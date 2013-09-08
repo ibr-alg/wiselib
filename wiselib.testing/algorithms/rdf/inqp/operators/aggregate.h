@@ -72,7 +72,7 @@ namespace wiselib {
 			typedef typename ProjectionInfoBase::TypeInfo TypeInfo;
 			
 			enum { npos = (size_type)(-1) };
-			enum { MAX_CHILDS = 60 };
+			enum { MAX_CHILDS = 4 };
 			typedef MapStaticVector<OsModel, node_id_t, TableT, MAX_CHILDS> ChildStates;
 			
 			enum { WAIT_AFTER_LOCAL = 1000, CHECK_INTERVAL = 1000 };
@@ -86,6 +86,7 @@ namespace wiselib {
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
 				operations_ = 0;
+				post_inited_ = false;
 				
 				aggregation_columns_logical_ = ad->aggregation_columns();
 				aggregation_types_ = ::get_allocator().template allocate_array< ::uint8_t>(aggregation_columns_logical_).raw();
@@ -168,12 +169,16 @@ namespace wiselib {
 			void push(size_type port, RowT& row) {
 				post_init();
 				
+				DBG("aggr row F%d", (int)ArduinoMonitor<Os>::free());
+				
 				if(&row) {
 					size_type idx = find_matching_group(local_aggregates_, row);
 					if(idx == npos) {
+				DBG("gr");
 						create_group(row);
 					}
 					else {
+				DBG("ad");
 						add_to_aggregate(local_aggregates_[idx], row);
 					}
 				}
@@ -189,6 +194,8 @@ namespace wiselib {
 					// send out a result
 					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, 0);
 				}
+				
+				DBG("agdon");
 			}
 			
 			/**
@@ -267,15 +274,18 @@ namespace wiselib {
 			}
 			
 			void on_receive_row(RowT& row, node_id_t from) {
+				DBG("aggr recv row");
 				if(!child_states_.contains(from)) {
 					child_states_[from].init(aggregation_columns_physical_);
 				}
 					
 				size_type idx = find_matching_group(child_states_[from], row);
 				if(idx != npos) {
+				DBG("aggr set");
 					child_states_[from].set(idx, row);
 				}
 				else {
+				DBG("aggr ins");
 					child_states_[from].insert(row);
 				}
 				
@@ -283,7 +293,9 @@ namespace wiselib {
 			}
 			
 			void on_sending_time(void*) {
+				Serial.println("aggr snd");
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
+					DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
 					this->processor().send_row(
 							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
 							aggregation_columns_physical_, *iter, this->query().id(), this->id()
@@ -339,7 +351,7 @@ namespace wiselib {
 						if(
 							a[operations_[i].aggregate_column_] != b[operations_[i].aggregate_column_]
 						) {
-							DBG("-------- GROUP MISMATCH WHILE MERGING i=%d aggrcol=%d ga=%08lx gb=%08lx",
+							DBG("grp mis i=%d acol=%d ga=%08lx gb=%08lx",
 									(int)i, (int)operations_[i].aggregate_column_,
 									(long)a[operations_[i].aggregate_column_], (long)b[operations_[i].aggregate_column_]
 							);
@@ -359,9 +371,12 @@ namespace wiselib {
 			void add_to_aggregate(RowT& aggregate, RowT& row) {
 				RowT *converted = RowT::create(aggregation_columns_physical_);
 				for(size_type i = 0; i < aggregation_columns_logical_; i++) {
+					DBG("ad op %d %d", (int)i, (operations_[i].init_ != 0));
 					operations_[i].init(*converted, row);
 				}
+				DBG("ad merge");
 				merge_aggregates(aggregate, *converted);
+				DBG("ad free");
 				converted->destroy();
 			}
 			
@@ -421,7 +436,7 @@ namespace wiselib {
 					Value r = 0;
 					switch(type_) {
 						case ProjectionInfoBase::IGNORE:
-							DBG("cant aggregate on non-existing columns, something is fishy here");
+							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
 							long sum = *reinterpret_cast<long*>(&v1) + *reinterpret_cast<long*>(&v2);
@@ -434,7 +449,7 @@ namespace wiselib {
 							break;
 						}
 						case ProjectionInfoBase::STRING:
-							DBG("error: can't compute sum of strings");
+							DBG("!sum str");
 							break;
 					};
 					v1 = r;
@@ -450,7 +465,7 @@ namespace wiselib {
 					Value r = 0;
 					switch(type_) {
 						case ProjectionInfoBase::IGNORE:
-							DBG("cant aggregate on non-existing columns, something is fishy here");
+							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
 							long long avg = *reinterpret_cast<long*>(&v1) * (long long)n1 + *reinterpret_cast<long*>(&v2) * (long long)n2;
@@ -467,7 +482,7 @@ namespace wiselib {
 							break;
 						}
 						case ProjectionInfoBase::STRING:
-							DBG("error: can't compute avg of strings");
+							DBG("!avg str");
 							break;
 					};
 					

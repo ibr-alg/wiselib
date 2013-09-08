@@ -53,7 +53,7 @@ namespace wiselib {
 			typedef GraphPatternSelection<OsModel_P, Processor_P> self_type;
 			typedef typename RowT::Value Value;
 			
-			enum { MAX_STRING_LENGTH = 256 };
+			//enum { MAX_STRING_LENGTH = 256 };
 			enum { TS_SEMANTIC_COLUMNS = 3 };
 			
 			void init(GraphPatternSelectionDescription<OsModel, Processor> *gpsd, Query *query) {
