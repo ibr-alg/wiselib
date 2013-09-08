@@ -112,6 +112,12 @@ namespace wiselib {
 						abs_millis_t old_interval = interval_;
 						update_interval(new_interval); //, ALPHA_FAR);
 						window_ *= 2;
+						/*
+						 * if interval grew, ensure, we would still
+						 * catch the event if it would come in the old
+						 * interval
+						 * i.e. win' must be >= new_int - old_int
+						 */
 						if(interval_ > old_interval && interval_ + old_window > old_interval + window_) {
 							window_ = interval_ - old_interval + old_window;
 						}
