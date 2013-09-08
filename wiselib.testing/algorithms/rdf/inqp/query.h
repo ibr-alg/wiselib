@@ -68,6 +68,19 @@ namespace wiselib {
 				expected_operators_set_ = false;
 			}
 			
+			void destruct() {
+				for(typename Operators::iterator it = operators_.begin(); it != operators_.end(); ++it) {
+					BasicOperator* op = it->second;
+					DBG("op destr");
+					//DBG("o=%p", it->second);
+					//op->destruct();
+					DBG("op fre");
+					//::get_allocator().free(op);
+				}
+				DBG("op clr");
+				operators_.clear();
+			}
+			
 			Operators& operators() { return operators_; }
 			
 			template<typename OperatorT>
@@ -77,14 +90,14 @@ namespace wiselib {
 			
 			template<typename DescriptionT, typename OperatorT>
 			void add_operator(BOD *bod) {
-				DBG("1adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
+				//DBG("1adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				DescriptionT *description = reinterpret_cast<DescriptionT*>(bod);
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
 				op->init(description, this);
-				DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
+				//DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
 				
-				DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
+				//DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
 			}
 			
 			void build_tree() {

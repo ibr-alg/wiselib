@@ -144,12 +144,12 @@ namespace wiselib {
 			}
 			
 			void send_row(CommunicationType type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
-				Serial.println("srow");
+				//Serial.println("srow");
 				if(row_callback_) {
 					row_callback_(type, columns, row, qid, oid);
 				}
 				else {
-					Serial.println("srow: no cb");
+					//Serial.println("srow: no cb");
 					//DBG("no intermediate result callback!");
 				}
 			}
@@ -162,7 +162,7 @@ namespace wiselib {
 				
 
 			void execute(Query *query) {
-				Serial.println("exec");
+				//Serial.println("exec");
 				assert(query->ready());
 				query->build_tree();
 				
@@ -170,7 +170,7 @@ namespace wiselib {
 					if(!query->operators().contains(id)) { continue; }
 					
 					BasicOperator *op = query->operators()[id];
-					DBG("e %d %c F%d", (int)id, (char)op->type(), (int)ArduinoMonitor<Os>::free());
+					//DBG("e %d %c F%d", (int)id, (char)op->type(), (int)ArduinoMonitor<Os>::free());
 					
 					switch(op->type()) {
 						case BOD::GRAPH_PATTERN_SELECTION:
@@ -198,7 +198,7 @@ namespace wiselib {
 							DBG("!eop typ %d", op->type());
 					}
 				}
-				Serial.println("exec don");
+				//Serial.println("exec don");
 			}
 			
 			void handle_operator(Query* query, BOD *bod) {
@@ -330,6 +330,18 @@ namespace wiselib {
 					assert(false && "queries full, clean them up from time to time!");
 				}
 				queries_[qid] = query;
+			}
+			
+			void erase_query(query_id_t qid) {
+				DBG("del qry %d", (int)qid);
+				if(!queries_.contains(qid)) {
+					DBG("del noex qry %d", (int)qid);
+				}
+				else {
+					queries_[qid]->destruct();
+					::get_allocator().free(queries_[qid]);
+					queries_.erase(qid);
+				}
 			}
 			
 			TupleStoreT& tuple_store() { return *tuple_store_; }
