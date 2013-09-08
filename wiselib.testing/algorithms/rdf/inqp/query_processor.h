@@ -56,10 +56,10 @@ namespace wiselib {
 		typename TupleStore_P,
 		typename Hash_P,
 		typename Dictionary_P = typename TupleStore_P::Dictionary,
-		typename Translator_P = DictionaryTranslator<OsModel_P, Dictionary_P, Hash_P, 64>,
-		typename ReverseTranslator_P = HashTranslator<OsModel_P, Dictionary_P, Hash_P, 64>,
+		typename Translator_P = DictionaryTranslator<OsModel_P, Dictionary_P, Hash_P, 8>,
+		typename ReverseTranslator_P = HashTranslator<OsModel_P, Dictionary_P, Hash_P, 4>,
 		typename Value_P = ::uint32_t,
-		int MAX_QUERIES_P = 8,
+		int MAX_QUERIES_P = 4,
 		typename Timer_P = typename OsModel_P::Timer
 	>
 	class INQPQueryProcessor {
@@ -144,11 +144,13 @@ namespace wiselib {
 			}
 			
 			void send_row(CommunicationType type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
+				Serial.println("srow");
 				if(row_callback_) {
 					row_callback_(type, columns, row, qid, oid);
 				}
 				else {
-					DBG("no intermediate result callback!");
+					Serial.println("srow: no cb");
+					//DBG("no intermediate result callback!");
 				}
 			}
 			
@@ -160,6 +162,7 @@ namespace wiselib {
 				
 
 			void execute(Query *query) {
+				Serial.println("exec");
 				assert(query->ready());
 				query->build_tree();
 				
@@ -167,6 +170,7 @@ namespace wiselib {
 					if(!query->operators().contains(id)) { continue; }
 					
 					BasicOperator *op = query->operators()[id];
+					DBG("e %d %c F%d", (int)id, (char)op->type(), (int)ArduinoMonitor<Os>::free());
 					
 					switch(op->type()) {
 						case BOD::GRAPH_PATTERN_SELECTION:
@@ -191,41 +195,51 @@ namespace wiselib {
 							(reinterpret_cast<DeleteT*>(op))->execute();
 							break;
 						default:
-							DBG("unexpected op type: %d", op->type());
+							DBG("!eop typ %d", op->type());
 					}
 				}
+				Serial.println("exec don");
 			}
 			
 			void handle_operator(Query* query, BOD *bod) {
+				DBG("hop %c %d", (char)bod->type(), (int)bod->id());
 				switch(bod->type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
+						DBG("gps");
 						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
 						break;
 					case BOD::SELECTION:
+						DBG("sel");
 						query->template add_operator<SelectionDescriptionT, SelectionT>(bod);
 						break;
 					case BOD::SIMPLE_LOCAL_JOIN:
+						DBG("slj");
 						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
 						break;
 					case BOD::COLLECT:
+						DBG("c");
 						query->template add_operator<CollectDescriptionT, CollectT>(bod);
 						break;
 					case BOD::CONSTRUCT:
+						DBG("cons");
 						query->template add_operator<ConstructDescriptionT, ConstructT>(bod);
 						break;
 					case BOD::DELETE:
+						DBG("del");
 						query->template add_operator<DeleteDescriptionT, DeleteT>(bod);
 						break;
 					case BOD::AGGREGATE:
+						DBG("agr");
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
 					default:
-						DBG("unexpected op type: %d!", bod->type());
+						DBG("!op type %d", bod->type());
 						break;
 				}
 				if(query->ready()) {
 					execute(query);
 				}
+				DBG("/hop");
 			}
 			
 			template<typename Message, typename node_id_t>
@@ -241,6 +255,7 @@ namespace wiselib {
 			
 			template<typename Message, typename node_id_t>
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
+				DBG("h qinf");
 				query_id_t query_id = msg->query_id();
 				Query *query = get_query(query_id);
 				if(!query) {
@@ -288,7 +303,7 @@ namespace wiselib {
 						break;
 					}
 					default:
-						DBG("unexpected op type: %d!", op.type());
+						DBG("!op %d", op.type());
 						break;
 				}
 			}

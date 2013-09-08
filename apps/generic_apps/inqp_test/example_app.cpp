@@ -8,13 +8,16 @@
 	void* malloc(size_t n) { return isense::malloc(n); }
 	void free(void* p) { isense::free(p); }
 #endif
+#if defined(ARDUINO)
+	#include <external_interface/arduino/arduino_monitor.h>
+#endif
 
 #ifndef DBG
 	#define DBG(X)
 	#define DBG(X, ...)
 #endif
 	
-#if !defined(ISENSE) && !defined(PC)
+#if !defined(ISENSE) && !defined(PC) && !defined(ARDUINO)
 	void assert(int) { }
 #endif
 	
@@ -26,7 +29,7 @@ using namespace wiselib;
 typedef MallocFreeAllocator<Os> Allocator;
 Allocator& get_allocator();
 
-#include <util/pstl/string_utils.h>
+#include <util//string_util.h>
 //#include <algorithms/rdf/inqp/query.h>
 #include <algorithms/rdf/inqp/query_processor.h>
 //#include <algorithms/rdf/inqp/table.h>
@@ -36,17 +39,15 @@ Allocator& get_allocator();
 #include <util/debugging.h>
 #include <util/pstl/map_static_vector.h>
 #include <util/pstl/priority_queue_dynamic.h>
-#include <util/pstl/list_dynamic.h>
-#include <util/pstl/unique_container.h>
 #include <util/tuple_store/tuplestore.h>
-#include <util/tuple_store/prescilla_dictionary.h>
 #include "tuple.h"
 
 #include <algorithms/routing/flooding_nd/flooding_nd.h>
 #include <algorithms/protocols/packing_radio/packing_radio.h>
 //#include <algorithms/routing/tree_routing_ndis/tree_routing_ndis.h>
 #include <algorithms/routing/forward_on_directed_nd/forward_on_directed_nd.h>
-#include <algorithms/hash/fnv.h>
+#include <algorithms/hash/sdbm.h>
+typedef wiselib::Sdbm<Os> Hash;
 
 typedef wiselib::FloodingNd<Os, Os::Radio> FNDRadio;
 typedef wiselib::PackingRadio<Os, FNDRadio> PRadio;
@@ -55,13 +56,50 @@ typedef wiselib::PackingRadio<Os, FNDRadio> PRadio;
 typedef wiselib::ForwardOnDirectedNd<Os, Os::Radio, FNDRadio> TRadio;
 typedef wiselib::PackingRadio<Os, TRadio> PAnsRadio;
 
+// -------- BEGIN TS SETUP
+
 typedef Tuple<Os> TupleT;
-typedef wiselib::list_dynamic<Os, TupleT> TupleList;
-typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+
+
+#define INQP_TEST_USE_BLOCK 0
+
+// RAM
+#if !INQP_TEST_USE_BLOCK
+//#include <util/pstl/list_dynamic.h>
+#include <util/pstl/unique_container.h>
+#include <util/tuple_store/prescilla_dictionary.h>
+#include <util/pstl/vector_static.h>
+//#include <util/pstl/unbalanced_tree_dictionary.h>
+//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
+//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+typedef wiselib::vector_static<Os, TupleT, 10> TupleContainer;
 typedef wiselib::PrescillaDictionary<Os> Dictionary;
+//typedef UnbalancedTreeDictionary<Os> Dictionary;
+#else
+
+// BLOCK
+#define BLOCK_CACHE_SIZE 2
+#define BLOCK_CACHE_SPECIAL 1
+#define BLOCK_CACHE_WRITE_THROUGH 1
+#define BLOCK_CHUNK_SIZE 8
+#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
+
+#include <algorithms/block_memory/bitmap_chunk_allocator.h>
+#include <algorithms/block_memory/cached_block_memory.h>
+typedef CachedBlockMemory<Os, Os::BlockMemory, BLOCK_CACHE_SIZE, BLOCK_CACHE_SPECIAL, BLOCK_CACHE_WRITE_THROUGH> BlockMemory;
+typedef BitmapChunkAllocator<Os, BlockMemory, BLOCK_CHUNK_SIZE, BLOCK_CHUNK_ADDRESS_TYPE> BlockAllocator;
+#include <algorithms/block_memory/b_plus_hash_set.h>
+typedef BPlusHashSet<Os, BlockAllocator, Hash, TupleT, true> TupleContainer;
+#include <algorithms/block_memory/b_plus_dictionary.h>
+typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
+#endif
+
 typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 
-typedef INQPQueryProcessor<Os, TS> Processor;
+// -------- END TS SETUP
+
+
+typedef INQPQueryProcessor<Os, TS, Hash> Processor;
 typedef INQPCommunicator<Os, Processor> Communicator;
 
 #define LEFT 0
@@ -71,16 +109,24 @@ typedef INQPCommunicator<Os, Processor> Communicator;
 #define LEFT_COL(X) ((X) << 4)
 #define RIGHT_COL(X) ((X) & 0x0f)
 
+#define SINK 1
+
+
+static const char* tuples[][3] = {
+	#include "incontextsensing.cpp"
+	{ 0, 0, 0 }
+};
+
 class ExampleApplication
 {
 	public:
 		
 		template<typename TS>
-		void ins(TS& ts, char* s, char* p, char* o) {
+		void ins(TS& ts, const char* s, const char* p, const char* o) {
 			TupleT t;
-			t.set(0, (block_data_t*)s);
-			t.set(1, (block_data_t*)p);
-			t.set(2, (block_data_t*)o);
+			t.set(0, (block_data_t*)const_cast<char*>(s));
+			t.set(1, (block_data_t*)const_cast<char*>(p));
+			t.set(2, (block_data_t*)const_cast<char*>(o));
 			ts.insert(t);
 		}
 		
@@ -90,12 +136,16 @@ class ExampleApplication
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+			//block_memory_ = &wiselib::FacetProvider<Os, Os::BlockMemory>::get_facet( value );
+			
+			monitor_.init(debug_);
 			
 			//test_heap();
 			//test_atol();
 			//hashes();
 			//return;
 			
+			radio_->enable_radio();
 			
 			// query direction: packing radio over flooding
 			
@@ -110,11 +160,19 @@ class ExampleApplication
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			
-			debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
-			if(radio_->id() == 0) {
-				debug_->debug("---- I AM THE SINK! ----\n");
+			//debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
+			
+			//print_memstat();
+			
+			
+			init_ts();
+			
+			monitor_.report();
+			
+			if(radio_->id() == SINK) {
+				debug_->debug("sink\n");
 				//be_sink();
-				timer_->set_timer<ExampleApplication, &ExampleApplication::be_sink>(1000, this, 0);
+				timer_->set_timer<ExampleApplication, &ExampleApplication::be_sink>(100, this, 0);
 				
 				//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_ask_hash_resolve>(1000, this, 0);
 			}
@@ -162,24 +220,52 @@ class ExampleApplication
 		}
 		
 		void hashes() {
-			typedef Fnv32<Os> Hash;
 			const char *strings[] = {
 				"A", "measures", "m1", "m2", "has_value", "12", "14"
 			};
 			for(const char **s = strings; *s; s++) {
-				DBG("%-20s %08x", *s, Hash::hash((block_data_t*)*s, strlen(*s)));
+				DBG("%-60s %08lx", *s, (unsigned long)Hash::hash((block_data_t*)*s, strlen(*s)));
 			}
 		}
 			
+		
+		void init_ts() {
+		#if !INQP_TEST_USE_BLOCK
+			dictionary.init(debug_);
+			ts.init(&dictionary, &container, debug_);
+		#else
+			block_memory_.physical().init();
+			delay(1000);
+			block_memory_.init();
+			block_allocator_.init(&block_memory_, debug_);
+			container.init(&block_allocator_, debug_);
+			dictionary.init(&block_allocator_, debug_);
+		#endif
 			
+			//debug_->debug("tsi don");
+		}
+		
+		void insert_tuples() {
+			for(int i = 0; tuples[i][0]; i++) {
+				monitor_.report("ins");
+				
+				//for(int j = 0; j < 3; j++) {
+					//debug_->debug("%-60s %08lx", tuples[i][j], (unsigned long)Hash::hash((block_data_t*)tuples[i][j], strlen(tuples[i][j])));
+				//}
+				
+				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
+			}
+			debug_->debug("ins don");
+			
+		}
 		
 		
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wwrite-strings"
 		void be() {
-			dictionary.init(debug_);
-			ts.init(&dictionary, &container, debug_);
+			//init_ts();
 			
+			/*
 			ins(ts, "A", "measures", "m1");
 			ins(ts, "A", "measures", "m2");
 			ins(ts, "m1", "has_value", "12");
@@ -188,14 +274,17 @@ class ExampleApplication
 			ins(ts, "B", "measures", "mb2");
 			ins(ts, "mb1", "has_value", "20");
 			ins(ts, "mb2", "has_value", "24");
+			*/
+			insert_tuples();
 			
 			ian_.init(&ts, timer_);
 			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
-			communicator_.set_sink(0);
+			communicator_.set_sink(SINK);
 			
 			//ian_.reverse_translator().fill();
 			
 			//pradio_.reg_recv_callback<ExampleApplication, &ExampleApplication::node_receive_query>( this );
+			debug_->debug("rtr");
 		}
 		#pragma GCC diagnostic pop
 		
@@ -211,46 +300,110 @@ class ExampleApplication
 		}
 		
 		void be_sink(void*) {
-			dictionary.init(debug_);
-			ts.init(&dictionary, &container, debug_);
+			//init_ts();
+			//dictionary.init(debug_);
+			//ts.init(&dictionary, &container, debug_);
 			ian_.init(&ts, timer_);
 			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
-			communicator_.set_sink(0);
+			communicator_.set_sink(SINK);
 			
 			// set self as parent.
 			// when we receive packets from ourself, we play sink, otherwise
 			// we play in-network node
-			fndradio_.set_parent(0);
+			fndradio_.set_parent(SINK);
 			
 			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
 			
-			/*
-			 * Some FNV32 hash values:
-			 * 
-			 * Das                  3f5412df
-			 * Semantic Web         a360876b
-			 * wird                 f459e32b
-			 * in                   41387a9e
-			 * der                  d1599170
-			 * naechsten            13425124
-			 * Dekade               d3435c31
-			 * schrittweise         6fdaeebf
-			 * das                  da4f123f
-			 * bestehende           9ae973b6
-			 * WWW                  54e8e80c
-			 * erweitern            0c4f2b8e
-			 * 
-			 * A                    c40bf6cc
-			 * measures             08ffeac4
-			 * m1                   942e6feb
-			 * m2                   952e717e
-			 * has_value            d68814ad
-			 * 12                   1deb2d6a
-			 * 14                   17eb23f8
-			 * 
-			 * 
-			 */ 
+			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+		}
+		
+		void sink_send_query(void*) {
 			
+			/*
+			 * MIN(?v) MEAN(?v) MAX(?v) {
+			 *    ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
+			 *    ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
+			 * }
+			 * 
+
+			<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
+			<http://spitfire-project.eu/property/Temperature>            b23860b3
+			<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
+
+			 */
+			
+			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+			enum { ROOT = 0 };
+			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+			block_data_t qid = 1;
+			
+			
+			block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+			send(sizeof(op100), op100);
+			
+			block_data_t op90[]  = { OP, qid,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
+			send(sizeof(op90), op90);
+			
+			block_data_t op80[]  = { OP, qid,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
+			send(sizeof(op80), op80);
+			
+			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
+			send(sizeof(op70), op70);
+			
+			block_data_t cmd[]   = { Q, qid, 4 };
+			send(sizeof(cmd), cmd);
+			
+			query_radio_.flush();
+			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+			
+			/*
+			 * Some hash values:
+			 * // {{{
+	
+			10.2                                                         ff9ee843
+			12-04-02T12:48Z                                              1b07abf2
+			<http://purl.oclc.org/NET/muo/muo#UnitOfMeasurement>         bebc18a8
+			<http://purl.oclc.org/NET/muo/muo#measuredIn>                078d9668
+			<http://purl.oclc.org/NET/muo/muo#prefSymbol>                3fcd6c38
+			<http://purl.oclc.org/NET/ssnx/ssn#Property>                 c41d15d6
+			<http://purl.oclc.org/NET/ssnx/ssn#Sensor>                   7e1d99b1
+			<http://purl.oclc.org/NET/ssnx/ssn#Stimulus>                 641c1231
+			<http://purl.oclc.org/NET/ssnx/ssn#detects>                  18231901
+			<http://purl.oclc.org/NET/ssnx/ssn#hasMeasurementCapability> 7ed3bfb1
+			<http://purl.oclc.org/NET/ssnx/ssn#hasMeasurementProperty>   5b80e314
+			<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>               bc98b186
+			<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
+			<http://purl.org/dc/terms/date>                              62d5797c
+			<http://spitfire-project.eu/cc/spitfireCC_n3.owl#uomInUse>   3d490f0a
+			<http://spitfire-project.eu/property/Battery_Life_Time>      0dd47ba9
+			<http://spitfire-project.eu/property/Temperature>            b23860b3
+			<http://spitfire-project.eu/sensor/sensor1234/capabilities>  3fd78899
+			<http://spitfire-project.eu/sensor/sensor1234/capabilities_sensor1234> 5b8d5808
+			<http://spitfire-project.eu/sensor/sensor1234>               170b9e7e
+			<http://spitfire-project.eu/sensor_stimulus/silver_expansion> c12e5e70
+			<http://spitfire-project.eu/uom/Centigrade>                  24e0767b
+			<http://spitfire-project.eu/uom/month>                       1d93598b
+			<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
+			<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>            8b477de0
+			<http://www.w3.org/2000/01/rdf-schema#subClassOf>            d3e5ee53
+			<http://www.w3.org/2000/01/rdf-schema#type>                  b5f766c8
+			<http://www.w3.org/2002/07/owl#Class>                        c632c40e
+			<http://www.w3.org/2002/07/owl#Restriction>                  2e94a87a
+			<http://www.w3.org/2002/07/owl#intersectionOf>               88bdb576
+			<http://www.w3.org/2002/07/owl#onProperty>                   003aed82
+			<http://www.w3.org/2002/07/owl#someValuesFrom>               51b52a36
+			C                                                            00000043
+			bnode0                                                       0aa5b6cc
+			bnode1                                                       0aa5b6cd
+			bnode2                                                       0aa5b6ce
+			m                                                            0000006d
+			
+			* // }}}
+			* 
+			*/
+			
+		#if 0
+			// {{{
 			block_data_t op0[] = {
 				Communicator::MESSAGE_ID_QUERY,
 				1, // query id
@@ -328,22 +481,35 @@ class ExampleApplication
 			query_radio_.flush();
 			
 			//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_ask_hash_resolve>(10000, this, 0);
+			// }}}
+		#endif
 			
 		}
 		
 		void send(size_t len, block_data_t *data) {
-			query_radio_.send(0, len, data);
+			query_radio_.send(SINK, len, data);
 		}
 		
 		void sink_receive_answer( PAnsRadio::node_id_t from, PAnsRadio::size_t len, PAnsRadio::block_data_t *buf ) {
 			PAnsRadio::message_id_t msgid = wiselib::read<Os, block_data_t, PRadio::message_id_t>(buf);
 			
-			DBG("sink recv %d -> %d", from, result_radio_.id());
+			debug_->debug("sink recv %d -> %d", from, result_radio_.id());
 			
-			if(from == 0) {
+			if(from == SINK) {
 				debug_->debug("sink recv from %d", from);
 				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, buf, len);
 			}
+		}
+		
+		void print_memstat() {
+			debug_->debug("rad %d tim %d dbg %d clk %d",
+					(int)sizeof(Os::Radio), (int)sizeof(Os::Timer), (int)sizeof(Os::Debug),
+					(int)sizeof(Os::Clock));
+			debug_->debug("qrad %d fndrad %d pansrad %d trad %d",
+					(int)sizeof(PRadio), (int)sizeof(FNDRadio), (int)sizeof(PAnsRadio),
+					(int)sizeof(TRadio));
+			debug_->debug("proc %d com %d alloc %d",
+					(int)sizeof(Processor), (int)sizeof(Communicator), (int)sizeof(Allocator));
 		}
 		
 	private:
@@ -360,6 +526,18 @@ class ExampleApplication
 		
 		Processor ian_;
 		Communicator communicator_;
+		
+		#if defined(ARDUINO)
+			ArduinoMonitor<Os, Os::Debug> monitor_;
+		#else
+			NullMonitor<Os> monitor_;
+		#endif
+		
+		
+		#if INQP_TEST_USE_BLOCK
+			BlockMemory block_memory_;
+			BlockAllocator block_allocator_;
+		#endif
 };
 
 Allocator allocator_;

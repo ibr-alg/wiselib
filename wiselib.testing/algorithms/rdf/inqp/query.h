@@ -77,10 +77,14 @@ namespace wiselib {
 			
 			template<typename DescriptionT, typename OperatorT>
 			void add_operator(BOD *bod) {
+				DBG("1adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				DescriptionT *description = reinterpret_cast<DescriptionT*>(bod);
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
 				op->init(description, this);
+				DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
+				
+				DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
 			}
 			
 			void build_tree() {
@@ -98,6 +102,7 @@ namespace wiselib {
 			BasicOperator* get_operator(size_type i) { return operators_[i]; }
 			
 			bool ready() {
+				DBG("s%d ex%d got%d", (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			

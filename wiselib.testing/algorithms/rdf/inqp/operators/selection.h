@@ -104,7 +104,7 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("selection row %08lx %08lx", (long)row[0], (long)row[1]);
+				DBG("sel row %08lx %08lx", (long)row[0], (long)row[1]);
 				
 				bool match = true;
 				size_type col = 0;
@@ -117,7 +117,7 @@ namespace wiselib {
 					int type = this->child(Base::CHILD_LEFT).result_type(col);
 					int c = compare_values(type, row[col], v);
 					
-					DBG("col=%d row[col]=%08lx vidx=%d v=%08lx",
+					DBG("col%d row[col]%08lx vidx%d v%08lx",
 							(int)col, (long)row[col], (int)value_index, (long)v);
 					
 					if(!again) { col++; }
@@ -126,14 +126,14 @@ namespace wiselib {
 							((criterion & SD::LT) && c < 0) ||
 							((criterion & SD::GT) && c > 0) ||
 							(criterion == SD::IGNORE))) {
-						DBG("criterion=%d c=%d", (int)criterion, (int)c);
+						DBG("crit%d c%d", (int)criterion, (int)c);
 						match = false;
 						break;
 					}
 				}
 				
 				if(match) {
-					DBG("------> selection row %08lx %08lx", (long)row[0], (long)row[1]);
+					//DBG("------> selection row %08lx %08lx", (long)row[0], (long)row[1]);
 					this->parent().push(row);
 				}
 				

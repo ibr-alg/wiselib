@@ -209,12 +209,18 @@ class ExampleApplication
 				block_memory_.init();
 				block_allocator_.init(&block_memory_, debug_);
 			#endif
+				
+			#if USE_BLOCK_CONTAINER
+				container.init(&block_allocator_, debug_);
+			#endif
 			
 			#if USE_DICTIONARY
 				#if USE_PRESCILLA
 					dictionary.init(debug_);
 				#elif USE_TREE_DICTIONARY
 					dictionary.init();
+				#elif USE_BLOCK_DICTIONARY
+					dictionary.init(&block_allocator_, debug_);
 				#endif
 				ts.init(&dictionary, &container, debug_);
 			#else

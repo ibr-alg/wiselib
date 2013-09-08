@@ -83,9 +83,11 @@ namespace wiselib {
 				
 				if(&row) {
 					if(port == Base::CHILD_LEFT) {
+						DBG("SLJl");
 						table_.insert(row);
 					}
 					else {
+						DBG("SLJr");
 						ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);
 						ProjectionInfo<OsModel>& r = this->child(Base::CHILD_RIGHT);
 						
