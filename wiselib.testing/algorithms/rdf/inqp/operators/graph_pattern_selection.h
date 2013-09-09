@@ -86,7 +86,10 @@ namespace wiselib {
 				
 				RowT *row = RowT::create(this->projection_info().columns()); //TupleStoreT::COLUMNS);
 				
+				//DBG("gps begin");
 				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
+					//DBG("gps (%lx %lx %lx)", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
+					
 					bool match = true;
 					size_type row_idx = 0;
 					for(size_type i = 0; i < TS_SEMANTIC_COLUMNS; i++) {
@@ -94,7 +97,7 @@ namespace wiselib {
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
-								//DBG("not matching because [%d] = %08lx != %08lx",
+								//DBG("gps nomatch [%d] = %08lx != %08lx",
 										//(int)i, (unsigned long)values_[i], (unsigned long)v);
 								match = false;
 								break;
@@ -129,9 +132,11 @@ namespace wiselib {
 						}
 					}
 					if(match) {
+						//DBG("gps push");
 						this->parent().push(*row);
 					}
 				}
+				//DBG("gps end");
 				
 				row->destroy();
 				this->parent().push(Base::END_OF_INPUT);

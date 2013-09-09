@@ -69,11 +69,21 @@ namespace wiselib {
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
 				post_inited_ = false;
+				
+				if(left_column_ == SLJD::LEFT_COLUMN_INVALID && right_column_ == SLJD::RIGHT_COLUMN_INVALID) {
+					DBG("cross join");
+				}
+				else {
+					DBG("slj %d %d", (int)left_column_, (int)right_column_);
+				}
+				
+				left_ = 0;
+				right_ = 0;
 			}
 			#pragma GCC diagnostic pop
 			
 			void destruct() {
-				DBG("sle destr");
+				//DBG("sle destr");
 				table_.destruct();
 			}
 			
@@ -90,11 +100,13 @@ namespace wiselib {
 				
 				if(&row) {
 					if(port == Base::CHILD_LEFT) {
-						DBG("SLJl");
+						//DBG("SLJl");
+						left_++;
 						table_.insert(row);
 					}
 					else {
-						DBG("SLJr");
+						right_++;
+						//DBG("SLJr");
 						ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);
 						ProjectionInfo<OsModel>& r = this->child(Base::CHILD_RIGHT);
 						
@@ -152,6 +164,9 @@ namespace wiselib {
 					} // else port = left
 				} // if row
 				else if(port == Base::CHILD_RIGHT) {
+					DBG("slj l %d r %d", (int)left_, (int)right_);
+					left_ = 0;
+					right_ = 0;
 					table_.clear();
 					this->parent().push(row);
 				}
@@ -164,6 +179,7 @@ namespace wiselib {
 			uint8_t right_column_;
 			bool post_inited_;
 			TableT table_;
+			int left_, right_;
 		
 	}; // SimpleLocalJoin
 }

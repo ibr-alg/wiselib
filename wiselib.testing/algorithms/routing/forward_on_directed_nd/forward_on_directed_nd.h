@@ -110,17 +110,17 @@ namespace wiselib {
 					message->set_payload(size, data);
 					
 					if(nd_->neighbors_begin(Neighbor::OUT_EDGE) ==  nd_->neighbors_end()) {
-						DBG("fwd: %d nopar", radio_->id());
+						//DBG("fwd: %d nopar", radio_->id());
 					}
 					
 					for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 							iter != nd_->neighbors_end();
 							++iter
 					) {
-						DBG("fwd to %d", (int)iter->id());
+						//DBG("fwd to %d", (int)iter->id());
 						radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
-						radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
-						radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
+						//radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
+						//radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
 					}
 				}
 				return OsModel::SUCCESS;

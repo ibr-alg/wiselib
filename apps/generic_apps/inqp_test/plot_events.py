@@ -41,87 +41,6 @@ def gliding_mean(l, n = 100):
 	return l_new
 
 
-def parse_events(f):
-	
-	activity = dict(t=[], v=[])
-	on = dict(t=[], v=[])
-	send = dict(t=[], v=[])
-	loss = dict(t=[], v=[])
-	window = dict(t=[], v=[])
-	interval = dict(t=[], v=[])
-	
-	activity['t'].append(0)
-	activity['v'].append(0)
-	
-	on['t'].append(0)
-	on['v'].append(1)
-	
-	
-	t = 0
-	toffs = 0
-	
-	for line in f:
-		
-		t_new = None
-		m = re.search(r'\bt([-0-9]+)\b', line)
-		if m is not None:
-			#print("---- MATCH", m.groups())
-			t_new = int(m.groups()[0])
-			
-		if t_new is not None:
-			if t_new + toffs < t: toffs += 65536
-			t = t_new + toffs
-			
-		if t < t0: continue
-		
-		if '/ACT' in line:
-			#print(line)
-			#print ("/ACT", t, toffs)
-			activity['t'].append(t)
-			activity['v'].append(0)
-		elif 'ACT' in line:
-			#print(line)
-			#print("ACT", t, toffs)
-			activity['t'].append(t)
-			activity['v'].append(1)
-		else:
-			#print(repr(line))
-			pass
-			
-		if re.search(r'\bon\b', line):
-			on['t'].append(t)
-			on['v'].append(1)
-		elif re.search(r'\boff\b', line):
-			on['t'].append(t)
-			on['v'].append(0)
-			
-		m = re.match(r'@[0-9]+ tok SE .* win ([-0-9]+) int ([-0-9]+).*', line)
-		if 'tok ' in line:
-			window['t'].append(t)
-			w = int(m.groups()[0])
-			if w < 0: w += 65536
-			window['v'].append(w)
-			
-			interval['t'].append(t)
-			i = int(m.groups()[1])
-			if i < 0: i += 65536
-			interval['v'].append(i)
-			
-		if 'snd' in line:
-			send['t'].append(t)
-			send['v'].append(1 if len(send['v']) == 0 else send['v'][-1] + 1)
-			
-		if 'loss' in line and not 'noloss' in line:
-			loss['t'].append(t)
-			loss['v'].append(1 if len(loss['v']) == 0 else loss['v'][-1] + 1)
-
-	return dict(
-			activity = activity,
-			on = on,
-			window = window,
-			interval = interval,
-			send = send,
-			loss = loss)
 def parse_energy(f):
 	ts = []
 	vs = []
@@ -170,70 +89,39 @@ def parse_energy(f):
 		
 	#p1s_mean = gliding_mean(p1s, 100)
 	#p1s = gliding_mean(p1s, 100)
-	print (p1s)
+	#print (p1s)
 	
 	return (ts, vs, p1s, p2s, c1s, c2s)
 
+def sum_peaks(ts, vs, t0, tmax, v_thres, v_base):
+	rt = []
+	r = []
+	s = 0
+	tprev = ts[0]
+	tstart = None
+	for t, v in zip(ts[1:], vs[1:]):
+		if t < t0:
+			tprev = t
+			continue
+		if t >= tmax: break
+		
+		if v < v_thres:
+			if tstart is not None:
+				rt.append(tstart)
+				r.append(s)
+				tstart = None
+		else:
+			if tstart is None:
+				s = 0
+				tstart = t
+			a = (t - tprev) * (v - v_base) / 1000.0 # mA * V * mS / 1000 = mJ
+			s += a
+			
+		tprev = t
+		
+	return rt, r
 
-def plot_onoff(ts, ys, p, **kws):
-	left = None
-	l = []
-	for t, y in zip(ts, ys):
-		if y and left is None:
-			left = t
-		elif left is not None:
-			l.append((left, t - left))
-			left = None
-	if left is not None:
-		l.append((left, t - left))
-		left = None
-	
-	print( l)
-	p.set_ylim((0, 1))
-	p.set_yticks([])
-	p.set_xticks([])
-	p.broken_barh(l, (0, 1), **kws) #facecolors='green')
 
-
-def plot_events(d, pon, pact, pwin, pev):
-	#penergy = fig.add_subplot(313)
-	
-	#pon.set_xlim((0,  600000))
-	#pact.set_xlim((0, 600000))
-	#pev.set_xlim((0,  600000))
-	
-	pon.set_ylim((0, 1.1))
-	pact.set_ylim((0, 1.1))
-	#pev.set_ylim((0, 1.1))
-	
-	#pon.plot(d['on']['t'], d['on']['v'], 'k-', drawstyle='steps-post')
-	plot_onoff(d['on']['t'], d['on']['v'], pon, facecolor='grey', linewidth=0,
-			edgecolor='none')
-	#pon.set_ylabel('Radio on')
-	pon.set_yticks([0.5])
-	pon.set_yticklabels(['Radio on'])
-	
-	#pact.plot(d['activity']['t'], d['activity']['v'], 'k-', drawstyle='steps-post')
-	plot_onoff(d['activity']['t'], d['activity']['v'], pact, facecolor='grey',
-			linewidth=0,
-			edgecolor='none')
-	#pact.set_ylabel('Token')
-	pact.set_yticks([0.5])
-	pact.set_yticklabels(['Token'])
-	
-	pwin.plot(d['interval']['t'], d['interval']['v'], 'k-', drawstyle='steps-post')
-	pwin.plot(d['window']['t'], d['window']['v'], 'b-', drawstyle='steps-post')
-	
-	pev.plot(d['send']['t'], d['send']['v'], 'k-', drawstyle='steps-post')
-	#print(d['loss'])
-	#pev.vlines(d['loss']['t'], [d['send']['v'][-1]], d['loss']['v'], 'r')
-	pev.plot(d['loss']['t'], d['loss']['v'], 'r-', drawstyle='steps-post')
-	#pev.plot(d['loss']['t'], d['loss']['v'], 'r^-')
-	
-
-def plot_energy(d, p, **kws):
-	p.plot(d['x'], d['y'], *d.get('args', []), **kws)
-	
 	
 
 def cum(t, y):
@@ -253,48 +141,43 @@ def cum(t, y):
 		t_prev = ct
 	print("Joule:", ry[-1])
 	return rt, ry
+
+def plot_energy(d, p, **kws):
+	p.plot(d['x'], d['y'], *d.get('args', []), **kws)
+
+def boxplots(vs, labels, p):
+	p.boxplot(vs)
+	p.set_xticks(range(1, len(labels) + 1))
+	p.set_xticklabels(labels)
+
+
 		
 fig = plt.figure(figsize=(10, 4))
 penergy = fig.add_subplot(111)
 #div.append_axes("bottom", size="150%", pad = 0.05)
 #penergy.set_ylim((0, 150))
-penergy.set_ylabel('Energy consumption ($\\mu$W)')
+#penergy.set_xlim((0, 5000))
+penergy.set_ylabel('Energy consumption / query (mJ)')
 
 
-#pwin = fig.add_subplot(111)
-#pwin.set_ylabel('Inteval/Window size (ms)')
-#pwin.set_xticks([])
+#ts, vs, p1s, p2s, c1s, c2s = parse_energy(open(sys.argv[1], 'r'))
 
-#div = make_axes_locatable(pwin)
+#ttemp, _, ptemp, _, _, _ = parse_energy(open('./inqp_isense_standalone_temp.log', 'r'))
+#_, vtemp = sum_peaks(ttemp, ptemp, 3500, 180, 130)
 
-#pact = div.append_axes("top", size="30%", pad = 0.05)
-#pev = div.append_axes("bottom", size="150%", pad = 0.05)
-#pev.set_ylabel('Packets sent/lost (\\#)')
-#pev.set_xticks([])
+ttemp2, _, ptemp2, _, _, _ = parse_energy(open('./inqp_isense_standalone_temp2.log', 'r'))
+_, vtemp2 = sum_peaks(ttemp2, ptemp2, 3500, 28000, 180, 130)
 
-#pon = div.append_axes("bottom", size="30%", pad = 0.05)
+tall, _, pall, _, _, _ = parse_energy(open('./inqp_isense_standalone_all.log', 'r'))
+_, vall = sum_peaks(tall, pall, 3000, 49000, 180, 130)
 
+tcross, _, pcross, _, _, _ = parse_energy(open('./inqp_isense_standalone_cross.log', 'r'))
+_, vcross = sum_peaks(tcross, pcross, 3000, 49000, 180, 130)
 
-#pact = fig.add_subplot(812)
-#pwin = fig.add_subplot(412)
-#pev = fig.add_subplot(413)
-#penergy = fig.add_subplot(414)
-
-#pwin.set_yscale('log')
-
-#if tdelta is not None:
-	#for p in (pon, pact, pwin, pev, penergy):
-		#p.set_xlim((t0,t0 + tdelta))
-	
-
-#d = parse_events(open(sys.argv[1], 'r', encoding='latin1'))
-#plot_events(d, pon, pact, pwin, pev)
-
-ts, vs, p1s, p2s, c1s, c2s = parse_energy(open(sys.argv[1], 'r'))
-plot_energy(dict(x=ts, y=p1s, args=('k-',)), penergy)
-
-#cx, cy = cum(ts, p1s)
-#plot_energy(dict(x=cx, y=cy, args=('g-',)), penergy)
+#penergy.set_xlim((40000, 55000))
+#penergy.set_xlim((0, 30000))
+plot_energy(dict(x=tcross, y=pcross, args=('k-',)), penergy)
+#boxplots([vtemp2, vall], ['Temperature', 'All'], penergy)
 
 fig.savefig('p.pdf')
 

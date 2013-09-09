@@ -137,8 +137,8 @@ namespace wiselib {
 				//Serial.println("fnd bcast");
 				//on_receive(radio_->id(), size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
 				radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
-				radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
-				radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				//radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				//radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
 				return SUCCESS;
 			}
 			

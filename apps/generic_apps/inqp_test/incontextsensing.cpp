@@ -1,7 +1,7 @@
 { "<http://spitfire-project.eu/sensor/sensor1234>", "<http://www.w3.org/2000/01/rdf-schema#type>", "<http://purl.oclc.org/NET/ssnx/ssn#Sensor>" },
 { "<http://spitfire-project.eu/sensor/sensor1234>", "<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>", "<http://spitfire-project.eu/property/Temperature>" },
 { "<http://spitfire-project.eu/sensor/sensor1234>", "<http://spitfire-project.eu/cc/spitfireCC_n3.owl#uomInUse>", "<http://spitfire-project.eu/uom/Centigrade>" },
-{ "<http://spitfire-project.eu/sensor/sensor1234>", "<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>", "10.2" },
+{ "<http://spitfire-project.eu/sensor/sensor1234>", "<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>", "10" },
 { "<http://spitfire-project.eu/sensor/sensor1234>", "<http://purl.org/dc/terms/date>", "12-04-02T12:48Z" },
 { "<http://spitfire-project.eu/property/Temperature>", "<http://www.w3.org/2000/01/rdf-schema#type>", "<http://purl.oclc.org/NET/ssnx/ssn#Property>" },
 { "<http://spitfire-project.eu/property/Temperature>", "<http://purl.oclc.org/NET/muo/muo#measuredIn>", "<http://spitfire-project.eu/uom/Centigrade>" },
