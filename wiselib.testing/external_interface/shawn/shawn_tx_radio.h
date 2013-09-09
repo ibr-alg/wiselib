@@ -71,6 +71,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       int send( node_id_t id, size_t len, block_data_t *data )
       {
+         printf("SEND from %d to %d len %d time %lu\n", (int)this->id(), (int)id, (int)len, (unsigned long)(os().proc->owner().world().current_time() * 1000.0));
          os().proc->send_wiselib_message( id, len, data );
          return SUCCESS;
       };
