@@ -64,6 +64,7 @@ namespace wiselib {
 			void init(SD *ad, Query *query) {
 				Base::init(ad, query);
 				hardcore_cast(this->push_, &self_type::push);
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				selection_columns_logical_ = ad->selection_columns();
 				selection_criteria_ = ::get_allocator().template allocate_array< ::uint8_t>(selection_columns_logical_).raw();

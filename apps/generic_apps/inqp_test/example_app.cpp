@@ -75,7 +75,7 @@ typedef Tuple<Os> TupleT;
 //#include <util/pstl/unbalanced_tree_dictionary.h>
 //typedef wiselib::list_dynamic<Os, TupleT> TupleList;
 //typedef wiselib::UniqueContainer<TupleList> TupleContainer;
-typedef wiselib::vector_static<Os, TupleT, 10> TupleContainer;
+typedef wiselib::vector_static<Os, TupleT, 100> TupleContainer;
 typedef wiselib::PrescillaDictionary<Os> Dictionary;
 //typedef UnbalancedTreeDictionary<Os> Dictionary;
 #else
@@ -111,6 +111,10 @@ typedef INQPCommunicator<Os, Processor> Communicator;
 
 #define LEFT_COL(X) ((X) << 4)
 #define RIGHT_COL(X) ((X) & 0x0f)
+
+#ifdef ISENSE
+#include <isense/util/get_os.h>
+#endif
 
 #define SINK 1
 
@@ -151,6 +155,8 @@ class ExampleApplication
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			//block_memory_ = &wiselib::FacetProvider<Os, Os::BlockMemory>::get_facet( value );
+			//
+			
 			
 			monitor_.init(debug_);
 			
@@ -294,18 +300,17 @@ class ExampleApplication
 			
 			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
 			
-			timer_->set_timer<ExampleApplication, &ExampleApplication::test_query>(1000, this, 0);
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross_p>(1000, this, 0);
 		}
 		
 		
-		void test_query(void*) {
+		void query_temp(void*) {
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
 			enum { ROOT = 0 };
 			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
 			block_data_t qid = 1;
 			
-			debug_->debug("-- qry");
-			
+			//monitor_.report("bef");
 			
 			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
 			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(01), BIN(0), BIN(0), BIN(0) };
@@ -324,13 +329,82 @@ class ExampleApplication
 			block_data_t cmd[]   = { Q, qid, 4 };
 			process(sizeof(cmd), cmd);
 			
+			//monitor_.report("er");
 			ian_.erase_query(qid);
 			
-			timer_->set_timer<ExampleApplication, &ExampleApplication::test_query>(1000, this, 0);
-			debug_->debug("-- /qry");
+			//monitor_.report("aft");
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
 		}
 		
+		void query_all(void*) {
+			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+			enum { ROOT = 0 };
+			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+			block_data_t qid = 1;
+			
+			
+			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(111111), BIN(0), BIN(0), BIN(0) };
+			
+			process(sizeof(op100), op100);
+			
+			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 100, BIN(111111), BIN(0), BIN(0), BIN(0), BIN(000) };
+			process(sizeof(op70), op70);
+			
+			block_data_t cmd[]   = { Q, qid, 2 };
+			process(sizeof(cmd), cmd);
+			
+			ian_.erase_query(qid);
+			
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
+		}
 		
+		void query_cross_p1() { query_cross_p(0); }
+		void query_cross_p(void*) {
+			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_cross_p1>(this));
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross>(1000, this, 0);
+		}
+		
+		void query_cross(void*) {
+			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+			enum { ROOT = 0 };
+			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+			enum {
+				LEFT_COLUMN_INVALID = 0x0f,
+				RIGHT_COLUMN_INVALID = 0x0f
+			};
+			
+			#if defined(ISENSE)
+			GET_OS.clock().watchdog_stop();
+			#endif
+			
+			
+			//debug_->debug("qry");
+			monitor_.report("qry");
+			
+			block_data_t qid = 1;
+			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(111111), BIN(1111), BIN(0), BIN(0) };
+			
+			process(sizeof(op100), op100);
+			
+			block_data_t op90[]  = { OP, qid,  90, 'j', LEFT | 100, BIN(11111111), BIN(1111), BIN(0), BIN(0), 0xff};
+			process(sizeof(op90), op90);
+			
+			block_data_t op80[]  = { OP, qid,  80, 'g', RIGHT | 90, BIN(111111), BIN(0), BIN(0), BIN(0), BIN(000) };
+			
+			process(sizeof(op80), op80);
+			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 90, BIN(111111), BIN(0), BIN(0), BIN(0), BIN(000) };
+			process(sizeof(op70), op70);
+			
+			block_data_t cmd[]   = { Q, qid, 4 };
+			process(sizeof(cmd), cmd);
+			
+			ian_.erase_query(qid);
+			
+			debug_->debug("/qry");
+			
+			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross>(1000, this, 0);
+		}
 		
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -563,6 +637,7 @@ class ExampleApplication
 		}
 		
 		void sink_receive_answer( PAnsRadio::node_id_t from, PAnsRadio::size_t len, PAnsRadio::block_data_t *buf ) {
+			/*
 			PAnsRadio::message_id_t msgid = wiselib::read<Os, block_data_t, PRadio::message_id_t>(buf);
 			
 			debug_->debug("sink recv %d -> %d", from, result_radio_.id());
@@ -571,6 +646,7 @@ class ExampleApplication
 				debug_->debug("sink recv from %d", from);
 				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, buf, len);
 			}
+			*/
 		}
 		
 		void print_memstat() {

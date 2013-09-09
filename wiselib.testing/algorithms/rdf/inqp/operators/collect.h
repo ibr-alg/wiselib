@@ -68,22 +68,30 @@ namespace wiselib {
 			void init(Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection) {
 				Base::init(Base::Description::COLLECT, query, id, parent_id, parent_port, projection);
 				hardcore_cast(this->push_, &self_type::push);
+				count_ = 0;
 			}
+			
+			int count_;
 			
 			void push(size_type port, Row<OsModel>& row) {
 				if(&row) {
+					count_++;
 				
-					for(size_type i = 0; i < this->child(Base::CHILD_LEFT).columns(); i++) {
-						DBG("result row [%lu] = %08x", i, row[i]);
-					}
+					//for(size_type i = 0; i < this->child(Base::CHILD_LEFT).columns(); i++) {
+						//DBG("result row [%lu] = %08x F%d", i, row[i], (int)mem->mem_free());
+					//}
 					
-					this->processor().send_row(
-							Base::Processor::COMMUNICATION_TYPE_SINK,
-							this->child(Base::CHILD_LEFT).columns(),
-							row,
-							this->query().id(),
-							this->id()
-					);
+					//this->processor().send_row(
+							//Base::Processor::COMMUNICATION_TYPE_SINK,
+							//this->child(Base::CHILD_LEFT).columns(),
+							//row,
+							//this->query().id(),
+							//this->id()
+					//);
+				}
+				else {
+					DBG("collect %d", (int)count_);
+					count_ = 0;
 				}
 				
 				

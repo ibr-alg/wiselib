@@ -140,7 +140,7 @@ namespace wiselib {
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
-						DBG("srow sink");
+						//DBG("srow sink");
 						//Serial.println("inqp send result");
 						result_radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
@@ -153,7 +153,7 @@ namespace wiselib {
 							DBG("com aggr no nd par me%d", (int)result_radio_->id());
 						}
 						else {
-						DBG("srow aggr %d", (int)ni->id());
+						//DBG("srow aggr %d", (int)ni->id());
 						//Serial.println("inqp send aggr send");
 							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						}
@@ -178,6 +178,8 @@ namespace wiselib {
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
+				DBG("recv query");
+				
 				//Serial.println("recv query");
 				
 				packet->from = from;
@@ -197,6 +199,7 @@ namespace wiselib {
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
 				//Serial.println("recv result");
+				DBG("recv result");
 				
 				packet->from = from;
 				packet->len = len;
@@ -243,6 +246,7 @@ namespace wiselib {
 						DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
 						break;
 				}
+				::get_allocator().free(packet->data);
 				::get_allocator().free(packet);
 			} // on_receive_query
 			
@@ -262,6 +266,8 @@ namespace wiselib {
 						DBG("unexpected message id: %d", msg->message_id());
 						break;
 				}
+				::get_allocator().free(packet->data);
+				::get_allocator().free(packet);
 			}
 				
 			QueryProcessor *ian_;

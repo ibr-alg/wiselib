@@ -91,10 +91,10 @@ namespace wiselib {
 			}
 			
 			void destruct() {
-				DBG("destr o");
+				//DBG("destr o");
 				//DBG("d=%p", destruct_);
 				if(destruct_) {
-					DBG("dstr cal");
+					//DBG("dstr cal");
 					destruct_t d = destruct_t::from_stub((void*)this, destruct_);
 					d();
 					//destruct_();

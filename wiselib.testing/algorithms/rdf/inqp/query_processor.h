@@ -129,6 +129,7 @@ namespace wiselib {
 				tuple_store_ = tuple_store;
 				timer_ = timer;
 				row_callback_ = row_callback_t();
+				exec_done_callback_ = exec_done_callback_t();
 				translator_.init(&dictionary());
 				reverse_translator_.init(&dictionary());
 			}
@@ -198,38 +199,49 @@ namespace wiselib {
 							DBG("!eop typ %d", op->type());
 					}
 				}
+				
+				if(exec_done_callback_) {
+					exec_done_callback_();
+				}
+				
 				//Serial.println("exec don");
 			}
 			
+			typedef delegate0<void> exec_done_callback_t;
+			exec_done_callback_t exec_done_callback_;
+			void set_exec_done_callback(exec_done_callback_t cb) {
+				exec_done_callback_ = cb;
+			}
+			
 			void handle_operator(Query* query, BOD *bod) {
-				DBG("hop %c %d", (char)bod->type(), (int)bod->id());
+				//DBG("hop %c %d", (char)bod->type(), (int)bod->id());
 				switch(bod->type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
-						DBG("gps");
+						//DBG("gps");
 						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
 						break;
 					case BOD::SELECTION:
-						DBG("sel");
+						//DBG("sel");
 						query->template add_operator<SelectionDescriptionT, SelectionT>(bod);
 						break;
 					case BOD::SIMPLE_LOCAL_JOIN:
-						DBG("slj");
+						//DBG("slj");
 						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
 						break;
 					case BOD::COLLECT:
-						DBG("c");
+						//DBG("c");
 						query->template add_operator<CollectDescriptionT, CollectT>(bod);
 						break;
 					case BOD::CONSTRUCT:
-						DBG("cons");
+						//DBG("cons");
 						query->template add_operator<ConstructDescriptionT, ConstructT>(bod);
 						break;
 					case BOD::DELETE:
-						DBG("del");
+						//DBG("del");
 						query->template add_operator<DeleteDescriptionT, DeleteT>(bod);
 						break;
 					case BOD::AGGREGATE:
-						DBG("agr");
+						//DBG("agr");
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
 					default:
@@ -239,7 +251,7 @@ namespace wiselib {
 				if(query->ready()) {
 					execute(query);
 				}
-				DBG("/hop");
+				//DBG("/hop");
 			}
 			
 			template<typename Message, typename node_id_t>
@@ -255,7 +267,7 @@ namespace wiselib {
 			
 			template<typename Message, typename node_id_t>
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
-				DBG("h qinf");
+				//DBG("h qinf");
 				query_id_t query_id = msg->query_id();
 				Query *query = get_query(query_id);
 				if(!query) {
@@ -333,9 +345,9 @@ namespace wiselib {
 			}
 			
 			void erase_query(query_id_t qid) {
-				DBG("del qry %d", (int)qid);
+				//DBG("del qry %d", (int)qid);
 				if(!queries_.contains(qid)) {
-					DBG("del noex qry %d", (int)qid);
+					//DBG("del noex qry %d", (int)qid);
 				}
 				else {
 					queries_[qid]->destruct();

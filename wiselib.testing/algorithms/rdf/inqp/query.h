@@ -71,13 +71,13 @@ namespace wiselib {
 			void destruct() {
 				for(typename Operators::iterator it = operators_.begin(); it != operators_.end(); ++it) {
 					BasicOperator* op = it->second;
-					DBG("op destr");
+					//DBG("op destr");
 					//DBG("o=%p", it->second);
-					//op->destruct();
-					DBG("op fre");
-					//::get_allocator().free(op);
+					op->destruct();
+					//DBG("op fre");
+					::get_allocator().free(op);
 				}
-				DBG("op clr");
+				//DBG("op clr");
 				operators_.clear();
 			}
 			
@@ -115,7 +115,7 @@ namespace wiselib {
 			BasicOperator* get_operator(size_type i) { return operators_[i]; }
 			
 			bool ready() {
-				DBG("s%d ex%d got%d", (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
+				//DBG("s%d ex%d got%d", (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			

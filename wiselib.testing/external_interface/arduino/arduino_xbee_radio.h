@@ -259,32 +259,41 @@ namespace wiselib
       Tx16Request tx = Tx16Request(dest, data, len);
       TxStatusResponse txStatus = TxStatusResponse();
 
-      xbee_.send(tx);
-      if (xbee_.readPacket(100))
-      {
-         if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
+      for(int i = 0; i < 2; i++) {
+         
+         xbee_.send(tx);
+         if (xbee_.readPacket(100))
          {
-            //xbee_.getResponse().getZBTxStatusResponse(txStatus);
-            xbee_.getResponse().getTxStatusResponse(txStatus);
-            if (txStatus.getStatus() == XBEE_SUCCESS)
+            if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
             {
+               //xbee_.getResponse().getZBTxStatusResponse(txStatus);
+               xbee_.getResponse().getTxStatusResponse(txStatus);
+               if (txStatus.getStatus() == XBEE_SUCCESS)
+               {
+                  DBG("---> %d", (int)dest);
+                  return SUCCESS;
+               }
+               else {
+                  ArduinoDebug<ArduinoOsModel>(true).debug("snd tx %d", (int)txStatus.getStatus());
+               }
+            }
+            else if (!xbee_.getResponse().isError())
+            {
+                  DBG("---> %d", (int)dest);
                return SUCCESS;
             }
             else {
-               ArduinoDebug<ArduinoOsModel>(true).debug("snd tx %d", (int)txStatus.getStatus());
+               ArduinoDebug<ArduinoOsModel>(true).debug("snd err %d", (int)xbee_.getResponse().getErrorCode());
+               return ERR_UNSPEC;
             }
          }
-         else if (!xbee_.getResponse().isError())
-         {
-            return SUCCESS;
-         }
-         else {
-            ArduinoDebug<ArduinoOsModel>(true).debug("snd err %d", (int)xbee_.getResponse().getErrorCode());
-         }
+      
       }
+      /*
       else {
          Serial.println("snd xb to");
       }
+      */
       return ERR_UNSPEC;
    }
    // -----------------------------------------------------------------------
@@ -296,6 +305,8 @@ namespace wiselib
          disable();
          return;
       }
+      Serial.print(".");
+      Serial.flush();
       
       ::uint32_t t_read = millis();
       xbee_.readPacket();
@@ -308,6 +319,7 @@ namespace wiselib
 
          if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
          {
+            Serial.println("--> recv");
             xbee_.getResponse().getRx16Response(rx16);
             from_id = rx16.getRemoteAddress16();
             data = rx16.getData();

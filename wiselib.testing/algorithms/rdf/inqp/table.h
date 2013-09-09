@@ -117,9 +117,9 @@ namespace wiselib {
 			}
 			
 			void destruct() {
-				DBG("table destr");
+				//DBG("table destr");
 				clear();
-				DBG("table destr end");
+				//DBG("table destr end");
 			}
 			
 			void insert(const RowT& row) {
