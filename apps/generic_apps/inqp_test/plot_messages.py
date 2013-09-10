@@ -9,6 +9,10 @@ import io
 import sys
 from matplotlib import rc
 import glob
+import pylab
+
+DATA_PATH='/home/henning/annexe/experiments/2013-09-inqp-shawn'
+
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
@@ -38,8 +42,10 @@ def parse(f):
 def parse_all(dir):
 	r = {}
 	for fn in glob.glob(dir + '/size*.log'):
-		m = re.match('size(\d+)_count(\d+)_rseed(\d+).log', fn)
+		m = re.search(r'size(\d+)_count(\d+)_rseed(\d+).log', fn)
 		if m is None: continue
+		
+		print(fn)
 		
 		size = int(m.groups()[0])
 		count = int(m.groups()[1])
@@ -61,6 +67,7 @@ def parse_all(dir):
 				time = t
 		
 		if (size, count) not in r:
+			print(size, count)
 			r[(size, count)] = ([], [], [])
 			
 		r[(size, count)][0].append(msgs)
@@ -69,41 +76,54 @@ def parse_all(dir):
 		
 	return r
 
-def boxes(r, keys, p):
+def boxes(r, keys, c, p, lblfmt):
+	l = []
 	for k in keys:
-		
-
-def plot_packets(d, p, **kws):
-	p.plot(d['x'], d['y'], *d.get('args', []), **kws) #, drawstyle='steps-post')
-
-
-fig = plt.figure()
-p = fig.add_subplot(111)
-
-# By density
-#fns_ = [
-	#'size30_count100.log',
-	#'size30_count500.log',
-	#'size30_count1000.log'
-#]
-
-# By size
-#fns_ = [
-	#'size30_count100.log',
-	#'size52_count300.log',
-	#'size67_count500.log',
-	#'size79_count700.log',
-	#'size85_count800.log',
-	#'size90_count900.log',
-	##'size95_count1000.log',
-#]
-
-#fns = [ 'size32_count100_rseed{}.log'.format(i) for i in range(100) ]
+		l.append(r[k][c])
+	
+	p.set_xticks(range(1, 1 + len(l)))
+	p.set_xticklabels([lblfmt.format(k[0], k[1]) for k in keys])
+	return p.boxplot(l)
 
 def fn_to_label(fn):
 	m = re.match('size(\d+)_count(\d+)_rseed(\d+).log', fn)
 	# yeah, i know string formatting, but this way is "portable" across py2 vs py3!
 	return m.groups()[0] + ' nodes, ' + m.groups()[1] + 'x' + m.groups()[1] + ' area'
+
+def plot_packets(d, p, **kws):
+	p.plot(d['x'], d['y'], *d.get('args', []), **kws) #, drawstyle='steps-post')
+
+
+def eval_experiment(r, exp):
+	print('->', exp['pdf'])
+	fig = plt.figure()
+	p = fig.add_subplot(111)
+	bp = boxes(r, exp['key'], exp['c'], p, '{1:d}')
+	#plt.setp(color='k')
+	try:
+		plt.setp(bp['boxes'], color='black')
+		plt.setp(bp['medians'], color='black')
+		plt.setp(bp['whiskers'], color='black')
+		plt.setp(bp['fliers'], color='black')
+	except Exception as e:
+		print(e)
+	fig.savefig(exp['pdf'])
+
+fix_density = [(32, 100), (45, 200), (55, 300), (63, 400), (71, 500), (77, 600), (84, 700), (89, 800), (95, 900)]
+fix_size = [(50, 100), (50, 200), (50, 300), (50, 400), (50, 500), (50, 600), (50, 700), (50, 800), (50, 900)]
+experiments = [
+		{ 'key': fix_density, 'c': 0, 'pdf': 'fx_density_messages.pdf', },
+		{ 'key': fix_density, 'c': 1, 'pdf': 'fx_density_bytes.pdf', },
+		{ 'key': fix_density, 'c': 2, 'pdf': 'fx_density_time.pdf', },
+		{ 'key': fix_size, 'c': 0, 'pdf': 'fx_size_messages.pdf', },
+		{ 'key': fix_size, 'c': 1, 'pdf': 'fx_size_bytes.pdf', },
+		{ 'key': fix_size, 'c': 2, 'pdf': 'fx_size_time.pdf', },
+]
+
+r = parse_all(DATA_PATH)
+for exp in experiments:
+	eval_experiment(r, exp)
+
 
 #p.set_xscale('log')
 #p.set_yscale('log')
@@ -119,8 +139,4 @@ def fn_to_label(fn):
 #plot_packets(dict(x=ts, y=msgs), p)
 
 #plot_packets(dict(x=ts, y=bytes), p)
-
-p.legend()
-
-fig.savefig('msgs.pdf')
 
