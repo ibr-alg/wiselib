@@ -148,9 +148,10 @@ def plot_energy(d, p, **kws):
 	p.plot(d['x'], d['y'], *d.get('args', []), **kws)
 
 def boxplots(vs, labels, p):
-	p.boxplot(vs)
+	bp = p.boxplot(vs)
 	p.set_xticks(range(1, len(labels) + 1))
 	p.set_xticklabels(labels)
+	return bp
 
 
 		
@@ -167,20 +168,48 @@ penergy.set_ylabel('Energy consumption / query (mJ)')
 #ttemp, _, ptemp, _, _, _ = parse_energy(open('./inqp_isense_standalone_temp.log', 'r'))
 #_, vtemp = sum_peaks(ttemp, ptemp, 3500, 180, 130)
 
-ttemp2, _, ptemp2, _, _, _ = parse_energy(open('./inqp_isense_standalone_temp2.log', 'r'))
-_, vtemp2 = sum_peaks(ttemp2, ptemp2, 3500, 28000, 180, 130)
 
-tall, _, pall, _, _, _ = parse_energy(open('./inqp_isense_standalone_all.log', 'r'))
-_, vall = sum_peaks(tall, pall, 3000, 49000, 180, 130)
+BASEDIR = '/home/henning/annexe/experiments/2013-09-inqp-energy-local/'
 
-tcross, _, pcross, _, _, _ = parse_energy(open('./inqp_isense_standalone_cross.log', 'r'))
-_, vcross = sum_peaks(tcross, pcross, 3000, 6000, 180, 130)
+ttemp_gps1, _, ptemp_gps1, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_temp_gps1.log', 'r'))
+_, vtemp_gps1 = sum_peaks(ttemp_gps1, ptemp_gps1, 3000, 9000, 150, 90)
+
+ttemp2, _, ptemp2, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_temp3.log', 'r'))
+_, vtemp2 = sum_peaks(ttemp2, ptemp2, 2000, 10000, 150, 90)
+
+tall, _, pall, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_all.log', 'r'))
+#_, vall = sum_peaks(tall, pall, 3000, 49000, 180, 130)
+_, vall = sum_peaks(tall, pall, 3000, 12000, 150, 90)
+
+
+# for cross join its one run/file per experiment
+# t0/tmax for cross join datasets
+cross_limits = [(3000, 6000), (2000, 4000), (2000, 5000), (3000, 5000), (3000, 6000), (3000, 6000), (2500, 5000), (2000, 4500), (2200, 5000), (2000, 4000)]
+
+vcross = []
+for i in range(10):
+	s = '' if i == 0 else str(i + 1)
+	print("i=" + s)
+	tcross, _, pcross, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_cross{}.log'.format(s), 'r'))
+	_, vc = sum_peaks(tcross, pcross, cross_limits[i][0], cross_limits[i][1], 150, 90)
+	vcross.extend(vc)
+
 
 #penergy.set_xlim((40000, 55000))
 #penergy.set_xlim((0, 30000))
-#plot_energy(dict(x=tcross, y=pcross, args=('k-',)), penergy)
-boxplots([vtemp2, vall, vcross], ['Temperature', 'All', 'Cross-Join'], penergy)
+#plot_energy(dict(x=ttemp_gps1, y=ptemp_gps1, args=('k-',)), penergy)
+#plot_energy(dict(x=ttemp2, y=ptemp2, args=('k-',)), penergy)
+#plot_energy(dict(x=tall, y=pall, args=('k-',)), penergy)
+bp = boxplots([vtemp_gps1, vtemp2, vall, vcross], ['GPS 1', 'Temperature', 'All', 'Cross-Join'], penergy)
 #print (vtemp2)
+
+try:
+	plt.setp(bp['boxes'], color='black')
+	plt.setp(bp['medians'], color='black')
+	plt.setp(bp['whiskers'], color='black')
+	plt.setp(bp['fliers'], color='black')
+except Exception:
+	pass
 
 fig.savefig('p.pdf')
 

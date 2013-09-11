@@ -23,7 +23,7 @@ from matplotlib import rc
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
-t0 =     600000
+t0 =     1200000
 tdelta = 600000 #2400000
 
 #t0 = 0
@@ -75,47 +75,48 @@ def parse_events(f):
 			t = t_new + toffs
 			
 		if t < t0: continue
-		if t > (t0 + tdelta): break
+		#if tdelta is not None:
+			#if t > (t0 + tdelta): break
 		
 		if '/ACT' in line:
 			#print(line)
 			#print ("/ACT", t, toffs)
-			activity['t'].append(t)
+			activity['t'].append(t - t0)
 			activity['v'].append(0)
 		elif 'ACT' in line:
 			#print(line)
 			#print("ACT", t, toffs)
-			activity['t'].append(t)
+			activity['t'].append(t - t0)
 			activity['v'].append(1)
 		else:
 			#print(repr(line))
 			pass
 			
-		if re.search(r'\bon\b', line):
-			on['t'].append(t)
+		if 'on ' in line:
+			on['t'].append(t - t0)
 			on['v'].append(1)
-		elif re.search(r'\boff\b', line):
-			on['t'].append(t)
+		elif 'off ' in line:
+			on['t'].append(t - t0)
 			on['v'].append(0)
 			
 		m = re.match(r'@[0-9]+ tok SE .* win ([-0-9]+) int ([-0-9]+).*', line)
 		if m is not None:
-			window['t'].append(t)
+			window['t'].append(t - t0)
 			w = int(m.groups()[0])
 			if w < 0: w += 65536
 			window['v'].append(w)
 			
-			interval['t'].append(t)
+			interval['t'].append(t -t0)
 			i = int(m.groups()[1])
 			if i < 0: i += 65536
 			interval['v'].append(i)
 			
 		if 'snd' in line:
-			send['t'].append(t)
+			send['t'].append(t - t0)
 			send['v'].append(1 if len(send['v']) == 0 else send['v'][-1] + 1)
 			
 		if 'loss' in line and not 'noloss' in line:
-			loss['t'].append(t)
+			loss['t'].append(t - t0)
 			loss['v'].append(1 if len(loss['v']) == 0 else loss['v'][-1] + 1)
 
 	return dict(
@@ -161,7 +162,7 @@ def parse_energy(f):
 		if t < t0: continue
 		#if c == 0: continue
 		
-		ts.append(t)
+		ts.append(t - t0)
 		vs.append(v)
 		c1s.append(c1)
 		c2s.append(c2)
@@ -201,7 +202,9 @@ def plot_onoff(ts, ys, p, **kws):
 		l.append((left, t - left))
 		left = None
 	
-	print("==> MEAN INTERVAL:", sum(intervals) / len(intervals))
+	if len(intervals):
+		print("==> MEAN INTERVAL:", sum(intervals) / len(intervals))
+		print("INTERVALS:", len(intervals))
 	
 	#print( l)
 	p.set_ylim((0, 1))
@@ -230,6 +233,7 @@ def plot_events(d, pon, pact, pwin, pev):
 		pon.set_yticklabels(['Radio on'])
 	
 	if pact:
+		print("ACTIVITY")
 		#pact.plot(d['activity']['t'], d['activity']['v'], 'k-', drawstyle='steps-post')
 		plot_onoff(d['activity']['t'], d['activity']['v'], pact, facecolor='black',
 				linewidth=0,
@@ -268,11 +272,14 @@ def cum(t, y):
 	pv = 0
 	#ry.append(0)
 	for ct, cy in zip(t[1:], y[1:]):
+		if tdelta is not None and ct > t0 + tdelta: break
 		#print(cy, (ct - t_prev), cy * (ct - t_prev))
 		pv += cy * (ct - t_prev)
 		ry.append(pv / 1000000.0) # mA * V * mS / 10^6 = Joule
 		t_prev = ct
-	print("==> ENERGY consumed Joule:", ry[-1])
+		
+	if len(ry):
+		print("==> ENERGY consumed Joule:", ry[-1])
 	return rt, ry
 		
 fig = plt.figure(figsize=(10, 4 + 2 * (len(sys.argv) - 3)))
@@ -298,7 +305,8 @@ for i, fn in enumerate(sys.argv[3:]):
 	penergy.set_xticks([])
 	if len(padd): padd[-1].set_xticks([])
 	padd.append(div.append_axes("bottom", size="150%", pad = 0.05))
-	padd[-1].set_xlim((t0, t0 + tdelta))
+	if tdelta is not None:
+		padd[-1].set_xlim((0,  tdelta))
 	padd[-1].set_ylabel('Packets sent/lost (\\#) Node {}'.format(i+1))
 
 #pact = fig.add_subplot(812)
@@ -310,7 +318,8 @@ for i, fn in enumerate(sys.argv[3:]):
 
 if tdelta is not None:
 	for p in (pon, pact, pwin, pev, penergy):
-		p.set_xlim((t0,t0 + tdelta))
+		#p.set_xlim((t0,t0 + tdelta))
+		p.set_xlim((0, tdelta))
 	
 
 d = parse_events(open(sys.argv[1], 'r', encoding='latin1'))
