@@ -142,7 +142,8 @@ def scatter(r, keys, c, p):
 		y.extend(r[k][c])
 		
 	#print(x, y)
-	p.set_xlim((0, 900))
+	p.set_xlim((0, max(x)))
+	p.set_ylim((0, max(y)))
 	p.scatter(x, y, marker='x', color='k')
 
 
@@ -162,6 +163,10 @@ def eval_experiment(r, exp):
 	#bp = boxes(r, exp['key'], exp['c'], p, '{1:d}')
 	bp = scatter(r, exp['key'], exp['c'], p)
 	#plt.setp(color='k')
+	p.set_xlabel('\\# nodes connected to base station')
+	
+	p.set_ylabel(['Messages (\\#)', 'Bytes transmitted', 'Answer time (ms)'][exp['c']])
+	
 	try:
 		plt.setp(bp['boxes'], color='black')
 		plt.setp(bp['medians'], color='black')
@@ -174,53 +179,30 @@ def eval_experiment(r, exp):
 fix_density = [(32, 100), (45, 200), (55, 300), (63, 400), (71, 500), (77, 600), (84, 700), (89, 800), (95, 900)]
 fix_size = [(50, 100), (50, 200), (50, 300), (50, 400), (50, 500), (50, 600), (50, 700), (50, 800), (50, 900)]
 experiments = [
-		{ 'key': fix_density, 'c': 0, 'pdf': 'fx_density_messages.pdf', },
-		{ 'key': fix_density, 'c': 1, 'pdf': 'fx_density_bytes.pdf', },
-		{ 'key': fix_density, 'c': 2, 'pdf': 'fx_density_time.pdf', },
-		{ 'key': fix_size, 'c': 0, 'pdf': 'fx_size_messages.pdf', },
-		{ 'key': fix_size, 'c': 1, 'pdf': 'fx_size_bytes.pdf', },
-		{ 'key': fix_size, 'c': 2, 'pdf': 'fx_size_time.pdf', },
+		{ 'key': fix_density, 'c': 0, 'pdf': 'fix_density_messages.pdf', },
+		{ 'key': fix_density, 'c': 1, 'pdf': 'fix_density_bytes.pdf', },
+		{ 'key': fix_density, 'c': 2, 'pdf': 'fix_density_time.pdf', },
+		{ 'key': fix_size, 'c': 0, 'pdf': 'fix_size_messages.pdf', },
+		{ 'key': fix_size, 'c': 1, 'pdf': 'fix_size_bytes.pdf', },
+		{ 'key': fix_size, 'c': 2, 'pdf': 'fix_size_time.pdf', },
 ]
 
 r = parse_all(DATA_PATH)
-#for exp in experiments:
-	#eval_experiment(r, exp)
+for exp in experiments:
+	eval_experiment(r, exp)
 
 fig = plt.figure()
 p = fig.add_subplot(111)
-#print(r[(50, 500)][4][0][0])
-#print(r[(50, 500)][4][0][1])
-
-#def diff(At, A, Bt, B):
-	#t = 0
-	#a = 0
-	#b = 0
-	#while a < len(At) or b < len(Bt):
-		#while a < len(At) and At[a] == t:
 			
 
-p.plot(r[(50, 500)][4][0][0], r[(50, 500)][4][0][1], 'k-', label='Total msgs') #, drawstyle='steps-post')
-p.plot(r[(50, 500)][5][0][0], r[(50, 500)][5][0][1], 'r-', label='Aggregate msgs') #, drawstyle='steps-post')
+#p.plot(r[(50, 500)][4][0][0], r[(50, 500)][4][0][1], 'k-', label='Total msgs') #, drawstyle='steps-post')
+#p.plot(r[(50, 500)][5][0][0], r[(50, 500)][5][0][1], 'r-', label='Aggregate msgs') #, drawstyle='steps-post')
 
-p.set_xlim((0, max(r[(50, 500)][4][0][0][-1],r[(50, 500)][5][0][0][-1])))
-p.set_ylim((0, r[(50, 500)][4][0][1][-1]));
-p.set_xlabel('t (ms)')
-p.set_ylabel('messages sent (\\#)')
-p.legend()
-fig.savefig('msgs.pdf', bbox_inches='tight', pad_inches=0)
+#p.set_xlim((0, max(r[(50, 500)][4][0][0][-1],r[(50, 500)][5][0][0][-1])))
+#p.set_ylim((0, r[(50, 500)][4][0][1][-1]));
+#p.set_xlabel('t (ms)')
+#p.set_ylabel('messages sent (\\#)')
+#p.legend()
+#fig.savefig('msgs.pdf', bbox_inches='tight', pad_inches=0)
 
-#p.set_xscale('log')
-#p.set_yscale('log')
-
-#for fn in fns:
-	#ts, msgs, bytes = parse(open('shawn_experiments/' + fn, 'r'));
-	#plot_packets(dict(x=ts, y=msgs), p, label=fn_to_label(fn))
-
-#ts, msgs, bytes = parse(open('size30_count500.log', 'r'));
-#plot_packets(dict(x=ts, y=msgs), p)
-
-#ts, msgs, bytes = parse(open('size30_count1000.log', 'r'));
-#plot_packets(dict(x=ts, y=msgs), p)
-
-#plot_packets(dict(x=ts, y=bytes), p)
 
