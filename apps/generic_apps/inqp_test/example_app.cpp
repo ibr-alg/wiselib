@@ -322,17 +322,50 @@ class ExampleApplication
 			
 			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
 			
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross_p>(1000, this, 0);
+			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross_p>(1000, this, 0);
+			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_p>(1000, this, 0);
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all_p>(1000, this, 0);
 		}
 		
 		
-		void query_temp(void*) {
+		void query_temp_gps1(void*) {
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
 			enum { ROOT = 0 };
 			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
 			block_data_t qid = 1;
 			
 			//monitor_.report("bef");
+			
+			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(01), BIN(0), BIN(0), BIN(0) };
+			
+			process(sizeof(op100), op100);
+			
+			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 100, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
+			process(sizeof(op70), op70);
+			
+			block_data_t cmd[]   = { Q, qid, 2 };
+			process(sizeof(cmd), cmd);
+			
+			//monitor_.report("er");
+			ian_.erase_query(qid);
+			
+			//monitor_.report("aft");
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_gps1>(1000, this, 0);
+		}
+		
+		void query_temp_p1() { query_temp_p(0); }
+		void query_temp_p(void*) {
+			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_temp_p1>(this));
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
+		}
+		void query_temp(void*) {
+			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+			enum { ROOT = 0 };
+			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+			block_data_t qid = 1;
+			
+			monitor_.report("bef");
 			
 			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
 			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(01), BIN(0), BIN(0), BIN(0) };
@@ -351,13 +384,18 @@ class ExampleApplication
 			block_data_t cmd[]   = { Q, qid, 4 };
 			process(sizeof(cmd), cmd);
 			
-			//monitor_.report("er");
+			monitor_.report("er");
 			ian_.erase_query(qid);
 			
-			//monitor_.report("aft");
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
+			monitor_.report("aft");
+			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
 		}
 		
+		void query_all_p1() { query_all_p(0); }
+		void query_all_p(void*) {
+			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_all_p1>(this));
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
+		}
 		void query_all(void*) {
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
 			enum { ROOT = 0 };
@@ -378,7 +416,7 @@ class ExampleApplication
 			
 			ian_.erase_query(qid);
 			
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
+			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
 		}
 		
 		void query_cross_p1() { query_cross_p(0); }

@@ -356,18 +356,19 @@ namespace wiselib {
 				debug_->debug("ho retry");
 				if(se.main_handover_phase() == SemanticEntityT::PHASE_PENDING) {
 					nap_control_.push_caffeine();
-					initiate_handover(se_, true);
+					initiate_handover(se_, true, true);
 				}
 			}
 			
-			bool initiate_handover(void *se_, bool main) {
+			bool initiate_handover(void *se_, bool main, bool retry = false) {
 				return initiate_handover(*reinterpret_cast<SemanticEntityT*>(se_), main);
 			}
 			
 			/**
 			 * @param se Semantic Entity to forward token for.
 			 * @param main True iff this is a 'main' handover, eg. because of
-			 * 	end_activity and not eg. tree change.
+			 * 	end_activity and not eg. tree change and thus needs to be
+			 * 	retried if failed.
 			 */
 			bool initiate_handover(SemanticEntityT& se, bool main) {
 				bool found;
