@@ -166,13 +166,13 @@ namespace wiselib
 			//Init Uart Radio
 			uart_radio.init( *uart_, *radio_, *debug_, &packet_pool_mgr, *timer_ );
 		
-			interface_manager.init( &dps_radio, &lowpan, *debug_, &uart_radio, &packet_pool_mgr );
+			interface_manager.init( &dps_radio, &lowpan, *debug_, &uart_radio, &packet_pool_mgr, *timer_ );
 			
 			lowpan.nd_storage_.set_debug( *debug_ );
 			
 			ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager, *clock_ );
 #elif defined DPS_IPv6_STUB
-			interface_manager.init( &dps_radio, *debug_, &packet_pool_mgr );
+			interface_manager.init( &dps_radio, *debug_, &packet_pool_mgr, *timer_ );
 			
 			ipv6.init( *radio_, *debug_, &packet_pool_mgr, *timer_, &interface_manager );
 #endif

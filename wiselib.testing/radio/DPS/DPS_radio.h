@@ -224,6 +224,7 @@ namespace wiselib
 		elapsed_time( 0 ),
 		buffer_length( 0 ),
 		transmission_retries( 0 ),
+		processed_fragments( 0 ),
 		outgoing( true )
 		{}
 		
@@ -258,6 +259,10 @@ namespace wiselib
 		/**
 		 */
 		uint16_t transmission_retries;
+		
+		/**
+		 */
+		uint8_t processed_fragments;
 		
 		/**
 		 */
@@ -893,8 +898,11 @@ namespace wiselib
 			//Fill in the fragmentation header
 			if( fragmentation )
 			{
-				//Full size of the RPC and the shift for this fragment
-				packet.set_fragmentation_header( act_buffer->buffer_length, act_buffer->processed_size );
+				if( packet.compressed_headers )
+					packet.set_fragmentation_header( act_buffer->buffer_length, act_buffer->processed_fragments );
+				else
+					//Full size of the RPC and the shift for this fragment
+					packet.set_fragmentation_header( act_buffer->buffer_length, act_buffer->processed_size );
 			}
 			
 			
@@ -916,10 +924,13 @@ namespace wiselib
 			
 			#if DPS_RADIO_DEBUG >= 2
 			if( fragmentation )
-				debug().debug( "DPS: send RPC frag (%i/%i) to %lx (%i/%i)", packet.fragmentation_header_length(), packet.fragmentation_header_shift(), (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
+				debug().debug( "DPS: send RPC frag (%i/%i/#%i) to %lx (%i/%i)", act_buffer->buffer_length, act_buffer->processed_size, act_buffer->processed_fragments, (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
 			else
 				debug().debug( "DPS: send RPC S:%i to %lx (%i/%i)", act_payload_size, (act_buffer->connection_it->partner_MAC), act_buffer->RPC_parameters.Pid, act_buffer->RPC_parameters.Fid);
 			#endif
+			
+			//Reset the buffer access timer
+			act_buffer->elapsed_time = 0;
 			
 			//Send the (fragment)
 			radio().send( act_buffer->connection_it->partner_MAC, packet.length, packet.buffer );
@@ -949,6 +960,7 @@ namespace wiselib
 			{
 				//Increase the processed size
 				act_buffer->processed_size += act_payload_size;
+				act_buffer->processed_fragments++;
 				//reset the DPS packet
 				packet.length = DPS_Packet_t::DPS_RPC_HEADER_SIZE + DPS_Packet_t::DPS_FRAGMENTATION_HEADER_SIZE;
 			}
@@ -974,15 +986,25 @@ namespace wiselib
 		if( from > 0x2500 )
 			return;
 		
-		//The initial 2 bits must be: 10  ////TODO !?!?
-// 		if( bitwise_read<OsModel, block_data_t, uint32_t>( data, 0, 2 ) != 2 )
-// 			return;
-		
 		DPS_Packet_t packet( length, data );
 		block_data_t* payload=packet.get_payload();
 		
 		//used many times
 		uint8_t type = packet.type();
+		
+		//This includes the connection messages where the header is not compressed
+		if( type <= DPS_Packet_t::DPS_TYPE_DISCONNECT_FINISH )
+		{
+			//The initial 2 bits must be: 10
+			if( bitwise_read<OsModel, block_data_t, uint32_t>( data, 0, 2 ) != 2 )
+				return;
+		}
+		else
+		{
+			//The initial 1 bit must be: 1
+			if( bitwise_read<OsModel, block_data_t, uint32_t>( data, 0, 1 ) != 1 )
+				return;
+		}
 		
 // // 		packet.set_debug( *debug_ );
 // 		packet.print_header();
@@ -1129,7 +1151,6 @@ namespace wiselib
 		bool packet_counter_acceptable_as_CLIENT_counter = false;
 		
 		uint32 packet_counter = packet.counter();
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 		if( packet.compressed_headers )
 		{
 			//Here we only have the last 8 bits from the counter, so we have to accept counter values "less" than
@@ -1141,13 +1162,10 @@ namespace wiselib
 			packet_counter_acceptable_as_CLIENT_counter = ( LSB_client_counter <= packet_counter ) || ( LSB_client_counter-packet_counter > 250 );
 		}
 		else
-#endif
 		{
 			packet_counter_acceptable_as_SERVER_counter = it->server_counter <= packet_counter;
 			packet_counter_acceptable_as_CLIENT_counter = it->client_counter <= packet_counter;
 		}
-		
-		
 		
 		//For connection messages we always use the client counter
 		if (type <= DPS_Packet_t::DPS_TYPE_DISCONNECT_FINISH )
@@ -1229,18 +1247,28 @@ namespace wiselib
 			{
 				if( (act_buffer->connection_it) == it && act_buffer->outgoing )
 				{
-					if( ((fragmented) && (act_buffer->processed_size == packet.fragmentation_header_shift())) ||
-						(!fragmented) )
-					{
+					if( !fragmented )
 						act_buffer->processed_size += act_buffer->last_fragment_size;
-						
-					}
 					else
 					{
-							#if DPS_RADIO_DEBUG >= 1
-							debug().debug( "DPS DuplAck %i", act_buffer->processed_size);
-							#endif
-							return;
+						if(( packet.compressed_headers && (act_buffer->processed_fragments == packet.fragmentation_header_shift() )) ||
+						   (!packet.compressed_headers && (act_buffer->processed_size == packet.fragmentation_header_shift() )) )
+						{
+// 							debug().debug( "DPS ACKed %i #%i", act_buffer->processed_size, act_buffer->processed_fragments);
+							act_buffer->processed_size += act_buffer->last_fragment_size;
+							act_buffer->processed_fragments++;
+							
+								
+						}
+						else
+						{
+								#if DPS_RADIO_DEBUG >= 1
+								debug().debug( "DPS DuplAck %i vs (%i/%i/#%i)", packet.fragmentation_header_shift(), act_buffer->buffer_length, act_buffer->processed_size, act_buffer->processed_fragments);
+// 								debug().debug("1Spacket %i: %x %x %x %x %x %x %x %x %x", length, data[0], data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8] );
+// 								debug().debug("2Spacket: %x %x %x %x %x %x %x %x %x", data[9], data[10],data[11],data[12],data[13],data[14],data[15],data[16],data[17] );
+								#endif
+								return;
+						}
 					}
 					
 					//Sending completed
@@ -1266,7 +1294,7 @@ namespace wiselib
 			}
 		}
 		else if( type == DPS_Packet_t::DPS_TYPE_RPC_REQUEST )
-		{
+		{	
 			//Payload = length - header [-footer]
 			uint16_t actual_payload_length = packet.length - packet.payload_position - DPS_Packet_t::DPS_FOOTER_SIZE;
 			
@@ -1275,7 +1303,9 @@ namespace wiselib
 			for( act_buffer = buffer_list_.begin(); act_buffer != buffer_list_.end(); ++act_buffer )
 			{
 				if( (act_buffer->connection_it) == it )
+				{
 					break;
+				}
 			}
 			
 			//There is no buffer for this RPC, create a new one
@@ -1325,12 +1355,21 @@ namespace wiselib
 			bool DF_drop = false; //reduce the number of if-s
 			if( fragmented )
 			{
-				if( act_buffer->processed_size == packet.fragmentation_header_shift() )
-					memcpy( act_buffer->buffer_pointer + packet.fragmentation_header_shift(), packet.buffer + packet.payload_position, actual_payload_length );
+				//For compressed headers, the shift is the #num of the fragment
+				if( packet.compressed_headers )
+				{
+					if( act_buffer->processed_fragments == packet.fragmentation_header_shift() )
+						memcpy( act_buffer->buffer_pointer + act_buffer->processed_size, packet.buffer + packet.payload_position, actual_payload_length );
+					else
+						DF_drop = true;
+				}
+				//For non-compressed headers, the shift is the real shift
 				else
 				{
-// 							debug().debug( "DPS: DF %lx ST: %i P: %i", from, act_buffer->processed_size, packet.fragmentation_header_shift());
-					DF_drop = true;
+					if( act_buffer->processed_size == packet.fragmentation_header_shift() )
+						memcpy( act_buffer->buffer_pointer + packet.fragmentation_header_shift(), packet.buffer + packet.payload_position, actual_payload_length );
+					else
+						DF_drop = true;
 				}
 			}
 			else
@@ -1341,18 +1380,34 @@ namespace wiselib
 			//Send back an ACK if it is requested by the sender, use the actual packet since the header has to be almost the same
 			if( packet.ack_flag() )
 			{
-				packet.set_type( DPS_Packet_t::DPS_TYPE_RPC_ACK );
-				packet.length = packet.payload_position;
+				
+				DPS_Packet_t ack_packet( DPS_Packet_t::DPS_TYPE_RPC_ACK, fragmented );
+				
+				if( packet.compressed_headers )
+				{
+					if( counter == &(it->server_counter) )
+						ack_packet.set_counter((it->server_counter & 0xFFFFFF00) | packet_counter );
+					else
+						ack_packet.set_counter((it->client_counter & 0xFFFFFF00) | packet_counter);
+				}
+				else
+					//If the counter is not compressed, just get it from the packet
+					ack_packet.set_counter(packet_counter);
+				
+				ack_packet.set_pid( packet.pid() );
+				
+				if( fragmented )
+					ack_packet.set_fragmentation_header( act_buffer->buffer_length, act_buffer->processed_size );
 #if DPS_FOOTER > 0
-				packet.set_checksum( it, false );
+				ack_packet.set_checksum( it, false );
 #endif
-				radio().send( it->partner_MAC, packet.length, packet.buffer );
+				radio().send( it->partner_MAC, ack_packet.length, ack_packet.buffer );
 			}
 			
 			if( DF_drop )
 			{
 				#if DPS_RADIO_DEBUG >= 1
-				debug().debug( "DPS: OffsetDrop %lx %i", from, act_buffer->processed_size);
+				debug().debug( "DPS: OffsetDrop %lx - %i vs (%i/%i/#%i)", from, packet.fragmentation_header_shift(), act_buffer->buffer_length, act_buffer->processed_size, act_buffer->processed_fragments);
 // 						debug().debug( "DPS duplicated fragment %i %i!", act_buffer->processed_size, packet.fragmentation_header_shift() );
 				#endif
 				return;
@@ -1361,26 +1416,31 @@ namespace wiselib
 			//NOTE this does not accept out of order arrival for fragments
 			//Update the size
 			act_buffer->processed_size += actual_payload_length;
+			act_buffer->processed_fragments++;
 			
-			//Notify the the RPC_handler if the full RPC is here
+			//Notify the RPC_handler if the full RPC is here
 			if( act_buffer->processed_size == act_buffer->buffer_length )
 			{
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
-			if( counter == &(it->server_counter) )
-				(*counter) = (it->server_counter & 0xFFFFFF00) | packet_counter;
-			else
-				(*counter) = (it->client_counter & 0xFFFFFF00) | packet_counter;
-#else
-			//If the counter is not compressed, just get it from the packet
-			(*counter) = packet_counter;
-#endif
-				
+				if( packet.compressed_headers )
+				{
+					if( counter == &(it->server_counter) )
+						(*counter) = (it->server_counter & 0xFFFFFF00) | packet_counter;
+					else
+						(*counter) = (it->client_counter & 0xFFFFFF00) | packet_counter;
+				}
+				else
+					//If the counter is not compressed, just get it from the packet
+					(*counter) = packet_counter;
+					
 				(protocol_list_[packet.pid()].rpc_handler_delegate)( act_buffer->RPC_parameters, act_buffer->buffer_length, act_buffer->buffer_pointer );
-				
-				//Do not eresa here, because the last ACK can get lost, the timeout will delete the buffer
-// 						buffer_list_.erase( act_buffer );
+					
+				if( packet.ack_flag() == 0 )
+				{
+					(protocol_list_[act_buffer->RPC_parameters.Pid].buffer_handler_delegate)( act_buffer->buffer_pointer, act_buffer->buffer_length, false );
+					buffer_list_.erase( act_buffer );
+				}
+				//NOTE Do not eresa here the ACKed packets, because the last ACK can get lost, the timeout will delete the buffer
 			}
-// 						debug().debug( "RMEM: %i",  mem->mem_free() );
 		}
 		//else if ...
 // 		{
@@ -1647,7 +1707,7 @@ namespace wiselib
 						it->connection_it->client_counter++;
 				//--> DEBUG
 #if DPS_RADIO_DEBUG >= 1
-					debug().debug( "DPS: Timeout rm buffer");
+					debug().debug( "DPS: Timeout rm buffer (%i/%i)", it->processed_size, it->buffer_length);
 #endif
 					
 				//--> Stat
@@ -1670,7 +1730,7 @@ namespace wiselib
 			else if( it->outgoing && ( it->elapsed_time > DPS_ACK_TIMEOUT ) )
 			{
 #if DPS_RADIO_DEBUG >= 1
-				debug().debug( "DPS: re-send fragment (%i/%i)", it->buffer_length, it->processed_size );
+				debug().debug( "DPS: re-send fragment (%i/%i/#%i)", it->buffer_length, it->processed_size, it->processed_fragments );
 #endif
 				it->transmission_retries++;
 				

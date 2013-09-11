@@ -49,8 +49,15 @@
   DPS
      0   1   2   3   4   5   6   7  
    + - + - + - + - + - + - + - + - + 
-   | 1   0 |ACK| F |    TYPE       |
+   | 1 |COM|ACK| F |    TYPE       |
    + - + - + - + - + - + - + - + - +
+   
+	COM:	0: Header compression
+		1: No header compression
+	ACK:	0: No ack
+		1: Ack
+	F	0: No fragmentation
+		1: Fragmentation
    
   Fragmentation Header
     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
@@ -73,7 +80,7 @@
    Compressed fragmentation header
     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |      Length   |     Offset    |
+   |      Length (11)    | Packet# |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    
    
@@ -108,9 +115,8 @@ namespace wiselib
 		///Buffer for the packet
 		block_data_t buffer[Radio::MAX_MESSAGE_LENGTH];
 		
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+		///Stores the COM value
 		bool compressed_headers;
-#endif
 		
 		///Constructor
 		DPS_Packet( uint8_t packet_type, bool fragmentation_needed = false )
@@ -118,34 +124,42 @@ namespace wiselib
 			
 			memset(buffer, 0, Radio::MAX_MESSAGE_LENGTH);
 			
-			//Initial 10 (== 2)
-			uint32_t version = 2;
-			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, version, 0, 2 );
+			//Initial 1 (== 1)
+			uint32_t version = 1;
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, version, 0, 1 );
 			
 			//Save the type into the header
 			set_type( packet_type );
 			
 			//F_id is needed for the RPC packets (1 byte) --> BASIC size +1
-			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE || packet_type == DPS_TYPE_RPC_ACK )
+			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE /* || packet_type == DPS_TYPE_RPC_ACK */ )
 			{
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
+#ifdef DPS_USE_RPC_HEADER_COMPRESSION
+				payload_position = DPS_RPC_HEADER_SIZE_COMPRESSED;
 				compressed_headers = true;
-#endif
+				set_compression_flag(1);
+#else
 				payload_position = DPS_RPC_HEADER_SIZE;
+				compressed_headers = false;
+				set_compression_flag(0);
+#endif
 			}
 			else
 			{
 				payload_position = DPS_BASIC_HEADER_SIZE;
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 				compressed_headers = false;
-#endif
+				set_compression_flag(0);
 			}
 			
 			//Save the place for the fragmentation header (4 bytes)
 			if( fragmentation_needed )
 			{
 				set_fragmentation_flag( 1 );
-				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
+				
+				if( compressed_headers )
+					payload_position += DPS_FRAGMENTATION_HEADER_SIZE_COM;
+				else
+					payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
 			}
 			
 			length = payload_position;
@@ -157,23 +171,34 @@ namespace wiselib
 			memcpy( buffer, in_buffer, in_length );
 			
 			uint8_t packet_type = type();
-			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE || packet_type == DPS_TYPE_RPC_ACK )
+			
+			if( packet_type == DPS_TYPE_RPC_REQUEST || packet_type == DPS_TYPE_RPC_RESPONSE /* || packet_type == DPS_TYPE_RPC_ACK */)
 			{
-				payload_position = DPS_RPC_HEADER_SIZE;
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
-				compressed_headers = true;
-#endif
+				
+				if( compression_flag() == 1 ) 
+				{
+					payload_position = DPS_RPC_HEADER_SIZE_COMPRESSED;
+					compressed_headers = true;
+				}
+				else 
+				{
+					payload_position = DPS_RPC_HEADER_SIZE;
+					compressed_headers = false;
+				}
 			}
 			else
 			{
 				payload_position = DPS_BASIC_HEADER_SIZE;
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 				compressed_headers = false;
-#endif
 			}
 			
 			if( fragmentation_flag() == 1 )
-				payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
+			{
+				if( compressed_headers )
+					payload_position += DPS_FRAGMENTATION_HEADER_SIZE_COM;
+				else
+					payload_position += DPS_FRAGMENTATION_HEADER_SIZE;
+			}
 			
 			length = in_length;
 		}
@@ -200,13 +225,10 @@ namespace wiselib
 		enum DPS_Header_Sizes
 		{
 			DPS_BASIC_HEADER_SIZE = 6,
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
-			DPS_RPC_HEADER_SIZE = 3,
-			DPS_FRAGMENTATION_HEADER_SIZE = 2,
-#else
+			DPS_RPC_HEADER_SIZE_COMPRESSED = 3,
+			DPS_FRAGMENTATION_HEADER_SIZE_COM = 2,
 			DPS_RPC_HEADER_SIZE = 7,
 			DPS_FRAGMENTATION_HEADER_SIZE = 4,
-#endif
 #if DPS_FOOTER > 0
 			DPS_FOOTER_SIZE = 4
 #else
@@ -222,6 +244,13 @@ namespace wiselib
 		
 		///@name Setters
 		///@{
+		
+		void set_compression_flag( uint32_t value )
+		{
+			//byte: 0, bit: 1, length: 1
+			bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 0, value, 1, 1 );
+		}
+		
 		void set_ack_flag( uint32_t value )
 		{
 			//byte: 0, bit: 2, length: 1
@@ -242,24 +271,20 @@ namespace wiselib
 		
 		void set_counter( uint32_t value )
 		{
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 				//byte: 1, bit: 0, length: 8 --> LSB part
 				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 1, value, 0, 8 );
 			else
-#endif
 				//byte: 1, bit: 0, length: 32
 				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 1, value, 0, 32 );
 		}
 		
 		void set_pid( uint32_t value )
 		{
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 				//byte: 2, bit: 0, length: 4
 				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 2, value, 0, 4 );
 			else
-#endif
 				//byte: 5, bit: 0, length: 8
 				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 5, value, 0, 8 );
 		}
@@ -267,34 +292,31 @@ namespace wiselib
 		void set_fid( uint32_t value )
 		{
 			//NOTE must be called only for RPC_* type packets
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 				//byte: 2, bit: 4, length: 4
 				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 2, value, 4, 4 );
 			else
-#endif
 				//byte: 6, bit: 0, length: 8
 				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 6, value, 0, 8 );
 		}
 		
-		void set_fragmentation_header( uint32_t length, uint32_t shift )
+		//NOTE 
+		void set_fragmentation_header( uint32_t length, uint32_t shift_or_number )
 		{
 			//NOTE must be called for packets with reserved fragmentation header positions
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 			{
 				//byte: 3, bit: 0, length: 8
-				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 3, length, 0, 8 );
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE_COM), length, 0, 11 );
 				//byte: 4, bit: 0, length: 8
-				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 4, shift, 0, 8 );
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE_COM + 1), shift_or_number, 3, 5 );
 			}
 			else
-#endif
 			{
 				//byte: 7, bit: 0, length: 16
-				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 7, length, 0, 16 );
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE), length, 0, 16 );
 				//byte: 9, bit: 0, length: 16
-				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + 9, shift, 0, 16 );
+				bitwise_write<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE + 2), shift_or_number, 0, 16 );
 			}
 		}
 		
@@ -312,6 +334,12 @@ namespace wiselib
 		
 		///@name Getters
 		///@{
+		inline uint8_t compression_flag()
+		{
+			//byte: 0, bit: 2, length: 1
+			return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 0, 1, 1 );
+		}
+		
 		inline uint8_t ack_flag()
 		{
 			//byte: 0, bit: 2, length: 1
@@ -332,24 +360,20 @@ namespace wiselib
 		
 		inline uint32_t counter()
 		{
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 				//byte: 1, bit: 0, length: 8 --> LSB
 				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 1, 0, 8 );
 			else
-#endif
 				//byte: 1, bit: 0, length: 32
 				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 1, 0, 32 );
 		}
 		
 		inline uint8_t pid()
 		{
-			#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 				//byte: 2, bit: 0, length: 4
 				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 2, 0, 4 );
 			else
-#endif
 				//byte: 5, bit: 0, length: 8
 				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 5, 0, 8 );
 		}
@@ -357,12 +381,10 @@ namespace wiselib
 		inline uint8_t fid()
 		{
 			//NOTE must be called only for RPC_* type packets
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
 				//byte: 2, bit: 4, length: 4
 				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 2, 4, 4 );
 			else
-#endif
 				//byte: 6, bit: 0, length: 8
 				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 6, 0, 8 );
 		}
@@ -370,26 +392,22 @@ namespace wiselib
 		inline uint16_t fragmentation_header_length()
 		{
 			//NOTE must be called for packets with reserved fragmentation header positions
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
-				//byte: 3, bit: 0, length: 8
-				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 3, 0, 8 );
+				//byte: 3, bit: 0, length: 11
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE_COM), 0, 11 );
 			else
-#endif
 				//byte: 7, bit: 0, length: 16
-				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 7, 0, 16 );
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE), 0, 16 );
 		}
 		
 		inline uint16_t fragmentation_header_shift()
 		{
-#ifdef DPS_ENABLE_RPC_HEADER_COMPRESSION
 			if( compressed_headers )
-				//byte: 4, bit: 0, length: 8
-				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 4, 0, 8 );
+				//byte: 4, bit: 3, length: 5
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE_COM + 1), 3, 5 );
 			else
-#endif
 				//byte: 9, bit: 0, length: 16
-				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + 9, 0, 16 );
+				return bitwise_read<OsModel, block_data_t, uint32_t>( buffer + (payload_position - DPS_FRAGMENTATION_HEADER_SIZE + 2), 0, 16 );
 		}
 		
 		inline block_data_t* get_payload()

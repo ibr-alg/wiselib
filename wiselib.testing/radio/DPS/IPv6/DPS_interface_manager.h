@@ -135,7 +135,9 @@ namespace wiselib
 		
 		enum DPS_Fid
 		{
-			IPv6_receive = 0,
+			//the INPUT and the OUTPUT are separated for iSense interoperability
+			IPv6_OUTPUT = 3,
+			IPv6_INPUT = 4,
 			Get_IPv6_Address = 1,
 			Set_IPv6_Address = 2,
 			NEW_CONNECTION = Radio_DPS::NEW_CONNECTION,
@@ -155,12 +157,13 @@ namespace wiselib
 		/** \brief Initialize the manager, get instances, setup link-local addresses
 		*/
 #ifdef DPS_IPv6_SKELETON
-		void init( Radio_DPS* radio_dps, Radio_LoWPAN* radio_lowpan, Debug& debug, Radio_Uart* radio_uart, Packet_Pool_Mgr_t* packet_pool_mgr )
+		void init( Radio_DPS* radio_dps, Radio_LoWPAN* radio_lowpan, Debug& debug, Radio_Uart* radio_uart, Packet_Pool_Mgr_t* packet_pool_mgr, Timer& timer )
 #elif defined DPS_IPv6_STUB
-		void init( Radio_DPS* radio_dps, Debug& debug, Packet_Pool_Mgr_t* packet_pool_mgr )
+		void init( Radio_DPS* radio_dps, Debug& debug, Packet_Pool_Mgr_t* packet_pool_mgr, Timer& timer )
 #endif
 		{
 			debug_ = &debug;
+			timer_ = &timer;
 			packet_pool_mgr_ = packet_pool_mgr;
 			radio_dps_ = radio_dps;
 			
@@ -317,8 +320,12 @@ namespace wiselib
 			{
 				DPS_node_id_t ID;
 				ID.Pid = IPv6_PID;
-				ID.Fid = IPv6_receive;
-				ID.ack_required = 1;
+				ID.Fid = IPv6_INPUT;
+				#ifdef DPS_ENABLE_IPv6_ACKS
+					ID.ack_required = 1;
+				#else
+					ID.ack_required = 0;
+				#endif
 				ID.target_address = receiver.get_iid();
 				
 				return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
@@ -329,8 +336,12 @@ namespace wiselib
 			
 			DPS_node_id_t ID;
 			ID.Pid = IPv6_PID;
-			ID.Fid = IPv6_receive;
-			ID.ack_required = 1;
+			ID.Fid = IPv6_OUTPUT;
+			#ifdef DPS_ENABLE_IPv6_ACKS
+				ID.ack_required = 1;
+			#else
+				ID.ack_required = 0;
+			#endif
 			ID.target_address = Radio::NULL_NODE_ID;
 			
 			return radio_dps().send( ID, ip_packet->get_content_size(), ip_packet->get_content() );
@@ -386,6 +397,23 @@ namespace wiselib
 		*/
 		block_data_t* manage_buffer( block_data_t* buffer, uint16_t length, bool get_buffer );
 		
+		
+		void get_ip(void*){
+			DPS_node_id_t ID;
+			
+			ID.Fid = Get_IPv6_Address;
+			ID.ack_required = 1;
+			ID.Pid = IPv6_PID;
+			ID.target_address = Radio::NULL_NODE_ID;
+			
+			node_id_t tmp_addr = radio_dps().id();
+			
+			memcpy(local_minibuffer, (uint8_t*)(&tmp_addr), sizeof(node_id_t));
+			
+			debug_->debug("DPS: Send GET IP");
+			
+			radio_dps().send(ID, sizeof(node_id_t), local_minibuffer );
+		}
 		/**
 		 * 
 		 */
@@ -394,6 +422,7 @@ namespace wiselib
 		typename Radio_IPv6::self_pointer_t radio_ipv6_;
 		typename Radio_DPS::self_pointer_t radio_dps_;
 		typename Debug::self_pointer_t debug_;
+		typename Timer::self_pointer_t timer_;
 		Packet_Pool_Mgr_t* packet_pool_mgr_;
 		
 #ifdef DPS_IPv6_SKELETON
@@ -411,6 +440,9 @@ namespace wiselib
 		
 		Debug& debug()
 		{ return *debug_; }
+		
+		Timer& timer()
+		{ return *timer_; }
 		
 #ifdef DPS_IPv6_SKELETON
 		///Storage for the callback IDs
@@ -454,16 +486,8 @@ namespace wiselib
 		if( IDs.Fid == NEW_CONNECTION )
 		{
 #ifdef DPS_IPv6_STUB
-			IDs.Fid = Get_IPv6_Address;
-			IDs.ack_required = 1;
-			
-			node_id_t tmp_addr = radio_dps().id();
-			
-			memcpy(local_minibuffer, (uint8_t*)(&tmp_addr), sizeof(node_id_t));
-			
-			debug_->debug("DPS: Send GET IP");
-			
-			radio_dps().send(IDs, sizeof(node_id_t), local_minibuffer );
+			//Send the GET_IP delayed
+			timer().template set_timer<self_type, &self_type::get_ip>( 1000, this, NULL );
 #endif
 // #ifdef  DPS_IPv6_SKELETON
 // 			//Copy to the local minibuffer
@@ -498,7 +522,7 @@ namespace wiselib
 			radio_ipv6_->routing_.print_forwarding_table();
 #endif
 		}
-		else if( IDs.Fid == IPv6_receive )
+		else if( IDs.Fid == IPv6_INPUT || IDs.Fid == IPv6_OUTPUT )
 		{
 			int i = 0;
 			for( ; i < IP_PACKET_POOL_SIZE; i++ )
@@ -547,6 +571,9 @@ namespace wiselib
 #ifdef DPS_IPv6_STUB
 		else if( IDs.Fid == Set_IPv6_Address )
 		{
+			debug_->debug("DPS: SET IP prefix len: %x", buffer[16]);
+			if( buffer[16] == 0 )
+				buffer[16] = 64;
 			set_prefix_for_interface( buffer, INTERFACE_RADIO, buffer[16] );
 		}
 #endif
