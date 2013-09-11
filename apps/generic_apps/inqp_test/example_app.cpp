@@ -1,3 +1,21 @@
+
+
+
+/// ----- Config
+
+
+#if defined(SHAWN)
+	#define WISELIB_MAX_NEIGHBORS 100
+#else
+	#define WISELIB_MAX_NEIGHBORS 4
+#endif
+#define INQP_TEST_USE_BLOCK 0
+
+
+/// ------ /Config
+
+
+
 #if ISENSE
 	extern "C" void assert(int) { }
 #endif
@@ -20,7 +38,8 @@
 	#define DBG(X, ...)
 #endif
 	
-#if !defined(ISENSE) && !defined(PC) && !defined(ARDUINO)
+// Is there any Os for which we really want this at all?
+#if !defined(ISENSE) && !defined(PC) && !defined(ARDUINO) && !defined(SHAWN)
 	void assert(int) { }
 #endif
 	
@@ -63,8 +82,6 @@ typedef wiselib::PackingRadio<Os, TRadio> PAnsRadio;
 
 typedef Tuple<Os> TupleT;
 
-
-#define INQP_TEST_USE_BLOCK 0
 
 // RAM
 #if !INQP_TEST_USE_BLOCK
@@ -117,6 +134,8 @@ typedef INQPCommunicator<Os, Processor> Communicator;
 #endif
 
 #define SINK 1
+
+
 
 template<typename OsModel_P>
 class NullMonitor {
@@ -191,8 +210,10 @@ class ExampleApplication
 			
 			//monitor_.report();
 			
+		#if defined(ISENSE)
 			be_standalone();
-			/*
+			
+		#elif defined(SHAWN)
 			if(radio_->id() == SINK) {
 				debug_->debug("sink\n");
 				//be_sink();
@@ -203,7 +224,7 @@ class ExampleApplication
 			else {
 				be();
 			}
-			*/
+		#endif
 		}
 		
 		Dictionary dictionary;
@@ -271,8 +292,9 @@ class ExampleApplication
 		}
 		
 		void insert_tuples() {
-			for(int i = 0; tuples[i][0]; i++) {
-				monitor_.report("ins");
+			int i = 0;
+			for( ; tuples[i][0]; i++) {
+				//monitor_.report("ins");
 				
 				//for(int j = 0; j < 3; j++) {
 					//debug_->debug("%-60s %08lx", tuples[i][j], (unsigned long)Hash::hash((block_data_t*)tuples[i][j], strlen(tuples[i][j])));
@@ -280,7 +302,7 @@ class ExampleApplication
 				
 				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
 			}
-			debug_->debug("ins don");
+			debug_->debug("ins done: %d", (int)i);
 			
 		}
 		

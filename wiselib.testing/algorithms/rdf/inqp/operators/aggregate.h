@@ -72,7 +72,7 @@ namespace wiselib {
 			typedef typename ProjectionInfoBase::TypeInfo TypeInfo;
 			
 			enum { npos = (size_type)(-1) };
-			enum { MAX_CHILDS = 4 };
+			enum { MAX_CHILDS = WISELIB_MAX_NEIGHBORS };
 			typedef MapStaticVector<OsModel, node_id_t, TableT, MAX_CHILDS> ChildStates;
 			
 			enum { WAIT_AFTER_LOCAL = 1000, CHECK_INTERVAL = 1000 };
