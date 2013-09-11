@@ -4,6 +4,7 @@ import random
 import math
 import subprocess
 
+DATA_PATH='/home/henning/annexe/experiments/2013-09-inqp-shawn/'
 BINARY='../example_app'
 
 def main():
