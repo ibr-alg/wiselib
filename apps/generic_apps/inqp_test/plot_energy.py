@@ -107,8 +107,10 @@ def sum_peaks(ts, vs, t0, tmax, v_thres, v_base):
 		
 		if v < v_thres:
 			if tstart is not None:
-				rt.append(tstart)
-				r.append(s)
+				print("tdelta: {}".format(t-tstart))
+				if t - tstart > 100:
+					rt.append(tstart)
+					r.append(s)
 				tstart = None
 		else:
 			if tstart is None:
@@ -172,12 +174,13 @@ tall, _, pall, _, _, _ = parse_energy(open('./inqp_isense_standalone_all.log', '
 _, vall = sum_peaks(tall, pall, 3000, 49000, 180, 130)
 
 tcross, _, pcross, _, _, _ = parse_energy(open('./inqp_isense_standalone_cross.log', 'r'))
-_, vcross = sum_peaks(tcross, pcross, 3000, 49000, 180, 130)
+_, vcross = sum_peaks(tcross, pcross, 3000, 6000, 180, 130)
 
 #penergy.set_xlim((40000, 55000))
 #penergy.set_xlim((0, 30000))
-plot_energy(dict(x=tcross, y=pcross, args=('k-',)), penergy)
-#boxplots([vtemp2, vall], ['Temperature', 'All'], penergy)
+#plot_energy(dict(x=tcross, y=pcross, args=('k-',)), penergy)
+boxplots([vtemp2, vall, vcross], ['Temperature', 'All', 'Cross-Join'], penergy)
+#print (vtemp2)
 
 fig.savefig('p.pdf')
 
