@@ -47,6 +47,7 @@ def parse_all(dir):
 		
 		print(fn)
 		
+		nodes_seen = set()
 		size = int(m.groups()[0])
 		count = int(m.groups()[1])
 		seed = int(m.groups()[2])
@@ -59,6 +60,7 @@ def parse_all(dir):
 			m = re.match(r'SEND from (\d+) to (\d+) len (\d+) time (\d+)', line)
 			if m is not None:
 				from_ = int(m.groups()[0])
+				nodes_seen.add(from_)
 				to = int(m.groups()[1])
 				len_ = int(m.groups()[2])
 				t = int(m.groups()[3])
@@ -68,11 +70,18 @@ def parse_all(dir):
 		
 		if (size, count) not in r:
 			print(size, count)
-			r[(size, count)] = ([], [], [])
+			# msgs, bytes, time, connected nodes
+			r[(size, count)] = ([], [], [], [])
+				
+		if len(nodes_seen) < count:
+			print("NOT CONNECTED! count={} seen={} seed={} sz={}".format(count, len(nodes_seen),
+				seed, size))
 			
+		#else:
 		r[(size, count)][0].append(msgs)
 		r[(size, count)][1].append(bytes)
 		r[(size, count)][2].append(time)
+		r[(size, count)][3].append(len(nodes_seen))
 		
 	return r
 
@@ -84,6 +93,18 @@ def boxes(r, keys, c, p, lblfmt):
 	p.set_xticks(range(1, 1 + len(l)))
 	p.set_xticklabels([lblfmt.format(k[0], k[1]) for k in keys])
 	return p.boxplot(l)
+
+def scatter(r, keys, c, p):
+	x = []
+	y = []
+	for k in keys:
+		x.extend(r[k][3])
+		y.extend(r[k][c])
+		
+	#print(x, y)
+	p.set_xlim((0, 900))
+	p.scatter(x, y, marker='x', color='k')
+
 
 def fn_to_label(fn):
 	m = re.match('size(\d+)_count(\d+)_rseed(\d+).log', fn)
@@ -98,7 +119,8 @@ def eval_experiment(r, exp):
 	print('->', exp['pdf'])
 	fig = plt.figure()
 	p = fig.add_subplot(111)
-	bp = boxes(r, exp['key'], exp['c'], p, '{1:d}')
+	#bp = boxes(r, exp['key'], exp['c'], p, '{1:d}')
+	bp = scatter(r, exp['key'], exp['c'], p)
 	#plt.setp(color='k')
 	try:
 		plt.setp(bp['boxes'], color='black')
