@@ -149,6 +149,8 @@ def plot_energy(d, p, **kws):
 
 def boxplots(vs, labels, p):
 	bp = p.boxplot(vs)
+	#print([v[0] for v in vs])
+	print(vs)
 	p.set_xticks(range(1, len(labels) + 1))
 	p.set_xticklabels(labels)
 	return bp
