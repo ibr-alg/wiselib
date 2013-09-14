@@ -213,6 +213,20 @@ def plot_onoff(ts, ys, p, **kws):
 	p.broken_barh(l, (0, 1), **kws) #facecolors='green')
 
 
+def timed_mean(ts, vs):
+	s = 0
+	prevt = ts[0]
+	prevv = 0
+	for t, v in zip(ts, vs):
+		if tdelta is not None and t > tdelta:
+			s += (tdelta - prevt) * prevv
+			break
+		#print("{}: {} * {}".format(t, (t - prevt), prevv))
+		s += (t - prevt) * prevv
+		prevt = t
+		prevv = v
+	return s / (min(ts[-1], tdelta) - ts[0])
+
 def plot_events(d, pon, pact, pwin, pev):
 	#penergy = fig.add_subplot(313)
 	
@@ -245,6 +259,10 @@ def plot_events(d, pon, pact, pwin, pev):
 	if pwin:
 		pwin.plot(d['interval']['t'], d['interval']['v'], 'k-', drawstyle='steps-post')
 		pwin.plot(d['window']['t'], d['window']['v'], 'b-', drawstyle='steps-post')
+		
+		print("===> MEAN WIN: ",
+			timed_mean(d['window']['t'], d['window']['v']))
+				
 		
 		#print("===> INTERVAL: ", mean(d['interval']
 	
@@ -297,7 +315,7 @@ pev.set_xticks([])
 pon = div.append_axes("bottom", size="30%", pad = 0.05)
 penergy = div.append_axes("bottom", size="150%", pad = 0.05)
 penergy.set_ylim((0, 300))
-penergy.set_ylabel('Energy consumption ($\\mu$W) Node 0')
+penergy.set_ylabel('Power (mW) Node 0')
 
 padd = []
 for i, fn in enumerate(sys.argv[3:]):
