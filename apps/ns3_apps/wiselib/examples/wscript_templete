@@ -1,0 +1,28 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+
+WISELIB_PATH = ''
+NS3_PATH = ''
+
+
+I = '-I'
+L = '-L'
+WISELIB_STABLE_PATH = WISELIB_PATH + 'wiselib.stable/' 
+WISELIB_TESTING_PATH = WISELIB_PATH + 'wiselib.testing/' 
+NS3_WISELIB_PATH = NS3_PATH + 'src/wiselib/model/'
+WISELIB_STABLE_INCLUDE_DIR = I + WISELIB_STABLE_PATH
+WISELIB_STABLE_LINK_DIR = L + WISELIB_STABLE_PATH
+WISELIB_TESTING_INCLUDE_DIR = I + WISELIB_TESTING_PATH
+WISELIB_TESTING_LINK_DIR = L + WISELIB_TESTING_PATH
+NS3_INCLUDE_DIR = I + NS3_WISELIB_PATH
+NS3_LINK_DIR = L + NS3_WISELIB_PATH
+
+def build(bld):
+    obj = bld.create_ns3_program('wiselib-ns3-example', ['wiselib'])
+    obj.source = 'wiselib-ns3-example.cc'
+    obj.env.append_value("CXXFLAGS", WISELIB_STABLE_INCLUDE_DIR )
+    obj.env.append_value("LINKFLAGS", WISELIB_STABLE_LINK_DIR )
+    obj.env.append_value("CXXFLAGS", WISELIB_TESTING_INCLUDE_DIR )
+    obj.env.append_value("LINKFLAGS", WISELIB_TESTING_LINK_DIR )
+    obj.env.append_value("CXXFLAGS", NS3_INCLUDE_DIR )
+    obj.env.append_value("LINKFLAGS", NS3_LINK_DIR )
