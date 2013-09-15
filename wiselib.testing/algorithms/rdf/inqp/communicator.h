@@ -116,9 +116,13 @@ namespace wiselib {
 				ian_->template reg_row_callback<self_type, &self_type::on_send_row>(this);
 				ian_->template reg_resolve_callback<self_type, &self_type::on_send_resolve>(this);
 				
+            // TODO: Receive messages from parent that
+            // are for a SE we know reliably
 				query_radio_->enable_radio();
 				query_radio_->template reg_recv_callback<self_type, &self_type::on_receive_query>(this);
 				
+            // TODO: Wait for parent to wake up if necessary, do a reliable
+            // transport upwards
 				result_radio_->enable_radio();
 				result_radio_->template reg_recv_callback<self_type, &self_type::on_receive_intermediate_result>(this);
 			}
@@ -282,3 +286,4 @@ namespace wiselib {
 
 #endif // COMMUNICATOR_H
 
+/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/
