@@ -25,10 +25,9 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup nhood_concept
-	 * @ingroup better_nhood_concept
+	 * @brief This is not actually a neighborhood but maintains and provides
+	 * routing information for INSEs by the use of AMQs on top of any
+	 * tree-shaped neighborhood.
 	 * 
 	 * @tparam 
 	 */
@@ -127,6 +126,9 @@ namespace wiselib {
 				return npos;
 			}
 			
+			/**
+			 * @return true iff this node  is the root of the ND tree.
+			 */
 			bool am_root() {
 				return radio_->id() == global_tree_->root();
 			}
@@ -207,6 +209,8 @@ namespace wiselib {
 				global_tree_->set_user_data(a);
 				check();
 			}
+			
+			GlobalTreeT& tree() { return *global_tree_; }
 			
 			void check() {
 				#if !WISELIB_DISABLE_DEBUG

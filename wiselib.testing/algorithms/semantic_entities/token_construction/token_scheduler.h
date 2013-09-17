@@ -87,8 +87,8 @@ namespace wiselib {
 			typedef TupleStore_P TupleStore;
 			
 			enum Restrictions {
-				MAX_NEIGHBORS = 8,
-				MAX_SEMANTIC_ENTITIES = 4,
+				MAX_NEIGHBORS = INSE_MAX_NEIGHBORS,
+				MAX_SEMANTIC_ENTITIES = INSE_MAX_SEMANTIC_ENTITIES,
 				BLOOM_FILTER_BITS = 64,
 				MAX_AGGREGATOR_ENTRIES = 4,
 				MAX_SHDT_TABLE_SIZE = 8,
@@ -313,7 +313,9 @@ namespace wiselib {
 					if(!se.in_activity_phase()) {
 						// will be popped by initiate_handover
 						nap_control_.push_caffeine();
+					#if INSE_DEBUG_STATE
 						debug_->debug("ho tree");
+					#endif
 						initiate_handover(se, false); // tree has changed, (re-)send token info
 					}
 				} // for
@@ -353,7 +355,9 @@ namespace wiselib {
 			void try_initiate_main_handover(void *se_) {
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
+			#if INSE_DEBUG_STATE
 				debug_->debug("ho retry");
+			#endif
 				if(se.main_handover_phase() == SemanticEntityT::PHASE_PENDING) {
 					nap_control_.push_caffeine();
 					initiate_handover(se_, true, true);
@@ -380,7 +384,9 @@ namespace wiselib {
 						(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id())) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
+				#if INSE_DEBUG_STATE
 					debug_->debug("ho via %d", (int)ep.remote_address());
+				#endif
 					
 					if(main) {
 						se.set_main_handover_phase(SemanticEntityT::PHASE_EXECUTING);
@@ -392,10 +398,12 @@ namespace wiselib {
 				else {
 					transport_.flush();
 					nap_control_.pop_caffeine();
+				#if INSE_DEBUG_STATE
 					debug_->debug("/ho via %d m%d f%d is%d ch%d cond%d", (int)(ep.remote_address()), (int)main,
 							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_endpoint().channel() != se.id()),
 							(int)(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id()))
 							);
+				#endif
 					
 					if(main && !se.initiating_main_handover()) {
 						se.set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
@@ -437,7 +445,9 @@ namespace wiselib {
 						message.set_payload_size(msg.size());
 						transport_.expect_answer(endpoint);
 						
+					#if INSE_DEBUG_STATE
 						debug_->debug("c=%d s%d", (int)msg.token_state().count(), (int)endpoint.sequence_number());
+					#endif
 						return true;
 					}
 						
@@ -546,7 +556,9 @@ namespace wiselib {
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now());
 				#endif
 				
-				debug_->debug("chi: %c", (char)*message.payload());
+				#if INSE_DEBUG_STATE
+					debug_->debug("chi: %c", (char)*message.payload());
+				#endif
 				switch(*message.payload()) {
 					case 'a': {
 						//se->set_recovering(false);
@@ -647,7 +659,9 @@ namespace wiselib {
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection", (int)radio_->id());
 						#endif
-						debug_->debug("open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#if INSE_DEBUG_STATE
+							debug_->debug("open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#endif
 						nap_control_.push_caffeine();
 						break;
 						
@@ -664,13 +678,17 @@ namespace wiselib {
 							debug_->debug("node %d // pop handover_connection", (int)radio_->id());
 						#endif
 							
-						debug_->debug("/open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#if INSE_DEBUG_STATE
+							debug_->debug("/open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#endif
 						nap_control_.pop_caffeine();
 						
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // pop handover", (int)radio_->id());
 						#endif
-						debug_->debug("/ho");
+						#if INSE_DEBUG_STATE
+							debug_->debug("/ho");
+						#endif
 						nap_control_.pop_caffeine();
 						break;
 				}
@@ -735,7 +753,7 @@ namespace wiselib {
 			
 			void consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
 				if(message.payload_size() == 0) {
-					debug_->debug("pl0");
+					//debug_->debug("pl0");
 					//return;
 				}
 				
@@ -760,13 +778,10 @@ namespace wiselib {
 							(int)se->handover_state_recepient(), (int)now());
 				#endif
 						
-				//debug_->debug("chr");
 				switch(se->handover_state_recepient()) {
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL: {
-						//debug_->debug("chr l");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
-						//bool activating =
 						process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
 						SemanticEntityT s2 = *se;
 						
@@ -785,7 +800,6 @@ namespace wiselib {
 				#endif
 						
 					case SemanticEntityT::INIT: {
-						//debug_->debug("chr i");
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						SemanticEntityT s2 = *se;
 						
@@ -800,25 +814,20 @@ namespace wiselib {
 						
 						if(!activating) {
 							se->set_handover_state_recepient(SemanticEntityT::SEND_NONACTIVATING);
-							//debug_->debug("chr i n");
 							endpoint.request_send();
 						}
 						else if(INSE_USE_AGGREGATOR && !lock) {
 							se->set_handover_state_recepient(SemanticEntityT::AGGREGATES_LOCKED_LOCAL);
-							//debug_->debug("chr i l");
 							endpoint.request_send();
 						}
 						else {
 							se->set_handover_state_recepient(SemanticEntityT::SEND_ACTIVATING);
-							//debug_->debug("chr i a");
 							endpoint.request_send();
 						}
 						break;
 					}
 					
 					case SemanticEntityT::RECV_AGGREGATES_START: {
-						//debug_->debug("chr as");
-						
 				#if INSE_USE_AGGREGATOR
 						aggregator_.read_buffer_start(message.channel(), message.payload(), message.payload_size());
 				#endif
@@ -828,7 +837,6 @@ namespace wiselib {
 					
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::RECV_AGGREGATES: {
-						//debug_->debug("chr a");
 						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
@@ -837,10 +845,10 @@ namespace wiselib {
 			}
 			
 			void event_handover_recepient(int event, typename ReliableTransportT::Endpoint& endpoint) {
-				if(endpoint.remote_address() == radio_->id()) {
+				//if(endpoint.remote_address() == radio_->id()) {
 					//debug_->debug("node %d // ignoring event of type %d (remote==self)", (int)radio_->id(), (int)event);
 					//return;
-				}
+				//}
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
 				if(!se) {
@@ -855,27 +863,28 @@ namespace wiselib {
 							(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)event, (int)now());
 				#endif
 				
-				//debug_->debug("ehr%c", event);
 				switch(event) {
 					case ReliableTransportT::EVENT_OPEN:
-						//debug_->debug("ehr open");
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection_r", (int)radio_->id());
 						#endif
-						debug_->debug("ropen t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#if INSE_DEBUG_STATE
+							debug_->debug("ropen t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#endif
 						nap_control_.push_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
-						//debug_->debug("ehr close");
 						#if INSE_USE_AGGREGATOR
 							aggregator_.release(id, true);
 						#endif
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // pop handover_connection_r", (int)radio_->id());
 						#endif
-						debug_->debug("/ropen t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#if INSE_DEBUG_STATE
+							debug_->debug("/ropen t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+						#endif
 						nap_control_.pop_caffeine();
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
@@ -900,17 +909,16 @@ namespace wiselib {
 							(int)se.count(), (int)s.count(), (int)se.is_root(radio_->id()));
 				#endif
 				
-					//debug_->debug("tok");
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
-					//#if !WISELIB_DISABLE_DEBUG
+					#if INSE_DEBUG_STATE
 						debug_->debug("@%d tok SE %x.%x win %lu int %lu t%d e%d",
 								(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
 								(int)now(), (int)se.activating_token_early());
-					//#endif
+					#endif
 						
 					begin_activity(se);
 				}
@@ -945,7 +953,9 @@ namespace wiselib {
 					debug_->debug("node %d // push activity", (int)radio_->id());
 				#endif
 					
-				debug_->debug("ACT t%d", (int)(now() % 65536));
+				#if INSE_DEBUG_STATE
+					debug_->debug("ACT t%d", (int)(now() % 65536));
+				#endif
 				nap_control_.push_caffeine();
 				
 				#if !WISELIB_DISABLE_DEBUG
@@ -990,8 +1000,10 @@ namespace wiselib {
 					debug_->debug("node %d // push handover", (int)radio_->id());
 				#endif
 				
-				debug_->debug("/ACT t%d", (int)(now() % 65536));
-				debug_->debug("ho endact");
+				#if INSE_DEBUG_STATE
+					debug_->debug("/ACT t%d", (int)(now() % 65536));
+					debug_->debug("ho endact");
+				#endif
 				initiate_handover(se, true);
 				se.end_wait_for_activating_token();
 				
@@ -1016,7 +1028,9 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_token", (int)radio_->id());
 				#endif
-				debug_->debug("wait");
+				#if INSE_DEBUG_STATE
+					debug_->debug("wait");
+				#endif
 				nap_control_.push_caffeine();
 				
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
@@ -1032,7 +1046,9 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_token", (int)radio_->id());
 				#endif
-				debug_->debug("/wait");
+				#if INSE_DEBUG_STATE
+					debug_->debug("/wait");
+				#endif
 				nap_control_.pop_caffeine();
 			}
 			

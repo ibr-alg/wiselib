@@ -1,22 +1,53 @@
 
-#if CODESIZE
-	#warning "COMPILING FOR CODESIZE TEST"
 
-	// running code size tests, leave out debug messages!
-	#define CHECK_INVARIANTS 0
-	#define WISELIB_DISABLE_DEBUG 1
+/// Default config
 
-	//#if CODESIZE_INQP
-		//#define USE_INQP 1
-	//#endif
+// Checks, Assertions, Debug messages
 
-	//#if CODESIZE_PRESCILLA
-		//#define USE_PRESCILLA 1
-	//#else
-		//#define USE_TREEDICT 1
-	//#endif
+#define CHECK_INVARIANTS               (defined(SHAWN))
+#define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
+#define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
+#define INSE_DEBUG_STATE               0
+#define INSE_DEBUG_TREE                1
+#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+#define NAP_CONTROL_DEBUG_STATE        0
 
-#elif defined(CONTIKI_TARGET_MICAZ)
+// TupleStore config
+
+#define USE_LIST_CONTAINER   0
+#define USE_VECTOR_CONTAINER 1
+#define USE_BLOCK_CONTAINER  0
+
+#define USE_PRESCILLA_DICTIONARY   0
+#define USE_TREE_DICTIONARY        1
+#define USE_BLOCK_DICTIONARY       0
+#define USE_NULL_DICTIONARY        0
+
+// App features
+
+#define USE_INQP            0
+#define INSE_USE_AGGREGATOR 0
+
+// Restrictions
+
+#define INSE_MAX_NEIGHBORS 8
+#define INSE_MAX_SEMANTIC_ENTITIES 4
+
+// Memory sizes, word sizes, tec..
+
+#define BITMAP_ALLOCATOR_RAM_SIZE 2048
+#define BLOCK_CACHE_SIZE          2
+#define BLOCK_CACHE_SPECIAL       1
+#define BLOCK_CACHE_WRITE_THROUGH 1
+#define BLOCK_CHUNK_SIZE          8
+#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
+
+// Timing
+
+#define WISELIB_TIME_FACTOR 1
+
+
+#if defined(CONTIKI_TARGET_MICAZ)
 	#define CHECK_INVARIANTS 0
 	#define WISELIB_DISABLE_DEBUG 1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
@@ -26,33 +57,14 @@
 	#define INSE_USE_AGGREGATOR 0
 	#define BITMAP_ALLOCATOR_RAM_SIZE 1024
 
-#else
-	#define CHECK_INVARIANTS 0
-	#define WISELIB_DISABLE_DEBUG (!defined(PC))
-	#define WISELIB_DISABLE_DEBUG_MESSAGES (!defined(PC))
-	
-	#define USE_LIST_CONTAINER   0
-    #define USE_VECTOR_CONTAINER 1
-	#define USE_BLOCK_CONTAINER  0
-
-	#define BLOCK_CACHE_SIZE          2
-	#define BLOCK_CACHE_SPECIAL       1
-	#define BLOCK_CACHE_WRITE_THROUGH 1
-	#define BLOCK_CHUNK_SIZE          8
-	#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
-	
-	#define USE_PRESCILLA_DICTIONARY   0
-	#define USE_TREE_DICTIONARY        1
-	#define USE_BLOCK_DICTIONARY       0
-	#define USE_NULL_DICTIONARY        0
-
-	#define USE_INQP 0
-
-	#define INSE_USE_AGGREGATOR 0
-
-
-	#define BITMAP_ALLOCATOR_RAM_SIZE 2048
+#elif defined(SHAWN)
+	#define WISELIB_TIME_FACTOR 100
+	#define INSE_DEBUG_TREE 1
+	#define INSE_MAX_NEIGHBORS 100
+	#define INSE_MAX_SEMANTIC_ENTITIES 10
 #endif
+	
+//#endif
 
 
 // Allocator
@@ -135,16 +147,6 @@ typedef wiselib::OSMODEL Os;
 	#define DBG(...)
 #endif
 	
-#if defined(SHAWN)
-	#define WISELIB_TIME_FACTOR 100
-#endif
-	
-// Time scaling
-	
-#if !defined(WISELIB_TIME_FACTOR)
-	#define WISELIB_TIME_FACTOR 1
-#endif
-
 template<typename OsModel_P>
 class NullMonitor {
 	public:

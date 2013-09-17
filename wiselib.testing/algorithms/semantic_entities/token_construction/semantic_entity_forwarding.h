@@ -146,9 +146,11 @@ namespace wiselib {
 				//   forward it by se_id using amq
 				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator() != msg.is_ack());
 				if(target == NULL_NODE_ID) {
-					DBG("node %d SE %x.%x // forwarding ignores s %d fwd %d",
+					DBG("node %d SE %x.%x // forwarding ignores s %d fwd %d cidx %d",
 							(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),
-							(int)msg.sequence_number(), (int)(msg.initiator() != msg.is_ack()));
+							(int)msg.sequence_number(), (int)(msg.initiator() != msg.is_ack()),
+							(int)amq_nhood_->tree().child_index(from)
+							);
 					return true;
 				}
 				
@@ -156,12 +158,14 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					if(msg.initiator() != msg.is_ack()) {
-						debug_->debug("%d > %d > %d", (int)from, (int)radio_->id(), (int)target);
-					}
-					else {
-						debug_->debug("%d < %d < %d", (int)target, (int)radio_->id(), (int)from);
-					}
+					#if INSE_DEBUG_STATE
+						if(msg.initiator() != msg.is_ack()) {
+							debug_->debug("%d > %d > %d", (int)from, (int)radio_->id(), (int)target);
+						}
+						else {
+							debug_->debug("%d < %d < %d", (int)target, (int)radio_->id(), (int)from);
+						}
+					#endif
 					
 					if(msg.is_open() && msg.initiator() && !msg.is_ack() && !msg.is_supplementary()) {
 						TokenStateMessageT &m = *reinterpret_cast<TokenStateMessageT*>(msg.payload());
@@ -218,7 +222,9 @@ namespace wiselib {
 				
 				memset(activity_maps_[map_index_], 0, MAP_BYTES);
 				map_index_ = !map_index_;
-				debug_->debug("fwd");
+				#if INSE_DEBUG_STATE
+					debug_->debug("fwd");
+				#endif
 				nap_control_->push_caffeine();
 				sleep(0);
 			}
@@ -229,7 +235,9 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
-				debug_->debug("fwd");
+				#if INSE_DEBUG_STATE
+					debug_->debug("fwd");
+				#endif
 				nap_control_->push_caffeine();
 				
 				size_type end = slot_map().first(false, position_, map_slots_);
@@ -248,7 +256,9 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
-				debug_->debug("/fwd");
+				#if INSE_DEBUG_STATE
+					debug_->debug("/fwd");
+				#endif
 				nap_control_->pop_caffeine();
 				
 				size_type start = slot_map().first(true, position_, map_slots_);
