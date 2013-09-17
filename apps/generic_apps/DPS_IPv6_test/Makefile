@@ -13,6 +13,7 @@ all: shawn
 gateway: isense.5148
 server: isense.5148
 client: isense
+client-telosb: tinyos-telosb
 
 export APP_SRC=DPS_IPv6_test.cpp
 
@@ -26,6 +27,9 @@ else ifeq (client,$(firstword $(MAKECMDGOALS)))
 export BIN_OUT=DPS_IPv6_test_39
 ADD_CXXFLAGS='-DDPS_IPv6_STUB -DDPS_COMPILE_ONLY_CLIENT_CODES'
 #  -DDPS_COMPILE_ONLY_CLIENT_CODES saves ~1KB 
+else ifeq (client-telosb,$(firstword $(MAKECMDGOALS)))
+export BIN_OUT=DPS_IPv6_test_telosb
+ADD_CXXFLAGS='-DDPS_IPv6_STUB -DDPS_COMPILE_ONLY_CLIENT_CODES'
 endif
 
 include ../Makefile

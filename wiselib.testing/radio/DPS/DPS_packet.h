@@ -422,8 +422,12 @@ namespace wiselib
 			length -= 4;
 			calculate_checksum( connection, MAC, use_request_key );
 			length += 4;
-			if( memcmp( MAC, buffer + length - 4, 4 ) == 0 )
-				return true;
+//			if( memcmp( MAC, buffer + length - 4, 4 ) == 0 )
+			if( MAC[0] == buffer[length-4] &&
+				MAC[1] == buffer[length-3] &&
+				MAC[2] == buffer[length-2] &&
+				MAC[3] == buffer[length-1] )
+					return true;
 			else
 			{
 // 				debug().debug("packet: %x %x %x %x %x %x %x %x %x", buffer[0], buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6],buffer[7],buffer[8] );

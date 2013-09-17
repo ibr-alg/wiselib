@@ -408,7 +408,7 @@ namespace wiselib
 			
 			node_id_t tmp_addr = radio_dps().id();
 			
-			memcpy(local_minibuffer, (uint8_t*)(&tmp_addr), sizeof(node_id_t));
+			bitwise_write<OsModel, block_data_t, node_id_t>( local_minibuffer, tmp_addr, 0, sizeof(node_id_t)*8 );
 			
 			debug_->debug("DPS: Send GET IP");
 			

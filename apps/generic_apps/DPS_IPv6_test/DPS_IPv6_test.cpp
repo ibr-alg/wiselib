@@ -3,7 +3,7 @@
 * Author: Daniel Gehberger - GSoC 2013 - DPS project
 */
 
-#ifdef ISENSE
+#if defined(ISENSE) || defined(TINYOS)
 //Needed for iSense in order to avoid linker error with the MapStaticVector class
 extern "C" void assert(int) { }
 #endif
@@ -65,7 +65,7 @@ public:
 			uart_size = 16;
 		#endif
 	// --> Set the Radio Chanel in this line
-		debug_->debug( "Booting with ID: %lx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 16 ), 8*sizeof(radio_->id()), uart_size);
+		debug_->debug( "Booting with ID: %lx, radio channel: %i, %i-bit radio & %i-bit UART addresses\n", (long long unsigned)(radio_->id()), radio_->set_channel( 26 ), 8*sizeof(radio_->id()), uart_size);
 		debug_->debug( "MEM: %i",  mem->mem_free() );
 	#else
 		debug_->debug( "Booting with ID: %llx\n", (long long unsigned)(radio_->id()));
@@ -94,22 +94,20 @@ public:
 		/*
 			Test destination
 		*/
-				
-		IPv6Address_t destinationaddr;
-// 		
+
 	#ifdef DPS_IPv6_SKELETON
-			node_id_t ll_id = radio_->id();
-			destinationaddr.set_prefix( my_prefix, 64 );
-			destinationaddr.set_long_iid(&ll_id, true);
 			
 			ipv6_stack_.interface_manager.set_prefix_for_interface( my_prefix, 0, 64 );
+			
+// 			seq = 0;
+// 			timer_->set_timer<lowpanApp, &lowpanApp::send>( rand()() % (0x1FFF) + 5000, this, NULL );
 	#endif
-// 		/*
-// 			UDP test
-// 			
-// 			For the best compression use ports between 61616 and 61631
-// 		*/
-// 		
+		/*
+			UDP test
+			
+			For the best compression use ports between 61616 and 61631
+		*/
+		
 #ifdef DPS_IPv6_STUB
 		{
 			seq = 0;
@@ -117,7 +115,7 @@ public:
 		}
 #endif
 		
-		if( radio_->id() == 0x2144 )
+// 		if( radio_->id() == 0x2144 )
 		{
 			//local_port, registered UDP callback ID, [remote_port], [remote_host]
 			ipv6_stack_.udp.listen( 61617, callback_id );
@@ -131,13 +129,13 @@ public:
 		seq++;
 		
 		IPv6Address_t destinationaddr;
-		node_id_t ll_id = 0x2144;
+		node_id_t ll_id = 0x2144; //<----- Target address (host)
 
 		destinationaddr.set_prefix( my_prefix, 64 );
 		destinationaddr.set_long_iid(&ll_id, true);
 		uint8_t mypayload[] = "UDPfrom: ____ #: __  TRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASHTRASH";
-		//9-10-11-12
-		//15-16
+// 		//9-10-11-12
+// 		//15-16
 		mypayload[9] = destinationaddr.get_hex((radio_->id() >> 12) & 0xF);
 		mypayload[10] = destinationaddr.get_hex((radio_->id() >> 8) & 0xF);
 		mypayload[11] = destinationaddr.get_hex((radio_->id() >> 4) & 0xF);
@@ -147,14 +145,15 @@ public:
 		mypayload[18] = destinationaddr.get_hex((seq >> 0) & 0xF);
 		
 		mypayload[20] = '\0';
-		
-		//Set IPv6 header fields
-// 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
-		
-		// local_port, remote_port, remote_host
+// 		
+// 		//Set IPv6 header fields
+// // 			ipv6_stack_.ipv6.set_traffic_class_flow_label( 0, 42 );
+// 		
+// 		// local_port, remote_port, remote_host
 		UDPSocket_t my_socket = UDPSocket_t( 61616, 61617, destinationaddr );
 		ipv6_stack_.udp.send(my_socket,sizeof(mypayload),mypayload);
 // 		ipv6_stack_.icmpv6.ping(destinationaddr);
+// 		ipv6_stack_.icmpv6.send(destinationaddr,sizeof(mypayload),mypayload);
 		
 		timer_->set_timer<lowpanApp, &lowpanApp::send>( 15000, this, NULL );
 	}
@@ -166,7 +165,7 @@ public:
 		if( socket != ipv6_stack_.udp.id() )
 		{
 			char str[43];
-			debug_->debug( "Application layer received msg at %lx from %s; %i: %s", (long long unsigned)(radio_->id()), socket.remote_host.get_address(str), len, buf );
+			debug_->debug( "Application layer received msg from %s; %i: %s", socket.remote_host.get_address(str), len, buf );
 // 			debug_->debug( "    Size: %i Content: %s ", len, buf);
 		}
 	}

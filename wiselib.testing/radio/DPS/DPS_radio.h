@@ -476,6 +476,10 @@ namespace wiselib
 		*/
 		void send_RPC( Buffer_list_iterator act_buffer );
 		
+#if defined(TINYOS)
+		void fast_retry( void* act_buffer );
+#endif
+		
 		/**
 		* \brief
 		*/
@@ -648,7 +652,10 @@ namespace wiselib
 		
 		if( radio().disable_radio() != SUCCESS )
 			return ERR_UNSPEC;
+
+		#if !defined(TINYOS)
 		radio().template unreg_recv_callback(callback_id_);
+		#endif
 		
 		return SUCCESS;
 	}
@@ -679,8 +686,10 @@ namespace wiselib
 			x = id();
 			y = connection->partner_MAC;
 		}
-		memcpy(&(connection->key[0]), &x, sizeof(radio_node_id_t));
-		memcpy(&(connection->key[8]), &y, sizeof(radio_node_id_t));
+		
+		bitwise_write<OsModel, block_data_t, radio_node_id_t>( &(connection->key[0]), x, 0, sizeof(radio_node_id_t)*8 );
+		bitwise_write<OsModel, block_data_t, radio_node_id_t>( &(connection->key[8]), y, 0, sizeof(radio_node_id_t)*8 );
+		
 		
 		// XOR it with the connection_nonce
 		for (uint8_t i=0; i<=12; i=i+4) {
@@ -689,6 +698,9 @@ namespace wiselib
 			connection->key[i+2] ^= ((connection->connection_nonce >> 8) & 0xFF);
 			connection->key[i+3] ^= ((connection->connection_nonce >> 0) & 0xFF);
 		}
+		#if DPS_RADIO_DEBUG >= 1
+		debug().debug("KEY: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x", connection->key[0], connection->key[1],connection->key[2],connection->key[3],connection->key[4],connection->key[5],connection->key[6],connection->key[7],connection->key[8],connection->key[9],connection->key[10],connection->key[11],connection->key[12],connection->key[13],connection->key[14],connection->key[15] );
+		#endif
 	}
 	
 	// -----------------------------------------------------------------------
@@ -779,7 +791,7 @@ namespace wiselib
 		packet.length += payload_act_pointer - packet.get_payload();
 		
 #if DPS_FOOTER > 0
-// 		packet.set_debug( *debug_ );
+//		packet.set_debug( *debug_ );
 		packet.set_checksum( connection, use_requst_key_for_checksum );
 #endif
 		
@@ -933,7 +945,17 @@ namespace wiselib
 			act_buffer->elapsed_time = 0;
 			
 			//Send the (fragment)
-			radio().send( act_buffer->connection_it->partner_MAC, packet.length, packet.buffer );
+			int res = radio().send( act_buffer->connection_it->partner_MAC, packet.length, packet.buffer );
+			
+			if( res != SUCCESS )
+			{
+#if defined(TINYOS)
+				timer().template set_timer<self_type, &self_type::fast_retry>( 5, this, &(*act_buffer) );
+#else
+				debug().debug( "Radio ERROR %i", res );
+#endif
+				break;
+			}
 			
 			//Wait for the ACK, this function will be called again by the timeout/receive(ACK) if there are more fragments
 			if( act_buffer->RPC_parameters.ack_required )
@@ -967,6 +989,27 @@ namespace wiselib
 		}while( more_to_send );
 	}
 	
+#if defined(TINYOS)
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename Debug_P,
+	typename Timer_P,
+	typename Rand_P>
+	void
+	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
+	fast_retry( void* act_buffer ){
+		for( Buffer_list_iterator it = buffer_list_.begin(); it != buffer_list_.end(); ++it )
+		{
+			if( buffer_list_.size() == 0 )
+				break;
+
+			if( it->outgoing && it->processed_size != it->buffer_length )
+				send_RPC( it );
+		}
+		
+	}
+#endif
+	
 	// -----------------------------------------------------------------------
 	template<typename OsModel_P,
 		typename Radio_P,
@@ -977,10 +1020,12 @@ namespace wiselib
 	DPS_Radio<OsModel_P, Radio_P, Debug_P, Timer_P, Rand_P>::
 	receive( radio_node_id_t from, size_t length, block_data_t *data, ExtendedData const &ex ) 
 	{
+#if !defined(TINYOS)
 		//Re seed the random generator
 		uint32_t seed = rand()() % (0xFFFFFFFF);
 		seed ^= (( (uint16_t)from ^ ex.link_metric() )) << 16 | (( (uint16_t)id() ^ ex.link_metric() ));
 		rand_->srand( seed );
+#endif
 		
 		//Drop non-wisebed messages
 		if( from > 0x2500 )
@@ -1012,7 +1057,7 @@ namespace wiselib
 		#if DPS_RADIO_DEBUG >= 2
 		if( type != DPS_Packet_t::DPS_TYPE_HEARTBEAT )
 		{
-			debug().debug( "DPS: Rec from %lx, T: %i len %i Ctr %x", (from), type, length, packet.counter());
+			debug().debug( "DPS: Rec from %lx, T: %i len %i Ctr %lx", (from), type, length, packet.counter());
 // 			debug().debug("1Spacket: %x %x %x %x %x %x %x %x %x", data[0], data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8] );
 // 			debug().debug("2Spacket: %x %x %x %x %x %x %x %x %x", data[9], data[10],data[11],data[12],data[13],data[14],data[15],data[16],data[17] );
 		}
@@ -1150,7 +1195,7 @@ namespace wiselib
 		bool packet_counter_acceptable_as_SERVER_counter = false;
 		bool packet_counter_acceptable_as_CLIENT_counter = false;
 		
-		uint32 packet_counter = packet.counter();
+		uint32_t packet_counter = packet.counter();
 		if( packet.compressed_headers )
 		{
 			//Here we only have the last 8 bits from the counter, so we have to accept counter values "less" than
@@ -1204,9 +1249,9 @@ namespace wiselib
 			#if DPS_RADIO_DEBUG >= 0
 // 					debug().debug( "DPS CNTErr " );
 			debug().debug( "DPS CNTErr from: %lx type: %i", (from), type);
-			debug().debug( "Server: %x",(it->server_counter));
-			debug().debug( "Client: %x",(it->client_counter));
-			debug().debug( "Packet: %x",(packet.counter()) );
+			debug().debug( "Server: %lx",(it->server_counter));
+			debug().debug( "Client: %lx",(it->client_counter));
+			debug().debug( "Packet: %lx",(packet.counter()) );
 			#endif
 			return;
 		}
@@ -1480,7 +1525,7 @@ namespace wiselib
 			
 			#if DPS_RADIO_DEBUG >= 1
 			debug().debug( "DPS: Client (%lx) connected to %lx, protocol: %i", (radio().id()), (from), it->Pid);
-			debug().debug( "DPS CNT_c: %x, CNT_s: %x, nonce: %x", (it->client_counter), (it->server_counter), (it->connection_nonce) );
+			debug().debug( "DPS CNT_c: %lx, CNT_s: %lx, nonce: %lx", (it->client_counter), (it->server_counter), (it->connection_nonce) );
 			#endif
 			
 			send_connection_message( from, DPS_Packet_t::DPS_TYPE_CONNECT_FINISH, it );
@@ -1499,7 +1544,7 @@ namespace wiselib
 			
 			#if DPS_RADIO_DEBUG >= 1
 			debug().debug( "DPS: Server (%lx) connected to %lx, protocol: %i", (radio().id()), (from), it->Pid);
-			debug().debug( "DPS CNT_c: %x, CNT_s: %x, nonce: %x", (it->client_counter), (it->server_counter), (it->connection_nonce) );
+			debug().debug( "DPS CNT_c: %lx, CNT_s: %lx, nonce: %lx", (it->client_counter), (it->server_counter), (it->connection_nonce) );
 			#endif
 			
 			//Call back the handler because of the new connection
@@ -1682,6 +1727,9 @@ namespace wiselib
 		
 		for( Buffer_list_iterator it = buffer_list_.begin(); it != buffer_list_.end(); ++it )
 		{
+			if( buffer_list_.size() == 0 )
+				break;
+
 			it->elapsed_time += DPS_GENERAL_TIMER_FREQUENCY;
 			
 			
