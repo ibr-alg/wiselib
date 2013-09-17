@@ -23,6 +23,64 @@
 namespace wiselib {
 	
 	/**
+	 * 
+	 * Pre-Implementation thoughts:
+	 * 
+	 * Use cases
+	 * ---------
+	 *  1. distribute query to all nodes
+	 *     at root: send(SE_ID_ALL, DOWN | ALL, len, data, wake_time)
+	 *     
+	 *  2. distribute query to single SE
+	 *     at root: send(se_d, DOWN | ALL, len, data, wake_time)
+	 * 
+	 *  // No, use s_e_anycast_radio for that!
+	 *  //3. send result to root
+	 *  //   at node: send(SE_ID_ROOT, UP | ANY, len, data, wake_time)
+	 *    
+	 *  // This demands not store-and-forward but a bidi multihop
+	 *  // communication, use s_e_anycast_radio!
+	 *  //4. send query to any (one) node in SE
+	 *  //   at root: send(se_id, DOWN | ANY, len, data, wake_time)
+	 *     
+	 *  Distribution of rules. Idea: Any node must have them, also nodes
+	 *  that joined the network after the sink has sent them, so add
+	 *  a "viral" mode that will keep those messages forever (until they are
+	 *  being replaced) and
+	 *  
+	 *  5. 
+	 *     at root: send(SE_ID_ALL, DOWN | VIRAL, rule-id, len, data,wake-time)
+	 *  
+	 *  
+	 *  ^--- alles etwas wirr....
+	 *  
+	 *  Sollten knoten generell query-ids vergleichen um zu schauen, welche
+	 *  sie kommunizieren müssen?
+	 *  - für one shot-queries bedeutet das unnötigen overhead, aber nicht all
+	 *    zu viel wenn man es so macht:
+	 *    A -> B: i have Q1234 for you, v5012
+	 *    A <- B: ok, thats a new | i know that already
+	 *    A -> B: *send*
+	 *    
+	 *    Einziger unterschied bei construction rules dann, dass sie nicht
+	 *    gelöscht werden, sobald der awake timer abgelaufen und alles
+	 *    verteilt ist, sondern bis eine neue version oder lösch-anweisung
+	 *    kommt:
+	 *    
+	 *    A -> B: delete Q1234, v5013
+	 *    A <- B: ok (you dont care whether i already did that before or just now)
+	 *    
+	 *    
+	 *  Also, jede query hat:
+	 *  - Eine ID
+	 *  - Eine Versionsnummer
+	 *  - Ein Ziel SE_ID_ALL oder se_id
+	 *  - Eine Zielmultiplizität: ANY oder ALL
+	 *  - Eine richtung: DOWN oder VIRAL
+	 *  - Einen Query-Typ: QUERY, CONSTRUCTION_RULE, TASK
+	 *  - Eine gültigkeitszeit (ms oder 0 für ewig)
+	 *  - Daten (operatoren und so)
+	 *  
 	 * @brief
 	 * 
 	 * @ingroup
@@ -52,9 +110,10 @@ namespace wiselib {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P
 			};
 			
-			enum {
-				TARGET_DIRECT, TARGET_ROOT, TARGET_BCAST
+			enum QueryRole {
+				CONSTRUCTION_RULE, QUERY, TASK
 			};
+			
 			
 			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS> TransportT;
 			
@@ -71,14 +130,20 @@ namespace wiselib {
 			void reg_receive_callback(...) {
 			}
 			
+			void distribute(SemanticEntityId scope, size_type len, block_data_t *data, abs_millis_t waketime, abs_millis_t lifetime, size_type revision) { 
+				
+			}
+			
+			/*
 			void send(node_id_t target, size_type length, block_data_t* data) {
-				if(is_parent(target)) {
-					upward_.enqueue(length, data);
+				if(is_parent(target) || is_root(target)) {
+					upward_.enqueue(length, data, is_parent(target) ? TARGET_DIRECT : TARGET_ROOT);
 				}
 				else {
-					downward_.enqueue(length, data);
+					downward_.enqueue(length, data, TARGET_);
 				}
 			}
+			*/
 			
 			void produce_handover_initiator(...) {
 				switch(state_initiator_[remote]) {
@@ -209,7 +274,7 @@ namespace wiselib {
 									notify_receivers(data + 2, len - 1);
 									break;
 								case TARGET_NEXT_IN_SE:
-									if(registry_.cntains(current_se_)) {
+									if(registry_.contains(current_se_)) {
 										notify_receivers(data + 2, len - 1);
 									}
 									else {
@@ -224,6 +289,10 @@ namespace wiselib {
 									else {
 										pool.enqueue(len, data + 1);
 									}
+									break;
+								case TARGET_BCAST:
+									notify_receivers(data + 2, len - 1);
+									pool.enqueue(len, data + 1);
 									break;
 							}
 							// TODO

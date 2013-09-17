@@ -28,7 +28,10 @@
 namespace wiselib {
 	
 	/**
-	 * @brief Forwarding of packets within semantic entities.
+	 * @brief Forwarding of packets within semantic entities (to next/prev
+	 * node in ring). Utilizes eg. AMQ neighborhood and then will not care
+	 * whether a neighbor is currently awake (as long as its still considered
+	 * alive).
 	 * 
 	 * @ingroup
 	 * 
