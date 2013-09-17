@@ -209,7 +209,7 @@ namespace wiselib {
 					else {
 						delta = ne - now - window_;
 					}
-					DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", (int)absolute_millis(clock, clock->time()), (int)delta, (int)ne, (int)now, (int)window_);
+					//DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", (int)absolute_millis(clock, clock->time()), (int)delta, (int)ne, (int)now, (int)window_);
 					
 					#ifdef ISENSE
 						GET_OS.debug("setting timer: %d", (int)delta);
@@ -250,7 +250,7 @@ namespace wiselib {
 			 * timer installed by start_waiting_timer!
 			 */
 			void begin_waiting(void*) {
-				DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%lx", (int)waiting_timer_set_, (int)waiting_, (int)cancel_, (long int)userdata_);
+				//DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%lx", (int)waiting_timer_set_, (int)waiting_, (int)cancel_, (long int)userdata_);
 						
 				waiting_timer_set_ = false;
 				if(!waiting_) {

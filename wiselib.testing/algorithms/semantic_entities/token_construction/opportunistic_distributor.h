@@ -20,6 +20,13 @@
 #ifndef OPPORTUNISTIC_DISTRIBUTOR_H
 #define OPPORTUNISTIC_DISTRIBUTOR_H
 
+#include <external_interface/external_interface.h>
+#include <external_interface/external_interface_testing.h>
+#include "semantic_entity_id.h"
+#include <util/pstl/map_static_vector.h>
+#include <util/pstl/set_static.h>
+#include <algorithms/protocols/reliable_transport/reliable_transport.h>
+
 namespace wiselib {
 	
 	/**
@@ -86,11 +93,17 @@ namespace wiselib {
 	 * @ingroup
 	 * 
 	 * @tparam 
+	 * 
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P,
-		typename Neighborhood_P
+		typename Neighborhood_P,
+		typename NapControl_P,
+		typename Radio_P = typename OsModel_P::Radio,
+		typename Timer_P = typename OsModel_P::Timer,
+		typename Clock_P = typename OsModel_P::Clock,
+		typename Rand_P = typename OsModel_P::Rand,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class OpportunisticDistributor {
 		
@@ -100,277 +113,584 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
+			typedef NapControl_P NapControlT;
 			typedef Neighborhood_P Neighborhood;
 			typedef Timer_P Timer;
 			typedef Clock_P Clock;
 			typedef Rand_P Rand;
 			typedef Debug_P Debug;
+			typedef OpportunisticDistributor self_type;
+			typedef self_type *self_pointer_t;
+			typedef ::uint8_t query_id_t;
+			typedef ::uint8_t revision_t;
+			
+			enum QueryRole { CONSTRUCTION_RULE = 'R', QUERY = 'Q', TASK = 'T' };
+			typedef ::uint8_t query_role_t;
+			typedef ::uint32_t abs_millis_t;
+			
+			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
+			
+			enum Restrictions {
+				OPERATOR_BUFFER_SIZE = 128,
+				MAX_QUERIES = 4,
+				MAX_NEIGHBORS = Neighborhood::MAX_NEIGHBORS
+			};
 			
 			enum {
-				MAX_NEIGHBORS = MAX_NEIGHBORS_P
+				QUERY_HEADER_SIZE =
+					sizeof(::uint8_t) +
+					sizeof(SemanticEntityId) +
+					sizeof(query_id_t) + sizeof(revision_t) + sizeof(::uint8_t) +
+					sizeof(abs_millis_t) + sizeof(abs_millis_t) +
+					sizeof(::uint8_t)
+			};
+								
+			typedef set_static<OsModel, query_id_t, MAX_QUERIES> RequestedQueries;
+			
+			class QueryRevision {
+				//{{{
+				public:
+					query_id_t id() { return id_; }
+					void set_id(query_id_t i) { id_ = i; }
+					revision_t revision() { return revision_; }
+					void set_revision(revision_t i) { revision_ = i; }
+				private:
+					query_id_t id_;
+					revision_t revision_;
+				//}}}
 			};
 			
-			enum QueryRole {
-				CONSTRUCTION_RULE, QUERY, TASK
+			typedef set_static<OsModel, QueryRevision, MAX_QUERIES> QueryRevisions;
+			typedef MapStaticVector<OsModel, node_id_t, QueryRevisions, MAX_NEIGHBORS> Sent; 
+			
+			class QueryDescription {
+				//{{{
+				public:
+					void init(SemanticEntityId& s, query_id_t qid, revision_t rev, query_role_t role,
+							abs_millis_t waketime, abs_millis_t lifetime, ::uint8_t opcount) {
+						scope_ = s;
+						id_ = qid;
+						revision_ = rev;
+						role_ = role;
+						waketime_ = waketime;
+						lifetime_ = lifetime;
+						operator_count_ = opcount;
+						clear_operators();
+					}
+					
+					void set_operators(::uint8_t oplen, block_data_t* opdata) {
+						assert(oplen <= OPERATOR_BUFFER_SIZE);
+						memcpy(operator_buffer_, opdata, oplen);
+						operator_buffer_size_ = oplen;
+					}
+					::uint8_t push_operator(::uint8_t pos, ::uint8_t len, block_data_t *data) {
+						assert(pos + len <= OPERATOR_BUFFER_SIZE);
+						memcpy(operator_buffer_ + pos, data, len);
+						operator_buffer_size_ += len;
+						return pos + len;
+					}
+						
+					void clear_operators() { operator_buffer_size_ = 0; }
+					
+					query_id_t id() { return id_; }
+					revision_t revision() { return revision_; }
+					SemanticEntityId& scope() { return scope_; }
+					void set_scope(SemanticEntityId& s) { scope_ = s; }
+					query_role_t role() { return role_; }
+					void set_role(query_role_t r) { role_ = r; }
+					::uint8_t operator_count() { return operator_count_; }
+					
+					abs_millis_t lifetime() { return lifetime_; }
+					abs_millis_t waketime() { return waketime_; }
+					
+					
+				private:
+					query_id_t id_;
+					revision_t revision_;
+					SemanticEntityId scope_;
+					query_role_t role_;
+					abs_millis_t waketime_;
+					abs_millis_t lifetime_;
+					::uint8_t operator_count_;
+					::uint8_t operator_buffer_size_;
+					block_data_t operator_buffer_[OPERATOR_BUFFER_SIZE];
+				//}}}
 			};
+			typedef MapStaticVector<OsModel, query_id_t, QueryDescription, MAX_QUERIES> QueryDescriptions;
+			
+			class State {
+				//{{{
+				public:
+					enum {
+						INIT, SEND_QUERY_IDS, RECEIVE_QUERY_IDS,
+						SEND_REQUEST, RECEIVE_REQUEST, ANSWER_REQUEST,
+						DONE
+					};
+					
+					::uint8_t state() { return state_; }
+					void set_state(::uint8_t s) { state_ = s; }
+					
+					///@name Query level iteration
+					///@{
+					
+					typename QueryDescriptions::iterator query_iterator() { return query_iterator_; }
+					void set_query_iterator(typename QueryDescriptions::iterator i) { query_iterator_ = i; }
+					void forward_to_requested(typename QueryDescriptions::iterator end) {
+						
+						bool stop = false;
+						for( ; query_iterator_ != end; ++query_iterator_) {
+							for(typename RequestedQueries::iterator it = requested_.begin(); it != requested_.end(); ++it) {
+								if(query_iterator_->id() == *it) {
+									stop = true;
+									break;
+								}
+							}
+							
+							if(stop) { break; }
+						}
+					}
+					
+					///@}
+				
+					///@name Operator level iterator
+					///@{
+					
+					void rewind_operator() { operator_pos_ = 0; }
+					block_data_t *current_operator() {
+						return reinterpret_cast<block_data_t*>(&*query_iterator_) + operator_pos_;
+					}
+					size_type operator_position() { return operator_pos_; }
+					
+					::uint8_t operator_size() { return *current_operator(); }
+					void next_operator() { operator_pos_ += operator_size(); }
+					bool has_more_operators() { return operator_size() != 0; }
+					
+					///@}
+					
+					void add_request(query_id_t qid) { requested_.add(qid); }
+					typename RequestedQueries::iterator begin_requested() { return requested_.begin(); }
+					typename RequestedQueries::iterator end_requested() { return requested_.end(); }
+					void clear_requested() { requested_.clear(); }
+					
+					bool header_sent() { return header_sent_; }
+					void set_header_sent(bool h) { header_sent_ = h; }
+					
+				private:
+					::uint8_t state_;
+					typename QueryDescriptions::iterator query_iterator_;
+					RequestedQueries requested_;
+					size_type operator_pos_;
+					bool header_sent_;
+				//}}}
+			};
+			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> CommunicationStates;
 			
 			
 			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS> TransportT;
 			
-			void init(...) {
+			void init(typename Radio::self_pointer_t radio, typename Neighborhood::self_pointer_t nd, typename NapControlT::self_pointer_t nap) {
 				radio_ = radio;
 				nd_ = nd;
-				current_se_.set(SemanticEntityId::RULE_SPECIAL, SemanticEntityId::VALUE_INVALID);
+				nap_control_ = nap;
+				//current_se_.set(SemanticEntityId::RULE_SPECIAL, SemanticEntityId::VALUE_INVALID);
 				
-				nd_.reg_on_awake_hint(
-						delegate...<&on_see_neighbor>()
+				nd_.reg_event_callback(
+						Neighborhood::event_callback_t::template from_method<self_type, &self_type::on_neighborhood_event>(this)
 				);
-			}
-			
-			void reg_receive_callback(...) {
-			}
-			
-			void distribute(SemanticEntityId scope, size_type len, block_data_t *data, abs_millis_t waketime, abs_millis_t lifetime, size_type revision) { 
 				
 			}
 			
-			/*
-			void send(node_id_t target, size_type length, block_data_t* data) {
-				if(is_parent(target) || is_root(target)) {
-					upward_.enqueue(length, data, is_parent(target) ? TARGET_DIRECT : TARGET_ROOT);
+			// TODO: How exactly should the interface of this look?
+			// providing a blob containing the whole query? Calling it
+			// individually for each operator?
+			// --> assume a ready-to-use blob for now
+			void distribute(
+					SemanticEntityId scope, query_id_t qid, revision_t revision, query_role_t role,
+					abs_millis_t waketime, abs_millis_t lifetime,
+					size_type opcount, size_type oplen, block_data_t *opdata
+			) { 
+				// assume data is in the format:
+				// [ L | oid .... | L | oid ... | 0 ]
+				// L is the length of the following operator (which starts
+				// with an OID) plus the length of L. the length of L is 1.
+				
+				QueryDescription &q = queries_[qid];
+				q.init(scope, qid, revision, role, waketime, lifetime, opcount);
+				q.set_operators(oplen, opdata);
+			}
+			
+			bool callback_handover_initiator(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
+				//{{{
+				if(event == TransportT::EVENT_PRODUCE) {
+					return produce_handover_initiator(*message, *endpoint);
+				}
+				else if(event == TransportT::EVENT_CONSUME) {
+					consume_handover_initiator(*message, *endpoint);
 				}
 				else {
-					downward_.enqueue(length, data, TARGET_);
-				}
-			}
-			*/
-			
-			void produce_handover_initiator(...) {
-				switch(state_initiator_[remote]) {
-					case INIT:
-						assert(!current_se_.invalid());
-						// send current SE & wake request
-						// TODO: maybe check if we are still awake at all!
-						wiselib::write(message.payload(), current_se_);
-						wiselib::write(message.payload() + sizeof(current_se_), (::uint32_t)(wake_request_ - now());
-						break;
-					case SEND_BLOCKS: {
-						PacketPool &pool = is_parent(remote) ? upward_ : downward_;
-						
-						size_type packet_pos = 0;
-						size_type local_pos = pool_position_initiator_[remote];
-						while(true) {
-							::uint8_t len = pool.size(local_pos);
-							block_data_t *data = pool.data(local_pos);
-							
-							if(len == 0 || packet_pos + len + 1 > MessageT::MAX_PAYLOAD_SIZE) {
-								if(len == 0) { ep.request_close(); }
-								pool_position_initiator_[remote] = local_pos;
-								break;
+					node_id_t remote = endpoint->remote_address();
+					State s = communication_states_[remote];
+					switch(event) {
+						case TransportT::EVENT_OPEN:
+							nap_control_->push_caffeine();
+							break;
+						case TransportT::EVENT_ABORT:
+							break;
+						case TransportT::EVENT_CLOSE:
+							nap_control_->pop_caffeine();
+							if(s.state() == State::DONE) {
+								typename QueryDescription::iterator it;
+								it = queries_.begin();
+								forward_to_matching(it, remote);
+								for( ; it != queries_.end(); ++it, forward_to_matching(it, remote)) {
+									sent_[*it].add(it->id());
+								}
 							}
-							message.payload()[packet_pos] = len;
-							memcpy(message.payload() + packet_pos + 1, data);
-							packet_pos += len;
-							local_pos += len;
-						} 
-						break;
+							break;
 					}
-				} // switch
-			} // produce_handover_initiator
-			
-			void consume_handover_initiator(...) {
-				switch(...) {
-					case INIT:
-						switch(...) {
-							case SEND_STATS:
-								// TODO: receive stats, decide what to send
-								// now
-								state_initiator_[remote] = SEND_BLOCKS;
-								pool_position_initiator_[remote] = 0;
-								break;
-								
-							case SEND_BUSY:
-								// mark for retry
-								childs_failed_.insert(remote);
-								
-							case SEND_SE_FALSE_POSITIVE:
-								ep.request_close();
-								break;
-						}
-						break;
 				}
-			} // consume_handover_initiator
-			
-			void event_handover_initiator(...) {
-				switch(event) {
-					case OPEN:
-						if(is_parent(remote)) { busy_sending_up_++; }
-						else { busy_sending_down_++; }
-						break;
-					case ABORT:
-						childs_failed_.insert(remote);
-						break;
-					case CLOSE:
-						if(is_parent(remote)) { busy_sending_up_--; }
-						else { busy_sending_down_--; }
-						if(childs_failed_.contains(remote)) {
-							childs_failed_.erase(remote);
+				//}}}
+			} // callback_handaover
+				
+			void produce_handover_initiator(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
+				//{{{
+				State s = communication_states_[endpoint.remote_address()];
+				block_data_t *start = message.payload();
+				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *p = start;
+				node_id_t remote = endpoint.remote_address();
+				
+				switch(s.state()) {
+					case State::INIT:
+						s.set_state(State::SEND_QUERY_IDS);
+						s.set_query_iterator(queries_.begin());
+						forward_to_matching(s.query_iterator(), remote);
+						// no break
+						
+					case State::SEND_QUERY_IDS:
+						while((p + sizeof(query_id_t) + sizeof(revision_t)) <= end && s.query_iterator() != queries_.end()) {
+							wiselib::write<OsModel>(p, (query_id_t)s.query_iterator()->second.id());
+							p += sizeof(query_id_t);
+							wiselib::write<OsModel>(p, (revision_t)s.query_iterator()->second.revision());
+							p += sizeof(revision_t);
+							
+							++s.query_iterator();
+							forward_to_matching(s.query_iterator(), remote);
+						}
+						
+						if((p + sizeof(query_id_t) + sizeof(revision_t)) <= end && s.query_iterator() == queries_.end()) {
+							assert(sizeof(query_id_t) == sizeof(revision_t));
+							query_id_t null_ = 0;
+							wiselib::write<OsModel>(p, null_); p += sizeof(query_id_t);
+							wiselib::write<OsModel>(p, null_); p += sizeof(revision_t);
+							
+							// we sent all query id's, now wait for answer
+							s.set_query_iterator(queries_.begin());
+							s.forward_to_requested(queries_.end());
+							s.rewind_operator();
+							s.set_state(State::RECEIVE_REQUEST);
+							endpoint.expect_answer();
 						}
 						else {
-							childs_done_.insert(remote);
+							endpoint.request_send();
 						}
+						message.set_payload_size(p - start);
 						break;
-				}
-			}
-			
-			
-			void produce_handover_recepient(...) {
-				
-				*message.payload() = (::uint8_t)state_recepient_[remote];
-				
-				switch(state_recepient_[remote]) {
-					case SEND_STATS:
-						// TODO: send INQP stats (current known queries, rules, tasks)
-						// other things that might be interesting here?
-						state_recepient_[remote] = RECEIVE_BLOCKS;
-						break;
-					case SEND_SE_FALSE_POSITIVE:
-						*message.payload() = (::uint8_t)SEND_SE_FALSE_POSITIVE;
-						// TODO
-						break;
-					case SEND_BUSY:
-						// TODO
-						break;
-				}
-			}
-			
-			void consume_handover_recepient(...) {
-				switch(...) {
-					case INIT:
-						// TODO: recv SE & wake request, verify SE
-						state_[remote] = SEND_STATS;
 						
-						SemanticEntityId id;
-						wiselib::read(se_id, message.payload());
-						if(!registry_->contains(se_id) && !amq_->any_child_contains(se_id)) {
-							state_[remote] = SEND_SE_FALSE_POSITIVE;
-						}
-						
-						if((is_parent(remote) && busy_sending_down_) ||
-								(is_child(remote) && busy_sending_up_)) {
-							state_[remote] = SEND_BUSY;
-						}
-						break;
-					case RECEIVE_PACKETS:
-						// TODO: receive blocks ;)
-						PacketPool &pool = is_parent(remote) ? downward_ : upward_;
-						
-						while(...) {
-							::uint8_t len = data[0];
-							::uint8_t target = data[1];
+					case State::ANSWER_REQUEST:
+						while(s.query_iterator() != queries_.end()) {
 							
-							switch(target) {
-								case TARGET_DIRECT:
-									notify_receivers(data + 2, len - 1);
+							if(!s.header_sent()) {
+								if(p + QUERY_HEADER_SIZE > end) {
+									// header doesnt fit!
 									break;
-								case TARGET_NEXT_IN_SE:
-									if(registry_.contains(current_se_)) {
-										notify_receivers(data + 2, len - 1);
-									}
-									else {
-										pool.enqueue(len, data + 1);
-									}
-									break;
-								case TARGET_ROOT:
-									assert(is_child(remote));
-									if(is_root()) {
-										notify_receivers(data + 2, len - 1);
-									}
-									else {
-										pool.enqueue(len, data + 1);
-									}
-									break;
-								case TARGET_BCAST:
-									notify_receivers(data + 2, len - 1);
-									pool.enqueue(len, data + 1);
-									break;
+								}
+								
+								// send query header
+								
+								// first byte is a zero, that makes clear its
+								// not another operator
+								write<OsModel>(p, (::uint8_t)0); p += sizeof(::uint8_t);
+								write<OsModel>(p, s.query_iterator()->second.scope()); p += sizeof(SemanticEntityId);
+								write<OsModel>(p, s.query_iterator()->second.id()); p += sizeof(query_id_t);
+								write<OsModel>(p, s.query_iterator()->second.revision()); p += sizeof(revision_t);
+								write<OsModel>(p, s.query_iterator()->second.role()); p += sizeof(::uint8_t);
+								write<OsModel>(p, s.query_iterator()->second.lifetime()); p += sizeof(abs_millis_t);
+								write<OsModel>(p, s.query_iterator()->second.waketime()); p += sizeof(abs_millis_t);
+								write<OsModel>(p, s.query_iterator()->second.operator_count()); p += sizeof(::uint8_t);
+								s.set_header_sent(true);
+							} // if !header sent
+							
+							// iterate over operators
+							while(p + s.operator_size() <= end && s.has_more_operators()) {
+								memcpy(p, s.current_operator(), s.operator_size());
+								p += s.operator_size();
+								s.next_operator();
 							}
-							// TODO
+							
+							if(s.has_more_operators()) {
+								// last operator didnt fit
+								break;
+							}
+							else {
+								s.forward_to_requested(queries_.end());
+								s.rewind_operator();
+								s.set_header_sent(false);
+							}
+						} // while query iterator
+						
+						if(s.query_iterator() == queries_.end()) {
+							// everything sent!
+							s.set_state(State::DONE);
+							endpoint.request_close();
 						}
+						else {
+							// not done yet, please call again!
+							endpoint.request_send();
+						}
+						message.set_payload_size(p - start);
+						break;
+						
+				} // switch
+				//}}}
+			} // produce_handover_initiator
+			
+			void consume_handover_initiator(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
+				//{{{
+				node_id_t remote = endpoint.remote_address();
+				State s = communication_states_[remote];
+				block_data_t *p = message.payload();
+				block_data_t *end = message.payload() + message.max_payload_size();
+				
+				switch(s.state()) {
+					case State::RECEIVE_REQUEST:
+						s.clear_requested();
+						while(p < end) {
+							query_id_t qid;
+							wiselib::read<OsModel>(p, qid);
+							p += sizeof(query_id_t);
+							s.add_request(qid);
+						}
+						s.header_sent_ = false;
+						endpoint.request_send();
 						break;
 				}
+				//}}}
+			} // consume_handover_initiator
+			
+			bool callback_handover_recepient(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
+				if(event == TransportT::EVENT_PRODUCE) {
+					return produce_handover_recepient(*message, *endpoint);
+				}
+				else if(event == TransportT::EVENT_CONSUME) {
+					consume_handover_recepient(*message, *endpoint);
+				}
+				else {
+					node_id_t remote = endpoint->remote_address();
+					State s = communication_states_[remote];
+					switch(event) {
+						case TransportT::EVENT_OPEN:
+							nap_control_->push_caffeine();
+							break;
+						case TransportT::EVENT_ABORT:
+							break;
+						case TransportT::EVENT_CLOSE:
+							nap_control_->pop_caffeine();
+							break;
+					}
+				}
+			} // callback_handaover
+			
+			void produce_handover_recepient(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
+				//{{{
+				node_id_t remote = endpoint.remote_address();
+				State s = communication_states_[remote];
+				block_data_t *start = message.payload();
+				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *p = start;
+				
+				switch(s.state()) {
+					case State::SEND_REQUEST:
+						// ASSUMPTION: all requests will fit into one message
+						for(typename State::RequestedQueries::iterator it = s.begin_requested(); it != s.end_requested(); ++it) {
+							query_id_t qid = *it;
+							wiselib::write<OsModel>(p, qid); p += sizeof(query_id_t);
+						}
+						message.set_payload_size(p - start);
+						s.set_state(State::RECEIVE_ANSWER);
+						endpoint.expect_answer();
+						break;
+							
+				}
+				//}}}
 			}
 			
+			void consume_handover_recepient(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
+				//{{{
+				node_id_t remote = endpoint.remote_address();
+				State s = communication_states_[remote];
+				block_data_t *start = message.payload();
+				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *p = start;
+				
+				switch(s.state()) {
+					case State::INIT:
+						s.set_state(State::RECEIVE_QUERY_IDS);
+						// no break
+					
+					case State::RECEIVE_QUERY_IDS:
+						s.clear_requested();
+						while(p < end) {
+							query_id_t qid;
+							revision_t rev;
+							wiselib::read<OsModel>(p, qid); p += sizeof(query_id_t);
+							wiselib::read<OsModel>(p, rev); p += sizeof(revision_t);
+							
+							typename QueryDescriptions::iterator it = queries_.begin();
+							for( ; it != queries_.end(); ++it) {
+								if(it->id() == qid) {
+									if(it->revision() < rev) {
+										// we have an old version of this query
+										queries_.erase(it);
+										s.add_requested(qid);
+									}
+									break;
+								}
+							}
+							
+							if(it == queries_.end()) {
+								// query not known at all
+								s.add_requested(qid);
+							}
+						} // while(p < end)
+						
+						s.set_state(State::SEND_REQUEST);
+						endpoint.request_send();
+						
+					case State::RECEIVE_ANSWER:
+						bool done = false;
+						while(p < end) {
+							::uint8_t l;
+							wiselib::read<OsModel>(p, l); p += sizeof(::uint8_t);
+							
+							if(l == 0) {
+								if(p > end - QUERY_HEADER_SIZE) {
+									// len == 0, but can't be a new query -->
+									// we are done!
+									done = true;
+									break;
+								}
+								
+								// start a new query
+								SemanticEntityId scope;
+								query_id_t id;
+								::uint8_t role, operator_count;
+								revision_t revision;
+								abs_millis_t lifetime, waketime;
+								
+								read<OsModel>(p, scope); p += sizeof(SemanticEntityId);
+								read<OsModel>(p, id); p += sizeof(query_id_t);
+								read<OsModel>(p, revision); p += sizeof(revision_t);
+								read<OsModel>(p, role); p += sizeof(::uint8_t);
+								read<OsModel>(p, lifetime); p += sizeof(abs_millis_t);
+								read<OsModel>(p, waketime); p += sizeof(abs_millis_t);
+								read<OsModel>(p, operator_count); p += sizeof(::uint8_t);
+								
+								queries_[id].init(scope, id, revision, role, waketime, lifetime, operator_count);
+								s.set_query_iterator(s.find(id));
+								s.rewind_operator();
+								
+								
+								// TODO: if query locally relevant, delete old
+								// version, start creating new one
+								
+								// TODO: set up lifetime and waketime timers
+							}
+							else {
+								// TODO: if locally relevant, interpret
+								// operator descriptions
+								
+								s.query_iterator()->second.push_operator(s.operator_position(), l, p);
+								s.next_operator();
+								p += l;
+							}
+						}
+						break;
+						
+				} // switch
+				//}}}
+			}
+			
+			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
+				switch(event) {
+					case Neighborhood::SEEN_NEIGHBOR:
+						on_see_neighbor(id);
+						break;
+						
+					case Neighborhood::NEW_NEGIHBOR:
+						// TODO: can we do this lazily? i.e. only create for parent
+						// upfront, rest only when we actually want to speak to them!
+						transport_.register_endpoint(id, id, !is_parent(id), TransportT::callback_t::template from_method<self_type, &self_type::callback_handover_initiator>(this));
+						break;
+						
+					case Neighborhood::LOST_NEIGHBOR:
+						transport_.unregister_endpoint(id, true);
+						transport_.unregister_endpoint(id, false);
+						break;
+						
+					case Neighborhood::UPDATED_NEIGHBOR:
+						break;
+						
+					case Neighborhood::UPDATED_STATE:
+						break;
+				}
+			} // on_neighborhood_event
+				
 			void on_see_neighbor(node_id_t id) {
-				if(sending_down() && is_child(id) && !childs_done_.contains(id)) {
-					transport_.open(id);
-				}
-				else if(sending_up() && is_parent(id)) {
-					transport_.open(id);
-				}
-			}
-			
-			void check_all_send() {
-				if(childs_done_ == nd_.childs()) {
-					busy_sending_ = false;
-					if(now() < wake_end_time()) {
-						set_timer<&wake_end>(wake_end_time() - now(), this, 0);
+				typename QueryDescriptions::iterator it = queries_.begin();
+				forward_to_matching(it, id);
+				
+				bool up_to_date = false;
+				for( ; it != queries_.end(); ++it, forward_to_matching(it, id)) {
+					up_to_date = false;
+					for(typename QueryRevisions::iterator qrit = sent_[id].begin(); qrit != sent_[id].end(); ++qrit) {
+						if(qrit->id() == it->id()) {
+							up_to_date = (qrit->revision() >= it->revision());
+							break;
+						}
 					}
-					else {
-						wake_end();
-					}
+					
+					if(!up_to_date) { break; }
 				}
-			}
-			
-			void wake_end() {
-				nap_control_.pop();
-			}
-			
-			void busy() {
-				return busy_sending_ || busy_receiving_;
-			}
-			
-			//void start(SemanticEntityId se_id) {
-				//current_se_ = se_id;
-			//}
-			
-			void on_receive(...) {
-				if(current_se_.invalid() || se == current_se_) {
-					current_se_ = se;
-					transport_.on_receive(...);
-				}
-			}
+				
+				if(!up_to_date) {
+					bool found;
+					// get or create endpoint
+					typename TransportT::Endpoint &ep = transport_.get_endpoint(id, true, found);
+					if(found) {
+						assert(ep.remote_address() == id);
+						if(transport_.is_sending() <= (transport_.sending_endpoint().channel() != id)) {
+							int r = transport_.open(ep, true);
+							if(r == SUCCESS) {
+								communication_states_[id].set_state(State::INIT);
+							}
+						} // if not already sending
+					} // if found
+				} // if !up to date
+			} // on_see_neighbor()
 			
 		private:
-				
-			struct PacketPool {
-				int enqueue(::uint8_t length, block_data_t* data) {
-					if(size_ + length + 1 > POOL_SIZE) {
-						return ERR_UNSPEC;
-					}
-					data_[size_ - 1] = length;
-					memcpy(data_ + size_, data, length);
-					size_ += length + 1;
-					data_[size_ - 1] = 0;
-				}
-				
-				block_data_t data_[POOL_SIZE];
-				size_type size_;
-			};
-			
-			
-			// format:
-			// [ len | data ..... | len | data ..... | 0 | .... ]
-			PacketPool downward_;
-			PacketPool upward_;
-			
-			ChildSet childs_done_;
-			ChildSet childs_failed_;
-			
-			SemanticEntityId current_se_;
-			::uint32_t wake_request_;
-			size_type busy_sending_down_;
-			bool busy_receiving_;
+			Sent sent_;
+			QueryDescriptions queries_;
+			CommunicationStates communication_states_;
+			TransportT transport_;
+			typename Radio::self_pointer_t radio_;
+			typename Neighborhood::self_pointer_t nd_;
+			typename Timer::self_pointer_t timer_;
+			typename Clock::self_Pointer_t clock_;
+			typename Debug::self_ponter_t debug_;
+			typename Rand::self_pointer_t rand_;
+			typename NapControlT::self_pointer_t nap_control_;
 		
 	}; // OpportunisticDistributor
 }

@@ -271,6 +271,14 @@ namespace wiselib {
 				}
 			}
 			
+			void unregister_endpoint(const ChannelId& channel, bool initiator) {
+				size_type idx = find_or_create_endpoint(channel, initiator, false);
+				if(idx != npos) {
+					endpoints_[idx].callback_ = callback_t();
+				}
+			}
+				
+			
 			Endpoint& get_endpoint(const ChannelId& channel, bool initiator, bool& found) {
 				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx == npos) {
@@ -296,7 +304,9 @@ namespace wiselib {
 					if(request_send) { ep.request_send(); }
 					return SUCCESS;
 				}
-				debug_->debug("op: is%d wa%d", (int)ep.is_open(), (int)ep.wants_open());
+				#if RELIABLE_TRANSPORT_DEBUG_STATE
+					debug_->debug("op: is%d wa%d", (int)ep.is_open(), (int)ep.wants_open());
+				#endif
 				return ERR_UNSPEC;
 			}
 			
@@ -347,16 +357,18 @@ namespace wiselib {
 					return;
 				}
 				if(from == radio_->id()) {
-					debug_->debug("ign self");
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("ign self");
+					#endif
 					return;
 				}
-				
-				//debug_->debug("%d recv t %d src %d ch %x.%x m.i=%d m.a=%d m.s=%d m.f=%d m.plen=%d *msg.p=0x%x", (int)radio_->id(), (int)now(), (int)from, (int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.sequence_number(), (int)msg.flags(), (int)msg.payload_size(), (char)*msg.payload());
 				
 				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
 				
 				if(idx == npos) {
-					debug_->debug("ign ch%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("ign ch%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
+					#endif
 					return;
 				}
 				Endpoint &ep = endpoints_[idx];
@@ -378,15 +390,20 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					debug_->debug("ign ch%x.%x m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
-							(int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("ign ch%x.%x m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
+								(int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
+					#endif
+					
 					return;
 				}
 				
 				::uint8_t f = msg.flags() & (Message::FLAG_OPEN | Message::FLAG_CLOSE | Message::FLAG_ACK);
 				
-				debug_->debug("recv t%d s%d f0x%x f'0x%d", (int)now(), (int)msg.sequence_number(),
-						(int)msg.flags(), (int)f);
+				#if RELIABLE_TRANSPORT_DEBUG_STATE
+					debug_->debug("recv t%d s%d f0x%x f'0x%d", (int)now(), (int)msg.sequence_number(),
+							(int)msg.flags(), (int)f);
+				#endif
 				
 				switch(f) {
 					case Message::FLAG_OPEN:
@@ -437,7 +454,9 @@ namespace wiselib {
 			
 			void receive_open(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
-					debug_->debug("reopen");
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("reopen");
+					#endif
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -448,7 +467,9 @@ namespace wiselib {
 			
 			void receive_close(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
-					debug_->debug("cc");
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("cc");
+					#endif
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -484,10 +505,13 @@ namespace wiselib {
 				ep.set_expect_answer(false);
 				ep.consume(msg);
 				
-				debug_->debug("cons t%d m.s%d e.s%d ws%d wc%d is%d fa%d",
-						(int)now(), (int)msg.sequence_number(), (int)ep.sequence_number(),
-						(int)ep.wants_send(), (int)ep.wants_close(), (int)is_sending_,
-						(int)force_ack);
+				#if RELIABLE_TRANSPORT_DEBUG_STATE
+					debug_->debug("cons t%d m.s%d e.s%d ws%d wc%d is%d fa%d",
+							(int)now(), (int)msg.sequence_number(), (int)ep.sequence_number(),
+							(int)ep.wants_send(), (int)ep.wants_close(), (int)is_sending_,
+							(int)force_ack);
+				#endif
+					
 				if((!ep.wants_send() && !ep.wants_close()) || is_sending_ || force_ack) {
 					//DBG("node %d // consume_data: sending ack to %d", (int)radio_->id(), (int)ep.remote_address());
 					send_ack_for(ep.remote_address(), msg);
@@ -506,9 +530,10 @@ namespace wiselib {
 				m.set_flags(ack_flags_for(msg.flags(), false));
 				m.set_payload(0, 0);
 				
-				//debug_->debug("--- node %d t %d s %d // to %d send ack", (int)radio_->id(), (int)now(), (int)msg.sequence_number(), (int)to);
-				debug_->debug("snda t%d s%d to %d f0x%x", (int)now(), (int)m.sequence_number(),
-						(int)to, (int)m.flags());
+				#if RELIABLE_TRANSPORT_DEBUG_STATE
+					debug_->debug("snda t%d s%d to %d f0x%x", (int)now(), (int)m.sequence_number(),
+							(int)to, (int)m.flags());
+				#endif
 				radio_->send(to, m.size(), m.data());
 			}
 			
@@ -667,7 +692,9 @@ namespace wiselib {
 						}
 						
 						if(!send) {
-							debug_->debug("prod0 i%d", (int)sending_endpoint().initiator());
+							#if RELIABLE_TRANSPORT_DEBUG_STATE
+								debug_->debug("prod0 i%d", (int)sending_endpoint().initiator());
+							#endif
 							is_sending_ = false;
 							check_send();
 							return;
@@ -682,7 +709,7 @@ namespace wiselib {
 					try_send();
 				}
 				else {
-					DBG("node %d // check_send: no sending endpoint found", (int)radio_->id());
+					//DBG("node %d // check_send: no sending endpoint found", (int)radio_->id());
 				}
 			}
 			
@@ -719,8 +746,10 @@ namespace wiselib {
 					#if !WISELIB_DISABLE_DEBUG
 						debug_->debug("%d t %d s %d a %d // to %d send idx %d i %d f 0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(), (int)sending_.is_ack(), (int)addr, (int)sending_channel_idx_, (int)sending_.initiator(), (int)sending_.flags());
 					#endif
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("snd t%d s%d to %d f0x%x r%d", (int)now(), (int)sending_.sequence_number(),
 								(int)addr, (int)sending_.flags(), (int)resends_);
+					#endif
 					radio_->send(addr, sending_.size(), sending_.data());
 				}
 				else {
@@ -735,12 +764,16 @@ namespace wiselib {
 				::uint8_t ack_timer;
 				ack_timer = (::uint8_t)(unsigned long)(at_);
 				if(is_sending_ && (ack_timer == ack_timer_)) {
-					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
-							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator());
+					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d to=%lu", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
+							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
 					
-					debug_->debug("loss s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("loss s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+					#endif
 					if(resends_ >= MAX_RESENDS) {
-						debug_->debug("abrt s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+						#if RELIABLE_TRANSPORT_DEBUG_STATE
+							debug_->debug("abrt s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+						#endif
 						sending_endpoint().abort_produce();
 						sending_endpoint().close();
 						is_sending_ = false;
@@ -751,7 +784,9 @@ namespace wiselib {
 					}
 				}
 				else {
-					debug_->debug("nls%d/%d", (int)ack_timer, (int)ack_timer_);
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("nls%d/%d", (int)ack_timer, (int)ack_timer_);
+					#endif
 				}
 			}
 			
@@ -761,7 +796,9 @@ namespace wiselib {
 					DBG("node %d // expected answer from %d not received closing channel", (int)radio_->id(),
 							(int)ep.remote_address());
 					ack_timer_++; // invalidate running ack timer
-					debug_->debug("noans s%d t%d", (int)ep.sequence_number(), (int)(now() & 0xffff));
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("noans s%d t%d", (int)ep.sequence_number(), (int)(now() & 0xffff));
+					#endif
 					ep.abort_produce();
 					ep.close();
 					is_sending_ = false;

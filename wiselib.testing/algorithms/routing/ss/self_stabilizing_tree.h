@@ -36,7 +36,7 @@ namespace wiselib {
 	/**
 	 * @brief
 	 * 
-	 * @ingroup
+	 * @ingroup Neighborhood_concept
 	 * 
 	 * @tparam 
 	 */
@@ -129,10 +129,10 @@ namespace wiselib {
 						(message_.user_data() == other.message_.user_data());
 					
 					if(!r) {
-						DBG("// not same content addr %d state %d ud %d",
-								(int)(address_ == other.address_),
-								(int)(message_.tree_state() == other.message_.tree_state()),
-								(int)(message_.user_data() == other.message_.user_data()));
+						//DBG("// not same content addr %d state %d ud %d",
+								//(int)(address_ == other.address_),
+								//(int)(message_.tree_state() == other.message_.tree_state()),
+								//(int)(message_.user_data() == other.message_.user_data()));
 					}
 					return r;
 				}
@@ -288,7 +288,9 @@ namespace wiselib {
 				msg.set_tree_state(tree_state_);
 				msg.set_user_data(user_data());
 				
-				debug_->debug("bc");
+				#if INSE_DEBUG_STATE
+					debug_->debug("bc");
+				#endif
 				nap_control_->push_caffeine();
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d t %d // bcast tree state r%d p%d d%d | r%d p%d d%d",
@@ -302,7 +304,9 @@ namespace wiselib {
 				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				
 				nap_control_->pop_caffeine();
-				debug_->debug("/bc");
+				#if INSE_DEBUG_STATE
+					debug_->debug("/bc");
+				#endif
 			}
 			
 			void broadcast_state_regular(void* = 0) {
@@ -343,7 +347,6 @@ namespace wiselib {
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
-					//debug_->debug("Trcv R %d t %d", (int)from, (int)t_recv);
 					if(regular_broadcasts_.full() && !regular_broadcasts_.contains(from)) {
 						debug_->debug("ign neigh %d", (int)from);
 						
@@ -358,14 +361,13 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					debug_->debug("@%d tre %d win %d int %d e%d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval(), (int)event.early());
+					#if INSE_DEBUG_STATE
+						debug_->debug("@%d tre %d win %d int %d e%d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval(), (int)event.early());
+					#endif
 					
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
-				}
-				else {
-					//debug_->debug("topo %d t %d", (int)from, (int)t_recv);
 				}
 				
 				add_neighbor_entry(from, msg);
@@ -377,7 +379,9 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_regular_broadcast", (int)radio_->id());
 				#endif
-				debug_->debug("bcwait");
+				#if INSE_DEBUG_STATE
+					debug_->debug("bcwait");
+				#endif
 				nap_control_->push_caffeine();
 			}
 			
@@ -385,7 +389,9 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_regular_broadcast", (int)radio_->id());
 				#endif
-				debug_->debug("/bcwait");
+				#if INSE_DEBUG_STATE
+					debug_->debug("/bcwait");
+				#endif
 				nap_control_->pop_caffeine();
 			}
 			
@@ -434,29 +440,6 @@ namespace wiselib {
 				n.state_ = OUT_EDGE;
 				neighbors_[0] = n;
 				
-				
-				/*
-				
-				if(idx == npos) {
-					if(neighbors_[0].id() != NULL_NODE_ID) {
-						insert_child(neighbors_[0]);
-					}
-					neighbors_[0].invalidate();
-				}
-				else {
-					// remove new parent from childs list
-					Neighbor tmp = neighbors_[idx];
-					assert(tmp.id() != NULL_NODE_ID);
-				
-					neighbors_.erase(typename Neighbors::iterator(&neighbors_[idx]));
-					if(neighbors_[0].id() != NULL_NODE_ID) {
-						insert_child(neighbors_[0]);
-					}
-					neighbors_[0] = tmp;
-				}
-				
-				*/
-				
 				check();
 			}
 			
@@ -470,17 +453,6 @@ namespace wiselib {
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
 					if(!it->same_content(e)) {
-						/*
-						debug_->debug("+++ neigh content diff @%d, before", (int)it->address_);
-						print_filter(it->user_data());
-						debug_->debug("+++ now:");
-						print_filter(e.user_data());
-						debug_->debug("ole: a %d r %d p %d d %d",
-								(int)it->id(), (int)it->root(), (int)it->parent(), (int)it->distance());
-						debug_->debug("new: a %d r %d p %d d %d",
-								(int)e.id(), (int)e.root(), (int)e.parent(), (int)e.distance());
-						*/
-						
 						assert(it->address_ == e.address_);
 						updated_neighbors_ = true;
 						notify_event(UPDATED_NEIGHBOR, addr);
@@ -488,7 +460,9 @@ namespace wiselib {
 					*it = e;
 				}
 				else {
-					debug_->debug("new %d", (int)addr);
+					#if INSE_DEBUG_STATE
+						debug_->debug("new %d", (int)addr);
+					#endif
 					neighbor_entries_.insert(e);
 					new_neighbors_ = true;
 					notify_event(NEW_NEIGHBOR, addr);
@@ -505,18 +479,6 @@ namespace wiselib {
 				check();
 			}
 			
-			/*
-			void erase_child(size_type p) {
-				check();
-				assert(p > 0);
-				assert(p != npos);
-				memmove(neighbors_ + p, neighbors_ + p + 1, (1 + childs() - p - 1)*sizeof(NeighborEntry));
-				neighbors_[1 + childs() - 1].address_ = NULL_NODE_ID;
-				neighbors_count_--;
-				check();
-			}
-			*/
-			
 			void cleanup_dead_neighbors() {
 				check();
 				
@@ -524,27 +486,17 @@ namespace wiselib {
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
 						regular_broadcasts_[iter->address_].cancel();
 						
-						// TODO: cancel timers where necessary!
-						
-						//for(typename NeighborEntries::iterator itx = neighbor_entries_.begin();
-								//itx != neighbor_entries_.end(); ++itx) {
-							//debug_->debug("neighbor entries before: %d", (int)itx->address_);
-						//}
-						
 						node_id_t addr = iter->address_;
-						debug_->debug("lost %d", (int)addr);
+						
+						#if INSE_DEBUG_STATE
+							debug_->debug("lost %d", (int)addr);
+						#endif
 						
 						size_type sz = neighbor_entries_.size();
 						iter = neighbor_entries_.erase(iter);
 						assert(neighbor_entries_.size() + 1 == sz);
 						
-						//for(typename NeighborEntries::iterator itx = neighbor_entries_.begin();
-								//itx != neighbor_entries_.end(); ++itx) {
-							//debug_->debug("neighbor entries after: %d", (int)itx->address_);
-						//}
-						
 						notify_event(LOST_NEIGHBOR, addr);
-						//changed_ = true;
 						lost_neighbors_ = true;
 					}
 					else { ++iter; }
@@ -575,45 +527,29 @@ namespace wiselib {
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
 					
-					DBG("neigh: %lu p %lu r %lu d %d", (unsigned long)iter->id(), (unsigned long)iter->tree_state().parent(),
-							(unsigned long)iter->tree_state().root(), (int)iter->tree_state().distance());
+					//DBG("neigh: %lu p %lu r %lu d %d", (unsigned long)iter->id(), (unsigned long)iter->tree_state().parent(),
+							//(unsigned long)iter->tree_state().root(), (int)iter->tree_state().distance());
 					if(iter->tree_state().parent() == radio_->id()) {
-						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
 						Neighbor n(&*iter);
 						insert_child(n);
 					}
 					
 					else if((iter->tree_state().root() < root) ||
 						(iter->tree_state().root() == root && (iter->tree_state().distance() + 1) < distance)) {
-						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
-						//parent_idx = (it - neighbors_.begin());
 						parent_ptr = &*iter;
 						parent = iter->id();
 						root = iter->tree_state().root();
 						distance = iter->tree_state().distance() + 1;
 					}
-					
-					/*
-					else if(iter->tree_state().root() == root && (iter->tree_state().distance() + 1) < distance) {
-						//typename Neighbors::iterator it = neighbors_.insert(Neighbor(&*iter));
-						//parent_idx = (it - neighbors_.begin());
-						parent_ptr = &*iter;
-						parent = iter->id();
-						distance = iter->tree_state().distance() + 1;
-					}
-					*/
 				}
 				
 				if(root == radio_->id()) {
 					distance = 0;
-					//parent_idx = npos;
 					parent_ptr = 0;
 					parent = radio_->id();
 				}
 				
 				if(parent_ptr) {
-					//typename Neighbors::iterator it = neighbors_.insert(Neighbor(parent_ptr));
-					//make_parent(it - neighbors_.begin());
 					Neighbor n(parent_ptr);
 					set_parent(n);
 				}
@@ -624,26 +560,26 @@ namespace wiselib {
 				bool c = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
 				
-				//if(c) {
-					//debug_->debug("node %d // update_state propagating changes", (int)radio_->id());
-				//}
-				
 				if(c || updated_neighbors_) {
-					debug_->debug("@%d p=%d d=%d rt=%d c=%d t=%d",
-								(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)(now() % 65536)/*, hex*/);
+					#if INSE_DEBUG_STATE
+						debug_->debug("@%d p=%d d=%d rt=%d c=%d t=%d",
+									(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)(now() % 65536)/*, hex*/);
+					#endif
+						
+						
 					notify_event(UPDATED_STATE, radio_->id());
+						
 					// <DEBUG>
-					//#if !WISELIB_DISABLE_DEBUG
-					
-						//char hex[sizeof(UserData) * 2 + 1];
-						//for(size_type i = 0; i < sizeof(UserData); i++) {
-							//hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
-							//hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
-						//}
-						//hex[sizeof(UserData) * 2] = '\0';
+					#if INSE_DEBUG_TREE
+						char hex[sizeof(UserData) * 2 + 1];
+						for(size_type i = 0; i < sizeof(UserData); i++) {
+							hex[2 * i] = hexchar(((block_data_t*)&user_data_)[i] >> 4);
+							hex[2 * i + 1] = hexchar(((block_data_t*)&user_data_)[i] & 0x0f);
+						}
+						hex[sizeof(UserData) * 2] = '\0';
 						
-						
-						
+						debug_->debug("node %d root %d parent %d distance %d filter %s",
+								(int)radio_->id(), (int)root, (int)parent, (int)distance, hex);
 						
 						//debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
 								//(int)radio_->id(),
@@ -653,7 +589,7 @@ namespace wiselib {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}
 						
-					//#endif
+					#endif
 					// </DEBUG>
 					
 					changed();
@@ -662,9 +598,6 @@ namespace wiselib {
 				new_neighbors_ = false;
 				lost_neighbors_ = false;
 				updated_neighbors_ = false;
-				
-				//new_neighbors_ = false;
-				//lost_neighbors_ = false;
 				
 				check();
 				return c;

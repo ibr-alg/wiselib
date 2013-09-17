@@ -73,10 +73,10 @@ namespace wiselib {
 			bool operator==(const TreeState& other) {
 				bool r = /*(parent_ == other.parent_) &&*/ (root_ == other.root_) && (distance_ == other.distance_);
 				if(!r) {
-					DBG("not same tree state parent %d vs %d root %d vs %d distance %d vs %d",
-							(int)parent_, (int)other.parent_,
-							(int)root_, (int)other.root_,
-							(int)distance_, (int)other.distance_);
+					//DBG("not same tree state parent %d vs %d root %d vs %d distance %d vs %d",
+							//(int)parent_, (int)other.parent_,
+							//(int)root_, (int)other.root_,
+							//(int)distance_, (int)other.distance_);
 				}
 				return r;
 			}
