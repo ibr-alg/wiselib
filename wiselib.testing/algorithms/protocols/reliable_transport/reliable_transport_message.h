@@ -35,7 +35,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename ChannelId_P,
-		typename Radio_P
+		typename Radio_P,
+		::uint8_t MESSAGE_TYPE_P = 0x42
 	>
 	class ReliableTransportMessage {
 		
@@ -51,7 +52,7 @@ namespace wiselib {
 			typedef ::uint32_t delay_t;
 			
 			enum MessageIds {
-				MESSAGE_TYPE = 0x42,
+				MESSAGE_TYPE = MESSAGE_TYPE_P,
 				SUBTYPE_DATA = 0x00, SUBTYPE_ACK = 0x01
 			};
 			

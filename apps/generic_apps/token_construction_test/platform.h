@@ -9,58 +9,70 @@
 #define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
 #define INSE_DEBUG_STATE               0
 #define INSE_DEBUG_TREE                1
-#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+#define RELIABLE_TRANSPORT_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        0
+#define DISTRIBUTOR_DEBUG_STATE        1
 
 // TupleStore config
 
-#define USE_LIST_CONTAINER   0
-#define USE_VECTOR_CONTAINER 1
-#define USE_BLOCK_CONTAINER  0
+#define USE_LIST_CONTAINER             0
+#define USE_VECTOR_CONTAINER           1
+#define USE_BLOCK_CONTAINER            0
 
-#define USE_PRESCILLA_DICTIONARY   0
-#define USE_TREE_DICTIONARY        1
-#define USE_BLOCK_DICTIONARY       0
-#define USE_NULL_DICTIONARY        0
+#define USE_PRESCILLA_DICTIONARY       0
+#define USE_TREE_DICTIONARY            1
+#define USE_BLOCK_DICTIONARY           0
+#define USE_NULL_DICTIONARY            0
 
 // App features
 
-#define USE_INQP            0
-#define INSE_USE_AGGREGATOR 0
+#define USE_INQP                       1
+#define INSE_USE_AGGREGATOR            0
 
 // Restrictions
 
-#define INSE_MAX_NEIGHBORS 8
-#define INSE_MAX_SEMANTIC_ENTITIES 4
+#define INSE_MAX_NEIGHBORS             8
+#define INSE_MAX_SEMANTIC_ENTITIES     4
+#define INSE_MAX_QUERIES               4
 
-// Memory sizes, word sizes, tec..
+// Memory sizes, word sizes, tec..    
 
-#define BITMAP_ALLOCATOR_RAM_SIZE 2048
-#define BLOCK_CACHE_SIZE          2
-#define BLOCK_CACHE_SPECIAL       1
-#define BLOCK_CACHE_WRITE_THROUGH 1
-#define BLOCK_CHUNK_SIZE          8
-#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
+#define BITMAP_ALLOCATOR_RAM_SIZE      2048
+#define BLOCK_CACHE_SIZE               2
+#define BLOCK_CACHE_SPECIAL            1
+#define BLOCK_CACHE_WRITE_THROUGH      1
+#define BLOCK_CHUNK_SIZE               8
+#define BLOCK_CHUNK_ADDRESS_TYPE       ::uint32_t
 
 // Timing
 
-#define WISELIB_TIME_FACTOR 1
+#define WISELIB_TIME_FACTOR            1
 
 
 #if defined(CONTIKI_TARGET_MICAZ)
-	#define CHECK_INVARIANTS 0
-	#define WISELIB_DISABLE_DEBUG 1
+	#define CHECK_INVARIANTS           0
+	#define WISELIB_DISABLE_DEBUG      1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	#define USE_VECTOR_CONTAINER 1
-	#define USE_TREE_DICTIONARY 1
-	#define USE_INQP 0
-	#define INSE_USE_AGGREGATOR 0
-	#define BITMAP_ALLOCATOR_RAM_SIZE 1024
+	#define USE_VECTOR_CONTAINER       1
+	#define USE_TREE_DICTIONARY        1
+	#define USE_INQP                   0
+	#define INSE_USE_AGGREGATOR        0
+	#define BITMAP_ALLOCATOR_RAM_SIZE  1024
 
 #elif defined(SHAWN)
-	#define WISELIB_TIME_FACTOR 100
-	#define INSE_DEBUG_TREE 1
-	#define INSE_MAX_NEIGHBORS 100
+	// stretch time by factor 100 to improve timer resolution
+	#undef WISELIB_TIME_FACTOR
+	#define WISELIB_TIME_FACTOR        100
+
+	#undef INSE_DEBUG_TREE
+	#define INSE_DEBUG_TREE            1
+
+	// we have the RAM, cut some slack for the algorithms
+	
+	#undef INSE_MAX_NEIGHBORS
+	#define INSE_MAX_NEIGHBORS         100
+
+	#undef INSE_MAX_SEMANTIC_ENTITIES
 	#define INSE_MAX_SEMANTIC_ENTITIES 10
 #endif
 	

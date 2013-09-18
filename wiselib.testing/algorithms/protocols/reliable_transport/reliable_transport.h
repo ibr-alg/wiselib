@@ -44,7 +44,8 @@ namespace wiselib {
 		typename Clock_P,
 		typename Rand_P,
 		typename Debug_P,
-		size_t MAX_ENDPOINTS_P
+		size_t MAX_ENDPOINTS_P,
+		::uint8_t MESSAGE_TYPE_P = 0x42
 	>
 	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
@@ -67,7 +68,7 @@ namespace wiselib {
 			typedef Rand_P Rand;
 			typedef Debug_P Debug;
 			
-			typedef ReliableTransportMessage<OsModel, ChannelId, Radio> Message;
+			typedef ReliableTransportMessage<OsModel, ChannelId, Radio, MESSAGE_TYPE_P> Message;
 			typedef typename Message::sequence_number_t sequence_number_t;
 			typedef ::uint32_t abs_millis_t;
 			
@@ -212,6 +213,7 @@ namespace wiselib {
 					
 					void set_supplementary() { supplementary_ = true; }
 					bool supplementary() { return supplementary_; }
+					void set_callback(callback_t cb) { callback_ = cb; }
 				
 				private:
 					ChannelId channel_id_;
@@ -274,7 +276,7 @@ namespace wiselib {
 			void unregister_endpoint(const ChannelId& channel, bool initiator) {
 				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx != npos) {
-					endpoints_[idx].callback_ = callback_t();
+					endpoints_[idx].set_callback(callback_t());
 				}
 			}
 				
@@ -354,6 +356,9 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				Message &msg = *reinterpret_cast<Message*>(data);
 				if(msg.type() != Message::MESSAGE_TYPE) {
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("ign msgtype 0x%x", (int)msg.type());
+					#endif
 					return;
 				}
 				if(from == radio_->id()) {
@@ -367,7 +372,12 @@ namespace wiselib {
 				
 				if(idx == npos) {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("ign ch%x.%x", (int)msg.channel().rule(), (int)msg.channel().value());
+						ChannelId c = msg.channel();
+						block_data_t *ch = reinterpret_cast<block_data_t*>(&c);
+						debug_->debug("@%d ign ch s%d %02x%02x%02x%02x / %d",
+								(int)radio_->id(), (int)msg.sequence_number(),
+								(int)ch[0], (int)ch[1], (int)ch[2], (int)ch[3], msg.initiator());
+						//); // (int)msg.channel().rule(), (int)msg.channel().value());
 					#endif
 					return;
 				}
@@ -391,8 +401,9 @@ namespace wiselib {
 				}
 				else {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("ign ch%x.%x m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
-								(int)msg.channel().rule(), (int)msg.channel().value(), (int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
+						debug_->debug("ign m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
+								//(int)msg.channel().rule(), (int)msg.channel().value(),
+								(int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
 					#endif
 					
 					return;
@@ -401,7 +412,7 @@ namespace wiselib {
 				::uint8_t f = msg.flags() & (Message::FLAG_OPEN | Message::FLAG_CLOSE | Message::FLAG_ACK);
 				
 				#if RELIABLE_TRANSPORT_DEBUG_STATE
-					debug_->debug("recv t%d s%d f0x%x f'0x%d", (int)now(), (int)msg.sequence_number(),
+					debug_->debug("recv m0x%x t%d s%d f0x%x f'0x%d", (int)msg.type(), (int)now(), (int)msg.sequence_number(),
 							(int)msg.flags(), (int)f);
 				#endif
 				
@@ -747,8 +758,8 @@ namespace wiselib {
 						debug_->debug("%d t %d s %d a %d // to %d send idx %d i %d f 0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(), (int)sending_.is_ack(), (int)addr, (int)sending_channel_idx_, (int)sending_.initiator(), (int)sending_.flags());
 					#endif
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("snd t%d s%d to %d f0x%x r%d", (int)now(), (int)sending_.sequence_number(),
-								(int)addr, (int)sending_.flags(), (int)resends_);
+						debug_->debug("@%d snd t%d s%d to %d f0x%x r%d m0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(),
+								(int)addr, (int)sending_.flags(), (int)resends_, (int)sending_.type());
 					#endif
 					radio_->send(addr, sending_.size(), sending_.data());
 				}
@@ -764,8 +775,9 @@ namespace wiselib {
 				::uint8_t ack_timer;
 				ack_timer = (::uint8_t)(unsigned long)(at_);
 				if(is_sending_ && (ack_timer == ack_timer_)) {
-					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=%x.%x/%d to=%lu", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
-							(int)sending_.channel().rule(), (int)sending_.channel().value(), (int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
+					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=/%d to=%lu", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
+							//(int)sending_.channel().rule(), (int)sending_.channel().value(),
+							(int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
 					
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("loss s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));

@@ -99,6 +99,8 @@ namespace wiselib {
 		typename OsModel_P,
 		typename Neighborhood_P,
 		typename NapControl_P,
+		typename SemanticEntityRegistry_P,
+		typename QueryProcessor_P,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Clock_P = typename OsModel_P::Clock,
@@ -123,6 +125,9 @@ namespace wiselib {
 			typedef self_type *self_pointer_t;
 			typedef ::uint8_t query_id_t;
 			typedef ::uint8_t revision_t;
+			typedef SemanticEntityRegistry_P SemanticEntityRegistryT;
+			typedef QueryProcessor_P QueryProcessorT;
+			typedef typename QueryProcessorT::BOD BOD;
 			
 			enum QueryRole { CONSTRUCTION_RULE = 'R', QUERY = 'Q', TASK = 'T' };
 			typedef ::uint8_t query_role_t;
@@ -150,16 +155,26 @@ namespace wiselib {
 			class QueryRevision {
 				//{{{
 				public:
+					QueryRevision() { }
+					QueryRevision(query_id_t qid, revision_t rev) : id_(qid), revision_(rev) {
+					}
 					query_id_t id() { return id_; }
 					void set_id(query_id_t i) { id_ = i; }
 					revision_t revision() { return revision_; }
 					void set_revision(revision_t i) { revision_ = i; }
+					
+					bool operator==(QueryRevision& other) {
+						return other.id_ == id_ && other.revision_ == revision_;
+					}
 				private:
 					query_id_t id_;
 					revision_t revision_;
 				//}}}
 			};
 			
+			// TODO: would be theoretically more efficient as a query_id => revision map
+			// (effectively map static vector iterates over the whole vector
+			// anyway though)
 			typedef set_static<OsModel, QueryRevision, MAX_QUERIES> QueryRevisions;
 			typedef MapStaticVector<OsModel, node_id_t, QueryRevisions, MAX_NEIGHBORS> Sent; 
 			
@@ -191,17 +206,18 @@ namespace wiselib {
 					}
 						
 					void clear_operators() { operator_buffer_size_ = 0; }
+					block_data_t *operators() { return operator_buffer_; }
 					
-					query_id_t id() { return id_; }
-					revision_t revision() { return revision_; }
+					query_id_t& id() { return id_; }
+					revision_t& revision() { return revision_; }
 					SemanticEntityId& scope() { return scope_; }
 					void set_scope(SemanticEntityId& s) { scope_ = s; }
-					query_role_t role() { return role_; }
+					query_role_t& role() { return role_; }
 					void set_role(query_role_t r) { role_ = r; }
-					::uint8_t operator_count() { return operator_count_; }
+					::uint8_t& operator_count() { return operator_count_; }
 					
-					abs_millis_t lifetime() { return lifetime_; }
-					abs_millis_t waketime() { return waketime_; }
+					abs_millis_t& lifetime() { return lifetime_; }
+					abs_millis_t& waketime() { return waketime_; }
 					
 					
 				private:
@@ -217,14 +233,15 @@ namespace wiselib {
 				//}}}
 			};
 			typedef MapStaticVector<OsModel, query_id_t, QueryDescription, MAX_QUERIES> QueryDescriptions;
+			typedef typename QueryDescriptions::iterator QueryIterator;
 			
 			class State {
 				//{{{
 				public:
 					enum {
-						INIT, SEND_QUERY_IDS, RECEIVE_QUERY_IDS,
-						SEND_REQUEST, RECEIVE_REQUEST, ANSWER_REQUEST,
-						DONE
+						INIT = 0, SEND_QUERY_IDS = 1, RECEIVE_QUERY_IDS = 2,
+						SEND_REQUEST = 3, RECEIVE_REQUEST = 4,
+						ANSWER_REQUEST = 5, RECEIVE_ANSWER = 6, DONE = 7
 					};
 					
 					::uint8_t state() { return state_; }
@@ -233,18 +250,19 @@ namespace wiselib {
 					///@name Query level iteration
 					///@{
 					
-					typename QueryDescriptions::iterator query_iterator() { return query_iterator_; }
+					typename QueryDescriptions::iterator& query_iterator() { return query_iterator_; }
 					void set_query_iterator(typename QueryDescriptions::iterator i) { query_iterator_ = i; }
 					void forward_to_requested(typename QueryDescriptions::iterator end) {
 						
 						bool stop = false;
 						for( ; query_iterator_ != end; ++query_iterator_) {
 							for(typename RequestedQueries::iterator it = requested_.begin(); it != requested_.end(); ++it) {
-								if(query_iterator_->id() == *it) {
+								if(query_iterator_->second.id() == *it) {
 									stop = true;
 									break;
 								}
 							}
+							
 							
 							if(stop) { break; }
 						}
@@ -256,9 +274,11 @@ namespace wiselib {
 					///@{
 					
 					void rewind_operator() { operator_pos_ = 0; }
+					
 					block_data_t *current_operator() {
-						return reinterpret_cast<block_data_t*>(&*query_iterator_) + operator_pos_;
+						return query_iterator_->second.operators() + operator_pos_;
 					}
+					
 					size_type operator_position() { return operator_pos_; }
 					
 					::uint8_t operator_size() { return *current_operator(); }
@@ -267,7 +287,7 @@ namespace wiselib {
 					
 					///@}
 					
-					void add_request(query_id_t qid) { requested_.add(qid); }
+					void add_request(query_id_t qid) { requested_.insert(qid); }
 					typename RequestedQueries::iterator begin_requested() { return requested_.begin(); }
 					typename RequestedQueries::iterator end_requested() { return requested_.end(); }
 					void clear_requested() { requested_.clear(); }
@@ -275,29 +295,54 @@ namespace wiselib {
 					bool header_sent() { return header_sent_; }
 					void set_header_sent(bool h) { header_sent_ = h; }
 					
+					void set_scope(SemanticEntityId& scope) { scope_ = scope; }
+					SemanticEntityId& scope() { return scope_; }
+					
+					void set_query_id(query_id_t q) { query_id_ = q; }
+					query_id_t query_id() { return query_id_; }
+					
 				private:
 					::uint8_t state_;
 					typename QueryDescriptions::iterator query_iterator_;
 					RequestedQueries requested_;
 					size_type operator_pos_;
 					bool header_sent_;
+					SemanticEntityId scope_;
+					query_id_t query_id_;
 				//}}}
 			};
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> CommunicationStates;
 			
 			
-			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS> TransportT;
+			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS, 0x43> TransportT;
 			
-			void init(typename Radio::self_pointer_t radio, typename Neighborhood::self_pointer_t nd, typename NapControlT::self_pointer_t nap) {
+			void init(typename Radio::self_pointer_t radio,
+					typename Neighborhood::self_pointer_t nd,
+					typename NapControlT::self_pointer_t nap,
+					typename SemanticEntityRegistryT::self_pointer_t registry,
+					typename QueryProcessorT::self_pointer_t query_processor,
+					typename Debug::self_pointer_t debug,
+					typename Timer::self_pointer_t timer,
+					typename Clock::self_pointer_t clock,
+					typename Rand::self_pointer_t rand
+			) {
 				radio_ = radio;
-				nd_ = nd;
 				nap_control_ = nap;
-				//current_se_.set(SemanticEntityId::RULE_SPECIAL, SemanticEntityId::VALUE_INVALID);
+				registry_ = registry;
+				query_processor_ = query_processor;
+				debug_ = debug;
+				timer_ = timer;
 				
-				nd_.reg_event_callback(
+				transport_.init(radio_, timer, clock, rand, debug_, true);
+				
+				nd_ = nd;
+				nd_->reg_event_callback(
 						Neighborhood::event_callback_t::template from_method<self_type, &self_type::on_neighborhood_event>(this)
 				);
 				
+				for(typename Neighborhood::iterator it = nd_->begin_neighbors(); it != nd_->end_neighbors(); ++it) {
+					on_neighborhood_event(Neighborhood::NEW_NEIGHBOR, it->id());
+				}
 			}
 			
 			// TODO: How exactly should the interface of this look?
@@ -321,6 +366,10 @@ namespace wiselib {
 			
 			bool callback_handover_initiator(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
 				//{{{
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d evhi%c", (int)radio_->id(), (int)event);
+				#endif
+					
 				if(event == TransportT::EVENT_PRODUCE) {
 					return produce_handover_initiator(*message, *endpoint);
 				}
@@ -329,7 +378,7 @@ namespace wiselib {
 				}
 				else {
 					node_id_t remote = endpoint->remote_address();
-					State s = communication_states_[remote];
+					State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
 							nap_control_->push_caffeine();
@@ -339,26 +388,31 @@ namespace wiselib {
 						case TransportT::EVENT_CLOSE:
 							nap_control_->pop_caffeine();
 							if(s.state() == State::DONE) {
-								typename QueryDescription::iterator it;
+								typename QueryDescriptions::iterator it;
 								it = queries_.begin();
 								forward_to_matching(it, remote);
 								for( ; it != queries_.end(); ++it, forward_to_matching(it, remote)) {
-									sent_[*it].add(it->id());
+									sent_[remote].insert(QueryRevision(it->second.id(), it->second.revision()));
 								}
 							}
 							break;
 					}
 				}
+				return true;
 				//}}}
 			} // callback_handaover
 				
-			void produce_handover_initiator(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
+			bool produce_handover_initiator(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
 				//{{{
-				State s = communication_states_[endpoint.remote_address()];
+				State &s = communication_states_[endpoint.remote_address()];
 				block_data_t *start = message.payload();
-				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *end = message.payload() + message.MAX_PAYLOAD_SIZE;
 				block_data_t *p = start;
 				node_id_t remote = endpoint.remote_address();
+				
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d to %d phi%d", (int)radio_->id(), (int)remote, (int)s.state());
+				#endif
 				
 				switch(s.state()) {
 					case State::INIT:
@@ -369,14 +423,19 @@ namespace wiselib {
 						
 					case State::SEND_QUERY_IDS:
 						while((p + sizeof(query_id_t) + sizeof(revision_t)) <= end && s.query_iterator() != queries_.end()) {
-							wiselib::write<OsModel>(p, (query_id_t)s.query_iterator()->second.id());
+							query_id_t qid = (query_id_t)s.query_iterator()->second.id();
+							wiselib::write<OsModel>(p, qid);
 							p += sizeof(query_id_t);
-							wiselib::write<OsModel>(p, (revision_t)s.query_iterator()->second.revision());
+							
+							revision_t rev = (revision_t)s.query_iterator()->second.revision();
+							wiselib::write<OsModel>(p, rev);
 							p += sizeof(revision_t);
 							
 							++s.query_iterator();
 							forward_to_matching(s.query_iterator(), remote);
 						}
+						
+						// Terminate with a pair of zeros
 						
 						if((p + sizeof(query_id_t) + sizeof(revision_t)) <= end && s.query_iterator() == queries_.end()) {
 							assert(sizeof(query_id_t) == sizeof(revision_t));
@@ -389,19 +448,26 @@ namespace wiselib {
 							s.forward_to_requested(queries_.end());
 							s.rewind_operator();
 							s.set_state(State::RECEIVE_REQUEST);
-							endpoint.expect_answer();
+							transport_.expect_answer(endpoint);
+							//endpoint.expect_answer();
 						}
 						else {
 							endpoint.request_send();
 						}
 						message.set_payload_size(p - start);
+						
+						debug_->debug("@%d phi sending qids l=%d", (int)radio_->id(), (int)(p - start));
+						debug_buffer<OsModel, 16>(debug_, start, p - start);
 						break;
 						
 					case State::ANSWER_REQUEST:
+						debug_->debug("phi answering qs known: %d", (int)queries_.size());
 						while(s.query_iterator() != queries_.end()) {
+							debug_->debug("phi answering %d s=%p p=%p %d", (int)s.query_iterator()->second.id(), start, p, p - start);
 							
 							if(!s.header_sent()) {
 								if(p + QUERY_HEADER_SIZE > end) {
+									debug_->debug("phi header no fit");
 									// header doesnt fit!
 									break;
 								}
@@ -410,7 +476,8 @@ namespace wiselib {
 								
 								// first byte is a zero, that makes clear its
 								// not another operator
-								write<OsModel>(p, (::uint8_t)0); p += sizeof(::uint8_t);
+								::uint8_t nul = 0;
+								write<OsModel>(p, nul); p += sizeof(::uint8_t);
 								write<OsModel>(p, s.query_iterator()->second.scope()); p += sizeof(SemanticEntityId);
 								write<OsModel>(p, s.query_iterator()->second.id()); p += sizeof(query_id_t);
 								write<OsModel>(p, s.query_iterator()->second.revision()); p += sizeof(revision_t);
@@ -419,20 +486,28 @@ namespace wiselib {
 								write<OsModel>(p, s.query_iterator()->second.waketime()); p += sizeof(abs_millis_t);
 								write<OsModel>(p, s.query_iterator()->second.operator_count()); p += sizeof(::uint8_t);
 								s.set_header_sent(true);
+								
+							debug_->debug("phi answering %d s=%p p=%p %d", (int)s.query_iterator()->second.id(), start, p, p - start);
+								debug_->debug("phi hd don");
 							} // if !header sent
 							
 							// iterate over operators
 							while(p + s.operator_size() <= end && s.has_more_operators()) {
+								debug_->debug("phi op l=%d", (int)s.operator_size());
 								memcpy(p, s.current_operator(), s.operator_size());
 								p += s.operator_size();
+							debug_->debug("phi answering %d s=%p p=%p %d", (int)s.query_iterator()->second.id(), start, p, p - start);
 								s.next_operator();
 							}
 							
 							if(s.has_more_operators()) {
+								debug_->debug("has more operators!");
 								// last operator didnt fit
 								break;
 							}
 							else {
+								debug_->debug("next query! sz=%d", queries_.size());
+								++s.query_iterator();
 								s.forward_to_requested(queries_.end());
 								s.rewind_operator();
 								s.set_header_sent(false);
@@ -440,27 +515,46 @@ namespace wiselib {
 						} // while query iterator
 						
 						if(s.query_iterator() == queries_.end()) {
+							debug_->debug("phi ans don");
 							// everything sent!
 							s.set_state(State::DONE);
 							endpoint.request_close();
 						}
 						else {
+							debug_->debug("phi ans ag");
 							// not done yet, please call again!
 							endpoint.request_send();
 						}
+						
+						
+							debug_->debug("phi answering %d s=%p p=%p", (int)s.query_iterator()->second.id(), start, p);
+						debug_->debug("@%d phi sending payload l=%d", (int)radio_->id(), (int)(p - start));
+						debug_buffer<OsModel, 16>(debug_, start, p - start);
+						
 						message.set_payload_size(p - start);
 						break;
 						
+					default:
+						debug_->debug("@%d phi!%d", (int)radio_->id(), (int)s.state());
+						assert(false);
+						break;
+						
 				} // switch
+				
+				return true;
 				//}}}
 			} // produce_handover_initiator
 			
 			void consume_handover_initiator(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
 				//{{{
 				node_id_t remote = endpoint.remote_address();
-				State s = communication_states_[remote];
+				State &s = communication_states_[remote];
 				block_data_t *p = message.payload();
-				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *end = message.payload() + message.payload_size();
+				
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d to %d chi%d", (int)radio_->id(), (int)remote, (int)s.state());
+				#endif
 				
 				switch(s.state()) {
 					case State::RECEIVE_REQUEST:
@@ -471,14 +565,25 @@ namespace wiselib {
 							p += sizeof(query_id_t);
 							s.add_request(qid);
 						}
-						s.header_sent_ = false;
+						s.set_header_sent(false);
+						s.set_state(State::ANSWER_REQUEST);
+						s.set_query_iterator(queries_.begin());
 						endpoint.request_send();
+						break;
+						
+					default:
+						debug_->debug("chi!%d", (int)s.state());
+						assert(false);
 						break;
 				}
 				//}}}
 			} // consume_handover_initiator
 			
 			bool callback_handover_recepient(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d evhr%c", (int)radio_->id(), (int)event);
+				#endif
+					
 				if(event == TransportT::EVENT_PRODUCE) {
 					return produce_handover_recepient(*message, *endpoint);
 				}
@@ -487,7 +592,7 @@ namespace wiselib {
 				}
 				else {
 					node_id_t remote = endpoint->remote_address();
-					State s = communication_states_[remote];
+					State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
 							nap_control_->push_caffeine();
@@ -499,39 +604,56 @@ namespace wiselib {
 							break;
 					}
 				}
+				return true;
 			} // callback_handaover
 			
-			void produce_handover_recepient(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
+			bool produce_handover_recepient(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
 				//{{{
 				node_id_t remote = endpoint.remote_address();
-				State s = communication_states_[remote];
+				State &s = communication_states_[remote];
 				block_data_t *start = message.payload();
-				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *end = message.payload() + message.MAX_PAYLOAD_SIZE;
 				block_data_t *p = start;
+				
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d to %d phr%d", (int)radio_->id(), (int)remote, (int)s.state());
+				#endif
 				
 				switch(s.state()) {
 					case State::SEND_REQUEST:
 						// ASSUMPTION: all requests will fit into one message
-						for(typename State::RequestedQueries::iterator it = s.begin_requested(); it != s.end_requested(); ++it) {
+						for(typename RequestedQueries::iterator it = s.begin_requested(); it != s.end_requested(); ++it) {
 							query_id_t qid = *it;
 							wiselib::write<OsModel>(p, qid); p += sizeof(query_id_t);
+							
+							debug_->debug("@%d to %d phr req q%d", (int)radio_->id(), (int)remote, (int)qid);
 						}
+						
+						debug_->debug("@%d phr sending rqs l=%d", (int)radio_->id(), (int)(p - start));
+						debug_buffer<OsModel, 16>(debug_, start, p - start);
+						
 						message.set_payload_size(p - start);
 						s.set_state(State::RECEIVE_ANSWER);
-						endpoint.expect_answer();
+						//endpoint.expect_answer();
+						transport_.expect_answer(endpoint);
+						return true;
 						break;
-							
 				}
+				return false;
 				//}}}
 			}
 			
 			void consume_handover_recepient(typename TransportT::Message& message, typename TransportT::Endpoint& endpoint) {
 				//{{{
 				node_id_t remote = endpoint.remote_address();
-				State s = communication_states_[remote];
+				State &s = communication_states_[remote];
 				block_data_t *start = message.payload();
-				block_data_t *end = message.payload() + message.max_payload_size();
+				block_data_t *end = message.payload() + message.payload_size();
 				block_data_t *p = start;
+				
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d to %d chr%d", (int)radio_->id(), (int)remote, (int)s.state());
+				#endif
 				
 				switch(s.state()) {
 					case State::INIT:
@@ -546,13 +668,19 @@ namespace wiselib {
 							wiselib::read<OsModel>(p, qid); p += sizeof(query_id_t);
 							wiselib::read<OsModel>(p, rev); p += sizeof(revision_t);
 							
+							if(qid == 0) { break; }
+							
+							debug_->debug("@%d to %d chr recv q%dr%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev);
+							
 							typename QueryDescriptions::iterator it = queries_.begin();
 							for( ; it != queries_.end(); ++it) {
-								if(it->id() == qid) {
-									if(it->revision() < rev) {
+								if(it->second.id() == qid) {
+									if(it->second.revision() < rev) {
 										// we have an old version of this query
 										queries_.erase(it);
-										s.add_requested(qid);
+										s.add_request(qid);
+										
+										debug_->debug("@%d to %d chr q%d r%d>%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev, (int)(it->second.revision()));
 									}
 									break;
 								}
@@ -560,19 +688,26 @@ namespace wiselib {
 							
 							if(it == queries_.end()) {
 								// query not known at all
-								s.add_requested(qid);
+								s.add_request(qid);
+								
+								debug_->debug("@%d to %d chr q%d new", (int)radio_->id(), (int)remote, (int)qid);
 							}
 						} // while(p < end)
 						
 						s.set_state(State::SEND_REQUEST);
 						endpoint.request_send();
+						break;
 						
 					case State::RECEIVE_ANSWER:
+						
+						debug_buffer<OsModel, 16>(debug_, start, (end - start));
+						
 						bool done = false;
 						while(p < end) {
 							::uint8_t l;
 							wiselib::read<OsModel>(p, l); p += sizeof(::uint8_t);
 							
+							debug_->debug("@%d chr l=%d p=%p", (int)radio_->id(), (int)l, (void*)p);
 							if(l == 0) {
 								if(p > end - QUERY_HEADER_SIZE) {
 									// len == 0, but can't be a new query -->
@@ -597,20 +732,38 @@ namespace wiselib {
 								read<OsModel>(p, operator_count); p += sizeof(::uint8_t);
 								
 								queries_[id].init(scope, id, revision, role, waketime, lifetime, operator_count);
-								s.set_query_iterator(s.find(id));
+								s.set_query_iterator(queries_.find(id));
 								s.rewind_operator();
 								
-								
-								// TODO: if query locally relevant, delete old
+								// If query locally relevant, delete old
 								// version, start creating new one
+								if(registry_->contains(scope)) {
+									DBG("@%d creating query!", (int)radio_->id());
+									query_processor_->erase_query(id);
+									query_processor_->create_query(id);
+								}
+								//s.set_query_id(id);
+								//s.set_scope(scope);
 								
-								// TODO: set up lifetime and waketime timers
+								nap_control_->push_caffeine();
+								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
+								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, (void*)id);
 							}
 							else {
-								// TODO: if locally relevant, interpret
-								// operator descriptions
+								assert(s.query_iterator() != queries_.end());
 								
-								s.query_iterator()->second.push_operator(s.operator_position(), l, p);
+								// If locally relevant, interpret
+								// operator descriptions
+								// registry will understand special SE ids
+								if(registry_->contains(s.query_iterator()->second.scope())) {
+									Query *q = query_processor_->get_query(s.query_iterator()->second.id());
+									assert(q != 0);
+									
+									// TODO: possible alignment problem here?
+									query_processor_->handle_operator(q, (BOD*)(p));
+								}
+								
+								s.query_iterator()->second.push_operator(s.operator_position(), l, p - 1);
 								s.next_operator();
 								p += l;
 							}
@@ -618,22 +771,41 @@ namespace wiselib {
 						break;
 						
 				} // switch
+				
+				
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("@%d to %d chr'%d", (int)radio_->id(), (int)remote, (int)s.state());
+				#endif
 				//}}}
+			}
+			
+			void on_waketime_over(void*) {
+				nap_control_->pop_caffeine();
+			}
+			
+			void on_lifetime_over(void* qid_) {
+				query_id_t qid = (unsigned long)qid_ & 0xff;
+				query_processor_->erase_query(qid);
 			}
 			
 			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
 				switch(event) {
 					case Neighborhood::SEEN_NEIGHBOR:
+						DBG("@%d SN%d", (int)radio_->id(), (int)id);
 						on_see_neighbor(id);
 						break;
 						
-					case Neighborhood::NEW_NEGIHBOR:
+					case Neighborhood::NEW_NEIGHBOR:
+						DBG("@%d NN%d p%d", (int)radio_->id(), (int)id, (int)is_parent(id));
 						// TODO: can we do this lazily? i.e. only create for parent
 						// upfront, rest only when we actually want to speak to them!
-						transport_.register_endpoint(id, id, !is_parent(id), TransportT::callback_t::template from_method<self_type, &self_type::callback_handover_initiator>(this));
+						if(!is_parent(id)) {
+							transport_.register_endpoint(id, id, true, TransportT::callback_t::template from_method<self_type, &self_type::callback_handover_initiator>(this));
+						}
 						break;
 						
 					case Neighborhood::LOST_NEIGHBOR:
+						DBG("@%d LN%d", (int)radio_->id(), (int)id);
 						transport_.unregister_endpoint(id, true);
 						transport_.unregister_endpoint(id, false);
 						break;
@@ -642,44 +814,92 @@ namespace wiselib {
 						break;
 						
 					case Neighborhood::UPDATED_STATE:
+						// Make sure there is an endpoint with
+						// channelid=our_id and remote addr = parent_id
+						// (necessary for receiving queries!)
+						// 
+						// TODO: should not be necessary to rebuild endpoint
+						// here, creating in init() and updating address
+						// should also work
+						transport_.unregister_endpoint(id, false);
+						transport_.register_endpoint(id, radio_->id(), false, TransportT::callback_t::template from_method<self_type, &self_type::callback_handover_recepient>(this));
 						break;
 				}
 			} // on_neighborhood_event
 				
-			void on_see_neighbor(node_id_t id) {
+			void on_see_neighbor(node_id_t neighbor_id) {
 				typename QueryDescriptions::iterator it = queries_.begin();
-				forward_to_matching(it, id);
+				forward_to_matching(it, neighbor_id);
 				
-				bool up_to_date = false;
-				for( ; it != queries_.end(); ++it, forward_to_matching(it, id)) {
-					up_to_date = false;
-					for(typename QueryRevisions::iterator qrit = sent_[id].begin(); qrit != sent_[id].end(); ++qrit) {
-						if(qrit->id() == it->id()) {
-							up_to_date = (qrit->revision() >= it->revision());
-							break;
-						}
-					}
+				bool need_comm = false;
+				
+				// iterate over all queries relevant to that neighbor
+				for( ; it != queries_.end(); ++it, forward_to_matching(it, neighbor_id)) {
+					DBG("XXX");
+					bool up_to_date = false;
 					
-					if(!up_to_date) { break; }
+					// did we send to this node already? if so, did we send
+					// this query?
+					if(sent_.contains(neighbor_id)) {
+						QueryRevisions &qrevs = sent_[neighbor_id];
+						for(typename QueryRevisions::iterator qrit = qrevs.begin(); qrit != qrevs.end(); ++qrit) {
+							// does neighbor have this query id already?
+							if(qrit->id() == it->second.id()) {
+								// in an up-to-date version?
+								up_to_date = (qrit->revision() >= it->second.revision());
+								break;
+							}
+						} // for qrit
+					} // if sent contains neigh
+					
+					if(!up_to_date) {
+						need_comm = true;
+						break;
+					}
 				}
 				
-				if(!up_to_date) {
+				DBG("@%d SN%d com%d", (int)radio_->id(), (int)neighbor_id, (int)need_comm);
+				if(need_comm) {
 					bool found;
 					// get or create endpoint
-					typename TransportT::Endpoint &ep = transport_.get_endpoint(id, true, found);
+					typename TransportT::Endpoint &ep = transport_.get_endpoint(neighbor_id, true, found);
+					DBG("@%d SN%d ep%d", (int)radio_->id(), (int)neighbor_id, (int)found);
 					if(found) {
-						assert(ep.remote_address() == id);
-						if(transport_.is_sending() <= (transport_.sending_endpoint().channel() != id)) {
+						assert(ep.remote_address() == neighbor_id);
+						if(transport_.is_sending() <= (transport_.sending_endpoint().channel() != neighbor_id)) {
+						DBG("@%d SN%d op", (int)radio_->id(), (int)neighbor_id);
 							int r = transport_.open(ep, true);
 							if(r == SUCCESS) {
-								communication_states_[id].set_state(State::INIT);
+								communication_states_[neighbor_id].set_state(State::INIT);
 							}
+							transport_.flush();
 						} // if not already sending
 					} // if found
 				} // if !up to date
 			} // on_see_neighbor()
 			
 		private:
+			
+			bool is_parent(node_id_t n) {
+				return nd_->parent() == n;
+			}
+			
+			void forward_to_matching(typename QueryDescriptions::iterator& iter, node_id_t remote) {
+				size_type idx = nd_->child_index(remote);
+				if(idx == Neighborhood::npos) {
+					debug_->debug("@%d FTM !N%d", (int)radio_->id(), (int)remote);
+					iter = queries_.end();
+					return;
+				}
+				
+				while(iter != queries_.end() && (
+							!iter->second.scope().is_all() &&
+							!nd_->child_user_data(idx).contains(iter->second.scope()
+				))) {
+					++iter;
+				}
+			}
+			
 			Sent sent_;
 			QueryDescriptions queries_;
 			CommunicationStates communication_states_;
@@ -687,10 +907,12 @@ namespace wiselib {
 			typename Radio::self_pointer_t radio_;
 			typename Neighborhood::self_pointer_t nd_;
 			typename Timer::self_pointer_t timer_;
-			typename Clock::self_Pointer_t clock_;
-			typename Debug::self_ponter_t debug_;
-			typename Rand::self_pointer_t rand_;
+			//typename Clock::self_pointer_t clock_;
+			typename Debug::self_pointer_t debug_;
+			//typename Rand::self_pointer_t rand_;
 			typename NapControlT::self_pointer_t nap_control_;
+			typename SemanticEntityRegistryT::self_pointer_t registry_;
+			typename QueryProcessorT::self_pointer_t query_processor_;
 		
 	}; // OpportunisticDistributor
 }

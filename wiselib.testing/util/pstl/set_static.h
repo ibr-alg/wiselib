@@ -17,6 +17,8 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
+#ifndef SET_STATIC_H
+#define SET_STATIC_H
 
 #include "util/pstl/iterator.h"
 #include <string.h>
@@ -55,7 +57,6 @@ namespace wiselib
       set_static& operator=( const set_static& set )
       {
          memcpy( set_, set.set_, sizeof(set_) );
-         set_ = &set_[0];
          finish_ = set_ + (set.finish_ - set.set_);
          end_of_storage_ = set_ + SET_SIZE;
          return *this;
@@ -305,5 +306,5 @@ namespace wiselib
 
 }
 
-
+#endif // SET_STATIC_H
 
