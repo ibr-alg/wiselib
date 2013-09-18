@@ -30,9 +30,11 @@
 #include "regular_event.h"
 #include "semantic_entity.h"
 
+/*
 #ifndef INSE_USE_AGGREGATOR
 	#define INSE_USE_AGGREGATOR 0
 #endif
+*/
 
 #if INSE_USE_AGGREGATOR
 	#include "semantic_entity_aggregator.h"
@@ -233,6 +235,10 @@ namespace wiselib {
 					begin_activity(se);
 				}
 			}
+			
+			GlobalTreeT& tree() { return global_tree_; }
+			NapControlT& nap_control() { return nap_control_; }
+			SemanticEntityRegistryT& semantic_entity_registry() { return registry_; }
 		
 		private:
 			

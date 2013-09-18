@@ -44,7 +44,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Processor_P
+		typename Processor_P,
+		int MAX_NEIGHBORS_P
 	>
 	class Aggregate : public Operator<OsModel_P, Processor_P> {
 		
@@ -55,7 +56,7 @@ namespace wiselib {
 			typedef Operator<OsModel_P, Processor_P> Base;
 			typedef typename Base::Query Query;
 			typedef Processor_P Processor;
-			typedef Aggregate<OsModel, Processor> self_type;
+			typedef Aggregate self_type;
 			typedef Row<OsModel> RowT;
 			typedef Table<OsModel, RowT> TableT;
 			typedef typename RowT::Value Value;
@@ -72,7 +73,7 @@ namespace wiselib {
 			typedef typename ProjectionInfoBase::TypeInfo TypeInfo;
 			
 			enum { npos = (size_type)(-1) };
-			enum { MAX_CHILDS = WISELIB_MAX_NEIGHBORS };
+			enum { MAX_CHILDS = MAX_NEIGHBORS_P };
 			typedef MapStaticVector<OsModel, node_id_t, TableT, MAX_CHILDS> ChildStates;
 			
 			enum { WAIT_AFTER_LOCAL = 1000, CHECK_INTERVAL = 1000 };

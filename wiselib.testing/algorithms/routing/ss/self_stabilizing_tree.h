@@ -520,6 +520,7 @@ namespace wiselib {
 				clear_neighbors();
 				
 				::uint8_t distance = -1;
+				node_id_t previous_parent = tree_state().parent();
 				node_id_t parent = radio_->id(); assert(parent != NULL_NODE_ID);
 				node_id_t root = radio_->id(); assert(root != NULL_NODE_ID);
 				NeighborEntry *parent_ptr = 0;
@@ -567,7 +568,7 @@ namespace wiselib {
 					#endif
 						
 						
-					notify_event(UPDATED_STATE, radio_->id());
+					notify_event(UPDATED_STATE, previous_parent);
 						
 					// <DEBUG>
 					#if INSE_DEBUG_TREE

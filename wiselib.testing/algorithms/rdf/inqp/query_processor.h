@@ -55,11 +55,12 @@ namespace wiselib {
 		typename OsModel_P,
 		typename TupleStore_P,
 		typename Hash_P,
+		int MAX_QUERIES_P = 4,
+		int MAX_NEIGHBORS_P = 8,
 		typename Dictionary_P = typename TupleStore_P::Dictionary,
 		typename Translator_P = DictionaryTranslator<OsModel_P, Dictionary_P, Hash_P, 8>,
 		typename ReverseTranslator_P = HashTranslator<OsModel_P, Dictionary_P, Hash_P, 4>,
 		typename Value_P = ::uint32_t,
-		int MAX_QUERIES_P = 4,
 		typename Timer_P = typename OsModel_P::Timer
 	>
 	class INQPQueryProcessor {
@@ -68,7 +69,7 @@ namespace wiselib {
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
-			typedef INQPQueryProcessor<OsModel_P, TupleStore_P, Hash_P, Dictionary_P, Translator_P, ReverseTranslator_P, Value_P, MAX_QUERIES_P> self_type;
+			typedef INQPQueryProcessor self_type;
 			typedef self_type* self_pointer_t;
 			
 			typedef Value_P Value;
@@ -80,7 +81,8 @@ namespace wiselib {
 			typedef Timer_P Timer;
 			
 			enum {
-				MAX_QUERIES = MAX_QUERIES_P
+				MAX_QUERIES = MAX_QUERIES_P,
+				MAX_NEIGHBORS = MAX_NEIGHBORS_P
 			};
 			
 			/// @{ Operators
@@ -101,7 +103,7 @@ namespace wiselib {
 			typedef CollectDescription<OsModel, self_type> CollectDescriptionT;
 			typedef ConstructDescription<OsModel, self_type> ConstructDescriptionT;
 			typedef DeleteDescription<OsModel, self_type> DeleteDescriptionT;
-			typedef Aggregate<OsModel, self_type> AggregateT;
+			typedef Aggregate<OsModel, self_type, MAX_NEIGHBORS> AggregateT;
 			typedef AggregateDescription<OsModel, self_type> AggregateDescriptionT;
 			
 			/// }
@@ -346,10 +348,7 @@ namespace wiselib {
 			
 			void erase_query(query_id_t qid) {
 				//DBG("del qry %d", (int)qid);
-				if(!queries_.contains(qid)) {
-					//DBG("del noex qry %d", (int)qid);
-				}
-				else {
+				if(queries_.contains(qid)) {
 					queries_[qid]->destruct();
 					::get_allocator().free(queries_[qid]);
 					queries_.erase(qid);

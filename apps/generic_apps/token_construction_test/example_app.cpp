@@ -88,7 +88,7 @@ using namespace wiselib;
 		#include <algorithms/rdf/inqp/query_processor.h>
 		#include <algorithms/rdf/inqp/communicator.h>
 		#include <algorithms/semantic_entities/token_construction/inqp_rule_processor.h>
-		typedef wiselib::INQPQueryProcessor<Os, TS, Hash, Dictionary> QueryProcessor;
+		typedef wiselib::INQPQueryProcessor<Os, TS, Hash, INSE_MAX_QUERIES, INSE_MAX_NEIGHBORS, Dictionary> QueryProcessor;
 		typedef wiselib::InqpRuleProcessor<Os, QueryProcessor, TC> RuleProcessor;
 		//typedef QueryProcessor::Hash Hash;
 		typedef QueryProcessor::Query Query;
@@ -96,7 +96,8 @@ using namespace wiselib;
 		typedef QueryProcessor::CollectT Coll;
 		typedef wiselib::ProjectionInfo<Os> Projection;
 		
-		typedef OpportunisticDistributor<Os, typename TC::GlobalTreeT, NapControlT> Distributor;
+		#include <algorithms/semantic_entities/token_construction/opportunistic_distributor.h>
+		typedef OpportunisticDistributor<Os, TC::GlobalTreeT, TC::NapControlT, TC::SemanticEntityRegistryT, QueryProcessor> Distributor;
 	#else 
 		#warning "Using SIMPLE rule processor"
 		#include <algorithms/semantic_entities/token_construction/simple_rule_processor.h>
@@ -240,7 +241,10 @@ class ExampleApplication
 				
 				//query_communicator_.init(query_processor_,
 				
-				distributor_.init(radio_, &token_construction_.tree(), &token_construction_.nap_control());
+				distributor_.init(radio_, &token_construction_.tree(),
+						&token_construction_.nap_control(),
+						&token_construction_.semantic_entity_registry(),
+						&query_processor_, debug_, timer_, clock_, rand_);
 				
 			#else
 				rule_processor_.init(&ts, &token_construction_);
@@ -273,8 +277,12 @@ class ExampleApplication
 			//monitor_.report("exec rules");
 			rule_processor_.execute_all();
 			
-			timer_->template set_timer<ExampleApplication, &ExampleApplication::distribute_query>(
-					120000, this, 0);
+			#if USE_INQP
+			if(radio_->id() == 0) {
+				timer_->template set_timer<ExampleApplication, &ExampleApplication::distribute_query>(
+						120000, this, 0);
+			}
+			#endif
 			
 			monitor_.report("init end");
 		}
@@ -360,25 +368,29 @@ class ExampleApplication
 		
 				
 				
-				
+		#if USE_INQP
 		void distribute_query(void*) {
+			debug_->debug("@%d DISTRIBUTING QUERY!", (int)radio_->id());
 			// temperature query from ../inqp_test/example_app.cpp,
 			// each operator preceeded with one byte length information,
 			// without message types and query id
 			char *query_temp =
-				"\x08\x04c\x00\x01\x00\x00\x00"
-				"\x09\x03j\x04\x10\x00\x00\x00\x00"
-				"\x0d\x02g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
-				"\x11\x01g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3";
-			size_type opsize = 0x8 + 0x9 + 0xd + 0x11;
-			size_type opcount = 4;
+				"\x08\x04" "c\x00\x01\x00\x00\x00"
+				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
+				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
+				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3";
+			int opsize = 0x8 + 0x9 + 0xd + 0x11;
+			int opcount = 4;
 			
 			distributor_.distribute(
-					SemanticEntityId::all(), 1, 1, Distributor::QUERY,
+					SemanticEntityId::all(),
+					66 /* qid */,
+					1 /* rev */,
+					Distributor::QUERY,
 					5000 * WISELIB_TIME_FACTOR, 5000 * WISELIB_TIME_FACTOR,
 					opcount, opsize, (block_data_t*)query_temp);
-			
 		}
+		#endif
 		
 			
 		#if USE_DICTIONARY

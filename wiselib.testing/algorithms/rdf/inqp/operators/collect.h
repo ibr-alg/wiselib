@@ -81,13 +81,13 @@ namespace wiselib {
 						//DBG("result row [%lu] = %08x F%d", i, row[i], (int)mem->mem_free());
 					//}
 					
-					//this->processor().send_row(
-							//Base::Processor::COMMUNICATION_TYPE_SINK,
-							//this->child(Base::CHILD_LEFT).columns(),
-							//row,
-							//this->query().id(),
-							//this->id()
-					//);
+					this->processor().send_row(
+							Base::Processor::COMMUNICATION_TYPE_SINK,
+							this->child(Base::CHILD_LEFT).columns(),
+							row,
+							this->query().id(),
+							this->id()
+					);
 				}
 				else {
 					DBG("collect %d", (int)count_);

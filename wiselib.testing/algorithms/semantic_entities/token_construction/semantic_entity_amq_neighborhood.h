@@ -188,10 +188,6 @@ namespace wiselib {
 				
 				check();
 			}
-			AmqT& amq() {
-				check();
-				return global_tree_->user_data();
-			}
 			
 			void on_neighborhood_changed(typename GlobalTreeT::EventType event_type, node_id_t addr) {
 				check();
@@ -211,6 +207,11 @@ namespace wiselib {
 			}
 			
 			GlobalTreeT& tree() { return *global_tree_; }
+			
+			AmqT& amq() {
+				check();
+				return global_tree_->user_data();
+			}
 			
 			void check() {
 				#if !WISELIB_DISABLE_DEBUG

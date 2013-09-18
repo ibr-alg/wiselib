@@ -85,9 +85,11 @@ namespace wiselib {
 			///@{
 			
 			static SemanticEntityId invalid() { return SemanticEntityId(); }
+			static SemanticEntityId all() { return SemanticEntityId(RULE_SPECIAL, VALUE_ALL); }
 			
-			bool is_special() { return rule_ == RULE_SPECIAL; }
-			bool is_invalid() { return rule_ == RULE_SPECIAL && value_ == VALUE_INVALID; }
+			bool is_special() const { return rule_ == RULE_SPECIAL; }
+			bool is_invalid() const { return rule_ == RULE_SPECIAL && value_ == VALUE_INVALID; }
+			bool is_all() const { return rule_ == RULE_SPECIAL && value_ == VALUE_ALL; }
 			
 			///@}
 			
