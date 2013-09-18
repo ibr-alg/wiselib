@@ -165,6 +165,7 @@ namespace wiselib {
 				
 
 			void execute(Query *query) {
+				DBG("x q%d", (int)query->id());
 				//Serial.println("exec");
 				assert(query->ready());
 				query->build_tree();

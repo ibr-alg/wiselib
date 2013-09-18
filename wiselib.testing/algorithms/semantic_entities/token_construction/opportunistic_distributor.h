@@ -455,22 +455,21 @@ namespace wiselib {
 							endpoint.request_send();
 						}
 						message.set_payload_size(p - start);
-						
-						debug_->debug("@%d phi sending qids l=%d", (int)radio_->id(), (int)(p - start));
-						debug_buffer<OsModel, 16>(debug_, start, p - start);
 						break;
 						
 					case State::ANSWER_REQUEST:
-						debug_->debug("phi answering qs known: %d", (int)queries_.size());
 						while(s.query_iterator() != queries_.end()) {
-							debug_->debug("phi answering %d s=%p p=%p %d", (int)s.query_iterator()->second.id(), start, p, p - start);
-							
 							if(!s.header_sent()) {
 								if(p + QUERY_HEADER_SIZE > end) {
-									debug_->debug("phi header no fit");
+									debug_->debug("phi hdr !fit");
 									// header doesnt fit!
 									break;
 								}
+								
+								#if DISTRIBUTOR_DEBUG_STATE
+									debug_->debug("@%d od: %c%d to %d", (int)radio_->id(),
+											(char)s.query_iterator()->second.role(), (int)s.query_iterator()->second.id());
+								#endif
 								
 								// send query header
 								
@@ -487,26 +486,20 @@ namespace wiselib {
 								write<OsModel>(p, s.query_iterator()->second.operator_count()); p += sizeof(::uint8_t);
 								s.set_header_sent(true);
 								
-							debug_->debug("phi answering %d s=%p p=%p %d", (int)s.query_iterator()->second.id(), start, p, p - start);
-								debug_->debug("phi hd don");
 							} // if !header sent
 							
 							// iterate over operators
 							while(p + s.operator_size() <= end && s.has_more_operators()) {
-								debug_->debug("phi op l=%d", (int)s.operator_size());
 								memcpy(p, s.current_operator(), s.operator_size());
 								p += s.operator_size();
-							debug_->debug("phi answering %d s=%p p=%p %d", (int)s.query_iterator()->second.id(), start, p, p - start);
 								s.next_operator();
 							}
 							
 							if(s.has_more_operators()) {
-								debug_->debug("has more operators!");
 								// last operator didnt fit
 								break;
 							}
 							else {
-								debug_->debug("next query! sz=%d", queries_.size());
 								++s.query_iterator();
 								s.forward_to_requested(queries_.end());
 								s.rewind_operator();
@@ -515,21 +508,17 @@ namespace wiselib {
 						} // while query iterator
 						
 						if(s.query_iterator() == queries_.end()) {
-							debug_->debug("phi ans don");
 							// everything sent!
 							s.set_state(State::DONE);
 							endpoint.request_close();
 						}
 						else {
-							debug_->debug("phi ans ag");
 							// not done yet, please call again!
 							endpoint.request_send();
 						}
 						
-						
-							debug_->debug("phi answering %d s=%p p=%p", (int)s.query_iterator()->second.id(), start, p);
-						debug_->debug("@%d phi sending payload l=%d", (int)radio_->id(), (int)(p - start));
-						debug_buffer<OsModel, 16>(debug_, start, p - start);
+						//debug_->debug("@%d phi sending payload l=%d", (int)radio_->id(), (int)(p - start));
+						//debug_buffer<OsModel, 16>(debug_, start, p - start);
 						
 						message.set_payload_size(p - start);
 						break;
@@ -626,11 +615,13 @@ namespace wiselib {
 							query_id_t qid = *it;
 							wiselib::write<OsModel>(p, qid); p += sizeof(query_id_t);
 							
-							debug_->debug("@%d to %d phr req q%d", (int)radio_->id(), (int)remote, (int)qid);
+							#if DISTRIBUTOR_DEBUG_STATE
+								debug_->debug("@%d to %d phr req q%d", (int)radio_->id(), (int)remote, (int)qid);
+							#endif
 						}
 						
-						debug_->debug("@%d phr sending rqs l=%d", (int)radio_->id(), (int)(p - start));
-						debug_buffer<OsModel, 16>(debug_, start, p - start);
+						//debug_->debug("@%d phr sending rqs l=%d", (int)radio_->id(), (int)(p - start));
+						//debug_buffer<OsModel, 16>(debug_, start, p - start);
 						
 						message.set_payload_size(p - start);
 						s.set_state(State::RECEIVE_ANSWER);
@@ -670,8 +661,6 @@ namespace wiselib {
 							
 							if(qid == 0) { break; }
 							
-							debug_->debug("@%d to %d chr recv q%dr%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev);
-							
 							typename QueryDescriptions::iterator it = queries_.begin();
 							for( ; it != queries_.end(); ++it) {
 								if(it->second.id() == qid) {
@@ -680,7 +669,7 @@ namespace wiselib {
 										queries_.erase(it);
 										s.add_request(qid);
 										
-										debug_->debug("@%d to %d chr q%d r%d>%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev, (int)(it->second.revision()));
+										//debug_->debug("@%d to %d chr q%d r%d>%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev, (int)(it->second.revision()));
 									}
 									break;
 								}
@@ -690,7 +679,7 @@ namespace wiselib {
 								// query not known at all
 								s.add_request(qid);
 								
-								debug_->debug("@%d to %d chr q%d new", (int)radio_->id(), (int)remote, (int)qid);
+								//debug_->debug("@%d to %d chr q%d new", (int)radio_->id(), (int)remote, (int)qid);
 							}
 						} // while(p < end)
 						
@@ -699,15 +688,11 @@ namespace wiselib {
 						break;
 						
 					case State::RECEIVE_ANSWER:
-						
-						debug_buffer<OsModel, 16>(debug_, start, (end - start));
-						
 						bool done = false;
 						while(p < end) {
 							::uint8_t l;
 							wiselib::read<OsModel>(p, l); p += sizeof(::uint8_t);
 							
-							debug_->debug("@%d chr l=%d p=%p", (int)radio_->id(), (int)l, (void*)p);
 							if(l == 0) {
 								if(p > end - QUERY_HEADER_SIZE) {
 									// len == 0, but can't be a new query -->
@@ -738,7 +723,9 @@ namespace wiselib {
 								// If query locally relevant, delete old
 								// version, start creating new one
 								if(registry_->contains(scope)) {
-									DBG("@%d creating query!", (int)radio_->id());
+									#if DISTRIBUTOR_DEBUG_STATE
+										debug_->debug("@%d +q%d", (int)radio_->id(), (int)id);
+									#endif
 									query_processor_->erase_query(id);
 									query_processor_->create_query(id);
 								}
@@ -772,10 +759,6 @@ namespace wiselib {
 						
 				} // switch
 				
-				
-				#if DISTRIBUTOR_DEBUG_STATE
-					debug_->debug("@%d to %d chr'%d", (int)radio_->id(), (int)remote, (int)s.state());
-				#endif
 				//}}}
 			}
 			
@@ -791,12 +774,10 @@ namespace wiselib {
 			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
 				switch(event) {
 					case Neighborhood::SEEN_NEIGHBOR:
-						DBG("@%d SN%d", (int)radio_->id(), (int)id);
 						on_see_neighbor(id);
 						break;
 						
 					case Neighborhood::NEW_NEIGHBOR:
-						DBG("@%d NN%d p%d", (int)radio_->id(), (int)id, (int)is_parent(id));
 						// TODO: can we do this lazily? i.e. only create for parent
 						// upfront, rest only when we actually want to speak to them!
 						if(!is_parent(id)) {
@@ -805,7 +786,6 @@ namespace wiselib {
 						break;
 						
 					case Neighborhood::LOST_NEIGHBOR:
-						DBG("@%d LN%d", (int)radio_->id(), (int)id);
 						transport_.unregister_endpoint(id, true);
 						transport_.unregister_endpoint(id, false);
 						break;
@@ -835,7 +815,6 @@ namespace wiselib {
 				
 				// iterate over all queries relevant to that neighbor
 				for( ; it != queries_.end(); ++it, forward_to_matching(it, neighbor_id)) {
-					DBG("XXX");
 					bool up_to_date = false;
 					
 					// did we send to this node already? if so, did we send
@@ -858,16 +837,13 @@ namespace wiselib {
 					}
 				}
 				
-				DBG("@%d SN%d com%d", (int)radio_->id(), (int)neighbor_id, (int)need_comm);
 				if(need_comm) {
 					bool found;
 					// get or create endpoint
 					typename TransportT::Endpoint &ep = transport_.get_endpoint(neighbor_id, true, found);
-					DBG("@%d SN%d ep%d", (int)radio_->id(), (int)neighbor_id, (int)found);
 					if(found) {
 						assert(ep.remote_address() == neighbor_id);
 						if(transport_.is_sending() <= (transport_.sending_endpoint().channel() != neighbor_id)) {
-						DBG("@%d SN%d op", (int)radio_->id(), (int)neighbor_id);
 							int r = transport_.open(ep, true);
 							if(r == SUCCESS) {
 								communication_states_[neighbor_id].set_state(State::INIT);
@@ -887,7 +863,6 @@ namespace wiselib {
 			void forward_to_matching(typename QueryDescriptions::iterator& iter, node_id_t remote) {
 				size_type idx = nd_->child_index(remote);
 				if(idx == Neighborhood::npos) {
-					debug_->debug("@%d FTM !N%d", (int)radio_->id(), (int)remote);
 					iter = queries_.end();
 					return;
 				}
