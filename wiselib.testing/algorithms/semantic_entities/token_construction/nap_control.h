@@ -97,7 +97,7 @@ namespace wiselib {
 					
 					radio_->enable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("on t%d", (int)(now() & 0xffff)); // (int)radio_->id());
+						debug_->debug("@%d on t%d", (int)radio_->id(), (int)(now() & 0xffff)); // (int)radio_->id());
 					#endif
 				}
 				caffeine_++;
@@ -128,7 +128,7 @@ namespace wiselib {
 					#endif
 					radio_->disable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("off t%d", (int)(now() & 0xffff)); //, (int)radio_->id());
+						debug_->debug("@%d off t%d", (int)radio_->id(), (int)(now() & 0xffff)); //, (int)radio_->id());
 					#endif
 				}
 			}
