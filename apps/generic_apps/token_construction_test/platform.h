@@ -7,10 +7,10 @@
 #define CHECK_INVARIANTS               (defined(SHAWN))
 #define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
 #define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
-#define INSE_DEBUG_STATE               0
+#define INSE_DEBUG_STATE               1
 #define INSE_DEBUG_TREE                1
-#define RELIABLE_TRANSPORT_DEBUG_STATE 1
-#define NAP_CONTROL_DEBUG_STATE        0
+#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+#define NAP_CONTROL_DEBUG_STATE        1
 #define DISTRIBUTOR_DEBUG_STATE        1
 
 // TupleStore config

@@ -35,28 +35,51 @@ def parse(f):
 			t = int(m.group(1))
 			continue
 		if tmax is not None and t > tmax: break
+		
 		# which node is this line about?
-		if 'node' not in line: continue
+		if 'node' not in line and not line.startswith('@'): continue
+		
 		kv = dict(re.findall(re_kv, line))
 		name = nodename = get_value('node')
+		if name is None:
+			m = re.match(r'@(\d+) .*', line)
+			if m is not None:
+				name = nodename = m.groups()[0]
+			
 		if name is None:
 			#print ("[!!!] nodename is none in line: " + origline)
 			continue
 		nodename = int(nodename)
-		try: t = int(get_value('t')) / 1000
-		except: pass
-		
-		parent = get_value('parent')
-		root = get_value('root')
-		distance = get_value('distance')
-		filter_ = get_value('filter')
-		if parent is None or root is None or distance is None or filter_ is None: continue
+		#try: t = int(get_value('t')) / 1000
+		#except: pass
 		
 		if not len(nodes):
 			latest = { '_t': t }
 			nodes.append(latest)
 		else:
 			latest = nodes[-1]
+		
+		if ' on ' in line or ' off ' in line:
+			if nodename in latest:
+				latest = copy.deepcopy(latest)
+				latest['_t'] = t
+				nodes.append(latest)
+				latest[nodename]['on'] = (' on ' in line)
+				continue
+				
+		if ' ACT ' in line or ' /ACT ' in line:
+			if nodename in latest:
+				latest = copy.deepcopy(latest)
+				latest['_t'] = t
+				nodes.append(latest)
+				latest[nodename]['active'] = (' ACT ' in line)
+				continue
+		
+		parent = get_value('parent')
+		root = get_value('root')
+		distance = get_value('distance')
+		filter_ = get_value('filter')
+		if parent is None or root is None or distance is None or filter_ is None: continue
 		
 		if 	nodename in latest and (
 				parent != latest[nodename]['parent'] or
@@ -92,7 +115,7 @@ def compress_filter(s):
 	s = s.replace('..', ':')
 	#s = s.replace('::', '#')
 	
-	print("compress filter: {} -> {}".format(s_orig, s))
+	#print("compress filter: {} -> {}".format(s_orig, s))
 	return s
 
 def print_dot(d, out):
@@ -100,8 +123,15 @@ def print_dot(d, out):
 	for name, v in d.items():
 		if name == '_t': continue
 		
-		out.write('  {} [label="{}\\nroot: {}\\n{}"] ;\n'.format(
-			name, name, v['root'], compress_filter(v['filter'])
+		
+		#print("------------ " + str(v))
+		
+		color = 'white'
+		if v.get('active', False): color = 'green'
+		elif v.get('on', True): color = 'red'
+		
+		out.write('  {} [label="{}\\nroot: {}\\n{}",style="filled",fillcolor={}] ;\n'.format(
+			name, name, v['root'], compress_filter(v['filter']), color
 		))
 		out.write('  {} -> {} ;\n'.format(name, v['parent']))
 	out.write('}\n')

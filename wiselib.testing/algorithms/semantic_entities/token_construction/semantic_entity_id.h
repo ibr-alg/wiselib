@@ -40,8 +40,9 @@ namespace wiselib {
 			};
 			
 			enum SpecialValues {
-				VALUE_ALL = 0,
 				VALUE_INVALID = (Value)(-1),
+				VALUE_ALL = 0,
+				//VALUE_ROOT = 1,
 			};
 			
 			/**
@@ -86,6 +87,7 @@ namespace wiselib {
 			
 			static SemanticEntityId invalid() { return SemanticEntityId(); }
 			static SemanticEntityId all() { return SemanticEntityId(RULE_SPECIAL, VALUE_ALL); }
+			//static SemanticEntityId root() { return SemanticEntityId(RULE_SPECIAL, VALUE_ROOT); }
 			
 			bool is_special() const { return rule_ == RULE_SPECIAL; }
 			bool is_invalid() const { return rule_ == RULE_SPECIAL && value_ == VALUE_INVALID; }

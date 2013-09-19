@@ -162,6 +162,7 @@ namespace wiselib
          }
          return this->end();
       }
+	  bool contains(const value_type& x) { return find(x) != end(); }
       // --------------------------------------------------------------------
       size_type count(const value_type& x)
       {

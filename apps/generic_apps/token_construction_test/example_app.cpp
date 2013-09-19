@@ -96,8 +96,21 @@ using namespace wiselib;
 		typedef QueryProcessor::CollectT Coll;
 		typedef wiselib::ProjectionInfo<Os> Projection;
 		
+		//
+		// Query Distributor
+		// 
+		
 		#include <algorithms/semantic_entities/token_construction/opportunistic_distributor.h>
 		typedef OpportunisticDistributor<Os, TC::GlobalTreeT, TC::NapControlT, TC::SemanticEntityRegistryT, QueryProcessor> Distributor;
+		
+		//
+		// SE Anycast Radio
+		//
+		
+		#include <algorithms/semantic_entities/token_construction/semantic_entity_anycast_radio.h>
+		typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT, TC::SemanticEntityNeighborhoodT> AnycastRadio;
+		
+		
 	#else 
 		#warning "Using SIMPLE rule processor"
 		#include <algorithms/semantic_entities/token_construction/simple_rule_processor.h>
@@ -241,10 +254,29 @@ class ExampleApplication
 				
 				//query_communicator_.init(query_processor_,
 				
-				distributor_.init(radio_, &token_construction_.tree(),
+				distributor_.init(
+						radio_,
+						&token_construction_.tree(),
 						&token_construction_.nap_control(),
 						&token_construction_.semantic_entity_registry(),
-						&query_processor_, debug_, timer_, clock_, rand_);
+						&query_processor_,
+						debug_, timer_, clock_, rand_
+				);
+			/*	
+				anycast_radio_.init(
+						&token_construction_.semantic_entity_registry(),
+						&token_construction_.neighborhood(),
+						radio_, timer_, debug_
+				);
+				
+				anycast_radio_.reg_recv_callback<
+					ExampleApplication, &ExampleApplication::on_test_anycast_receive
+				>(this);
+					
+				timer_->template set_timer<
+					ExampleApplication, &ExampleApplication::on_test_anycast_send
+				>(200000, this, 0);
+			*/
 				
 			#else
 				rule_processor_.init(&ts, &token_construction_);
@@ -278,10 +310,12 @@ class ExampleApplication
 			rule_processor_.execute_all();
 			
 			#if USE_INQP
+			/*
 			if(radio_->id() == 0) {
 				timer_->template set_timer<ExampleApplication, &ExampleApplication::distribute_query>(
 						120000, this, 0);
 			}
+			*/
 			#endif
 			
 			monitor_.report("init end");
@@ -364,7 +398,24 @@ class ExampleApplication
 				
 				
 		
-				
+		void on_test_anycast_send(void*) {
+			if(radio_->id() == 0) {
+			debug_->debug("@%d anycast send", (int)radio_->id());
+				char *s = "hello";
+				anycast_radio_.send(SemanticEntityId::all(), strlen(s) + 1, (block_data_t*)s);
+			}
+			else {
+				char s[20];
+				snprintf(s, 20, "hello from %d", (int)radio_->id());
+				anycast_radio_.send(SemanticEntityId::all(), strlen(s) + 1, (block_data_t*)s);
+			}
+		}
+		
+		void on_test_anycast_receive(SemanticEntityId se, Os::Radio::size_t len, Os::Radio::block_data_t* data) {
+			debug_->debug("@%d anycast recv: %s", (int)radio_->id(), (char*)data);
+		}
+			
+			
 		
 				
 				
@@ -418,8 +469,9 @@ class ExampleApplication
 		
 		#if USE_INQP
 			QueryProcessor query_processor_;
-			INQPCommunicator<Os, QueryProcessor> query_communicator_;
+			//INQPCommunicator<Os, QueryProcessor> query_communicator_;
 			Distributor distributor_;
+			AnycastRadio anycast_radio_;
 		#endif
 			
 		#if USE_DICTIONARY

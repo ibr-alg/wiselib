@@ -239,6 +239,7 @@ namespace wiselib {
 			GlobalTreeT& tree() { return global_tree_; }
 			NapControlT& nap_control() { return nap_control_; }
 			SemanticEntityRegistryT& semantic_entity_registry() { return registry_; }
+			SemanticEntityNeighborhoodT& neighborhood() { return neighborhood_; }
 		
 		private:
 			
@@ -960,7 +961,7 @@ namespace wiselib {
 				#endif
 					
 				#if INSE_DEBUG_STATE
-					debug_->debug("ACT t%d", (int)(now() % 65536));
+					debug_->debug("@%d ACT t%d", (int)radio_->id(), (int)(now() % 65536));
 				#endif
 				nap_control_.push_caffeine();
 				
@@ -1007,7 +1008,7 @@ namespace wiselib {
 				#endif
 				
 				#if INSE_DEBUG_STATE
-					debug_->debug("/ACT t%d", (int)(now() % 65536));
+					debug_->debug("@%d /ACT t%d", (int)radio_->id(), (int)(now() % 65536));
 					debug_->debug("ho endact");
 				#endif
 				initiate_handover(se, true);
