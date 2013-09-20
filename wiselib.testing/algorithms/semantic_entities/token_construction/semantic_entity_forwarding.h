@@ -132,8 +132,11 @@ namespace wiselib {
 				
 				map_index_ = false;
 				map_slots_ = MAP_BITS;
+				
 				set_all_awake(next_map());
-				set_all_awake(slot_map());
+				set_all_asleep(slot_map());
+				//set_all_asleep(next_map());
+				//set_all_asleep(slot_map());
 				slot_length_ = DEFAULT_SLOT_LENGTH;
 				next_cycle();
 				
@@ -150,7 +153,6 @@ namespace wiselib {
 				// for now, only forward messages from the reliable transport
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != ReliableTransportT::Message::MESSAGE_TYPE) {
-					DBG("on_receive: wtf");
 					return false;
 				}
 				typename ReliableTransportT::Message &msg = *reinterpret_cast<typename ReliableTransportT::Message*>(data);
@@ -354,6 +356,9 @@ namespace wiselib {
 				abs_millis_t cycle_window = msg.cycle_window();
 				
 				if(cycle_time == 0) {
+					#if INSE_DEBUG_STATE
+						debug_->debug("@%d fwd allwake", (int)radio_->id());
+					#endif
 					set_all_awake(slot_map());
 					set_all_awake(next_map());
 				}

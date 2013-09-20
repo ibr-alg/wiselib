@@ -1,0 +1,8 @@
+#!/bin/sh
+
+PATTERN=$1
+shift
+ARGS=$@
+
+grep "$PATTERN"'\|BEGIN ITERATION' $ARGS|grep "$PATTERN" -B 1
+

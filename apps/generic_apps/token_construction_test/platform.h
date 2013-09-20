@@ -47,7 +47,7 @@
 // Timing
 
 #define WISELIB_TIME_FACTOR            1
-#define INSE_FORWARDING_MAP_BITS       1024
+#define INSE_FORWARDING_MAP_BITS       2048
 #define INSE_FORWARDING_SLOT_LENGTH    (500 * 100)
 
 

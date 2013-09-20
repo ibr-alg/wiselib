@@ -16,11 +16,16 @@ nodes = []
 
 re_begin_iteration = re.compile('-+ BEGIN ITERATION (\d+)')
 re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
+
+tmin = None
 tmax = None
 
 def parse(f):
 	global nodes
+	global tmin
+	global tmax
 	
+	t = 0
 	for line in f:
 		kv = {}
 		def get_value(s):
@@ -33,7 +38,15 @@ def parse(f):
 		m = re.match(re_begin_iteration, line)
 		if m is not None:
 			t = int(m.group(1))
+			
+			if t % 10000 == 0:
+				print("{}".format(t))
 			continue
+		
+		# always start from t=0, else we will miss the tree state updates
+		# which usually happen and the beginning
+		# (and other state changes)
+		#if tmin is not None and t < tmin: break
 		if tmax is not None and t > tmax: break
 		
 		# which node is this line about?
@@ -138,6 +151,8 @@ def print_dot(d, out):
 
 def generate_all(directory):
 	global nodes
+	global tmin
+	global tmax
 	last_t = None
 	count = 0
 	for d in nodes:
@@ -147,6 +162,10 @@ def generate_all(directory):
 		else:
 			count = 0
 		last_t = t
+		
+		if tmin is not None and t < tmin: continue
+		if tmax is not None and t > tmax: continue
+		
 		fn = '{}/t{:08d}_{:04d}.dot'.format(directory, t, count)
 		print(fn)
 		f = open(fn, 'w')
@@ -166,7 +185,14 @@ def test_compress():
 		compress_filter(x)
 
 
-print("parsing...")
+if len(sys.argv) > 1:
+	tmin = int(sys.argv[1])
+	
+if len(sys.argv) > 2:
+	tmax = int(sys.argv[2])
+
+
+print("parsing... tmin={} tmax={}".format(tmin, tmax))
 parse(open('log.txt', 'r'))
 print("found {} tree states".format(len(nodes)))
 generate_all('dot')
