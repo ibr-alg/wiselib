@@ -3,7 +3,6 @@
  */
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
-#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
 #include "external_interface/arduino/arduino_xbee_radio.h"
 #include "external_interface/arduino/arduino_debug.h"
 
@@ -22,9 +21,14 @@ public:
       radio.reg_recv_callback<ExampleApplication, &ExampleApplication::onReceive>(this);
       while ( 1 )
       {
-	if ( serialEventRun )
+	if ( serialEventRun ) serialEventRun();
+	if(wiselib::ArduinoTask::tasks_.empty());
+	else
 	{
-	  serialEventRun();
+	  wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+	  wiselib::ArduinoTask::tasks_.pop();
+	  t.callback_(t.userdata_);
+	  delay(10);
 	}
       }
    }
@@ -32,6 +36,7 @@ public:
    void onReceive(Os::XBeeRadio::node_id_t id, Os::XBeeRadio::size_t len,Os::XBeeRadio::block_data_t* data)
    {
      debug.debug((char*)data);
+     debug.debug("From: %#lx",id);
    }
 };
 // --------------------------------------------------------------------------

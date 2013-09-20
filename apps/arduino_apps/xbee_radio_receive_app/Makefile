@@ -21,11 +21,11 @@ ZEROCONF_PATH=/home/parita/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lxbee -lsoftwareserial -lspi -larduino -lethernet -lzeroconf -lstring -Wl,--end-group
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lxbee -lsoftwareserial -larduino -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_XBEE -DARDUINO_LITE -DARDUINO_STRING -Os -w \
+CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_XBEE -DARDUINO_LITE -Os -w \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
 PORT=/dev/ttyACM0

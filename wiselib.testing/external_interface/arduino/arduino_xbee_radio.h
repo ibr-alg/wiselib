@@ -78,6 +78,11 @@ namespace wiselib
          MAX_MESSAGE_LENGTH = 100 ///< Maximal number of bytes in payload
       };
 
+      enum
+      {
+	BAUDRATE = 9600,
+	POLL_INTERVAL = 20
+      };
       ArduinoXBeeRadio();
       ~ArduinoXBeeRadio();
 
@@ -119,10 +124,10 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoXBeeRadio<OsModel_P>::enable_radio()
    {
-	baud_rate_ = DEFAULT_BAUD_RATE;
-	xbee_.begin(9600);
-	timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
+	xbee_.begin(BAUDRATE);
+	timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
 	id_ = id();
+	ArduinoDebug<ArduinoOsModel>(true).debug("id: %#lx",id_);
 	if(id_ == -1)
 	  return ERR_UNSPEC;
 	return SUCCESS;
@@ -155,17 +160,13 @@ namespace wiselib
 	    return (MY_hb<<8)|(MY_lb);
 	  }
 	  else
-	    return -1;  char* from_id;
-     int i = 0;
-   
+	    return -1;
 	}
 	else
 	  return -1;
       }
       else
 	return -1;
-      
-      return id_;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
@@ -213,7 +214,7 @@ namespace wiselib
        }
        received(data, length, from_id);
      }
-     timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
+     timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
