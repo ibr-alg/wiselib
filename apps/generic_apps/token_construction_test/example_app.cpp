@@ -247,6 +247,7 @@ class ExampleApplication
 			token_construction_.set_end_activity_callback(
 				TC::end_activity_callback_t::from_method<ExampleApplication, &ExampleApplication::on_end_activity>(this)
 			);
+			token_construction_.disable_immediate_answer_mode();
 			
 			#if USE_INQP
 				query_processor_.init(&ts, timer_);
