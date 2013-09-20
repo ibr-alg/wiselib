@@ -16,27 +16,47 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+//------------This file is copied from the commit by Henning(Droggelbecher) in the integration/inse branch--------------//
+#ifndef ARDUINO_TASK_H
+#define ARDUINO_TASK_H
 
-#ifndef MESSAGE_H_
-#define MESSAGE_H_
+#include "arduino_os.h"
+#include <util/pstl/queue_static.h>
+#include <util/delegates/delegate.hpp>
 
-#include "utils.h"
+#ifndef WISELIB_ARDUINO_MAX_TASKS
+   #define WISELIB_ARDUINO_MAX_TASKS 8
+#endif
 
 namespace wiselib {
-
-class MessageDestination;
-
-class Message
-{
-public:
-	Message(uint8_t opcode);
-	virtual ~Message();
-
-	virtual error_code_t serialize(uint8_t *buffer, uint32_t buffer_size)=0;
-	virtual error_code_t applyTo(MessageDestination* dest)=0;
-private:
-	uint8_t _opcode;
-};
-
+   
+   class ArduinoTask {
+      public:
+         delegate1<void, void*> callback_;
+         void *userdata_;
+         
+         ArduinoTask() : callback_(), userdata_(0) {
+         }
+         
+         ArduinoTask(delegate1<void, void*> callback, void* userdata) {
+            callback_ = callback;
+            userdata_ = userdata;
+         }
+         
+         static void enqueue(delegate1<void, void*> cb, void* ud) {
+            if(tasks_.full()) {
+               Serial.println("tq full!");
+               while(true) ;
+            }
+            tasks_.push(ArduinoTask(cb, ud));
+//          ArduinoDebug<ArduinoOsModel>(true).debug("push'd task %d", (int)tasks_.size());
+         }
+         
+         static queue_static<ArduinoOsModel, ArduinoTask, WISELIB_ARDUINO_MAX_TASKS> tasks_;
+   }; // ArduinoTask
+   
+   queue_static<ArduinoOsModel, ArduinoTask, WISELIB_ARDUINO_MAX_TASKS> ArduinoTask::tasks_;
 }
-#endif /* MESSAGE_H_ */
+
+#endif // ARDUINO_TASK_H
+
