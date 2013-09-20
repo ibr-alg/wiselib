@@ -3,7 +3,10 @@
  */
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
+<<<<<<< HEAD
 //#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
+=======
+>>>>>>> xbee_module
 #include "external_interface/arduino/arduino_xbee_radio.h"
 
 typedef wiselib::ArduinoOsModel Os;
@@ -26,12 +29,16 @@ public:
       {
 	   //debug.debug("tach.");
 	radio.send( Os::XBeeRadio::BROADCAST_ADDRESS, 11, message);
-	if ( serialEventRun )
+	if ( serialEventRun ) serialEventRun();
+	if(wiselib::ArduinoTask::tasks_.empty());
+	else
 	{
-	  serialEventRun();
+	  wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+	  wiselib::ArduinoTask::tasks_.pop();
+	  t.callback_(t.userdata_);
+	  delay(10);
 	}
       }
-
    }
 };
 // --------------------------------------------------------------------------
