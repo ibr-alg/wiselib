@@ -9,6 +9,21 @@ WISELIB_BASE=` echo "b" | cat ../generic_apps/Makefile.local | awk -v line="$wis
 ns3_include_line=` echo "c" | cat ../generic_apps/Makefile.local | awk -F"=" '{print $1}' | awk -F" " '{if($2=="NS3_INCLUDE_DIR") print NR}'`;
 NS3_INCLUDE_DIR=` echo "d" | cat ../generic_apps/Makefile.local | awk -v line="$ns3_include_line" -F" " '{if (NR== line ) print $2}' | awk -F"=" '{print $2}'`;
 
+echo "$NS3_INCLUDE_DIR"
+
+# detect whether wiselib/ folder exists in NS-3 src/
+if [ -d "$NS3_INCLUDE_DIR/src/wiselib" ]
+then 
+  # wiselib/ folder has already copied into NS-3 src/ 
+  echo "Checking wiselib/: yes"
+else 
+  # wiselib/ folder has not already copied into NS-3 src/ 
+  echo "Checking wiselib/: no"
+  cd ../ns3_apps
+  echo "Copy wiselib/ to NS-3 src/"
+  cp -r wiselib/ $NS3_INCLUDE_DIR/src
+fi
+
 cd $NS3_INCLUDE_DIR
 cd src/wiselib/examples
 
@@ -23,4 +38,6 @@ cd ../../../
 # configure and build NS-3 with examples
 ./waf configure --enable-examples
 ./waf
-./waf --run src/wiselib/examples/wiselib-ns3-example
+
+# run testing script in NS-3
+#./waf --run src/wiselib/examples/wiselib-ns3-example

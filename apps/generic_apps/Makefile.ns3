@@ -1,2 +1,2 @@
 all :
-	sh ../ns3/ns3.sh
+	sh ../ns3_apps/ns3.sh
