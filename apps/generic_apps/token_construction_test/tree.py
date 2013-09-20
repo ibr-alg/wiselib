@@ -166,7 +166,8 @@ def generate_all(directory):
 		if tmin is not None and t < tmin: continue
 		if tmax is not None and t > tmax: continue
 		
-		fn = '{}/t{:08d}_{:04d}.dot'.format(directory, t, count)
+		#fn = '{}/t{:08d}_{:04d}.dot'.format(directory, t, count)
+		fn = '{}/t{:08d}.dot'.format(directory, t)
 		print(fn)
 		f = open(fn, 'w')
 		print_dot(d, f)

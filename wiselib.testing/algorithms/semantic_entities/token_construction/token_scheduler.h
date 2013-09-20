@@ -205,13 +205,20 @@ namespace wiselib {
 					
 					
 				iam_enabled_ = false;
-				
-				if(iam_enabled_) {
-					iam_waiting_for_subtree_ = false;
-					iam_tokens_in_subtree_ = 0;
-					forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
-					forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
-				}
+				iam_waiting_for_subtree_ = false;
+				iam_tokens_in_subtree_ = 0;
+				forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
+				forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
+			}
+			
+			void enable_immediate_answer_mode() {
+				if(iam_enabled_) { return; }
+				iam_enabled_ = true;
+			}
+			
+			void disable_immediate_answer_mode() {
+				if(!iam_enabled_) { return; }
+				iam_enabled_ = false;
 			}
 			
 			void set_end_activity_callback(end_activity_callback_t cb) {

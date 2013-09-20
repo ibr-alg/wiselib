@@ -1,8 +1,8 @@
 #!/bin/sh
 
 mkdir -p dot
-#rm dot/*.dot dot/*.png dot/*.pdf
-#python ./tree.py $@
+rm dot/*.dot dot/*.png dot/*.pdf
+python ./tree.py $@
 
 
 COUNT=$(( $(ls dot/*.dot|wc -l) / 10 ))
