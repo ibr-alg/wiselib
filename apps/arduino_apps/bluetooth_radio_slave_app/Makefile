@@ -20,14 +20,14 @@ ZEROCONF_PATH=/home/parita/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -lspi -larduino -lethernet -lzeroconf -lstring -Wl,--end-group
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -larduino -lstring -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
 CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_BLUETOOTH -DARDUINO_LITE -DARDUINO_STRING -Os -w \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
-PORT=/dev/ttyUSB0
+PORT=/dev/ttyACM1
 
 default: build-libs build upload
 
