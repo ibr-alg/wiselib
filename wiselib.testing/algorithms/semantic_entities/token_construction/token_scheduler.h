@@ -95,7 +95,7 @@ namespace wiselib {
 				MAX_AGGREGATOR_ENTRIES = 4,
 				MAX_SHDT_TABLE_SIZE = 8,
 				MAX_SSTREE_LISTENERS = 4,
-				FORWARDING_MAP_BITS = 512
+				FORWARDING_MAP_BITS = INSE_FORWARDING_MAP_BITS
 			};
 			
 			typedef NapControl<OsModel, Radio> NapControlT;
@@ -202,6 +202,16 @@ namespace wiselib {
 				#if INSE_USE_AGGREGATOR
 					aggregator_.init(tuplestore);
 				#endif
+					
+					
+				iam_enabled_ = false;
+				
+				if(iam_enabled_) {
+					iam_waiting_for_subtree_ = false;
+					iam_tokens_in_subtree_ = 0;
+					forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
+					forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
+				}
 			}
 			
 			void set_end_activity_callback(end_activity_callback_t cb) {
@@ -448,6 +458,7 @@ namespace wiselib {
 					case SemanticEntityT::INIT: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						msg.set_cycle_time(se->activating_token_interval());
+						msg.set_cycle_window(se->activating_token_window());
 						msg.set_token_state(se->token());
 						message.set_payload_size(msg.size());
 						transport_.expect_answer(endpoint);
@@ -572,6 +583,11 @@ namespace wiselib {
 						//debug_->debug("chi a");
 						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
 							se->set_main_handover_phase(SemanticEntityT::PHASE_INIT);
+						}
+						
+						if(tree().parent() != endpoint.remote_address()) {
+							debug_->debug("@%d snd iam++", (int)radio_->id());
+							iam_new_token_in_subtree();
 						}
 						
 			#if INSE_USE_AGGREGATOR
@@ -974,12 +990,54 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, reinterpret_cast<void*>(&se));
 			}
 			
+			
+			void iam_timeout(void* c) {
+				if((void*)iam_timeout_counter_ != c) { return; }
+				
+				if(iam_tokens_in_subtree_ > 0) {
+					if(iam_waiting_for_subtree_ && iam_tokens_in_subtree_ == 1) {
+						nap_control_->pop_caffeine();
+					}
+					iam_tokens_in_subtree_--;
+					iam_waiting_for_subtree_ = (iam_tokens_in_subtree_ > 0);
+				}
+			}
+			
+			void iam_new_token_in_subtree() {
+				if(!iam_enabled_) { return; }
+				
+				if(!iam_waiting_for_subtree_) {
+					nap_control_.push_caffeine();
+					iam_waiting_for_subtree_ = true;
+					iam_tokens_in_subtree_ = 0;
+				}
+				iam_tokens_in_subtree_++;
+				debug_->debug("@%d iam %d", (int)radio_->id(), (int)iam_tokens_in_subtree_);
+				//iam_timeout_counter_++;
+				//timer_->template set_timer<self_type, &self_type::iam_timeout>(IAM_TIMEOUT, this, (void*)iam_timeout_counter_);
+	
+			}
+			
+			void iam_lost_token_in_subtree() {
+				if(!iam_enabled_) { return; }
+				if(!iam_waiting_for_subtree_) { return; }
+				
+				nap_control_.pop_caffeine();
+				if(iam_tokens_in_subtree_ > 0) {
+					iam_tokens_in_subtree_--;
+				}
+				if(iam_tokens_in_subtree_ == 0) {
+					iam_waiting_for_subtree_ = false;
+				}
+				debug_->debug("@%d iam %d", (int)radio_->id(), (int)iam_tokens_in_subtree_);
+			}
+			
 			/**
 			 * Called by timeout at the end of an activity period.
 			 */
 			void end_activity(SemanticEntityT& se) {
 				if(!se.in_activity_phase()) { return; }
-	
+				
 				se.end_activity_phase();
 				if(end_activity_callback_) {
 					#if INSE_USE_AGGREGATOR
@@ -1036,7 +1094,7 @@ namespace wiselib {
 					debug_->debug("node %d // push wait_for_token", (int)radio_->id());
 				#endif
 				#if INSE_DEBUG_STATE
-					debug_->debug("wait");
+					debug_->debug("@%d wait", (int)radio_->id());
 				#endif
 				nap_control_.push_caffeine();
 				
@@ -1054,7 +1112,7 @@ namespace wiselib {
 					debug_->debug("node %d // pop wait_for_token", (int)radio_->id());
 				#endif
 				#if INSE_DEBUG_STATE
-					debug_->debug("/wait");
+					debug_->debug("@%d /wait", (int)radio_->id());
 				#endif
 				nap_control_.pop_caffeine();
 			}
@@ -1085,6 +1143,13 @@ namespace wiselib {
 			NapControlT nap_control_;
 			
 			end_activity_callback_t end_activity_callback_;
+			
+			// Immediate Answer Mode
+			
+			bool iam_enabled_;
+			bool iam_waiting_for_subtree_;
+			size_type iam_timeout_counter_;
+			size_type iam_tokens_in_subtree_;
 			
 	}; // TokenScheduler
 }

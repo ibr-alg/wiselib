@@ -9,7 +9,7 @@
 #define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
 #define INSE_DEBUG_STATE               1
 #define INSE_DEBUG_TREE                1
-#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+#define RELIABLE_TRANSPORT_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        1
 #define DISTRIBUTOR_DEBUG_STATE        1
 
@@ -47,6 +47,8 @@
 // Timing
 
 #define WISELIB_TIME_FACTOR            1
+#define INSE_FORWARDING_MAP_BITS       1024
+#define INSE_FORWARDING_SLOT_LENGTH    (500 * 100)
 
 
 #if defined(CONTIKI_TARGET_MICAZ)

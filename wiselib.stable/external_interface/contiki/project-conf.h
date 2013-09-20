@@ -41,8 +41,8 @@
 	#undef UIP_CONF_UDP
 	#define UIP_CONF_UDP 0
 
-	#undef UIP_BROADCAST
-	#define UIP_BROADCAST 0
+	#undef UIP_CONF_BROADCAST
+	#define UIP_CONF_BROADCAST 0
 
 	#undef NETSTACK_CONF_MAC
 	#define NETSTACK_CONF_MAC nullmac_driver

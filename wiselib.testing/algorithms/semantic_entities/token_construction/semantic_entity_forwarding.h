@@ -25,6 +25,14 @@
 #include <util/string_util.h>
 #include "token_state_message.h"
 
+#ifndef INSE_FORWARDING_SLOT_LENGTH
+	#define INSE_FORWARDING_SLOT_LENGTH (500 * WISELIB_TIME_FACTOR)
+#endif
+
+#ifndef INSE_FORWARDING_MIN_WINSLOTS
+	#define INSE_FORWARDING_MIN_WINSLOTS 1
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -82,10 +90,13 @@ namespace wiselib {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
 				MAP_BITS = MAP_BITS_P,
 				MAP_BYTES = MAP_BITS / 8,
-				DEFAULT_SLOT_LENGTH = 500 * WISELIB_TIME_FACTOR
+				DEFAULT_SLOT_LENGTH = INSE_FORWARDING_SLOT_LENGTH,
+				MIN_WINSLOTS = INSE_FORWARDING_MIN_WINSLOTS,
+					//500 * WISELIB_TIME_FACTOR
 			};
 			
 		private:
+			/*
 			struct Route {
 				Route() : from(NULL_NODE_ID) {
 				}
@@ -105,6 +116,7 @@ namespace wiselib {
 			
 			typedef RegularEvent<OsModel, Radio, Clock, Timer> RegularEventT;
 			typedef MapStaticVector<OsModel, Route, RegularEventT, MAX_NEIGHBORS * 4> RegularEvents;
+			*/
 				
 		public:
 			
@@ -124,6 +136,8 @@ namespace wiselib {
 				set_all_awake(slot_map());
 				slot_length_ = DEFAULT_SLOT_LENGTH;
 				next_cycle();
+				
+				//debug_->debug("@%d fwd slot %d
 				
 				//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				check();
@@ -160,10 +174,10 @@ namespace wiselib {
 				else {
 					#if INSE_DEBUG_STATE
 						if(msg.initiator() != msg.is_ack()) {
-							debug_->debug("%d > %d > %d", (int)from, (int)radio_->id(), (int)target);
+							debug_->debug("@%d fwd %d > %d", (int)radio_->id(), (int)from, (int)target);
 						}
 						else {
-							debug_->debug("%d < %d < %d", (int)target, (int)radio_->id(), (int)from);
+							debug_->debug("@%d fwd %d < %d", (int)radio_->id(), (int)target, (int)from);
 						}
 					#endif
 					
@@ -173,6 +187,28 @@ namespace wiselib {
 					}
 					
 					radio_->send(target, len, data);
+					
+					// Immidiate Answer Mode: Are we forwarding a token
+					// upwards?
+					// 
+					debug_->debug("@%d fwd from %d to %d par %d i%d a%d l %d '%c'",
+							(int)radio_->id(), (int)from, (int)target,
+							(int)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
+							(int)msg.payload_size(), *msg.payload());
+					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && from == amq_nhood_->tree().parent()) {
+						if(iam_lost_callback_) {
+							debug_->debug("@%d fwd iam--", (int)radio_->id());
+							iam_lost_callback_();
+						}
+					}
+					
+					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && target == amq_nhood_->tree().parent()) {
+						
+						if(iam_new_callback_) {
+							debug_->debug("@%d fwd iam++", (int)radio_->id());
+							iam_new_callback_();
+						}
+					}
 					
 					// TODO: process closing message in some way?
 					// 
@@ -190,6 +226,9 @@ namespace wiselib {
 					assert(clock_ != 0);
 				#endif
 			}
+			
+			delegate0<void> iam_lost_callback_;
+			delegate0<void> iam_new_callback_;
 		
 		private:
 			abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
@@ -223,7 +262,7 @@ namespace wiselib {
 				memset(activity_maps_[map_index_], 0, MAP_BYTES);
 				map_index_ = !map_index_;
 				#if INSE_DEBUG_STATE
-					debug_->debug("fwd");
+					debug_->debug("@%d fwd cyc", (int)radio_->id());
 				#endif
 				nap_control_->push_caffeine();
 				sleep(0);
@@ -236,7 +275,7 @@ namespace wiselib {
 				position_time_ = now();
 				
 				#if INSE_DEBUG_STATE
-					debug_->debug("fwd");
+					debug_->debug("@%d fwd up", (int)radio_->id());
 				#endif
 				nap_control_->push_caffeine();
 				
@@ -257,7 +296,7 @@ namespace wiselib {
 				position_time_ = now();
 				
 				#if INSE_DEBUG_STATE
-					debug_->debug("/fwd");
+					debug_->debug("@%d /fwd dwn", (int)radio_->id());
 				#endif
 				nap_control_->pop_caffeine();
 				
@@ -282,9 +321,19 @@ namespace wiselib {
 				return (now() - position_time_) / slot_length_ + position_;
 			}
 			
-			void schedule_wakeup(size_type pos) {
-				for(int d = -1; d <= 3; d++) {
-					if(pos > -d) { mark_awake(pos + d); }
+			void schedule_wakeup(size_type pos, size_type winslots) {
+				//debug_->debug("@%d fwd mark %d..%d p %d", (int)radio_->id(),
+						//(int)-winslots, (int)(2 * winslots), (int)pos);
+				for(int d = (int)-winslots; d <= (int)(2 * winslots); d++) {
+					if((int)pos > -d) {
+						//debug_->debug("@%d fwd mark %d tm %d",
+								//(int)radio_->id(), (int)pos,
+								//now() + (pos + d) * slot_length_);
+						mark_awake(pos + d);
+					}
+					//else {
+						//debug_->debug("@%d fwd mark %d !> %d", (int)radio_->id(), (int)pos, -d);
+					//}
 				}
 			}
 			
@@ -295,17 +344,29 @@ namespace wiselib {
 				else if(pos - map_slots_ < map_slots_) {
 					next_map().set(pos - map_slots_, true);
 				}
+				else {
+					debug_->debug("@%d fwd !len %d>=2*%d", (int)radio_->id(), (int)pos, (int)map_slots_);
+				}
 			}
 				
 			void learn_token(TokenStateMessageT& msg) {
 				abs_millis_t cycle_time = msg.cycle_time();
+				abs_millis_t cycle_window = msg.cycle_window();
+				
 				if(cycle_time == 0) {
 					set_all_awake(slot_map());
 					set_all_awake(next_map());
 				}
 				else {
 					size_type pos = current_slot() + (cycle_time / slot_length_);
-					schedule_wakeup(pos);
+					size_type winslots = (cycle_window + slot_length_ - 1) / slot_length_;
+					if(winslots < MIN_WINSLOTS) { winslots = MIN_WINSLOTS; }
+					
+					debug_->debug("@%d fwd learn t%d cyc%d cyc/l=%d cur=%d/%d win%d winslots=%d",
+						(int)radio_->id(), (int)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
+						(int)cycle_window, (int)winslots);
+					
+					schedule_wakeup(pos, winslots);
 				}
 			}
 			
