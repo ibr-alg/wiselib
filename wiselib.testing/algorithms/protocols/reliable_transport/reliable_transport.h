@@ -356,14 +356,14 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				Message &msg = *reinterpret_cast<Message*>(data);
 				if(msg.type() != Message::MESSAGE_TYPE) {
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("ign msgtype 0x%x", (int)msg.type());
+					#if RELIABLE_TRANSPORT_DEBUG_VERBOSE
+						//debug_->debug("ign msgtype 0x%x", (int)msg.type());
 					#endif
 					return;
 				}
 				if(from == radio_->id()) {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("ign self");
+						debug_->debug("@%d ign self", (int)radio_->id());
 					#endif
 					return;
 				}
@@ -780,11 +780,11 @@ namespace wiselib {
 							(int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
 					
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("loss s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+						debug_->debug("@%d loss s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
 					#endif
 					if(resends_ >= MAX_RESENDS) {
 						#if RELIABLE_TRANSPORT_DEBUG_STATE
-							debug_->debug("abrt s%d t%d", (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+							debug_->debug("@%d abrt s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
 						#endif
 						sending_endpoint().abort_produce();
 						sending_endpoint().close();

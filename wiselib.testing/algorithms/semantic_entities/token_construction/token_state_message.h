@@ -63,11 +63,12 @@ namespace wiselib {
 				POS_MESSAGE_ID = 0,
 				POS_TOKEN_STATE = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_CYCLE_TIME = POS_TOKEN_STATE + sizeof(TokenState),
+				POS_CYCLE_WINDOW = POS_CYCLE_TIME + sizeof(abs_millis_t),
 				//POS_ENTITY_ID = POS_FLAGS + sizeof(flags_t), // sizeof(bool),
 				//POS_TOKEN_STATE = POS_FLAGS + sizeof(flags_t),
 				//POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
 				
-				POS_END = POS_CYCLE_TIME + sizeof(abs_millis_t)
+				POS_END = POS_CYCLE_WINDOW + sizeof(abs_millis_t)
 			};
 			
 			//enum {
@@ -81,6 +82,7 @@ namespace wiselib {
 			void init() {
 				set_type(MESSAGE_TYPE);
 				set_cycle_time(0);
+				set_cycle_window(0);
 				//set_informational(false);
 			}
 			
@@ -106,6 +108,14 @@ namespace wiselib {
 			
 			void set_cycle_time(abs_millis_t t) {
 				wiselib::write<OsModel>(data_ + POS_CYCLE_TIME, t);
+			}
+			
+			abs_millis_t cycle_window() {
+				return wiselib::read<OsModel, block_data_t, abs_millis_t>(data_ + POS_CYCLE_WINDOW);
+			}
+			
+			void set_cycle_window(abs_millis_t t) {
+				wiselib::write<OsModel>(data_ + POS_CYCLE_WINDOW, t);
 			}
 			
 			block_data_t* data() {
