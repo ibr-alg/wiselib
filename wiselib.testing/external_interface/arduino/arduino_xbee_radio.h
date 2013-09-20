@@ -124,6 +124,8 @@ namespace wiselib
 	xbee_.begin(9600);
 	timer_->template set_timer<ArduinoXBeeRadio<OsModel_P> , &ArduinoXBeeRadio<OsModel_P>::read_recv_packet > ( 3000, this , ( void* )timer_ );
 	id_ = id();
+	ArduinoDebug<ArduinoOsModel>(true).debug("id: %#x", id_);
+	debug.debug
 	if(id_ == -1)
 	  return ERR_UNSPEC;
 	return SUCCESS;
@@ -156,9 +158,7 @@ namespace wiselib
 	    return (MY_hb<<8)|(MY_lb);
 	  }
 	  else
-     {
 	    return -1;
-     }
 	}
 	else
 	  return -1;
