@@ -58,7 +58,11 @@ namespace wiselib {
 		int MAX_QUERIES_P = 4,
 		int MAX_NEIGHBORS_P = 8,
 		typename Dictionary_P = typename TupleStore_P::Dictionary,
+		
+		// dict key --> hash value
 		typename Translator_P = DictionaryTranslator<OsModel_P, Dictionary_P, Hash_P, 8>,
+		
+		// hash value --> dict key / string
 		typename ReverseTranslator_P = HashTranslator<OsModel_P, Dictionary_P, Hash_P, 4>,
 		typename Value_P = ::uint32_t,
 		typename Timer_P = typename OsModel_P::Timer

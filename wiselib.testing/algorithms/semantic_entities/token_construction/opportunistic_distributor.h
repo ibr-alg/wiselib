@@ -127,9 +127,10 @@ namespace wiselib {
 			typedef ::uint8_t revision_t;
 			typedef SemanticEntityRegistry_P SemanticEntityRegistryT;
 			typedef QueryProcessor_P QueryProcessorT;
+			typedef typename QueryProcessorT::Value Value;
 			typedef typename QueryProcessorT::BOD BOD;
 			
-			enum QueryRole { CONSTRUCTION_RULE = 'R', QUERY = 'Q', TASK = 'T' };
+			enum QueryRole { CONSTRUCTION_RULE = 'R', QUERY = 'Q', TASK = 'T', STRING_INQUIRY = 'S' };
 			typedef ::uint8_t query_role_t;
 			typedef ::uint32_t abs_millis_t;
 			
@@ -422,7 +423,16 @@ namespace wiselib {
 						// no break
 						
 					case State::SEND_QUERY_IDS:
-						while((p + sizeof(query_id_t) + sizeof(revision_t)) <= end && s.query_iterator() != queries_.end()) {
+						enum {
+							QID_SIZE = sizeof(::uint8_t) + sizeof(query_id_t) + sizeof(revision_t),
+							//HASH_SIZE = sizeof(::uint8_t) + sizeof(Value)
+						};
+						
+						while((p + QID_SIZE) <= end && s.query_iterator() != queries_.end()) {
+							::uint8_t role = s.query_iterator()->second.role();
+							wiselib::write<OsModel>(p, role);
+							p += sizeof(::uint8_t);
+							
 							query_id_t qid = (query_id_t)s.query_iterator()->second.id();
 							wiselib::write<OsModel>(p, qid);
 							p += sizeof(query_id_t);
@@ -435,21 +445,28 @@ namespace wiselib {
 							forward_to_matching(s.query_iterator(), remote);
 						}
 						
-						// Terminate with a pair of zeros
-						
-						if((p + sizeof(query_id_t) + sizeof(revision_t)) <= end && s.query_iterator() == queries_.end()) {
-							assert(sizeof(query_id_t) == sizeof(revision_t));
-							query_id_t null_ = 0;
-							wiselib::write<OsModel>(p, null_); p += sizeof(query_id_t);
-							wiselib::write<OsModel>(p, null_); p += sizeof(revision_t);
+						/*
+						while((p + HASH_SIZE) <= end && s.hash_iterator() != hashes_.end()) {
+							::uint8_t role = STRING_INQUIRY;
+							wiselib::write<OsModel>(p, role);
+							p += sizeof(::uint8_t);
 							
+							Value hash = (Value)s.hash_iterator()->hash_value();
+							wiselib::write<OsModel>(p, hash);
+							p += sizeof(Value);
+							
+							++s.hash_iterator();
+							forward_to_matching(s.hash_iterator(), remote);
+						}
+						*/
+						
+						if(s.query_iterator() == queries_.end()) { // && s.hash_iterator() == hashes_.end()) {
 							// we sent all query id's, now wait for answer
-							s.set_query_iterator(queries_.begin());
-							s.forward_to_requested(queries_.end());
-							s.rewind_operator();
 							s.set_state(State::RECEIVE_REQUEST);
+							s.set_query_iterator(queries_.begin());
+							//s.set_hash_iterator(hashes_.begin());
+							s.rewind_operator();
 							transport_.expect_answer(endpoint);
-							//endpoint.expect_answer();
 						}
 						else {
 							endpoint.request_send();
@@ -477,10 +494,10 @@ namespace wiselib {
 								// not another operator
 								::uint8_t nul = 0;
 								write<OsModel>(p, nul); p += sizeof(::uint8_t);
+								write<OsModel>(p, s.query_iterator()->second.role()); p += sizeof(::uint8_t);
 								write<OsModel>(p, s.query_iterator()->second.scope()); p += sizeof(SemanticEntityId);
 								write<OsModel>(p, s.query_iterator()->second.id()); p += sizeof(query_id_t);
 								write<OsModel>(p, s.query_iterator()->second.revision()); p += sizeof(revision_t);
-								write<OsModel>(p, s.query_iterator()->second.role()); p += sizeof(::uint8_t);
 								write<OsModel>(p, s.query_iterator()->second.lifetime()); p += sizeof(abs_millis_t);
 								write<OsModel>(p, s.query_iterator()->second.waketime()); p += sizeof(abs_millis_t);
 								write<OsModel>(p, s.query_iterator()->second.operator_count()); p += sizeof(::uint8_t);
@@ -654,12 +671,18 @@ namespace wiselib {
 					case State::RECEIVE_QUERY_IDS:
 						s.clear_requested();
 						while(p < end) {
+							//::uint8_t role
 							query_id_t qid;
 							revision_t rev;
+							//wiselib::read<OsModel>(p, role); p += sizeof(::uint8_t);
 							wiselib::read<OsModel>(p, qid); p += sizeof(query_id_t);
 							wiselib::read<OsModel>(p, rev); p += sizeof(revision_t);
 							
-							if(qid == 0) { break; }
+							//if(qid == 0) { break; }
+							
+							// TODO
+							//if(role == STRING_INQUIRY) {
+								
 							
 							typename QueryDescriptions::iterator it = queries_.begin();
 							for( ; it != queries_.end(); ++it) {
@@ -709,10 +732,17 @@ namespace wiselib {
 								revision_t revision;
 								abs_millis_t lifetime, waketime;
 								
+								read<OsModel>(p, role); p += sizeof(::uint8_t);
+								
+								//if(role == STRING_INQUIRY) {
+									//// TODO
+								//}
+								//else {
+								//}
+								
 								read<OsModel>(p, scope); p += sizeof(SemanticEntityId);
 								read<OsModel>(p, id); p += sizeof(query_id_t);
 								read<OsModel>(p, revision); p += sizeof(revision_t);
-								read<OsModel>(p, role); p += sizeof(::uint8_t);
 								read<OsModel>(p, lifetime); p += sizeof(abs_millis_t);
 								read<OsModel>(p, waketime); p += sizeof(abs_millis_t);
 								read<OsModel>(p, operator_count); p += sizeof(::uint8_t);
@@ -728,11 +758,14 @@ namespace wiselib {
 										debug_->debug("@%d +q%d", (int)radio_->id(), (int)id);
 									#endif
 									query_processor_->erase_query(id);
-									query_processor_->create_query(id);
+									Query *q = query_processor_->create_query(id);
+									q->set_expected_operators(operator_count);
 								}
 								else {
 									#if DISTRIBUTOR_DEBUG_STATE
-										debug_->debug("@%d fq%d s %p p %p end %p offs %d sz %d", (int)radio_->id(), (int)id, start, p, end, (int)(p - start), (int)QUERY_HEADER_SIZE);
+										debug_->debug("@%d fq%d s %p p %p end %p offs %d sz %d",
+												(int)radio_->id(), (int)id, start, p, end, (int)(p - start),
+												(int)QUERY_HEADER_SIZE);
 										debug_buffer<OsModel, 16>(debug_, start, end - start);
 									#endif
 								}
@@ -753,6 +786,11 @@ namespace wiselib {
 									Query *q = query_processor_->get_query(s.query_iterator()->second.id());
 									assert(q != 0);
 									
+									#if DISTRIBUTOR_DEBUG_STATE
+										debug_->debug("@%d q%d +o%d", (int)radio_->id(),
+												(int)s.query_iterator()->second.id(),
+												(int)*p);
+									#endif
 									// TODO: possible alignment problem here?
 									query_processor_->handle_operator(q, (BOD*)(p));
 								}

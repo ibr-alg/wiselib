@@ -313,7 +313,7 @@ class ExampleApplication
 			#if USE_INQP
 			if(radio_->id() == 0) {
 				timer_->template set_timer<ExampleApplication, &ExampleApplication::distribute_query>(
-						120000, this, 0);
+						550000, this, 0);
 			}
 			#endif
 			

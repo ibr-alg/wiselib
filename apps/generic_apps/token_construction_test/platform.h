@@ -26,6 +26,7 @@
 
 // App features
 
+//#define INSE_SINK                      1
 #define USE_INQP                       1
 #define INSE_USE_AGGREGATOR            0
 
@@ -49,6 +50,14 @@
 #define WISELIB_TIME_FACTOR            1
 #define INSE_FORWARDING_MAP_BITS       2048
 #define INSE_FORWARDING_SLOT_LENGTH    (500 * 100)
+
+
+// Message types
+enum {
+	INSE_MESSAGE_TYPE_STRING_INQUIRY =            0x40,
+	INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER =     0x41,
+};
+
 
 
 #if defined(CONTIKI_TARGET_MICAZ)
