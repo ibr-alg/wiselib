@@ -132,7 +132,7 @@ def compress_filter(s):
 	return s
 
 def print_dot(d, out):
-	out.write('digraph G {\n')
+	out.write('digraph G { rankdir=TB; \n')
 	for name, v in d.items():
 		if name == '_t': continue
 		

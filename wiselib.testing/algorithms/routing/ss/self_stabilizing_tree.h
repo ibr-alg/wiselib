@@ -291,7 +291,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("bc");
 				#endif
-				nap_control_->push_caffeine();
+				nap_control_->push_caffeine("bc");
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d t %d // bcast tree state r%d p%d d%d | r%d p%d d%d",
 							(int)radio_->id(), (int)now(),
@@ -303,7 +303,7 @@ namespace wiselib {
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				
-				nap_control_->pop_caffeine();
+				nap_control_->pop_caffeine("/bc");
 				#if INSE_DEBUG_STATE
 					debug_->debug("/bc");
 				#endif
@@ -382,7 +382,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("bcwait");
 				#endif
-				nap_control_->push_caffeine();
+				nap_control_->push_caffeine("bcw");
 			}
 			
 			void end_wait_for_regular_broadcast(void*) {
@@ -392,7 +392,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("/bcwait");
 				#endif
-				nap_control_->pop_caffeine();
+				nap_control_->pop_caffeine("/bcw");
 			}
 			
 			size_type find_neighbor_position(node_id_t a, bool allow_parent = true) {

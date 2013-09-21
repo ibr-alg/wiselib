@@ -2,7 +2,17 @@
 
 PATTERN=$1
 shift
-ARGS=$@
+ARGS=""
 
-grep "$PATTERN"'\|BEGIN ITERATION' $ARGS|grep "$PATTERN" -B 1
+while [ $# -gt 1 ]; do
+	ARGS="$ARGS $1"
+	shift
+done
+FNAME=$1
+
+#echo PAT $PATTERN
+#echo ARGS $ARGS
+#echo FNAME $FNAME
+
+grep "$PATTERN"'\|BEGIN ITERATION' $ARGS $FNAME|grep "$PATTERN" $ARGS -B 1
 
