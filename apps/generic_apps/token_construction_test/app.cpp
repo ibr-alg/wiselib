@@ -44,8 +44,11 @@ class App {
 			// Fill node with initial semantics and construction rules
 			
 			initial_semantics(ts, radio_->id());
-			create_rules();
-			rule_processor_.execute_all();
+			//create_rules();
+			//rule_processor_.execute_all();
+			
+			
+			//timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
 		}
 		
 		void init_blockmemory() {
@@ -79,6 +82,10 @@ class App {
 				
 				//query_communicator_.init(query_processor_,
 				
+				
+				// Distribute queries to nodes
+				
+#if 0	
 				distributor_.init(
 						radio_,
 						&token_construction_.tree(),
@@ -94,13 +101,22 @@ class App {
 						radio_, timer_, debug_
 				);
 				
-				string_inquiry_.init(
-						&anycast_radio_, &query_processor_
+				// Transport rows for collect and aggregation operators
+				packing_anycast_radio_.init(anycast_radio_, *debug_);
+				
+				debug_->debug("initing rowc");
+				row_collector_.init(&packing_anycast_radio_, &query_processor_, debug_);
+				row_collector_.reg_collect_callback(
+						RowCollectorT::collect_delegate_t::from_method<App, &App::on_result_row>(this)
 				);
+				
+				// Ask nodes for strings belonging to hashes
+				
+				string_inquiry_.init(&anycast_radio_, &query_processor_);
 				string_inquiry_.reg_answer_callback(
 						StringInquiryT::answer_delegate_t::from_method<App, &App::on_string_answer>(this)
 				);
-				
+#endif
 				/*
 				anycast_radio_.reg_recv_callback<
 					ExampleApplication, &ExampleApplication::on_test_anycast_receive
@@ -200,8 +216,28 @@ class App {
 		// 
 		
 		void on_string_answer(Value v, const char *s) {
-			debug_->debug("%08lx = %s", (unsigned long)v, s);
+			debug_->debug("resolv %08lx => %s", (unsigned long)v, s);
 		}
+		
+		#if USE_INQP
+		void on_result_row(
+				QueryProcessor::query_id_t query_id,
+				QueryProcessor::operator_id_t operator_id,
+				QueryProcessor::RowT& row
+		) {
+			QueryProcessor::Query *q = query_processor_.get_query(query_id);
+			if(q == 0) { return; } // query not found
+			QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
+			if(op == 0) { return; } // operator not found
+			
+			debug_->debug("result %02d %02d:", (int)query_id, (int)operator_id);
+			int l = op->projection_info().columns();
+			for(int i = 0; i < l; i++) {
+				debug_->debug("  %d/%d %08lx", (int)i, (int)l, (unsigned long)row[i]);
+			}
+		} // on_result_row()
+	
+		#endif // USE_INQP
 	
 	//#endif
 		
@@ -237,7 +273,9 @@ class App {
 			//INQPCommunicator<Os, QueryProcessor> query_communicator_;
 			Distributor distributor_;
 			AnycastRadio anycast_radio_;
+			PackingAnycastRadio packing_anycast_radio_;
 			StringInquiryT string_inquiry_;
+			RowCollectorT row_collector_;
 		#endif
 			
 		#if USE_DICTIONARY

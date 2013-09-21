@@ -82,7 +82,6 @@ typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Deb
 #if USE_INQP
 	#warning "Using INQP rule processor"
 	#include <algorithms/rdf/inqp/query_processor.h>
-	#include <algorithms/rdf/inqp/communicator.h>
 	#include <algorithms/semantic_entities/token_construction/inqp_rule_processor.h>
 	typedef wiselib::INQPQueryProcessor<Os, TS, Hash, INSE_MAX_QUERIES, INSE_MAX_NEIGHBORS, Dictionary> QueryProcessor;
 	typedef QueryProcessor::Value Value;
@@ -109,6 +108,12 @@ typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Deb
 	
 	#include <algorithms/semantic_entities/token_construction/string_inquiry.h>
 	typedef StringInquiry<Os, AnycastRadio, QueryProcessor> StringInquiryT;	
+	
+	#include <algorithms/protocols/packing_radio/packing_radio.h>
+	typedef PackingRadio<Os, AnycastRadio> PackingAnycastRadio;
+	
+	#include <algorithms/semantic_entities/token_construction/row_collector.h>
+	typedef RowCollector<Os, PackingAnycastRadio, QueryProcessor> RowCollectorT;
 	
 #else 
 	#warning "Using SIMPLE rule processor"

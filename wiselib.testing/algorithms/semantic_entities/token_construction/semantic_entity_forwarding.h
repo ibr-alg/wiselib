@@ -89,7 +89,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
 				MAP_BITS = MAP_BITS_P,
-				MAP_BYTES = MAP_BITS / 8,
+				MAP_BYTES = (MAP_BITS + 7) / 8,
 				DEFAULT_SLOT_LENGTH = INSE_FORWARDING_SLOT_LENGTH,
 				MIN_WINSLOTS = INSE_FORWARDING_MIN_WINSLOTS,
 					//500 * WISELIB_TIME_FACTOR
@@ -119,6 +119,10 @@ namespace wiselib {
 			*/
 				
 		public:
+			
+			SemanticEntityForwarding() : radio_(0), amq_nhood_(0),
+				nap_control_(0), registry_(0), timer_(0), clock_(0), debug_(0) {
+			}
 			
 			void init(typename Radio::self_pointer_t radio, AmqNHood* amq_nhood, typename NapControlT::self_pointer_t nap_control, typename RegistryT::self_pointer_t registry, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug) {
 				radio_ = radio;
@@ -221,12 +225,12 @@ namespace wiselib {
 			}
 			
 			void check() {
-				#if !WISELIB_DISABLE_DEBUG
+				//#if !WISELIB_DISABLE_DEBUG
 					assert(radio_ != 0);
 					assert(amq_nhood_ != 0);
 					assert(timer_ != 0);
 					assert(clock_ != 0);
-				#endif
+				//#endif
 			}
 			
 			delegate0<void> iam_lost_callback_;
@@ -245,6 +249,8 @@ namespace wiselib {
 			}
 			
 			void next_cycle(void * = 0) {
+				check();
+				
 				// <DEBUG>
 				
 			#if !WISELIB_DISABLE_DEBUG
@@ -271,6 +277,7 @@ namespace wiselib {
 			}
 			
 			void wake_up(void *p) {
+				check();
 				
 				position_ = 0;
 				hardcore_cast(position_, p);
@@ -293,6 +300,8 @@ namespace wiselib {
 			}
 			
 			void sleep(void* p) {
+				check();
+				
 				position_ = 0;
 				hardcore_cast(position_, p);
 				position_time_ = now();
@@ -315,7 +324,12 @@ namespace wiselib {
 				else {
 					assert(start >= position_);
 					size_type len = start - position_;
-					timer_->template set_timer<self_type, &self_type::wake_up>(slot_length_ * len, this, (void*)start);
+					//if(len == 0) {
+						//wake_up((void*)start);
+					//}
+					//else {
+						timer_->template set_timer<self_type, &self_type::wake_up>(slot_length_ * len, this, (void*)start);
+					//}
 				}
 			}
 			
@@ -340,10 +354,14 @@ namespace wiselib {
 			}
 			
 			void mark_awake(size_type pos) {
+				check();
+				
 				if(pos < map_slots_) {
+					assert(pos < map_slots_);
 					slot_map().set(pos, true);
 				}
 				else if(pos - map_slots_ < map_slots_) {
+					assert((pos - map_slots_) < map_slots_);
 					next_map().set(pos - map_slots_, true);
 				}
 				else {
@@ -352,6 +370,8 @@ namespace wiselib {
 			}
 				
 			void learn_token(TokenStateMessageT& msg) {
+				check();
+				
 				abs_millis_t cycle_time = msg.cycle_time();
 				abs_millis_t cycle_window = msg.cycle_window();
 				

@@ -78,7 +78,7 @@ namespace wiselib {
 			};
 			
 			enum {
-				TIMER_INTERVAL = 1000
+				TIMER_INTERVAL = 100 * WISELIB_TIME_FACTOR
 			};
 			
 			int init(Radio& radio, Debug& debug) {
@@ -137,6 +137,8 @@ namespace wiselib {
 					packer_.clear();
 				}
 			}
+			
+			Radio& radio() { return *radio_; }
 			
 		private:
 			

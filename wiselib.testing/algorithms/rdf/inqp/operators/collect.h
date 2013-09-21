@@ -41,7 +41,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Processor_P
+		typename Processor_P,
+		int COMMUNICATION_TYPE_P = Processor_P::COMMUNICATION_TYPE_SINK
 	>
 	class Collect : public Operator<OsModel_P, Processor_P> {
 		public:
@@ -52,6 +53,8 @@ namespace wiselib {
 			typedef Operator<OsModel_P, Processor_P> Base;
 			typedef typename Base::Query Query;
 			typedef Collect<OsModel, Processor> self_type;
+			
+			enum { COMMUNICATION_TYPE = COMMUNICATION_TYPE_P };
 			
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
@@ -82,7 +85,8 @@ namespace wiselib {
 					//}
 					
 					this->processor().send_row(
-							Base::Processor::COMMUNICATION_TYPE_SINK,
+							COMMUNICATION_TYPE,
+							//Base::Processor::COMMUNICATION_TYPE_SINK,
 							this->child(Base::CHILD_LEFT).columns(),
 							row,
 							this->query().id(),
