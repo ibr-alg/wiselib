@@ -89,6 +89,12 @@ namespace wiselib {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P
 			};
 			
+			enum CommunicationType {
+				COMMUNICATION_TYPE_SINK,
+				COMMUNICATION_TYPE_AGGREGATE,
+				COMMUNICATION_TYPE_CONSTRUCTION_RULE
+			};
+			
 			/// @{ Operators
 			
 			typedef OperatorDescription<OsModel, self_type> BasicOperatorDescription;
@@ -102,9 +108,11 @@ namespace wiselib {
 			typedef SimpleLocalJoin<OsModel, self_type> SimpleLocalJoinT;
 			typedef SimpleLocalJoinDescription<OsModel, self_type> SimpleLocalJoinDescriptionT;
 			typedef Collect<OsModel, self_type> CollectT;
+			typedef Collect<OsModel, self_type, COMMUNICATION_TYPE_CONSTRUCTION_RULE> ConstructionRuleT;
 			typedef Construct<OsModel, self_type> ConstructT;
 			typedef Delete<OsModel, self_type> DeleteT;
 			typedef CollectDescription<OsModel, self_type> CollectDescriptionT;
+			typedef CollectDescription<OsModel, self_type> ConstructionRuleDescriptionT;
 			typedef ConstructDescription<OsModel, self_type> ConstructDescriptionT;
 			typedef DeleteDescription<OsModel, self_type> DeleteDescriptionT;
 			typedef Aggregate<OsModel, self_type, MAX_NEIGHBORS> AggregateT;
@@ -112,37 +120,35 @@ namespace wiselib {
 			
 			/// }
 			
+			enum Restrictions {
+				MAX_OPERATOR_ID = 255,
+				MAX_ROW_RECEIVERS = 8
+			};
+			
 			typedef typename BasicOperatorDescription::operator_id_t operator_id_t;
+			typedef Hash_P Hash;
+			typedef typename Hash::hash_t hash_t;
+			typedef delegate2<void, hash_t, char*> resolve_callback_t;
 			
 			typedef INQPQuery<OsModel, self_type> Query;
 			typedef typename Query::query_id_t query_id_t;
 			typedef MapStaticVector<OsModel, query_id_t, Query*, MAX_QUERIES> Queries;
 			
-			typedef Hash_P Hash;
-			typedef typename Hash::hash_t hash_t;
-			
-			enum CommunicationType {
-				COMMUNICATION_TYPE_SINK,
-				COMMUNICATION_TYPE_AGGREGATE
-			};
-			
-			typedef delegate5<void, CommunicationType, size_type, RowT&, query_id_t, operator_id_t> row_callback_t;
-			typedef delegate2<void, hash_t, char*> resolve_callback_t;
-			
-			enum { MAX_OPERATOR_ID = 255 };
+			typedef delegate5<void, int, size_type, RowT&, query_id_t, operator_id_t> row_callback_t;
+			typedef set_static<OsModel, row_callback_t, MAX_ROW_RECEIVERS> RowCallbacks;
 			
 			void init(typename TupleStoreT::self_pointer_t tuple_store, typename Timer::self_pointer_t timer) {
 				tuple_store_ = tuple_store;
 				timer_ = timer;
-				row_callback_ = row_callback_t();
+				row_callbacks_.clear();
 				exec_done_callback_ = exec_done_callback_t();
 				translator_.init(&dictionary());
 				reverse_translator_.init(&dictionary());
 			}
 		
-			template<typename T, void (T::*fn)(CommunicationType, size_type, RowT&, query_id_t, operator_id_t)>
+			template<typename T, void (T::*fn)(int, size_type, RowT&, query_id_t, operator_id_t)>
 			void reg_row_callback(T* obj) {
-				row_callback_ = row_callback_t::template from_method<T, fn>(obj);
+				row_callbacks_.insert(row_callback_t::template from_method<T, fn>(obj));
 			}
 			
 			template<typename T, void (T::*fn)(hash_t, char*)>
@@ -150,14 +156,9 @@ namespace wiselib {
 				resolve_callback_ = resolve_callback_t::template from_method<T, fn>(obj);
 			}
 			
-			void send_row(CommunicationType type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
-				//Serial.println("srow");
-				if(row_callback_) {
-					row_callback_(type, columns, row, qid, oid);
-				}
-				else {
-					//Serial.println("srow: no cb");
-					//DBG("no intermediate result callback!");
+			void send_row(int type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
+				for(typename RowCallbacks::iterator it = row_callbacks_.begin(); it != row_callbacks_.end(); ++it) {
+					(*it)(type, columns, row, qid, oid);
 				}
 			}
 			
@@ -195,6 +196,9 @@ namespace wiselib {
 							break;
 						case BOD::COLLECT:
 							(reinterpret_cast<CollectT*>(op))->execute();
+							break;
+						case BOD::CONSTRUCTION_RULE:
+							(reinterpret_cast<ConstructionRuleT*>(op))->execute();
 							break;
 						case BOD::CONSTRUCT:
 							(reinterpret_cast<ConstructT*>(op))->execute();
@@ -238,6 +242,10 @@ namespace wiselib {
 					case BOD::COLLECT:
 						//DBG("c");
 						query->template add_operator<CollectDescriptionT, CollectT>(bod);
+						break;
+					case BOD::CONSTRUCTION_RULE:
+						//DBG("c");
+						query->template add_operator<ConstructionRuleDescriptionT, ConstructionRuleT>(bod);
 						break;
 					case BOD::CONSTRUCT:
 						//DBG("cons");
@@ -305,6 +313,7 @@ namespace wiselib {
 					case BOD::SELECTION:
 					case BOD::SIMPLE_LOCAL_JOIN:
 					case BOD::COLLECT:
+					case BOD::CONSTRUCTION_RULE:
 					case BOD::CONSTRUCT:
 					case BOD::DELETE:
 						break;
@@ -370,7 +379,7 @@ namespace wiselib {
 			
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			typename Timer::self_pointer_t timer_;
-			row_callback_t row_callback_;
+			RowCallbacks row_callbacks_;
 			resolve_callback_t resolve_callback_;
 			Queries queries_;
 			Translator translator_;

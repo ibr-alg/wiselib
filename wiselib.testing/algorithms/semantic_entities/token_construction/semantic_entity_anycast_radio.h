@@ -91,6 +91,7 @@ namespace wiselib {
 			typedef SemanticEntityId node_id_t;
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t radio_node_id_t;
+			typedef typename Radio::message_id_t message_id_t;
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
 			
@@ -101,14 +102,26 @@ namespace wiselib {
 			typedef SemanticEntityRegistry_P SemanticEntityRegistryT;
 			typedef SemanticEntityAmqNeighorhood_P SemanticEntityAmqNeighorhoodT;
 			typedef typename SemanticEntityAmqNeighorhoodT::GlobalTreeT TreeT;
-			
-			enum { MAX_NEIGHBORS = INSE_MAX_NEIGHBORS };
-			
-			typedef set_static<OsModel, radio_node_id_t, MAX_NEIGHBORS> FalsePositives;
-			
-			enum { RETRY_INTERVAL = 600 * WISELIB_TIME_FACTOR };
-			
 			typedef delegate1<bool, const MessageT&> accept_delegate_t;
+			typedef set_static<OsModel, radio_node_id_t, INSE_MAX_NEIGHBORS> FalsePositives;
+			
+			enum ReturnValues {
+				SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC
+			};
+			
+			enum SpecialValues {
+				BROADCAST_ADDRESS = 0,
+				NULL_NODE_ID = 0
+			};
+			
+			enum Restrictions {
+				MAX_NEIGHBORS = INSE_MAX_NEIGHBORS,
+				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - MessageT::HEADER_SIZE
+			};
+			
+			enum Timing {
+				RETRY_INTERVAL = 600 * WISELIB_TIME_FACTOR
+			};
 			
 			void init(typename SemanticEntityRegistryT::self_pointer_t registry,
 					typename SemanticEntityAmqNeighorhoodT::self_pointer_t amq,
@@ -158,7 +171,10 @@ namespace wiselib {
 					upwards_.set_upwards();
 					upwards_filled_ = true;
 				}
+				return SUCCESS;
 			}
+			
+			Radio& radio() { return *radio_; }
 			
 			
 		private:

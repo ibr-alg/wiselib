@@ -75,10 +75,10 @@ namespace wiselib {
 		
 		private:
 			
-			void on_row(CommunicationType commtype, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
+			void on_row(int commtype, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
 				assert(columns == 1);
 				SemanticEntityId se_id(qid, row[0]);
-				printf("---- adding SE\n");
+				//printf("---- adding SE\n");
 				construction_->add_entity(se_id);
 			}
 			
