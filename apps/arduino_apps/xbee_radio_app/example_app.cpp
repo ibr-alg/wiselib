@@ -3,10 +3,7 @@
  */
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
-<<<<<<< HEAD
 //#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
-=======
->>>>>>> xbee_module
 #include "external_interface/arduino/arduino_xbee_radio.h"
 
 typedef wiselib::ArduinoOsModel Os;

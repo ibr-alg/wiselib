@@ -3,7 +3,6 @@
  */
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
-#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
 #include "external_interface/arduino/arduino_xbeeS2_radio.h"
 #include "external_interface/arduino/arduino_debug.h"
 typedef wiselib::ArduinoOsModel Os;
@@ -17,12 +16,18 @@ class ExampleApplication
    void init(Os::AppMainParameter& amp)
    {
       radio.enable_radio();
+      debug.debug("Hello !");
       radio.reg_recv_callback<ExampleApplication, &ExampleApplication::onReceive>(this);
       while ( 1 )
       {
-	if ( serialEventRun )
+	if ( serialEventRun ) serialEventRun();
+	if(wiselib::ArduinoTask::tasks_.empty());
+	else
 	{
-	  serialEventRun();
+	  wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+	  wiselib::ArduinoTask::tasks_.pop();
+	  t.callback_(t.userdata_);
+	  delay(10);
 	}
       }
    }

@@ -29,7 +29,7 @@
 #include "util/delegates/delegate.hpp"
 #include "util/serialization/simple_types.h"
 #include "util/pstl/vector_static.h"
-#include "util/base_classes/radio_base.h"
+// #include "util/base_classes/radio_base.h"
 
 namespace wiselib
 {

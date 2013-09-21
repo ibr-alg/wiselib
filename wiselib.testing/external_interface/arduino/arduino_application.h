@@ -42,26 +42,6 @@ namespace wiselib
    };
 }
 
-<<<<<<< HEAD
-void application_main(wiselib::ArduinoOsModel&);
-
-int main(int argc, const char** argv) {
-   wiselib::ArduinoOsModel app_main_arg;
-   init();
-   
-   #if defined(USBCON)
-      USBDevice.attach();
-   #endif
-      
-   pinMode(13, OUTPUT);
-   Serial.begin(9600);
-   application_main(app_main_arg);
-   
-   while(true) {
-   }
-   
-   return 0;
-=======
 ISR(TIMER1_COMPA_vect)
 {
    TIMSK1 &= ~(1<<OCIE1A);
@@ -75,7 +55,6 @@ ISR(TIMER1_COMPA_vect)
    }
    Timer::fix_rate(); // fix_rate() does this for us (if it deems
 		      //necessary, that is!)
->>>>>>> timer_ISR
 }
 
 #endif

@@ -109,7 +109,7 @@ namespace wiselib
       void read_recv_packet(void*);
 
    private:
-      typename OsModel::Debug debug;
+//       typename OsModel::Debug debug;
       node_id_t id_;
       typename OsModel::Timer* timer_;
       unsigned long baud_rate_;
@@ -140,9 +140,9 @@ namespace wiselib
 	{
 	  xbee_.begin(BAUDRATE);
 	  id_ = getSH();
-	  debug.debug("MSB: %#lx",id_);
+// 	  DBG("MSB: %#lx",id_);
 	  id_ = (id_<<32)|getSL();
-	  debug.debug("LSB: %#lx",id_);
+// 	  DBG("LSB: %#lx",id_);s
 	  initialized_ = true;
 	}
 	timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
@@ -236,45 +236,48 @@ namespace wiselib
    int ArduinoXBeeS2Radio<OsModel_P>::
    send( node_id_t dest, size_t len, block_data_t* data )
    {
-     TIMSK2 &= ~(1<<TOIE2); //disable timer when 
-     TIMSK2 &= ~(1<<OCIE2A);//transmitting data
      uint32_t lsb = (uint32_t)dest;
      dest &= 0xFFFFFFFF00000000;
      uint32_t msb = (uint32_t)(dest>>32);
+//      DBG("MSB: %#lx",msb);
+//      DBG("LSB: %#lx",lsb);
      XBeeAddress64 addr64 = XBeeAddress64(msb,lsb);
+//      XBeeAddress64 addr64 = XBeeAddress64(0x0013a200,0x40a11ed4);
      
      ZBTxRequest zbTx = ZBTxRequest(addr64, data, len);
      ZBTxStatusResponse txStatus = ZBTxStatusResponse();
-
-     debug.debug("Sending Xbee packet...");
+     DBG("Sending Xbee packet...");
      xbee_.send(zbTx);
      typename OsModel::Debug debug;
      if (xbee_.readPacket(500))
      {
-       debug.debug("Response received");
+       DBG("Response received");
        if (xbee_.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE)
        {
-	 debug.debug("Tx status response");
-	 debug.debug("API id: %#x",(int)xbee_.getResponse().getApiId());
+	 DBG("Tx status response");
+	 DBG("API id: %#x",(int)xbee_.getResponse().getApiId());
 	 xbee_.getResponse().getZBTxStatusResponse(txStatus);
 	 if (txStatus.isSuccess())
 	 {
 	   timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
+	   sei();
 	   return SUCCESS;
 	 }
 	 else
-	   debug.debug("snd tx %d", (int)txStatus.getDeliveryStatus());
+	   DBG("snd tx %d", (int)txStatus.getDeliveryStatus());
        }
        else if (xbee_.getResponse().isError())
-	 debug.debug("snd err %d", (int)xbee_.getResponse().getErrorCode());
+	 DBG("snd err %d", (int)xbee_.getResponse().getErrorCode());
        else
-	 debug.debug("API id: %#d",(int)xbee_.getResponse().getApiId());
+	 DBG("API id: %#d",(int)xbee_.getResponse().getApiId());
      }
      else
      {
+       sei();
        timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
        return ERR_UNSPEC;
      }
+     sei();
      timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
      return SUCCESS;
    }
@@ -285,7 +288,7 @@ namespace wiselib
     xbee_.readPacket();
     if(xbee_.getResponse().isAvailable())
     {
-      debug.debug("Response available");
+      DBG("Response available");
       ZBRxResponse rx = ZBRxResponse();
       ModemStatusResponse msr = ModemStatusResponse();
       node_id_t from_id;
@@ -294,7 +297,7 @@ namespace wiselib
 
       if (xbee_.getResponse().getApiId() == ZB_RX_RESPONSE)
       {
-	debug.debug("Rx response");
+	DBG("Rx response");
 	xbee_.getResponse().getZBRxResponse(rx);
 	if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED)
 	{
@@ -303,15 +306,15 @@ namespace wiselib
 	  from_id = (uint64_t)msb;
 	  from_id = (from_id<<32);
 	  from_id |=(uint64_t)lsb;
-	  debug.debug("From SH: %#lx",msb);
-	  debug.debug("From SL: %#lx",lsb);
+// 	  DBG("From SH: %#lx",msb);
+// 	  DBG("From SL: %#lx",lsb);
 	    
 	  data = rx.getData();
 	  length = rx.getDataLength();
 	}
       }
       else
-	debug.debug("snd APIid %d",(int)xbee_.getResponse().getApiId());
+	DBG("snd APIid %d",(int)xbee_.getResponse().getApiId());
       received(data, length, from_id);
     }
     timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );

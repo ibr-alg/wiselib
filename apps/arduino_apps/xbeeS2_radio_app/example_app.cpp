@@ -3,7 +3,6 @@
  */
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
-#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
 #include "external_interface/arduino/arduino_xbeeS2_radio.h"
 
 typedef wiselib::ArduinoOsModel Os;
@@ -17,15 +16,16 @@ public:
    // --------------------------------------------------------------------
    void init(Os::AppMainParameter& amp)
    {
-      Os::XBeeS2Radio::block_data_t message[] = {'h','i'};
+      Os::XBeeS2Radio::block_data_t message[] = {'h','i','\0'};
       //if(radio.enable_radio()==-1)
 	//debug.debug("Error!");
       //else
 	//debug.debug("Success");
       radio.enable_radio();
+      debug.debug("Hello !");
       Os::XBeeS2Radio::node_id_t dest;
-      uint32_t MSB = 0x0013a200;
-      uint32_t LSB = 0x40a11e78;
+      uint32_t MSB = 0x0013a200;	//Enter the destination SH
+      uint32_t LSB = 0x40a11ed4;	//Enter the destination SL
       dest = (uint64_t)MSB;
       dest = (dest<<32);
       dest |= (uint64_t)LSB;
@@ -33,9 +33,15 @@ public:
       while ( 1 )
       {
 	radio.send( dest, 2, message);
-	if ( serialEventRun )
+	debug.debug((char*)message);
+	if ( serialEventRun ) serialEventRun();
+	if(wiselib::ArduinoTask::tasks_.empty());
+	else
 	{
-	  serialEventRun();
+	  wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+	  wiselib::ArduinoTask::tasks_.pop();
+	  t.callback_(t.userdata_);
+	  delay(10);
 	}
       }
    }
