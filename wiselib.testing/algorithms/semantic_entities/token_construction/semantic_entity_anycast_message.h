@@ -33,7 +33,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename Radio_P,
+		int MESSAGE_TYPE_P
 	>
 	class SemanticEntityAnycastMessage {
 		
@@ -46,7 +47,7 @@ namespace wiselib {
 			typedef typename Radio::message_id_t message_id_t;
 			
 			enum {
-				MESSAGE_TYPE = 0x45
+				MESSAGE_TYPE = MESSAGE_TYPE_P
 			};
 			
 			enum {
@@ -82,27 +83,28 @@ namespace wiselib {
 				wiselib::write<OsModel, block_data_t, message_id_t>(data_ + POS_MESSAGE_ID, t);
 			}
 			
-			uint8_t flags() { return data_[POS_FLAGS]; }
+			uint8_t flags() const { return data_[POS_FLAGS]; }
 			void set_flags(uint8_t f) { data_[POS_FLAGS] = f; }
 			
-			bool is_ack() { return flags() & FLAG_ACK; }
+			bool is_ack() const { return flags() & FLAG_ACK; }
 			void set_ack() { set_flags(flags() | FLAG_ACK); }
-			bool is_upwards() { return flags() & FLAG_UPWARDS; }
+			bool is_upwards() const { return flags() & FLAG_UPWARDS; }
 			void set_upwards() { set_flags(flags() | FLAG_UPWARDS); }
-			bool is_downwards() { return !(flags() & FLAG_UPWARDS); }
+			bool is_downwards() const { return !(flags() & FLAG_UPWARDS); }
 			void set_downwards() { set_flags(flags() & ~FLAG_UPWARDS); }
-			bool is_false_positive() { return flags() & FLAG_FALSE_POSITIVE; }
+			bool is_false_positive() const { return flags() & FLAG_FALSE_POSITIVE; }
 			void set_false_positive() { set_flags(flags() | FLAG_FALSE_POSITIVE); }
 			
-			SemanticEntityId entity() {
-				return wiselib::read<OsModel, block_data_t, SemanticEntityId>(data_ + POS_ENTITY);
+			SemanticEntityId entity() const {
+				block_data_t *d = const_cast<block_data_t*>(data_);
+				return wiselib::read<OsModel, block_data_t, SemanticEntityId>(d + POS_ENTITY);
 			}
 			void set_entity(SemanticEntityId entity) {
 				wiselib::write<OsModel, block_data_t, SemanticEntityId>(data_ + POS_ENTITY, entity);
 			}
 			
 			block_data_t *payload() { return data_ + POS_PAYLOAD; }
-			::uint8_t payload_size() { return data_[POS_PAYLOAD_SIZE]; }
+			::uint8_t payload_size() const { return data_[POS_PAYLOAD_SIZE]; }
 			
 			void set_payload(::uint8_t sz, block_data_t* payload) {
 				data_[POS_PAYLOAD_SIZE] = sz;
@@ -112,7 +114,7 @@ namespace wiselib {
 			}
 			
 			block_data_t *data() { return data_; }
-			size_type data_size() { return HEADER_SIZE + payload_size(); }
+			size_type data_size() const { return HEADER_SIZE + payload_size(); }
 		
 		private:
 			

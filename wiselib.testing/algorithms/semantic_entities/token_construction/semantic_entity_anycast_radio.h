@@ -76,6 +76,7 @@ namespace wiselib {
 		typename OsModel_P,
 		typename SemanticEntityRegistry_P,
 		typename SemanticEntityAmqNeighorhood_P,
+		int MESSAGE_TYPE_P = 0x45,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Debug_P = typename OsModel_P::Debug
@@ -93,7 +94,7 @@ namespace wiselib {
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
 			
-			typedef SemanticEntityAnycastMessage<OsModel, Radio> MessageT;
+			typedef SemanticEntityAnycastMessage<OsModel, Radio, MESSAGE_TYPE_P> MessageT;
 			typedef SemanticEntityAnycastRadio self_type;
 			typedef self_type* self_pointer_t;
 			
@@ -106,6 +107,8 @@ namespace wiselib {
 			typedef set_static<OsModel, radio_node_id_t, MAX_NEIGHBORS> FalsePositives;
 			
 			enum { RETRY_INTERVAL = 600 * WISELIB_TIME_FACTOR };
+			
+			typedef delegate1<bool, const MessageT&> accept_delegate_t;
 			
 			void init(typename SemanticEntityRegistryT::self_pointer_t registry,
 					typename SemanticEntityAmqNeighorhoodT::self_pointer_t amq,
@@ -127,6 +130,10 @@ namespace wiselib {
 				
 				upwards_sending_ = false;
 				downwards_sending_ = false;
+			}
+			
+			void set_accept_callback(accept_delegate_t dg = accept_delegate_t()) {
+				accept_delegate_ = dg;
 			}
 			
 			void destruct() {
@@ -164,7 +171,7 @@ namespace wiselib {
 				if(msg.is_false_positive()) {
 					mark_false_positive(from, msg.entity());
 					downwards_ack_counter_++; // cancel ack timer
-					if(all_false_positive(msg.entity())) {
+					if(all_false_positive(msg)) {
 						// no real valid target in this subtree, send back up
 						upwards_ = downwards_;
 						upwards_filled_ = true;
@@ -188,13 +195,13 @@ namespace wiselib {
 				
 				else {
 					if(msg.is_downwards()) {
-						if(has_entity(msg.entity())) {
+						if(accept(msg)) {
 							send_ack(from, msg);
 							this->notify_receivers(msg.entity(), msg.payload_size(), msg.payload());
 							return;
 						}
 						
-						if(!subtree_has(msg.entity())) {
+						if(!subtree_accepts(msg)) {
 							MessageT fp;
 							fp.init(msg.entity());
 							fp.set_false_positive();
@@ -313,19 +320,32 @@ namespace wiselib {
 			///@name SE inquiries
 			///@{
 			
-			bool has_entity(const SemanticEntityId& id) { return registry_->contains(id); }
+			//bool accept(const SemanticEntityId& id) {
+			bool accept(const MessageT& msg) {
+				// if we are not in the correct entity, we cant be a valid
+				// target
+				if(!registry_->contains(msg.entity())) { return false; }
+				
+				// if the user-provided accept delegate is false, we are not a
+				// valid target either
+				if(accept_delegate_ && !accept_delegate_(msg)) {
+					return false;
+				}
+				
+				return true;
+			}
 			
 			/**
 			 * @return true iff this node or any other (according to amq) has
 			 * this entity.
 			 */
-			bool subtree_has(const SemanticEntityId& id) {
-				if(has_entity(id)) { return true; }
+			bool subtree_accepts(const MessageT& msg) {
+				if(accept(msg)) { return true; }
 				
 				//size_type idx = amq_.find_first_se_child(id, 0);
 				//if(idx == SemanticEntityAmqNeighorhoodT::npos) { return false; }
 				
-				return !all_false_positive(id);
+				return !all_false_positive(msg);
 			}
 			
 			///@}
@@ -355,14 +375,15 @@ namespace wiselib {
 				return false_positives_.contains(neigh);
 			}
 			
-			bool all_false_positive(const SemanticEntityId& se) {
+			//bool all_false_positive(const SemanticEntityId& se) {
+			bool all_false_positive(const MessageT& msg) {
 				size_type idx = -1;
 				while(true) {
-					idx = amq_->find_first_se_child(se, idx + 1);
+					idx = amq_->find_first_se_child(msg.entity(), idx + 1);
 					if(idx == SemanticEntityAmqNeighorhoodT::npos) {
 						return true;
 					}
-					else if(!is_false_positive(tree().child(idx), se)) {
+					else if(!is_false_positive(tree().child(idx), msg.entity())) {
 						return false;
 					}
 				}
@@ -394,6 +415,8 @@ namespace wiselib {
 			
 			typename SemanticEntityRegistryT::self_pointer_t registry_;
 			typename SemanticEntityAmqNeighorhoodT::self_pointer_t amq_;
+			
+			accept_delegate_t accept_delegate_;
 			
 	}; // SemanticEntityAnycastRadio
 }
