@@ -381,12 +381,12 @@ namespace wiselib {
 					State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
-							nap_control_->push_caffeine();
+							nap_control_->push_caffeine("od_op");
 							break;
 						case TransportT::EVENT_ABORT:
 							break;
 						case TransportT::EVENT_CLOSE:
-							nap_control_->pop_caffeine();
+							nap_control_->pop_caffeine("/od_op");
 							if(s.state() == State::DONE) {
 								typename QueryDescriptions::iterator it;
 								it = queries_.begin();
@@ -468,7 +468,7 @@ namespace wiselib {
 								
 								#if DISTRIBUTOR_DEBUG_STATE
 									debug_->debug("@%d od: %c%d to %d", (int)radio_->id(),
-											(char)s.query_iterator()->second.role(), (int)s.query_iterator()->second.id());
+											(char)s.query_iterator()->second.role(), (int)s.query_iterator()->second.id(), (int)endpoint.remote_address());
 								#endif
 								
 								// send query header
@@ -584,12 +584,12 @@ namespace wiselib {
 					State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
-							nap_control_->push_caffeine();
+							nap_control_->push_caffeine("odr_op");
 							break;
 						case TransportT::EVENT_ABORT:
 							break;
 						case TransportT::EVENT_CLOSE:
-							nap_control_->pop_caffeine();
+							nap_control_->pop_caffeine("/odr_op");
 							break;
 					}
 				}
@@ -693,6 +693,7 @@ namespace wiselib {
 							::uint8_t l;
 							wiselib::read<OsModel>(p, l); p += sizeof(::uint8_t);
 							
+							debug_->debug("@%d offs %d opl %d", (int)radio_->id(), (int)(p - start), (int)l);
 							if(l == 0) {
 								if(p > end - QUERY_HEADER_SIZE) {
 									// len == 0, but can't be a new query -->
@@ -729,10 +730,16 @@ namespace wiselib {
 									query_processor_->erase_query(id);
 									query_processor_->create_query(id);
 								}
+								else {
+									#if DISTRIBUTOR_DEBUG_STATE
+										debug_->debug("@%d fq%d s %p p %p end %p offs %d sz %d", (int)radio_->id(), (int)id, start, p, end, (int)(p - start), (int)QUERY_HEADER_SIZE);
+										debug_buffer<OsModel, 16>(debug_, start, end - start);
+									#endif
+								}
 								//s.set_query_id(id);
 								//s.set_scope(scope);
 								
-								nap_control_->push_caffeine();
+								nap_control_->push_caffeine("odwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, (void*)id);
 							}
@@ -752,7 +759,7 @@ namespace wiselib {
 								
 								s.query_iterator()->second.push_operator(s.operator_position(), l, p - 1);
 								s.next_operator();
-								p += l;
+								p += l - 1; // the length field itself was already added!
 							}
 						}
 						break;
@@ -763,7 +770,7 @@ namespace wiselib {
 			}
 			
 			void on_waketime_over(void*) {
-				nap_control_->pop_caffeine();
+				nap_control_->pop_caffeine("/odwake");
 			}
 			
 			void on_lifetime_over(void* qid_) {

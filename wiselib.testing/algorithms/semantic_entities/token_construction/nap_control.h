@@ -88,7 +88,7 @@ namespace wiselib {
 			
 			/**
 			 */
-			void push_caffeine(void* = 0) {
+			void push_caffeine(const char *s = "") {
 				if(caffeine_ == 0) {
 					
 					#if defined(CONTIKI)
@@ -97,13 +97,13 @@ namespace wiselib {
 					
 					radio_->enable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("@%d on t%d", (int)radio_->id(), (int)(now() & 0xffff)); // (int)radio_->id());
+						debug_->debug("@%d on t%d %s", (int)radio_->id(), (int)(now() & 0xffff), s); // (int)radio_->id());
 					#endif
 				}
 				caffeine_++;
 				
 				#if NAP_CONTROL_DEBUG_STATE
-					debug_->debug("caf%d", (int)caffeine_);
+					debug_->debug("@%d caf%d %s", (int)radio_->id(), (int)caffeine_, s);
 				#endif
 				#if !WISELIB_DISABLE_DEBUG
 				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
@@ -112,7 +112,7 @@ namespace wiselib {
 			
 			/**
 			 */
-			void pop_caffeine(void* = 0) {
+			void pop_caffeine(const char *s = "") {
 				assert(caffeine_ > 0);
 				caffeine_--;
 				#if !WISELIB_DISABLE_DEBUG
@@ -120,7 +120,7 @@ namespace wiselib {
 				#endif
 				
 				#if NAP_CONTROL_DEBUG_STATE
-					debug_->debug("caf%d", (int)caffeine_);
+					debug_->debug("@%d caf%d %s", (int)radio_->id(), (int)caffeine_, s);
 				#endif
 				if(caffeine_ == 0) {
 					#if defined(CONTIKI)
@@ -128,7 +128,7 @@ namespace wiselib {
 					#endif
 					radio_->disable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("@%d off t%d", (int)radio_->id(), (int)(now() & 0xffff)); //, (int)radio_->id());
+						debug_->debug("@%d off t%d %s", (int)radio_->id(), (int)(now() & 0xffff), s); //, (int)radio_->id());
 					#endif
 				}
 			}

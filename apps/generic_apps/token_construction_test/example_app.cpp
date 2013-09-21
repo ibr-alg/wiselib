@@ -263,7 +263,7 @@ class ExampleApplication
 						&query_processor_,
 						debug_, timer_, clock_, rand_
 				);
-			/*	
+				
 				anycast_radio_.init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
@@ -274,10 +274,10 @@ class ExampleApplication
 					ExampleApplication, &ExampleApplication::on_test_anycast_receive
 				>(this);
 					
-				timer_->template set_timer<
-					ExampleApplication, &ExampleApplication::on_test_anycast_send
-				>(200000, this, 0);
-			*/
+				//timer_->template set_timer<
+					//ExampleApplication, &ExampleApplication::on_test_anycast_send
+				//>(200000, this, 0);
+			
 				
 			#else
 				rule_processor_.init(&ts, &token_construction_);
@@ -311,12 +311,10 @@ class ExampleApplication
 			rule_processor_.execute_all();
 			
 			#if USE_INQP
-			/*
 			if(radio_->id() == 0) {
 				timer_->template set_timer<ExampleApplication, &ExampleApplication::distribute_query>(
 						120000, this, 0);
 			}
-			*/
 			#endif
 			
 			monitor_.report("init end");

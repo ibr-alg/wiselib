@@ -266,7 +266,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("@%d fwd cyc", (int)radio_->id());
 				#endif
-				nap_control_->push_caffeine();
+				nap_control_->push_caffeine("fwd_cyc");
 				sleep(0);
 			}
 			
@@ -279,7 +279,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("@%d fwd up", (int)radio_->id());
 				#endif
-				nap_control_->push_caffeine();
+				nap_control_->push_caffeine("fwd_up");
 				
 				size_type end = slot_map().first(false, position_, map_slots_);
 				//assert(end == npos || slot_map().get(end) == false);
@@ -300,7 +300,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("@%d /fwd dwn", (int)radio_->id());
 				#endif
-				nap_control_->pop_caffeine();
+				nap_control_->pop_caffeine("/fwd");
 				
 				size_type start = slot_map().first(true, position_, map_slots_);
 				assert(start == npos || slot_map().get(start) == true);

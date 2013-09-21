@@ -336,7 +336,7 @@ namespace wiselib {
 					
 					if(!se.in_activity_phase()) {
 						// will be popped by initiate_handover
-						nap_control_.push_caffeine();
+						nap_control_.push_caffeine("hotre");
 					#if INSE_DEBUG_STATE
 						debug_->debug("ho tree");
 					#endif
@@ -383,7 +383,7 @@ namespace wiselib {
 				debug_->debug("ho retry");
 			#endif
 				if(se.main_handover_phase() == SemanticEntityT::PHASE_PENDING) {
-					nap_control_.push_caffeine();
+					nap_control_.push_caffeine("ho2");
 					initiate_handover(se_, true, true);
 				}
 			}
@@ -421,7 +421,7 @@ namespace wiselib {
 				}
 				else {
 					transport_.flush();
-					nap_control_.pop_caffeine();
+					nap_control_.pop_caffeine("/ho");
 				#if INSE_DEBUG_STATE
 					debug_->debug("/ho via %d m%d f%d is%d ch%d cond%d", (int)(ep.remote_address()), (int)main,
 							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_endpoint().channel() != se.id()),
@@ -692,7 +692,7 @@ namespace wiselib {
 						#if INSE_DEBUG_STATE
 							debug_->debug("open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
 						#endif
-						nap_control_.push_caffeine();
+						nap_control_.push_caffeine("ho_op");
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
@@ -711,7 +711,7 @@ namespace wiselib {
 						#if INSE_DEBUG_STATE
 							debug_->debug("/open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
 						#endif
-						nap_control_.pop_caffeine();
+						nap_control_.pop_caffeine("/ho_op");
 						
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // pop handover", (int)radio_->id());
@@ -719,7 +719,7 @@ namespace wiselib {
 						#if INSE_DEBUG_STATE
 							debug_->debug("/ho");
 						#endif
-						nap_control_.pop_caffeine();
+						nap_control_.pop_caffeine("/ho");
 						break;
 				}
 			}
@@ -901,7 +901,7 @@ namespace wiselib {
 						#if INSE_DEBUG_STATE
 							debug_->debug("ropen t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
 						#endif
-						nap_control_.push_caffeine();
+						nap_control_.push_caffeine("hor_op");
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
 						
@@ -915,7 +915,7 @@ namespace wiselib {
 						#if INSE_DEBUG_STATE
 							debug_->debug("/ropen t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
 						#endif
-						nap_control_.pop_caffeine();
+						nap_control_.pop_caffeine("/hor_op");
 						se->set_handover_state_recepient(SemanticEntityT::INIT);
 						break;
 				}
@@ -986,7 +986,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("@%d ACT t%d", (int)radio_->id(), (int)(now() % 65536));
 				#endif
-				nap_control_.push_caffeine();
+				nap_control_.push_caffeine("act");
 				
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d SE %x.%x active %d",
@@ -1003,7 +1003,7 @@ namespace wiselib {
 				
 				if(iam_tokens_in_subtree_ > 0) {
 					if(iam_waiting_for_subtree_ && iam_tokens_in_subtree_ == 1) {
-						nap_control_->pop_caffeine();
+						nap_control_->pop_caffeine("/iam_to");
 					}
 					iam_tokens_in_subtree_--;
 					iam_waiting_for_subtree_ = (iam_tokens_in_subtree_ > 0);
@@ -1014,7 +1014,7 @@ namespace wiselib {
 				if(!iam_enabled_) { return; }
 				
 				if(!iam_waiting_for_subtree_) {
-					nap_control_.push_caffeine();
+					nap_control_.push_caffeine("iam");
 					iam_waiting_for_subtree_ = true;
 					iam_tokens_in_subtree_ = 0;
 				}
@@ -1029,7 +1029,7 @@ namespace wiselib {
 				if(!iam_enabled_) { return; }
 				if(!iam_waiting_for_subtree_) { return; }
 				
-				nap_control_.pop_caffeine();
+				nap_control_.pop_caffeine("/iam");
 				if(iam_tokens_in_subtree_ > 0) {
 					iam_tokens_in_subtree_--;
 				}
@@ -1076,6 +1076,9 @@ namespace wiselib {
 					debug_->debug("@%d /ACT t%d", (int)radio_->id(), (int)(now() % 65536));
 					debug_->debug("ho endact");
 				#endif
+				nap_control_.pop_caffeine("/act");
+				nap_control_.push_caffeine("ho_endact");
+				
 				initiate_handover(se, true);
 				se.end_wait_for_activating_token();
 				
@@ -1103,7 +1106,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("@%d wait", (int)radio_->id());
 				#endif
-				nap_control_.push_caffeine();
+				nap_control_.push_caffeine("wait");
 				
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
@@ -1121,7 +1124,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("@%d /wait", (int)radio_->id());
 				#endif
-				nap_control_.pop_caffeine();
+				nap_control_.pop_caffeine("/wait");
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {
