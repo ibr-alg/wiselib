@@ -162,6 +162,8 @@ template<> struct Uint<2> { typedef ::uint16_t t; };
 template<> struct Uint<4> { typedef ::uint32_t t; };
 template<> struct Uint<8> { typedef ::uint64_t t; };
 
+typedef typename Uint<sizeof(void*)>::t Uvoid ;
+
 template<int N_> struct Sint { };
 template<> struct Sint<1> { typedef ::int8_t t; };
 template<> struct Sint<2> { typedef ::int16_t t; };

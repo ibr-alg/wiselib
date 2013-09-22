@@ -49,12 +49,14 @@ namespace wiselib {
 			typedef typename Query::query_id_t query_id_t;
 			typedef typename Query::BOD BOD;
 			typedef typename Query::BOD::operator_id_t operator_id_t;
+			typedef typename Radio::Radio::Radio::node_id_t physical_node_id_t;
 			
 			enum {
 				POS_MESSAGE_ID = 0,
 				POS_QUERY_ID = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_OPERATOR_ID = POS_QUERY_ID + sizeof(query_id_t),
-				POS_PAYLOAD_SIZE = POS_OPERATOR_ID + sizeof(operator_id_t),
+				POS_FROM = POS_OPERATOR_ID + sizeof(operator_id_t),
+				POS_PAYLOAD_SIZE = POS_FROM + sizeof(physical_node_id_t),
 				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(::uint8_t),
 				HEADER_SIZE = POS_PAYLOAD,
 			};
@@ -66,6 +68,15 @@ namespace wiselib {
 			void set_message_id(message_id_t msgid) {
 				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, msgid);
 			}
+			
+			physical_node_id_t from() {
+				return wiselib::read<OsModel, block_data_t, physical_node_id_t>(data_ + POS_FROM);
+			}
+			
+			void set_from(physical_node_id_t f) {
+				wiselib::write<OsModel>(data_ + POS_FROM, f);
+			}
+			
 			
 			query_id_t query_id() {
 				return wiselib::read<OsModel, block_data_t, query_id_t>(data_ + POS_QUERY_ID);

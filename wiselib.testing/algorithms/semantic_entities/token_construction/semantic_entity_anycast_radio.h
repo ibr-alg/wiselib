@@ -76,7 +76,7 @@ namespace wiselib {
 		typename OsModel_P,
 		typename SemanticEntityRegistry_P,
 		typename SemanticEntityAmqNeighorhood_P,
-		int MESSAGE_TYPE_P = 0x45,
+		int MESSAGE_TYPE_P,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Debug_P = typename OsModel_P::Debug
@@ -161,28 +161,44 @@ namespace wiselib {
 			*/
 			
 			int send(node_id_t se_id, size_t size, block_data_t* data) {
+				MessageT msg;
 				if(radio_->id() == tree().root()) {
 					if(se_id.is_root()) {
 						this->notify_receivers(se_id, size, data);
+						return SUCCESS;
 					}
 					else {
-						downwards_.init(se_id, size, data);
-						downwards_.set_downwards();
-						downwards_filled_ = true;
+						msg.init(se_id, size, data);
+						msg.set_downwards();
+						return try_enqueue_down(msg) ? SUCCESS : ERR_UNSPEC;
 					}
 				}
-				else {
-					upwards_.init(se_id, size, data);
-					upwards_.set_upwards();
-					upwards_filled_ = true;
-				}
-				return SUCCESS;
+				
+				msg.init(se_id, size, data);
+				msg.set_upwards();
+				return try_enqueue_up(msg) ? SUCCESS : ERR_UNSPEC;
 			}
 			
 			Radio& radio() { return *radio_; }
 			
 			
 		private:
+			
+			bool try_enqueue_down(const MessageT& msg) {
+				if(downwards_filled_) { return false; }
+				downwards_filled_ = true;
+				downwards_sending_ = false;
+				downwards_ = msg;
+				return true;
+			}
+			
+			bool try_enqueue_up(const MessageT& msg) {
+				if(upwards_filled_) { return false; }
+				upwards_filled_ = true;
+				upwards_sending_ = false;
+				upwards_ = msg;
+				return true;
+			}
 			
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t size, typename Radio::block_data_t* data) {
 				MessageT &msg = *reinterpret_cast<MessageT*>(data);
@@ -191,17 +207,25 @@ namespace wiselib {
 				
 				if(msg.is_false_positive()) {
 					mark_false_positive(from, msg.entity());
-					downwards_ack_counter_++; // cancel ack timer
+					//downwards_ack_counter_++; // cancel ack timer
 					if(all_false_positive(msg)) {
 						// no real valid target in this subtree, send back up
-						upwards_ = downwards_;
-						upwards_filled_ = true;
-						downwards_filled_ = false;
+						if(downwards_sending_) {
+							bool r = try_enqueue_up(downwards_);
+							if(r) {
+								downwards_filled_ = false;
+								downwards_sending_ = false;
+								downwards_ack_counter_++;
+							}
+						}
+						//upwards_ = downwards_;
+						//upwards_filled_ = true;
+						//downwards_filled_ = false;
 					}
 				}
 				
 				else if(msg.is_ack()) {
-				debug_->debug("@%d ack from %d dwn=%d", (int)radio_->id(), (int)from, (int)downwards_address_);
+				//debug_->debug("@%d ack from %d dwn=%d", (int)radio_->id(), (int)from, (int)downwards_address_);
 					if(downwards_sending_ && from == downwards_address_) {
 						downwards_ack_counter_++;
 						downwards_sending_ = false;
@@ -222,21 +246,25 @@ namespace wiselib {
 							return;
 						}
 						
-						if(!subtree_accepts(msg)) {
+						if(all_false_positive(msg)) {
 							MessageT fp;
 							fp.init(msg.entity());
 							fp.set_false_positive();
-							debug_->debug("@%d fp to %d", (int)radio_->id(), (int)from);
+							//debug_->debug("@%d fp to %d", (int)radio_->id(), (int)from);
 							radio_->send(from, msg.data_size(), msg.data());
 							return;
 						}
 						
-						send_ack(from, msg);
 						if(from != parent()) {
 							mark_false_positive(from, msg.entity());
 						}
-						downwards_ = msg;
-						downwards_filled_ = true;
+						
+						bool r = try_enqueue_down(msg);
+						if(r) {
+							send_ack(from, msg);
+						}
+						//downwards_ = msg;
+						//downwards_filled_ = true;
 					}
 					else { // message.is_upwards
 					
@@ -246,16 +274,16 @@ namespace wiselib {
 							return;
 						}
 						
-						send_ack(from, msg);
-						
-						upwards_ = msg;
-						upwards_filled_ = true;
+						bool r = try_enqueue_up(msg);
+						if(r) {
+							send_ack(from, msg);
+						}
 					}
 				}
 			} // on_receive()
 			
 			void send_ack(radio_node_id_t addr, MessageT& msg) {
-				debug_->debug("@%d ack to %d", (int)radio_->id(), (int)addr);
+				debug_->debug("@%d anyc ack to %d", (int)radio_->id(), (int)addr);
 				MessageT ack;
 				ack.init(msg.entity());
 				ack.set_ack();
@@ -265,6 +293,7 @@ namespace wiselib {
 			void on_neighborhood_event(typename TreeT::EventType event, radio_node_id_t addr) {
 				switch(event) {
 					case TreeT::SEEN_NEIGHBOR:
+						debug_->debug("@%d anyc seen %d", (int)radio_->id(), (int)addr);
 						on_see_neighbor(addr);
 						break;
 						
@@ -272,6 +301,7 @@ namespace wiselib {
 					case TreeT::LOST_NEIGHBOR:
 					case TreeT::UPDATED_NEIGHBOR:
 					case TreeT::UPDATED_STATE:
+						debug_->debug("@%d anyc topo", (int)radio_->id());
 						on_topology_change();
 						break;
 				}
@@ -295,10 +325,12 @@ namespace wiselib {
 				
 			
 			void on_see_neighbor(radio_node_id_t neigh) {
-				debug_->debug("@%d see %d", (int)radio_->id(), (int)neigh);
+				//debug_->debug("@%d see %d", (int)radio_->id(), (int)neigh);
 				
 				if(parent() == neigh && upwards_filled_ && !upwards_sending_) {
-					debug_->debug("@%d see %d up", (int)radio_->id(), (int)neigh);
+					#if INSE_ANYCAST_DEBUG_STATE
+						debug_->debug("@%d anyc %d up", (int)radio_->id(), (int)neigh);
+					#endif
 					
 					radio_->send(neigh, upwards_.data_size(), upwards_.data());
 					upwards_ack_counter_++;
@@ -308,7 +340,9 @@ namespace wiselib {
 				}
 				
 				else if(parent() != neigh && !is_false_positive(neigh, downwards_.entity()) && downwards_filled_ && !downwards_sending_) {
-					debug_->debug("@%d see %d down", (int)radio_->id(), (int)neigh);
+					#if INSE_ANYCAST_DEBUG_STATE
+						debug_->debug("@%d anyc %d down", (int)radio_->id(), (int)neigh);
+					#endif
 					
 					downwards_address_ = neigh;
 					//downwards_entity_ 
@@ -323,7 +357,9 @@ namespace wiselib {
 			void on_ack_timeout_downwards(void* dac) {
 				if((void*)downwards_ack_counter_ != dac) { return; }
 				
-				debug_->debug("@%d anycast resend down %d", (int)radio_->id(), (int)downwards_address_);
+				#if INSE_ANYCAST_DEBUG_STATE
+					debug_->debug("@%d anyc down %d r", (int)radio_->id(), (int)downwards_address_);
+				#endif
 				
 				radio_->send(downwards_address_, downwards_.data_size(), downwards_.data());
 				downwards_ack_counter_++;
@@ -334,7 +370,9 @@ namespace wiselib {
 			void on_ack_timeout_upwards(void* uac) {
 				if((void*)upwards_ack_counter_ != uac) { return; }
 				
-				debug_->debug("@%d anycast resend up %d", (int)radio_->id(), (int)parent());
+				#if INSE_ANYCAST_DEBUG_STATE
+					debug_->debug("@%d anyc up %d r", (int)radio_->id(), (int)parent());
+				#endif
 				radio_->send(parent(), upwards_.data_size(), upwards_.data());
 				upwards_ack_counter_++;
 				timer_->template set_timer<self_type, &self_type::on_ack_timeout_upwards>(
@@ -359,19 +397,6 @@ namespace wiselib {
 				}
 				
 				return true;
-			}
-			
-			/**
-			 * @return true iff this node or any other (according to amq) has
-			 * this entity.
-			 */
-			bool subtree_accepts(const MessageT& msg) {
-				if(accept(msg)) { return true; }
-				
-				//size_type idx = amq_.find_first_se_child(id, 0);
-				//if(idx == SemanticEntityAmqNeighorhoodT::npos) { return false; }
-				
-				return !all_false_positive(msg);
 			}
 			
 			///@}
@@ -422,8 +447,8 @@ namespace wiselib {
 			MessageT downwards_;
 			MessageT upwards_;
 			
-			typename Uint<sizeof(void*)>::t downwards_ack_counter_;
-			typename Uint<sizeof(void*)>::t upwards_ack_counter_;
+			Uvoid downwards_ack_counter_;
+			Uvoid upwards_ack_counter_;
 			
 			radio_node_id_t downwards_address_;
 			

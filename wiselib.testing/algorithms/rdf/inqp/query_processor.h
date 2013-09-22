@@ -144,13 +144,13 @@ namespace wiselib {
 				exec_done_callback_ = exec_done_callback_t();
 				translator_.init(&dictionary());
 				reverse_translator_.init(&dictionary());
-				DBG("%p send_row init cbs %d", this, (int)row_callbacks_.size());
+				//DBG("%p send_row init cbs %d", this, (int)row_callbacks_.size());
 			}
 		
 			template<typename T, void (T::*fn)(int, size_type, RowT&, query_id_t, operator_id_t)>
 			void reg_row_callback(T* obj) {
 				row_callbacks_.push_back(row_callback_t::template from_method<T, fn>(obj));
-				DBG("%p send_row reg cbs %d", this, (int)row_callbacks_.size());
+				//DBG("%p send_row reg cbs %d", this, (int)row_callbacks_.size());
 			}
 			
 			template<typename T, void (T::*fn)(hash_t, char*)>
@@ -159,9 +159,9 @@ namespace wiselib {
 			}
 			
 			void send_row(int type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
-				DBG("%p send_row snd cbs %d", this, (int)row_callbacks_.size());
+				//DBG("%p send_row snd cbs %d", this, (int)row_callbacks_.size());
 				for(typename RowCallbacks::iterator it = row_callbacks_.begin(); it != row_callbacks_.end(); ++it) {
-					DBG("send_row");
+					//DBG("send_row");
 					(*it)(type, columns, row, qid, oid);
 				}
 			}
@@ -174,7 +174,9 @@ namespace wiselib {
 				
 
 			void execute(Query *query) {
-				DBG("x q%d", (int)query->id());
+				//#if INQP_DEBUG_STATE
+					//debug_->debug("xq%d", (int)query->id());
+				//#endif
 				//Serial.println("exec");
 				assert(query->ready());
 				query->build_tree();
@@ -309,7 +311,7 @@ namespace wiselib {
 			}
 		
 			template<typename Message, typename node_id_t>
-			void handle_intermediate_result(Message *msg, node_id_t from, size_type size) {
+			void handle_intermediate_result(Message *msg, node_id_t from) { //, size_type size) {
 				Query *query = get_query(msg->query_id());
 				BasicOperator &op = *query->operators()[msg->operator_id()];
 				switch(op.type()) {
@@ -322,8 +324,10 @@ namespace wiselib {
 					case BOD::DELETE:
 						break;
 					case BOD::AGGREGATE: {
-						size_type payload_length = size - Message::HEADER_SIZE;
+						size_type payload_length = msg->payload_size(); //size - Message::HEADER_SIZE;
 						size_type columns = payload_length / sizeof(Value);
+						
+						// TODO: be able to handle multiple rows here
 						
 						RowT *row = RowT::create(columns);
 						for(size_type i = 0; i < columns; i++) {

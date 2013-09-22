@@ -44,7 +44,7 @@ class App {
 			
 			// Fill node with initial semantics and construction rules
 			
-			initial_semantics(ts, radio_->id(), rand_);
+			initial_semantics(ts, radio_, rand_);
 			create_rules();
 			rule_processor_.execute_all();
 			
@@ -96,24 +96,42 @@ class App {
 						debug_, timer_, clock_, rand_
 				);
 				
-				anycast_radio_.init(
+				row_anycast_radio_.init(
+						&token_construction_.semantic_entity_registry(),
+						&token_construction_.neighborhood(),
+						radio_, timer_, debug_
+				);
+				
+				string_anycast_radio_.init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
 						radio_, timer_, debug_
 				);
 				
 				// Transport rows for collect and aggregation operators
-				packing_anycast_radio_.init(anycast_radio_, *debug_, *timer_);
+				
+				// --- packing on top of anycast
+				row_radio_.init(row_anycast_radio_, *debug_, *timer_);
+				
+				// --- anycast on top of packing
+				//static PackingOsRadio packing_radio_;
+				//packing_radio_.init(*radio_, *debug_, *timer_);
+				//row_radio_.init(
+						//&token_construction_.semantic_entity_registry(),
+						//&token_construction_.neighborhood(),
+						//&packing_radio_, timer_, debug_
+				//);
+						
 				
 				debug_->debug("initing rowc");
-				row_collector_.init(&packing_anycast_radio_, &query_processor_, debug_);
+				row_collector_.init(&row_radio_, &query_processor_, debug_);
 				row_collector_.reg_collect_callback(
 						RowCollectorT::collect_delegate_t::from_method<App, &App::on_result_row>(this)
 				);
 				
 				// Ask nodes for strings belonging to hashes
 				
-				string_inquiry_.init(&anycast_radio_, &query_processor_);
+				string_inquiry_.init(&string_anycast_radio_, &query_processor_);
 				string_inquiry_.reg_answer_callback(
 						StringInquiryT::answer_delegate_t::from_method<App, &App::on_string_answer>(this)
 				);
@@ -208,14 +226,27 @@ class App {
 			
 			*/
 			
+			
+			/*
+			// collect all temperature values
 			char *query_temp = const_cast<char*>(
 				"\x08\x04" "c\x00\x01\x00\x00\x00"
 				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
 				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
 				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3" );
-			
 			int opsize = 0x8 + 0x9 + 0xd + 0x11;
 			int opcount = 4;
+			*/
+			
+			// min, avg, max all temperature values
+			char *query_temp = const_cast<char*>(
+				"\x0c\x04" "a\x00\x07\x00\x00\x00\x03\x84\x82\x05"
+				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
+				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
+				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3" );
+			int opsize = 0xc + 0x9 + 0xd + 0x11;
+			int opcount = 4;
+				
 			
 			distributor_.distribute(
 					SemanticEntityId::all(),
@@ -241,17 +272,15 @@ class App {
 				QueryProcessor::operator_id_t operator_id,
 				QueryProcessor::RowT& row
 		) {
-			debug_->debug("@%d on_result_row", (int)radio_->id());
-			
 			QueryProcessor::Query *q = query_processor_.get_query(query_id);
 			if(q == 0) { return; } // query not found
 			QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
 			if(op == 0) { return; } // operator not found
 			
-			debug_->debug("@%d result %02d %02d:", (int)radio_->id(), (int)query_id, (int)operator_id);
+			debug_->debug("@%d R%c %02d %02d:", (int)radio_->id(), (char)op->type(), (int)query_id, (int)operator_id);
 			int l = op->projection_info().columns();
 			for(int i = 0; i < l; i++) {
-				debug_->debug("  %d/%d %08lx", (int)i, (int)l, (unsigned long)row[i]);
+				debug_->debug("@%d R%c  %d/%d %08lx", (int)radio_->id(), (char)op->type(), (int)i, (int)l, (unsigned long)row[i]);
 			}
 		} // on_result_row()
 	
@@ -290,8 +319,9 @@ class App {
 			QueryProcessor query_processor_;
 			//INQPCommunicator<Os, QueryProcessor> query_communicator_;
 			Distributor distributor_;
-			AnycastRadio anycast_radio_;
-			PackingAnycastRadio packing_anycast_radio_;
+			RowAnycastRadio row_anycast_radio_;
+			StringAnycastRadio string_anycast_radio_;
+			RowRadio row_radio_;
 			StringInquiryT string_inquiry_;
 			RowCollectorT row_collector_;
 		#endif

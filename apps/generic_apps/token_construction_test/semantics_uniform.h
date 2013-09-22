@@ -38,10 +38,10 @@ namespace wiselib {
 	
 	template<
 		typename TS,
-		typename node_id_t,
+		typename RadioPtr,
 		typename RandPtr
 	>
-	void initial_semantics(TS& ts, node_id_t id, RandPtr rand) {
+	void initial_semantics(TS& ts, RadioPtr radio, RandPtr rand) {
 		DBG("initial semantics");
 		
 		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
@@ -50,7 +50,7 @@ namespace wiselib {
 		enum { MAX_URI_LENGTH = 256, DIGITPOS = 45 };
 		char myuri[MAX_URI_LENGTH];
 		
-		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)id);
+		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)radio->id());
 		myuri[MAX_URI_LENGTH - 1] = '\0';
 		
 		/*
@@ -61,7 +61,8 @@ namespace wiselib {
 		
 		// Generate sensor value
 		char v[10];
-		snprintf(v, 10, "%d", (rand->operator()() % 10) + 15);
+		//snprintf(v, 10, "%d", (rand->operator()() % 10) + 15);
+		snprintf(v, 10, "%d", radio->id());
 		v[9] = '\0';
 		
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);

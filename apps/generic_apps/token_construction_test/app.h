@@ -105,16 +105,27 @@ typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Deb
 	//
 	
 	#include <algorithms/semantic_entities/token_construction/semantic_entity_anycast_radio.h>
-	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT, TC::SemanticEntityNeighborhoodT> AnycastRadio;
-	
 	#include <algorithms/semantic_entities/token_construction/string_inquiry.h>
-	typedef StringInquiry<Os, AnycastRadio, QueryProcessor> StringInquiryT;	
-	
 	#include <algorithms/protocols/packing_radio/packing_radio.h>
-	typedef PackingRadio<Os, AnycastRadio> PackingAnycastRadio;
-	
 	#include <algorithms/semantic_entities/token_construction/row_collector.h>
-	typedef RowCollector<Os, PackingAnycastRadio, QueryProcessor> RowCollectorT;
+	
+	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
+		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_STRING_ANYCAST> StringAnycastRadio;
+	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
+		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_ROW_ANYCAST> RowAnycastRadio;
+	
+	// TODO: add packer here as well?
+	typedef StringInquiry<Os, StringAnycastRadio, QueryProcessor> StringInquiryT;	
+	
+	typedef PackingRadio<Os, RowAnycastRadio> PackingAnycastRadio;
+	typedef PackingAnycastRadio RowRadio;
+	
+	//typedef PackingRadio<Os, Os::Radio> PackingOsRadio;
+	//typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT, TC::SemanticEntityNeighborhoodT,
+		//INSE_MESSAGE_TYPE_ANYCAST, PackingOsRadio> AnycastPackingRadio;
+	//typedef AnycastPackingRadio RowRadio;
+	
+	typedef RowCollector<Os, RowRadio, QueryProcessor> RowCollectorT;
 	
 #else 
 	#warning "Using SIMPLE rule processor"

@@ -72,7 +72,7 @@ namespace wiselib {
 				query_processor_ = query_processor;
 				debug_ = debug;
 				
-				debug_->debug("@%d rowc init", (int)radio_->radio().radio().id());
+				//debug_->debug("@%d rowc init", (int)radio_->radio().radio().id());
 				query_processor_->template reg_row_callback<
 					self_type, &self_type::on_result_row
 				>(this);
@@ -88,10 +88,13 @@ namespace wiselib {
 			
 			void on_result_row(int type, size_type columns,
 					RowT& row, query_id_t query_id, operator_id_t operator_id) {
+				
+				Query *query = query_processor_->get_query(query_id);
 			
 				block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
 				ResultMessage *message = reinterpret_cast<ResultMessage*>(buf);
 				message->set_message_id(INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT);
+				message->set_from(radio_->radio().radio().id());
 				message->set_query_id(query_id);
 				message->set_operator_id(operator_id);
 				block_data_t *p = message->payload();
@@ -102,14 +105,16 @@ namespace wiselib {
 				}
 				message->set_payload_size(columns * sizeof(typename RowT::Value));
 				
-				debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
+				//debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
-						debug_->debug("@%d rowc send col%d", (int)radio_->radio().radio().id(), (int)columns);
+						//debug_->debug("@%d rowc send col%d", (int)radio_->radio().radio().id(), (int)columns);
 						radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
 					}
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
+						radio_->send(query->entity(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
+						break;
 					/* TODO
 						//Serial.println("inqp send aggre");
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
@@ -136,21 +141,25 @@ namespace wiselib {
 				
 				Query *q = query_processor_->get_query(message.query_id());
 				if(q == 0) {
-					debug_->debug("@%d rowc !q%d", (int)radio_->radio().radio().id(), (int)message.query_id());
+					#if INSE_ROW_COLLECTOR_DEBUG_STATE
+						debug_->debug("@%d rowc !q%d", (int)radio_->radio().radio().id(), (int)message.query_id());
+					#endif
 					return;
 				} // query not found
 				BasicOperator *op = q->get_operator(message.operator_id());
 				if(op == 0) {
-					debug_->debug("@%d rowc q%d !o%d",
-							(int)radio_->radio().radio().id(),
-							(int)message.query_id(),
-							(int)message.operator_id());
+					#if INSE_ROW_COLLECTOR_DEBUG_STATE
+						debug_->debug("@%d rowc q%d !o%d",
+								(int)radio_->radio().radio().id(),
+								(int)message.query_id(),
+								(int)message.operator_id());
+					#endif
 					return;
 				} // operator not found
 				
 				switch(op->type()) {
 					case BasicOperatorDescription::COLLECT:
-						debug_->debug("@%d rowc recv q%d", (int)radio_->radio().radio().id(), (int)message.query_id());
+						//debug_->debug("@%d rowc recv q%d", (int)radio_->radio().radio().id(), (int)message.query_id());
 						if(collect_callback_) {
 							Value* vp = (Value*)message.payload();
 							Value* vp_end = (Value*)(message.payload() + message.payload_size());
@@ -160,15 +169,20 @@ namespace wiselib {
 						}
 						break;
 						
-					//case BasicOperatorDescription::AGGREGATE:
+					case BasicOperatorDescription::AGGREGATE:
+						query_processor_->handle_intermediate_result(&message, message.from());
+						break;
 						//// TODO
 						//break;
 					
 					default:
-					debug_->debug("@%d rowc q%d o%d !'%c'",
-							(int)radio_->radio().radio().id(),
-							(int)message.query_id(),
-							(int)message.operator_id(), (char)op->type());
+						#if INSE_ROW_COLLECTOR_DEBUG_STATE
+							debug_->debug("@%d rowc q%d o%d !'%c'",
+									(int)radio_->radio().radio().id(),
+									(int)message.query_id(),
+									(int)message.operator_id(), (char)op->type());
+						#endif
+						break;
 				} // switch op type
 			} // on_receive
 		
