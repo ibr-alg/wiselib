@@ -73,7 +73,7 @@ namespace wiselib {
 			};
 			
 			enum {
-				MESSAGE_TYPE = 't',
+				MESSAGE_TYPE = INSE_MESSAGE_TYPE_TREE_STATE,
 			};
 			
 			void init() {

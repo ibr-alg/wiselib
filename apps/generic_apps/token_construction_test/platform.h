@@ -5,13 +5,15 @@
 // Checks, Assertions, Debug messages
 
 #define CHECK_INVARIANTS               (defined(SHAWN))
-#define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
-#define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
+#define DISTRIBUTOR_DEBUG_STATE        1
 #define INSE_DEBUG_STATE               1
 #define INSE_DEBUG_TREE                1
-#define RELIABLE_TRANSPORT_DEBUG_STATE 1
+#define INSE_ANYCAST_DEBUG_STATE       1
+#define INSE_ROW_COLLECTOR_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        1
-#define DISTRIBUTOR_DEBUG_STATE        1
+#define RELIABLE_TRANSPORT_DEBUG_STATE 1
+#define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
+#define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
 
 // TupleStore config
 
@@ -55,8 +57,12 @@
 // Message types
 #define INSE_MESSAGE_TYPE_STRING_INQUIRY            0x40
 #define INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER     0x41
-#define INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT       0x42
-
+#define INSE_MESSAGE_TYPE_STRING_ANYCAST            0x42
+#define INSE_MESSAGE_TYPE_ROW_ANYCAST               0x43
+#define INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT       0x44
+#define INSE_MESSAGE_TYPE_TOKEN_STATE               0x45
+#define INSE_MESSAGE_TYPE_RELIABLE_TRANSPORT        0x46
+#define INSE_MESSAGE_TYPE_TREE_STATE                0x47
 
 #if defined(CONTIKI_TARGET_MICAZ)
 	#define CHECK_INVARIANTS           0

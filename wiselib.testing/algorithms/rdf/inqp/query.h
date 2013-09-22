@@ -25,16 +25,12 @@
 #include "operator_descriptions/operator_description.h"
 
 #include "query_message.h"
+#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 namespace wiselib {
 	
 	/**
 	 * @brief
-	 * 
-	 * TODO: Store received packets here, order them by sequence number
-	 * e.g. using a priority queue, construct incrementally as possible.
-	 * Use a special "# of packets" packet that signifies when final
-	 * construction/execution can take place.
 	 * 
 	 * @ingroup
 	 * 
@@ -66,6 +62,7 @@ namespace wiselib {
 				processor_ = processor;
 				query_id_ = id;
 				expected_operators_set_ = false;
+				entity_ = SemanticEntityId::invalid();
 			}
 			
 			void destruct() {
@@ -124,12 +121,16 @@ namespace wiselib {
 				expected_operators_set_ = true;
 			}
 		
+			const SemanticEntityId& entity() { return entity_; }
+			void set_entity(const SemanticEntityId& se) { entity_ = se; }
+			
 		private:
 			query_id_t query_id_;
 			Operators operators_;
 			QueryProcessor* processor_;
 			size_type expected_operators_;
 			bool expected_operators_set_;
+			SemanticEntityId entity_;
 			
 		
 	}; // INQPQuery

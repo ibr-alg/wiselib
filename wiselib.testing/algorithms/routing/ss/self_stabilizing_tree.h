@@ -320,6 +320,8 @@ namespace wiselib {
 			}
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				notify_event(SEEN_NEIGHBOR, from);
+				
 				if(!is_node_id_sane(from)) { return; }
 				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -448,8 +450,6 @@ namespace wiselib {
 				check();
 				NeighborEntry e(addr, msg, now());
 				
-				notify_event(SEEN_NEIGHBOR, addr);
-					
 				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
 				if(it != neighbor_entries_.end()) {
 					if(!it->same_content(e)) {

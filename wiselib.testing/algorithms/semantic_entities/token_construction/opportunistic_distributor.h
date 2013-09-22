@@ -371,6 +371,7 @@ namespace wiselib {
 					#endif
 					query_processor_->erase_query(qid);
 					Query *q = query_processor_->create_query(qid);
+					q->set_entity(scope);
 					q->set_expected_operators(opcount);
 					block_data_t *p = opdata;
 					
@@ -732,7 +733,7 @@ namespace wiselib {
 							::uint8_t l;
 							wiselib::read<OsModel>(p, l); p += sizeof(::uint8_t);
 							
-							debug_->debug("@%d offs %d opl %d", (int)radio_->id(), (int)(p - start), (int)l);
+							//debug_->debug("@%d offs %d opl %d", (int)radio_->id(), (int)(p - start), (int)l);
 							if(l == 0) {
 								if(p > end - QUERY_HEADER_SIZE) {
 									// len == 0, but can't be a new query -->

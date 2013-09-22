@@ -76,7 +76,7 @@ namespace wiselib {
 			enum { MAX_CHILDS = MAX_NEIGHBORS_P };
 			typedef MapStaticVector<OsModel, node_id_t, TableT, MAX_CHILDS> ChildStates;
 			
-			enum { WAIT_AFTER_LOCAL = 1000, CHECK_INTERVAL = 1000 };
+			enum { WAIT_AFTER_LOCAL = 1000 * WISELIB_TIME_FACTOR, CHECK_INTERVAL = 1000 * WISELIB_TIME_FACTOR };
 			
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
