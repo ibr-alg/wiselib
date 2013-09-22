@@ -162,9 +162,14 @@ namespace wiselib {
 			
 			int send(node_id_t se_id, size_t size, block_data_t* data) {
 				if(radio_->id() == tree().root()) {
-					downwards_.init(se_id, size, data);
-					downwards_.set_downwards();
-					downwards_filled_ = true;
+					if(se_id.is_root()) {
+						this->notify_receivers(se_id, size, data);
+					}
+					else {
+						downwards_.init(se_id, size, data);
+						downwards_.set_downwards();
+						downwards_filled_ = true;
+					}
 				}
 				else {
 					upwards_.init(se_id, size, data);
@@ -235,10 +240,13 @@ namespace wiselib {
 					}
 					else { // message.is_upwards
 					
-						if(radio_->id() == tree().root()) {
+						if(accept(msg)) {
+							send_ack(from, msg);
 							this->notify_receivers(msg.entity(), msg.payload_size(), msg.payload());
 							return;
 						}
+						
+						send_ack(from, msg);
 						
 						upwards_ = msg;
 						upwards_filled_ = true;
@@ -338,9 +346,11 @@ namespace wiselib {
 			
 			//bool accept(const SemanticEntityId& id) {
 			bool accept(const MessageT& msg) {
+				if(msg.entity().is_root() && radio_->id() != tree().root()) { return false; }
+				
 				// if we are not in the correct entity, we cant be a valid
 				// target
-				if(!registry_->contains(msg.entity())) { return false; }
+				if(!msg.entity().is_root() && !registry_->contains(msg.entity())) { return false; }
 				
 				// if the user-provided accept delegate is false, we are not a
 				// valid target either
@@ -412,8 +422,8 @@ namespace wiselib {
 			MessageT downwards_;
 			MessageT upwards_;
 			
-			size_type downwards_ack_counter_;
-			size_type upwards_ack_counter_;
+			typename Uint<sizeof(void*)>::t downwards_ack_counter_;
+			typename Uint<sizeof(void*)>::t upwards_ack_counter_;
 			
 			radio_node_id_t downwards_address_;
 			

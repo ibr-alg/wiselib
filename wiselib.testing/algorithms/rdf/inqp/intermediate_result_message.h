@@ -54,8 +54,9 @@ namespace wiselib {
 				POS_MESSAGE_ID = 0,
 				POS_QUERY_ID = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_OPERATOR_ID = POS_QUERY_ID + sizeof(query_id_t),
-				HEADER_SIZE = POS_OPERATOR_ID + sizeof(operator_id_t),
-				POS_PAYLOAD = HEADER_SIZE,
+				POS_PAYLOAD_SIZE = POS_OPERATOR_ID + sizeof(operator_id_t),
+				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(::uint8_t),
+				HEADER_SIZE = POS_PAYLOAD,
 			};
 			
 			message_id_t message_id() {
@@ -75,6 +76,10 @@ namespace wiselib {
 			}
 			
 			block_data_t* payload() { return data_ + POS_PAYLOAD; }
+			size_type payload_size() { return wiselib::read<OsModel, block_data_t, ::uint8_t>(data_ + POS_PAYLOAD_SIZE); }
+			void set_payload_size(::uint8_t s) {
+				wiselib::write<OsModel, block_data_t, ::uint8_t>(data_ + POS_PAYLOAD_SIZE, s);
+			}
 			
 			operator_id_t operator_id() { return wiselib::read<OsModel, block_data_t, operator_id_t>(data_ + POS_OPERATOR_ID); }
 			

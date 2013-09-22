@@ -135,7 +135,7 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, query_id_t, Query*, MAX_QUERIES> Queries;
 			
 			typedef delegate5<void, int, size_type, RowT&, query_id_t, operator_id_t> row_callback_t;
-			typedef set_static<OsModel, row_callback_t, MAX_ROW_RECEIVERS> RowCallbacks;
+			typedef vector_static<OsModel, row_callback_t, MAX_ROW_RECEIVERS> RowCallbacks;
 			
 			void init(typename TupleStoreT::self_pointer_t tuple_store, typename Timer::self_pointer_t timer) {
 				tuple_store_ = tuple_store;
@@ -144,11 +144,13 @@ namespace wiselib {
 				exec_done_callback_ = exec_done_callback_t();
 				translator_.init(&dictionary());
 				reverse_translator_.init(&dictionary());
+				DBG("%p send_row init cbs %d", this, (int)row_callbacks_.size());
 			}
 		
 			template<typename T, void (T::*fn)(int, size_type, RowT&, query_id_t, operator_id_t)>
 			void reg_row_callback(T* obj) {
-				row_callbacks_.insert(row_callback_t::template from_method<T, fn>(obj));
+				row_callbacks_.push_back(row_callback_t::template from_method<T, fn>(obj));
+				DBG("%p send_row reg cbs %d", this, (int)row_callbacks_.size());
 			}
 			
 			template<typename T, void (T::*fn)(hash_t, char*)>
@@ -157,7 +159,9 @@ namespace wiselib {
 			}
 			
 			void send_row(int type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
+				DBG("%p send_row snd cbs %d", this, (int)row_callbacks_.size());
 				for(typename RowCallbacks::iterator it = row_callbacks_.begin(); it != row_callbacks_.end(); ++it) {
+					DBG("send_row");
 					(*it)(type, columns, row, qid, oid);
 				}
 			}

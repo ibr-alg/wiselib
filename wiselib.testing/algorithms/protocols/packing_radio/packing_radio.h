@@ -111,6 +111,7 @@ namespace wiselib {
 			node_id_t id() { return radio_->id(); }
 			
 			void send(node_id_t receiver, size_t size, block_data_t* data) {
+				debug_->debug("@%d prad snd l %d", (int)radio_->radio().id(), (int)size);
 				assert(size <= MAX_MESSAGE_LENGTH);
 				
 				if(receiver != current_receiver_) {
@@ -133,6 +134,9 @@ namespace wiselib {
 			
 			void flush() {
 				if(!buffer_virgin()) {
+					debug_->debug("@%d prad flsh l %d", (int)radio_->radio().id(),
+							(int)(sizeof(message_id_t) + packer_.size()));
+					
 					radio_->send(current_receiver_, sizeof(message_id_t) + packer_.size(), buffer_);
 					packer_.clear();
 				}
@@ -150,6 +154,8 @@ namespace wiselib {
 			bool buffer_virgin() { return packer_.empty(); }
 		
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
+				debug_->debug("@%d prad recv", (int)radio_->radio().id());
+				
 				typedef typename Packer::length_t length_t;
 				
 				message_id_t msg_id = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -168,6 +174,7 @@ namespace wiselib {
 					if(!cont) { break; }
 					
 					//DBG("unpkg");
+					debug_->debug("@%d prad recv unpkg", (int)radio_->radio().id());
 					base_type::notify_receivers(from, len, d);
 				}
 					//DBG("unpkg don");

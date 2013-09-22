@@ -749,7 +749,8 @@ namespace wiselib {
 				node_id_t addr = sending_endpoint().remote_address();
 				resends_++;
 				void *v;
-				v = (void*)(size_t)ack_timer_;
+				//v = (void*)(size_t)ack_timer_;
+				v = loose_precision_cast<void*>(ack_timer_);
 				
 				if(addr != radio_->id() && addr != NULL_NODE_ID) {
 					sending_.set_delay(now() - send_start_);
@@ -772,9 +773,9 @@ namespace wiselib {
 			}
 			
 			void ack_timeout(void *at_) {
-				::uint8_t ack_timer;
-				ack_timer = (::uint8_t)(unsigned long)(at_);
-				if(is_sending_ && (ack_timer == ack_timer_)) {
+				//::uint8_t ack_timer;
+				//ack_timer = (::uint8_t)(unsigned long)(at_);
+				if(is_sending_ && (at_ == loose_precision_cast<void*>(ack_timer_))) {
 					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=/%d to=%lu", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
 							//(int)sending_.channel().rule(), (int)sending_.channel().value(),
 							(int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
@@ -796,9 +797,9 @@ namespace wiselib {
 					}
 				}
 				else {
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("nls%d/%d", (int)ack_timer, (int)ack_timer_);
-					#endif
+					//#if RELIABLE_TRANSPORT_DEBUG_STATE
+						//debug_->debug("nls%d/%d", (int)ack_timer, (int)ack_timer_);
+					//#endif
 				}
 			}
 			

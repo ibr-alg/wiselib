@@ -4,7 +4,7 @@
 
 class App {
 	public:
-		void init(Os::AppMainParameter value) {
+		void init(Os::AppMainParameter& value) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
@@ -25,6 +25,7 @@ class App {
 			#if USE_DICTIONARY
 				ts.init(&dictionary, &container, debug_);
 			#else
+				#warning "USING NO DICTIONARY FOR TS"
 				ts.init(0, &container, debug_);
 			#endif
 			
@@ -43,16 +44,17 @@ class App {
 			
 			// Fill node with initial semantics and construction rules
 			
-			initial_semantics(ts, radio_->id());
-			//create_rules();
-			//rule_processor_.execute_all();
+			initial_semantics(ts, radio_->id(), rand_);
+			create_rules();
+			rule_processor_.execute_all();
 			
+			debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
-			//timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
+			timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
 		}
 		
 		void init_blockmemory() {
-			#if USE_BLOCK_DICTIONIONARY || USE_BLOCK_CONTAINER
+			#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
 				block_memory_.physical().init();
 				block_memory_.init();
 				block_allocator_.init(&block_memory_, debug_);
@@ -68,7 +70,7 @@ class App {
 		}
 		
 		void init_ram() {
-			#if USE_PRESCILLA
+			#if USE_PRESCILLA_DICTIONARY
 				dictionary.init(debug_);
 			#elif USE_TREE_DICTIONARY
 				dictionary.init();
@@ -85,7 +87,6 @@ class App {
 				
 				// Distribute queries to nodes
 				
-#if 0	
 				distributor_.init(
 						radio_,
 						&token_construction_.tree(),
@@ -102,7 +103,7 @@ class App {
 				);
 				
 				// Transport rows for collect and aggregation operators
-				packing_anycast_radio_.init(anycast_radio_, *debug_);
+				packing_anycast_radio_.init(anycast_radio_, *debug_, *timer_);
 				
 				debug_->debug("initing rowc");
 				row_collector_.init(&packing_anycast_radio_, &query_processor_, debug_);
@@ -116,7 +117,6 @@ class App {
 				string_inquiry_.reg_answer_callback(
 						StringInquiryT::answer_delegate_t::from_method<App, &App::on_string_answer>(this)
 				);
-#endif
 				/*
 				anycast_radio_.reg_recv_callback<
 					ExampleApplication, &ExampleApplication::on_test_anycast_receive
@@ -133,7 +133,7 @@ class App {
 		
 	#if USE_INQP
 		Query q1;
-		Coll collect1;
+		Cons cons1;
 		GPS gps1;
 		
 		void create_rules() {
@@ -144,11 +144,11 @@ class App {
 			q1.init(&query_processor_, qid);
 			q1.set_expected_operators(2);
 			
-			collect1.init(
+			cons1.init(
 					&q1, 2 /* opid */, 0 /* parent */, 0 /* parent port */,
 					Projection((long)BIN(11))
 					);
-			q1.add_operator(&collect1);
+			q1.add_operator(&cons1);
 			
 			gps1.init(
 					&q1, 1 /* op id */, 2 /* parent */, 0 /* parent port */,
@@ -187,16 +187,32 @@ class App {
 		
 		#if USE_INQP
 		void distribute_query(void*) {
-			debug_->debug("distributing query");
+			if(radio_->id() != 0) { return; }
+			
+			debug_->debug("@%d distributing query", (int)radio_->id());
 			
 			// temperature query from ../inqp_test/example_app.cpp,
 			// each operator preceeded with one byte length information,
 			// without message types and query id
-			char *query_temp =
+			
+			/*
+			
+			COLLECT(?v) WHERE {
+			   ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
+			   ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
+			}
+
+			<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
+			<http://spitfire-project.eu/property/Temperature>            b23860b3
+			<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
+			
+			*/
+			
+			char *query_temp = const_cast<char*>(
 				"\x08\x04" "c\x00\x01\x00\x00\x00"
 				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
 				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
-				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3";
+				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3" );
 			
 			int opsize = 0x8 + 0x9 + 0xd + 0x11;
 			int opcount = 4;
@@ -225,12 +241,14 @@ class App {
 				QueryProcessor::operator_id_t operator_id,
 				QueryProcessor::RowT& row
 		) {
+			debug_->debug("@%d on_result_row", (int)radio_->id());
+			
 			QueryProcessor::Query *q = query_processor_.get_query(query_id);
 			if(q == 0) { return; } // query not found
 			QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
 			if(op == 0) { return; } // operator not found
 			
-			debug_->debug("result %02d %02d:", (int)query_id, (int)operator_id);
+			debug_->debug("@%d result %02d %02d:", (int)radio_->id(), (int)query_id, (int)operator_id);
 			int l = op->projection_info().columns();
 			for(int i = 0; i < l; i++) {
 				debug_->debug("  %d/%d %08lx", (int)i, (int)l, (unsigned long)row[i]);

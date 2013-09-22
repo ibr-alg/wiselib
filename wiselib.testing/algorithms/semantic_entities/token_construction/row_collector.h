@@ -76,6 +76,10 @@ namespace wiselib {
 				query_processor_->template reg_row_callback<
 					self_type, &self_type::on_result_row
 				>(this);
+				
+				radio_->template reg_recv_callback<
+					self_type, &self_type::on_receive
+				>(this);
 			}
 			
 			void reg_collect_callback(collect_delegate_t c) {
@@ -96,6 +100,7 @@ namespace wiselib {
 				for(size_type i = 0; i < columns; i++, p += sizeof(typename RowT::Value)) {
 					write<OsModel>(p, row[i]);
 				}
+				message->set_payload_size(columns * sizeof(typename RowT::Value));
 				
 				debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
 				switch(type) {
@@ -123,18 +128,29 @@ namespace wiselib {
 				} // switch
 			} // on_result_row()
 			
-			void on_receive(node_id_t from, size_type len, block_data_t *data) {
+			void on_receive(typename Radio::node_id_t from,
+					typename Radio::size_t len,
+					typename Radio::block_data_t *data) {
 				ResultMessage &message =* reinterpret_cast<ResultMessage*>(data);
-				if(message.type() != INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT) { return; }
+				if(message.message_id() != INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT) { return; }
 				
 				Query *q = query_processor_->get_query(message.query_id());
-				if(q == 0) { return; } // query not found
+				if(q == 0) {
+					debug_->debug("@%d rowc !q%d", (int)radio_->radio().radio().id(), (int)message.query_id());
+					return;
+				} // query not found
 				BasicOperator *op = q->get_operator(message.operator_id());
-				if(op == 0) { return; } // operator not found
+				if(op == 0) {
+					debug_->debug("@%d rowc q%d !o%d",
+							(int)radio_->radio().radio().id(),
+							(int)message.query_id(),
+							(int)message.operator_id());
+					return;
+				} // operator not found
 				
 				switch(op->type()) {
 					case BasicOperatorDescription::COLLECT:
-						debug_->debug("@%d rowc recv col%d", (int)radio_->radio().radio().id());
+						debug_->debug("@%d rowc recv q%d", (int)radio_->radio().radio().id(), (int)message.query_id());
 						if(collect_callback_) {
 							Value* vp = (Value*)message.payload();
 							Value* vp_end = (Value*)(message.payload() + message.payload_size());
@@ -144,9 +160,15 @@ namespace wiselib {
 						}
 						break;
 						
-					case BasicOperatorDescription::AGGREGATE:
-						// TODO
-						break;
+					//case BasicOperatorDescription::AGGREGATE:
+						//// TODO
+						//break;
+					
+					default:
+					debug_->debug("@%d rowc q%d o%d !'%c'",
+							(int)radio_->radio().radio().id(),
+							(int)message.query_id(),
+							(int)message.operator_id(), (char)op->type());
 				} // switch op type
 			} // on_receive
 		

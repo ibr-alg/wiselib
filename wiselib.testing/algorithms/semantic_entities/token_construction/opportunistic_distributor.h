@@ -363,6 +363,22 @@ namespace wiselib {
 				QueryDescription &q = queries_[qid];
 				q.init(scope, qid, revision, role, waketime, lifetime, opcount);
 				q.set_operators(oplen, opdata);
+				
+				// if locally relevant, add query
+				if(registry_->contains(scope)) {
+					#if DISTRIBUTOR_DEBUG_STATE
+						debug_->debug("@%d +q%d", (int)radio_->id(), (int)qid);
+					#endif
+					query_processor_->erase_query(qid);
+					Query *q = query_processor_->create_query(qid);
+					q->set_expected_operators(opcount);
+					block_data_t *p = opdata;
+					
+					while(*p > 0 && p < (opdata + oplen)) {
+						query_processor_->handle_operator(q, (BOD*)(p + 1));
+						p += *p;
+					}
+				}
 			}
 			
 			bool callback_handover_initiator(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
@@ -598,7 +614,7 @@ namespace wiselib {
 				}
 				else {
 					node_id_t remote = endpoint->remote_address();
-					State &s = communication_states_[remote];
+					//State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
 							nap_control_->push_caffeine("odr_op");
@@ -618,7 +634,7 @@ namespace wiselib {
 				node_id_t remote = endpoint.remote_address();
 				State &s = communication_states_[remote];
 				block_data_t *start = message.payload();
-				block_data_t *end = message.payload() + message.MAX_PAYLOAD_SIZE;
+				//block_data_t *end = message.payload() + message.MAX_PAYLOAD_SIZE;
 				block_data_t *p = start;
 				
 				#if DISTRIBUTOR_DEBUG_STATE
@@ -711,7 +727,7 @@ namespace wiselib {
 						break;
 						
 					case State::RECEIVE_ANSWER:
-						bool done = false;
+						//bool done = false;
 						while(p < end) {
 							::uint8_t l;
 							wiselib::read<OsModel>(p, l); p += sizeof(::uint8_t);
@@ -721,7 +737,7 @@ namespace wiselib {
 								if(p > end - QUERY_HEADER_SIZE) {
 									// len == 0, but can't be a new query -->
 									// we are done!
-									done = true;
+									//done = true;
 									break;
 								}
 								
@@ -774,7 +790,7 @@ namespace wiselib {
 								
 								nap_control_->push_caffeine("odwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
-								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, (void*)id);
+								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(id));
 							}
 							else {
 								assert(s.query_iterator() != queries_.end());
