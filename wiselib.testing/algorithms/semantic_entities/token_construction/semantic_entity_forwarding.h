@@ -296,7 +296,7 @@ namespace wiselib {
 					end = map_slots_;
 				}
 				size_type len = end - position_;
-				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, (void*)end);
+				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, loose_precision_cast<void*>(end));
 			}
 			
 			void sleep(void* p) {
@@ -328,7 +328,7 @@ namespace wiselib {
 						//wake_up((void*)start);
 					//}
 					//else {
-						timer_->template set_timer<self_type, &self_type::wake_up>(slot_length_ * len, this, (void*)start);
+						timer_->template set_timer<self_type, &self_type::wake_up>(slot_length_ * len, this, loose_precision_cast<void*>(start));
 					//}
 				}
 			}

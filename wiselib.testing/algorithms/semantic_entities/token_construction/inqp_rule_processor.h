@@ -76,6 +76,15 @@ namespace wiselib {
 		private:
 			
 			void on_row(int commtype, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
+				//QueryProcessor::Query *q = query_processor_.get_query(query_id);
+				//if(q == 0) { return; } // query not found
+				//QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
+				//if(op == 0) { return; } // operator not found
+				//if(op->type() != QueryProcessor::CO
+				if(commtype != QueryProcessor::COMMUNICATION_TYPE_CONSTRUCTION_RULE) {
+					return;
+				}
+				
 				assert(columns == 1);
 				SemanticEntityId se_id(qid, row[0]);
 				//printf("---- adding SE\n");

@@ -38,13 +38,15 @@ namespace wiselib {
 	
 	template<
 		typename TS,
-		typename node_id_t
+		typename node_id_t,
+		typename RandPtr
 	>
-	void initial_semantics(TS& ts, node_id_t id) {
+	void initial_semantics(TS& ts, node_id_t id, RandPtr rand) {
 		DBG("initial semantics");
 		
 		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
 		
+		// Generate sensor URI
 		enum { MAX_URI_LENGTH = 256, DIGITPOS = 45 };
 		char myuri[MAX_URI_LENGTH];
 		
@@ -57,7 +59,14 @@ namespace wiselib {
 		myuri[DIGITPOS + n] = '\0';
 		*/
 		
+		// Generate sensor value
+		char v[10];
+		snprintf(v, 10, "%d", (rand->operator()() % 10) + 15);
+		v[9] = '\0';
+		
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
+		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>", "<http://spitfire-project.eu/property/Temperature>");
+		ins(ts, myuri, "<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>", v);
 	}
 	
 }

@@ -65,6 +65,7 @@ namespace wiselib {
 			
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
+				count_ = 0;
 			}
 			#pragma GCC diagnostic pop
 			

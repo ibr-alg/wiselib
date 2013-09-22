@@ -173,10 +173,8 @@ template<> struct Sint<8> { typedef ::int64_t t; };
  *
  */
 template<typename T>
-//struct AsUint {
-//	typedef typename Uint<sizeof(T)>::t t;
-	typename Uint<sizeof(T)>::t as_uint(T& src) { return *reinterpret_cast<typename Uint<sizeof(T)>::t*>(&src); }
-//};
+typename Uint<sizeof(T)>::t as_uint(const T& src) { return *reinterpret_cast<const typename Uint<sizeof(T)>::t*>(&src); }
+
 
 template<int N_ >
 struct UintWithAtLeastBits {

@@ -177,6 +177,9 @@ namespace wiselib {
 				// }}}
 			};
 			
+			TokenScheduler() : radio_(0), timer_(0), clock_(0), debug_(0), rand_(0) {
+			}
+			
 			void init(typename TupleStore::self_pointer_t tuplestore, typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Debug::self_pointer_t debug, typename Rand::self_pointer_t rand) {
 				radio_ = radio;
 				timer_ = timer;
@@ -209,14 +212,26 @@ namespace wiselib {
 				iam_tokens_in_subtree_ = 0;
 				forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
 				forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
+				
+				check();
+			}
+			
+			void check() {
+				assert(radio_ != 0);
+				assert(timer_ != 0);
+				assert(clock_ != 0);
+				assert(debug_ != 0);
+				assert(rand_ != 0);
 			}
 			
 			void enable_immediate_answer_mode() {
+				check();
 				if(iam_enabled_) { return; }
 				iam_enabled_ = true;
 			}
 			
 			void disable_immediate_answer_mode() {
+				check();
 				if(!iam_enabled_) { return; }
 				iam_enabled_ = false;
 			}
@@ -226,6 +241,8 @@ namespace wiselib {
 			}
 			
 			void add_entity(const SemanticEntityId& se_id) {
+				check();
+				
 				SemanticEntityT& se = registry_.add(se_id);
 				
 				transport_.register_endpoint(
@@ -261,6 +278,8 @@ namespace wiselib {
 		private:
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				check();
+				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				if(!nap_control_.on()) {
@@ -289,17 +308,21 @@ namespace wiselib {
 			}
 			
 			void on_receive_task(void *p) {
+				check();
+				
 				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
 				//abs_millis_t t_recv = absolute_millis(packet_info->received());
-				const node_id_t &from = packet_info->from();
-				const typename Radio::size_t &len = packet_info->length();
-				block_data_t *data = packet_info->data();
+				//const node_id_t &from = packet_info->from();
+				//const typename Radio::size_t &len = packet_info->length();
+				//block_data_t *data = packet_info->data();
 				
 				on_receive_task(packet_info->from(), packet_info->length(), packet_info->data());
 				packet_info->destroy();
 			}
 			
 			void on_receive_task(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				check();
+				
 				bool r = forwarding_.on_receive(from, len, data);
 				if(!r) {
 					#if !WISELIB_DISABLE_DEBUG
@@ -310,6 +333,8 @@ namespace wiselib {
 			}
 			
 			void on_global_tree_event(typename GlobalTreeT::EventType e, node_id_t addr) {
+				check();
+				
 				if(e == GlobalTreeT::SEEN_NEIGHBOR) {
 					//on_neighbor_awake(addr);
 					return;
@@ -377,6 +402,7 @@ namespace wiselib {
 			*/
 			
 			void try_initiate_main_handover(void *se_) {
+				check();
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
 			#if INSE_DEBUG_STATE
@@ -399,6 +425,7 @@ namespace wiselib {
 			 * 	retried if failed.
 			 */
 			bool initiate_handover(SemanticEntityT& se, bool main) {
+				check();
 				bool found;
 				typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se.id(), true, found);
 				
@@ -438,6 +465,7 @@ namespace wiselib {
 			}
 			
 			bool callback_handover_initiator(int event, typename ReliableTransportT::Message* message, typename ReliableTransportT::Endpoint* endpoint) {
+				check();
 				if(event == ReliableTransportT::EVENT_PRODUCE) { return produce_handover_initiator(*message, *endpoint); }
 				else if(event == ReliableTransportT::EVENT_CONSUME) { consume_handover_initiator(*message, *endpoint); }
 				else { event_handover_initiator(event, *endpoint); }
@@ -445,6 +473,7 @@ namespace wiselib {
 			}
 			
 			bool produce_handover_initiator(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
+				check();
 			#ifdef SHAWN
 				if(endpoint.remote_address() == radio_->id()) { return false; }
 			#endif
@@ -512,7 +541,7 @@ namespace wiselib {
 						
 					case SemanticEntityT::SEND_AGGREGATES_START: {
 						//debug_->debug("phi as");
-						bool call_again;
+						//bool call_again;
 						
 				#if INSE_USE_AGGREGATOR
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
@@ -569,6 +598,7 @@ namespace wiselib {
 			}
 			
 			void consume_handover_initiator(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
+				check();
 			#ifdef SHAWN
 				if(endpoint.remote_address() == radio_->id()) { return; }
 			#endif
@@ -655,6 +685,7 @@ namespace wiselib {
 			}
 			
 			void event_handover_initiator(int event, typename ReliableTransportT::Endpoint& endpoint) {
+				check();
 				#ifdef SHAWN
 				if(endpoint.remote_address() == radio_->id()) { return; }
 				#endif
@@ -729,6 +760,7 @@ namespace wiselib {
 			//@{ Recepient (Token receiving side)
 			
 			bool callback_handover_recepient(int event, typename ReliableTransportT::Message* message, typename ReliableTransportT::Endpoint* endpoint) {
+				check();
 				if(event == ReliableTransportT::EVENT_PRODUCE) { return produce_handover_recepient(*message, *endpoint); }
 				else if(event == ReliableTransportT::EVENT_CONSUME) { consume_handover_recepient(*message, *endpoint); }
 				else { event_handover_recepient(event, *endpoint); }
@@ -736,6 +768,7 @@ namespace wiselib {
 			}
 			
 			bool produce_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
+				check();
 				//debug_->debug("phr");
 				
 			#ifdef SHAWN
@@ -782,6 +815,7 @@ namespace wiselib {
 			}
 			
 			void consume_handover_recepient(typename ReliableTransportT::Message& message, typename ReliableTransportT::Endpoint& endpoint) {
+				check();
 				if(message.payload_size() == 0) {
 					//debug_->debug("pl0");
 					//return;
@@ -875,6 +909,7 @@ namespace wiselib {
 			}
 			
 			void event_handover_recepient(int event, typename ReliableTransportT::Endpoint& endpoint) {
+				check();
 				//if(endpoint.remote_address() == radio_->id()) {
 					//debug_->debug("node %d // ignoring event of type %d (remote==self)", (int)radio_->id(), (int)event);
 					//return;
@@ -927,6 +962,7 @@ namespace wiselib {
 			///@}
 			
 			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
+				check();
 				TokenState s = msg.token_state();
 				bool activating = false;
 				bool active_before = se.is_active(radio_->id());
@@ -959,11 +995,13 @@ namespace wiselib {
 			}
 			
 			void begin_activity(void* se_)  {
+				check();
 				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				begin_activity(se);
 			}
 				
 			void begin_activity(SemanticEntityT &se) {
+				check();
 				// begin_activity might have been called at beginning
 				// and then again (during the actual activity)
 				if(se.in_activity_phase()) { return; }
@@ -999,6 +1037,7 @@ namespace wiselib {
 			
 			
 			void iam_timeout(void* c) {
+				check();
 				if((void*)iam_timeout_counter_ != c) { return; }
 				
 				if(iam_tokens_in_subtree_ > 0) {
@@ -1011,6 +1050,7 @@ namespace wiselib {
 			}
 			
 			void iam_new_token_in_subtree() {
+				check();
 				if(!iam_enabled_) { return; }
 				
 				if(!iam_waiting_for_subtree_) {
@@ -1026,6 +1066,7 @@ namespace wiselib {
 			}
 			
 			void iam_lost_token_in_subtree() {
+				check();
 				if(!iam_enabled_) { return; }
 				if(!iam_waiting_for_subtree_) { return; }
 				
@@ -1043,6 +1084,7 @@ namespace wiselib {
 			 * Called by timeout at the end of an activity period.
 			 */
 			void end_activity(SemanticEntityT& se) {
+				check();
 				if(!se.in_activity_phase()) { return; }
 				
 				se.end_activity_phase();
@@ -1057,7 +1099,9 @@ namespace wiselib {
 							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(), (int)se.in_activity_phase(), (int)now());
 				#endif
 				
-				bool active_before = se.is_active(radio_->id());
+				#if !WISELIB_DISABLE_DEBUG
+					bool active_before = se.is_active(radio_->id());
+				#endif
 				
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
@@ -1100,6 +1144,7 @@ namespace wiselib {
 			
 			
 			void begin_wait_for_token(void* se_) {
+				check();
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_token", (int)radio_->id());
 				#endif
@@ -1108,7 +1153,7 @@ namespace wiselib {
 				#endif
 				nap_control_.push_caffeine("wait");
 				
-				SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
+				//SemanticEntityT &se = *reinterpret_cast<SemanticEntityT*>(se_);
 				
 				//if(!se.recovering()) {
 					//se.set_recovering(true);
@@ -1118,6 +1163,7 @@ namespace wiselib {
 			}
 			
 			void end_wait_for_token(void* se_) {
+				check();
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_token", (int)radio_->id());
 				#endif
@@ -1128,10 +1174,12 @@ namespace wiselib {
 			}
 			
 			abs_millis_t absolute_millis(const time_t& t) {
+				check();
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
 			}
 			
 			abs_millis_t now() {
+				check();
 				return absolute_millis(clock_->time());
 			}
 			
