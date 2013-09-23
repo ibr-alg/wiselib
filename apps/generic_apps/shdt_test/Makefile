@@ -13,7 +13,8 @@ all: contiki_inga
 
 export APP_SRC=example_app.cpp
 export BIN_OUT=example_app
-export PC_COMPILE_DEBUG=1
+export PC_COMPILE_DEBUG=0
 export WISELIB_EXIT_MAIN=1
+export ADD_CXXFLAGS="-O3"
 
 include ../Makefile
