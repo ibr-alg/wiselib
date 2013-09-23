@@ -125,7 +125,7 @@ typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Deb
 		//INSE_MESSAGE_TYPE_ANYCAST, PackingOsRadio> AnycastPackingRadio;
 	//typedef AnycastPackingRadio RowRadio;
 	
-	typedef RowCollector<Os, RowRadio, QueryProcessor> RowCollectorT;
+	typedef RowCollector<Os, RowRadio, QueryProcessor, TC::GlobalTreeT, Os::Debug> RowCollectorT;
 	
 #else 
 	#warning "Using SIMPLE rule processor"

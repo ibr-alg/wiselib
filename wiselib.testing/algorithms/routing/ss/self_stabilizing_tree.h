@@ -78,6 +78,7 @@ namespace wiselib {
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR,
 				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR,
+				BCAST_KEEP_AWAKE = 500 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL
 			};
 			enum SpecialNodeIds {
@@ -302,7 +303,10 @@ namespace wiselib {
 				#endif
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				
+				timer_->template set_timer<self_type, &self_type::end_broadcast_state>(BCAST_KEEP_AWAKE, this, 0);
+			}
+			
+			void end_broadcast_state(void*) {
 				nap_control_->pop_caffeine("/bc");
 				#if INSE_DEBUG_STATE
 					debug_->debug("/bc");

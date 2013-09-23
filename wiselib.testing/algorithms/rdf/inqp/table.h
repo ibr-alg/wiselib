@@ -231,7 +231,7 @@ namespace wiselib {
 					if(new_buffer) {
 						memcpy(new_buffer, buffer_, size_ * row_size_);
 					}
-					get_allocator().free_array(buffer_);
+					::get_allocator().free_array(buffer_);
 					buffer_ = 0;
 				}
 				buffer_ = new_buffer;

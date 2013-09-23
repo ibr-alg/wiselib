@@ -124,7 +124,7 @@ class App {
 						
 				
 				debug_->debug("initing rowc");
-				row_collector_.init(&row_radio_, &query_processor_, debug_);
+				row_collector_.init(&row_radio_, &query_processor_, &token_construction_.tree(), debug_);
 				row_collector_.reg_collect_callback(
 						RowCollectorT::collect_delegate_t::from_method<App, &App::on_result_row>(this)
 				);
@@ -239,8 +239,10 @@ class App {
 			*/
 			
 			// min, avg, max all temperature values
+			// BIN(10101010) = 0xaa 
+			// BIN(01010101) = 0x55
 			char *query_temp = const_cast<char*>(
-				"\x0c\x04" "a\x00\x07\x00\x00\x00\x03\x84\x82\x05"
+				"\x0c\x04" "a\x00\x55\x00\x00\x00\x03\x84\x82\x05"
 				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
 				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
 				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3" );
@@ -253,7 +255,7 @@ class App {
 					66 /* qid */,
 					1 /* rev */,
 					Distributor::QUERY,
-					5000 * WISELIB_TIME_FACTOR, 5000 * WISELIB_TIME_FACTOR,
+					60000 * WISELIB_TIME_FACTOR, 60000 * WISELIB_TIME_FACTOR,
 					opcount, opsize, (block_data_t*)query_temp);
 		}
 		#endif // USE_INQP
@@ -273,9 +275,15 @@ class App {
 				QueryProcessor::RowT& row
 		) {
 			QueryProcessor::Query *q = query_processor_.get_query(query_id);
-			if(q == 0) { return; } // query not found
+			if(q == 0) {
+				debug_->debug("@%d rowc x !q%d", (int)radio_->id(), (int)query_id);
+				return;
+			} // query not found
 			QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
-			if(op == 0) { return; } // operator not found
+			if(op == 0) {
+				debug_->debug("@%d rowc x !o%d", (int)radio_->id(), (int)operator_id);
+				return;
+			} // operator not found
 			
 			debug_->debug("@%d R%c %02d %02d:", (int)radio_->id(), (char)op->type(), (int)query_id, (int)operator_id);
 			int l = op->projection_info().columns();

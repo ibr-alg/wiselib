@@ -163,7 +163,7 @@ namespace wiselib {
 			int send(node_id_t se_id, size_t size, block_data_t* data) {
 				MessageT msg;
 				if(radio_->id() == tree().root()) {
-					if(se_id.is_root()) {
+					if(se_id.is_root() || registry_->contains(se_id)) {
 						this->notify_receivers(se_id, size, data);
 						return SUCCESS;
 					}
@@ -283,7 +283,7 @@ namespace wiselib {
 			} // on_receive()
 			
 			void send_ack(radio_node_id_t addr, MessageT& msg) {
-				debug_->debug("@%d anyc ack to %d", (int)radio_->id(), (int)addr);
+				//debug_->debug("@%d anyc ack to %d", (int)radio_->id(), (int)addr);
 				MessageT ack;
 				ack.init(msg.entity());
 				ack.set_ack();
@@ -293,7 +293,7 @@ namespace wiselib {
 			void on_neighborhood_event(typename TreeT::EventType event, radio_node_id_t addr) {
 				switch(event) {
 					case TreeT::SEEN_NEIGHBOR:
-						debug_->debug("@%d anyc seen %d", (int)radio_->id(), (int)addr);
+						//debug_->debug("@%d anyc seen %d", (int)radio_->id(), (int)addr);
 						on_see_neighbor(addr);
 						break;
 						
@@ -301,7 +301,7 @@ namespace wiselib {
 					case TreeT::LOST_NEIGHBOR:
 					case TreeT::UPDATED_NEIGHBOR:
 					case TreeT::UPDATED_STATE:
-						debug_->debug("@%d anyc topo", (int)radio_->id());
+						//debug_->debug("@%d anyc topo", (int)radio_->id());
 						on_topology_change();
 						break;
 				}
@@ -384,15 +384,29 @@ namespace wiselib {
 			
 			//bool accept(const SemanticEntityId& id) {
 			bool accept(const MessageT& msg) {
-				if(msg.entity().is_root() && radio_->id() != tree().root()) { return false; }
+				// The root accepts all upward messages
+				if(radio_->id() == tree().root() && msg.is_upwards()) {
+					return true;
+				}
 				
 				// if we are not in the correct entity, we cant be a valid
 				// target
-				if(!msg.entity().is_root() && !registry_->contains(msg.entity())) { return false; }
+				if(!msg.entity().is_root() && !registry_->contains(msg.entity())) {
+					/*
+					debug_->debug("@%d anyc !ac %lx.%lx has%d up%d", (int)radio_->id(),
+							(unsigned long)msg.entity().rule(),
+							(unsigned long)msg.entity().value(),
+							(int)registry_->contains(msg.entity()),
+							(int)msg.is_upwards()
+					);
+					*/
+					return false;
+				}
 				
 				// if the user-provided accept delegate is false, we are not a
 				// valid target either
 				if(accept_delegate_ && !accept_delegate_(msg)) {
+					debug_->debug("@%d anyc !ac dg", (int)radio_->id());
 					return false;
 				}
 				
