@@ -25,13 +25,13 @@
 #include "string_inquiry_message.h"
 #include "string_inquiry_answer_message.h"
 
-#ifndef INSE_MESSAGE_TYPE_STRING_INQUIRY
-	#define INSE_MESSAGE_TYPE_STRING_INQUIRY 0x46
-#endif
+//#ifndef INSE_MESSAGE_TYPE_STRING_INQUIRY
+	//#define INSE_MESSAGE_TYPE_STRING_INQUIRY 0x46
+//#endif
 
-#ifndef INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER
-	#define INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER 0x47
-#endif
+//#ifndef INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER
+	//#define INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER 0x47
+//#endif
 
 namespace wiselib {
 	

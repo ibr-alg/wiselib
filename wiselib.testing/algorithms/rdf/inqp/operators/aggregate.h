@@ -78,11 +78,13 @@ namespace wiselib {
 			
 			enum { WAIT_AFTER_LOCAL = 1000 * WISELIB_TIME_FACTOR, CHECK_INTERVAL = 1000 * WISELIB_TIME_FACTOR };
 			
+			struct TimerInfo { bool alive; };
+			
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
 			void init(AggregateDescription<OsModel, Processor> *ad, Query *query) {
 				Base::init(reinterpret_cast<AggregateDescription<OsModel, Processor>*>(ad), query);
-				
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
@@ -92,6 +94,7 @@ namespace wiselib {
 				aggregation_columns_logical_ = ad->aggregation_columns();
 				aggregation_types_ = ::get_allocator().template allocate_array< ::uint8_t>(aggregation_columns_logical_).raw();
 				memcpy(aggregation_types_, ad->aggregation_types(), aggregation_columns_logical_);
+				timer_info_ = 0;
 			}
 			#pragma GCC diagnostic pop
 			
@@ -157,6 +160,9 @@ namespace wiselib {
 			}
 			
 			void destruct() {
+				if(timer_info_ != 0) {
+					timer_info_->alive = false;
+				}
 				if(operations_) {
 					::get_allocator().template free_array(operations_);
 					operations_ = 0;
@@ -193,7 +199,11 @@ namespace wiselib {
 					// We're done with local aggreation.
 					// Lets wait a little for possible child reports and then
 					// send out a result
-					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, 0);
+					
+					timer_info_ = ::get_allocator().template allocate<TimerInfo>().raw();
+					assert(timer_info_ != 0);
+					timer_info_->alive = true;
+					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, (void*)timer_info_);
 				}
 				
 				DBG("agdon");
@@ -293,8 +303,13 @@ namespace wiselib {
 				refresh_group(row);
 			}
 			
-			void on_sending_time(void*) {
-				//Serial.println("aggr snd");
+			void on_sending_time(void* ti_) {
+				TimerInfo *ti = reinterpret_cast<TimerInfo*>(ti_);
+				if(!ti->alive) {
+					::get_allocator().free(ti);
+					return;
+				}
+				
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
 					DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
 					this->processor().send_row(
@@ -303,7 +318,7 @@ namespace wiselib {
 					);
 				}
 				updated_aggregates_.clear();
-				this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, 0);
+				this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, ti_);
 			}
 			
 			/*
@@ -469,14 +484,24 @@ namespace wiselib {
 							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
-							long long avg = *reinterpret_cast<long*>(&v1) * (long long)n1 + *reinterpret_cast<long*>(&v2) * (long long)n2;
-							avg /= ((long long)n1 + (long long)n2);
-							long avg2 = avg;
-							r = *reinterpret_cast<Value*>(&avg2);
+							//long long avg = *reinterpret_cast<long*>(&v1) * (long long)n1 + *reinterpret_cast<long*>(&v2) * (long long)n2;
+							//avg /= ((long long)n1 + (long long)n2);
+							//long avg2 = avg;
+							//r = *reinterpret_cast<Value*>(&avg2);
+							typedef unsigned long long ULL;
+							ULL avg = (ULL)v1 * (ULL)n1 + (ULL)v2 * (ULL)n2;
+							ULL avg2 = avg / ((ULL)n1 + (ULL)n2);
+							r = avg2;
 							
+							//DBG("avg int (%08lx %08lx, %08lx %08lx) -> %08lx -> %08lx -> %08lx",
+									//(unsigned long)v1, (unsigned long)n1,
+									//(unsigned long)v2, (unsigned long)n2,
+									//(unsigned long)avg, (unsigned long)avg2,
+									//(unsigned long)r);
 							break;
 						}
 						case ProjectionInfoBase::FLOAT: {
+							//DBG("avg float");
 							float avg = *reinterpret_cast<float*>(&v1) * (float)n1/(float)(n1 + n2)
 								+ *reinterpret_cast<float*>(&v2) * (float)n2/(float)(n1 + n2);
 							r = *reinterpret_cast<Value*>(&avg);
@@ -520,6 +545,7 @@ namespace wiselib {
 			uint8_t aggregation_columns_logical_;
 			uint8_t aggregation_columns_physical_;
 			uint8_t *aggregation_types_;
+			TimerInfo *timer_info_;
 		
 	}; // Aggregate
 }

@@ -23,9 +23,9 @@
 #include <algorithms/rdf/inqp/intermediate_result_message.h>
 #include <util/delegates/delegate.hpp>
 
-#ifndef INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT
-	#define INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT 0x47
-#endif
+//#ifndef INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT
+	//#define INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT 0x47
+//#endif
 
 namespace wiselib {
 	
@@ -35,11 +35,14 @@ namespace wiselib {
 	 * @ingroup
 	 * 
 	 * @tparam Radio_P it is assumed, that Radio_P::node_id_t is SemanticEntityId
+	 * @tparam Tree_P a tree formed self-stabilizing neighborhood such as self
+	 * 	stabilizing tree
 	 */
 	template<
 		typename OsModel_P,
 		typename Radio_P,
 		typename QueryProcessor_P,
+		typename Tree_P,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class RowCollector {
@@ -51,6 +54,7 @@ namespace wiselib {
 			typedef Radio_P Radio;
 			typedef typename Radio::message_id_t message_id_t;
 			typedef typename Radio::node_id_t node_id_t;
+			typedef typename Radio::Radio::Radio::node_id_t physical_id_t;
 			typedef QueryProcessor_P QueryProcessor;
 			typedef typename QueryProcessor::CommunicationType CommunicationType;
 			typedef typename QueryProcessor::query_id_t query_id_t;
@@ -66,10 +70,12 @@ namespace wiselib {
 			typedef delegate3<void, query_id_t, operator_id_t, RowT&> collect_delegate_t;
 			typedef RowCollector self_type;
 			typedef self_type* self_pointer_t;
+			typedef Tree_P TreeT;
 			
-			void init(typename Radio::self_pointer_t radio, typename QueryProcessor::self_pointer_t query_processor, typename Debug::self_pointer_t debug) {
+			void init(typename Radio::self_pointer_t radio, typename QueryProcessor::self_pointer_t query_processor, typename TreeT::self_pointer_t tree, typename Debug::self_pointer_t debug) {
 				radio_ = radio;
 				query_processor_ = query_processor;
+				tree_ = tree;
 				debug_ = debug;
 				
 				//debug_->debug("@%d rowc init", (int)radio_->radio().radio().id());
@@ -113,22 +119,11 @@ namespace wiselib {
 						break;
 					}
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
+						//debug_->debug("@%d rowc sndA col%d %lx.%lx", (int)radio_->radio().radio().id(), (int)columns, (unsigned long)query->entity().rule(), (unsigned long)query->entity().value());
+						//if(physical_id() == tree().root()
+						
 						radio_->send(query->entity(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
-					/* TODO
-						//Serial.println("inqp send aggre");
-						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
-						if(ni == nd_->neighbors_end()) {
-						//Serial.println("inqp send aggr no parent");
-							DBG("com aggr no nd par me%d", (int)result_radio_->id());
-						}
-						else {
-						//DBG("srow aggr %d", (int)ni->id());
-						//Serial.println("inqp send aggr send");
-							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
-						}
-						break;
-					*/
 					}
 				} // switch
 			} // on_result_row()
@@ -170,7 +165,18 @@ namespace wiselib {
 						break;
 						
 					case BasicOperatorDescription::AGGREGATE:
-						query_processor_->handle_intermediate_result(&message, message.from());
+						//debug_->debug("@%d rowc recvA q%d from %d", (int)physical_id(), (int)message.query_id(), (int)message.from());
+						if(physical_id() == tree().root() && message.from() == physical_id()) {
+							
+							Value* vp = (Value*)message.payload();
+							Value* vp_end = (Value*)(message.payload() + message.payload_size());
+							for( ; vp < vp_end; vp += op->projection_info().columns()) {
+								collect_callback_(message.query_id(), message.operator_id(), *(RowT*)vp);
+							}
+						}
+						else {
+							query_processor_->handle_intermediate_result(&message, message.from());
+						}
 						break;
 						//// TODO
 						//break;
@@ -186,18 +192,21 @@ namespace wiselib {
 				} // switch op type
 			} // on_receive
 		
+			physical_id_t physical_id() { return radio_->radio().radio().id(); }
+			TreeT& tree() { return *tree_; }
+				
 		private:
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
 			typename QueryProcessor::self_pointer_t query_processor_;
+			typename TreeT::self_pointer_t tree_;
 			collect_delegate_t collect_callback_;
-			
 			static typename Radio::node_id_t sink_id_;
 		
 	}; // RowCollector
 	
-	template<typename O, typename R, typename Q, typename D>
-	typename R::node_id_t RowCollector<O, R, Q, D>::sink_id_ = R::node_id_t::root();
+	template<typename O, typename R, typename Q, typename T, typename D>
+	typename R::node_id_t RowCollector<O, R, Q, T, D>::sink_id_ = R::node_id_t::root();
 }
 
 #endif // ROW_COLLECTOR_H

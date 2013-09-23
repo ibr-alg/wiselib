@@ -315,7 +315,8 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> CommunicationStates;
 			
 			
-			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS, 0x43> TransportT;
+			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS, 
+					INSE_MESSAGE_TYPE_OPPORTUNISTIC_RELIABLE> TransportT;
 			
 			void init(typename Radio::self_pointer_t radio,
 					typename Neighborhood::self_pointer_t nd,
@@ -371,14 +372,18 @@ namespace wiselib {
 					#endif
 					query_processor_->erase_query(qid);
 					Query *q = query_processor_->create_query(qid);
-					q->set_entity(scope);
 					q->set_expected_operators(opcount);
+					q->set_entity(scope);
 					block_data_t *p = opdata;
 					
 					while(*p > 0 && p < (opdata + oplen)) {
 						query_processor_->handle_operator(q, (BOD*)(p + 1));
 						p += *p;
 					}
+					
+					nap_control_->push_caffeine("odwake");
+					timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
+					timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(qid));
 				}
 			}
 			
@@ -777,6 +782,7 @@ namespace wiselib {
 									query_processor_->erase_query(id);
 									Query *q = query_processor_->create_query(id);
 									q->set_expected_operators(operator_count);
+									q->set_entity(scope);
 								}
 								else {
 									#if DISTRIBUTOR_DEBUG_STATE

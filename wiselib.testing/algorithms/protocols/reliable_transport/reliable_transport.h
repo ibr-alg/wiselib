@@ -45,7 +45,7 @@ namespace wiselib {
 		typename Rand_P,
 		typename Debug_P,
 		size_t MAX_ENDPOINTS_P,
-		::uint8_t MESSAGE_TYPE_P = INSE_MESSAGE_TYPE_RELIABLE_TRANSPORT
+		::uint8_t MESSAGE_TYPE_P //= INSE_MESSAGE_TYPE_RELIABLE_TRANSPORT
 	>
 	class ReliableTransport : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename OsModel_P::size_t, typename OsModel_P::block_data_t> {
 		
