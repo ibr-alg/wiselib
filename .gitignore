@@ -23,3 +23,6 @@ Wiselib.includes
 *.log
 example_app
 tags
+.cproject
+.project
+.settings

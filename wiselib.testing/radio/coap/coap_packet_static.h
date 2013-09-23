@@ -198,6 +198,18 @@ namespace wiselib
 		int set_uri_query( const string_t &query );
 
 		/**
+		 * Sets Content-Type value
+		 * @param content_type new Content-Type
+		 */
+		void set_content_type( CoapContentType content_type );
+
+		/**
+		 * Returns the Content-Type option.
+		 * @return the Content-Type value
+		 */
+		CoapContentType content_type();
+
+		/**
 		 * Retrieves a list of Query segments for Uri-Query of Location-Query
 		 * @param optnum COAP_OPT_URI_QUERY or COAP_OPT_LOCATION_QUERY
 		 * @param result list where the segments will be stored
@@ -731,6 +743,36 @@ namespace wiselib
 	typename Radio_P,
 	typename String_T,
 	size_t storage_size_>
+	void CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_content_type(CoapContentType ctype)
+	{
+		remove_option( COAP_OPT_CONTENT_TYPE );
+		if ( ctype != COAP_CONTENT_TYPE_NONE )
+			add_option( COAP_OPT_CONTENT_TYPE, ctype );
+	}
+
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename String_T,
+	size_t storage_size_>
+	CoapContentType CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::content_type()
+	{
+		CoapContentType ctype;
+		int status = get_option( COAP_OPT_CONTENT_TYPE, &ctype );
+
+		if ( status == ERR_OPT_NOT_SET )
+		{
+			return COAP_CONTENT_TYPE_NONE;
+		}
+		else
+		{
+			return ctype;
+		}
+	}
+
+	template<typename OsModel_P,
+	typename Radio_P,
+	typename String_T,
+	size_t storage_size_>
 	int CoapPacketStatic<OsModel_P, Radio_P, String_T, storage_size_>::set_uri_path( const string_t &path )
 	{
 		return set_option( COAP_OPT_URI_PATH, path );
@@ -1081,7 +1123,11 @@ namespace wiselib
 
 		block_data_t *pos = options_[option_number];
 
-		if( COAP_OPTION_FORMAT[option_number] == COAP_FORMAT_STRING )
+		// FIXME the following code never worked, this needs to be done with template specialization.
+		// But how to specialize on the list_t? wiselib::list_static takes 3 params: Os, Value_type and SIZE
+		// Os is given and Value_Type is used for specialization but SIZE varies...
+		/*
+		if (COAP_OPTION_FORMAT[option_number] == COAP_FORMAT_STRING)
 		{
 			string_t curr_segment;
 			block_data_t swap;
@@ -1090,9 +1136,9 @@ namespace wiselib
 			size_t curr_segment_len;
 			do
 			{
-				curr_segment_len = optlen( pos );
+				curr_segment_len = optlen(pos);
 
-				if( curr_segment_len < 15 )
+				if (curr_segment_len < 15)
 					value_start = 1;
 				else
 					value_start = 2;
@@ -1100,14 +1146,14 @@ namespace wiselib
 				nextpos = pos + curr_segment_len + value_start;
 				swap = *(nextpos);
 				*nextpos = (block_data_t) '\0';
-				curr_segment = (char*) ( pos + value_start );
-				values.push_back( curr_segment );
+				curr_segment = (char*) (pos + value_start);
+				values.push_back(curr_segment);
 				*nextpos = swap;
 
 				pos = nextpos;
-			} while ( pos < end_of_options_ && ( swap & 0xf0 ) == 0 );
+			} while (pos < end_of_options_ && (swap & 0xf0) == 0);
 		}
-		else if( COAP_OPTION_FORMAT[option_number] == COAP_FORMAT_UINT )
+		else if (COAP_OPTION_FORMAT[option_number] == COAP_FORMAT_UINT)
 		{
 			uint32_t curr_value;
 			size_t len;
@@ -1118,7 +1164,7 @@ namespace wiselib
 				len = pos & 0x0f;
 				offset = 1;
 
-				switch( len )
+				switch (len)
 				{
 				case 4:
 					curr_value = *(pos + offset);
@@ -1139,22 +1185,23 @@ namespace wiselib
 					// uint option longer than 4. SHOULD NOT HAPPEN!!!
 					return ERR_OPT_TOO_LONG;
 				}
-				values.push_back( curr_value );
+				values.push_back(curr_value);
 				pos += offset;
-			} while ( pos < end_of_options_ && ( *pos & 0xf0 ) == 0 );
+			} while (pos < end_of_options_ && (*pos & 0xf0) == 0);
 		}
-		else if( COAP_OPTION_FORMAT[option_number] == COAP_FORMAT_OPAQUE )
+		*/
+		if (COAP_OPTION_FORMAT[option_number] == COAP_FORMAT_OPAQUE)
 		{
 			OpaqueData curr_value;
 			do
 			{
-				size_t len = optlen( pos );
+				size_t len = optlen(pos);
 				size_t value_start = (len >= 15) ? 2 : 1;
 
-				curr_value.set( pos + value_start, len );
-				values.push_back( curr_value );
+				curr_value.set(pos + value_start, len);
+				values.push_back(curr_value);
 				pos += value_start + len;
-			} while ( pos < end_of_options_ && ( *pos & 0xf0 ) == 0 );
+			} while (pos < end_of_options_ && (*pos & 0xf0) == 0);
 		}
 		else
 		{
