@@ -46,6 +46,7 @@ namespace wiselib
 
         static block_data_t* decode(block_data_t* in_)
         {
+			//DBG("decoding len=%d", (int)strlen((char*)in_));
             bitarray_t* in = reinterpret_cast<bitarray_t*> (in_);
             size_type sz = decode_internal(in, 0);
             char *out = get_allocator().template allocate_array<char>(sz + 1).raw();
