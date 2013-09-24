@@ -264,6 +264,10 @@ namespace wiselib {
 						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 						(int)se.is_active(radio_->id()));
 				#endif
+				#if INSE_DEBUG_STATE
+					debug_->debug("@%d +s %lx.%lx", (int)radio_->id(), (unsigned long)se.id().rule(),
+							(unsigned long)se.id().value());
+				#endif
 				
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
@@ -485,6 +489,10 @@ namespace wiselib {
 					debug_->debug("node %d SE %x.%x handover_state_initiator %d t %d count %d // produce_handover_initiator",
 						(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)now(), (int)se->token().count());
 				#endif
+					
+				#if INSE_DEBUG_STATE
+					debug_->debug("@%d phi%d", (int)radio_->id(), (int)(se->handover_state_initiator()));
+				#endif
 				
 				switch(se->handover_state_initiator()) {
 					case SemanticEntityT::SUPPLEMENTARY_INIT:
@@ -541,9 +549,9 @@ namespace wiselib {
 						
 					case SemanticEntityT::SEND_AGGREGATES_START: {
 						//debug_->debug("phi as");
-						//bool call_again;
 						
 				#if INSE_USE_AGGREGATOR
+						bool call_again;
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						
 						if(call_again) {
@@ -612,7 +620,7 @@ namespace wiselib {
 				#endif
 				
 				#if INSE_DEBUG_STATE
-					debug_->debug("chi: %c", (char)*message.payload());
+					debug_->debug("@%d chi%d %c", (int)radio_->id(), (int)(se->handover_state_initiator()), (char)*message.payload());
 				#endif
 				switch(*message.payload()) {
 					case 'a': {
@@ -655,7 +663,7 @@ namespace wiselib {
 					}
 						
 			#if INSE_USE_AGGREGATOR
-					case 'l':
+					case 'l': {
 						//debug_->debug("chi l");
 						int s = se->handover_state_initiator();
 						if(s >= SemanticEntityT::AGGREGATES_LOCKED_REMOTE && s < SemanticEntityT::AGGREGATES_LOCKED_REMOTE_GIVE_UP) {
@@ -670,6 +678,7 @@ namespace wiselib {
 							endpoint.request_send();
 						}
 						break;
+					}
 			#endif
 					case 'n':
 					default:
@@ -699,10 +708,12 @@ namespace wiselib {
 							(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_initiator(), (int)event, (int)now());
 				#endif
 				
-				//debug_->debug("ehi%c", event);
+				#if INSE_DEBUG_STATE
+					debug_->debug("@%d ehi%c", (int)radio_->id(), (char)event);
+				#endif
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
-						//debug_->debug("abrt i");
+						debug_->debug("@%d abrt i%d", (int)radio_->id(), (int)se->handover_state_initiator());
 						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
@@ -781,6 +792,9 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d SE %x.%x handover_state_recepient %d t %d // produce_handover_recepient", (int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)now());
 				#endif
+				#if INSE_DEBUG_STATE
+					debug_->debug("@%d phr%d", (int)radio_->id(), (int)se->handover_state_recepient());
+				#endif
 				
 				switch(se->handover_state_recepient()) {
 					case SemanticEntityT::SEND_ACTIVATING:
@@ -840,6 +854,9 @@ namespace wiselib {
 					debug_->debug("node %d SE %x.%x recepient_state %d t %d // consume_handover_recepient",
 							(int)radio_->id(), (int)se->id().rule(), (int)se->id().value(),
 							(int)se->handover_state_recepient(), (int)now());
+				#endif
+				#if INSE_DEBUG_STATE
+					debug_->debug("@%d chr%d", (int)radio_->id(), (int)se->handover_state_recepient());
 				#endif
 						
 				switch(se->handover_state_recepient()) {
@@ -926,6 +943,9 @@ namespace wiselib {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d SE %x.%x handover_state_recepient %d event %d t %d // event_handover_recipient",
 							(int)radio_->id(), (int)id.rule(), (int)id.value(), (int)se->handover_state_recepient(), (int)event, (int)now());
+				#endif
+				#if INSE_DEBUG_STATE
+					debug_->debug("@%d ehr%d %c", (int)radio_->id(), (int)se->handover_state_recepient(), (char)event);
 				#endif
 				
 				switch(event) {

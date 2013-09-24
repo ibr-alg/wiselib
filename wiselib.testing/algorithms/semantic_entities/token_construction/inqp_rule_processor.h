@@ -82,12 +82,13 @@ namespace wiselib {
 				//if(op == 0) { return; } // operator not found
 				//if(op->type() != QueryProcessor::CO
 				if(commtype != QueryProcessor::COMMUNICATION_TYPE_CONSTRUCTION_RULE) {
+					DBG("commtype = %d ex %d", (int)commtype, (int)QueryProcessor::COMMUNICATION_TYPE_CONSTRUCTION_RULE);
 					return;
 				}
 				
 				assert(columns == 1);
 				SemanticEntityId se_id(qid, row[0]);
-				//printf("---- adding SE\n");
+				DBG("---- adding SE\n");
 				construction_->add_entity(se_id);
 			}
 			
