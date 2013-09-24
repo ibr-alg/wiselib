@@ -30,7 +30,7 @@
 
 //#define INSE_SINK                      1
 #define USE_INQP                       1
-#define INSE_USE_AGGREGATOR            0
+#define INSE_USE_AGGREGATOR            1
 
 // Restrictions
 

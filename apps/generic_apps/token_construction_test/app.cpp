@@ -32,11 +32,9 @@ class App {
 			// Token Scheduler
 			 
 			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
-			/*
 			token_construction_.set_end_activity_callback(
 				TC::end_activity_callback_t::from_method<App, &App::on_end_activity>(this)
 			);
-			*/
 			token_construction_.disable_immediate_answer_mode();
 			
 			init_inqp();
@@ -190,6 +188,31 @@ class App {
 			rule_processor_.add_rule(qid, t, BIN(010), 2);
 		}
 	#endif
+		
+		
+		
+		#if INSE_USE_AGGREGATOR
+		typedef TC::SemanticEntityAggregatorT Aggregator;
+		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
+			if(radio_->id() == 0) { //se.root()) {
+				//debug_->debug("node %d // aggr setting totals", radio_->id());
+				aggregator.set_totals(se.id());
+			}
+			
+			debug_->debug("@%d // aggr local value", radio_->id());
+			aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
+			
+			debug_->debug("@%d // aggr begin list", (int)radio_->id());
+			for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
+				debug_->debug("@%d aggr SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+						(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
+						(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
+						(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
+						(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
+			}
+			debug_->debug("@%d // aggr end list", (int)radio_->id());
+		}
+		#endif
 		
 		abs_millis_t absolute_millis(const typename Os::Clock::time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
 		abs_millis_t now() { return absolute_millis(clock_->time()); }

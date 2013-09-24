@@ -52,7 +52,8 @@ namespace wiselib {
 			typedef Processor_P Processor;
 			typedef Operator<OsModel_P, Processor_P> Base;
 			typedef typename Base::Query Query;
-			typedef Collect<OsModel, Processor> self_type;
+			//typedef Collect<OsModel, Processor, COMMUNICATION_TYPE_P> self_type;
+			typedef Collect self_type;
 			
 			enum { COMMUNICATION_TYPE = COMMUNICATION_TYPE_P };
 			
@@ -75,6 +76,7 @@ namespace wiselib {
 						Base::Description::COLLECT : Base::Description::CONSTRUCTION_RULE,
 						query, id, parent_id, parent_port, projection
 				);
+					DBG("collect ctor %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
 				hardcore_cast(this->push_, &self_type::push);
 				count_ = 0;
 			}
@@ -99,7 +101,7 @@ namespace wiselib {
 					);
 				}
 				else {
-					DBG("collect %d", (int)count_);
+					DBG("collect %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
 					count_ = 0;
 				}
 				

@@ -176,8 +176,6 @@ namespace wiselib {
 			void push(size_type port, RowT& row) {
 				post_init();
 				
-				//DBG("aggr row F%d", (int)ArduinoMonitor<Os>::free());
-				
 				if(&row) {
 					size_type idx = find_matching_group(local_aggregates_, row);
 					if(idx == npos) {
@@ -285,18 +283,15 @@ namespace wiselib {
 			}
 			
 			void on_receive_row(RowT& row, node_id_t from) {
-				DBG("*-*-* aggr recv row -*-*-");
 				if(!child_states_.contains(from)) {
 					child_states_[from].init(aggregation_columns_physical_);
 				}
 					
 				size_type idx = find_matching_group(child_states_[from], row);
 				if(idx != npos) {
-				DBG("aggr set");
 					child_states_[from].set(idx, row);
 				}
 				else {
-				DBG("aggr ins");
 					child_states_[from].insert(row);
 				}
 				
@@ -311,7 +306,7 @@ namespace wiselib {
 				}
 				
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
-					DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
+					//DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
 					this->processor().send_row(
 							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
 							aggregation_columns_physical_, *iter, this->query().id(), this->id()
@@ -387,12 +382,12 @@ namespace wiselib {
 			void add_to_aggregate(RowT& aggregate, RowT& row) {
 				RowT *converted = RowT::create(aggregation_columns_physical_);
 				for(size_type i = 0; i < aggregation_columns_logical_; i++) {
-					DBG("ad op %d %d", (int)i, (operations_[i].init_ != 0));
+					//DBG("ad op %d %d", (int)i, (operations_[i].init_ != 0));
 					operations_[i].init(*converted, row);
 				}
-				DBG("ad merge");
+				//DBG("ad merge");
 				merge_aggregates(aggregate, *converted);
-				DBG("ad free");
+				 //BG("ad free");
 				converted->destroy();
 			}
 			
