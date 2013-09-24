@@ -152,6 +152,9 @@ namespace wiselib {
 								if(v < min()) { min() = v; }
 								if(v > max()) { max() = v; }
 								++count();
+								DBG("aggr mean v %ld m %ld c %ld (v-m) %ld (v-m)/c %ld",
+										(long)mean(), (long)v, (long)count(),
+										(long)(v - mean()), (long)((v - mean()) / count()));
 								mean() += (v - mean()) / count();
 							}
 							else {
@@ -205,6 +208,7 @@ namespace wiselib {
 			}
 			
 			void aggregate(const SemanticEntityId& se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
+				check();
 				AggregationKey k(se_id, sensor_type, uom, datatype);
 				if(aggregation_entries_.contains(k)) {
 					AggregationValue& v = aggregation_entries_[k];
@@ -235,6 +239,7 @@ namespace wiselib {
 			 * @return number of bytes written
 			 */
 			size_type fill_buffer_start(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				check();
 				shdt_.reset();
 				fill_buffer_iterator_ = aggregation_entries_.begin();
 				fill_buffer_state_ = FIELD_UOM;
@@ -245,6 +250,7 @@ namespace wiselib {
 			/// ditto.
 			size_type fill_buffer(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
 				//{{{
+				check();
 				
 				if(fill_buffer_iterator_ == aggregation_entries_.end()) {
 					call_again = false;
@@ -322,6 +328,7 @@ namespace wiselib {
 			/**
 			 */
 			void read_buffer_start(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
+				check();
 				shdt_.reset();
 				
 				typename AggregationEntries::iterator iter = aggregation_entries_.begin();
@@ -340,6 +347,8 @@ namespace wiselib {
 			 */
 			void read_buffer(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
 				//{{{
+				
+				check();
 				
 				typename Shdt::Reader reader(&shdt_, buffer, buffer_size);
 				bool done = true;
@@ -458,10 +467,14 @@ namespace wiselib {
 				}
 			}
 			
+			void check() {
+				assert(tuple_store_ != 0);
+			}
+			
 		private:
 			
 			int fill_buffer_state_;
-			const char* entity_format_;
+			//const char* entity_format_;
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			AggregationEntries aggregation_entries_;
 			typename AggregationEntries::iterator fill_buffer_iterator_;
