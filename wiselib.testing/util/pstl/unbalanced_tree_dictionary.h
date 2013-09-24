@@ -99,6 +99,8 @@ namespace wiselib {
 						if(node_->parent) {
 							bool right;
 							do {
+								if(!node_->parent) { node_ = 0; return *this; }
+								
 								right = (node_ == node_->parent->childs[Node::RIGHT]);
 								node_ = node_->parent;
 							} while(right);

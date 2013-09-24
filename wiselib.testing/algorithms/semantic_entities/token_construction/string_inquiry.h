@@ -66,6 +66,7 @@ namespace wiselib {
 			typedef StringInquiryMessage<OsModel, Radio, Value, MESSAGE_TYPE_INQUIRY> InquiryMessageT;
 			typedef StringInquiryAnswerMessage<OsModel, Radio, Value, MESSAGE_TYPE_ANSWER> AnswerMessageT;
 			typedef delegate2<void, Value, const char*> answer_delegate_t;
+			typedef StringInquiry self_type;
 			
 			class StringConstruction {
 				public:
@@ -91,12 +92,16 @@ namespace wiselib {
 					}
 					
 					bool complete() {
+						DBG("resolv complete: '%s' l=%d strlen=%d", string_, (int)length_, (int)strlen(string_));
 						char *end = string_ + length_;
 						for(char *p = string_; p < end; p++) {
 							if(*p == 0) { return false; }
 						}
 						return true;
 					}
+					
+					char* string() { return string_; }
+					
 				private:
 					size_type length_;
 					char *string_;
@@ -104,6 +109,12 @@ namespace wiselib {
 			
 			void init(typename Radio::self_pointer_t radio, typename QueryProcessor::self_pointer_t qp) {
 				radio_ = radio;
+				radio_->set_accept_callback(
+						Radio::accept_delegate_t::template from_method<
+							self_type, &self_type::accept
+						>(this)
+				);
+				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				query_processor_ = qp;
 			}
 			
@@ -115,21 +126,24 @@ namespace wiselib {
 				InquiryMessageT msg;
 				msg.set_scope(scope);
 				msg.set_hash(hash);
-				radio_.send(msg.data_size(), msg.data());
+				radio_->send(scope, msg.size(), msg.data());
 			}
 			
-			void on_receive(const SemanticEntityId& from, typename Radio::size_t len, typename Radio::block_data_t* data) {
+			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t* data) {
 				typename Radio::message_id_t t;
 				t = wiselib::read<OsModel, block_data_t, typename Radio::message_id_t>(data);
 				
+				DBG("resolv recv t%d", (int)t);
 				if(t == MESSAGE_TYPE_ANSWER) {
-					AnswerMessageT &msg = *reinterpret_cast<AnswerMessageT>(data);
+				DBG("resolv recv ans");
+					AnswerMessageT &msg = *reinterpret_cast<AnswerMessageT*>(data);
 					Value h = msg.hash();
 					if(!constructing_.contains(h)) {
-						constructing_[h].init(msg.total_string_length());
+						constructing_[h].init(msg.total_length());
 					}
-					constructing_[h].add(msg.part_offset(), msg.part_length(), msg.part());
+					constructing_[h].add(msg.offset(), msg.length(), msg.part());
 					if(constructing_[h].complete()) {
+				DBG("resolv recv ans complete");
 						//notify_receivers(h, constructing_[h].string());
 						if(answer_delegate_) {
 							answer_delegate_(h, constructing_[h].string());
@@ -140,33 +154,38 @@ namespace wiselib {
 				}
 			}
 			
-			bool accept(const typename Radio::MessageT& m) {
+			bool accept(typename Radio::MessageT& m) {
 				typename Radio::message_id_t t;
 				t = wiselib::read<OsModel, block_data_t, typename Radio::message_id_t>(m.payload());
+				DBG("resolv accpt t=%d", (int)t);
 				if(t == MESSAGE_TYPE_INQUIRY) {
-					InquiryMessageT &msg = *reinterpret_cast<InquiryMessageT>(m.payload());
+				DBG("resolv accpt inq");
+					InquiryMessageT &msg = *reinterpret_cast<InquiryMessageT*>(m.payload());
 					Value h = msg.hash();
 					DictionaryKey k = reverse_translator().translate(h);
 					if(k == Dictionary::NULL_KEY) {
 						return false;
 					}
-					block_data_t *string = dictionary()->get_value(k);
-					size_type len = strlen((char*)string) + 1;
+				DBG("resolv accpt inq key");
+					block_data_t *string = dictionary().get_value(k);
+					size_type len = strlen((char*)string);
 					size_type bytes_sent = 0;
 					
 					AnswerMessageT ans;
 					ans.set_hash(h);
 					ans.set_total_length(len);
 					while(bytes_sent < len) {
-						size_type l = min(len - bytes_sent, AnswerMessageT::MAX_PAYLOAD_SIZE);
-						ans.set_part(l, string + bytes_sent);
+						size_type l = min<size_type>(len - bytes_sent, AnswerMessageT::MAX_PAYLOAD_SIZE);
+				DBG("resolv accpt inq send part l=%d p=%s", (int)l, (char*)(string + bytes_sent));
+						ans.set_part(l, (const char*)(string + bytes_sent));
 						radio_->send(SemanticEntityId::all(), ans.data_size(), ans.data());
 						bytes_sent += l;
 					}
-					dictionary()->free_value(string);
+					dictionary().free_value(string);
 					return true;
 				}
 				else if(t == MESSAGE_TYPE_ANSWER) {
+				DBG("resolv accpt ans");
 					return true;
 				}
 				return false;

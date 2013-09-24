@@ -79,6 +79,9 @@ namespace wiselib {
 			void set_hash(Value v) {
 				wiselib::write<OsModel>(data_ + POS_HASH, v);
 			}
+			
+			block_data_t *data() { return data_; }
+			size_type size() { return POS_END; }
 		
 		private:
 			block_data_t data_[POS_END];

@@ -76,7 +76,7 @@ namespace wiselib {
 						Base::Description::COLLECT : Base::Description::CONSTRUCTION_RULE,
 						query, id, parent_id, parent_port, projection
 				);
-					DBG("collect ctor %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
+					//DBG("collect ctor %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
 				hardcore_cast(this->push_, &self_type::push);
 				count_ = 0;
 			}
@@ -101,7 +101,7 @@ namespace wiselib {
 					);
 				}
 				else {
-					DBG("collect %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
+					//DBG("collect %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
 					count_ = 0;
 				}
 				

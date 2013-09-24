@@ -152,10 +152,23 @@ namespace wiselib {
 								if(v < min()) { min() = v; }
 								if(v > max()) { max() = v; }
 								++count();
-								DBG("aggr mean v %ld m %ld c %ld (v-m) %ld (v-m)/c %ld",
+								DBG("aggr mean m %ld v %ld c %ld (v-m) %ld (v-m)/c %ld",
 										(long)mean(), (long)v, (long)count(),
-										(long)(v - mean()), (long)((v - mean()) / count()));
-								mean() += (v - mean()) / count();
+										(long)((long long)v - (long long)mean()), (long)(((long long)v - (long long)mean()) / (long long)count()));
+								mean() += ((long long)v - (long long)mean()) / (long long)count();
+							}
+							else if(datatype == FLOAT) {
+								float fv = *reinterpret_cast<float*>(&v);
+								float fmean = *reinterpret_cast<float*>(&mean());
+								float fmin = *reinterpret_cast<float*>(&min());
+								float fmax = *reinterpret_cast<float*>(&max());
+								
+								if(fv < fmin) { fmin = fv; }
+								if(fv > fmax) { fmax = fv; }
+								++count();
+								
+								float fmean2 = (fv - fmean) / count();
+								mean() = *reinterpret_cast<Value*>(&fmean2);
 							}
 							else {
 								assert(false && "datatype not supported for aggregation!");
@@ -225,7 +238,11 @@ namespace wiselib {
 			 */
 			void set_totals(const SemanticEntityId& se_id) {
 				for(iterator iter = begin(); iter != end(); ++iter) {
-					if(iter->first.se_id() != se_id) { continue; }
+					if(iter->first.se_id() != se_id) {
+						//DBG("set_totals: %lx.%lx != %lx.%lx", (long)iter->first.se_id().rule(), (long)iter->first.se_id().value(),
+								//(long)se_id.rule(), (long)se_id.value());
+						continue;
+					}
 					iter->second.set_totals();
 				}
 			}
@@ -422,11 +439,11 @@ namespace wiselib {
 							}
 							
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
-							//DBG("aggr read_buffer SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-									//(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
-									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
-									//(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
-									//(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
+							DBG("aggr read_buffer SE %2d.%08lx typedct %8lx uomdct %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+									(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
+									(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
+									(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
+									(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
 							read_buffer_key_.init();
 							break;
 						}

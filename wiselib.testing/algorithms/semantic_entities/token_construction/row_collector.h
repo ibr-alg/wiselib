@@ -131,6 +131,8 @@ namespace wiselib {
 			void on_receive(typename Radio::node_id_t from,
 					typename Radio::size_t len,
 					typename Radio::block_data_t *data) {
+				if(len == 0) { return; }
+				
 				ResultMessage &message =* reinterpret_cast<ResultMessage*>(data);
 				if(message.message_id() != INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT) { return; }
 				

@@ -50,10 +50,14 @@ class App {
 				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
 				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
 			#endif
+				
+			debug_->debug("hash(temp)=%s", STRHASH("<http://spitfire-project.eu/property/Temperature>"));
+			debug_->debug("hash(centigrade)=%s", STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
 			
 			debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
 			timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
+			timer_->set_timer<App, &App::query_strings>(400000000UL, this, 0);
 		}
 		
 		void init_blockmemory() {
@@ -200,11 +204,26 @@ class App {
 		typedef TC::SemanticEntityAggregatorT Aggregator;
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
 			
-			//debug_->debug("@%d aggr local value: type %8lx uom %8lx datatype %d", (int)radio_->id(),
-					//(unsigned long)aggr_key_temp_, (unsigned long)aggr_key_centigrade_, (int)Aggregator::INTEGER);
-			aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
-			
 			if(radio_->id() == 0) {
+				debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
+				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
+					debug_->debug("@%d aggr BEFORE SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+							(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
+							(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
+							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
+							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
+				}
+				
+				debug_->debug("@%d aggr end list BEFORE", (int)radio_->id());
+				
+				
+				
+				aggregator.set_totals(se.id());
+				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
+				
+				
+				
+				
 				debug_->debug("@%d aggr begin list", (int)radio_->id());
 				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
 					debug_->debug("@%d aggr SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
@@ -214,22 +233,17 @@ class App {
 							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
 				}
 				debug_->debug("@%d aggr end list", (int)radio_->id());
+				
+			}
+			else {
+				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
 			}
 			
-			if(radio_->id() == 0) { //se.root()) {
-				//debug_->debug("node %d // aggr setting totals", radio_->id());
-				aggregator.set_totals(se.id());
-			}
 		}
 		#endif
 		
 		abs_millis_t absolute_millis(const typename Os::Clock::time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
 		abs_millis_t now() { return absolute_millis(clock_->time()); }
-		
-	
-	
-
-	//#if INSE_SINK
 		
 		//
 		// Actions to perform
@@ -292,6 +306,19 @@ class App {
 		}
 		#endif // USE_INQP
 		
+		
+		void query_strings(void*) {
+			// The SE from semantics_uniform
+			string_inquiry_.inquire(SemanticEntityId::all(), 0xda00726c);
+			
+			// sensor type
+			string_inquiry_.inquire(SemanticEntityId::all(), 0x019043b0);
+			
+			// uom
+			string_inquiry_.inquire(SemanticEntityId::all(), 0x01903600);
+		}
+		
+		
 		//
 		// Reactions to events in the network
 		// 
@@ -325,9 +352,6 @@ class App {
 		} // on_result_row()
 	
 		#endif // USE_INQP
-	
-	//#endif
-		
 		
 		
 		//

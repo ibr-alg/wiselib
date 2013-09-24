@@ -451,9 +451,9 @@ namespace wiselib {
 						};
 						
 						while((p + QID_SIZE) <= end && s.query_iterator() != queries_.end()) {
-							::uint8_t role = s.query_iterator()->second.role();
-							wiselib::write<OsModel>(p, role);
-							p += sizeof(::uint8_t);
+							//::uint8_t role = s.query_iterator()->second.role();
+							//wiselib::write<OsModel>(p, role);
+							//p += sizeof(::uint8_t);
 							
 							query_id_t qid = (query_id_t)s.query_iterator()->second.id();
 							wiselib::write<OsModel>(p, qid);
@@ -696,15 +696,13 @@ namespace wiselib {
 							//::uint8_t role
 							query_id_t qid;
 							revision_t rev;
+							
+							assert(end - p >= 2);
+							assert((end - p) % 2 == 0);
 							//wiselib::read<OsModel>(p, role); p += sizeof(::uint8_t);
 							wiselib::read<OsModel>(p, qid); p += sizeof(query_id_t);
 							wiselib::read<OsModel>(p, rev); p += sizeof(revision_t);
 							
-							//if(qid == 0) { break; }
-							
-							// TODO
-							//if(role == STRING_INQUIRY) {
-								
 							
 							typename QueryDescriptions::iterator it = queries_.begin();
 							for( ; it != queries_.end(); ++it) {
