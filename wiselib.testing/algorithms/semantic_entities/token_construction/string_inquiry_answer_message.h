@@ -108,13 +108,15 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_LENGTH, v);
 			}
 			
+			char* part() { return (char*)(data_ + POS_STRING); }
+			
 			void set_part(length_t l, const char *s) {
 				set_length(l);
 				memcpy(data_ + POS_STRING, s, l);
 			}
 			
 			size_type data_size() { return HEADER_SIZE + length(); }
-			block_data_t* data() { return data_ + POS_STRING; }
+			block_data_t* data() { return data_; }
 		
 		private:
 			block_data_t data_[Radio::MAX_MESSAGE_LENGTH];

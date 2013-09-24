@@ -83,16 +83,18 @@ namespace wiselib {
 			 * @return true if there is a next message.
 			 */
 			bool next(length_t& size, block_data_t*& data) {
-				if(buffer_position_ > buffer_size_) {
+				if(buffer_position_ >= buffer_size_) {
 					size = 0;
 					data = 0;
+					return false;
 				}
 				else {
+					assert(buffer_position_ + sizeof(length_t) <= buffer_size_);
 					size = wiselib::read<OsModel, block_data_t, length_t>(buffer_ + buffer_position_);
 					data = buffer_ + buffer_position_ + sizeof(length_t);
 					buffer_position_ += sizeof(length_t) + size;
+					return true;
 				}
-				return buffer_position_ <= buffer_size_;
 			}
 			
 		private:

@@ -142,6 +142,7 @@ namespace wiselib {
 				 * How long should we keep the token once we have it?
 				 */
 				ACTIVITY_PERIOD = 10000 * WISELIB_TIME_FACTOR,
+				ACTIVITY_PERIOD_ROOT = 100 * WISELIB_TIME_FACTOR,
 			};
 			
 			// }}}
@@ -153,6 +154,7 @@ namespace wiselib {
 						PacketInfo *r = reinterpret_cast<PacketInfo*>(
 							::get_allocator().template allocate_array<block_data_t>(sizeof(PacketInfo) + len).raw()
 						);
+						memset(r, 0x99, sizeof(PacketInfo) + len);
 						r->received_ = received;
 						r->from_ = from;
 						r->len_ = len;
@@ -910,6 +912,7 @@ namespace wiselib {
 					
 					case SemanticEntityT::RECV_AGGREGATES_START: {
 				#if INSE_USE_AGGREGATOR
+						debug_->debug("@%d aggr %d s", (int)radio_->id(), (int)endpoint.remote_address());
 						aggregator_.read_buffer_start(message.channel(), message.payload(), message.payload_size());
 				#endif
 						se->set_handover_state_recepient(SemanticEntityT::RECV_AGGREGATES);
@@ -918,6 +921,7 @@ namespace wiselib {
 					
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::RECV_AGGREGATES: {
+						debug_->debug("@%d aggr %d c", (int)radio_->id(), (int)endpoint.remote_address());
 						aggregator_.read_buffer(message.channel(), message.payload(), message.payload_size());
 						break;
 					}
@@ -1025,7 +1029,7 @@ namespace wiselib {
 				// begin_activity might have been called at beginning
 				// and then again (during the actual activity)
 				if(se.in_activity_phase()) { return; }
-         
+				
 				#ifdef ARDUINO
 					digitalWrite(13, HIGH);
 				#endif
@@ -1052,7 +1056,9 @@ namespace wiselib {
 							(int)se.in_activity_phase());
 				#endif
 				
-				timer_->template set_timer<self_type, &self_type::end_activity>(ACTIVITY_PERIOD, this, reinterpret_cast<void*>(&se));
+				timer_->template set_timer<self_type, &self_type::end_activity>(
+						(radio_->id() == tree().root()) ? ACTIVITY_PERIOD_ROOT : ACTIVITY_PERIOD,
+						this, reinterpret_cast<void*>(&se));
 			}
 			
 			

@@ -102,7 +102,7 @@ namespace wiselib {
 			typedef SemanticEntityRegistry_P SemanticEntityRegistryT;
 			typedef SemanticEntityAmqNeighorhood_P SemanticEntityAmqNeighorhoodT;
 			typedef typename SemanticEntityAmqNeighorhoodT::GlobalTreeT TreeT;
-			typedef delegate1<bool, const MessageT&> accept_delegate_t;
+			typedef delegate1<bool, MessageT&> accept_delegate_t;
 			typedef set_static<OsModel, radio_node_id_t, INSE_MAX_NEIGHBORS> FalsePositives;
 			
 			enum ReturnValues {
@@ -162,14 +162,18 @@ namespace wiselib {
 			
 			int send(node_id_t se_id, size_t size, block_data_t* data) {
 				MessageT msg;
+				msg.init(se_id, size, data);
+				
+				DBG("@%d anyc send", (int)radio_->id());
+				
 				if(radio_->id() == tree().root()) {
-					if(se_id.is_root() || registry_->contains(se_id)) {
+					msg.set_downwards();
+					//if((se_id.is_root() || registry_->contains(se_id)) && accept) {
+					if(accept(msg)) {
 						this->notify_receivers(se_id, size, data);
 						return SUCCESS;
 					}
 					else {
-						msg.init(se_id, size, data);
-						msg.set_downwards();
 						return try_enqueue_down(msg) ? SUCCESS : ERR_UNSPEC;
 					}
 				}
@@ -383,11 +387,11 @@ namespace wiselib {
 			///@{
 			
 			//bool accept(const SemanticEntityId& id) {
-			bool accept(const MessageT& msg) {
+			bool accept(MessageT& msg) {
 				// The root accepts all upward messages
-				if(radio_->id() == tree().root() && msg.is_upwards()) {
-					return true;
-				}
+				//if(radio_->id() == tree().root() && msg.is_upwards() && !accept_delegate_) {
+					//return true;
+				//}
 				
 				// if we are not in the correct entity, we cant be a valid
 				// target

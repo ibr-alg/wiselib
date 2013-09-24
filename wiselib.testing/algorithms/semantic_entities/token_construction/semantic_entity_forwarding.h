@@ -166,8 +166,8 @@ namespace wiselib {
 				//   forward it by se_id using amq
 				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator() != msg.is_ack());
 				if(target == NULL_NODE_ID) {
-					DBG("node %d SE %x.%x // forwarding ignores s %d fwd %d cidx %d",
-							(int)radio_->id(), (int)se_id.rule(), (int)se_id.value(),
+					DBG("node %d SE %lx.%lx // forwarding ignores s %d fwd %d cidx %d",
+							(int)radio_->id(), (long)se_id.rule(), (long)se_id.value(),
 							(int)msg.sequence_number(), (int)(msg.initiator() != msg.is_ack()),
 							(int)amq_nhood_->tree().child_index(from)
 							);
