@@ -197,10 +197,10 @@ namespace wiselib {
 					// Immidiate Answer Mode: Are we forwarding a token
 					// upwards?
 					// 
-					debug_->debug("@%d fwd from %d to %d par %d i%d a%d l %d '%c'",
+					debug_->debug("@%d fwd from %d to %d par %d i%d a%d l %d *m=%x",
 							(int)radio_->id(), (int)from, (int)target,
 							(int)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
-							(int)msg.payload_size(), *msg.payload());
+							(int)msg.payload_size(), (msg.payload_size() == 0) ? (int)0 : (int)*msg.payload());
 					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && from == amq_nhood_->tree().parent()) {
 						if(iam_lost_callback_) {
 							debug_->debug("@%d fwd iam--", (int)radio_->id());

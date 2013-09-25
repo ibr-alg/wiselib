@@ -51,13 +51,13 @@ class App {
 				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
 			#endif
 				
-			debug_->debug("hash(temp)=%s", STRHASH("<http://spitfire-project.eu/property/Temperature>"));
-			debug_->debug("hash(centigrade)=%s", STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
+			//debug_->debug("hash(temp)=%lx", (long)STRHASH("<http://spitfire-project.eu/property/Temperature>"));
+			//debug_->debug("hash(centigrade)=%lx", (long)STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
 			
 			debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
-			timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
-			timer_->set_timer<App, &App::query_strings>(400000000UL, this, 0);
+			//timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
+			timer_->set_timer<App, &App::query_strings>(500000000UL, this, 0);
 		}
 		
 		void init_blockmemory() {
@@ -311,11 +311,6 @@ class App {
 			// The SE from semantics_uniform
 			string_inquiry_.inquire(SemanticEntityId::all(), 0xda00726c);
 			
-			// sensor type
-			string_inquiry_.inquire(SemanticEntityId::all(), 0x019043b0);
-			
-			// uom
-			string_inquiry_.inquire(SemanticEntityId::all(), 0x01903600);
 		}
 		
 		
