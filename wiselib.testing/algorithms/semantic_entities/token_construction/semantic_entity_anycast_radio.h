@@ -410,7 +410,9 @@ namespace wiselib {
 				// if the user-provided accept delegate is false, we are not a
 				// valid target either
 				if(accept_delegate_ && !accept_delegate_(msg)) {
-					debug_->debug("@%d anyc !ac dg", (int)radio_->id());
+					#if INSE_ANYCAST_DEBUG_STATE
+						debug_->debug("@%d anyc !ac dg", (int)radio_->id());
+					#endif
 					return false;
 				}
 				

@@ -29,7 +29,7 @@
 // App features
 
 //#define INSE_SINK                      1
-#define USE_INQP                       1
+#define USE_INQP                       0
 #define INSE_USE_AGGREGATOR            1
 
 // Restrictions
@@ -74,20 +74,38 @@
 	#define USE_INQP                   0
 	#define INSE_USE_AGGREGATOR        0
 	#define BITMAP_ALLOCATOR_RAM_SIZE  1024
-
+	
+	
+#elif defined(CONTIKI_TARGET_sky)
+	#define CHECK_INVARIANTS               0
+	#define DISTRIBUTOR_DEBUG_STATE        0
+	#define INSE_DEBUG_STATE               0
+	#define INSE_DEBUG_TREE                0
+	#define INSE_ANYCAST_DEBUG_STATE       0
+	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
+	#define NAP_CONTROL_DEBUG_STATE        0
+	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+	#define WISELIB_DISABLE_DEBUG          1
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+	
+	#define WISELIB_TIME_FACTOR            1
+	#define INSE_FORWARDING_MAP_BITS       1024
+	#define INSE_FORWARDING_SLOT_LENGTH    1000
+	
+	
 #elif defined(SHAWN)
 	// stretch time by factor 100 to improve timer resolution
 	#undef WISELIB_TIME_FACTOR
 	#define WISELIB_TIME_FACTOR        100
-
+	
 	#undef INSE_DEBUG_TREE
 	#define INSE_DEBUG_TREE            1
-
+	
 	// we have the RAM, cut some slack for the algorithms
 	
 	#undef INSE_MAX_NEIGHBORS
 	#define INSE_MAX_NEIGHBORS         100
-
+	
 	#undef INSE_MAX_SEMANTIC_ENTITIES
 	#define INSE_MAX_SEMANTIC_ENTITIES 10
 #endif
