@@ -98,6 +98,8 @@ namespace wiselib {
 					radio_->enable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
 						debug_->debug("@%d on t%d %s", (int)radio_->id(), (int)(now() & 0xffff), s); // (int)radio_->id());
+					#elif NAP_CONTROL_DEBUG_ONOFF
+						debug_->debug("@%d on t%lu", (int)radio_->id(), (unsigned long)(now())); // (int)radio_->id());
 					#endif
 				}
 				caffeine_++;
@@ -106,7 +108,7 @@ namespace wiselib {
 					debug_->debug("@%d caf%d %s", (int)radio_->id(), (int)caffeine_, s);
 				#endif
 				#if !WISELIB_DISABLE_DEBUG
-				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
+					debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
 				#endif
 			}
 			
@@ -129,6 +131,8 @@ namespace wiselib {
 					radio_->disable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
 						debug_->debug("@%d off t%d %s", (int)radio_->id(), (int)(now() & 0xffff), s); //, (int)radio_->id());
+					#elif NAP_CONTROL_DEBUG_ONOFF
+						debug_->debug("@%d off t%lu", (int)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
 					#endif
 				}
 			}

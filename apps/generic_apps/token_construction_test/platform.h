@@ -7,10 +7,12 @@
 #define CHECK_INVARIANTS               (defined(SHAWN))
 #define DISTRIBUTOR_DEBUG_STATE        1
 #define INSE_DEBUG_STATE               1
+#define INSE_DEBUG_TOKEN               1
 #define INSE_DEBUG_TREE                1
 #define INSE_ANYCAST_DEBUG_STATE       1
 #define INSE_ROW_COLLECTOR_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        1
+#define NAP_CONTROL_DEBUG_ONOFF        1
 #define RELIABLE_TRANSPORT_DEBUG_STATE 1
 #define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
 #define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
@@ -29,8 +31,8 @@
 // App features
 
 //#define INSE_SINK                      1
-#define USE_INQP                       0
-#define INSE_USE_AGGREGATOR            1
+#define USE_INQP                       1
+#define INSE_USE_AGGREGATOR            0
 
 // Restrictions
 
@@ -77,21 +79,30 @@
 	
 	
 #elif defined(CONTIKI_TARGET_sky)
+	#define INSE_USE_AGGREGATOR            0
+	#define USE_INQP                  0
+
 	#define CHECK_INVARIANTS               0
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
+	#define INSE_DEBUG_TOKEN               0
+	#define INSE_DEBUG_TOPOLOGY            0
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
 	#define NAP_CONTROL_DEBUG_STATE        0
+	#define NAP_CONTROL_DEBUG_ONOFF        0
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_FORWARDING_MAP_BITS       1024
-	#define INSE_FORWARDING_SLOT_LENGTH    1000
+	#define INSE_FORWARDING_MAP_BITS       512
+	#define INSE_FORWARDING_SLOT_LENGTH    2000
 	
+	#define INSE_MAX_NEIGHBORS             16
+	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_QUERIES               0
 	
 #elif defined(SHAWN)
 	// stretch time by factor 100 to improve timer resolution

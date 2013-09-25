@@ -25,7 +25,7 @@ typedef Sdbm<Os> Hash;
 typedef Tuple<Os> TupleT;
 
 
-#define SINK_ID 57
+//#define SINK_ID 57
 
 //
 // Tuple Container
@@ -46,7 +46,7 @@ typedef Tuple<Os> TupleT;
 #elif USE_VECTOR_CONTAINER
 	#include <util/pstl/vector_static.h>
 	#include <util/pstl/unique_container.h>
-	typedef wiselib::vector_static<Os, TupleT, 100> TupleList;
+	typedef wiselib::vector_static<Os, TupleT, 20> TupleList;
 	typedef wiselib::UniqueContainer<TupleList> TupleContainer;
 	
 #elif USE_BLOCK_CONTAINER

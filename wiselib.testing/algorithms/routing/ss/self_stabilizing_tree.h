@@ -354,7 +354,7 @@ namespace wiselib {
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
 					if(regular_broadcasts_.full() && !regular_broadcasts_.contains(from)) {
-						debug_->debug("ign neigh %d", (int)from);
+						debug_->debug("ignN %d", (int)from);
 						
 						// Just ignore this neighbor.
 						// Note / TODO: for stable behaviour make this
@@ -492,8 +492,8 @@ namespace wiselib {
 						
 						node_id_t addr = iter->address_;
 						
-						#if INSE_DEBUG_STATE
-							debug_->debug("lost %d", (int)addr);
+						#if (INSE_DEBUG_STATE || INSE_DEBUG_WARNING)
+							debug_->debug("@%lu lost %lu", (unsigned long)radio_->id(), (unsigned long)addr);
 						#endif
 						
 						size_type sz = neighbor_entries_.size();
@@ -566,9 +566,9 @@ namespace wiselib {
 				
 				
 				if(c || updated_neighbors_) {
-					#if INSE_DEBUG_STATE
-						debug_->debug("@%d p=%d d=%d rt=%d c=%d t=%d",
-									(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (int)(now() % 65536)/*, hex*/);
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY)
+						debug_->debug("@%d p%d d%d rt%d c%d t%lu",
+									(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (unsigned long)now()); //(int)(now() % 65536)/*, hex*/);
 					#endif
 						
 						

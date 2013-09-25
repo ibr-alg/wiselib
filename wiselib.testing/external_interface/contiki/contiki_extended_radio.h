@@ -25,6 +25,8 @@
 #include "util/base_classes/extended_radio_base.h"
 #include "util/base_classes/base_extended_data.h"
 #include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
 extern "C" {
 #include "contiki.h"
 #include "net/rime.h"
@@ -81,7 +83,7 @@ namespace wiselib
       };
       // --------------------------------------------------------------------
       enum Restrictions {
-         MAX_MESSAGE_LENGTH = PACKETBUF_SIZE ///< Maximal number of bytes in payload
+         MAX_MESSAGE_LENGTH = PACKETBUF_SIZE - 2*sizeof(node_id_t) ///< Maximal number of bytes in payload
       };
       // --------------------------------------------------------------------
       void init()
@@ -113,7 +115,12 @@ namespace wiselib
       // --------------------------------------------------------------------
       int send( node_id_t dest, size_t len, block_data_t *data )
       {
+         //printf("l%d PB%d L%d\n", (int)len, (int)PACKETBUF_SIZE, (int)MAX_MESSAGE_LENGTH);
          uint8_t buf[PACKETBUF_SIZE];
+         if(len > MAX_MESSAGE_LENGTH) {
+            printf("!s %d>%d\n", (int)len, (int)MAX_MESSAGE_LENGTH);
+            return ERR_UNSPEC;
+         }
 
          // wirte own id and destination in first 4 bytes of buffer
          uint16_t addr = id();
@@ -124,7 +131,11 @@ namespace wiselib
 
          packetbuf_clear();
          packetbuf_copyfrom( buf, len + 2*sizeof(node_id_t) );
-         abc_send( &contiki::contiki_extdata_radio_conn );
+         if(abc_send( &contiki::contiki_extdata_radio_conn ) == 0) {
+            printf("!s %d+%d\n", (int)len, (int)2*sizeof(node_id_t));
+            return ERR_UNSPEC;
+         }
+
          return SUCCESS;
       }
       // --------------------------------------------------------------------
@@ -154,3 +165,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

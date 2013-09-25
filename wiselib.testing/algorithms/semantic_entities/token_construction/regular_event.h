@@ -77,18 +77,44 @@ namespace wiselib {
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
-			enum Restrictions { MIN_WINDOW_SIZE = 100 * WISELIB_TIME_FACTOR, EARLY_HITS = 2 };
+			enum Restrictions {
+				MIN_WINDOW_SIZE = 100 * WISELIB_TIME_FACTOR,
+				EARLY_HITS = 2,
+				TOLERATE_MISSES = 1,
+			};
 			
 			// }}}
 			
 			RegularEvent() : last_encounter_(0), interval_(1000 * WISELIB_TIME_FACTOR), window_(1000 * WISELIB_TIME_FACTOR),
-				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false) {
+				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false), tolerate_misses_(TOLERATE_MISSES * 2) {
 			}
 			
 			void hit(abs_millis_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
+				// has the interval almost doubled (or more)?
+				// in that case, and if we (still) tolerate misses, just fake
+				// the last encounter
+				// 
+				// tolerate_misses_ idea:
+				// just resetting the counter on a successful hit will allow
+				// double frequency wakeups if interval actually doubles.
+				// by subtracting more on a miss than gaining on a non-miss,
+				// there need to be at least to non-misses (ie. one rhoughly
+				// correctly estimated interval), before we allow misses
+				// again.
+				// 
+				if(t - last_encounter_ >= 1.8 * interval_ && tolerate_misses_ >= 2) {
+					last_encounter_ += interval_;
+					tolerate_misses_ -= 2;
+				}
+				else if(tolerate_misses_ < TOLERATE_MISSES) {
+					tolerate_misses_++;
+				}
+				
+				
 				abs_millis_t new_interval = t - last_encounter_;
 				
 				if(new_interval < DUPE_INTERVAL) { return; }
+				
 				
 				#if !WISELIB_DISABLE_DEBUG_MESSAGES
 					abs_millis_t old_interval = interval_;
@@ -318,6 +344,7 @@ namespace wiselib {
 			//abs_millis_t window_;
 			::uint32_t interval_; // 2
 			::uint32_t window_; // 2
+			::uint8_t tolerate_misses_;
 			
 			// 1
 			::uint8_t hits_ : 2;
