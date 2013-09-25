@@ -197,13 +197,13 @@ namespace wiselib {
 					// Immidiate Answer Mode: Are we forwarding a token
 					// upwards?
 					// 
-					debug_->debug("@%d fwd from %d to %d par %d i%d a%d l %d *m=%x",
-							(int)radio_->id(), (int)from, (int)target,
-							(int)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
-							(int)msg.payload_size(), (msg.payload_size() == 0) ? (int)0 : (int)*msg.payload());
+					//debug_->debug("@%d fwd from %d to %d par %d i%d a%d l %d *m=%x",
+							//(int)radio_->id(), (int)from, (int)target,
+							//(int)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
+							//(int)msg.payload_size(), (msg.payload_size() == 0) ? (int)0 : (int)*msg.payload());
 					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && from == amq_nhood_->tree().parent()) {
 						if(iam_lost_callback_) {
-							debug_->debug("@%d fwd iam--", (int)radio_->id());
+							//debug_->debug("@%d fwd iam--", (int)radio_->id());
 							iam_lost_callback_();
 						}
 					}
@@ -211,7 +211,7 @@ namespace wiselib {
 					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && target == amq_nhood_->tree().parent()) {
 						
 						if(iam_new_callback_) {
-							debug_->debug("@%d fwd iam++", (int)radio_->id());
+							//debug_->debug("@%d fwd iam++", (int)radio_->id());
 							iam_new_callback_();
 						}
 					}
@@ -365,7 +365,9 @@ namespace wiselib {
 					next_map().set(pos - map_slots_, true);
 				}
 				else {
-					debug_->debug("@%d fwd !len %d>=2*%d", (int)radio_->id(), (int)pos, (int)map_slots_);
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_WARNING)
+						debug_->debug("@%d fwd !len %d>=2*%d", (int)radio_->id(), (int)pos, (int)map_slots_);
+					#endif
 				}
 			}
 				

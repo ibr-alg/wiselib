@@ -83,7 +83,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 600 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 10 * WISELIB_TIME_FACTOR,
+				RESEND_TIMEOUT = 600 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 100 * WISELIB_TIME_FACTOR,
 				MAX_RESENDS = 3, ANSWER_TIMEOUT = 3 * RESEND_TIMEOUT,
 			};
 			
@@ -769,7 +769,7 @@ namespace wiselib {
 						debug_->debug("%d not send to %d", (int)radio_->id(), (int)addr);
 					#endif
 				}
-				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, v);
+				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT + (rand_->operator()() % RESEND_RAND_ADD), this, v);
 			}
 			
 			void ack_timeout(void *at_) {

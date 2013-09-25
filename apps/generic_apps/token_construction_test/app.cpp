@@ -16,6 +16,7 @@ class App {
 			radio_->enable_radio();
 			rand_->srand(radio_->id());
 			monitor_.init(debug_);
+			monitor_.report("bt");
 			
 			// TupleStore
 			
@@ -32,9 +33,12 @@ class App {
 			// Token Scheduler
 			 
 			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
-			token_construction_.set_end_activity_callback(
-				TC::end_activity_callback_t::from_method<App, &App::on_end_activity>(this)
-			);
+			
+			#if INSE_USE_AGGREGATOR
+				token_construction_.set_end_activity_callback(
+					TC::end_activity_callback_t::from_method<App, &App::on_end_activity>(this)
+				);
+			#endif
 			token_construction_.disable_immediate_answer_mode();
 			
 			init_inqp();
@@ -54,8 +58,9 @@ class App {
 			//debug_->debug("hash(temp)=%lx", (long)STRHASH("<http://spitfire-project.eu/property/Temperature>"));
 			//debug_->debug("hash(centigrade)=%lx", (long)STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
 			
-			debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
+			//debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
+			monitor_.report("/init");
 			#if USE_INQP
 				timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
 			#endif
@@ -208,8 +213,10 @@ class App {
 		#if INSE_USE_AGGREGATOR
 		typedef TC::SemanticEntityAggregatorT Aggregator;
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
+			monitor_.report("/act");
 			
-			if(radio_->id() == SINK_ID) {
+			if(radio_->id() == token_construction_.tree().root()) {
+			//if(radio_->id() == SINK_ID) {
 				//debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
 				//for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
 					//debug_->debug("@%d aggr BEFORE SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
@@ -229,15 +236,16 @@ class App {
 				
 				
 				
-				debug_->debug("@%d aggr begin list", (int)radio_->id());
+				debug_->debug("@%d ag<", (int)radio_->id());
 				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-					debug_->debug("@%d aggr SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-							(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
-							(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
+					debug_->debug("@%d ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
+							(int)radio_->id(), (long)se.id().rule(), (long)se.id().value(),
+						//	(long)iter->first.type_key(), (long)iter->first.uom_key(),
+							(long)iter->first.datatype(),
 							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
 							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
 				}
-				debug_->debug("@%d aggr end list", (int)radio_->id());
+				debug_->debug("@%d ag>", (int)radio_->id());
 				
 			}
 			else {
@@ -256,7 +264,7 @@ class App {
 		
 		#if USE_INQP
 		void distribute_query(void*) {
-			if(radio_->id() != SINK_ID) { return; }
+			if(radio_->id() != token_construction_.tree().root()) { return; }
 			
 			debug_->debug("@%d distributing query", (int)radio_->id());
 			
