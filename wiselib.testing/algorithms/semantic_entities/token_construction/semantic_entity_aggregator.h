@@ -152,9 +152,9 @@ namespace wiselib {
 								if(v < min()) { min() = v; }
 								if(v > max()) { max() = v; }
 								++count();
-								DBG("aggr mean m %ld v %ld c %ld (v-m) %ld (v-m)/c %ld",
-										(long)mean(), (long)v, (long)count(),
-										(long)((long long)v - (long long)mean()), (long)(((long long)v - (long long)mean()) / (long long)count()));
+								//DBG("aggr mean m %ld v %ld c %ld (v-m) %ld (v-m)/c %ld",
+										//(long)mean(), (long)v, (long)count(),
+										//(long)((long long)v - (long long)mean()), (long)(((long long)v - (long long)mean()) / (long long)count()));
 								mean() += ((long long)v - (long long)mean()) / (long long)count();
 							}
 							else if(datatype == FLOAT) {
@@ -439,11 +439,11 @@ namespace wiselib {
 							}
 							
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
-							DBG("aggr read_buffer SE %2d.%08lx typedct %8lx uomdct %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-									(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
-									(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
-									(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
-									(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
+							//DBG("aggr read_buffer SE %2d.%08lx typedct %8lx uomdct %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+									//(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
+									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
+									//(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
+									//(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
 							read_buffer_key_.init();
 							break;
 						}

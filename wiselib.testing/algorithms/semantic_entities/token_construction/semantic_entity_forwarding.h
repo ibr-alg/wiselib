@@ -89,7 +89,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
 				MAP_BITS = MAP_BITS_P,
-				MAP_BYTES = (MAP_BITS + 7) / 8,
+				MAP_BYTES = (MAP_BITS + 7UL) / 8UL,
 				DEFAULT_SLOT_LENGTH = INSE_FORWARDING_SLOT_LENGTH,
 				MIN_WINSLOTS = INSE_FORWARDING_MIN_WINSLOTS,
 					//500 * WISELIB_TIME_FACTOR
@@ -387,9 +387,9 @@ namespace wiselib {
 					size_type winslots = (cycle_window + slot_length_ - 1) / slot_length_;
 					if(winslots < MIN_WINSLOTS) { winslots = MIN_WINSLOTS; }
 					
-					debug_->debug("@%d fwd learn t%d cyc%d cyc/l=%d cur=%d/%d win%d winslots=%d",
-						(int)radio_->id(), (int)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
-						(int)cycle_window, (int)winslots);
+					//debug_->debug("@%d fwd learn t%d cyc%d cyc/l=%d cur=%d/%d win%d winslots=%d",
+						//(int)radio_->id(), (int)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
+						//(int)cycle_window, (int)winslots);
 					
 					schedule_wakeup(pos, winslots);
 				}

@@ -121,7 +121,7 @@ namespace wiselib {
 	>
 	class StaticBitArray : public BitArray<OsModel_P> {
 		private:
-			block_data_t buffer_[DivCeil<BITS_P, 8>::value];
+			typename BitArray<OsModel_P>::block_data_t buffer_[DivCeil<BITS_P, 8>::value];
 	};
 	
 }

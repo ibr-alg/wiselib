@@ -56,8 +56,10 @@ class App {
 			
 			debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
-			//timer_->set_timer<App, &App::distribute_query>(500000000UL, this, 0);
-			timer_->set_timer<App, &App::query_strings>(500000000UL, this, 0);
+			#if USE_INQP
+				timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
+			#endif
+			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
 		}
 		
 		void init_blockmemory() {
@@ -138,10 +140,13 @@ class App {
 				
 				// Ask nodes for strings belonging to hashes
 				
+				#if USE_INQP
 				string_inquiry_.init(&string_anycast_radio_, &query_processor_);
 				string_inquiry_.reg_answer_callback(
 						StringInquiryT::answer_delegate_t::from_method<App, &App::on_string_answer>(this)
 				);
+				#endif
+				
 				/*
 				anycast_radio_.reg_recv_callback<
 					ExampleApplication, &ExampleApplication::on_test_anycast_receive
@@ -204,17 +209,17 @@ class App {
 		typedef TC::SemanticEntityAggregatorT Aggregator;
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
 			
-			if(radio_->id() == 0) {
-				debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
-				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-					debug_->debug("@%d aggr BEFORE SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-							(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
-							(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
-							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
-							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
-				}
+			if(radio_->id() == SINK_ID) {
+				//debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
+				//for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
+					//debug_->debug("@%d aggr BEFORE SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+							//(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
+							//(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
+							//(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
+							//(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
+				//}
 				
-				debug_->debug("@%d aggr end list BEFORE", (int)radio_->id());
+				//debug_->debug("@%d aggr end list BEFORE", (int)radio_->id());
 				
 				
 				
@@ -242,7 +247,7 @@ class App {
 		}
 		#endif
 		
-		abs_millis_t absolute_millis(const typename Os::Clock::time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+		abs_millis_t absolute_millis(const Os::Clock::time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
 		abs_millis_t now() { return absolute_millis(clock_->time()); }
 		
 		//
@@ -251,7 +256,7 @@ class App {
 		
 		#if USE_INQP
 		void distribute_query(void*) {
-			if(radio_->id() != 0) { return; }
+			if(radio_->id() != SINK_ID) { return; }
 			
 			debug_->debug("@%d distributing query", (int)radio_->id());
 			
@@ -307,20 +312,24 @@ class App {
 		#endif // USE_INQP
 		
 		
+		#if USE_INQP
 		void query_strings(void*) {
 			// The SE from semantics_uniform
 			string_inquiry_.inquire(SemanticEntityId::all(), 0xda00726c);
 			
 		}
+		#endif
 		
 		
 		//
 		// Reactions to events in the network
 		// 
 		
+		#if USE_INQP
 		void on_string_answer(Value v, const char *s) {
 			debug_->debug("resolv %08lx => %s", (unsigned long)v, s);
 		}
+		#endif
 		
 		#if USE_INQP
 		void on_result_row(

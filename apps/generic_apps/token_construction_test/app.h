@@ -24,6 +24,9 @@ using namespace wiselib;
 typedef Sdbm<Os> Hash;
 typedef Tuple<Os> TupleT;
 
+
+#define SINK_ID 57
+
 //
 // Tuple Container
 // 
