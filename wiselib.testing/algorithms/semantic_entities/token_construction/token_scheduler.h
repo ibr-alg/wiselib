@@ -154,7 +154,7 @@ namespace wiselib {
 						PacketInfo *r = reinterpret_cast<PacketInfo*>(
 							::get_allocator().template allocate_array<block_data_t>(sizeof(PacketInfo) + len).raw()
 						);
-						memset(r, 0x99, sizeof(PacketInfo) + len);
+						//memset(r, 0x99, sizeof(PacketInfo) + len);
 						r->received_ = received;
 						r->from_ = from;
 						r->len_ = len;
