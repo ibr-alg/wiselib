@@ -80,19 +80,20 @@
 	
 	
 #elif defined(CONTIKI_TARGET_sky)
+	#define BITMAP_ALLOCATOR_RAM_SIZE      1024
 	#define INSE_USE_AGGREGATOR            0
 	#define USE_INQP                       0
 
 	#define CHECK_INVARIANTS               0
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
-	#define INSE_DEBUG_TOKEN               0
-	#define INSE_DEBUG_TOPOLOGY            0
+	#define INSE_DEBUG_TOKEN               1
+	#define INSE_DEBUG_TOPOLOGY            1
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
 	#define NAP_CONTROL_DEBUG_STATE        0
-	#define NAP_CONTROL_DEBUG_ONOFF        0
+	#define NAP_CONTROL_DEBUG_ONOFF        1
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
