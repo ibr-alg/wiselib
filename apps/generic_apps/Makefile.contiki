@@ -13,11 +13,15 @@ include $(CONTIKI_PATH)/Makefile.include
 CXXFLAGS += $(CFLAGS)
 CXXFLAGS += -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) -I$(CONTIKI_PATH)/apps
 CXXFLAGS += -fno-defer-pop -fno-exceptions -fno-rtti -fomit-frame-pointer \
-		-fno-strength-reduce -fno-use-cxa-atexit 
+		-fno-strength-reduce -fno-use-cxa-atexit # \
+		-ffunction-sections
+		
+
 # -pedantic
 CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel $(ADD_CXXFLAGS)
 
-LDFLAGS  += -L. -L$(WISELIB_BASE)/applications/lib \
+#LDFLAGS += -Wl,--gc-sections,--undefined=_reset_vector__,--undefined=InterruptVectors,--undefined=_copy_data_init__,--undefined=_clear_bss_init__,--undefined=_end_of_init__
+LDFLAGS += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
    contiki-$(TARGET).a
 	#$(OBJECTDIR)/antelope.o \
