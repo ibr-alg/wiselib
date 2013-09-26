@@ -39,6 +39,7 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename ChannelId_P,
+		typename Neighborhood_P,
 		typename Radio_P,
 		typename Timer_P,
 		typename Clock_P,
@@ -58,6 +59,7 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef typename OsModel::size_t size_t;
 			typedef ChannelId_P ChannelId;
+			typedef Neighborhood_P Neighborhood;
 			
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
@@ -238,7 +240,10 @@ namespace wiselib {
 			ReliableTransport() : radio_(0), timer_(0), clock_(0), rand_(0), debug_(0) {
 			}
 		
-			int init(typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock, typename Rand::self_pointer_t rand, typename Debug::self_pointer_t debug, bool reg_receiver) {
+			int init(typename Neighborhood::self_pointer_t nd,
+					typename Radio::self_pointer_t radio, typename Timer::self_pointer_t timer,
+					typename Clock::self_pointer_t clock, typename Rand::self_pointer_t rand, typename Debug::self_pointer_t debug, bool reg_receiver) {
+				nd_ = nd;
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
@@ -490,6 +495,9 @@ namespace wiselib {
 			
 			void receive_data(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
+					DBG("@%lu RT data praise %lu", (unsigned long)radio_->id(),
+							(unsigned long)ep.remote_address());
+					praise(ep.remote_address());
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -501,6 +509,9 @@ namespace wiselib {
 					DBG("node %d // ignoring ack", (int)radio_->id());
 					return;
 				}
+				DBG("@%lu RT ack praise %lu", (unsigned long)radio_->id(),
+						(unsigned long)ep.remote_address());
+				praise(ep.remote_address());
 				is_sending_ = false;
 				ack_timer_++; // invalidate ack timer
 				
@@ -780,6 +791,10 @@ namespace wiselib {
 							//(int)sending_.channel().rule(), (int)sending_.channel().value(),
 							(int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
 					
+					DBG("@%lu RT loss blame %lu", (unsigned long)radio_->id(),
+							(unsigned long)sending_endpoint().remote_address());
+					blame(sending_endpoint().remote_address());
+					
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("@%d loss s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
 					#endif
@@ -806,6 +821,9 @@ namespace wiselib {
 			void on_answer_timeout(void *ep_) {
 				Endpoint &ep = *reinterpret_cast<Endpoint*>(ep_);
 				if(ep.expects_answer()) {
+						DBG("@%lu RT noans blame %lu", (unsigned long)radio_->id(),
+								(unsigned long)ep.remote_address());
+					blame(ep.remote_address());
 					DBG("node %d // expected answer from %d not received closing channel", (int)radio_->id(),
 							(int)ep.remote_address());
 					ack_timer_++; // invalidate running ack timer
@@ -823,6 +841,9 @@ namespace wiselib {
 			//}}}
 			///@}
 			
+			void praise(node_id_t addr) { if(nd_) { nd_->praise(addr); } }
+			void blame(node_id_t addr) { if(nd_) { nd_->blame(addr); } }
+			
 			abs_millis_t absolute_millis(const time_t& t) {
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
 			}
@@ -836,6 +857,7 @@ namespace wiselib {
 			typename Clock::self_pointer_t clock_;
 			typename Rand::self_pointer_t rand_;
 			typename Debug::self_pointer_t debug_;
+			typename Neighborhood::self_pointer_t nd_;
 			
 			Endpoints endpoints_;
 			Message sending_;

@@ -91,7 +91,7 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_NEIGHBORS = INSE_MAX_NEIGHBORS,
 				MAX_SEMANTIC_ENTITIES = INSE_MAX_SEMANTIC_ENTITIES,
-				BLOOM_FILTER_BITS = 64,
+				BLOOM_FILTER_BITS = INSE_BLOOM_FILTER_BITS,
 				MAX_AGGREGATOR_ENTRIES = 4,
 				MAX_SHDT_TABLE_SIZE = 8,
 				MAX_SSTREE_LISTENERS = 4,
@@ -101,7 +101,7 @@ namespace wiselib {
 			typedef NapControl<OsModel, Radio> NapControlT;
 			typedef BloomFilter<OsModel, SemanticEntityId, BLOOM_FILTER_BITS> AmqT;
 			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, Debug, NapControlT, MAX_NEIGHBORS, MAX_SSTREE_LISTENERS> GlobalTreeT;
-			typedef ReliableTransport<OsModel, SemanticEntityId, Radio, Timer, Clock, Rand, Debug, MAX_SEMANTIC_ENTITIES * 2, INSE_MESSAGE_TYPE_TOKEN_RELIABLE> ReliableTransportT;
+			typedef ReliableTransport<OsModel, SemanticEntityId, GlobalTreeT, Radio, Timer, Clock, Rand, Debug, MAX_SEMANTIC_ENTITIES * 2, INSE_MESSAGE_TYPE_TOKEN_RELIABLE> ReliableTransportT;
 			typedef SemanticEntity<OsModel, GlobalTreeT, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
 			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT, MAX_SEMANTIC_ENTITIES> SemanticEntityRegistryT;
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, SemanticEntityRegistryT, Radio> SemanticEntityNeighborhoodT;
@@ -192,7 +192,6 @@ namespace wiselib {
 				nap_control_.init(radio_, debug_, clock_);
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				radio_->enable_radio();
-				transport_.init(radio_, timer_, clock_, rand_, debug_, false);
 				end_activity_callback_ = end_activity_callback_t();
 				
 				global_tree_.init(radio_, clock_, timer_, debug_, &nap_control_);
@@ -200,6 +199,7 @@ namespace wiselib {
 						GlobalTreeT::event_callback_t::template from_method<self_type, &self_type::on_global_tree_event>(this)
 				);
 				registry_.init(&global_tree_);
+				transport_.init(&global_tree_, radio_, timer_, clock_, rand_, debug_, false);
 				
 				neighborhood_.init(&global_tree_, &registry_, radio_);
 				forwarding_.init(radio_, &neighborhood_, &nap_control_, &registry_, timer_, clock_, debug_);
@@ -714,7 +714,7 @@ namespace wiselib {
 				#endif
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
-						debug_->debug("@%d abrt %d", (int)radio_->id(), (int)se->handover_state_initiator());
+						debug_->debug("@%d abrt%d %lu", (int)radio_->id(), (int)se->handover_state_initiator(), (unsigned long)endpoint.remote_address());
 						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
@@ -1044,7 +1044,7 @@ namespace wiselib {
 					debug_->debug("node %d // push activity", (int)radio_->id());
 				#endif
 					
-				#if INSE_DEBUG_STATE
+				#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
 					debug_->debug("@%d ACT t%d", (int)radio_->id(), (int)(now() % 65536));
 				#endif
 				nap_control_.push_caffeine("act");
@@ -1141,9 +1141,9 @@ namespace wiselib {
 					debug_->debug("node %d // push handover", (int)radio_->id());
 				#endif
 				
-				#if INSE_DEBUG_STATE
+				#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
 					debug_->debug("@%d /ACT t%d", (int)radio_->id(), (int)(now() % 65536));
-					debug_->debug("ho endact");
+					//debug_->debug("ho endact");
 				#endif
 				nap_control_.pop_caffeine("/act");
 				nap_control_.push_caffeine("ho_endact");

@@ -39,6 +39,7 @@
 #define INSE_MAX_NEIGHBORS             8
 #define INSE_MAX_SEMANTIC_ENTITIES     4
 #define INSE_MAX_QUERIES               4
+#define INSE_BLOOM_FILTER_BITS        64
 
 // Memory sizes, word sizes, tec..    
 
@@ -80,7 +81,7 @@
 	
 #elif defined(CONTIKI_TARGET_sky)
 	#define INSE_USE_AGGREGATOR            0
-	#define USE_INQP                  0
+	#define USE_INQP                       0
 
 	#define CHECK_INVARIANTS               0
 	#define DISTRIBUTOR_DEBUG_STATE        0
@@ -98,27 +99,38 @@
 	
 	#define WISELIB_TIME_FACTOR            1
 	#define INSE_FORWARDING_MAP_BITS       512
-	#define INSE_FORWARDING_SLOT_LENGTH    2000
+	#define INSE_FORWARDING_SLOT_LENGTH    2000 * WISELIB_TIME_FACTOR
 	
-	#define INSE_MAX_NEIGHBORS             16
+	#define INSE_MAX_NEIGHBORS             64
 	#define INSE_MAX_SEMANTIC_ENTITIES     2
 	#define INSE_MAX_QUERIES               0
 	
 #elif defined(SHAWN)
-	// stretch time by factor 100 to improve timer resolution
-	#undef WISELIB_TIME_FACTOR
-	#define WISELIB_TIME_FACTOR        100
+	#define INSE_USE_AGGREGATOR            0
+	#define USE_INQP                       0
+
+	#define CHECK_INVARIANTS               1
+	#define DISTRIBUTOR_DEBUG_STATE        1
+	#define INSE_DEBUG_STATE               1
+	#define INSE_DEBUG_TOKEN               1
+	#define INSE_DEBUG_TOPOLOGY            1
+	#define INSE_DEBUG_TREE                1
+	#define INSE_ANYCAST_DEBUG_STATE       1
+	#define INSE_ROW_COLLECTOR_DEBUG_STATE 1
+	#define NAP_CONTROL_DEBUG_STATE        1
+	#define NAP_CONTROL_DEBUG_ONOFF        1
+	#define RELIABLE_TRANSPORT_DEBUG_STATE 1
+	#define WISELIB_DISABLE_DEBUG          0
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
 	
-	#undef INSE_DEBUG_TREE
-	#define INSE_DEBUG_TREE            1
+	#define WISELIB_TIME_FACTOR            100
+	#define INSE_FORWARDING_MAP_BITS       512
+	#define INSE_FORWARDING_SLOT_LENGTH    2000 * WISELIB_TIME_FACTOR
 	
-	// we have the RAM, cut some slack for the algorithms
+	#define INSE_MAX_NEIGHBORS             4
+	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_QUERIES               0
 	
-	#undef INSE_MAX_NEIGHBORS
-	#define INSE_MAX_NEIGHBORS         100
-	
-	#undef INSE_MAX_SEMANTIC_ENTITIES
-	#define INSE_MAX_SEMANTIC_ENTITIES 10
 #endif
 	
 //#endif

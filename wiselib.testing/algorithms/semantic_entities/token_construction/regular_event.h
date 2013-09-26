@@ -86,7 +86,7 @@ namespace wiselib {
 			// }}}
 			
 			RegularEvent() : last_encounter_(0), interval_(1000 * WISELIB_TIME_FACTOR), window_(1000 * WISELIB_TIME_FACTOR),
-				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false), tolerate_misses_(TOLERATE_MISSES * 2) {
+				hits_(0), waiting_(false), waiting_timer_set_(false), cancel_(false), tolerate_misses_(TOLERATE_MISSES * 2), begin_waiting_callback_(), end_waiting_callback_() {
 			}
 			
 			void hit(abs_millis_t t, typename Clock::self_pointer_t clock, node_id_t mynodeid) {
@@ -218,10 +218,7 @@ namespace wiselib {
 				
 				if(early()) {
 					waiting_ = true;
-					if(begin_waiting_callback_) {
-						begin_waiting_callback_(userdata_);
-					}
-					
+					begin_waiting_callback_(userdata_);
 				}
 				else {
 					waiting_timer_set_ = true;
@@ -286,7 +283,9 @@ namespace wiselib {
 					}
 					else {
 						waiting_ = true;
-						begin_waiting_callback_(userdata_);
+						if(begin_waiting_callback_) {
+							begin_waiting_callback_(userdata_);
+						}
 					}
 				}
 			}
