@@ -9,6 +9,7 @@
 #define INSE_DEBUG_STATE               1
 #define INSE_DEBUG_TOKEN               1
 #define INSE_DEBUG_TREE                1
+#define INSE_DEBUG_WARNING             1
 #define INSE_ANYCAST_DEBUG_STATE       1
 #define INSE_ROW_COLLECTOR_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        1
@@ -102,7 +103,7 @@
 	#define INSE_FORWARDING_MAP_BITS       512
 	#define INSE_FORWARDING_SLOT_LENGTH    2000 * WISELIB_TIME_FACTOR
 	
-	#define INSE_MAX_NEIGHBORS             64
+	#define INSE_MAX_NEIGHBORS             32
 	#define INSE_MAX_SEMANTIC_ENTITIES     2
 	#define INSE_MAX_QUERIES               0
 	

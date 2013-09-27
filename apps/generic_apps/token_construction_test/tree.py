@@ -3,22 +3,64 @@
 import sys
 import re
 import copy
+import bisect
+import glob
 
-# [
+# nodes = [
 # 	{
-# 		'_t': time,
+# 		't': time,
 # 		id => { 'parent': id, 'filter': num, 'root': id, 'childs': [...] },
 # 		id => { 'parent': id, 'filter': num, 'root': id, 'childs': [...] },
 # 		id => { 'parent': id, 'filter': num, 'root': id, 'childs': [...] },
-# 	}
+# 	},
+# 	...
 # ]
 nodes = []
 
-re_begin_iteration = re.compile('-+ BEGIN ITERATION (\d+)')
-re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
+re_begin_iteration = re.compile(r'-+ BEGIN ITERATION (\d+)')
+re_treestate = re.compile(r'@(\d+) p(\d+) d(\d+) rt(\d+) c\d+ t(\d+) nn\d+ ln\d+.*')
+#re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
 
 tmin = None
 tmax = None
+
+
+class tview(object):
+	def __init__(self, v):
+		self.v = v
+		
+	def __item__(self, i): return self.v[i]['t']
+	def __getitem__(self, i): return self.v[i]['t']
+	
+	def __len__(self): return self.v.__len__()
+	
+	def index(self, v):
+		for i, x in enumerate(self.v):
+			if v == x['t']: return i
+		return -1
+
+def insert_state(d):
+	global nodes
+	
+	if d['t'] > tmax: return
+	
+	tv = tview(nodes)
+	pos = bisect.bisect(tv, d['t'])
+	
+	if pos < 0 or pos >= len(nodes): bef = { 't': 0 }
+	else:
+		bef = nodes[pos]
+	
+	if bef['t'] == d['t']:
+		bef.update(d)
+		
+	else:
+		#bef = dict(bef)
+		#bef.update(d)
+		if pos == -1:
+			nodes.append(d)
+		else:
+			nodes.insert(pos, d)
 
 def parse(f):
 	global nodes
@@ -27,90 +69,19 @@ def parse(f):
 	
 	t = 0
 	for line in f:
-		kv = {}
-		def get_value(s):
-			return kv.get(s, None)
-		# strip off comments
-		origline = line
-		comment_idx = line.find('//')
-		if comment_idx != -1: line = line[:comment_idx]
-		# is this a begin iteration line?
+		line = line.decode('latin1')
+		#print(line)
+		
 		m = re.match(re_begin_iteration, line)
+		if m is not None: t = int(m.group(1)) * 1000
+		
+		m = re.match(re_treestate, line)
 		if m is not None:
-			t = int(m.group(1))
-			
-			if t % 10000 == 0:
-				print("{}".format(t))
-			continue
-		
-		# always start from t=0, else we will miss the tree state updates
-		# which usually happen and the beginning
-		# (and other state changes)
-		#if tmin is not None and t < tmin: break
-		if tmax is not None and t > tmax: break
-		
-		# which node is this line about?
-		if 'node' not in line and not line.startswith('@'): continue
-		
-		kv = dict(re.findall(re_kv, line))
-		name = nodename = get_value('node')
-		if name is None:
-			m = re.match(r'@(\d+) .*', line)
-			if m is not None:
-				name = nodename = m.groups()[0]
-			
-		if name is None:
-			#print ("[!!!] nodename is none in line: " + origline)
-			continue
-		nodename = int(nodename)
-		#try: t = int(get_value('t')) / 1000
-		#except: pass
-		
-		if not len(nodes):
-			latest = { '_t': t }
-			nodes.append(latest)
-		else:
-			latest = nodes[-1]
-		
-		if ' on ' in line or ' off ' in line:
-			if nodename in latest:
-				latest = copy.deepcopy(latest)
-				latest['_t'] = t
-				nodes.append(latest)
-				latest[nodename]['on'] = (' on ' in line)
-				continue
-				
-		if ' ACT ' in line or ' /ACT ' in line:
-			if nodename in latest:
-				latest = copy.deepcopy(latest)
-				latest['_t'] = t
-				nodes.append(latest)
-				latest[nodename]['active'] = (' ACT ' in line)
-				continue
-		
-		parent = get_value('parent')
-		root = get_value('root')
-		distance = get_value('distance')
-		filter_ = get_value('filter')
-		if parent is None or root is None or distance is None or filter_ is None: continue
-		
-		if 	nodename in latest and (
-				parent != latest[nodename]['parent'] or
-				root != latest[nodename]['root'] or
-				filter_ != latest[nodename]['filter']
-		):
-			latest = copy.deepcopy(latest)
-			latest['_t'] = t
-			nodes.append(latest)
-			latest[nodename] = {
-					'parent': parent, 'root': root, 'distance': distance,
-					'filter': filter_
-			}
-		elif nodename not in latest:
-			latest[nodename] = {
-					'parent': parent, 'root': root, 'distance': distance,
-					'filter': filter_
-			}
+			addr, parent, distance, root, t_ = m.groups()
+			t = int(t_)
+			d = { 't': t }
+			d[addr] = { 'root': root, 'filter': '', 'parent': parent }
+			insert_state(d)
 		
 def compress_filter(s):
 	#return s.replace('00000000', ':').replace('0000', '.')
@@ -134,7 +105,7 @@ def compress_filter(s):
 def print_dot(d, out):
 	out.write('digraph G { rankdir=TB; \n')
 	for name, v in d.items():
-		if name == '_t': continue
+		if name == 't': continue
 		
 		
 		#print("------------ " + str(v))
@@ -155,8 +126,9 @@ def generate_all(directory):
 	global tmax
 	last_t = None
 	count = 0
+	dct = {}
 	for d in nodes:
-		t = int(d['_t'])
+		t = int(d['t'])
 		if t == last_t:
 			count += 1
 		else:
@@ -170,7 +142,8 @@ def generate_all(directory):
 		fn = '{}/t{:08d}.dot'.format(directory, t)
 		print(fn)
 		f = open(fn, 'w')
-		print_dot(d, f)
+		dct.update(d)
+		print_dot(dct, f)
 		f.close()
 
 
@@ -194,7 +167,15 @@ if len(sys.argv) > 2:
 
 
 print("parsing... tmin={} tmax={}".format(tmin, tmax))
-parse(open('log.txt', 'r'))
+
+dir = 'wilab_23872'
+for fn in glob.glob(dir + '/**/output.txt'):
+	print(fn)
+	parse(open(fn, 'rb'))
+#parse(open('ttyUSB1_2.log', 'rb'))
+#parse(open('ttyUSB2_2.log', 'rb'))
+
+
 print("found {} tree states".format(len(nodes)))
 generate_all('dot')
 print_dot(nodes[-1], sys.stdout)
