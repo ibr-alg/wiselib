@@ -340,15 +340,15 @@ namespace wiselib {
 			bool praise(typename NeighborEntries::iterator it) {
 				if(it == neighbor_entries_.end()) { return false; }
 				
-				debug_->debug("@%lu Np %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
+				//debug_->debug("@%lu Np %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
 				//bool stable_before = it->becomes_stable();
 				bool became_stable = it->praise();
 				if(became_stable) {
 					new_neighbors_ = true;
 					notify_event(NEW_NEIGHBOR, it->address_);
-					//#if (INSE_DEBUG_STATE || INSE_DEBUG_WARNING)
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY)
 						debug_->debug("@%lu N+ %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
-					//#endif
+					#endif
 					return true;
 				}
 				return false;
@@ -362,7 +362,7 @@ namespace wiselib {
 			bool blame(typename NeighborEntries::iterator it) {
 				if(it == neighbor_entries_.end()) { return false; }
 				
-				debug_->debug("@%lu Nb %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
+				//debug_->debug("@%lu Nb %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
 				bool looses_stable = it->blame();
 				if(looses_stable) {
 					node_id_t addr = it->address_;
@@ -372,9 +372,9 @@ namespace wiselib {
 					//}
 					notify_event(LOST_NEIGHBOR, addr);
 					lost_neighbors_ = true;
-					//#if (INSE_DEBUG_STATE || INSE_DEBUG_WARNING)
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY)
 						debug_->debug("@%lu N- %lu", (unsigned long)radio_->id(), (unsigned long)addr);
-					//#endif
+					#endif
 					//iter = neighbor_entries_.erase(iter);
 					return true;
 				}
@@ -515,7 +515,7 @@ namespace wiselib {
 					event.hit(t_recv, clock_, radio_->id());
 					event.end_waiting();
 					
-					#if INSE_DEBUG_STATE
+					#if INSE_DEBUG_STATE || INSE_DEBUG_TREE
 						debug_->debug("@%d tre %d win %d int %d e%d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval(), (int)event.early());
 					#endif
 					
@@ -702,12 +702,14 @@ namespace wiselib {
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(!iter->stable()) {
+						/*
 						debug_->debug("@%lu unstable: %lu (%lu/%lu %f)",
 								(unsigned long)radio_->id(),
 								(unsigned long)iter->address_,
 								(unsigned long)iter->received(),
 								(unsigned long)iter->expected(),
 								(float)iter->received() / (float)iter->expected());
+						*/
 						continue;
 					}
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
@@ -749,14 +751,14 @@ namespace wiselib {
 				bool c_c = tree_state().set_root(root);
 				bool c = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
+				if(c) {
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
+						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
+									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
+					#endif
+				}
 				
 				if(c || updated_neighbors_) {
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY)
-						debug_->debug("@%d p%d d%d rt%d c%d t%lu nn%d ln%d",
-									(int)radio_->id(), (int)parent, (int)distance, (int)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
-					#endif
-						
-						
 					notify_event(UPDATED_STATE, previous_parent);
 						
 					// <DEBUG>

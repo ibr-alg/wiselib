@@ -23,6 +23,8 @@
 #include "external_interface/contiki/contiki_types.h"
 #include "util/delegates/delegate.hpp"
 
+#include <stdio.h>
+
 extern "C" {
 #include "contiki.h"
 #include "sys/etimer.h"
@@ -96,6 +98,8 @@ namespace wiselib
       item->p = PROCESS_CURRENT();
       item->cb = contiki_timer_delegate_t::from_method<T, TMethod>( obj_pnt );
       item->ptr = userdata;
+	  
+	  printf("T(%lu+%lu)\n", (unsigned long)(millis),(unsigned long)(clock_time() * 1000.0 / CLOCKS_PER_SEC));
 
       PROCESS_CONTEXT_BEGIN( &timer_process );
       etimer_set( &item->etimer, millis * (CLOCK_SECOND / 1000.0)); //CLOCK_SECOND * secs );
