@@ -710,7 +710,7 @@ namespace wiselib {
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
 						#if INSE_DEBUG_WARNING
-							debug_->debug("@%lu abrt%d %lu", (unsigned long)radio_->id(), (int)se->handover_state_initiator(), (unsigned long)endpoint.remote_address());
+							debug_->debug("@%lu abrt%d %lu t%lu", (unsigned long)radio_->id(), (int)se->handover_state_initiator(), (unsigned long)endpoint.remote_address(), (unsigned long)now());
 						#endif
 						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());

@@ -66,6 +66,8 @@ namespace wiselib {
 			
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
+			//typedef typename Radio::ExtendedData::
+			typedef ::uint16_t link_metric_t;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
 			typedef typename Clock::time_t time_t;
@@ -81,6 +83,7 @@ namespace wiselib {
 				BCAST_KEEP_AWAKE = 500 * WISELIB_TIME_FACTOR,
 				DEAD_INTERVAL = 2 * BCAST_INTERVAL,
 				MAX_ROOT_DISTANCE = 10,
+				MAX_EXPECTED = 254
 			};
 			enum SpecialNodeIds {
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
@@ -101,24 +104,31 @@ namespace wiselib {
 			
 			struct NeighborEntry {
 				// {{{
-				NeighborEntry() : address_(NULL_NODE_ID), expected_(1), received_(1) {
+				
+				enum {
+					ALPHA = 20,
+					LINK_METRIC_BECOMES_STABLE = 100,
+					LINK_METRIC_LOOSES_STABLE = 50
+				};
+				
+				NeighborEntry() : address_(NULL_NODE_ID), stable_(false) {
 				}
 				
 				NeighborEntry(node_id_t addr)
-					: address_(addr), expected_(1), received_(1), stable_(true) {
+					: address_(addr), stable_(false) {
 				}
 					
-				NeighborEntry(node_id_t addr, const TreeStateMessageT& m, abs_millis_t t)
-					: message_(m), last_update_(t), address_(addr), expected_(1), received_(1), stable_(true) {
+				NeighborEntry(node_id_t addr, const TreeStateMessageT& msg, abs_millis_t t, link_metric_t m)
+					: message_(msg), last_update_(t), address_(addr), link_metric_(m), stable_(false) {
+					stable_ = becomes_stable();
 				}
 				
-				void from_message(node_id_t addr, const TreeStateMessageT& m, abs_millis_t t) {
-					message_ = m;
+				void from_message(node_id_t addr, const TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
+					message_ = msg;
 					last_update_ = t;
 					address_ = addr;
-					expected_ = 1;
-					received_ = 1;
-					stable_ = true;
+					link_metric_ = m;
+					stable_ = becomes_stable();
 				}
 				
 				bool used() const { return address_ != NULL_NODE_ID; }
@@ -132,89 +142,35 @@ namespace wiselib {
 					return address_ == other.address_;
 				}
 				
-				bool same_content(NeighborEntry& other) {
-					bool r = (address_ == other.address_) &&
-						(message_.tree_state() == other.message_.tree_state()) &&
-						(message_.user_data() == other.message_.user_data());
-					
-					if(!r) {
-						//DBG("// not same content addr %d state %d ud %d",
-								//(int)(address_ == other.address_),
-								//(int)(message_.tree_state() == other.message_.tree_state()),
-								//(int)(message_.user_data() == other.message_.user_data()));
-					}
+				bool same_content(TreeStateMessageT& msg) {
+					bool r = //(address_ == other.address_) &&
+						(message_.tree_state() == msg.tree_state()) &&
+						(message_.user_data() ==  msg.user_data());
 					return r;
 				}
 				
 				node_id_t id() { return address_; }
 				
-				bool praise() {
-					bool r = false;
-					expected_++;
-					received_++;
-					
-					if(!stable_ && becomes_stable()) {
-						stable_ = true;
-						r = true;
-					}
-					
-					DBG("praise %lu: %lu/%lu = %f", (unsigned long)address_,
-							(unsigned long)received_, (unsigned long)expected_,
-							(float)received_ / (float)expected_);
-					return r;
-				}
-				
-				bool blame() {
-					bool r = false;
-					expected_++;
-					
-					if(stable_ && looses_stable()) {
-						stable_ = false;
-						r = false;
-					}
-					
-					DBG("blame %lu: %lu/%lu = %f", (unsigned long)address_,
-							(unsigned long)received_, (unsigned long)expected_,
-							(float)received_ / (float)expected_);
-					return r;
-				}
-				
-				size_type received() { return received_; }
-				size_type expected() { return expected_; }
-				
-				/*
-				bool stable() {
-					return expected_ < 5 || (received_ >= 0.8 * expected_);
-				}
-				*/
-				
-				bool becomes_stable() {
-					return expected_ < 5 || (received_ >= 0.9 * expected_);
-				}
-				
-				bool looses_stable() {
-					return (expected_ >= 5) && (received_ <= 0.7 * expected_);
-				}
+				bool becomes_stable() { return link_metric_ >= LINK_METRIC_BECOMES_STABLE; }
+				bool looses_stable() { return link_metric_ <= LINK_METRIC_LOOSES_STABLE; }
 				bool stable() { return stable_; }
-			
 				
-				void update(NeighborEntry& other) {
-					message_ = other.message_;
-					last_update_ = other.last_update_;
-					address_ = other.address_;
-					expected_ += other.expected_;
-					received_ += other.received_;
-					
-					if(stable() && looses_stable()) { stable_ = false; }
-					else if(!stable() && becomes_stable()) { stable_ = true; }
+				void seen_link_metric(link_metric_t l) {
+					link_metric_ = (1.0 - ALPHA/100.0) * link_metric_ + ALPHA/100.0 * l;
+				}
+				void set_link_metric(link_metric_t l) { link_metric_ = l; }
+				link_metric_t link_metric() { return link_metric_; }
+				
+				void update(TreeStateMessageT& msg, abs_millis_t t) {
+					message_ = msg;
+					last_update_ = t;
 				}
 				
 				TreeStateMessageT message_;
 				abs_millis_t last_update_;
 				node_id_t address_;
 				
-				size_type expected_;
-				size_type received_;
+				link_metric_t link_metric_;
 				bool stable_;
 				// }}}
 			};
@@ -331,56 +287,6 @@ namespace wiselib {
 				user_data_ = ud;
 			}
 			
-			bool praise(node_id_t addr) {
-				typename NeighborEntries::iterator it = find_neighbor_entry(addr);
-				//if(it != neighbor_entries_.end()) { it->praise(); }
-				return praise(it);
-			}
-			
-			bool praise(typename NeighborEntries::iterator it) {
-				if(it == neighbor_entries_.end()) { return false; }
-				
-				//debug_->debug("@%lu Np %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
-				//bool stable_before = it->becomes_stable();
-				bool became_stable = it->praise();
-				if(became_stable) {
-					new_neighbors_ = true;
-					notify_event(NEW_NEIGHBOR, it->address_);
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY)
-						debug_->debug("@%lu N+ %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
-					#endif
-					return true;
-				}
-				return false;
-			}
-			
-			bool blame(node_id_t addr) {
-				typename NeighborEntries::iterator it = find_neighbor_entry(addr);
-				return blame(it);
-			}
-			
-			bool blame(typename NeighborEntries::iterator it) {
-				if(it == neighbor_entries_.end()) { return false; }
-				
-				//debug_->debug("@%lu Nb %lu", (unsigned long)radio_->id(), (unsigned long)it->address_);
-				bool looses_stable = it->blame();
-				if(looses_stable) {
-					node_id_t addr = it->address_;
-					//if(regular_broadcasts_.contains(addr)) {
-						//regular_broadcasts_[addr].cancel();
-						//regular_broadcasts_.erase(addr);
-					//}
-					notify_event(LOST_NEIGHBOR, addr);
-					lost_neighbors_ = true;
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY)
-						debug_->debug("@%lu N- %lu", (unsigned long)radio_->id(), (unsigned long)addr);
-					#endif
-					//iter = neighbor_entries_.erase(iter);
-					return true;
-				}
-				return false;
-			}
-			
 			void check() {
 				#if !WISELIB_DISABLE_DEBUG
 				/*
@@ -453,92 +359,52 @@ namespace wiselib {
 				}
 			}
 			
-			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+			typename NeighborEntries::iterator assess_link_metric(node_id_t from, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
+				debug_->debug("@%lu L%lu m%u", (unsigned long)radio_->id(), (unsigned long)from, (unsigned)m);
+				
+				typename NeighborEntries::iterator ne =  find_neighbor_entry(from);
+				if(ne != neighbor_entries_.end()) {
+					return update_entry(ne, from, msg, t, m);
+				}
+				
+				if(!neighbor_entries_.full()) {
+					return create_entry(from, msg, t, m);
+				}
+				
+				for(ne = neighbor_entries_.begin(); ne != neighbor_entries_.end(); ++ne) {
+					if(!ne->stable() && ne->link_metric() < m) {
+						erase_regular_broadcast(ne->address_);
+						neighbor_entries_.erase(ne);
+						return create_entry(from, msg, t, m);
+					}
+				}
+				return neighbor_entries_.end();
+			}
+			
+			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data, const typename Radio::ExtendedData& ex) {
+				check();
+				
 				if(!is_node_id_sane(from)) { return; }
-				notify_event(SEEN_NEIGHBOR, from);
+				if(!nap_control_->on()) { return; }
+				
+				abs_millis_t t = now();
 				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
-				if(!nap_control_->on()) {
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("node %d // sleeping, ignoring packet of type %d", (int)radio_->id(),
-							(int)message_type);
-					#endif
-					return;
-				}
-				
-				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
-					return;
-				}
-				
+				if(message_type != TreeStateMessageT::MESSAGE_TYPE) { return; }
 				assert((size_type)len >= (size_type)sizeof(TreeStateMessageT));
 				TreeStateMessageT &msg = *reinterpret_cast<TreeStateMessageT*>(data);
-				
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("SSTREE RECV");
-					debug_buffer<OsModel, 16, Debug>(debug_, msg.data(), msg.size());
-				#endif
-				
-				abs_millis_t t_recv = now();
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
-					if(regular_broadcasts_.full() && !regular_broadcasts_.contains(from)) {
-						// try to remove an unstable node from neighbors list
-						for(typename RegularEvents::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
-							typename NeighborEntries::iterator ne = find_neighbor_entry(it->first);
-							if(ne == neighbor_entries_.end()) {
-								DBG("@%lu prune %lu for %lu", (unsigned long)radio_->id(), (unsigned long)it->first, (unsigned long)from);
-								erase_regular_broadcast(it->first);
-								break;
-							}
-							else if(!ne->stable()) {
-								DBG("@%lu erase %lu for %lu (%lu/%lu) s=%d", (unsigned long)radio_->id(), (unsigned long)it->first, (unsigned long)from, (unsigned long)ne->received(), (unsigned long)ne->expected(), (int)ne->stable());
-								//remove_neighbor_entry(it->first);
-								neighbor_entries_.erase(ne);
-								erase_regular_broadcast(it->first);
-								break;
-							}
-						}
-						
-						if(regular_broadcasts_.full()) {
-							debug_->debug("ignN %d", (int)from);
-							
-							// Just ignore this neighbor.
-							// Note / TODO: for stable behaviour make this
-							// hold a defined subset of the neighbors, e.g. the
-							// ones with the lowest IDs.
-							return;
-						}
+					typename NeighborEntries::iterator ne = assess_link_metric(from, msg, t, ex.link_metric());
+					if(ne != neighbor_entries_.end() && ne->stable()) {
+						notify_event(SEEN_NEIGHBOR, from);
 					}
-					
-					RegularEventT &event = regular_broadcasts_[from];
-					event.hit(t_recv, clock_, radio_->id());
-					event.end_waiting();
-					
-					#if INSE_DEBUG_STATE || INSE_DEBUG_TREE
-						debug_->debug("@%d tre %d win %d int %d e%d", (int)radio_->id(), (int)from, (int)event.window(), (int)event.interval(), (int)event.early());
-					#endif
-					
-					event.template start_waiting_timer<
-						self_type, &self_type::begin_wait_for_regular_broadcast,
-						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
-					
-					add_neighbor_entry(from, msg);
-				}
-				else {
-					// this is not a regular broadcast (but only informative),
-					// so it might be the case that we dont have a regular
-					// event for it.
-					// in order to keep regular events and neighbor_entries_
-					// consistent, only update state here, but do not create a
-					// new entry until the next regular broadcast
-					
-					if(find_neighbor_entry(from) != neighbor_entries_.end()) {
-						add_neighbor_entry(from, msg);
-					}
+				
 				}
 				
 				update_state();
+				
 				check();
 			}
 			
@@ -611,31 +477,53 @@ namespace wiselib {
 			}
 			
 			
-			void add_neighbor_entry(node_id_t addr, const TreeStateMessageT& msg) {
-				check();
-				NeighborEntry e(addr, msg, now());
-				
-				typename NeighborEntries::iterator it = neighbor_entries_.find(e);
-				if(it != neighbor_entries_.end()) {
-					if(!it->same_content(e)) {
-						// found node with same address, but other things (e.g
-						// bloom filter) changed
-						assert(it->address_ == e.address_);
-						updated_neighbors_ = true;
-						notify_event(UPDATED_NEIGHBOR, addr);
-					}
-					it->update(e);
-					//praise(it);
-					//it->praise();
-				}
-				else {
-					#if INSE_DEBUG_STATE
-						debug_->debug("@%lu new %d", (unsigned long)radio_->id(), (int)addr);
-					#endif
-					neighbor_entries_.insert(e);
-					new_neighbors_ = true;
+			typename NeighborEntries::iterator create_entry(node_id_t addr, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
+				NeighborEntry e(addr, msg, t, m);
+				typename NeighborEntries::iterator r = neighbor_entries_.insert(e);
+				new_neighbors_ = true;
+				if(e.stable()) {
+					debug_->debug("@%lu N+ %u", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
 					notify_event(NEW_NEIGHBOR, addr);
 				}
+				
+				RegularEventT &event = regular_broadcasts_[addr];
+				event.hit(t, clock_, radio_->id());
+				event.end_waiting();
+				event.template start_waiting_timer<
+					self_type, &self_type::begin_wait_for_regular_broadcast,
+					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
+				return r;
+			}
+			
+			typename NeighborEntries::iterator update_entry(typename NeighborEntries::iterator ne, node_id_t addr, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
+				assert(ne->address_ == addr);
+				
+				bool stable_before = ne->stable();
+				ne->seen_link_metric(m);
+				bool stable_now = ne->stable();
+				
+				if(stable_now < stable_before) {
+					debug_->debug("@%lu N- %u", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
+					notify_event(LOST_NEIGHBOR, addr);
+				}
+				else if(stable_now > stable_before) {
+					debug_->debug("@%lu N+ %u", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
+					notify_event(NEW_NEIGHBOR, addr);
+				}
+				
+				if(ne->stable() && !ne->same_content(msg)) {
+					updated_neighbors_ = true;
+					notify_event(UPDATED_NEIGHBOR, addr);
+				}
+				ne->update(msg, t);
+				
+				RegularEventT &event = regular_broadcasts_[addr];
+				event.hit(t, clock_, radio_->id());
+				event.end_waiting();
+				event.template start_waiting_timer<
+					self_type, &self_type::begin_wait_for_regular_broadcast,
+					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
+				return ne;
 			}
 			
 			typename NeighborEntries::iterator find_neighbor_entry(node_id_t addr) {
@@ -670,10 +558,10 @@ namespace wiselib {
 					//bool stable_before = iter->stable();
 					
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
-						//iter->blame();
-						DBG("@%lu CDN blame %lu", (unsigned long)radio_->id(),
-								(unsigned long)iter->address_);
-						blame(iter);
+						iter->seen_link_metric(0);
+						//if(regular_broadcasts_.contains(iter->address_)) {
+							//regular_broadcasts_[iter->address_].cancel();
+							//
 					}
 				}
 				
