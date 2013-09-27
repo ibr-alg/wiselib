@@ -261,13 +261,8 @@ namespace wiselib {
 					self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token
 				>(clock_, timer_, this, &se);
 				
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("node %d // added SE %x.%x is_active %d",
-						(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-						(int)se.is_active(radio_->id()));
-				#endif
 				#if INSE_DEBUG_STATE
-					debug_->debug("@%d +s %lx.%lx", (int)radio_->id(), (unsigned long)se.id().rule(),
+					debug_->debug("@%lu +s %lx.%lx", (unsigned long)radio_->id(), (unsigned long)se.id().rule(),
 							(unsigned long)se.id().value());
 				#endif
 				
@@ -714,7 +709,9 @@ namespace wiselib {
 				#endif
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
-						debug_->debug("@%d abrt%d %lu", (int)radio_->id(), (int)se->handover_state_initiator(), (unsigned long)endpoint.remote_address());
+						#if INSE_DEBUG_WARNING
+							debug_->debug("@%lu abrt%d %lu", (unsigned long)radio_->id(), (int)se->handover_state_initiator(), (unsigned long)endpoint.remote_address());
+						#endif
 						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());
 						nap_control_.push_caffeine();
@@ -733,7 +730,7 @@ namespace wiselib {
 							debug_->debug("node %d // push handover_connection", (int)radio_->id());
 						#endif
 						#if INSE_DEBUG_STATE
-							debug_->debug("open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+							debug_->debug("op t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
 						#endif
 						nap_control_.push_caffeine("ho_op");
 						break;
@@ -752,7 +749,7 @@ namespace wiselib {
 						#endif
 							
 						#if INSE_DEBUG_STATE
-							debug_->debug("/open t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
+							debug_->debug("/op t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
 						#endif
 						nap_control_.pop_caffeine("/ho_op");
 						
@@ -1045,7 +1042,7 @@ namespace wiselib {
 				#endif
 					
 				#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
-					debug_->debug("@%d ACT t%d", (int)radio_->id(), (int)(now() % 65536));
+					debug_->debug("@%lu ACT t%lu", (unsigned long)radio_->id(), (unsigned long)now());
 				#endif
 				nap_control_.push_caffeine("act");
 				
@@ -1142,7 +1139,7 @@ namespace wiselib {
 				#endif
 				
 				#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
-					debug_->debug("@%d /ACT t%d", (int)radio_->id(), (int)(now() % 65536));
+					debug_->debug("@%lu /ACT t%lu", (unsigned long)radio_->id(), (unsigned long)(now()));
 					//debug_->debug("ho endact");
 				#endif
 				nap_control_.pop_caffeine("/act");
