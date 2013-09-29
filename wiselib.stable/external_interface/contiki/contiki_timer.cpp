@@ -20,10 +20,12 @@
 #include "external_interface/contiki/contiki_timer.h"
 
 #include <stdio.h>
-
+#ifndef CONTIKI_MAX_TIMERS
+	#define CONTIKI_MAX_TIMERS 40
+#endif
 namespace wiselib
 {
-   static const int MAX_REGISTERED_TIMER = 32;
+   static const int MAX_REGISTERED_TIMER = CONTIKI_MAX_TIMERS;
    // -----------------------------------------------------------------------
    timer_item timer_item_;
    timer_item timer_items[MAX_REGISTERED_TIMER];

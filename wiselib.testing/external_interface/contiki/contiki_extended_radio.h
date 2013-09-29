@@ -152,9 +152,10 @@ namespace wiselib
 
          if ( dst == addr || dst == BROADCAST_ADDRESS )
          {
-            uint16_t  signal_strength = (uint16_t) packetbuf_attr(PACKETBUF_ATTR_LINK_QUALITY);
+            //uint16_t  signal_strength = (uint16_t) packetbuf_attr(PACKETBUF_ATTR_LINK_QUALITY);
+            uint16_t  signal_strength = (uint16_t) packetbuf_attr(PACKETBUF_ATTR_RSSI);
             ExtendedData ex;
-            ex.set_link_metric( 255 - signal_strength );
+            ex.set_link_metric( signal_strength + 255 );
 
             this->notify_receivers( src, len - 4, buffer + 4 );
             this->notify_receivers( src, len - 4, buffer + 4, ex );
