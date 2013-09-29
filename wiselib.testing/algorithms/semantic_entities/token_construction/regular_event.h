@@ -58,7 +58,7 @@ namespace wiselib {
 			
 			/// Some fractions (in percent).
 			enum TimingFractions {
-				CLOSE_HIT_WINDOW = 25,
+				CLOSE_HIT_WINDOW = 40,
 				/// Analogue to @a CLOSE_HIT_WINDOW.
 				STABLE_HIT_WINDOW = 75,
 				/// If found interval is shorter than this, assume its a dupe
@@ -238,7 +238,7 @@ namespace wiselib {
 						GET_OS.debug("setting timer: %d", (int)delta);
 					#endif
 					
-					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, 0);
+					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, userdata_);
 				}
 				return true;
 			}

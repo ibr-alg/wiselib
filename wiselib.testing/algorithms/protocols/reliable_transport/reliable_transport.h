@@ -85,7 +85,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 600 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 100 * WISELIB_TIME_FACTOR,
+				RESEND_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, RESEND_RAND_ADD = 100 * WISELIB_TIME_FACTOR,
 				MAX_RESENDS = 3, ANSWER_TIMEOUT = 3 * RESEND_TIMEOUT,
 			};
 			
@@ -800,7 +800,7 @@ namespace wiselib {
 					#endif
 					if(resends_ >= MAX_RESENDS) {
 						#if RELIABLE_TRANSPORT_DEBUG_STATE
-							debug_->debug("@%d abrt s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
+							debug_->debug("@%lu abrt s%d t%d", (unsigned long)radio_->id(), (int)sending_endpoint().sequence_number(), (unsigned long)now());
 						#endif
 						sending_endpoint().abort_produce();
 						sending_endpoint().close();

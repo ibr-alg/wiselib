@@ -78,12 +78,12 @@ namespace wiselib {
 			
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
-				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR,
-				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR,
-				BCAST_KEEP_AWAKE = 500 * WISELIB_TIME_FACTOR,
-				DEAD_INTERVAL = 2 * BCAST_INTERVAL,
+				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR, ///< limit bcasts to this interval when things change all the time
+				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR, ///< send regular bcasts in this interval
+				BCAST_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, ///< stay awake at most this long waiting for bcasts
+				BCAST_KEEP_AWAKE = 200 * WISELIB_TIME_FACTOR, ///< stay awake at least this long waiting for bcasts (so others have a chance to contact us)
+				DEAD_INTERVAL = (unsigned long)(1.5 * BCAST_INTERVAL), ///< consider neighbor bcasts as missed after this time
 				MAX_ROOT_DISTANCE = 10,
-				MAX_EXPECTED = 254
 			};
 			enum SpecialNodeIds {
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
@@ -107,8 +107,8 @@ namespace wiselib {
 				
 				enum {
 					ALPHA = 20,
-					LINK_METRIC_BECOMES_STABLE = 100,
-					LINK_METRIC_LOOSES_STABLE = 50
+					LINK_METRIC_BECOMES_STABLE = 240,
+					LINK_METRIC_LOOSES_STABLE = 230
 				};
 				
 				NeighborEntry() : address_(NULL_NODE_ID), stable_(false) {
@@ -360,7 +360,7 @@ namespace wiselib {
 			}
 			
 			typename NeighborEntries::iterator assess_link_metric(node_id_t from, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
-				debug_->debug("@%lu L%lu m%u", (unsigned long)radio_->id(), (unsigned long)from, (unsigned)m);
+				//debug_->debug("@%lu L%lu m%u", (unsigned long)radio_->id(), (unsigned long)from, (unsigned)m);
 				
 				typename NeighborEntries::iterator ne =  find_neighbor_entry(from);
 				if(ne != neighbor_entries_.end()) {
@@ -408,7 +408,7 @@ namespace wiselib {
 				check();
 			}
 			
-			void begin_wait_for_regular_broadcast(void*) {
+			void begin_wait_for_regular_broadcast(void* ev) {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // push wait_for_regular_broadcast", (int)radio_->id());
 				#endif
@@ -416,6 +416,9 @@ namespace wiselib {
 					debug_->debug("bcwait");
 				#endif
 				nap_control_->push_caffeine("bcw");
+				
+				timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
+						BCAST_TIMEOUT, this, ev);
 			}
 			
 			void end_wait_for_regular_broadcast(void*) {
@@ -426,6 +429,30 @@ namespace wiselib {
 					debug_->debug("/bcwait");
 				#endif
 				nap_control_->pop_caffeine("/bcw");
+			}
+			
+			node_id_t find_event(RegularEventT& ev) {
+				for(typename RegularEvents::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
+					if(&(it->second) == &ev) {
+						return it->first;
+					}
+				}
+				return Radio::NULL_NODE_ID;
+			}
+			
+			void give_up_wait_for_regular_broadcast(void* v) {
+				RegularEventT& ev = *reinterpret_cast<RegularEventT*>(v);
+				DBG("@%lu give up bc waiting %d t%lu a %lu", (unsigned long)radio_->id(), (int)ev.waiting(),
+						(unsigned long)now(), (unsigned long)find_event(ev));
+				
+				// will call end_wait_for_regular_broadcast implicetely
+				if(ev.waiting()) {
+					ev.end_waiting();
+					ev.template start_waiting_timer<
+						self_type, &self_type::begin_wait_for_regular_broadcast,
+						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
+				}
+				//nap_control_->pop_caffeine("/bcw");
 			}
 			
 			size_type find_neighbor_position(node_id_t a, bool allow_parent = true) {
@@ -480,9 +507,9 @@ namespace wiselib {
 			typename NeighborEntries::iterator create_entry(node_id_t addr, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
 				NeighborEntry e(addr, msg, t, m);
 				typename NeighborEntries::iterator r = neighbor_entries_.insert(e);
-				new_neighbors_ = true;
 				if(e.stable()) {
-					debug_->debug("@%lu N+ %u", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
+					new_neighbors_ = true;
+					debug_->debug("@%lu N+ %lu m%luu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
 					notify_event(NEW_NEIGHBOR, addr);
 				}
 				
@@ -491,7 +518,7 @@ namespace wiselib {
 				event.end_waiting();
 				event.template start_waiting_timer<
 					self_type, &self_type::begin_wait_for_regular_broadcast,
-					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
+					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
 				return r;
 			}
 			
@@ -503,11 +530,12 @@ namespace wiselib {
 				bool stable_now = ne->stable();
 				
 				if(stable_now < stable_before) {
-					debug_->debug("@%lu N- %u", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
+					debug_->debug("@%lu N- %lu m%lu", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
+					regular_broadcasts_[addr].cancel();
 					notify_event(LOST_NEIGHBOR, addr);
 				}
 				else if(stable_now > stable_before) {
-					debug_->debug("@%lu N+ %u", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
+					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
 					notify_event(NEW_NEIGHBOR, addr);
 				}
 				
@@ -522,7 +550,7 @@ namespace wiselib {
 				event.end_waiting();
 				event.template start_waiting_timer<
 					self_type, &self_type::begin_wait_for_regular_broadcast,
-					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, 0);
+					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
 				return ne;
 			}
 			
@@ -555,13 +583,14 @@ namespace wiselib {
 				check();
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
-					//bool stable_before = iter->stable();
-					
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
+						bool stable_before = iter->stable();
 						iter->seen_link_metric(0);
-						//if(regular_broadcasts_.contains(iter->address_)) {
-							//regular_broadcasts_[iter->address_].cancel();
-							//
+						if(iter->stable() < stable_before) {
+							if(regular_broadcasts_.contains(iter->address_)) {
+								regular_broadcasts_[iter->address_].cancel();
+							}
+						}
 					}
 				}
 				
