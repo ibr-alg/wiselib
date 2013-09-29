@@ -20,7 +20,9 @@ import os.path
 nodes = []
 
 re_begin_iteration = re.compile(r'-+ BEGIN ITERATION (\d+)')
-re_treestate = re.compile(r'@(\d+) p(\d+) d(\d+) rt(\d+) c\d+ t(\d+) nn\d+ ln\d+.*')
+re_treestate = re.compile(r'@(\d+) p(\d+) d(\d+) rt(\d+) c\d+ t(\d+) nn\d+ ln\d+')
+re_act = re.compile(r'@(\d+) (/?)ACT t(\d+)')
+re_onoff = re.compile(r'@(-?\d+) (on|off) t(\d+)')
 #re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
 
 tmin = None
@@ -30,12 +32,9 @@ tmax = None
 class tview(object):
 	def __init__(self, v):
 		self.v = v
-		
 	def __item__(self, i): return self.v[i]['t']
 	def __getitem__(self, i): return self.v[i]['t']
-	
 	def __len__(self): return self.v.__len__()
-	
 	def index(self, v):
 		for i, x in enumerate(self.v):
 			if v == x['t']: return i
@@ -74,16 +73,42 @@ def parse(f):
 		line = line.decode('latin1')
 		#print(line)
 		
-		m = re.match(re_begin_iteration, line)
-		if m is not None: t = int(m.group(1)) * 1000
+		#m = re.search(re_begin_iteration, line)
+		#if m is not None:
+			#t = int(m.group(1)) * 1000
+			#continue
 		
-		m = re.match(re_treestate, line)
+		m = re.search(re_treestate, line)
 		if m is not None:
 			addr, parent, distance, root, t_ = m.groups()
 			t = int(t_)
 			d = { 't': t }
 			d[addr] = { 'root': root, 'filter': '', 'parent': parent }
 			insert_state(d)
+			continue
+		
+		m = re.search(re_act, line)
+		if m is not None:
+			addr, slash, t_ = m.groups()
+			t = int(t_)
+			d = { 't': t }
+			d[addr] = { 'active': (slash != '/') }
+			insert_state(d)
+			continue
+		
+		m = re.search(re_onoff, line)
+		if m is not None:
+			addr, onoff, t_ = m.groups()
+			t = int(t_)
+			addr = str(int(addr) + 65536) if int(addr) < 0 else addr
+			d = { 't': t }
+			d[addr] = { 'on': (onoff == 'on') }
+			insert_state(d)
+			continue
+		
+		#if ' L' not in line:
+			#print("not treestate: " + line)
+			
 		
 def compress_filter(s):
 	#return s.replace('00000000', ':').replace('0000', '.')
@@ -117,9 +142,9 @@ def print_dot(d, out):
 		elif v.get('on', True): color = 'red'
 		
 		out.write('  {} [label="{}\\nroot: {}\\n{}",style="filled",fillcolor={}] ;\n'.format(
-			name, name, v['root'], compress_filter(v['filter']), color
+			name, name, v.get('root', '???'), compress_filter(v.get('filter', '')), color
 		))
-		out.write('  {} -> {} ;\n'.format(name, v['parent']))
+		out.write('  {} -> {} ;\n'.format(name, v.get('parent', name)))
 	out.write('}\n')
 
 def generate_all(directory):
@@ -129,6 +154,18 @@ def generate_all(directory):
 	last_t = None
 	count = 0
 	dct = {}
+	
+	def update_dct(d):
+		for k, v in d.items():
+			if k == 't':
+				dct['t'] = v
+				continue
+				
+			if k in dct:
+				dct[k].update(v)
+			else:
+				dct[k] = v
+	
 	for d in nodes:
 		t = int(d['t'])
 		if t == last_t:
@@ -137,6 +174,10 @@ def generate_all(directory):
 			count = 0
 		last_t = t
 		
+		#dct.update(d)
+		update_dct(d)
+		
+		print("t: {} tmin: {} tmax: {}".format(t, tmin, tmax))
 		if tmin is not None and t < tmin: continue
 		if tmax is not None and t > tmax: continue
 		
@@ -144,7 +185,6 @@ def generate_all(directory):
 		fn = '{}/t{:08d}.dot'.format(directory, t)
 		print(fn)
 		f = open(fn, 'w')
-		dct.update(d)
 		print_dot(dct, f)
 		f.close()
 
@@ -160,28 +200,28 @@ def test_compress():
 	for x in l:
 		compress_filter(x)
 
+if len(sys.argv) < 2:
+	print("Usage: {} DIRNAME [TMIN] [TMAX]".format(sys.argv[0]))
+	sys.exit(1)
 
-if len(sys.argv) > 1:
-	tmin = int(sys.argv[1])
-	
+d = sys.argv[1]
+
 if len(sys.argv) > 2:
-	tmax = int(sys.argv[2])
+	tmin = int(sys.argv[2])
+	
+if len(sys.argv) > 3:
+	tmax = int(sys.argv[3])
 
 
 print("parsing... tmin={} tmax={}".format(tmin, tmax))
 
-
-
-#log = 'wilab_23872'
-log = 'log.txt'
-
-if os.path.isdir(log):
-	for fn in glob.glob(dir + '/**/output.txt'):
+if os.path.isdir(d):
+	for fn in glob.glob(d + '/**/output.txt'):
 		print(fn)
 		parse(open(fn, 'rb'))
 else:
-	print(log)
-	parse(open(log, 'rb'))
+	print(d)
+	parse(open(d, 'rb'))
 	
 	
 #parse(open('ttyUSB1_2.log', 'rb'))

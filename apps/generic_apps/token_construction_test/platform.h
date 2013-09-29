@@ -131,7 +131,7 @@
 	#define INSE_FORWARDING_MAP_BITS       512
 	#define INSE_FORWARDING_SLOT_LENGTH    1000 * WISELIB_TIME_FACTOR
 	
-	#define INSE_MAX_NEIGHBORS             4
+	#define INSE_MAX_NEIGHBORS             32
 	#define INSE_MAX_SEMANTIC_ENTITIES     2
 	#define INSE_MAX_QUERIES               0
 	
