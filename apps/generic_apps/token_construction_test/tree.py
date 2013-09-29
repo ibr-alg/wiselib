@@ -5,6 +5,8 @@ import re
 import copy
 import bisect
 import glob
+import os
+import os.path
 
 # nodes = [
 # 	{
@@ -42,7 +44,7 @@ class tview(object):
 def insert_state(d):
 	global nodes
 	
-	if d['t'] > tmax: return
+	if tmax is not None and d['t'] > tmax: return
 	
 	tv = tview(nodes)
 	pos = bisect.bisect(tv, d['t'])
@@ -168,10 +170,20 @@ if len(sys.argv) > 2:
 
 print("parsing... tmin={} tmax={}".format(tmin, tmax))
 
-dir = 'wilab_23872'
-for fn in glob.glob(dir + '/**/output.txt'):
-	print(fn)
-	parse(open(fn, 'rb'))
+
+
+#log = 'wilab_23872'
+log = 'log.txt'
+
+if os.path.isdir(log):
+	for fn in glob.glob(dir + '/**/output.txt'):
+		print(fn)
+		parse(open(fn, 'rb'))
+else:
+	print(log)
+	parse(open(log, 'rb'))
+	
+	
 #parse(open('ttyUSB1_2.log', 'rb'))
 #parse(open('ttyUSB2_2.log', 'rb'))
 

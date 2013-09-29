@@ -97,18 +97,18 @@ namespace wiselib {
 					
 					radio_->enable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("@%d on t%d %s", (int)radio_->id(), (int)(now() & 0xffff), s); // (int)radio_->id());
+						debug_->debug("@%lu on t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); // (int)radio_->id());
 					#elif NAP_CONTROL_DEBUG_ONOFF
-						debug_->debug("@%d on t%lu", (int)radio_->id(), (unsigned long)(now())); // (int)radio_->id());
+						debug_->debug("@%lu on t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); // (int)radio_->id());
 					#endif
 				}
 				caffeine_++;
 				
 				#if NAP_CONTROL_DEBUG_STATE
-					debug_->debug("@%d caf%d %s", (int)radio_->id(), (int)caffeine_, s);
+					debug_->debug("@%lu caf%lu %s", (unsigned long)radio_->id(), (unsigned long)caffeine_, s);
 				#endif
 				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
+					debug_->debug("node %lu caffeine %lu", (unsigned long)radio_->id(), (unsigned long)caffeine_);
 				#endif
 			}
 			
@@ -118,11 +118,11 @@ namespace wiselib {
 				assert(caffeine_ > 0);
 				caffeine_--;
 				#if !WISELIB_DISABLE_DEBUG
-				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
+				debug_->debug("node %lu caffeine %lu", (unsigned long)radio_->id(), (unsigned long)caffeine_);
 				#endif
 				
 				#if NAP_CONTROL_DEBUG_STATE
-					debug_->debug("@%d caf%d %s", (int)radio_->id(), (int)caffeine_, s);
+					debug_->debug("@%lu caf%lu %s", (unsigned long)radio_->id(), (unsigned long)caffeine_, s);
 				#endif
 				if(caffeine_ == 0) {
 					#if defined(CONTIKI)
@@ -130,9 +130,9 @@ namespace wiselib {
 					#endif
 					radio_->disable_radio();
 					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("@%d off t%d %s", (int)radio_->id(), (int)(now() & 0xffff), s); //, (int)radio_->id());
+						debug_->debug("@%lu off t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); //, (int)radio_->id());
 					#elif NAP_CONTROL_DEBUG_ONOFF
-						debug_->debug("@%d off t%lu", (int)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
+						debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
 					#endif
 				}
 			}

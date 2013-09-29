@@ -77,6 +77,7 @@ namespace wiselib
       int send( node_id_t id, size_t len, block_data_t *data )
       {
          if(!enabled_) { return ERR_UNSPEC; }
+         printf("@%lu => %lu\n", (unsigned long)os().proc->id(), (unsigned long)id);
          os().proc->send_wiselib_message( id, len, data );
          return SUCCESS;
       };
@@ -119,6 +120,7 @@ namespace wiselib
       
       void on_receive(node_id_t from, size_t size, block_data_t* data) {
          if(enabled_) {
+            printf("@%lu <= %lu\n", (unsigned long)os().proc->id(), (unsigned long)from);
             this->notify_receivers(from, size, data);
          }
       }

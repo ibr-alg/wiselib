@@ -349,7 +349,7 @@ namespace wiselib {
 			}
 			
 			bool is_node_id_sane(node_id_t n) {
-				return (n != NULL_NODE_ID) && (n != BROADCAST_ADDRESS);
+				return (n != NULL_NODE_ID) && (n != BROADCAST_ADDRESS) && (n != radio_->id());
 			}
 			
 			void erase_regular_broadcast(node_id_t n) {
@@ -381,7 +381,16 @@ namespace wiselib {
 				return neighbor_entries_.end();
 			}
 			
+		#ifdef SHAWN
+			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				typename Radio::ExtendedData ex;
+				ex.set_link_metric(NeighborEntry::LINK_METRIC_BECOMES_STABLE);
+		#else
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data, const typename Radio::ExtendedData& ex) {
+		#endif
+				
+					DBG("@%lu X bc from %lu t %lu", (unsigned long)radio_->id(),
+							(unsigned long)from, (unsigned long)now());
 				check();
 				
 				if(!is_node_id_sane(from)) { return; }
@@ -396,6 +405,8 @@ namespace wiselib {
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
+					DBG("@%lu bc from %lu t %lu", (unsigned long)radio_->id(),
+							(unsigned long)from, (unsigned long)now());
 					typename NeighborEntries::iterator ne = assess_link_metric(from, msg, t, ex.link_metric());
 					if(ne != neighbor_entries_.end() && ne->stable()) {
 						notify_event(SEEN_NEIGHBOR, from);
@@ -415,19 +426,21 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("bcwait");
 				#endif
+				DBG("@%lu (bcw) %p", (unsigned long)radio_->id(), ev);
 				nap_control_->push_caffeine("bcw");
 				
 				timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
 						BCAST_TIMEOUT, this, ev);
 			}
 			
-			void end_wait_for_regular_broadcast(void*) {
+			void end_wait_for_regular_broadcast(void* ev) {
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d // pop wait_for_regular_broadcast", (int)radio_->id());
 				#endif
 				#if INSE_DEBUG_STATE
 					debug_->debug("/bcwait");
 				#endif
+				DBG("@%lu (/bcw) %p", (unsigned long)radio_->id(), ev);
 				nap_control_->pop_caffeine("/bcw");
 			}
 			
@@ -442,8 +455,8 @@ namespace wiselib {
 			
 			void give_up_wait_for_regular_broadcast(void* v) {
 				RegularEventT& ev = *reinterpret_cast<RegularEventT*>(v);
-				DBG("@%lu give up bc waiting %d t%lu a %lu", (unsigned long)radio_->id(), (int)ev.waiting(),
-						(unsigned long)now(), (unsigned long)find_event(ev));
+				DBG("@%lu give up bc waiting %d t%lu a %lu ev %p", (unsigned long)radio_->id(), (int)ev.waiting(),
+						(unsigned long)now(), (unsigned long)find_event(ev), v);
 				
 				// will call end_wait_for_regular_broadcast implicetely
 				if(ev.waiting()) {
@@ -514,6 +527,7 @@ namespace wiselib {
 				}
 				
 				RegularEventT &event = regular_broadcasts_[addr];
+				DBG("@%lu hit ce %p", (unsigned long)radio_->id(), (void*)&event);
 				event.hit(t, clock_, radio_->id());
 				event.end_waiting();
 				event.template start_waiting_timer<
@@ -546,6 +560,7 @@ namespace wiselib {
 				ne->update(msg, t);
 				
 				RegularEventT &event = regular_broadcasts_[addr];
+				DBG("@%lu hit ue %p", (unsigned long)radio_->id(), (void*)&event);
 				event.hit(t, clock_, radio_->id());
 				event.end_waiting();
 				event.template start_waiting_timer<
@@ -673,6 +688,7 @@ namespace wiselib {
 						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
 									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
 					#endif
+					changed();
 				}
 				
 				if(c || updated_neighbors_) {
@@ -701,7 +717,6 @@ namespace wiselib {
 					#endif
 					// </DEBUG>
 					
-					changed();
 				}
 				
 				new_neighbors_ = false;
@@ -757,10 +772,12 @@ namespace wiselib {
 			UserData user_data_;
 			abs_millis_t last_push_;
 			
-			NeighborEntries neighbor_entries_;
 			Neighbors neighbors_;
 			
+			NeighborEntries neighbor_entries_;
 			RegularEvents regular_broadcasts_;
+			
+			
 			EventCallbacks event_callbacks_;
 			
 			::uint8_t new_neighbors_ : 1;
