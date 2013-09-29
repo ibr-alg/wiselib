@@ -522,7 +522,7 @@ namespace wiselib {
 				typename NeighborEntries::iterator r = neighbor_entries_.insert(e);
 				if(e.stable()) {
 					new_neighbors_ = true;
-					debug_->debug("@%lu N+ %lu m%luu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
+					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
 					notify_event(NEW_NEIGHBOR, addr);
 				}
 				
