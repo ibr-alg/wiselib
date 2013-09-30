@@ -93,6 +93,9 @@ namespace wiselib {
 				DEFAULT_SLOT_LENGTH = INSE_FORWARDING_SLOT_LENGTH,
 				MIN_WINSLOTS = INSE_FORWARDING_MIN_WINSLOTS,
 					//500 * WISELIB_TIME_FACTOR
+				
+				MIN_TRANSFER_SLOTS = DivCeil<1000, DEFAULT_SLOT_LENGTH>::value,
+				MAX_TRANSFER_SLOTS = DivCeil<5000, DEFAULT_SLOT_LENGTH>::value,
 			};
 			
 		private:
@@ -339,10 +342,17 @@ namespace wiselib {
 				return (now() - position_time_) / slot_length_ + position_;
 			}
 			
+			int transfer_slots(size_type winslots) {
+				int r = winslots;
+				if(r > MAX_TRANSFER_SLOTS) { r = MAX_TRANSFER_SLOTS; }
+				else if(r < MIN_TRANSFER_SLOTS) { r = MIN_TRANSFER_SLOTS; }
+				return r;
+			}
+			
 			void schedule_wakeup(size_type pos, size_type winslots) {
 				//debug_->debug("@%d fwd mark %d..%d p %d", (int)radio_->id(),
 						//(int)-winslots, (int)(2 * winslots), (int)pos);
-				for(int d = (int)-winslots; d <= (int)(2 * winslots) && pos + d <= 2 * map_slots_; d++) {
+				for(int d = (int)-winslots; d <= transfer_slots(winslots) && pos + d <= 2 * map_slots_; d++) {
 					if((int)pos > -d) {
 						#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
 							debug_->debug("@%d fwd mark %d now %lu pos=%d+%d at %lu",
