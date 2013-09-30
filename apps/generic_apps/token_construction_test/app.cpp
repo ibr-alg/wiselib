@@ -4,14 +4,33 @@
 
 class App {
 	public:
+		
+		size_t initcount ;
+		
+		
 		void init(Os::AppMainParameter& value) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
-			
-			debug_->debug("\nboot @%d t%d\n", (int)radio_->id(), (int)now());
+			initcount = 5 * 60;
+			debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)radio_->id(), (unsigned long)now());
+			timer_->set_timer<App, &App::init2>(1000, this, 0);
+		}
+		
+		void init2(void*) {
+			initcount--;
+			if(initcount == 0) {
+				init3();
+			}
+			else {
+				timer_->set_timer<App, &App::init2>(1000, this, 0);
+			}
+		}
+		
+		void init3() {
+			debug_->debug("\nboot @%lu t%lu\n", (unsigned long)radio_->id(), (unsigned long)now());
 			
 			radio_->enable_radio();
 			rand_->srand(radio_->id());

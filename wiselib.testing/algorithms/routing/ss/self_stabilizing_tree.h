@@ -80,6 +80,7 @@ namespace wiselib {
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR, ///< limit bcasts to this interval when things change all the time
 				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR, ///< send regular bcasts in this interval
+				BCAST_TIMES_OUT = false,
 				BCAST_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, ///< stay awake at most this long waiting for bcasts
 				BCAST_KEEP_AWAKE = 200 * WISELIB_TIME_FACTOR, ///< stay awake at least this long waiting for bcasts (so others have a chance to contact us)
 				DEAD_INTERVAL = (unsigned long)(1.5 * BCAST_INTERVAL), ///< consider neighbor bcasts as missed after this time
@@ -107,8 +108,8 @@ namespace wiselib {
 				
 				enum {
 					ALPHA = 20,
-					LINK_METRIC_BECOMES_STABLE = 240,
-					LINK_METRIC_LOOSES_STABLE = 230
+					LINK_METRIC_BECOMES_STABLE = 248,
+					LINK_METRIC_LOOSES_STABLE = 238
 				};
 				
 				NeighborEntry() : address_(NULL_NODE_ID), stable_(false) {
@@ -429,8 +430,10 @@ namespace wiselib {
 				DBG("@%lu (bcw) %p", (unsigned long)radio_->id(), ev);
 				nap_control_->push_caffeine("bcw");
 				
-				timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
-						BCAST_TIMEOUT, this, ev);
+				if(BCAST_TIMES_OUT) {
+					timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
+							BCAST_TIMEOUT, this, ev);
+				}
 			}
 			
 			void end_wait_for_regular_broadcast(void* ev) {
@@ -524,15 +527,15 @@ namespace wiselib {
 					new_neighbors_ = true;
 					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
 					notify_event(NEW_NEIGHBOR, addr);
-				}
 				
-				RegularEventT &event = regular_broadcasts_[addr];
-				DBG("@%lu hit ce %p", (unsigned long)radio_->id(), (void*)&event);
-				event.hit(t, clock_, radio_->id());
-				event.end_waiting();
-				event.template start_waiting_timer<
-					self_type, &self_type::begin_wait_for_regular_broadcast,
-					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+					RegularEventT &event = regular_broadcasts_[addr];
+					DBG("@%lu hit ce %p", (unsigned long)radio_->id(), (void*)&event);
+					event.hit(t, clock_, radio_->id());
+					event.end_waiting();
+					event.template start_waiting_timer<
+						self_type, &self_type::begin_wait_for_regular_broadcast,
+						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+				}
 				return r;
 			}
 			
@@ -545,7 +548,9 @@ namespace wiselib {
 				
 				if(stable_now < stable_before) {
 					debug_->debug("@%lu N- %lu m%lu", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
-					regular_broadcasts_[addr].cancel();
+					erase_regular_broadcast(addr);
+					//regular_broadcasts_[addr].cancel();
+					//regular_broadcasts_.erase(addr);
 					notify_event(LOST_NEIGHBOR, addr);
 				}
 				else if(stable_now > stable_before) {
@@ -553,19 +558,21 @@ namespace wiselib {
 					notify_event(NEW_NEIGHBOR, addr);
 				}
 				
-				if(ne->stable() && !ne->same_content(msg)) {
+				if(stable_now && !ne->same_content(msg)) {
 					updated_neighbors_ = true;
 					notify_event(UPDATED_NEIGHBOR, addr);
 				}
 				ne->update(msg, t);
 				
-				RegularEventT &event = regular_broadcasts_[addr];
-				DBG("@%lu hit ue %p", (unsigned long)radio_->id(), (void*)&event);
-				event.hit(t, clock_, radio_->id());
-				event.end_waiting();
-				event.template start_waiting_timer<
-					self_type, &self_type::begin_wait_for_regular_broadcast,
-					&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+				if(stable_now) {
+					RegularEventT &event = regular_broadcasts_[addr];
+					DBG("@%lu hit ue %p", (unsigned long)radio_->id(), (void*)&event);
+					event.hit(t, clock_, radio_->id());
+					event.end_waiting();
+					event.template start_waiting_timer<
+						self_type, &self_type::begin_wait_for_regular_broadcast,
+						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+				}
 				return ne;
 			}
 			
@@ -602,9 +609,12 @@ namespace wiselib {
 						bool stable_before = iter->stable();
 						iter->seen_link_metric(0);
 						if(iter->stable() < stable_before) {
+							erase_regular_broadcast(iter->address_);
+							/*
 							if(regular_broadcasts_.contains(iter->address_)) {
 								regular_broadcasts_[iter->address_].cancel();
-							}
+								regular_broadcasts_.erase(iter->address_);
+							}*/
 						}
 					}
 				}
