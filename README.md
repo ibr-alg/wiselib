@@ -85,6 +85,11 @@ Run Wiselib application on PC - examples for ordinary appplications
 iSense sensor network!), and apps where a netbook is attached to a
 Roomba.
 
+### apps/ns3_apps
+
+Ctonains compile script to run Wiselib applications on network simulator 3 (NS-3)
+and source code of NS-3 external interfaces
+
 doc
 -------------------
 
