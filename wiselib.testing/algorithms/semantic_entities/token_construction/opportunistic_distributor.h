@@ -315,7 +315,7 @@ namespace wiselib {
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> CommunicationStates;
 			
 			
-			typedef ReliableTransport<OsModel, node_id_t, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS, 
+			typedef ReliableTransport<OsModel, node_id_t, Neighborhood, Radio, Timer, Clock, Rand, Debug, MAX_NEIGHBORS, 
 					INSE_MESSAGE_TYPE_OPPORTUNISTIC_RELIABLE> TransportT;
 			
 			void init(typename Radio::self_pointer_t radio,
@@ -335,7 +335,7 @@ namespace wiselib {
 				debug_ = debug;
 				timer_ = timer;
 				
-				transport_.init(radio_, timer, clock, rand, debug_, true);
+				transport_.init(nd, radio_, timer, clock, rand, debug_, true);
 				
 				nd_ = nd;
 				nd_->reg_event_callback(
