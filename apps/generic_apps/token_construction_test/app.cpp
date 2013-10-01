@@ -9,13 +9,13 @@ class App {
 		
 		
 		void init(Os::AppMainParameter& value) {
-			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 			initcount = 5 * 60;
-			debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)radio_->id(), (unsigned long)now());
+			debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			timer_->set_timer<App, &App::init2>(1000, this, 0);
 		}
 		
@@ -30,10 +30,13 @@ class App {
 		}
 		
 		void init3() {
-			debug_->debug("\nboot @%lu t%lu\n", (unsigned long)radio_->id(), (unsigned long)now());
+			debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			
-			radio_->enable_radio();
-			rand_->srand(radio_->id());
+			hardware_radio_->enable_radio();
+			radio_.init(*hardware_radio_, *debug_);
+			
+			
+			rand_->srand(radio_.id());
 			monitor_.init(debug_);
 			monitor_.report("bt");
 			
@@ -51,7 +54,7 @@ class App {
 			
 			// Token Scheduler
 			 
-			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
+			token_construction_.init(&ts, &radio_, timer_, clock_, debug_, rand_);
 			
 			#if INSE_USE_AGGREGATOR
 				token_construction_.set_end_activity_callback(
@@ -65,7 +68,7 @@ class App {
 			
 			// Fill node with initial semantics and construction rules
 			
-			initial_semantics(ts, radio_, rand_);
+			initial_semantics(ts, &radio_, rand_);
 			create_rules();
 			rule_processor_.execute_all();
 			
@@ -121,7 +124,7 @@ class App {
 				// Distribute queries to nodes
 				
 				distributor_.init(
-						radio_,
+						&radio_,
 						&token_construction_.tree(),
 						&token_construction_.nap_control(),
 						&token_construction_.semantic_entity_registry(),
@@ -132,13 +135,13 @@ class App {
 				row_anycast_radio_.init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
-						radio_, timer_, debug_
+						&radio_, timer_, debug_
 				);
 				
 				string_anycast_radio_.init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
-						radio_, timer_, debug_
+						&radio_, timer_, debug_
 				);
 				
 				// Transport rows for collect and aggregation operators
@@ -255,20 +258,20 @@ class App {
 				
 				
 				
-				debug_->debug("@%d ag<", (int)radio_->id());
+				debug_->debug("@%d ag<", (int)radio_.id());
 				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
 					debug_->debug("@%d ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
-							(int)radio_->id(), (long)se.id().rule(), (long)se.id().value(),
+							(int)radio_.id(), (long)se.id().rule(), (long)se.id().value(),
 						//	(long)iter->first.type_key(), (long)iter->first.uom_key(),
 							(long)iter->first.datatype(),
 							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
 							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
 				}
-				debug_->debug("@%d ag>", (int)radio_->id());
+				debug_->debug("@%d ag>", (int)radio_.id());
 				
 			}
 			else {
-				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
+				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
 			}
 			
 		}
@@ -283,9 +286,9 @@ class App {
 		
 		#if USE_INQP
 		void distribute_query(void*) {
-			if(radio_->id() != token_construction_.tree().root()) { return; }
+			if(radio_.id() != token_construction_.tree().root()) { return; }
 			
-			debug_->debug("@%d distributing query", (int)radio_->id());
+			debug_->debug("@%d distributing query", (int)radio_.id());
 			
 			// temperature query from ../inqp_test/example_app.cpp,
 			// each operator preceeded with one byte length information,
@@ -366,19 +369,19 @@ class App {
 		) {
 			QueryProcessor::Query *q = query_processor_.get_query(query_id);
 			if(q == 0) {
-				debug_->debug("@%d rowc x !q%d", (int)radio_->id(), (int)query_id);
+				debug_->debug("@%d rowc x !q%d", (int)radio_.id(), (int)query_id);
 				return;
 			} // query not found
 			QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
 			if(op == 0) {
-				debug_->debug("@%d rowc x !o%d", (int)radio_->id(), (int)operator_id);
+				debug_->debug("@%d rowc x !o%d", (int)radio_.id(), (int)operator_id);
 				return;
 			} // operator not found
 			
-			debug_->debug("@%d R%c %02d %02d:", (int)radio_->id(), (char)op->type(), (int)query_id, (int)operator_id);
+			debug_->debug("@%d R%c %02d %02d:", (int)radio_.id(), (char)op->type(), (int)query_id, (int)operator_id);
 			int l = op->projection_info().columns();
 			for(int i = 0; i < l; i++) {
-				debug_->debug("@%d R%c  %d/%d %08lx", (int)radio_->id(), (char)op->type(), (int)i, (int)l, (unsigned long)row[i]);
+				debug_->debug("@%d R%c  %d/%d %08lx", (int)radio_.id(), (char)op->type(), (int)i, (int)l, (unsigned long)row[i]);
 			}
 		} // on_result_row()
 	
@@ -395,7 +398,9 @@ class App {
 		TupleContainer container;
 		TS ts;
 		
-		Os::Radio::self_pointer_t radio_;
+		Os::Radio::self_pointer_t hardware_radio_;
+		Radio radio_;
+		
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;

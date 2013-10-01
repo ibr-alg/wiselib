@@ -14,6 +14,8 @@ using namespace wiselib;
 #include <util/tuple_store/tuplestore.h>
 #include "tuple.h"
 #include <algorithms/hash/sdbm.h>
+#include <algorithms/hash/crc16.h>
+#include <algorithms/hash/checksum_radio.h>
 #include <algorithms/semantic_entities/token_construction/token_scheduler.h>
 #include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
@@ -22,7 +24,10 @@ using namespace wiselib;
 //#include "semantics_simple.h"
 
 typedef Sdbm<Os> Hash;
+typedef Crc16<Os> ChecksumHash;
+
 typedef Tuple<Os> TupleT;
+typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
 
 
 //#define SINK_ID 57
@@ -80,7 +85,7 @@ typedef Tuple<Os> TupleT;
 #endif
 #define USE_DICTIONARY (USE_PRESCILLA_DICTIONARY || USE_TREE_DICTIONARY || USE_BLOCK_DICTIONARY)
 
-typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Debug, Os::Rand> TC;
+typedef wiselib::TokenScheduler<Os, TS, Radio, Os::Timer, Os::Clock, Os::Debug, Os::Rand> TC;
 
 #if USE_INQP
 	#warning "Using INQP rule processor"
@@ -101,7 +106,7 @@ typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Deb
 	// 
 	
 	#include <algorithms/semantic_entities/token_construction/opportunistic_distributor.h>
-	typedef OpportunisticDistributor<Os, TC::GlobalTreeT, TC::NapControlT, TC::SemanticEntityRegistryT, QueryProcessor> Distributor;
+	typedef OpportunisticDistributor<Os, TC::GlobalTreeT, TC::NapControlT, TC::SemanticEntityRegistryT, QueryProcessor, Radio> Distributor;
 	
 	//
 	// SE Anycast Radio
@@ -113,9 +118,9 @@ typedef wiselib::TokenScheduler<Os, TS, Os::Radio, Os::Timer, Os::Clock, Os::Deb
 	#include <algorithms/semantic_entities/token_construction/row_collector.h>
 	
 	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
-		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_STRING_ANYCAST> StringAnycastRadio;
+		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_STRING_ANYCAST, Radio> StringAnycastRadio;
 	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
-		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_ROW_ANYCAST> RowAnycastRadio;
+		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_ROW_ANYCAST, Radio> RowAnycastRadio;
 	
 	// TODO: add packer here as well?
 	typedef StringInquiry<Os, StringAnycastRadio, QueryProcessor> StringInquiryT;	

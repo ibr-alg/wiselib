@@ -427,7 +427,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("bcwait");
 				#endif
-				DBG("@%lu (bcw) %p", (unsigned long)radio_->id(), ev);
+				debug_->debug("@%lu (bcw) %p", (unsigned long)radio_->id(), ev);
 				nap_control_->push_caffeine("bcw");
 				
 				if(BCAST_TIMES_OUT) {
@@ -443,7 +443,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("/bcwait");
 				#endif
-				DBG("@%lu (/bcw) %p", (unsigned long)radio_->id(), ev);
+				debug_->debug("@%lu (/bcw) %p", (unsigned long)radio_->id(), ev);
 				nap_control_->pop_caffeine("/bcw");
 			}
 			
