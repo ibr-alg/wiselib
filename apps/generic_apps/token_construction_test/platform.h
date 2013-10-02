@@ -16,9 +16,10 @@
 	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
 	#define INSE_START_WAIT              (1)
 
-	#define CHECK_LIGHT_INTERVAL         300
+	#define CHECK_LIGHT_INTERVAL         1000
 	#define LIGHT_ON                     180
 	#define LIGHT_OFF                    120
+	#define LIGHT_ALPHA                  50
 
 #elif APP_EVAL
 	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
