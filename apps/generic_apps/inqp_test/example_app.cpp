@@ -6,7 +6,7 @@
 
 #if defined(SHAWN)
 	#define WISELIB_MAX_NEIGHBORS 10000
-	#define WISELIB_TIME_FACTOR 100
+	#define WISELIB_TIME_FACTOR 1
 #else
 	#define WISELIB_MAX_NEIGHBORS 4
 #endif
@@ -151,7 +151,12 @@ class NullMonitor {
 };
 
 static const char* tuples[][3] = {
+	
+#ifdef SHAWN
+	#include "ssp.cpp"
+#else
 	#include "incontextsensing.cpp"
+#endif
 	{ 0, 0, 0 }
 };
 
