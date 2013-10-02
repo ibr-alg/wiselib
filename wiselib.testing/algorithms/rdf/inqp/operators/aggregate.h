@@ -76,7 +76,7 @@ namespace wiselib {
 			enum { MAX_CHILDS = MAX_NEIGHBORS_P };
 			typedef MapStaticVector<OsModel, node_id_t, TableT, MAX_CHILDS> ChildStates;
 			
-			enum { WAIT_AFTER_LOCAL = 1000 * WISELIB_TIME_FACTOR, CHECK_INTERVAL = 1000 * WISELIB_TIME_FACTOR };
+			enum { WAIT_AFTER_LOCAL = 1000 * WISELIB_TIME_FACTOR, CHECK_INTERVAL = INQP_AGGREGATE_CHECK_INTERVAL * WISELIB_TIME_FACTOR };
 			
 			struct TimerInfo { bool alive; };
 			
