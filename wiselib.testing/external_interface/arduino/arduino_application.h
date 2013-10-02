@@ -21,6 +21,7 @@
 
 #include "external_interface/wiselib_application.h"
 #include "external_interface/arduino/arduino_os.h"
+#include "arduino_task.h"
 
 namespace wiselib
 {
@@ -41,24 +42,19 @@ namespace wiselib
    };
 }
 
-void application_main(wiselib::ArduinoOsModel&);
-
-int main(int argc, const char** argv) {
-   wiselib::ArduinoOsModel app_main_arg;
-   init();
-   
-   #if defined(USBCON)
-      USBDevice.attach();
-   #endif
-      
-   pinMode(13, OUTPUT);
-   Serial.begin(9600);
-   application_main(app_main_arg);
-   
-   while(true) {
+ISR(TIMER1_COMPA_vect)
+{
+   TIMSK1 &= ~(1<<OCIE1A);
+   typedef wiselib::ArduinoTimer<wiselib::ArduinoOsModel> Timer;
+   ::uint32_t now = millis();
+   wiselib::current_arduino_timer = Timer::arduino_queue.top();
+   if(wiselib::current_arduino_timer.event_time <= now)
+   {
+     wiselib::current_arduino_timer = Timer::arduino_queue.pop();
+     wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
    }
-   
-   return 0;
+   Timer::fix_rate(); // fix_rate() does this for us (if it deems
+		      //necessary, that is!)
 }
 
 #endif

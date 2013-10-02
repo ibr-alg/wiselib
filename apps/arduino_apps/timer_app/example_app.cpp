@@ -7,6 +7,9 @@
 #include "external_interface/arduino/arduino_clock.h"
 #include "external_interface/arduino/arduino_timer.h"
 
+#include <avr/sleep.h>
+#include <avr/wdt.h>
+
 typedef wiselib::ArduinoOsModel Os;
 
 class ExampleApplication
@@ -15,97 +18,108 @@ public:
    // --------------------------------------------------------------------
    ExampleApplication()
    {
-      timer = new Os::Timer();
-      debug = new Os::Debug();
+      timer = new Os::Timer(); 
+//       debug.debug("H!");
       timer->set_timer<ExampleApplication, &ExampleApplication::on_time>( 1000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_third_time>( 3000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_fifth_time>( 5000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_seventh_time>( 7000, this, ( void* )timer );
-      timer->set_timer<ExampleApplication, &ExampleApplication::on_ninth_time>( 9000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_second_time>( 2000, this, (void* )timer);
       timer->set_timer<ExampleApplication, &ExampleApplication::on_fourth_time>( 4000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_sixth_time>( 6000, this, ( void* )timer );
       timer->set_timer<ExampleApplication, &ExampleApplication::on_eigth_time>( 8000, this, ( void* )timer );
-      timer->set_timer<ExampleApplication, &ExampleApplication::on_tenth_time>( 10000, this, ( void* )timer );
    }
-
+ 
    void on_time(void*)
    {
-      debug->debug("One second timer event");
-      timer->set_timer<ExampleApplication, &ExampleApplication::on_eleventh_time>( 11000, this, ( void* )timer );
+     ::Serial.write("1");
+      timer->set_timer<ExampleApplication, &ExampleApplication::on_ninth_time>( 9000, this, ( void* )timer );
    }
 
    void on_second_time(void*)
    {
-      debug->debug("Two second timer event");
+      ::Serial.write("2");
    }
 
    void on_third_time(void*)
    {
-      debug->debug("Three second timer event");
+      ::Serial.write("3");
    }
 
    void on_fourth_time(void*)
    {
-      debug->debug("Four second timer event");
+      ::Serial.write("4");
    }
 
    void on_fifth_time(void*)
    {
-      debug->debug("Five second timer event");
+      ::Serial.write("5");
    }
 
    void on_sixth_time(void*)
    {
-      debug->debug("Six second timer event");
+      ::Serial.write("6");
    }
 
    void on_seventh_time(void*)
    {
-      debug->debug("Seven second timer event");
+      ::Serial.write("7");
    }
 
    void on_eigth_time(void*)
    {
-      debug->debug("Eight second timer event");
+      ::Serial.write("8");
    }
 
    void on_ninth_time(void*)
    {
-      debug->debug("Nine second timer event");
-   }
-
-   void on_tenth_time(void*)
-   {
-      debug->debug("Ten second timer event");
-   }
-
-   void on_eleventh_time(void*)
-   {
-      debug->debug("Eleven second timer event");
+      ::Serial.write("9");
    }
 
 private:
    Os::Timer* timer;
-   Os::Debug* debug;
 };
 // --------------------------------------------------------------------------
 //wiselib::WiselibApplication<Os, ExampleApplication> example_app;
 // --------------------------------------------------------------------------
 int main()
-{
+{  
    init();
-   pinMode(13, OUTPUT);
+   
 #if defined(USBCON)
    USBDevice.attach();
 #endif
    ExampleApplication Example;
-   
-   while(true)
+   ::Serial.begin(9600);
+   for(;;)
    {
-      if ( serialEventRun ) serialEventRun();
+     if ( serialEventRun ) serialEventRun();
+     while(true)
+     {
+       cli();
+       if(wiselib::ArduinoTask::tasks_.empty())
+       {
+//          #if ARDUINO_ALLOW_SLEEP
+	sleep_enable();
+	sei();
+	sleep_cpu();
+	sleep_disable();
+//          #endif
+	sei();
+	delay(10);
+       }
+       else
+       {
+	 sei();
+	 break;
+       }
+     }
+     wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+     wiselib::ArduinoTask::tasks_.pop();
+     t.callback_(t.userdata_);
+     delay(10);
    }
-   return 0;
+    return 0;
 }
 
 

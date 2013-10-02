@@ -12,31 +12,28 @@ WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
 ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
 SD_PATH=$(ARDUINO_PATH)/libraries/SD
 SOFTWARE_SERIAL_PATH=$(ARDUINO_PATH)/libraries/SoftwareSerial
-XBEE_PATH=$(ARDUINO_PATH)/libraries/XBee
 
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
-	-I$(ETHERNET_PATH)/utility -I$(SD_PATH) -I$(SOFTWARE_SERIAL_PATH) -I$(SD_PATH)/utility -I$(XBEE_PATH)
+	-I$(ETHERNET_PATH)/utility -I$(SD_PATH) -I$(SOFTWARE_SERIAL_PATH) -I$(SD_PATH)/utility
 
 ZEROCONF_PATH=/home/parita/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lxbee -lsoftwareserial -larduino -Wl,--end-group
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -larduino -lstring -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
-CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_XBEE -DARDUINO_LITE -Os -w \
+CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_BLUETOOTH -DARDUINO_LITE -DARDUINO_STRING -Os -w \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
-PORT=/dev/ttyACM1
+PORT=/dev/ttyACM0
 
 default: build-libs build upload
 
-build-libs: libarduino 
-	#libzeroconf
+build-libs: libarduino libzeroconf
 
-libarduino:
+libarduino: 
 	make -C $(ARDUINO_PATH)
 
 libzeroconf:
