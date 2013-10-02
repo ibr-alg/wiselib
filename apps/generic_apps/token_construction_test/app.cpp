@@ -1,12 +1,16 @@
 
-
 #include "app.h"
+
+#ifdef CONTIKI_TARGET_sky
+	extern "C" {
+		#include <dev/light-sensor.h>
+	}
+#endif
 
 class App {
 	public:
 		
 		size_t initcount ;
-		
 		
 		void init(Os::AppMainParameter& value) {
 			hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
@@ -14,7 +18,7 @@ class App {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
-			initcount = 5 * 60;
+			initcount = INSE_START_WAIT;
 			debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			timer_->set_timer<App, &App::init2>(1000, this, 0);
 		}
@@ -68,9 +72,11 @@ class App {
 			
 			// Fill node with initial semantics and construction rules
 			
-			initial_semantics(ts, &radio_, rand_);
-			create_rules();
-			rule_processor_.execute_all();
+			#if !APP_BLINK
+				initial_semantics(ts, &radio_, rand_);
+				create_rules();
+				rule_processor_.execute_all();
+			#endif
 			
 			#if USE_DICTIONARY
 				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
@@ -87,7 +93,20 @@ class App {
 				timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
 			#endif
 			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
+			
+			#ifdef CONTIKI_TARGET_sky
+				//light_sensor
+				//
+				light_se.set(23, 42);
+				
+				//sensors_light_init();
+				light_on = false;
+				SENSORS_ACTIVATE(light_sensor);
+				check_light(0);
+			#endif // CONTIKI_TARGET_sky
 		}
+		
+		SemanticEntityId light_se;
 		
 		void init_blockmemory() {
 			#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
@@ -386,6 +405,39 @@ class App {
 		} // on_result_row()
 	
 		#endif // USE_INQP
+		
+		
+		bool light_on;
+		unsigned light_val;
+		
+		#ifdef CONTIKI_TARGET_sky
+		void check_light(void*) {
+			unsigned v = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
+			
+			light_val = 0.8 * light_val + 0.2 * v;
+			
+			debug_->debug("light: %u %u",
+					//(unsigned)sensors_light1(),
+					//(unsigned)sensors_light2()
+					(unsigned)light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC),
+					(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
+			);
+			if(light_on && light_val < LIGHT_OFF) {
+				debug_->debug("@%lu leave", (unsigned long)radio_->id());
+				// unregister se
+				light_on = false;
+				token_construction_.erase_entity(light_se);
+			}
+			else if(!light_on && light_val > LIGHT_ON) {
+				debug_->debug("@%lu join", (unsigned long)radio_->id());
+				light_on = true;
+				token_construction_.add_entity(light_se);
+			}
+						
+			timer_->set_timer<App, &App::check_light>(CHECK_LIGHT_INTERVAL, this, 0);
+		}
+		#endif // CONTIKI_TARGET_sky
+		
 		
 		
 		//

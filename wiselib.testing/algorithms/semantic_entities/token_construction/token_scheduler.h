@@ -46,6 +46,12 @@
 #include "semantic_entity_registry.h"
 #include "token_state_message.h"
 
+#if CONTIKI_TARGET_sky
+extern "C" {
+	#include <dev/leds.h>
+}
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -135,13 +141,14 @@ namespace wiselib {
 			};
 			
 			enum Timings {
-				HANDOVER_RETRY_INTERVAL = 10000 * WISELIB_TIME_FACTOR,
 				AGGREGATES_LOCK_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
 				
 				/**
 				 * How long should we keep the token once we have it?
 				 */
-				ACTIVITY_PERIOD = 10000 * WISELIB_TIME_FACTOR,
+				ACTIVITY_PERIOD = INSE_ACTIVITY_PERIOD,
+				HANDOVER_RETRY_INTERVAL = ACTIVITY_PERIOD,
+					//10000 * WISELIB_TIME_FACTOR,
 				ACTIVITY_PERIOD_ROOT = 100 * WISELIB_TIME_FACTOR,
 			};
 			
@@ -269,6 +276,24 @@ namespace wiselib {
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
 				}
+			}
+			
+			void erase_entity(const SemanticEntityId& se_id) {
+				check();
+				
+				SemanticEntityT *se = registry_.get(se_id);
+				if(!se) { return; }
+				
+				
+				if(se->is_active(radio_->id())) {
+					end_activity(*se);
+				}
+				
+				transport_.unregister_endpoint(se_id, true);
+				transport_.unregister_endpoint(se_id, false);
+				
+				se->destruct();
+				registry_.erase(se_id);
 			}
 			
 			GlobalTreeT& tree() { return global_tree_; }
@@ -1028,6 +1053,8 @@ namespace wiselib {
 				
 				#ifdef ARDUINO
 					digitalWrite(13, HIGH);
+				#elif CONTIKI_TARGET_sky
+					leds_on(LEDS_GREEN);
 				#endif
 				
 				#if !WISELIB_DISABLE_DEBUG
@@ -1158,6 +1185,8 @@ namespace wiselib {
 				
 				#ifdef ARDUINO
 					digitalWrite(13, LOW);
+				#elif CONTIKI_TARGET_sky
+					leds_off(LEDS_GREEN);
 				#endif
 			}
 			

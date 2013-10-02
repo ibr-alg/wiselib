@@ -108,8 +108,8 @@ namespace wiselib {
 				
 				enum {
 					ALPHA = 20,
-					LINK_METRIC_BECOMES_STABLE = 248,
-					LINK_METRIC_LOOSES_STABLE = 238,
+					LINK_METRIC_BECOMES_STABLE = 240,
+					LINK_METRIC_LOOSES_STABLE = 220,
 					LINK_METRIC_LOW = 200
 				};
 				

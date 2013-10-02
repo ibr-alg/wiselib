@@ -2,6 +2,32 @@
 
 /// Default config
 
+// App features / modes
+
+#define USE_INQP                       0
+#define INSE_USE_AGGREGATOR            0
+
+#define APP_BLINK 1
+#define APP_EVAL  0
+
+#if APP_BLINK
+	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
+	#define INSE_FORWARDING_MAP_BITS     128
+	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
+	#define INSE_START_WAIT              (1)
+
+	#define CHECK_LIGHT_INTERVAL         300
+	#define LIGHT_ON                     180
+	#define LIGHT_OFF                    120
+
+#elif APP_EVAL
+	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
+	#define INSE_FORWARDING_MAP_BITS     512
+	#define INSE_FORWARDING_SLOT_LENGTH  2000 * WISELIB_TIME_FACTOR
+	#define INSE_START_WAIT              (5 * 60)
+
+#endif
+
 // Checks, Assertions, Debug messages
 
 #define CHECK_INVARIANTS               (defined(SHAWN))
@@ -29,12 +55,6 @@
 #define USE_BLOCK_DICTIONARY           0
 #define USE_NULL_DICTIONARY            0
 
-// App features
-
-//#define INSE_SINK                      1
-#define USE_INQP                       1
-#define INSE_USE_AGGREGATOR            0
-
 // Restrictions
 
 #define INSE_MAX_NEIGHBORS             8
@@ -54,9 +74,8 @@
 // Timing
 
 #define WISELIB_TIME_FACTOR            1
-#define INSE_FORWARDING_MAP_BITS       2048
-#define INSE_FORWARDING_SLOT_LENGTH    (500 * 100)
-
+//#define INSE_FORWARDING_MAP_BITS       2048
+//#define INSE_FORWARDING_SLOT_LENGTH    (500 * 100)
 
 // Message types
 #define INSE_MESSAGE_TYPE_STRING_INQUIRY            0x40
@@ -100,8 +119,8 @@
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_FORWARDING_MAP_BITS       512
-	#define INSE_FORWARDING_SLOT_LENGTH    2000 * WISELIB_TIME_FACTOR
+	//#define INSE_FORWARDING_MAP_BITS       512
+	//#define INSE_FORWARDING_SLOT_LENGTH    2000 * WISELIB_TIME_FACTOR
 	
 	#define INSE_MAX_NEIGHBORS             32
 	#define INSE_MAX_SEMANTIC_ENTITIES     2

@@ -25,6 +25,12 @@
 	#include <netstack.h>
 #endif
 
+#if CONTIKI_TARGET_sky
+extern "C" {
+	#include <dev/leds.h>
+}
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -96,6 +102,10 @@ namespace wiselib {
 					#endif
 					
 					radio_->enable_radio();
+					#if CONTIKI_TARGET_sky
+						leds_on(LEDS_RED);
+					#endif
+						
 					#if NAP_CONTROL_DEBUG_STATE
 						debug_->debug("@%lu on t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); // (int)radio_->id());
 					#elif NAP_CONTROL_DEBUG_ONOFF
@@ -129,6 +139,9 @@ namespace wiselib {
 						NETSTACK_RDC.off(false);
 					#endif
 					radio_->disable_radio();
+					#if CONTIKI_TARGET_sky
+						leds_off(LEDS_RED);
+					#endif
 					#if NAP_CONTROL_DEBUG_STATE
 						debug_->debug("@%lu off t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); //, (int)radio_->id());
 					#elif NAP_CONTROL_DEBUG_ONOFF
