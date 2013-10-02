@@ -4,16 +4,27 @@ import random
 import math
 import subprocess
 import threading
+import shutil
 from multiprocessing.pool import Pool
 #from multiprocessing.pool import ThreadPool as Pool
 
 BASE_DATA_PATH = '/home/henning/annexe/experiments/2013-10-inqp-shawn'
+BINARY='example_app'
+SOURCE_PATH = '/home/henning/repos/wiselib'
+
 INPUT_DATA_PATH = BASE_DATA_PATH + '/input_data'
 OUTPUT_DATA_PATH = BASE_DATA_PATH + '/output_data'
-BINARY='./example_app'
-POOL_SIZE=5
+BINARY_PATH = BASE_DATA_PATH + '/binaries'
+LOG_PATH = BASE_DATA_PATH + '/logs'
+SOURCECODE_PATH = BASE_DATA_PATH + '/src'
+
+POOL_SIZE=4
 
 def main():
+	global pool
+	pool = Pool(POOL_SIZE)
+	
+	
 	nseeds = 100
 	
 	print("== generating seeds...")
@@ -27,9 +38,22 @@ def main():
 	
 	print("== running aggregate interval experiments (const density)...")
 	run_aggregate_interval_constant_density(0.1, range(100, 1000, 100),
-			nseeds, [100, 500] + list(range(1000, 11000, 1000)))
+			nseeds, [100, 500] + list(range(1000, 4000, 1000)))
+
+	pool.close()
+	pool.join()
 
 # --- Experiments
+
+def snapshot_sourcecode():
+	excludes = """
+	out/ dot/ *.pdf *.log *.o *.orig *.d *.swp *.pyc
+	build/ bin/ *.so doxygen_output/ data/ *~
+	""".split()
+	
+	cmd = ['tar', '-cpzf', SOURCECODE_PATH + '/wiselib.tar.gz']
+	cmd += ['--exclude=' + x for x in excludes]
+	cmd.append(SOURCECODE_PATH)
 
 def run_constant_density(density, nodes, nseeds):
 	for n in nodes:
@@ -42,15 +66,14 @@ def run_constant_size(sz, nodes, nseeds):
 
 def run_aggregate_interval_constant_density(density, nodes, nseeds, intervals):
 	for interval in intervals:
-		compile('-DINQP_AGGREGATE_CHECK_INTERVAL=' + str(interval))
+		addinfo = '_aggrint{}'.format(interval)
+		compile('-DINQP_AGGREGATE_CHECK_INTERVAL=' + str(interval), addinfo)
+		#for n in nodes:
 		
-		pool = Pool(POOL_SIZE)
-		for n in nodes:
-			sz = round(math.sqrt(n / density))
-			pool.apply_async(run_shawn, args=(sz, n, nseeds, '_aggrint{}'.format(interval)))
-		pool.close()
-		pool.join()
-
+		n = 500
+		sz = round(math.sqrt(n / density))
+		run_shawn(sz, n, nseeds, addinfo)
+	
 # --- General functions
 
 def generate_seeds(n):
@@ -59,22 +82,32 @@ def generate_seeds(n):
 		
 
 def run_shawn(sz, n, nseeds, add_info = ''):
-	print("-- size {} count {} {}".format(sz, n, add_info))
+	print("-- schedule size {} count {} {}".format(sz, n, add_info))
 	for i in range(nseeds):
-		p = subprocess.Popen([BINARY], stdin=subprocess.PIPE,
-				stdout=open(OUTPUT_DATA_PATH + '/size{}_count{}_rseed{}{}.log'.format(sz, n, i, add_info), 'w')
-				)
-		p.stdin.write(generate_shawn_config(sz, n, i).encode('ascii'))
-		p.stdin.close()
-		p.wait()
-		assert p.returncode == 0
-		#open('size{}_count{}_rseed{}.log', 'w').write(out)
+		pool.apply_async(run_shawn_with_seed, args=(sz, n, i, add_info))
+		
+		
+def run_shawn_with_seed(sz, n, i, add_info):
+	print("-- run size {} count {} seed {} {} ".format(sz, n, i, add_info))
+	p = subprocess.Popen([BINARY_PATH + '/' + BINARY + add_info], stdin=subprocess.PIPE,
+			stdout=open(OUTPUT_DATA_PATH + '/size{}_count{}_rseed{}{}.log'.format(sz, n, i, add_info), 'w')
+			)
+	p.stdin.write(generate_shawn_config(sz, n, i).encode('ascii'))
+	p.stdin.close()
+	p.wait()
+		#assert p.returncode == 0
 
-def compile(flags):
-	print("-- flags {}".format(flags))
-	subprocess.Popen(['make', 'clean']).wait()
-	p = subprocess.Popen(['make', 'shawn', 'ADD_CXXFLAGS=\"' + flags + '\"'])
-	stdout, stderr = p.communicate()
+def compile(flags, add_info = ''):
+	print("-- compile {} flags {}".format(add_info, flags))
+	subprocess.Popen(['make', 'clean'],
+			stdout=open(LOG_PATH + '/make_clean_' + add_info + '_out.log', 'w'),
+			stderr=open(LOG_PATH + '/make_clean_' + add_info + '_err.log', 'w'),
+			).wait()
+	subprocess.Popen(['make', 'shawn', 'ADD_CXXFLAGS=\"' + flags + '\"'],
+			stdout=open(LOG_PATH + '/make_' + add_info + '_out.log', 'w'),
+			stderr=open(LOG_PATH + '/make_' + add_info + '_err.log', 'w'),
+			).wait()
+	shutil.copy(BINARY, BINARY_PATH + '/' + BINARY + add_info)
 
 
 def generate_shawn_config(sz, n, seed):
