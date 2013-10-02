@@ -69,6 +69,11 @@ namespace wiselib {
 				return map_[id];
 			}
 			
+			void erase(const SemanticEntityId& id) {
+				check();
+				map_.erase(id);
+			}
+			
 			bool contains(const SemanticEntityId& id) {
 				if(id.is_all()) { return true; }
 				if(id.is_invalid()) { return false; }

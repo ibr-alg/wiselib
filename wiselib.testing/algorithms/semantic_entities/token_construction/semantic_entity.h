@@ -149,6 +149,10 @@ namespace wiselib {
 				*this = other;
 			}
 			
+			void destruct() {
+				activating_token_.cancel();
+			}
+			
 			int main_handover_phase() { return main_handover_phase_; }
 			void set_main_handover_phase(int p) { main_handover_phase_ = p; }
 			
