@@ -131,7 +131,7 @@ namespace wiselib {
 				sink_id_ = sink;
 			}
 			
-			void on_send_row(CommunicationType type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
+			void on_send_row(int type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
 				block_data_t buf[ResultRadio::MAX_MESSAGE_LENGTH];
 				ResultMessage *message = reinterpret_cast<ResultMessage*>(buf);
 				message->set_message_id(MESSAGE_ID_INTERMEDIATE_RESULT);
@@ -163,6 +163,8 @@ namespace wiselib {
 						}
 						break;
 					}
+					case QueryProcessor::COMMUNICATION_TYPE_CONSTRUCTION_RULE:
+						break;
 				} // switch
 			} // on_send_row()
 			
@@ -264,7 +266,7 @@ namespace wiselib {
 				
 				switch(msg->message_id()) {
 					case MESSAGE_ID_INTERMEDIATE_RESULT:
-						ian_->handle_intermediate_result(msg, packet->from, packet->len);
+						ian_->handle_intermediate_result(msg, packet->from); //, packet->len);
 						break;
 					default:
 						DBG("unexpected message id: %d", msg->message_id());
