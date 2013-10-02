@@ -20,6 +20,10 @@ rc('text', usetex=True)
 
 MSGS, BYTES, TIME, NODES, MSGS_T, MSGS_AGGR_T, MSGS_QUERY_T = range(7)
 
+MSG_PACKING = 'c8'
+MSG_FLOODING = 'c9'
+MSG_FORWARD = 'ca'
+
 def parse(f):
 	
 	sum_msgs = [0]
@@ -88,23 +92,25 @@ def parse_all(dir, fnametest = lambda sz, cnt, seed, add: True):
 				#aggr_srows_v.append(aggr_srows)
 				
 			#m = re.match(r'SEND from (\d+) to (\d+) len (\d+) time (\d+)', line)
-			m = re.match(r'@(\d+) => (\d+) l(\d+)', line)
+			m = re.match(r'@(\d+) => (\d+) l(\d+) m([0-9a-f]+)', line)
 			if m is not None:
 				from_ = int(m.groups()[0])
 				nodes_seen.add(from_)
 				to = int(m.groups()[1])
 				len_ = int(m.groups()[2])
+				m = m.groups()[3]
 				#t = int(m.groups()[3])
 				#t -= 10000
 				msgs += 1
 				msgs_t.append(t)
 				msgs_v.append(msgs)
 				
-				if len_ == 66:
+				#if len_ == 66:
+				if m == MSG_FLOODING:
 					msgs_query +=1
 					msgs_query_t.append(t)
 					msgs_query_v.append(msgs_query)
-				else:
+				elif m == MSG_FORWARD:
 					msgs_aggr +=1
 					msgs_aggr_t.append(t)
 					msgs_aggr_v.append(msgs_aggr)
@@ -192,7 +198,42 @@ def num(s):
 		return m.groups()[0]
 	print("num not found in " + s)
 	return None
+
+
+def eval_aggrint(r, exp):
+	print('->', exp['pdf'])
+	fig = plt.figure()
+	p = fig.add_subplot(111)
 	
+	l = []
+	for k in exp['key']:
+		if k not in r: continue
+		
+		# strip 0 values (=0 messages sent/everything answered immediaetly),
+		# they can only result from a disconnected sink
+		ys = [y for y in r[k][exp['c']] if y > 0]
+		l.append(ys)
+	
+	p.set_xticks(range(1, 1 + len(l)))
+	p.set_xticklabels([num(k[2]) for k in exp['key']])
+	#bp = boxes(r, exp['key'], exp['c'], p, '{1:d}')
+	#bp = scatter(r, exp['key'], exp['c'], p)
+	#plt.setp(color='k')
+	bp = p.boxplot(l)
+	p.set_xlabel('aggr interval')
+	
+	p.set_ylabel(['Messages (\\#)', 'Bytes transmitted', 'Answer time (ms)'][exp['c']])
+	
+	try:
+		plt.setp(bp['boxes'], color='black')
+		plt.setp(bp['medians'], color='black')
+		plt.setp(bp['whiskers'], color='black')
+		plt.setp(bp['fliers'], color='black')
+	except Exception as e:
+		print(e)
+	fig.savefig(exp['pdf'], bbox_inches='tight', pad_inches=0)
+	
+
 #fix_density = [(32, 100), (45, 200), (55, 300), (63, 400), (71, 500), (77, 600), (84, 700), (89, 800), (95, 900)]
 #fix_size = [(50, 100), (50, 200), (50, 300), (50, 400), (50, 500), (50, 600), (50, 700), (50, 800), (50, 900)]
 #experiments = [
@@ -204,30 +245,22 @@ def num(s):
 		#{ 'key': fix_size, 'c': 2, 'pdf': 'fix_size_time.pdf', },
 #]
 
-#for exp in experiments:
-	#eval_experiment(r, exp)
-
-aggrint32 = [(32, 100, '_aggrint{}'.format(i)) for i in [100, 500] + list(range(1000, 11000, 1000))]
+aggrint32 = [(71, 500, '_aggrint{}'.format(i)) for i in [100, 500] + list(range(1000, 4000, 1000))]
 experiments = [
-		{ 'key': aggrint32, 'c': TIME, 'pdf': 'fix_density_aggrint32_messages.pdf', }
+		{ 'key': aggrint32, 'c': TIME, 'pdf': 'fix_density_aggrint71_messages.pdf', }
 ]
 
-r = parse_all(DATA_PATH, lambda s, n, sd, a: s == 32 and n == 100)
+r = parse_all(DATA_PATH, lambda s, n, sd, a: s == 71 and n == 500)
 
-fig = plt.figure()
-p = fig.add_subplot(111)
+for exp in experiments:
+	#eval_experiment(r, exp)
+	eval_aggrint(r, exp)
 
-x = []
-y = []
-for k in aggrint32:
-	x.extend([num(k[2])] * len(r[k][TIME]))
-	y.extend(r[k][TIME])
-	
-#print(x, y)
-#p.set_xlim((0, max(x)))
-#p.set_ylim((0, max(y)))
-p.scatter(x, y, marker='x', color='k')
-fig.savefig('fix_density_aggrint32_messages.pdf', bbox_inches='tight', pad_inches=0)
+#fig = plt.figure()
+#p = fig.add_subplot(111)
+
+#p.scatter(x, y, marker='x', color='k')
+#fig.savefig('fix_density_aggrint32_messages.pdf', bbox_inches='tight', pad_inches=0)
 
 #fig = plt.figure()
 #p = fig.add_subplot(111)

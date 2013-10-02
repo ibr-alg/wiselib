@@ -525,7 +525,29 @@ class ExampleApplication
 			
 			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
 			
+#ifdef SHAWN
+			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_ssp_query>(10000, this, 0);
+#else
 			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+#endif
+		}
+		
+		void sink_send_ssp_query(void*) {
+			block_data_t qid = 1;
+			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+			enum { ROOT = 0 };
+			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+			
+			block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(101010), 0, 0, 0, 3, MIN | AGAIN, AVG | AGAIN, MAX };
+			send(sizeof(op100), op100);
+			
+			block_data_t op80[]  = { OP, qid,  80, 'g', LEFT | 100, BIN(100000), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
+			send(sizeof(op80), op80);
+			
+			block_data_t cmd[] = { Q, qid, 2 };
+			send(sizeof(cmd), cmd);
+			
+			query_radio_.flush();
 		}
 		
 		void sink_send_query(void*) {
