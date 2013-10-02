@@ -5,7 +5,8 @@
 
 
 #if defined(SHAWN)
-	#define WISELIB_MAX_NEIGHBORS 100
+	#define WISELIB_MAX_NEIGHBORS 10000
+	#define WISELIB_TIME_FACTOR 100
 #else
 	#define WISELIB_MAX_NEIGHBORS 4
 #endif
@@ -175,7 +176,6 @@ class ExampleApplication
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			//block_memory_ = &wiselib::FacetProvider<Os, Os::BlockMemory>::get_facet( value );
 			//
-			
 			
 			monitor_.init(debug_);
 			
