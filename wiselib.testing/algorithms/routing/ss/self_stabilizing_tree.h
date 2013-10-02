@@ -83,7 +83,7 @@ namespace wiselib {
 				BCAST_TIMES_OUT = false,
 				BCAST_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, ///< stay awake at most this long waiting for bcasts
 				BCAST_KEEP_AWAKE = 200 * WISELIB_TIME_FACTOR, ///< stay awake at least this long waiting for bcasts (so others have a chance to contact us)
-				DEAD_INTERVAL = (unsigned long)(1.5 * BCAST_INTERVAL), ///< consider neighbor bcasts as missed after this time
+				DEAD_INTERVAL = (unsigned long)(3 * BCAST_INTERVAL), ///< consider neighbor bcasts as missed after this time
 				MAX_ROOT_DISTANCE = 10,
 			};
 			enum SpecialNodeIds {
@@ -316,6 +316,9 @@ namespace wiselib {
 			 */
 			void blame_neighbor(node_id_t addr) {
 				typename NeighborEntries::iterator iter = find_neighbor_entry(addr);
+				blame_neighbor(iter);
+			}
+			void blame_neighbor(typename NeighborEntries::iterator iter) {
 				if(iter != neighbor_entries_.end()) {
 					neighbor_sees_metric(iter, NeighborEntry::LINK_METRIC_LOW);
 				}
@@ -639,7 +642,9 @@ namespace wiselib {
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
-						neighbor_sees_metric(iter, 0);
+						iter->last_update_ = now();
+						blame_neighbor(iter);
+						//neighbor_sees_metric(iter, 0);
 					}
 				}
 				
