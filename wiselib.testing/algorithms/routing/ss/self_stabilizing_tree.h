@@ -109,7 +109,8 @@ namespace wiselib {
 				enum {
 					ALPHA = 20,
 					LINK_METRIC_BECOMES_STABLE = 248,
-					LINK_METRIC_LOOSES_STABLE = 238
+					LINK_METRIC_LOOSES_STABLE = 238,
+					LINK_METRIC_LOW = 200
 				};
 				
 				NeighborEntry() : address_(NULL_NODE_ID), stable_(false) {
@@ -158,6 +159,8 @@ namespace wiselib {
 				
 				void seen_link_metric(link_metric_t l) {
 					link_metric_ = (1.0 - ALPHA/100.0) * link_metric_ + ALPHA/100.0 * l;
+					if(stable() && looses_stable()) { stable_ = false; }
+					else if(!stable() && becomes_stable()) { stable_ = true; }
 				}
 				void set_link_metric(link_metric_t l) { link_metric_ = l; }
 				link_metric_t link_metric() { return link_metric_; }
@@ -303,6 +306,19 @@ namespace wiselib {
 					}
 				*/
 				#endif
+			}
+			
+			/**
+			 * Reduce stability estimation for given neighbor.
+			 * Call this when you expected a packet from the neighbor which
+			 * hasnt arrived or you just dont like him and dont want to talk
+			 * with him anymore.
+			 */
+			void blame_neighbor(node_id_t addr) {
+				typename NeighborEntries::iterator iter = find_neighbor_entry(addr);
+				if(iter != neighbor_entries_.end()) {
+					neighbor_sees_metric(iter, NeighborEntry::LINK_METRIC_LOW);
+				}
 			}
 		
 		private:
@@ -539,24 +555,41 @@ namespace wiselib {
 				return r;
 			}
 			
+			void neighbor_sees_metric(typename NeighborEntries::iterator it, link_metric_t m) {
+				if(it == neighbor_entries_.end()) { return; }
+				
+				link_metric_t m_before = it->link_metric();
+				
+				bool stable_before = it->stable();
+				it->seen_link_metric(m);
+				bool stable_now = it->stable();
+				
+				debug_->debug("@%lu N %lu m%lu,%lu=%lu s%d=%d t%lu",
+						(unsigned long)radio_->id(),
+						(unsigned long)it->address_,
+						(unsigned long)m_before,
+						(unsigned long)m,
+						(unsigned long)it->link_metric(),
+						(int)stable_before, (int)stable_now,
+						(unsigned long)now());
+				
+				if(stable_now > stable_before) {
+					new_neighbors_ = true;
+					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m);
+					notify_event(NEW_NEIGHBOR, it->address_);
+				}
+				else if(stable_now < stable_before) {
+					lost_neighbors_ = true;
+					debug_->debug("@%lu N- %lu m%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m);
+					notify_event(LOST_NEIGHBOR, it->address_);
+					erase_regular_broadcast(it->address_);
+				}
+			}
+			
 			typename NeighborEntries::iterator update_entry(typename NeighborEntries::iterator ne, node_id_t addr, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
 				assert(ne->address_ == addr);
-				
-				bool stable_before = ne->stable();
-				ne->seen_link_metric(m);
+				neighbor_sees_metric(ne, m);
 				bool stable_now = ne->stable();
-				
-				if(stable_now < stable_before) {
-					debug_->debug("@%lu N- %lu m%lu", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
-					erase_regular_broadcast(addr);
-					//regular_broadcasts_[addr].cancel();
-					//regular_broadcasts_.erase(addr);
-					notify_event(LOST_NEIGHBOR, addr);
-				}
-				else if(stable_now > stable_before) {
-					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)ne->address_, (unsigned long)ne->link_metric());
-					notify_event(NEW_NEIGHBOR, addr);
-				}
 				
 				if(stable_now && !ne->same_content(msg)) {
 					updated_neighbors_ = true;
@@ -606,16 +639,7 @@ namespace wiselib {
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
-						bool stable_before = iter->stable();
-						iter->seen_link_metric(0);
-						if(iter->stable() < stable_before) {
-							erase_regular_broadcast(iter->address_);
-							/*
-							if(regular_broadcasts_.contains(iter->address_)) {
-								regular_broadcasts_[iter->address_].cancel();
-								regular_broadcasts_.erase(iter->address_);
-							}*/
-						}
+						neighbor_sees_metric(iter, 0);
 					}
 				}
 				

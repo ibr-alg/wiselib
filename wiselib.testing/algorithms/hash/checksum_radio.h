@@ -89,13 +89,13 @@ namespace wiselib {
 				radio_->send(dest, len + sizeof(hash_t), buf);
 			}
 			
-			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data) {
+			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
 				if(len < sizeof(hash_t)) { return; }
 				
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data);
 				hash_t h_check = Hash::hash(data + sizeof(hash_t), len - sizeof(hash_t));
 				if(h_msg == h_check) {
-					this->notify_receivers(from, len - sizeof(hash_t), data + sizeof(hash_t));
+					this->notify_receivers(from, len - sizeof(hash_t), data + sizeof(hash_t), ex);
 				}
 				else {
 					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
