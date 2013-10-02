@@ -379,8 +379,8 @@ namespace wiselib {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						ChannelId c = msg.channel();
 						block_data_t *ch = reinterpret_cast<block_data_t*>(&c);
-						debug_->debug("@%d ign ch s%d %02x%02x%02x%02x / %d",
-								(int)radio_->id(), (int)msg.sequence_number(),
+						debug_->debug("@%lu ign ch s%d %02x%02x%02x%02x / %d",
+								(unsigned long)radio_->id(), (int)msg.sequence_number(),
 								(int)ch[0], (int)ch[1], (int)ch[2], (int)ch[3], msg.initiator());
 						//); // (int)msg.channel().rule(), (int)msg.channel().value());
 					#endif
@@ -405,9 +405,11 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("ign m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
+					#if RELIABLE_TRANSPORT_DEBUG_STATE || INSE_DEBUG_WARNING
+						debug_->debug("@%lu ign %lu m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
 								//(int)msg.channel().rule(), (int)msg.channel().value(),
+								(unsigned long)radio_->id(),
+								(unsigned long)from,
 								(int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
 					#endif
 					
@@ -798,9 +800,11 @@ namespace wiselib {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("@%d loss s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
 					#endif
+						
+					nd_->blame_neighbor(sending_endpoint().remote_address());
 					if(resends_ >= MAX_RESENDS) {
 						#if RELIABLE_TRANSPORT_DEBUG_STATE
-							debug_->debug("@%lu abrt s%d t%d", (unsigned long)radio_->id(), (int)sending_endpoint().sequence_number(), (unsigned long)now());
+							debug_->debug("@%lu abrt s%u t%lu", (unsigned long)radio_->id(), (unsigned)sending_endpoint().sequence_number(), (unsigned long)now());
 						#endif
 						sending_endpoint().abort_produce();
 						sending_endpoint().close();
