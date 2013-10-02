@@ -11,11 +11,14 @@ from matplotlib import rc
 import glob
 import pylab
 
-DATA_PATH='/home/henning/annexe/experiments/2013-09-inqp-shawn'
+#DATA_PATH='/home/henning/annexe/experiments/2013-09-inqp-shawn'
+DATA_PATH='/home/henning/annexe/experiments/2013-10-inqp-shawn/output_data'
 
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
+
+MSGS, BYTES, TIME, NODES, MSGS_T, MSGS_AGGR_T, MSGS_QUERY_T = range(7)
 
 def parse(f):
 	
@@ -39,10 +42,10 @@ def parse(f):
 	return ts, sum_msgs, sum_bytes
 
 
-def parse_all(dir):
+def parse_all(dir, fnametest = lambda sz, cnt, seed, add: True):
 	r = {}
 	for fn in glob.glob(dir + '/size*.log'):
-		m = re.search(r'size(\d+)_count(\d+)_rseed(\d+).log', fn)
+		m = re.search(r'size(\d+)_count(\d+)_rseed(\d+)(.*).log', fn)
 		if m is None: continue
 		
 		
@@ -50,6 +53,9 @@ def parse_all(dir):
 		size = int(m.groups()[0])
 		count = int(m.groups()[1])
 		seed = int(m.groups()[2])
+		add_info = m.groups()[3]
+		
+		if not fnametest(size, count, seed, add_info): continue
 		
 		try:
 			f = open(fn, 'r')
@@ -81,14 +87,15 @@ def parse_all(dir):
 				#aggr_srows_t.append(t)
 				#aggr_srows_v.append(aggr_srows)
 				
-			m = re.match(r'SEND from (\d+) to (\d+) len (\d+) time (\d+)', line)
+			#m = re.match(r'SEND from (\d+) to (\d+) len (\d+) time (\d+)', line)
+			m = re.match(r'@(\d+) => (\d+) l(\d+)', line)
 			if m is not None:
 				from_ = int(m.groups()[0])
 				nodes_seen.add(from_)
 				to = int(m.groups()[1])
 				len_ = int(m.groups()[2])
-				t = int(m.groups()[3])
-				t -= 10000
+				#t = int(m.groups()[3])
+				#t -= 10000
 				msgs += 1
 				msgs_t.append(t)
 				msgs_v.append(msgs)
@@ -105,23 +112,26 @@ def parse_all(dir):
 				bytes += len_
 				time = t
 		
-		if (size, count) not in r:
-			print(size, count)
+		
+		k = (size, count, add_info)
+		
+		if k not in r:
+			print(size, count, add_info)
 			# msgs, bytes, time, connected nodes
-			r[(size, count)] = ([], [], [], [], [], [], [])
+			r[k] = ([], [], [], [], [], [], [])
 				
 		if len(nodes_seen) < count:
 			print("NOT CONNECTED! count={} seen={} seed={} sz={}".format(count, len(nodes_seen),
 				seed, size))
 			
 		#else:
-		r[(size, count)][0].append(msgs)
-		r[(size, count)][1].append(bytes)
-		r[(size, count)][2].append(time)
-		r[(size, count)][3].append(len(nodes_seen))
-		r[(size, count)][4].append((msgs_t, msgs_v))
-		r[(size, count)][5].append((msgs_aggr_t, msgs_aggr_v))
-		r[(size, count)][6].append((msgs_query_t, msgs_query_v))
+		r[k][0].append(msgs)
+		r[k][1].append(bytes)
+		r[k][2].append(time)
+		r[k][3].append(len(nodes_seen))
+		r[k][4].append((msgs_t, msgs_v))
+		r[k][5].append((msgs_aggr_t, msgs_aggr_v))
+		r[k][6].append((msgs_query_t, msgs_query_v))
 		
 	return r
 
@@ -176,23 +186,51 @@ def eval_experiment(r, exp):
 		print(e)
 	fig.savefig(exp['pdf'], bbox_inches='tight', pad_inches=0)
 	
-fix_density = [(32, 100), (45, 200), (55, 300), (63, 400), (71, 500), (77, 600), (84, 700), (89, 800), (95, 900)]
-fix_size = [(50, 100), (50, 200), (50, 300), (50, 400), (50, 500), (50, 600), (50, 700), (50, 800), (50, 900)]
+def num(s):
+	m = re.search(r'(\d+)', s)
+	if m is not None:
+		return m.groups()[0]
+	print("num not found in " + s)
+	return None
+	
+#fix_density = [(32, 100), (45, 200), (55, 300), (63, 400), (71, 500), (77, 600), (84, 700), (89, 800), (95, 900)]
+#fix_size = [(50, 100), (50, 200), (50, 300), (50, 400), (50, 500), (50, 600), (50, 700), (50, 800), (50, 900)]
+#experiments = [
+		#{ 'key': fix_density, 'c': 0, 'pdf': 'fix_density_messages.pdf', },
+		#{ 'key': fix_density, 'c': 1, 'pdf': 'fix_density_bytes.pdf', },
+		#{ 'key': fix_density, 'c': 2, 'pdf': 'fix_density_time.pdf', },
+		#{ 'key': fix_size, 'c': 0, 'pdf': 'fix_size_messages.pdf', },
+		#{ 'key': fix_size, 'c': 1, 'pdf': 'fix_size_bytes.pdf', },
+		#{ 'key': fix_size, 'c': 2, 'pdf': 'fix_size_time.pdf', },
+#]
+
+#for exp in experiments:
+	#eval_experiment(r, exp)
+
+aggrint32 = [(32, 100, '_aggrint{}'.format(i)) for i in [100, 500] + list(range(1000, 11000, 1000))]
 experiments = [
-		{ 'key': fix_density, 'c': 0, 'pdf': 'fix_density_messages.pdf', },
-		{ 'key': fix_density, 'c': 1, 'pdf': 'fix_density_bytes.pdf', },
-		{ 'key': fix_density, 'c': 2, 'pdf': 'fix_density_time.pdf', },
-		{ 'key': fix_size, 'c': 0, 'pdf': 'fix_size_messages.pdf', },
-		{ 'key': fix_size, 'c': 1, 'pdf': 'fix_size_bytes.pdf', },
-		{ 'key': fix_size, 'c': 2, 'pdf': 'fix_size_time.pdf', },
+		{ 'key': aggrint32, 'c': TIME, 'pdf': 'fix_density_aggrint32_messages.pdf', }
 ]
 
-r = parse_all(DATA_PATH)
-for exp in experiments:
-	eval_experiment(r, exp)
+r = parse_all(DATA_PATH, lambda s, n, sd, a: s == 32 and n == 100)
 
 fig = plt.figure()
 p = fig.add_subplot(111)
+
+x = []
+y = []
+for k in aggrint32:
+	x.extend([num(k[2])] * len(r[k][TIME]))
+	y.extend(r[k][TIME])
+	
+#print(x, y)
+#p.set_xlim((0, max(x)))
+#p.set_ylim((0, max(y)))
+p.scatter(x, y, marker='x', color='k')
+fig.savefig('fix_density_aggrint32_messages.pdf', bbox_inches='tight', pad_inches=0)
+
+#fig = plt.figure()
+#p = fig.add_subplot(111)
 			
 
 #p.plot(r[(50, 500)][4][0][0], r[(50, 500)][4][0][1], 'k-', label='Total msgs') #, drawstyle='steps-post')

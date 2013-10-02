@@ -56,7 +56,7 @@ namespace wiselib {
 		typename TupleStore_P,
 		typename Hash_P,
 		int MAX_QUERIES_P = 4,
-		int MAX_NEIGHBORS_P = 8,
+		int MAX_NEIGHBORS_P = WISELIB_MAX_NEIGHBORS,
 		typename Dictionary_P = typename TupleStore_P::Dictionary,
 		
 		// dict key --> hash value
