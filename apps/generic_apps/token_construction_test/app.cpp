@@ -414,7 +414,7 @@ class App {
 		void check_light(void*) {
 			unsigned v = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
 			
-			light_val = 0.8 * light_val + 0.2 * v;
+			light_val = (1.0 - LIGHT_ALPHA / 100.0) * light_val + (LIGHT_ALPHA / 100.0) * v;
 			
 			debug_->debug("light: %u %u",
 					//(unsigned)sensors_light1(),
@@ -423,13 +423,13 @@ class App {
 					(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
 			);
 			if(light_on && light_val < LIGHT_OFF) {
-				debug_->debug("@%lu leave", (unsigned long)radio_->id());
+				debug_->debug("@%lu leave %u", (unsigned long)radio_->id(), light_val);
 				// unregister se
 				light_on = false;
 				token_construction_.erase_entity(light_se);
 			}
 			else if(!light_on && light_val > LIGHT_ON) {
-				debug_->debug("@%lu join", (unsigned long)radio_->id());
+				debug_->debug("@%lu join %u", (unsigned long)radio_->id(), light_val);
 				light_on = true;
 				token_construction_.add_entity(light_se);
 			}
