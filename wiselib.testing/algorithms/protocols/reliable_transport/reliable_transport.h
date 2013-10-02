@@ -796,12 +796,12 @@ namespace wiselib {
 					//DBG("@%lu RT loss blame %lu", (unsigned long)radio_->id(),
 							//(unsigned long)sending_endpoint().remote_address());
 					//blame(sending_endpoint().remote_address());
+					//nd_->blame_neighbor(sending_endpoint().remote_address());
 					
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("@%d loss s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
 					#endif
 						
-					nd_->blame_neighbor(sending_endpoint().remote_address());
 					if(resends_ >= MAX_RESENDS) {
 						#if RELIABLE_TRANSPORT_DEBUG_STATE
 							debug_->debug("@%lu abrt s%u t%lu", (unsigned long)radio_->id(), (unsigned)sending_endpoint().sequence_number(), (unsigned long)now());
