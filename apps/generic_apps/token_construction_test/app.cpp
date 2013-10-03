@@ -94,7 +94,7 @@ class App {
 			#endif
 			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
 			
-			#ifdef CONTIKI_TARGET_sky
+			#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 				//light_sensor
 				//
 				light_se.set(23, 42);
@@ -410,7 +410,7 @@ class App {
 		bool light_on;
 		unsigned light_val;
 		
-		#ifdef CONTIKI_TARGET_sky
+		#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 		void check_light(void*) {
 			unsigned v = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
 			
@@ -423,13 +423,13 @@ class App {
 					(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
 			);
 			if(light_on && light_val < LIGHT_OFF) {
-				debug_->debug("@%lu leave %u", (unsigned long)radio_->id(), light_val);
+				debug_->debug("@%lu leave %u", (unsigned long)radio_.id(), light_val);
 				// unregister se
 				light_on = false;
 				token_construction_.erase_entity(light_se);
 			}
 			else if(!light_on && light_val > LIGHT_ON) {
-				debug_->debug("@%lu join %u", (unsigned long)radio_->id(), light_val);
+				debug_->debug("@%lu join %u", (unsigned long)radio_.id(), light_val);
 				light_on = true;
 				token_construction_.add_entity(light_se);
 			}

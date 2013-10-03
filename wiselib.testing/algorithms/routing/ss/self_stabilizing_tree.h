@@ -109,7 +109,7 @@ namespace wiselib {
 				enum {
 					ALPHA = 20,
 					LINK_METRIC_BECOMES_STABLE = 240,
-					LINK_METRIC_LOOSES_STABLE = 220,
+					LINK_METRIC_LOOSES_STABLE = 200,
 					LINK_METRIC_LOW = 200
 				};
 				
@@ -723,14 +723,15 @@ namespace wiselib {
 				bool c = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
 				if(c) {
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
-						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
-									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
-					#endif
 					changed();
 				}
 				
 				if(c || updated_neighbors_) {
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
+						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
+									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
+					#endif
+						
 					notify_event(UPDATED_STATE, previous_parent);
 						
 					// <DEBUG>

@@ -183,10 +183,10 @@ namespace wiselib {
 				else {
 					#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
 						if(msg.initiator() != msg.is_ack()) {
-							debug_->debug("@%d fwd %d > %d", (int)radio_->id(), (int)from, (int)target);
+							debug_->debug("@%lu fwd %lu > %lu s%lu f%x", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)target, (unsigned long)msg.sequence_number(), (int)msg.flags());
 						}
 						else {
-							debug_->debug("@%d fwd %d < %d", (int)radio_->id(), (int)target, (int)from);
+							debug_->debug("@%lu fwd %lu < %lu s%lu f%x", (unsigned long)radio_->id(), (unsigned long)target, (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags());
 						}
 					#endif
 					
@@ -201,9 +201,9 @@ namespace wiselib {
 					// upwards?
 					// 
 					#if INSE_DEBUG_FORWARDING
-						debug_->debug("@%d fwd from %d to %d par %d i%d a%d l %d *m=%x",
-								(int)radio_->id(), (int)from, (int)target,
-								(int)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
+						debug_->debug("@%lu fwd %lu>%lu p%lu i%d a%d l %d *m=%x",
+								(unsigned long)radio_->id(), (unsigned long)from, (unsigned long)target,
+								(unsigned long)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
 								(int)msg.payload_size(), (msg.payload_size() == 0) ? (int)0 : (int)*msg.payload());
 					#endif
 					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && from == amq_nhood_->tree().parent()) {
@@ -274,9 +274,9 @@ namespace wiselib {
 				
 				memset(activity_maps_[map_index_], 0, MAP_BYTES);
 				map_index_ = !map_index_;
-				#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
-					debug_->debug("@%d fwd cyc", (int)radio_->id());
-				#endif
+				//#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
+					//debug_->debug("@%lu fwd cyc", (unsigned long)radio_->id());
+				//#endif
 				nap_control_->push_caffeine("fwd_cyc");
 				sleep(0);
 			}
@@ -288,9 +288,9 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
-				#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
-					debug_->debug("@%d fwd up", (int)radio_->id());
-				#endif
+				//#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
+					//debug_->debug("@%d fwd up", (unsigned long)radio_->id());
+				//#endif
 				nap_control_->push_caffeine("fwd_up");
 				
 				size_type end = slot_map().first(false, position_, map_slots_);
@@ -311,9 +311,9 @@ namespace wiselib {
 				hardcore_cast(position_, p);
 				position_time_ = now();
 				
-				#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
-					debug_->debug("@%d /fwd dwn", (int)radio_->id());
-				#endif
+				//#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
+					//debug_->debug("@%lu /fwd dwn", (unsigned long)radio_->id());
+				//#endif
 				nap_control_->pop_caffeine("/fwd");
 				
 				size_type start = slot_map().first(true, position_, map_slots_);
@@ -355,8 +355,8 @@ namespace wiselib {
 				for(int d = (int)-winslots; d <= transfer_slots(winslots) && pos + d <= 2 * map_slots_; d++) {
 					if((int)pos > -d) {
 						#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
-							debug_->debug("@%d fwd mark %d now %lu pos=%d+%d at %lu",
-									(int)radio_->id(), (int)pos, (unsigned long)now(), (int)pos, (int)d, (unsigned long)now() + (pos + d) * slot_length_);
+							//debug_->debug("@%lu fwd mark %d t%lu pos=%d+%d at %lu",
+									//(unsigned long)radio_->id(), (int)pos, (unsigned long)now(), (int)pos, (int)d, (unsigned long)now() + (pos + d) * slot_length_);
 						#endif
 						mark_awake(pos + d);
 					}
@@ -379,7 +379,7 @@ namespace wiselib {
 				}
 				else {
 					#if (INSE_DEBUG_STATE || INSE_DEBUG_WARNING)
-						debug_->debug("@%d fwd !len %d>=2*%d", (int)radio_->id(), (int)pos, (int)map_slots_);
+						debug_->debug("@%lu fwd !l %d>=2*%d", (unsigned long)radio_->id(), (int)pos, (int)map_slots_);
 					#endif
 				}
 			}
@@ -403,8 +403,8 @@ namespace wiselib {
 					if(winslots < MIN_WINSLOTS) { winslots = MIN_WINSLOTS; }
 					
 					#if INSE_DEBUG_FORWARDING || INSE_DEBUG_STATE
-						debug_->debug("@%d fwd learn t%d cyc%d cyc/l=%d cur=%d/%d win%d winslots=%d",
-							(int)radio_->id(), (int)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
+						debug_->debug("@%lu fwd l t%lu cyc%d cyc/l=%d cur=%d/%d w%d ws%d",
+							(unsigned long)radio_->id(), (unsigned long)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
 							(int)cycle_window, (int)winslots);
 					#endif
 					

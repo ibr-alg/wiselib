@@ -439,26 +439,26 @@ class ExampleApplication
 			// 1,1,'g',LEFT | 3,BIN(00000011),0,0,0,BIN(110),"<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>","<http://me.exmpl/Temperature>",
 			char op0[] = {18, 79, 1, 1, 103, 3, 3, 0, 0, 0, 6, -65, 38, -72, 46, 87, -12, 33, 99};
 			process_nqxe_message(op0);
-			// 1,2,'g',RIGHT | 3,BIN(00110011),0,0,0,BIN(010),"<http://www.ontologydesignpatterns.org/ont/dul/hasValue>",
-			char op1[] = {14, 79, 1, 2, 103, -125, 51, 0, 0, 0, 2, 122, -98, 87, -99};
+			// 1,2,'g',RIGHT | 3,BIN(00100011),0,0,0,BIN(010),"<http://www.ontologydesignpatterns.org/ont/dul/hasValue>",
+			char op1[] = {14, 79, 1, 2, 103, -125, 35, 0, 0, 0, 2, 122, -98, 87, -99};
 			process_nqxe_message(op1);
-			// 1,3,'j',LEFT | 5,BIN(00110011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
-			char op2[] = {10, 79, 1, 3, 106, 5, 51, 0, 0, 0, 0};
+			// 1,3,'j',LEFT | 5,BIN(00100011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
+			char op2[] = {10, 79, 1, 3, 106, 5, 35, 0, 0, 0, 0};
 			process_nqxe_message(op2);
 			// 1,4,'g',RIGHT | 5,BIN(00110011),0,0,0,BIN(010),"<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>",
 			char op3[] = {14, 79, 1, 4, 103, -123, 51, 0, 0, 0, 2, -56, -77, -12, 58};
 			process_nqxe_message(op3);
-			// 1,5,'j',LEFT | 7,BIN(11001111),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
-			char op4[] = {10, 79, 1, 5, 106, 7, -49, 0, 0, 0, 0};
+			// 1,5,'j',LEFT | 7,BIN(11001011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
+			char op4[] = {10, 79, 1, 5, 106, 7, -53, 0, 0, 0, 0};
 			process_nqxe_message(op4);
 			// 1,6,'g',RIGHT | 7,BIN(00000011),0,0,0,BIN(110),"<http://www.ontologydesignpatterns.org/ont/dul/hasLocation>","<http://me.exmpl/DERI>",
 			char op5[] = {18, 79, 1, 6, 103, -121, 3, 0, 0, 0, 6, -95, 18, -76, 121, -24, 60, -50, -19};
 			process_nqxe_message(op5);
-			// 1,7,'j',LEFT | 8,BIN(00111100),0,0,0,LEFT_COL(2) | RIGHT_COL(0),
-			char op6[] = {10, 79, 1, 7, 106, 8, 60, 0, 0, 0, 32};
+			// 1,7,'j',LEFT | 8,BIN(00111000),0,0,0,LEFT_COL(2) | RIGHT_COL(0),
+			char op6[] = {10, 79, 1, 7, 106, 8, 56, 0, 0, 0, 32};
 			process_nqxe_message(op6);
-			// 1,8,'a',LEFT | 0,BIN(11111111),0,0,0,4,AGAIN | 2,AGAIN | 4,5,0,
-			char op7[] = {14, 79, 1, 8, 97, 0, -1, 0, 0, 0, 4, -126, -124, 5, 0};
+			// 1,8,'a',LEFT | 0,BIN(11010110),0,0,0,4,AGAIN | 2,AGAIN | 4,5,0,
+			char op7[] = {14, 79, 1, 8, 97, 0, -42, 0, 0, 0, 4, -126, -124, 5, 0};
 			process_nqxe_message(op7);
 			char q[] = { 3, 'Q', 1, 8};
 			process_nqxe_message(q);
