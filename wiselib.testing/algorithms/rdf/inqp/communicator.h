@@ -97,8 +97,8 @@ namespace wiselib {
 			typedef typename Neighborhood::Neighbor Neighbor;
 			
 			enum MessageType {
-				MESSAGE_ID_OPERATOR,
-				MESSAGE_ID_QUERY,
+				MESSAGE_ID_OPERATOR = 'O',
+				MESSAGE_ID_QUERY = 'Q',
 				MESSAGE_ID_INTERMEDIATE_RESULT,
 				MESSAGE_ID_RESOLVE_HASHVALUE
 			};

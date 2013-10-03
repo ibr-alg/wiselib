@@ -7,10 +7,19 @@
 #if defined(SHAWN)
 	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
+
+#elif defined(PC)
+	#define WISELIB_TIME_FACTOR 1
+	#define WISELIB_DISABLE_DEBUG 0
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
+
 #else
 	#define WISELIB_MAX_NEIGHBORS 4
+
 #endif
 #define INQP_TEST_USE_BLOCK 0
+#define INQP_AGGREGATE_CHECK_INTERVAL 1000
+#define WISELIB_MAX_NEIGHBORS 100
 
 
 /// ------ /Config
@@ -152,8 +161,10 @@ class NullMonitor {
 
 static const char* tuples[][3] = {
 	
-#ifdef SHAWN
+#if defined(SHAWN)
 	#include "ssp.cpp"
+#elif defined(PC)
+	#include "nqxe_test.cpp"
 #else
 	#include "incontextsensing.cpp"
 #endif
@@ -189,6 +200,7 @@ class ExampleApplication
 			//hashes();
 			//return;
 			
+		#if !defined(PC)
 			radio_->enable_radio();
 			
 			// query direction: packing radio over flooding
@@ -204,18 +216,20 @@ class ExampleApplication
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			
+			debug_->debug("boot %d", (int)radio_->id());
+			
+		#endif
+			
 			//debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
 			
 			//print_memstat();
-			
-			debug_->debug("boot %d", (int)radio_->id());
 			
 			
 			init_ts();
 			
 			//monitor_.report();
 			
-		#if defined(ISENSE)
+		#if defined(ISENSE) || defined(PC)
 			be_standalone();
 			
 		#elif defined(SHAWN)
@@ -307,19 +321,42 @@ class ExampleApplication
 				
 				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
 			}
-			debug_->debug("ins done: %d", (int)i);
+			debug_->debug("ins done: %d tuples", (int)i);
 			
 		}
 		
+		/**
+		 * @param q { len, 'O' or 'Q', ... }
+		 */
+		void process_nqxe_message(char* q) {
+			assert(q[1] == 'O' || q[1] == 'Q');
+			size_t l = q[0];
+			process(l, (block_data_t*)(q + 1));
+		}
+		
+		/**
+		 * @param op { 'O', qid, oid, .... } or { 'Q', qid, ops }
+		 */
 		void process(int sz, block_data_t* op) {
 			//ian_.handle_operator(op100, 0, sizeof(op100));
-			communicator_.on_receive_query(radio_->id(), sz, op);
+			//communicator_.on_receive_query(radio_->id(), sz, op);
+			if(op[0] == 'O') {
+				ian_.handle_operator(op[1], sz - 2, op + 2);
+			}
+			else if(op[0] == 'Q') {
+				ian_.handle_query_info(op[1], op[2]);
+			}
 		}
 		
 		void be_standalone() {
 			insert_tuples();
 			
 			ian_.init(&ts, timer_);
+			
+	#if defined(PC)
+			timer_->set_timer<ExampleApplication, &ExampleApplication::query_nqxe_test>(1000, this, 0);
+			
+	#else
 			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
 			communicator_.set_sink(radio_->id());
 			// we play in-network node
@@ -327,9 +364,11 @@ class ExampleApplication
 			
 			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
 			
+			
 			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross_p>(1000, this, 0);
 			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_p>(1000, this, 0);
 			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all_p>(1000, this, 0);
+	#endif
 		}
 		
 		
@@ -395,6 +434,47 @@ class ExampleApplication
 			monitor_.report("aft");
 			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
 		}
+		
+		void query_nqxe_test(void*) {
+			// 1,1,'g',LEFT | 3,BIN(00000011),0,0,0,BIN(110),"<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>","<http://me.exmpl/Temperature>",
+			char op0[] = {18, 79, 1, 1, 103, 3, 3, 0, 0, 0, 6, -65, 38, -72, 46, 87, -12, 33, 99};
+			process_nqxe_message(op0);
+			// 1,2,'g',RIGHT | 3,BIN(00110011),0,0,0,BIN(010),"<http://www.ontologydesignpatterns.org/ont/dul/hasValue>",
+			char op1[] = {14, 79, 1, 2, 103, -125, 51, 0, 0, 0, 2, 122, -98, 87, -99};
+			process_nqxe_message(op1);
+			// 1,3,'j',LEFT | 5,BIN(00110011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
+			char op2[] = {10, 79, 1, 3, 106, 5, 51, 0, 0, 0, 0};
+			process_nqxe_message(op2);
+			// 1,4,'g',RIGHT | 5,BIN(00110011),0,0,0,BIN(010),"<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>",
+			char op3[] = {14, 79, 1, 4, 103, -123, 51, 0, 0, 0, 2, -56, -77, -12, 58};
+			process_nqxe_message(op3);
+			// 1,5,'j',LEFT | 7,BIN(11001111),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
+			char op4[] = {10, 79, 1, 5, 106, 7, -49, 0, 0, 0, 0};
+			process_nqxe_message(op4);
+			// 1,6,'g',RIGHT | 7,BIN(00000011),0,0,0,BIN(110),"<http://www.ontologydesignpatterns.org/ont/dul/hasLocation>","<http://me.exmpl/DERI>",
+			char op5[] = {18, 79, 1, 6, 103, -121, 3, 0, 0, 0, 6, -95, 18, -76, 121, -24, 60, -50, -19};
+			process_nqxe_message(op5);
+			// 1,7,'j',LEFT | 8,BIN(00111100),0,0,0,LEFT_COL(2) | RIGHT_COL(0),
+			char op6[] = {10, 79, 1, 7, 106, 8, 60, 0, 0, 0, 32};
+			process_nqxe_message(op6);
+			// 1,8,'a',LEFT | 0,BIN(11111111),0,0,0,4,AGAIN | 2,AGAIN | 4,5,0,
+			char op7[] = {14, 79, 1, 8, 97, 0, -1, 0, 0, 0, 4, -126, -124, 5, 0};
+			process_nqxe_message(op7);
+			char q[] = { 3, 'Q', 1, 8};
+			process_nqxe_message(q);
+			
+			ian_.reg_row_callback<ExampleApplication, &ExampleApplication::print_result_row>(this);
+		}
+		
+		void print_result_row(int type, Processor::size_type cols, Processor::RowT& row, Processor::query_id_t qid, Processor::operator_id_t oid) {
+			debug_->debug("ROW type %d qid %d oid %d", (int)type, (int)qid, (int)oid);
+			for(size_t i = 0; i < cols; i++) {
+				debug_->debug("  %08lx %f", (unsigned long)row[i], *reinterpret_cast<float*>(&row[i]));
+			}
+		}
+		
+		
+		
 		
 		void query_all_p1() { query_all_p(0); }
 		void query_all_p(void*) {
