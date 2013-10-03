@@ -147,7 +147,8 @@ namespace wiselib {
 				 * How long should we keep the token once we have it?
 				 */
 				ACTIVITY_PERIOD = INSE_ACTIVITY_PERIOD,
-				HANDOVER_RETRY_INTERVAL = ACTIVITY_PERIOD,
+				HANDOVER_RETRY_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
+					//ACTIVITY_PERIOD,
 					//10000 * WISELIB_TIME_FACTOR,
 				ACTIVITY_PERIOD_ROOT = 100 * WISELIB_TIME_FACTOR,
 			};
@@ -704,6 +705,13 @@ namespace wiselib {
 					case 'n':
 					default:
 						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
+			#if INSE_DEBUG_WARNING
+							debug_->debug("@%lu tok !a t%lu r%lu",
+									(unsigned long)radio_->id(),
+									(unsigned long)now(),
+									(unsigned long)(now() + HANDOVER_RETRY_INTERVAL));
+			#endif
+							
 							se->set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
 							timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, se);
 						}
@@ -1008,17 +1016,28 @@ namespace wiselib {
 			
 			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
 				check();
+				
+				//     now() - delay < se.token_received
+				// <=> now() < se.token_received + delay
+				
+				if(now() < se.token_received() + delay) {
+					// do we actually have a more recent token count
+					// information already?
+					// If so, just ignore this one
+					return false;
+				}
+				
 				TokenState s = msg.token_state();
 				bool activating = false;
 				bool active_before = se.is_active(radio_->id());
 				se.set_prev_token_count(s.count());
 				
-				#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("tok @%d SE %x.%x act bef %d is_act %d cnt %d prvcnt %d root %d",
-							(int)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+				//#if !WISELIB_DISABLE_DEBUG
+					debug_->debug("@%lu ptok %lu S%x.%x act%d,%d c%d,%d rt%d t%lu d%lu",
+							(unsigned long)radio_->id(), (unsigned long)from, (int)se.id().rule(), (int)se.id().value(),
 							(int)active_before, (int)se.is_active(radio_->id()),
-							(int)se.count(), (int)s.count(), (int)se.is_root(radio_->id()));
-				#endif
+							(int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()), (unsigned long)now(), (unsigned long)delay);
+				//#endif
 				
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
@@ -1152,8 +1171,17 @@ namespace wiselib {
 					bool active_before = se.is_active(radio_->id());
 				#endif
 				
+				#if INSE_DEBUG_TOKEN
+					int count_before = se.count();
+				#endif
+					
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
+				
+				debug_->debug("@%lu utok S%x.%x w%lu i%lu t%lu e%d c%d,%d r%d",
+						(unsigned long)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+						(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
+						(unsigned long)now(), (int)se.activating_token_early(), (int)count_before, (int)se.count(), (int)se.is_root(radio_->id()));
 				
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // end_activity",

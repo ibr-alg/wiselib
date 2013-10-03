@@ -7,8 +7,8 @@
 #define USE_INQP                       0
 #define INSE_USE_AGGREGATOR            0
 
-#define APP_BLINK 1
-#define APP_EVAL  0
+#define APP_BLINK 0
+#define APP_EVAL  1
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -37,6 +37,7 @@
 #define INSE_DEBUG_TOKEN               1
 #define INSE_DEBUG_TREE                1
 #define INSE_DEBUG_WARNING             1
+#define INSE_DEBUG_FORWARDING          1
 #define INSE_ANYCAST_DEBUG_STATE       1
 #define INSE_ROW_COLLECTOR_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        1

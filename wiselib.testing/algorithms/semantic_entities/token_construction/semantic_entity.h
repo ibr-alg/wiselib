@@ -153,6 +153,9 @@ namespace wiselib {
 				activating_token_.cancel();
 			}
 			
+			void set_token_received(abs_millis_t r) { token_received_ = r; }
+			abs_millis_t token_received() { return token_received_; }
+			
 			int main_handover_phase() { return main_handover_phase_; }
 			void set_main_handover_phase(int p) { main_handover_phase_ = p; }
 			
@@ -389,6 +392,7 @@ namespace wiselib {
 			TokenState prev_token_state_; // just the token value of previous
 			//Childs childs_;
 			abs_millis_t token_send_start_;
+			abs_millis_t token_received_;
 			SemanticEntityId id_;
 			TokenState token_;
 			int main_handover_phase_;
