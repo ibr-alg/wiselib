@@ -176,6 +176,8 @@ namespace wiselib {
 			void push(size_type port, RowT& row) {
 				post_init();
 				
+				DBG("--- aggr in");
+				
 				if(&row) {
 					size_type idx = find_matching_group(local_aggregates_, row);
 					if(idx == npos) {
@@ -191,6 +193,7 @@ namespace wiselib {
 					local_aggregates_.pack();
 					
 					for(typename TableT::iterator iter = local_aggregates_.begin(); iter != local_aggregates_.end(); ++iter) {
+						DBG("cal refresh for local row");
 						refresh_group(*iter);
 					}
 					
@@ -229,6 +232,7 @@ namespace wiselib {
 				// now see if the local table has to contribute something
 				
 				idx = find_matching_group(local_aggregates_, r);
+				DBG("refreshing: %d",(int)idx);
 				if(idx != npos) {
 					uidx = merge_or_create_updated(local_aggregates_[idx], uidx);
 				}
@@ -299,14 +303,17 @@ namespace wiselib {
 			}
 			
 			void on_sending_time(void* ti_) {
+				DBG("aggr sending time");
+				
 				TimerInfo *ti = reinterpret_cast<TimerInfo*>(ti_);
 				if(!ti->alive) {
 					::get_allocator().free(ti);
 					return;
 				}
+				DBG("aggr sending time alive");
 				
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
-					//DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
+					DBG("aggr srow cols %d", (int)aggregation_columns_physical_);
 					this->processor().send_row(
 							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
 							aggregation_columns_physical_, *iter, this->query().id(), this->id()
@@ -325,8 +332,30 @@ namespace wiselib {
 					RowT& aggregate = table[group];
 					bool match = true;
 					for(size_type i = 0; i < aggregation_columns_logical_; i++) {
+						
+						/*
+						 * i --> logical output column (i'th output
+						 * aggregation value, some might take up multiple
+						 * physical columns though)
+						 * 
+						 * data_column_ --> physical INPUT column
+						 * aggregate_column_ --> physical OUTPUT column
+						 * 
+						 * if this is a group column,
+						 * it hase to have the same value in row and an table,
+						 * else its not a match
+						 */
+						
 						if((aggregation_types_[i] & ~AD::AGAIN) == AD::GROUP
-								&& row[operations_[i].data_column_] != aggregate[operations_[i].aggregate_column_]) {
+								&& row[operations_[i].aggregate_column_] != aggregate[operations_[i].aggregate_column_]) {
+							
+							DBG("nomatch: i %d aggrtype %d datacol %d aggrcol %d row[datacol] %08lx aggr[aggrcol] %08lx",
+									(int)i,
+									(int)operations_[i].data_column_,
+									(int)operations_[i].aggregate_column_,
+									(unsigned long)row[operations_[i].data_column_],
+									(unsigned long)aggregate[operations_[i].aggregate_column_]);
+							
 							match = false;
 							break;
 						}

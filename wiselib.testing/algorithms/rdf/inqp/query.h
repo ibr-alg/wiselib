@@ -112,7 +112,7 @@ namespace wiselib {
 			BasicOperator* get_operator(size_type i) { return operators_[i]; }
 			
 			bool ready() {
-				//DBG("s%d ex%d got%d", (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
+				DBG("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			
