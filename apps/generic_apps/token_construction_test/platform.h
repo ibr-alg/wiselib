@@ -17,8 +17,18 @@
 	#define INSE_START_WAIT              (1)
 
 	#define CHECK_LIGHT_INTERVAL         1000
-	#define LIGHT_ON                     180
-	#define LIGHT_OFF                    120
+
+	// In a dark room / in the evening
+
+	//#define LIGHT_ON                     180
+	//#define LIGHT_OFF                    120
+
+	// Daytime / sunlight
+
+	#define LIGHT_ON                     400
+	#define LIGHT_OFF                    350
+
+
 	#define LIGHT_ALPHA                  50
 
 #elif APP_EVAL
@@ -98,6 +108,29 @@
 	#define USE_INQP                   0
 	#define INSE_USE_AGGREGATOR        0
 	#define BITMAP_ALLOCATOR_RAM_SIZE  1024
+
+#elif defined(ISENSE)
+	#define INSE_USE_AGGREGATOR            0
+	#define USE_INQP                       1
+	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
+	#define DISTRIBUTOR_DEBUG_STATE        0
+	#define INSE_DEBUG_STATE               0
+	#define INSE_DEBUG_TOKEN               1
+	#define INSE_DEBUG_TOPOLOGY            1
+	#define INSE_DEBUG_TREE                0
+	#define INSE_ANYCAST_DEBUG_STATE       0
+	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
+	#define NAP_CONTROL_DEBUG_STATE        1
+	#define NAP_CONTROL_DEBUG_ONOFF        1
+	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+	#define WISELIB_DISABLE_DEBUG          1
+	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+	
+	#define WISELIB_TIME_FACTOR            1
+	#define INSE_MAX_NEIGHBORS             16
+	#define WISELIB_MAX_NEIGHBORS          (INSE_MAX_NEIGHBORS)
+	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_QUERIES               2
 	
 	
 #elif defined(CONTIKI_TARGET_sky)
@@ -238,6 +271,10 @@ typedef wiselib::OSMODEL Os;
 #ifndef DBG
 	#warning "debug messages not implemented for this platform, disabling"
 	#define DBG(...)
+#endif
+	
+#if defined(ISENSE)
+	#include <external_interface/isense_monitor.h>
 #endif
 	
 template<typename OsModel_P>
