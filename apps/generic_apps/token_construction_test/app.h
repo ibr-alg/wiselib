@@ -51,7 +51,7 @@ typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
 #elif USE_VECTOR_CONTAINER
 	#include <util/pstl/vector_static.h>
 	#include <util/pstl/unique_container.h>
-	typedef wiselib::vector_static<Os, TupleT, 20> TupleList;
+	typedef wiselib::vector_static<Os, TupleT, TUPLE_CONTAINER_SIZE> TupleList;
 	typedef wiselib::UniqueContainer<TupleList> TupleContainer;
 	
 #elif USE_BLOCK_CONTAINER
@@ -113,21 +113,28 @@ typedef wiselib::TokenScheduler<Os, TS, Radio, Os::Timer, Os::Clock, Os::Debug, 
 	//
 	
 	#include <algorithms/semantic_entities/token_construction/semantic_entity_anycast_radio.h>
-	#include <algorithms/semantic_entities/token_construction/string_inquiry.h>
+	
+	
+
 	#include <algorithms/protocols/packing_radio/packing_radio.h>
 	#include <algorithms/semantic_entities/token_construction/row_collector.h>
-	
-	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
-		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_STRING_ANYCAST, Radio> StringAnycastRadio;
+
 	typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
 		TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_ROW_ANYCAST, Radio> RowAnycastRadio;
-	
-	// TODO: add packer here as well?
-	typedef StringInquiry<Os, StringAnycastRadio, QueryProcessor> StringInquiryT;	
 	
 	typedef PackingRadio<Os, RowAnycastRadio> PackingAnycastRadio;
 	typedef PackingAnycastRadio RowRadio;
 	
+	#if USE_STRING_INQUIRY
+		#include <algorithms/semantic_entities/token_construction/string_inquiry.h>
+		
+		typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT,
+			TC::SemanticEntityNeighborhoodT, INSE_MESSAGE_TYPE_STRING_ANYCAST, Radio> StringAnycastRadio;
+
+		// TODO: add packer here as well?
+		typedef StringInquiry<Os, StringAnycastRadio, QueryProcessor> StringInquiryT;	
+	#endif
+		
 	//typedef PackingRadio<Os, Os::Radio> PackingOsRadio;
 	//typedef SemanticEntityAnycastRadio<Os, TC::SemanticEntityRegistryT, TC::SemanticEntityNeighborhoodT,
 		//INSE_MESSAGE_TYPE_ANYCAST, PackingOsRadio> AnycastPackingRadio;

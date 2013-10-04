@@ -137,8 +137,8 @@ namespace wiselib {
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
 			enum Restrictions {
-				OPERATOR_BUFFER_SIZE = 128,
-				MAX_QUERIES = 4,
+				OPERATOR_BUFFER_SIZE = 64,
+				MAX_QUERIES = INSE_MAX_QUERIES,
 				MAX_NEIGHBORS = Neighborhood::MAX_NEIGHBORS
 			};
 			
@@ -303,13 +303,13 @@ namespace wiselib {
 					query_id_t query_id() { return query_id_; }
 					
 				private:
-					::uint8_t state_;
 					typename QueryDescriptions::iterator query_iterator_;
 					RequestedQueries requested_;
 					size_type operator_pos_;
-					bool header_sent_;
 					SemanticEntityId scope_;
 					query_id_t query_id_;
+					bool header_sent_;
+					::uint8_t state_;
 				//}}}
 			};
 			typedef MapStaticVector<OsModel, node_id_t, State, MAX_NEIGHBORS> CommunicationStates;

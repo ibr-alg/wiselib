@@ -101,12 +101,15 @@ namespace wiselib {
 	}; // TreeState
 	
 	/*
+	 * iSense:
+	 * 
 serialization.h:113: error: ambiguous class template instantiation for 'struct Serialization<iSenseOsModel, WISELIB_BIG_ENDIAN, unsigned char, TreeState<> >'
 serialization.h:66: error: candidates are: struct Serialization<OsModel_P, WISELIB_BIG_ENDIAN, BlockData_P, Type_P>
 tree_state.h:109: error:                 struct Serialization<OsModel_P, Endianness_P, BlockData_P, TreeState<> >
 serialization.h:113: error: incomplete type 'Serialization<iSenseOsModel, WISELIB_BIG_ENDIAN, unsigned char, TreeState<> >' used in nested name specifier
 	 * 
 	 */ 
+	#ifndef ISENSE
 	template<
 		typename OsModel_P,
 		Endianness Endianness_P,
@@ -135,6 +138,7 @@ serialization.h:113: error: incomplete type 'Serialization<iSenseOsModel, WISELI
 			return value;
 		}
 	};
+	#endif
 	/**/
 }
 

@@ -101,7 +101,7 @@ namespace wiselib {
 			}
 			
 			void set_tree_state(TreeStateT& tree_state) {
-				wiselib::write<OsModel>(data_ + POS_TREE_STATE, tree_state);
+				wiselib::write<OsModel, block_data_t, TreeStateT>(data_ + POS_TREE_STATE, tree_state);
 			}
 			
 			UserData& user_data() {

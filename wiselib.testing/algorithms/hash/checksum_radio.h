@@ -39,8 +39,10 @@ namespace wiselib {
 		typename Hash_P,
 		typename Debug_P = typename OsModel_P::Debug
 	>
+            //int MAX_RECEIVERS = RADIO_BASE_MAX_RECEIVERS,
+            //typename ExtendedData_P = BaseExtendedData<OsModel_P>
 	class ChecksumRadio
-		: public ExtendedRadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t> {
+		: public ExtendedRadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t, RADIO_BASE_MAX_RECEIVERS, typename Radio_P::ExtendedData> {
 		
 		public:
 			typedef OsModel_P OsModel;
@@ -87,6 +89,7 @@ namespace wiselib {
 				wiselib::write<OsModel, block_data_t, hash_t>(buf, h);
 				memcpy(buf + sizeof(hash_t), data, len);
 				radio_->send(dest, len + sizeof(hash_t), buf);
+				return SUCCESS;
 			}
 			
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
@@ -95,7 +98,7 @@ namespace wiselib {
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data);
 				hash_t h_check = Hash::hash(data + sizeof(hash_t), len - sizeof(hash_t));
 				if(h_msg == h_check) {
-					this->notify_receivers(from, len - sizeof(hash_t), data + sizeof(hash_t), ex);
+					this->notify_receivers(from, (typename Radio::size_t)(len - sizeof(hash_t)), (typename Radio::block_data_t*)(data + sizeof(hash_t)), ex);
 				}
 				else {
 					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
