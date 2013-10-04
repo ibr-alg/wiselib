@@ -22,7 +22,7 @@
 	#define LIGHT_ALPHA                  50
 
 #elif APP_EVAL
-	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
+	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     512
 	#define INSE_FORWARDING_SLOT_LENGTH  2000 * WISELIB_TIME_FACTOR
 	#define INSE_START_WAIT              (5 * 60)
@@ -37,7 +37,7 @@
 #define INSE_DEBUG_TOKEN               1
 #define INSE_DEBUG_TREE                1
 #define INSE_DEBUG_WARNING             1
-#define INSE_DEBUG_FORWARDING          1
+#define INSE_DEBUG_FORWARDING          0
 #define INSE_ANYCAST_DEBUG_STATE       1
 #define INSE_ROW_COLLECTOR_DEBUG_STATE 1
 #define NAP_CONTROL_DEBUG_STATE        1
