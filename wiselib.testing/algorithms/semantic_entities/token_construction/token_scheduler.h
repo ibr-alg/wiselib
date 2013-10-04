@@ -312,7 +312,7 @@ namespace wiselib {
 				for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 					SemanticEntityT &se = iter->second;
 					if(!se.in_activity_phase()) {
-						nap_control_.push_caffeine("hotre");
+						nap_control_.push_caffeine("horec");
 					#if INSE_DEBUG_STATE
 						debug_->debug("ho tree");
 					#endif
@@ -762,7 +762,13 @@ namespace wiselib {
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
 						#if INSE_DEBUG_WARNING
-							debug_->debug("@%lu abrt%d %lu t%lu", (unsigned long)radio_->id(), (int)se->handover_state_initiator(), (unsigned long)endpoint.remote_address(), (unsigned long)now());
+							debug_->debug("@%lu abrt%d %lu t%lu m%d",
+									(unsigned long)radio_->id(),
+									(int)se->handover_state_initiator(),
+									(unsigned long)endpoint.remote_address(),
+									(unsigned long)now(),
+									(int)(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING)
+							);
 						#endif
 						/*
 						debug_->debug("node %d // push begin_handover (abort/retry)", (int)radio_->id());

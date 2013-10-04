@@ -111,6 +111,7 @@
 	#define INSE_DEBUG_STATE               0
 	#define INSE_DEBUG_TOKEN               1
 	#define INSE_DEBUG_TOPOLOGY            1
+	#define INSE_DEBUG_FORWARDING          1
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
