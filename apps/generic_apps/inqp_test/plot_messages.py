@@ -211,7 +211,7 @@ def eval_aggrint(r, exp):
 		
 		# strip 0 values (=0 messages sent/everything answered immediaetly),
 		# they can only result from a disconnected sink
-		ys = [y for y in r[k][exp['c']] if y > 0]
+		ys = [y for y in r[k][exp['c']] if y > 0 or True]
 		l.append(ys)
 	
 	p.set_xticks(range(1, 1 + len(l)))
@@ -245,7 +245,7 @@ def eval_aggrint(r, exp):
 		#{ 'key': fix_size, 'c': 2, 'pdf': 'fix_size_time.pdf', },
 #]
 
-aggrint32 = [(71, 500, '_aggrint{}'.format(i)) for i in [100, 500] + list(range(1000, 4000, 1000))]
+aggrint32 = [(71, 500, '_aggrint{}'.format(i)) for i in [100] + list(range(1000, 11000, 1000))]
 experiments = [
 		{ 'key': aggrint32, 'c': TIME, 'pdf': 'fix_density_aggrint71_messages.pdf', }
 ]

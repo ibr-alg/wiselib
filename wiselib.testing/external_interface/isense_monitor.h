@@ -58,6 +58,7 @@ namespace wiselib {
 			}
 		
 		private:
+			Debug *debug_;
 		
 	}; // IsenseMonitor
 }

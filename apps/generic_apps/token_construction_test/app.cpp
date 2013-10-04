@@ -21,6 +21,8 @@ class App {
 			initcount = INSE_START_WAIT;
 			debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			timer_->set_timer<App, &App::init2>(1000, this, 0);
+			
+			monitor_.init(debug_);
 		}
 		
 		void init2(void*) {
@@ -36,6 +38,7 @@ class App {
 		void init3() {
 			debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			
+			monitor_.report("bt0");
 			hardware_radio_->enable_radio();
 			radio_.init(*hardware_radio_, *debug_);
 			
@@ -90,7 +93,8 @@ class App {
 			
 			monitor_.report("/init");
 			#if USE_INQP
-				timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
+				//timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
+				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);
 			#endif
 			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
 			
@@ -100,7 +104,14 @@ class App {
 				light_se.set(23, 42);
 				
 				//sensors_light_init();
-				light_on = false;
+				if(radio_.id() == token_construction_.tree().root()) {
+					light_on = true;
+					leds_on(LEDS_BLUE);
+				}
+				else {
+					light_on = false;
+					leds_off(LEDS_BLUE);
+				}
 				SENSORS_ACTIVATE(light_sensor);
 				check_light(0);
 			#endif // CONTIKI_TARGET_sky
@@ -256,7 +267,7 @@ class App {
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
 			monitor_.report("/act");
 			
-			if(radio_->id() == token_construction_.tree().root()) {
+			if(radio_.id() == token_construction_.tree().root()) {
 			//if(radio_->id() == SINK_ID) {
 				//debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
 				//for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
@@ -272,7 +283,7 @@ class App {
 				
 				
 				aggregator.set_totals(se.id());
-				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_->id() + 1) * 10, Aggregator::INTEGER);
+				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
 				
 				
 				
@@ -423,17 +434,20 @@ class App {
 					(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
 			);
 			if(light_on && light_val < LIGHT_OFF) {
-				debug_->debug("@%lu leave %u", (unsigned long)radio_->id(), light_val);
+				debug_->debug("@%lu leave %u", (unsigned long)radio_.id(), light_val);
 				// unregister se
 				light_on = false;
 				token_construction_.erase_entity(light_se);
 			}
-			else if(!light_on && light_val > LIGHT_ON) {
-				debug_->debug("@%lu join %u", (unsigned long)radio_->id(), light_val);
+			else if(!light_on && (light_val > LIGHT_ON || (radio_.id() == token_construction_.tree().root()))) {
+				debug_->debug("@%lu join %u", (unsigned long)radio_.id(), light_val);
 				light_on = true;
 				token_construction_.add_entity(light_se);
 			}
-						
+			
+			if(light_on) { leds_on(LEDS_BLUE); }
+			else { leds_off(LEDS_BLUE); }
+			
 			timer_->set_timer<App, &App::check_light>(CHECK_LIGHT_INTERVAL, this, 0);
 		}
 		#endif // CONTIKI_TARGET_sky
@@ -460,6 +474,8 @@ class App {
 		
 		#if defined(ARDUINO)
 			ArduinoMonitor<Os, Os::Debug> monitor_;
+		#elif defined(ISENSE)
+			IsenseMonitor<Os> monitor_;
 		#else
 			NullMonitor<Os> monitor_;
 		#endif
