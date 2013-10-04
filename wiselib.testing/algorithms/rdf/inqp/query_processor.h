@@ -174,6 +174,7 @@ namespace wiselib {
 				
 
 			void execute(Query *query) {
+				DBG("exec query %d", (int)query->id());
 				//#if INQP_DEBUG_STATE
 					//debug_->debug("xq%d", (int)query->id());
 				//#endif
@@ -286,6 +287,15 @@ namespace wiselib {
 				handle_operator(query, bod);
 			}
 			
+			void handle_operator(query_id_t qid, size_type size, block_data_t* od) {
+				BOD *bod = reinterpret_cast<BOD*>(od);
+				Query *query = get_query(qid);
+				if(!query) {
+					query = create_query(qid);
+				}
+				handle_operator(query, bod);
+			}
+			
 			template<typename Message, typename node_id_t>
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
 				//DBG("h qinf");
@@ -295,6 +305,17 @@ namespace wiselib {
 					query = create_query(query_id);
 				}
 				query->set_expected_operators(msg->operators());
+				if(query->ready()) {
+					execute(query);
+				}
+			}
+			
+			void handle_query_info(query_id_t qid, size_type nops) {
+				Query *query = get_query(qid);
+				if(!query) {
+					query = create_query(qid);
+				}
+				query->set_expected_operators(nops);
 				if(query->ready()) {
 					execute(query);
 				}

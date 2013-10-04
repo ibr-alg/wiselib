@@ -107,10 +107,10 @@ namespace wiselib {
 				// {{{
 				
 				enum {
-					ALPHA = 20,
+					ALPHA = 10,
 					LINK_METRIC_BECOMES_STABLE = 240,
-					LINK_METRIC_LOOSES_STABLE = 220,
-					LINK_METRIC_LOW = 200
+					LINK_METRIC_LOOSES_STABLE = 180,
+					LINK_METRIC_LOW = LINK_METRIC_LOOSES_STABLE
 				};
 				
 				NeighborEntry() : address_(NULL_NODE_ID), stable_(false) {
@@ -544,7 +544,7 @@ namespace wiselib {
 				typename NeighborEntries::iterator r = neighbor_entries_.insert(e);
 				if(e.stable()) {
 					new_neighbors_ = true;
-					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m);
+					debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m, (unsigned long)now());
 					notify_event(NEW_NEIGHBOR, addr);
 				
 					RegularEventT &event = regular_broadcasts_[addr];
@@ -578,12 +578,12 @@ namespace wiselib {
 				
 				if(stable_now > stable_before) {
 					new_neighbors_ = true;
-					debug_->debug("@%lu N+ %lu m%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m);
+					debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
 					notify_event(NEW_NEIGHBOR, it->address_);
 				}
 				else if(stable_now < stable_before) {
 					lost_neighbors_ = true;
-					debug_->debug("@%lu N- %lu m%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m);
+					debug_->debug("@%lu N- %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
 					notify_event(LOST_NEIGHBOR, it->address_);
 					erase_regular_broadcast(it->address_);
 				}
@@ -666,6 +666,7 @@ namespace wiselib {
 				clear_neighbors();
 				
 				::uint8_t distance = -1;
+				node_id_t mindist_min_parent = NULL_NODE_ID;
 				node_id_t previous_parent = tree_state().parent();
 				node_id_t parent = radio_->id(); assert(parent != NULL_NODE_ID);
 				node_id_t root = radio_->id(); assert(root != NULL_NODE_ID);
@@ -685,8 +686,17 @@ namespace wiselib {
 					}
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
 					
-					//DBG("neigh: %lu p %lu r %lu d %d", (unsigned long)iter->id(), (unsigned long)iter->tree_state().parent(),
-							//(unsigned long)iter->tree_state().root(), (int)iter->tree_state().distance());
+					debug_->debug("@%lu N:%lu p%lu r%lu d%d R%lu P%lu D%d",
+							(unsigned long)radio_->id(),
+							(unsigned long)iter->id(),
+							(unsigned long)iter->tree_state().parent(),
+							(unsigned long)iter->tree_state().root(),
+							(int)iter->tree_state().distance(),
+							(unsigned long)root,
+							(unsigned long)parent,
+							(int)distance
+					);
+					
 					if(iter->tree_state().parent() == radio_->id()) {
 						Neighbor n(&*iter);
 						insert_child(n);
@@ -694,10 +704,26 @@ namespace wiselib {
 					
 					else if(
 							(
-								(iter->tree_state().root() < root) ||
-								(iter->tree_state().root() == root && (iter->tree_state().distance() + 1) < distance)
+								/* neigh has a better root OR */
+								(iter->tree_state().root() < root) || (
+								
+									/* neigh has the same root */
+									(iter->tree_state().root() == root) && (
+										
+										// ...but is closer OR
+										((iter->tree_state().distance() + 1) < distance) || (
+										
+											// ... is not closer, but has the
+											// lowest id among equally close potential
+											// parents
+											((iter->tree_state().distance() + 1) == distance) && (
+												(iter->id() < parent) || (parent == radio_->id())
+											)
+										)
+									)
+								)
 							) &&
-							(iter->tree_state().distance() + 1 <= MAX_ROOT_DISTANCE)
+							((iter->tree_state().distance() + 1) <= MAX_ROOT_DISTANCE)
 					) {
 						parent_ptr = &*iter;
 						parent = iter->id();
@@ -723,14 +749,15 @@ namespace wiselib {
 				bool c = new_neighbors_ || lost_neighbors_ || c_a || c_b || c_c;
 				
 				if(c) {
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
-						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
-									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
-					#endif
 					changed();
 				}
 				
 				if(c || updated_neighbors_) {
+					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
+						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
+									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
+					#endif
+						
 					notify_event(UPDATED_STATE, previous_parent);
 						
 					// <DEBUG>

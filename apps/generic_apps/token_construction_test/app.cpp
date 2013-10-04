@@ -98,7 +98,7 @@ class App {
 			#endif
 			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
 			
-			#ifdef CONTIKI_TARGET_sky
+			#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 				//light_sensor
 				//
 				light_se.set(23, 42);
@@ -421,7 +421,7 @@ class App {
 		bool light_on;
 		unsigned light_val;
 		
-		#ifdef CONTIKI_TARGET_sky
+		#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 		void check_light(void*) {
 			unsigned v = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
 			
