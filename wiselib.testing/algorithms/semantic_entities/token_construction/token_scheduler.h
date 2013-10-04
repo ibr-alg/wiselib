@@ -762,9 +762,13 @@ namespace wiselib {
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection", (int)radio_->id());
 						#endif
-						#if INSE_DEBUG_STATE
-							debug_->debug("op t%d s%d", (int)(now() % 65536), (int)endpoint.sequence_number());
-						#endif
+						debug_->debug("@%lu ho_op %lu t%lu s%d m%d",
+								(unsigned long)radio_->id(),
+								(unsigned long)endpoint.remote_address(),
+								(unsigned long)now(),
+								(unsigned long)endpoint.sequence_number(),
+								(int)(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING)
+								);
 						nap_control_.push_caffeine("ho_op");
 						break;
 						
