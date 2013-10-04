@@ -47,9 +47,9 @@
 //#include <util/allocators/malloc_free_allocator.h>
 
 
-//#if (WISELIB_DISABLE_DEBUG_MESSAGES || WISELIB_DISABLE_DEBUG)
-	//#define DBG(...)
-//#else
+#if (WISELIB_DISABLE_DEBUG_MESSAGES || WISELIB_DISABLE_DEBUG)
+   #define DBG(...)
+#else
    #include <isense/util/get_os.h>
 	#define _WHERESTR "...%s:%d: "
 	#define _WHEREARG (&__FILE__ [ (strlen(__FILE__) < 30) ? 0 : (strlen(__FILE__) - 30)]), __LINE__
@@ -57,7 +57,7 @@
 	#define DBG3(...) GET_OS.debug(__VA_ARGS__);
 	#define DBG2(_fmt, ...) DBG3(_WHERESTR _fmt "%s", _WHEREARG, __VA_ARGS__)
 	#define DBG(...) DBG2(__VA_ARGS__, "")
-//#endif
+#endif
 
 namespace wiselib
 {

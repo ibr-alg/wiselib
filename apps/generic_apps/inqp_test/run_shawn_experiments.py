@@ -27,8 +27,8 @@ def main():
 	
 	nseeds = 100
 	
-	print("== generating seeds...")
-	generate_seeds(nseeds)
+#	print("== generating seeds...")
+#	generate_seeds(nseeds)
 	
 	#print("running const density experiments...")
 	#run_constant_density(0.1, range(100, 1000, 100), nseeds)
@@ -37,11 +37,27 @@ def main():
 	#run_constant_size(50, range(100, 1000, 100), nseeds)
 	
 	print("== running aggregate interval experiments (const density)...")
-	run_aggregate_interval_constant_density(0.1, range(100, 1000, 100),
-			nseeds, [100, 500] + list(range(1000, 4000, 1000)))
+#	run_aggregate_interval_constant_density(0.1, range(100, 1000, 100), nseeds, [100, 500] + list(range(1000, 4000, 1000)))
+
+	run_aggregate_interval_constant_density(0.1, range(100, 1000, 100), nseeds, [3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 50000])
+	reset_pool()
+	run_aggregate_interval_constant_density(0.2, range(100, 1000, 100), nseeds, [100, 500, 1000, 2000,4000, 5000, 6000, 7000, 8000, 9000, 10000, 50000])
+	reset_pool()
+	run_aggregate_interval_constant_density(0.3, range(100, 1000, 100), nseeds, [100, 500, 1000, 2000,4000, 5000, 6000, 7000, 8000, 9000, 10000, 50000])
+	reset_pool()
+	run_aggregate_interval_constant_density(0.4, range(100, 1000, 100), nseeds, [100, 500, 1000, 2000,4000, 5000, 6000, 7000, 8000, 9000, 10000, 50000])
+	reset_pool()
+	run_aggregate_interval_constant_density(0.5, range(100, 1000, 100), nseeds, [100, 500, 1000, 2000,4000, 5000, 6000, 7000, 8000, 9000, 10000, 50000])
 
 	pool.close()
 	pool.join()
+
+
+def reset_pool():
+	global pool
+	pool.close()
+	pool.join()
+	pool = Pool(POOL_SIZE)
 
 # --- Experiments
 
