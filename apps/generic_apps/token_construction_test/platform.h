@@ -114,7 +114,7 @@
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
-	#define NAP_CONTROL_DEBUG_STATE        1
+	#define NAP_CONTROL_DEBUG_STATE        0
 	#define NAP_CONTROL_DEBUG_ONOFF        1
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1

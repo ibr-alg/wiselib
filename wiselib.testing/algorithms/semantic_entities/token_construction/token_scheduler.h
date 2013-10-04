@@ -150,6 +150,8 @@ namespace wiselib {
 				HANDOVER_RETRY_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
 					//ACTIVITY_PERIOD,
 					//10000 * WISELIB_TIME_FACTOR,
+				
+				RECOVER_TOKEN_INTERVAL = 10 * HANDOVER_RETRY_INTERVAL,
 				ACTIVITY_PERIOD_ROOT = 100 * WISELIB_TIME_FACTOR,
 			};
 			
@@ -222,6 +224,8 @@ namespace wiselib {
 				iam_tokens_in_subtree_ = 0;
 				forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
 				forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
+				
+				on_recover_token(0);
 				
 				check();
 			}
@@ -303,6 +307,21 @@ namespace wiselib {
 			SemanticEntityNeighborhoodT& neighborhood() { return neighborhood_; }
 		
 		private:
+			
+			void on_recover_token(void*) {
+				for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
+					SemanticEntityT &se = iter->second;
+					if(!se.in_activity_phase()) {
+						nap_control_.push_caffeine("hotre");
+					#if INSE_DEBUG_STATE
+						debug_->debug("ho tree");
+					#endif
+						initiate_handover(se, false); // tree has changed, (re-)send token info
+					}
+				}
+				timer_->template set_timer<self_type, &self_type::on_recover_token>(RECOVER_TOKEN_INTERVAL, this, 0);
+			}
+				
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				check();
@@ -1025,11 +1044,17 @@ namespace wiselib {
 				// <=> now() < se.token_received + delay
 				
 				if(now() < se.token_received() + delay) {
+					debug_->debug("@%lu itok %lu < %lu t%lu",
+							(unsigned long)radio_->id(),
+							(unsigned long)(now() - delay),
+							(unsigned long)se.token_received(),
+							(unsigned long)now());
 					// do we actually have a more recent token count
 					// information already?
 					// If so, just ignore this one
 					return false;
 				}
+				se.set_token_received(now() - delay);
 				
 				TokenState s = msg.token_state();
 				bool activating = false;
