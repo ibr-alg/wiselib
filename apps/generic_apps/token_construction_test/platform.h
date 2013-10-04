@@ -4,11 +4,9 @@
 
 // App features / modes
 
-#define USE_INQP                       0
-#define INSE_USE_AGGREGATOR            0
-
 #define APP_BLINK 0
-#define APP_EVAL  1
+#define APP_EVAL  0
+#define APP_QUERY 1
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -31,6 +29,16 @@
 
 	#define LIGHT_ALPHA                  50
 
+#elif APP_QUERY
+	#define USE_INQP                     1
+	#define USE_STRING_INQUIRY           0
+	#define INSE_USE_AGGREGATOR          0
+
+	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
+	#define INSE_FORWARDING_MAP_BITS     128
+	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
+	#define INSE_START_WAIT              (1)
+
 #elif APP_EVAL
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     512
@@ -40,7 +48,7 @@
 #endif
 
 // Checks, Assertions, Debug messages
-
+#if 0
 #define CHECK_INVARIANTS               (defined(SHAWN))
 #define DISTRIBUTOR_DEBUG_STATE        1
 #define INSE_DEBUG_STATE               1
@@ -55,12 +63,14 @@
 #define RELIABLE_TRANSPORT_DEBUG_STATE 1
 #define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
 #define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
+#endif
 
 // TupleStore config
 
 #define USE_LIST_CONTAINER             0
 #define USE_VECTOR_CONTAINER           1
 #define USE_BLOCK_CONTAINER            0
+#define TUPLE_CONTAINER_SIZE           20
 
 #define USE_PRESCILLA_DICTIONARY       0
 #define USE_TREE_DICTIONARY            1
@@ -111,18 +121,16 @@
 	#define BITMAP_ALLOCATOR_RAM_SIZE  1024
 
 #elif defined(ISENSE)
-	#define INSE_USE_AGGREGATOR            0
-	#define USE_INQP                       1
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
-	#define INSE_DEBUG_TOKEN               1
-	#define INSE_DEBUG_TOPOLOGY            1
+	#define INSE_DEBUG_TOKEN               0
+	#define INSE_DEBUG_TOPOLOGY            0
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
-	#define NAP_CONTROL_DEBUG_STATE        1
-	#define NAP_CONTROL_DEBUG_ONOFF        1
+	#define NAP_CONTROL_DEBUG_STATE        0
+	#define NAP_CONTROL_DEBUG_ONOFF        0
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1

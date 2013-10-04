@@ -7,6 +7,13 @@
 	}
 #endif
 
+#if APP_QUERY
+	static const char* tuples[][3] = {
+		#include "nqxe_test.cpp"
+		{ 0, 0, 0 }
+	};
+#endif
+
 class App {
 	public:
 		
@@ -18,8 +25,15 @@ class App {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
+			
+		#if APP_QUERY
+			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
+			uart_->enable_serial_comm();
+			uart_->reg_read_callback<App, &App::uart_receive>(this);
+		#endif
+			
 			initcount = INSE_START_WAIT;
-			debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
+			//debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			timer_->set_timer<App, &App::init2>(1000, this, 0);
 			
 			monitor_.init(debug_);
@@ -36,7 +50,7 @@ class App {
 		}
 		
 		void init3() {
-			debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
+			//debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			
 			monitor_.report("bt0");
 			hardware_radio_->enable_radio();
@@ -74,6 +88,10 @@ class App {
 			init_simple_rule_processor();
 			
 			// Fill node with initial semantics and construction rules
+			
+			#if APP_QUERY
+				insert_tuples();
+			#endif
 			
 			#if !APP_BLINK
 				initial_semantics(ts, &radio_, rand_);
@@ -168,11 +186,13 @@ class App {
 						&radio_, timer_, debug_
 				);
 				
+			#if USE_STRING_INQUIRY
 				string_anycast_radio_.init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
 						&radio_, timer_, debug_
 				);
+			#endif
 				
 				// Transport rows for collect and aggregation operators
 				
@@ -197,12 +217,12 @@ class App {
 				
 				// Ask nodes for strings belonging to hashes
 				
-				#if USE_INQP
+			#if USE_STRING_INQUIRY
 				string_inquiry_.init(&string_anycast_radio_, &query_processor_);
 				string_inquiry_.reg_answer_callback(
 						StringInquiryT::answer_delegate_t::from_method<App, &App::on_string_answer>(this)
 				);
-				#endif
+			#endif
 				
 				/*
 				anycast_radio_.reg_recv_callback<
@@ -261,6 +281,59 @@ class App {
 	#endif
 		
 		
+	#if APP_QUERY
+		template<typename TS>
+		void ins(TS& ts, const char* s, const char* p, const char* o) {
+			TupleT t;
+			t.set(0, (block_data_t*)const_cast<char*>(s));
+			t.set(1, (block_data_t*)const_cast<char*>(p));
+			t.set(2, (block_data_t*)const_cast<char*>(o));
+			ts.insert(t);
+		}
+		
+		void insert_tuples() {
+			int i = 0;
+			for( ; tuples[i][0]; i++) {
+				//monitor_.report("ins");
+				
+				//for(int j = 0; j < 3; j++) {
+					//debug_->debug("%-60s %08lx", tuples[i][j], (unsigned long)Hash::hash((block_data_t*)tuples[i][j], strlen(tuples[i][j])));
+				//}
+				
+				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
+			}
+			debug_->debug("ins done: %d tuples", (int)i);
+		}
+		
+		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
+			// TODO: actually *DISTRIBUTE* query!!!!
+			size_t l = buf[0];
+			if(buf[1] == 'Q') {
+				query_processor_.handle_query_info(buf[2], buf[3]);
+			}
+			else if(buf[1] == 'O') {
+				query_processor_.handle_operator(buf[2], l - 3, buf + 3);
+			}
+			uart_->write(3, (block_data_t*)"yo");
+		}
+		
+		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
+				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
+			
+			int msglen =  1 + 1 + 1 + 4*cols;
+			block_data_t msg[msglen];
+			
+			msg[0] = type;
+			msg[1] = qid;
+			msg[2] = oid;
+			for(int i = 0; i< cols; i++) {
+				wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 2 + 4*i, row[i]);
+			}
+			
+			uart_->write(msglen, msg);
+		}
+		
+	#endif
 		
 		#if INSE_USE_AGGREGATOR
 		typedef TC::SemanticEntityAggregatorT Aggregator;
@@ -372,7 +445,7 @@ class App {
 		#endif // USE_INQP
 		
 		
-		#if USE_INQP
+		#if USE_STRING_INQUIRY
 		void query_strings(void*) {
 			// The SE from semantics_uniform
 			string_inquiry_.inquire(SemanticEntityId::all(), 0xda00726c);
@@ -385,7 +458,7 @@ class App {
 		// Reactions to events in the network
 		// 
 		
-		#if USE_INQP
+		#if USE_STRING_INQUIRY
 		void on_string_answer(Value v, const char *s) {
 			debug_->debug("resolv %08lx => %s", (unsigned long)v, s);
 		}
@@ -488,10 +561,13 @@ class App {
 			//INQPCommunicator<Os, QueryProcessor> query_communicator_;
 			Distributor distributor_;
 			RowAnycastRadio row_anycast_radio_;
-			StringAnycastRadio string_anycast_radio_;
 			RowRadio row_radio_;
-			StringInquiryT string_inquiry_;
 			RowCollectorT row_collector_;
+		#endif
+			
+		#if USE_STRING_INQUIRY
+			StringAnycastRadio string_anycast_radio_;
+			StringInquiryT string_inquiry_;
 		#endif
 			
 		#if USE_DICTIONARY
@@ -502,6 +578,10 @@ class App {
 		#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
 			BlockMemory block_memory_;
 			BlockAllocator block_allocator_;
+		#endif
+			
+		#if APP_QUERY
+			Os::Uart::self_pointer_t uart_;
 		#endif
 };
 

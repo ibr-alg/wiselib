@@ -190,6 +190,7 @@ class ExampleApplication
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+			
 			//block_memory_ = &wiselib::FacetProvider<Os, Os::BlockMemory>::get_facet( value );
 			//
 			
