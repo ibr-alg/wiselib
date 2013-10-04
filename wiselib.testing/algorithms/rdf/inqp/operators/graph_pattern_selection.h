@@ -97,7 +97,7 @@ namespace wiselib {
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
-								//DBG("gps nomatch [%d] = %08lx != %08lx",
+								//DBG("gps %d nomatch [%d] = %08lx != %08lx", (int)this->id_,
 										//(int)i, (unsigned long)values_[i], (unsigned long)v);
 								match = false;
 								break;
@@ -106,10 +106,10 @@ namespace wiselib {
 						
 						switch(this->projection_info().type(i)) {
 							case ProjectionInfoBase::IGNORE:
-								//DBG("col %d ignore", i);
+								DBG("gps %d col %d ignore", (int)this->id_, i);
 								break;
 							case ProjectionInfoBase::INTEGER: {
-								//DBG("col %d INT", i);
+								DBG("gps %d col %d INT", (int)this->id_, i);
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
@@ -117,22 +117,22 @@ namespace wiselib {
 								break;
 							}
 							case ProjectionInfoBase::FLOAT: {
-								//DBG("col %d FLOAT", i);
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
+								DBG("gps %d col %d FLOAT \"%s\" %f", (int)this->id_, i, s, f);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
 								this->dictionary().free_value(s);
 								break;
 							}
 							case ProjectionInfoBase::STRING:
-								//DBG("col %d STRING", i);
+								DBG("gps %d col %d STRING", (int)this->id_, i);
 								(*row)[row_idx++] = v;
 								this->reverse_translator().offer(iter->get_key(i), v);
 								break;
 						}
 					}
 					if(match) {
-						//DBG("gps push");
+						DBG("---------- gps %d push", (int)this->id_);
 						this->parent().push(*row);
 					}
 				}

@@ -133,16 +133,19 @@ namespace wiselib {
 			SemanticEntity() : global_tree_(0), main_handover_phase_(PHASE_INIT), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
+				token_received_ = 0;
 			}
 			
 			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), initiating_main_handover_(false), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
+				token_received_ = 0;
 			}
 			
 			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), initiating_main_handover_(false), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
+				token_received_ = 0;
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
@@ -152,6 +155,9 @@ namespace wiselib {
 			void destruct() {
 				activating_token_.cancel();
 			}
+			
+			void set_token_received(abs_millis_t r) { token_received_ = r; }
+			abs_millis_t token_received() { return token_received_; }
 			
 			int main_handover_phase() { return main_handover_phase_; }
 			void set_main_handover_phase(int p) { main_handover_phase_ = p; }
@@ -389,6 +395,7 @@ namespace wiselib {
 			TokenState prev_token_state_; // just the token value of previous
 			//Childs childs_;
 			abs_millis_t token_send_start_;
+			abs_millis_t token_received_;
 			SemanticEntityId id_;
 			TokenState token_;
 			int main_handover_phase_;
