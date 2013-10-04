@@ -1200,17 +1200,19 @@ namespace wiselib {
 					bool active_before = se.is_active(radio_->id());
 				#endif
 				
-				#if INSE_DEBUG_TOKEN
+				#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
 					int count_before = se.count();
 				#endif
 					
 				se.update_token_state(radio_->id());
 				assert(!se.is_active(radio_->id()));
 				
-				debug_->debug("@%lu utok S%x.%x w%lu i%lu t%lu e%d c%d,%d r%d",
-						(unsigned long)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
-						(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
-						(unsigned long)now(), (int)se.activating_token_early(), (int)count_before, (int)se.count(), (int)se.is_root(radio_->id()));
+				#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
+					debug_->debug("@%lu utok S%x.%x w%lu i%lu t%lu e%d c%d,%d r%d",
+							(unsigned long)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
+							(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
+							(unsigned long)now(), (int)se.activating_token_early(), (int)count_before, (int)se.count(), (int)se.is_root(radio_->id()));
+				#endif
 				
 				#if !WISELIB_DISABLE_DEBUG
 					debug_->debug("node %d SE %x.%x is_active_before %d is_active %d count %d prev_count %d is_root %d // end_activity",
