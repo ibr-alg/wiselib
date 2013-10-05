@@ -110,7 +110,8 @@ namespace wiselib {
 					ALPHA = 10,
 					LINK_METRIC_BECOMES_STABLE = 240,
 					LINK_METRIC_LOOSES_STABLE = 180,
-					LINK_METRIC_LOW = LINK_METRIC_LOOSES_STABLE
+					LINK_METRIC_BLAME = (int)(LINK_METRIC_LOOSES_STABLE * 0.9),
+					LINK_METRIC_PRAISE = (int)(LINK_METRIC_BECOMES_STABLE * 1.1)
 				};
 				
 				NeighborEntry() : address_(NULL_NODE_ID), stable_(false) {
@@ -314,13 +315,23 @@ namespace wiselib {
 			 * hasnt arrived or you just dont like him and dont want to talk
 			 * with him anymore.
 			 */
-			void blame_neighbor(node_id_t addr) {
+			void blame(node_id_t addr) {
 				typename NeighborEntries::iterator iter = find_neighbor_entry(addr);
-				blame_neighbor(iter);
+				blame(iter);
 			}
-			void blame_neighbor(typename NeighborEntries::iterator iter) {
+			void blame(typename NeighborEntries::iterator iter) {
 				if(iter != neighbor_entries_.end()) {
-					neighbor_sees_metric(iter, NeighborEntry::LINK_METRIC_LOW);
+					neighbor_sees_metric(iter, NeighborEntry::LINK_METRIC_BLAME);
+				}
+			}
+			
+			void praise(node_id_t addr) {
+				typename NeighborEntries::iterator iter = find_neighbor_entry(addr);
+				praise(iter);
+			}
+			void praise(typename NeighborEntries::iterator iter) {
+				if(iter != neighbor_entries_.end()) {
+					neighbor_sees_metric(iter, NeighborEntry::LINK_METRIC_PRAISE);
 				}
 			}
 		
@@ -643,7 +654,7 @@ namespace wiselib {
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
 						iter->last_update_ = now();
-						blame_neighbor(iter);
+						blame(iter);
 						//neighbor_sees_metric(iter, 0);
 					}
 				}
@@ -686,6 +697,7 @@ namespace wiselib {
 					}
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
 					
+					/*
 					debug_->debug("@%lu N:%lu p%lu r%lu d%d R%lu P%lu D%d",
 							(unsigned long)radio_->id(),
 							(unsigned long)iter->id(),
@@ -696,6 +708,7 @@ namespace wiselib {
 							(unsigned long)parent,
 							(int)distance
 					);
+					*/
 					
 					if(iter->tree_state().parent() == radio_->id()) {
 						Neighbor n(&*iter);
@@ -759,6 +772,13 @@ namespace wiselib {
 					#endif
 						
 					notify_event(UPDATED_STATE, previous_parent);
+					
+					/*
+						debug_->debug("@%lu US %lu | %lu %lu %lu.. c=%d",
+								(unsigned long)radio_->id(),
+								(unsigned long)neighbors_[0].id(), (unsigned long)neighbors_[1].id(), (unsigned long)neighbors_[2].id(),
+								(unsigned long)neighbors_[3].id(), childs());
+					*/
 						
 					// <DEBUG>
 					#if INSE_DEBUG_TREE
@@ -772,10 +792,6 @@ namespace wiselib {
 						debug_->debug("node %d root %d parent %d distance %d filter %s",
 								(int)radio_->id(), (int)root, (int)parent, (int)distance, hex);
 						
-						//debug_->debug("node %d // update_state [ %d | %d %d %d ... ] c=%d",
-								//(int)radio_->id(),
-								//(int)neighbors_[0].id(), (int)neighbors_[1].id(), (int)neighbors_[2].id(),
-								//(int)neighbors_[3].id(), childs());
 						//for(size_type i = 0; i < childs(); i++) {
 							//debug_->debug("node %d child %d t %d // update_state", (int)radio_->id(), (int)child(i), (int)now());
 						//}

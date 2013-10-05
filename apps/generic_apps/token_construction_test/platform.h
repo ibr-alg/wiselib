@@ -152,7 +152,7 @@
 	#define INSE_DEBUG_STATE               0
 	#define INSE_DEBUG_TOKEN               1
 	#define INSE_DEBUG_TOPOLOGY            1
-	#define INSE_DEBUG_FORWARDING          1
+	#define INSE_DEBUG_FORWARDING          0
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
@@ -161,6 +161,7 @@
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+	#define INSE_DEBUG_WARNING             1
 	
 	#define WISELIB_TIME_FACTOR            1
 	//#define INSE_FORWARDING_MAP_BITS       512
