@@ -409,11 +409,13 @@ namespace wiselib {
 				}
 				else {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE || INSE_DEBUG_WARNING
+					/*
 						debug_->debug("@%lu ign %lu m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
 								//(int)msg.channel().rule(), (int)msg.channel().value(),
 								(unsigned long)radio_->id(),
 								(unsigned long)from,
 								(int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
+					*/
 					#endif
 					
 					return;
@@ -480,6 +482,12 @@ namespace wiselib {
 					#endif
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
+					
+					// The endpoint wants to communicate to us
+					// so probably he thinks the link quality is good.
+					// To converge to a state where both sides think the same
+					// about the connection, praise him! praise him! amen!
+					praise(ep.remote_address());
 				}
 				ep.request_open();
 				ep.open();
@@ -848,7 +856,7 @@ namespace wiselib {
 			//}}}
 			///@}
 			
-			//void praise(node_id_t addr) { if(nd_) { nd_->praise(addr); } }
+			void praise(node_id_t addr) { if(nd_) { nd_->praise(addr); } }
 			//void blame(node_id_t addr) { if(nd_) { nd_->blame(addr); } }
 			
 			abs_millis_t absolute_millis(const time_t& t) {

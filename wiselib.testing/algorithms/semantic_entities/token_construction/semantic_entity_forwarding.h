@@ -379,7 +379,7 @@ namespace wiselib {
 				}
 				else {
 					#if (INSE_DEBUG_STATE || INSE_DEBUG_WARNING)
-						debug_->debug("@%lu fwd !l %d>=2*%d", (unsigned long)radio_->id(), (int)pos, (int)map_slots_);
+						//debug_->debug("@%lu fwd !l %d>=2*%d", (unsigned long)radio_->id(), (int)pos, (int)map_slots_);
 					#endif
 				}
 			}
