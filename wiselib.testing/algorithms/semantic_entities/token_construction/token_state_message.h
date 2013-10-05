@@ -68,7 +68,12 @@ namespace wiselib {
 				//POS_TOKEN_STATE = POS_FLAGS + sizeof(flags_t),
 				//POS_TIME_OFFSET = POS_TOKEN_STATE + sizeof(TokenState),
 				
-				POS_END = POS_CYCLE_WINDOW + sizeof(abs_millis_t)
+			// for debugging only
+				POS_SRC = POS_CYCLE_WINDOW + sizeof(abs_millis_t),
+				POS_SRCTIME = POS_SRC + sizeof(node_id_t),
+				
+				//POS_END = POS_CYCLE_WINDOW + sizeof(abs_millis_t)
+				POS_END = POS_SRCTIME + sizeof(abs_millis_t)
 			};
 			
 			//enum {
@@ -116,6 +121,22 @@ namespace wiselib {
 			
 			void set_cycle_window(abs_millis_t t) {
 				wiselib::write<OsModel>(data_ + POS_CYCLE_WINDOW, t);
+			}
+			
+			node_id_t source() {
+				return wiselib::read<OsModel, block_data_t, node_id_t>(data_ + POS_SRC);
+			}
+			
+			void set_source(node_id_t src) {
+				wiselib::write<OsModel>(data_ + POS_SRC, src);
+			}
+			
+			abs_millis_t sourcetime() {
+				return wiselib::read<OsModel, block_data_t, abs_millis_t>(data_ + POS_SRCTIME);
+			}
+			
+			void set_sourcetime(abs_millis_t t) {
+				wiselib::write<OsModel>(data_ + POS_SRCTIME, t);
 			}
 			
 			block_data_t* data() {

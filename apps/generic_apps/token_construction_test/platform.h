@@ -5,8 +5,8 @@
 // App features / modes
 
 #define APP_BLINK 0
-#define APP_EVAL  0
-#define APP_QUERY 1
+#define APP_EVAL  1
+#define APP_QUERY 0
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR

@@ -22,7 +22,9 @@ export BIN_OUT=app
 
 
 #export PC_COMPILE_DEBUG=1
-export ADD_CXXFLAGS="-Wall"
+GIT_OUT := $(shell git show --pretty=oneline --abbrev-commit HEAD)
+REVISION := $(word 1, $(GIT_OUT))
+export ADD_CXXFLAGS="-Wall -DREVISION=0x$(REVISION)"
 
 export ARDUINO_USE_XBEE=1
 #export ADD_CXXFLAGS="-Wno-format -Wno-unused-local-typedefs"
