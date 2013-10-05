@@ -24,6 +24,11 @@
 #include <util/base_classes/extended_radio_base.h>
 #include <util/serialization/serialization.h>
 
+#define CHECKSUM_RADIO_USE_REVISION 1
+#if !defined(REVISION)
+	#define REVISION 0x12345678
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -66,8 +71,17 @@ namespace wiselib {
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
 			};
 			
+			typedef ::uint32_t revision_t;
+			enum {
+				#if CHECKSUM_RADIO_USE_REVISION
+					HEADER_SIZE = sizeof(hash_t) + sizeof(revision_t),
+				#else
+					HEADER_SIZE = sizeof(hash_t)
+				#endif
+			};
+			
 			enum Restrictions {
-				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - sizeof(hash_t)
+				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - HEADER_SIZE
 			};
 			
 			int init(Radio& radio, Debug& debug) {
@@ -84,25 +98,48 @@ namespace wiselib {
 			
 			int send(node_id_t dest, size_t len, block_data_t *data) {
 				block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
+				block_data_t *p = buf;
+				
 				hash_t h = Hash::hash(data, len);
 				//DBG("checksum send: %04lx", (unsigned long)h);
-				wiselib::write<OsModel, block_data_t, hash_t>(buf, h);
-				memcpy(buf + sizeof(hash_t), data, len);
-				radio_->send(dest, len + sizeof(hash_t), buf);
+				wiselib::write<OsModel, block_data_t, hash_t>(p, h);
+				p += sizeof(hash_t);
+				
+			#if CHECKSUM_RADIO_USE_REVISION
+				revision_t rev = REVISION;
+				wiselib::write<OsModel, block_data_t, revision_t>(p, rev);
+				p += sizeof(revision_t);
+			#endif
+				
+				memcpy(p, data, len);
+				radio_->send(dest, len + HEADER_SIZE, buf);
 				return SUCCESS;
 			}
 			
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
-				if(len < sizeof(hash_t)) { return; }
+				if(len < HEADER_SIZE) { return; }
 				
+				// hardcoded weird sources that send confusing things
+				if(from == 49465) { return; }
+				
+				// checksum
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data);
-				hash_t h_check = Hash::hash(data + sizeof(hash_t), len - sizeof(hash_t));
-				if(h_msg == h_check) {
-					this->notify_receivers(from, (typename Radio::size_t)(len - sizeof(hash_t)), (typename Radio::block_data_t*)(data + sizeof(hash_t)), ex);
-				}
-				else {
+				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
+				if(h_msg != h_check) {
 					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
+					return;
 				}
+				
+				// revision
+			#if CHECKSUM_RADIO_USE_REVISION
+				revision_t rev = wiselib::read<OsModel, block_data_t, revision_t>(data + sizeof(hash_t));
+				if(rev != REVISION) {
+					debug_->debug("@%lu %lu !R %lx,%lx", (unsigned long)id(), (unsigned long)from, (unsigned long)REVISION, (unsigned long)rev);
+					return;
+				}
+			#endif
+				
+				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(data + HEADER_SIZE), ex);
 			}
 		
 		private:

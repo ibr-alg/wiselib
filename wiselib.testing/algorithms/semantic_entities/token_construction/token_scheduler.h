@@ -546,6 +546,8 @@ namespace wiselib {
 						msg.set_cycle_time(se->activating_token_interval());
 						msg.set_cycle_window(se->activating_token_window());
 						msg.set_token_state(se->token());
+						msg.set_source(radio_->id());
+						msg.set_sourcetime(now());
 						message.set_payload_size(msg.size());
 						transport_.expect_answer(endpoint);
 						
@@ -923,7 +925,7 @@ namespace wiselib {
 				#if INSE_USE_AGGREGATOR
 					case SemanticEntityT::AGGREGATES_LOCKED_LOCAL: {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
-						process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
+						process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay(), message.sequence_number());
 						SemanticEntityT s2 = *se;
 						
 						bool lock = false;
@@ -944,7 +946,7 @@ namespace wiselib {
 						TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 						SemanticEntityT s2 = *se;
 						
-						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay());
+						bool activating = process_token_state(msg, *se, endpoint.remote_address(), now(), message.delay(), message.sequence_number());
 						bool lock = false;
 						
 				#if INSE_USE_AGGREGATOR
@@ -1043,7 +1045,7 @@ namespace wiselib {
 			//}}}
 			///@}
 			
-			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0) {
+			bool process_token_state(TokenStateMessageT& msg, SemanticEntityT& se, node_id_t from, abs_millis_t t_recv, abs_millis_t delay = 0, typename ReliableTransportT::sequence_number_t seqnr = 0) {
 				check();
 				
 				//     now() - delay < se.token_received
@@ -1068,10 +1070,14 @@ namespace wiselib {
 				se.set_prev_token_count(s.count());
 				
 				//#if !WISELIB_DISABLE_DEBUG
-					debug_->debug("@%lu ptok %lu S%x.%x act%d,%d c%d,%d rt%d t%lu d%lu",
+					debug_->debug("@%lu ptok %lu S%x.%x act%d,%d c%d,%d rt%d t%lu d%lu src%lu st%lu s%lu",
 							(unsigned long)radio_->id(), (unsigned long)from, (int)se.id().rule(), (int)se.id().value(),
 							(int)active_before, (int)se.is_active(radio_->id()),
-							(int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()), (unsigned long)now(), (unsigned long)delay);
+							(int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()),
+							(unsigned long)now(), (unsigned long)delay,
+							(unsigned long)msg.source(),
+							(unsigned long)msg.sourcetime(),
+							(unsigned long)seqnr);
 				//#endif
 				
 				if(se.is_active(radio_->id()) && !active_before) {
