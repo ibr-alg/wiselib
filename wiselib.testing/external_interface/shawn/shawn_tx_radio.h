@@ -77,7 +77,7 @@ namespace wiselib
       int send( node_id_t id, size_t len, block_data_t *data )
       {
          if(!enabled_) { return ERR_UNSPEC; }
-         printf("@%lu => %lu l%u m%x\n", (unsigned long)os().proc->id(), (unsigned long)id, (unsigned)len, (unsigned)(len ? data[0] : 0));
+         //printf("@%lu => %lu l%u m%x\n", (unsigned long)os().proc->id(), (unsigned long)id, (unsigned)len, (unsigned)(len ? data[0] : 0));
          os().proc->send_wiselib_message( id, len, data );
          return SUCCESS;
       };

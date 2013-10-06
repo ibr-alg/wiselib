@@ -107,6 +107,9 @@ namespace wiselib {
 				
 				for(size_type i = start; i < global_tree_->childs(); i++) {
 					if(global_tree_->child_user_data(i).contains(se_id)) { return i; }
+					else {
+						DBG("!Ch%d/%d %lu", (int)i, (int)global_tree_->childs(), (unsigned long)global_tree_->child(i));
+					}
 				}
 				
 				check();

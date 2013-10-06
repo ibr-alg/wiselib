@@ -483,12 +483,13 @@ namespace wiselib {
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 					
+				}
 					// The endpoint wants to communicate to us
 					// so probably he thinks the link quality is good.
 					// To converge to a state where both sides think the same
 					// about the connection, praise him! praise him! amen!
 					praise(ep.remote_address());
-				}
+					
 				ep.request_open();
 				ep.open();
 				consume_data(ep, msg);
@@ -698,6 +699,8 @@ namespace wiselib {
 					if(sending_endpoint().wants_open()) {
 						flags |= Message::FLAG_OPEN;
 						sending_endpoint().open();
+						
+						praise(sending_endpoint().remote_address());
 					}
 					
 					if(sending_endpoint().wants_close()) {
@@ -856,7 +859,18 @@ namespace wiselib {
 			//}}}
 			///@}
 			
-			void praise(node_id_t addr) { if(nd_) { nd_->praise(addr); } }
+			void praise(node_id_t addr) {
+				if(nd_) {
+					//nd_->worship(addr;);
+					//nd_->update_state();
+					//nd_->praise(addr);
+					//nd_->praise(addr);
+					//nd_->praise(addr);
+					//nd_->praise(addr);
+					//nd_->praise(addr);
+					//nd_->praise(addr);
+				}
+			}
 			//void blame(node_id_t addr) { if(nd_) { nd_->blame(addr); } }
 			
 			abs_millis_t absolute_millis(const time_t& t) {
