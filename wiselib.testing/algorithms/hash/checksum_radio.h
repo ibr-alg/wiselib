@@ -24,7 +24,7 @@
 #include <util/base_classes/extended_radio_base.h>
 #include <util/serialization/serialization.h>
 
-#define CHECKSUM_RADIO_USE_REVISION 1
+#define CHECKSUM_RADIO_USE_REVISION 0
 #if !defined(REVISION)
 	#define REVISION 0x12345678
 #endif
@@ -116,17 +116,33 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
+		#ifdef SHAWN
+			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data) {
+				typename Radio::ExtendedData ex;
+				//ex.set_link_metric(300);
+		#else
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
-				if(len < HEADER_SIZE) { return; }
+		#endif
+				
+				DBG("@%lu chksum from %lu", (unsigned long)id(), (unsigned long)from);
+				
+				if(len < HEADER_SIZE) {
+					#ifdef SHAWN
+					debug_->debug("msg too short: %d < %d", (int)len, (int)HEADER_SIZE);
+					#endif
+					return;
+				}
 				
 				// hardcoded weird sources that send confusing things
-				if(from == 49465) { return; }
+				//if(from == 49465) { return; }
 				
 				// checksum
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data);
 				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
 				if(h_msg != h_check) {
+					#ifdef SHAWN
 					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
+					#endif
 					return;
 				}
 				
@@ -139,7 +155,11 @@ namespace wiselib {
 				}
 			#endif
 				
+			#ifdef SHAWN
+				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(data + HEADER_SIZE));
+			#else
 				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(data + HEADER_SIZE), ex);
+			#endif
 			}
 		
 		private:

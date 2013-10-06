@@ -727,10 +727,12 @@ namespace wiselib {
 					default:
 						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
 			#if INSE_DEBUG_WARNING
+							/*
 							debug_->debug("@%lu tok !a t%lu r%lu",
 									(unsigned long)radio_->id(),
 									(unsigned long)now(),
 									(unsigned long)(now() + HANDOVER_RETRY_INTERVAL));
+							*/
 			#endif
 							
 							se->set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
