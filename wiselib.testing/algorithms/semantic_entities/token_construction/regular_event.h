@@ -106,7 +106,7 @@ namespace wiselib {
 					last_encounter_ += interval_;
 					tolerate_misses_ -= 2;
 				}
-				else if(tolerate_misses_ < TOLERATE_MISSES) {
+				else if(tolerate_misses_ < 2 * TOLERATE_MISSES) {
 					tolerate_misses_++;
 				}
 				
@@ -175,6 +175,7 @@ namespace wiselib {
 			
 			abs_millis_t next_expected(abs_millis_t t) {
 				abs_millis_t r = last_encounter_;
+				t += interval_ / 2;
 				while(r <= t) { r += interval_; }
 				return r;
 			}
@@ -232,6 +233,10 @@ namespace wiselib {
 					else {
 						delta = ne - now - window_;
 					}
+					
+					//printf("EV %lu %lu %lu\n", (unsigned long)now, (unsigned long)ne,
+							//(unsigned long)delta);
+					
 					//DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", (int)absolute_millis(clock, clock->time()), (int)delta, (int)ne, (int)now, (int)window_);
 					
 					#ifdef ISENSE
