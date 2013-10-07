@@ -502,7 +502,7 @@ namespace wiselib {
 							);
 				#endif
 					
-					if(main && !se.initiating_main_handover()) {
+					if(main && se.main_handover_phase() == SemanticEntityT::PHASE_PENDING) {
 						se.set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
 						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>((int)HANDOVER_RETRY_INTERVAL, this, &se);
 					}
@@ -1072,6 +1072,7 @@ namespace wiselib {
 				se.set_prev_token_count(s.count());
 				
 				//#if !WISELIB_DISABLE_DEBUG
+				/*
 					debug_->debug("@%lu ptok %lu S%x.%x act%d,%d c%d,%d rt%d t%lu d%lu src%lu st%lu s%lu",
 							(unsigned long)radio_->id(), (unsigned long)from, (int)se.id().rule(), (int)se.id().value(),
 							(int)active_before, (int)se.is_active(radio_->id()),
@@ -1080,6 +1081,7 @@ namespace wiselib {
 							(unsigned long)msg.source(),
 							(unsigned long)msg.sourcetime(),
 							(unsigned long)seqnr);
+				*/
 				//#endif
 				
 				if(se.is_active(radio_->id()) && !active_before) {

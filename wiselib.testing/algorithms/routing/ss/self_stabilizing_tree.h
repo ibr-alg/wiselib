@@ -82,7 +82,7 @@ namespace wiselib {
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR, ///< limit bcasts to this interval when things change all the time
 				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR, ///< send regular bcasts in this interval
-				BCAST_TIMES_OUT = false,
+				BCAST_TIMES_OUT = true,
 				BCAST_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, ///< stay awake at most this long waiting for bcasts
 				BCAST_KEEP_AWAKE = 200 * WISELIB_TIME_FACTOR, ///< stay awake at least this long waiting for bcasts (so others have a chance to contact us)
 				DEAD_INTERVAL = (unsigned long)(3 * BCAST_INTERVAL), ///< consider neighbor bcasts as missed after this time
@@ -444,7 +444,7 @@ namespace wiselib {
 								((ne->parent() != radio_->id()) && msg.tree_state().parent() == radio_->id()))
 					) {
 						
-						debug_->debug("Ne %lu,%lu", (unsigned long)(ne->address_), (unsigned long)from);
+						//debug_->debug("Ne %lu,%lu", (unsigned long)(ne->address_), (unsigned long)from);
 						
 						erase_regular_broadcast(ne->address_);
 						neighbor_entries_.erase(ne);
@@ -506,7 +506,7 @@ namespace wiselib {
 				#if INSE_DEBUG_STATE
 					debug_->debug("bcwait");
 				#endif
-				//debug_->debug("@%lu (bcw) %p", (unsigned long)radio_->id(), ev);
+				//debug_->debug("@%lu (bcw) %lu", (unsigned long)radio_->id(), (unsigned long)find_event(*(RegularEventT*)ev));
 				nap_control_->push_caffeine("bcw");
 				
 				if(BCAST_TIMES_OUT) {
@@ -523,6 +523,7 @@ namespace wiselib {
 					debug_->debug("/bcwait");
 				#endif
 				//debug_->debug("@%lu (/bcw) %p", (unsigned long)radio_->id(), ev);
+				//debug_->debug("@%lu (/bcw) %lu", (unsigned long)radio_->id(), (unsigned long)find_event(*(RegularEventT*)ev));
 				nap_control_->pop_caffeine("/bcw");
 			}
 			
@@ -611,7 +612,11 @@ namespace wiselib {
 				typename NeighborEntries::iterator r = neighbor_entries_.insert(e);
 				if(e.stable()) {
 					new_neighbors_ = true;
-					debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m, (unsigned long)now());
+					
+					
+					//debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m, (unsigned long)now());
+					
+					
 					notify_event(NEW_NEIGHBOR, addr);
 				
 					RegularEventT &event = regular_broadcasts_[addr];
@@ -621,6 +626,17 @@ namespace wiselib {
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+					
+					
+					/*
+					debug_->debug("@%lu bc %lu w%lu i%lu t%lu e%d",
+							(unsigned long)radio_->id(),
+							(unsigned long)addr,
+							(unsigned long)event.window(),
+							(unsigned long)event.interval(),
+							(unsigned long)now(),
+							(int)event.early());
+					*/
 				}
 				return r;
 			}
@@ -647,12 +663,12 @@ namespace wiselib {
 				
 				if(stable_now > stable_before) {
 					new_neighbors_ = true;
-					debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
+					//debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
 					notify_event(NEW_NEIGHBOR, it->address_);
 				}
 				else if(stable_now < stable_before) {
 					lost_neighbors_ = true;
-					debug_->debug("@%lu N- %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
+					//debug_->debug("@%lu N- %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
 					notify_event(LOST_NEIGHBOR, it->address_);
 					erase_regular_broadcast(it->address_);
 				}
@@ -684,6 +700,16 @@ namespace wiselib {
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+					
+					/*
+					debug_->debug("@%lu bc %lu w%lu i%lu t%lu e%d",
+							(unsigned long)radio_->id(),
+							(unsigned long)addr,
+							(unsigned long)event.window(),
+							(unsigned long)event.interval(),
+							(unsigned long)now(),
+							(int)event.early());
+					*/
 				}
 				return ne;
 			}
@@ -717,7 +743,7 @@ namespace wiselib {
 				check();
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
-					if(iter->last_update_ + DEAD_INTERVAL <= now()) {
+					if(iter->last_update_ + DEAD_INTERVAL <= now()/* && iter->stable()*/) {
 						iter->last_update_ = now();
 						blame(iter);
 						//neighbor_sees_metric(iter, 0);
@@ -754,6 +780,7 @@ namespace wiselib {
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
 					
 					//#ifdef SHAWN
+					/*
 					debug_->debug("@%lu N:%lu l%d s%d m%d p%lu r%lu d%d R%lu P%lu D%d",
 							(unsigned long)radio_->id(),
 							(unsigned long)iter->id(),
@@ -767,6 +794,7 @@ namespace wiselib {
 							(unsigned long)parent,
 							(int)distance
 					);
+					*/
 					//#endif
 					
 					
@@ -856,10 +884,12 @@ namespace wiselib {
 						
 					notify_event(UPDATED_STATE, previous_parent);
 					
+					/*
 						debug_->debug("@%lu US %lu | %lu %lu %lu.. c=%d",
 								(unsigned long)radio_->id(),
 								(unsigned long)neighbors_[0].id(), (unsigned long)neighbors_[1].id(), (unsigned long)neighbors_[2].id(),
 								(unsigned long)neighbors_[3].id(), childs());
+					*/
 						
 					// <DEBUG>
 					#if INSE_DEBUG_TREE

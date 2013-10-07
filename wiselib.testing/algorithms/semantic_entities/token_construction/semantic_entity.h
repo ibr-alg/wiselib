@@ -136,13 +136,13 @@ namespace wiselib {
 				token_received_ = 0;
 			}
 			
-			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), initiating_main_handover_(false), recovering_(false) {
+			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), /*initiating_main_handover_(false),*/ recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
 				token_received_ = 0;
 			}
 			
-			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), initiating_main_handover_(false), recovering_(false) {
+			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), /*initiating_main_handover_(false),*/ recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
 				token_received_ = 0;
@@ -281,8 +281,8 @@ namespace wiselib {
 				cancel_timers(neighbor);
 			}
 			
-			bool initiating_main_handover() { return initiating_main_handover_; }
-			void set_initiating_main_handover(bool i) { initiating_main_handover_ = i; }
+			//bool initiating_main_handover() { return initiating_main_handover_; }
+			//void set_initiating_main_handover(bool i) { initiating_main_handover_ = i; }
 			
 			///@name Timing
 			///@{
@@ -404,7 +404,7 @@ namespace wiselib {
 			::uint8_t handover_state_recepient_;
 			::uint8_t activity_phase_ : 1;
 			::uint8_t sending_token_ : 1;
-			::uint8_t initiating_main_handover_ : 1;
+			//::uint8_t initiating_main_handover_ : 1;
 			::uint8_t recovering_ : 1;
 			
 	}; // SemanticEntity

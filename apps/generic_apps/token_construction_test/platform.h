@@ -42,7 +42,7 @@
 #elif APP_EVAL
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     512
-	#define INSE_FORWARDING_SLOT_LENGTH  2000 * WISELIB_TIME_FACTOR
+	#define INSE_FORWARDING_SLOT_LENGTH  200 * WISELIB_TIME_FACTOR
 	#define INSE_START_WAIT              (5 * 60)
 
 #endif
@@ -151,7 +151,7 @@
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
 	#define INSE_DEBUG_TOKEN               1
-	#define INSE_DEBUG_TOPOLOGY            1
+	#define INSE_DEBUG_TOPOLOGY            0
 	#define INSE_DEBUG_FORWARDING          0
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
@@ -162,6 +162,9 @@
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
 	#define INSE_DEBUG_WARNING             1
+
+
+	#define INSE_CSMA_MODE                 1
 	
 	#define WISELIB_TIME_FACTOR            1
 	//#define INSE_FORWARDING_MAP_BITS       512
