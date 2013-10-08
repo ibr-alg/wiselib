@@ -5,8 +5,8 @@
 // App features / modes
 
 #define APP_BLINK 0
-#define APP_EVAL  1
-#define APP_QUERY 0
+#define APP_EVAL  0
+#define APP_QUERY 1
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -32,7 +32,7 @@
 #elif APP_QUERY
 	#define USE_INQP                     1
 	#define USE_STRING_INQUIRY           0
-	#define INSE_USE_AGGREGATOR          0
+	#define INSE_USE_AGGREGATOR          1
 
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     128
@@ -70,7 +70,7 @@
 #define USE_LIST_CONTAINER             0
 #define USE_VECTOR_CONTAINER           1
 #define USE_BLOCK_CONTAINER            0
-#define TUPLE_CONTAINER_SIZE           20
+#define TUPLE_CONTAINER_SIZE           10
 
 #define USE_PRESCILLA_DICTIONARY       0
 #define USE_TREE_DICTIONARY            1
@@ -136,7 +136,7 @@
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_MAX_NEIGHBORS             16
+	#define INSE_MAX_NEIGHBORS             8
 	#define WISELIB_MAX_NEIGHBORS          (INSE_MAX_NEIGHBORS)
 	#define INSE_MAX_SEMANTIC_ENTITIES     2
 	#define INSE_MAX_QUERIES               2

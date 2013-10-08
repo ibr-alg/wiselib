@@ -179,6 +179,9 @@ namespace wiselib {
 					//debug_->debug("xq%d", (int)query->id());
 				//#endif
 				//Serial.println("exec");
+				#ifdef ISENSE
+					GET_OS.debug("xq%d", (int)query->id());
+				#endif
 				assert(query->ready());
 				query->build_tree();
 				
@@ -288,6 +291,10 @@ namespace wiselib {
 			}
 			
 			void handle_operator(query_id_t qid, size_type size, block_data_t* od) {
+				#ifdef ISENSE
+					GET_OS.debug("hop %d", (int)qid);
+				#endif
+					
 				BOD *bod = reinterpret_cast<BOD*>(od);
 				Query *query = get_query(qid);
 				if(!query) {

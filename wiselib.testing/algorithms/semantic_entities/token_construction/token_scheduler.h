@@ -305,6 +305,9 @@ namespace wiselib {
 			NapControlT& nap_control() { return nap_control_; }
 			SemanticEntityRegistryT& semantic_entity_registry() { return registry_; }
 			SemanticEntityNeighborhoodT& neighborhood() { return neighborhood_; }
+			#if INSE_USE_AGGREGATOR
+				SemanticEntityAggregatorT& aggregator() { return aggregator_; }
+			#endif
 		
 		private:
 			

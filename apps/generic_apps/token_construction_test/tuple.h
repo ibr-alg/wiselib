@@ -62,6 +62,12 @@ class Tuple {
 			return *reinterpret_cast<const ::uint32_t*>(data_ + i);
 		}
 		
+		void set(const char * s, const char *p, const char *o) {
+			set(0, (block_data_t*)const_cast<char*>(s));
+			set(1, (block_data_t*)const_cast<char*>(p));
+			set(2, (block_data_t*)const_cast<char*>(o));
+		}
+		
 		void set(size_type i, block_data_t* data) {
 			data_[i] = 0;
 			*reinterpret_cast<block_data_t**>(data_ + i) = data;

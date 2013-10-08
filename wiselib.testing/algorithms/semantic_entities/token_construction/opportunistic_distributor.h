@@ -367,9 +367,9 @@ namespace wiselib {
 				
 				// if locally relevant, add query
 				if(registry_->contains(scope)) {
-					#if DISTRIBUTOR_DEBUG_STATE
+					//#if DISTRIBUTOR_DEBUG_STATE
 						debug_->debug("@%d +q%d", (int)radio_->id(), (int)qid);
-					#endif
+					//#endif
 					query_processor_->erase_query(qid);
 					Query *q = query_processor_->create_query(qid);
 					q->set_expected_operators(opcount);
@@ -774,9 +774,11 @@ namespace wiselib {
 								// If query locally relevant, delete old
 								// version, start creating new one
 								if(registry_->contains(scope)) {
-									#if DISTRIBUTOR_DEBUG_STATE
+									//#if DISTRIBUTOR_DEBUG_STATE
 										debug_->debug("@%d +q%d", (int)radio_->id(), (int)id);
-									#endif
+									//#endif
+										
+										
 									query_processor_->erase_query(id);
 									Query *q = query_processor_->create_query(id);
 									q->set_expected_operators(operator_count);
@@ -834,6 +836,7 @@ namespace wiselib {
 			
 			void on_lifetime_over(void* qid_) {
 				query_id_t qid = (unsigned long)qid_ & 0xff;
+				debug_->debug("qlt%d", (int)qid);
 				query_processor_->erase_query(qid);
 			}
 			
