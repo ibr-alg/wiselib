@@ -8,6 +8,12 @@
 #endif
 
 #if APP_QUERY
+	
+	#if ISENSE
+		#include <isense/modules/security_module/pir_sensor.h>
+		#include "isense_pir_data_provider.h"
+	#endif
+	
 	static const char* tuples[][3] = {
 		#include "nqxe_test.cpp"
 		{ 0, 0, 0 }
@@ -31,6 +37,7 @@ class App {
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::uart_receive>(this);
 		#endif
+			uart_query_pos = 0;
 			
 			initcount = INSE_START_WAIT;
 			//debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
@@ -100,7 +107,7 @@ class App {
 			#endif
 			
 			#if USE_DICTIONARY
-				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
+				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://me.exmpl/Temperature>");
 				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
 			#endif
 				
@@ -110,7 +117,7 @@ class App {
 			//debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
 			monitor_.report("/init");
-			#if USE_INQP
+			#if USE_INQP && !APP_QUERY
 				//timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
 				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);
 			#endif
@@ -133,8 +140,19 @@ class App {
 				SENSORS_ACTIVATE(light_sensor);
 				check_light(0);
 			#endif // CONTIKI_TARGET_sky
+		
+			#if APP_QUERY && defined(ISENSE)
+				snprintf(pir_uri_, sizeof(pir_uri_), "<http://spitfire-project.eu/cti/pir%08lx>", (unsigned long)radio_.id());
+				data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
+			#endif
 		}
 		
+		#if APP_QUERY && defined(ISENSE)
+			char pir_uri_[64];
+			IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, Aggregator> data_provider_;
+		#endif
+			
+			
 		SemanticEntityId light_se;
 		
 		void init_blockmemory() {
@@ -247,7 +265,7 @@ class App {
 			/*
 			 * Add rule 1: (* <...#featureOfInterest> X)
 			 */
-			::uint8_t qid = 1;
+			::uint8_t qid = 101;
 			q1.init(&query_processor_, qid);
 			q1.set_expected_operators(2);
 			
@@ -305,38 +323,122 @@ class App {
 			debug_->debug("ins done: %d tuples", (int)i);
 		}
 		
+	#if APP_QUERY
+		block_data_t uart_query[512];
+		size_t uart_query_pos;
+		
+		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
+			size_t l = buf[0];
+			block_data_t msgtype = buf[1];
+			block_data_t qid = buf[2];
+			
+			if(buf[1] == 'O') {
+				// length of field, including length field itself
+				uart_query[uart_query_pos++] = l - 1;
+				memcpy(uart_query + uart_query_pos, buf + 3, l - 2);
+				uart_query_pos += (l - 2);
+			}
+			else if(buf[1] == 'Q') {
+				block_data_t opcount = buf[3];
+				
+				distributor_.distribute(
+						SemanticEntityId::all(),
+						qid, 1 /* revision */,
+						Distributor::QUERY,
+						60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
+						60000 * WISELIB_TIME_FACTOR,
+						opcount,
+						uart_query_pos, uart_query
+				);
+				uart_query_pos = 0;
+			}
+		}
+		
+		
+		/* 
+		 * Process locally directly
+		 *
 		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
 			// TODO: actually *DISTRIBUTE* query!!!!
 			size_t l = buf[0];
 			if(buf[1] == 'Q') {
+				debug_->debug("Q%d %d", (int)buf[2], (int)buf[3]);
 				query_processor_.handle_query_info(buf[2], buf[3]);
 			}
 			else if(buf[1] == 'O') {
+				debug_->debug("O%d %d %d", (int)buf[2], (int)buf[3], (int)buf[4]);
 				query_processor_.handle_operator(buf[2], l - 3, buf + 3);
 			}
-			uart_->write(3, (block_data_t*)"yo");
+			//uart_->write(3, (block_data_t*)"yo");
 		}
+		 *
+		 */
+	#endif
 		
+		void on_result_row(
+				QueryProcessor::query_id_t query_id,
+				QueryProcessor::operator_id_t operator_id,
+				QueryProcessor::RowT& row
+		) {
+			/*
 		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
 				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
+			*/
 			
-			int msglen =  1 + 1 + 1 + 4*cols;
-			block_data_t msg[msglen];
+			typedef QueryProcessor::BasicOperator BasicOperator;
 			
-			msg[0] = type;
-			msg[1] = qid;
-			msg[2] = oid;
-			for(int i = 0; i< cols; i++) {
-				wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 2 + 4*i, row[i]);
+			Query *q = query_processor_.get_query(query_id);
+			if(!q) {
+				debug_->debug("!q %d", (int)query_id);
+				return;
+			}
+			BasicOperator *op = q->get_operator(operator_id);
+			if(!op) {
+				debug_->debug("!op %d", (int)operator_id);
+				return;
 			}
 			
-			uart_->write(msglen, msg);
+			int cols = op->projection_info().columns();
+			if(op->type() == QueryProcessor::BOD::AGGREGATE) {
+				QueryProcessor::AggregateT *aggr = (QueryProcessor::AggregateT*)op;
+				//int cols = op-> projection_info().columns();
+				cols = aggr->columns_physical();
+			}
+			
+			int msglen =  1 + 1 + 1 + 1 + 4*cols;
+			
+			debug_->debug("qid=%d oid=%d cols=%d", (int)query_id, (int)operator_id, (int)cols);
+			
+			block_data_t chk = 0;
+			
+			msg[0] = 'R';
+			msg[1] = 2 + 4 * cols; // # bytes to follow after this one
+			msg[2] = query_id;
+			msg[3] = operator_id;
+			
+			//debug_->debug("[");
+			for(int i = 0; i< cols; i++) {
+				Value v;
+				memcpy(&v, &row[i], sizeof(Value));
+				//debug_->debug("0x%lx", v);
+				wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 4 + 4*i, v);
+			}
+			//debug_->debug("]");
+			
+			//for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
+			//msg[msglen] = chk;
+				
+			
+			debug_buffer<Os, 16>(debug_, msg, 20);
+			
+			uart_->write(msglen + 1, msg);
 		}
 		
+			block_data_t msg[100]; //msglen];
+			
 	#endif
 		
 		#if INSE_USE_AGGREGATOR
-		typedef TC::SemanticEntityAggregatorT Aggregator;
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
 			monitor_.report("/act");
 			
@@ -356,7 +458,7 @@ class App {
 				
 				
 				aggregator.set_totals(se.id());
-				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
+				//aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
 				
 				
 				
@@ -373,9 +475,11 @@ class App {
 				debug_->debug("@%d ag>", (int)radio_.id());
 				
 			}
+			/*
 			else {
 				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
 			}
+			*/
 			
 		}
 		#endif
@@ -464,7 +568,8 @@ class App {
 		}
 		#endif
 		
-		#if USE_INQP
+		#if USE_INQP && !APP_QUERY
+		/*
 		void on_result_row(
 				QueryProcessor::query_id_t query_id,
 				QueryProcessor::operator_id_t operator_id,
@@ -487,7 +592,7 @@ class App {
 				debug_->debug("@%d R%c  %d/%d %08lx", (int)radio_.id(), (char)op->type(), (int)i, (int)l, (unsigned long)row[i]);
 			}
 		} // on_result_row()
-	
+		*/	
 		#endif // USE_INQP
 		
 		

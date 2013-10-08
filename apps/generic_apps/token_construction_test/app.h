@@ -153,3 +153,7 @@ typedef wiselib::TokenScheduler<Os, TS, Radio, Os::Timer, Os::Clock, Os::Debug, 
 //typedef Os::Clock::time_t time_t;
 typedef ::uint32_t abs_millis_t;
 
+#if INSE_USE_AGGREGATOR
+	typedef TC::SemanticEntityAggregatorT Aggregator;
+#endif
+
