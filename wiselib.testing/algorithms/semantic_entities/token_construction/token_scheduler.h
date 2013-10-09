@@ -219,11 +219,13 @@ namespace wiselib {
 				#endif
 					
 					
-				iam_enabled_ = false;
-				iam_waiting_for_subtree_ = false;
-				iam_tokens_in_subtree_ = 0;
-				forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
-				forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
+				#if INSE_USE_IAM
+					iam_enabled_ = false;
+					iam_waiting_for_subtree_ = false;
+					iam_tokens_in_subtree_ = 0;
+					forwarding_.iam_lost_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_lost_token_in_subtree>(this);
+					forwarding_.iam_new_callback_ = delegate0<void>::from_method<self_type, &self_type::iam_new_token_in_subtree>(this);
+				#endif
 				
 				on_recover_token(0);
 				
@@ -240,14 +242,18 @@ namespace wiselib {
 			
 			void enable_immediate_answer_mode() {
 				check();
-				if(iam_enabled_) { return; }
-				iam_enabled_ = true;
+				#if INSE_USE_IAM
+					if(iam_enabled_) { return; }
+					iam_enabled_ = true;
+				#endif
 			}
 			
 			void disable_immediate_answer_mode() {
 				check();
-				if(!iam_enabled_) { return; }
-				iam_enabled_ = false;
+				#if INSE_USE_IAM
+					if(!iam_enabled_) { return; }
+					iam_enabled_ = false;
+				#endif
 			}
 			
 			void set_end_activity_callback(end_activity_callback_t cb) {
@@ -381,10 +387,11 @@ namespace wiselib {
 			void on_global_tree_event(typename GlobalTreeT::EventType e, node_id_t addr) {
 				check();
 				
+				/*
 				if(e == GlobalTreeT::SEEN_NEIGHBOR) {
 					//on_neighbor_awake(addr);
 					return;
-				}
+				}*/
 				
 				if(e != GlobalTreeT::UPDATED_STATE) { return; }
 				
@@ -623,11 +630,11 @@ namespace wiselib {
 						size_type sz = aggregator_.fill_buffer(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
 						if(call_again) {
-							debug_->debug("phi a+ %d", (int)sz);
+							//debug_->debug("phi a+ %d", (int)sz);
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 						}
 						else {
-							debug_->debug("phi a cl %d", (int)sz);
+							//debug_->debug("phi a cl %d", (int)sz);
 							endpoint.request_close();
 						}
 						endpoint.request_send();
@@ -673,10 +680,12 @@ namespace wiselib {
 							se->set_main_handover_phase(SemanticEntityT::PHASE_INIT);
 						}
 						
+						#if INSE_USE_IAM
 						if(tree().parent() != endpoint.remote_address()) {
 							//debug_->debug("@%d snd iam++", (int)radio_->id());
 							iam_new_token_in_subtree();
 						}
+						#endif
 						
 			#if INSE_USE_AGGREGATOR
 						bool lock = aggregator_.lock(id, false);
@@ -791,6 +800,7 @@ namespace wiselib {
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection", (int)radio_->id());
 						#endif
+							/*
 						debug_->debug("@%lu ho_op %lu t%lu s%d m%d",
 								(unsigned long)radio_->id(),
 								(unsigned long)endpoint.remote_address(),
@@ -798,6 +808,7 @@ namespace wiselib {
 								(unsigned long)endpoint.sequence_number(),
 								(int)(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING)
 								);
+							*/
 						nap_control_.push_caffeine("ho_op");
 						break;
 						
@@ -1054,11 +1065,13 @@ namespace wiselib {
 				// <=> now() < se.token_received + delay
 				
 				if(now() < se.token_received() + delay) {
+					/*
 					debug_->debug("@%lu itok %lu < %lu t%lu",
 							(unsigned long)radio_->id(),
 							(unsigned long)(now() - delay),
 							(unsigned long)se.token_received(),
 							(unsigned long)now());
+					*/
 					// do we actually have a more recent token count
 					// information already?
 					// If so, just ignore this one
@@ -1088,12 +1101,12 @@ namespace wiselib {
 					activating = true;
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
+					//#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
 						debug_->debug("@%lu tok S%x.%x w%lu i%lu t%lu e%d c%d,%d r%d",
 								(unsigned long)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
 								(unsigned long)now(), (int)se.activating_token_early(), (int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()));
-					#endif
+					//#endif
 						
 					begin_activity(se);
 				}
@@ -1149,6 +1162,7 @@ namespace wiselib {
 			}
 			
 			
+		#if INSE_USE_IAM
 			void iam_timeout(void* c) {
 				check();
 				if((void*)iam_timeout_counter_ != c) { return; }
@@ -1172,7 +1186,7 @@ namespace wiselib {
 					iam_tokens_in_subtree_ = 0;
 				}
 				iam_tokens_in_subtree_++;
-				debug_->debug("@%d iam %d", (int)radio_->id(), (int)iam_tokens_in_subtree_);
+				//debug_->debug("@%d iam %d", (int)radio_->id(), (int)iam_tokens_in_subtree_);
 				//iam_timeout_counter_++;
 				//timer_->template set_timer<self_type, &self_type::iam_timeout>(IAM_TIMEOUT, this, (void*)iam_timeout_counter_);
 	
@@ -1190,8 +1204,9 @@ namespace wiselib {
 				if(iam_tokens_in_subtree_ == 0) {
 					iam_waiting_for_subtree_ = false;
 				}
-				debug_->debug("@%d iam %d", (int)radio_->id(), (int)iam_tokens_in_subtree_);
+				//debug_->debug("@%d iam %d", (int)radio_->id(), (int)iam_tokens_in_subtree_);
 			}
+		#endif
 			
 			/**
 			 * Called by timeout at the end of an activity period.
@@ -1330,10 +1345,12 @@ namespace wiselib {
 			
 			// Immediate Answer Mode
 			
+		#if INSE_USE_IAM
 			bool iam_enabled_;
 			bool iam_waiting_for_subtree_;
 			size_type iam_timeout_counter_;
 			size_type iam_tokens_in_subtree_;
+		#endif
 			
 	}; // TokenScheduler
 }
