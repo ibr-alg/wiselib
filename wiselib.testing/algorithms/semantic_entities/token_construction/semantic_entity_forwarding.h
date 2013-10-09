@@ -206,6 +206,8 @@ namespace wiselib {
 								(unsigned long)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
 								(int)msg.payload_size(), (msg.payload_size() == 0) ? (int)0 : (int)*msg.payload());
 					#endif
+						
+				#if INSE_USE_IAM
 					if((msg.initiator() == msg.is_ack()) && msg.payload_size() == 1 && *msg.payload() == 'a' && from == amq_nhood_->tree().parent()) {
 						if(iam_lost_callback_) {
 							//debug_->debug("@%d fwd iam--", (int)radio_->id());
@@ -220,6 +222,7 @@ namespace wiselib {
 							iam_new_callback_();
 						}
 					}
+				#endif
 					
 					// TODO: process closing message in some way?
 					// 
@@ -238,8 +241,10 @@ namespace wiselib {
 				//#endif
 			}
 			
+		#if INSE_USE_IAM
 			delegate0<void> iam_lost_callback_;
 			delegate0<void> iam_new_callback_;
+		#endif
 		
 		private:
 			abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }

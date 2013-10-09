@@ -52,14 +52,14 @@ class App {
 		void init3() {
 			//debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			
-			monitor_.report("bt0");
+			//monitor_.report("bt0");
 			hardware_radio_->enable_radio();
 			radio_.init(*hardware_radio_, *debug_);
 			
 			
 			rand_->srand(radio_.id());
 			monitor_.init(debug_);
-			monitor_.report("bt");
+			//monitor_.report("bt");
 			
 			// TupleStore
 			
@@ -99,7 +99,7 @@ class App {
 				rule_processor_.execute_all();
 			#endif
 			
-			#if USE_DICTIONARY
+			#if USE_DICTIONARY && INSE_USE_AGGREGATOR
 				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
 				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
 			#endif
@@ -109,7 +109,7 @@ class App {
 			
 			//debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
-			monitor_.report("/init");
+			//monitor_.report("/init");
 			#if USE_INQP
 				//timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
 				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);

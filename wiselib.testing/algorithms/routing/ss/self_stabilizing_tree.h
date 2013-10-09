@@ -768,7 +768,7 @@ namespace wiselib {
 				clear_neighbors();
 				
 				::uint8_t distance = -1;
-				node_id_t mindist_min_parent = NULL_NODE_ID;
+				//node_id_t mindist_min_parent = NULL_NODE_ID;
 				node_id_t previous_parent = tree_state().parent();
 				node_id_t parent = radio_->id(); assert(parent != NULL_NODE_ID);
 				node_id_t root = radio_->id(); assert(root != NULL_NODE_ID);
