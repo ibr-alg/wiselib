@@ -143,6 +143,8 @@ namespace wiselib {
 				
 				upwards_sending_ = false;
 				downwards_sending_ = false;
+				downwards_filled_ = false;
+				upwards_filled_ = false;
 			}
 			
 			void set_accept_callback(accept_delegate_t dg = accept_delegate_t()) {
@@ -254,7 +256,9 @@ namespace wiselib {
 							MessageT fp;
 							fp.init(msg.entity());
 							fp.set_false_positive();
-							//debug_->debug("@%d fp to %d", (int)radio_->id(), (int)from);
+						#if INSE_DEBUG_STATE
+							debug_->debug("@%d fp to %d", (int)radio_->id(), (int)from);
+						#endif
 							radio_->send(from, msg.data_size(), msg.data());
 							return;
 						}
@@ -291,6 +295,9 @@ namespace wiselib {
 				MessageT ack;
 				ack.init(msg.entity());
 				ack.set_ack();
+			#if INSE_DEBUG_STATE
+				debug_->debug("@%d fwa to %d", (int)radio_->id(), (int)addr);
+			#endif
 				radio_->send(addr, ack.data_size(), ack.data());
 			}
 			
@@ -332,7 +339,7 @@ namespace wiselib {
 				//debug_->debug("@%d see %d", (int)radio_->id(), (int)neigh);
 				
 				if(parent() == neigh && upwards_filled_ && !upwards_sending_) {
-					#if INSE_ANYCAST_DEBUG_STATE
+					#if INSE_ANYCAST_DEBUG_STATE || INSE_DEBUG_STATE
 						debug_->debug("@%d anyc %d up", (int)radio_->id(), (int)neigh);
 					#endif
 					
@@ -344,7 +351,7 @@ namespace wiselib {
 				}
 				
 				else if(parent() != neigh && !is_false_positive(neigh, downwards_.entity()) && downwards_filled_ && !downwards_sending_) {
-					#if INSE_ANYCAST_DEBUG_STATE
+					#if INSE_ANYCAST_DEBUG_STATE || INSE_DEBUG_STATE
 						debug_->debug("@%d anyc %d down", (int)radio_->id(), (int)neigh);
 					#endif
 					
@@ -361,7 +368,7 @@ namespace wiselib {
 			void on_ack_timeout_downwards(void* dac) {
 				if((void*)downwards_ack_counter_ != dac) { return; }
 				
-				#if INSE_ANYCAST_DEBUG_STATE
+				#if INSE_ANYCAST_DEBUG_STATE || INSE_DEBUG_STATE
 					debug_->debug("@%d anyc down %d r", (int)radio_->id(), (int)downwards_address_);
 				#endif
 				

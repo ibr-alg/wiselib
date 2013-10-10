@@ -70,6 +70,11 @@ namespace wiselib {
 				MAX_PAYLOAD_SIZE = Radio::MAX_MESSAGE_LENGTH - POS_PAYLOAD
 			};
 			
+			SemanticEntityAnycastMessage() {
+				set_payload(0, 0);
+				set_type(MESSAGE_TYPE);
+			}
+			
 			void init(const SemanticEntityId& entity, size_type pl_size = 0, block_data_t *pl_data = 0) {
 				assert(pl_size <= MAX_PAYLOAD_SIZE);
 				set_entity(entity);

@@ -86,11 +86,19 @@ namespace wiselib {
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
 				//RESEND_TIMEOUT = 500 * WISELIB_TIME_FACTOR, // job 23953
+			#ifdef ISENSE
+				RESEND_RAND_ADD = 1000 * WISELIB_TIME_FACTOR,
+			#else
 				RESEND_RAND_ADD = 100 * WISELIB_TIME_FACTOR,
+			#endif
 				//MAX_RESENDS = 10, ANSWER_TIMEOUT = 10 * RESEND_TIMEOUT, // job 23953
 				
 			#if INSE_CSMA_MODE
+				//#ifdef ISENSE
+				//RESEND_TIMEOUT = 10000 * WISELIB_TIME_FACTOR, // job 23954
+				//#else
 				RESEND_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, // job 23954
+				//#endif 
 				MAX_RESENDS = 3,
 			#else
 				RESEND_TIMEOUT = 500 * WISELIB_TIME_FACTOR, // job 23954
@@ -353,6 +361,8 @@ namespace wiselib {
 				size_type idx = find_or_create_endpoint(channel, initiator, false);
 				if(idx == npos) { return; }
 				endpoints_[idx].set_remote_address(addr);
+				
+				//debug_->debug("REM %llx", (unsigned long long)addr);
 			}
 			
 			int request_send(const ChannelId& channel, bool initiator) {
@@ -369,6 +379,10 @@ namespace wiselib {
 			}
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
+				
+				//debug_->debug("-- a");
+				
+				
 				Message &msg = *reinterpret_cast<Message*>(data);
 				if(msg.type() != Message::MESSAGE_TYPE) {
 					#if RELIABLE_TRANSPORT_DEBUG_VERBOSE
@@ -382,6 +396,7 @@ namespace wiselib {
 					#endif
 					return;
 				}
+				//debug_->debug("-- b");
 				
 				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
 				
@@ -415,14 +430,12 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					#if RELIABLE_TRANSPORT_DEBUG_STATE || INSE_DEBUG_WARNING
-					/*
+					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("@%lu ign %lu m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
 								//(int)msg.channel().rule(), (int)msg.channel().value(),
 								(unsigned long)radio_->id(),
 								(unsigned long)from,
 								(int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
-					*/
 					#endif
 					
 					return;
@@ -431,7 +444,7 @@ namespace wiselib {
 				::uint8_t f = msg.flags() & (Message::FLAG_OPEN | Message::FLAG_CLOSE | Message::FLAG_ACK);
 				
 				#if RELIABLE_TRANSPORT_DEBUG_STATE
-					debug_->debug("recv m0x%x t%d s%d f0x%x f'0x%d", (int)msg.type(), (int)now(), (int)msg.sequence_number(),
+					debug_->debug("Rrecv m0x%x t%d s%d f0x%x f'0x%d", (int)msg.type(), (int)now(), (int)msg.sequence_number(),
 							(int)msg.flags(), (int)f);
 				#endif
 				
