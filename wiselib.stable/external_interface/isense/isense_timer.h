@@ -23,12 +23,13 @@
 #include "util/delegates/delegate.hpp"
 #include <isense/os.h>
 #include <isense/task.h>
+#include <isense/util/get_os.h>
 
 namespace wiselib
 {
    namespace
    {
-      enum { MAX_INTERNAL_TIMERS = 10 };
+      enum { MAX_INTERNAL_TIMERS = 30 };
       // --------------------------------------------------------------------
       typedef delegate1<void, void*> isense_timer_delegate_t;
       // --------------------------------------------------------------------
@@ -117,14 +118,17 @@ namespace wiselib
    set_timer( millis_t millis, T *obj_pnt, void *userdata )
    {
       int idx = get_free_timer_item();
-      if ( idx < 0 )
+      if ( idx < 0 ) {
+	  	GET_OS.fatal("!tq");
          return ERR_UNSPEC;
+      }
 
       isense_timer_callbacks[idx] = iSenseTimerCallback( isense_timer_delegate_t::from_method<T, TMethod>( obj_pnt ) );
       // only return success if task has been added
       if ( os_.add_task_in( isense::Time(millis), &isense_timer_callbacks[idx], userdata ) )
          return SUCCESS;
 
+	  GET_OS.fatal("!tq");
       // if not successful, clear unused timer entry
       isense_timer_callbacks[idx].clear();
       return ERR_UNSPEC;

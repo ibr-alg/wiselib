@@ -112,7 +112,9 @@ namespace wiselib {
 				}
 				message->set_payload_size(columns * sizeof(typename RowT::Value));
 				
-				//debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
+				#if INSE_DEBUG_STATE || INSE_ROW_COLLECTOR_DEBUG_STATE
+				debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
+				#endif
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {

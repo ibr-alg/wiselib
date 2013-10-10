@@ -100,16 +100,19 @@ class App {
 				insert_tuples();
 			#endif
 			
-			#if !APP_BLINK
+			#if APP_EVAL
 				initial_semantics(ts, &radio_, rand_);
+			#endif
+				
+			#if APP_EVAL || APP_QUERY
 				create_rules();
 				rule_processor_.execute_all();
 			#endif
 			
-			#if USE_DICTIONARY
-				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://me.exmpl/Temperature>");
-				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
-			#endif
+			//#if USE_DICTIONARY
+				//aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://me.exmpl/Temperature>");
+				//aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
+			//#endif
 				
 			//debug_->debug("hash(temp)=%lx", (long)STRHASH("<http://spitfire-project.eu/property/Temperature>"));
 			//debug_->debug("hash(centigrade)=%lx", (long)STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
@@ -407,7 +410,7 @@ class App {
 			
 			int msglen =  1 + 1 + 1 + 1 + 4*cols;
 			
-			debug_->debug("qid=%d oid=%d cols=%d", (int)query_id, (int)operator_id, (int)cols);
+			debug_->debug("q%d o%d c%d", (int)query_id, (int)operator_id, (int)cols);
 			
 			block_data_t chk = 0;
 			
@@ -425,11 +428,11 @@ class App {
 			}
 			//debug_->debug("]");
 			
-			//for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
-			//msg[msglen] = chk;
+			for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
+			msg[msglen] = chk;
 				
 			
-			debug_buffer<Os, 16>(debug_, msg, 20);
+			//debug_buffer<Os, 16>(debug_, msg, 20);
 			
 			uart_->write(msglen + 1, msg);
 		}
@@ -676,8 +679,8 @@ class App {
 		#endif
 			
 		#if USE_DICTIONARY
-			Dictionary::key_type aggr_key_temp_;
-			Dictionary::key_type aggr_key_centigrade_;
+			//Dictionary::key_type aggr_key_temp_;
+			//Dictionary::key_type aggr_key_centigrade_;
 		#endif
 			
 		#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER

@@ -34,7 +34,7 @@
 	#define USE_STRING_INQUIRY           0
 	#define INSE_USE_AGGREGATOR          1
 
-	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
+	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     128
 	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
 	#define INSE_START_WAIT              (1)
@@ -121,31 +121,39 @@
 	#define BITMAP_ALLOCATOR_RAM_SIZE  1024
 
 #elif defined(ISENSE)
+	#define INSE_USE_LINK_METRIC           0
+
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
-	#define INSE_DEBUG_TOKEN               0
+	#define INSE_DEBUG_TOKEN               1
 	#define INSE_DEBUG_TOPOLOGY            0
-	#define INSE_DEBUG_TREE                0
+	#define INSE_DEBUG_TREE                1
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
 	#define NAP_CONTROL_DEBUG_STATE        0
-	#define NAP_CONTROL_DEBUG_ONOFF        0
+	#define NAP_CONTROL_DEBUG_ONOFF        1
+	#define NAP_CONTROL_ALWAYS_ON          1
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+	#define INSE_DEBUG_WARNING             1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_MAX_NEIGHBORS             8
+	#define INSE_MAX_NEIGHBORS             4
 	#define WISELIB_MAX_NEIGHBORS          (INSE_MAX_NEIGHBORS)
 	#define INSE_MAX_SEMANTIC_ENTITIES     2
-	#define INSE_MAX_QUERIES               2
+	#define INSE_MAX_QUERIES               4
+
+	#define INSE_CSMA_MODE                 1
 	
 	
 #elif defined(CONTIKI_TARGET_sky)
 	#define BITMAP_ALLOCATOR_RAM_SIZE      1024
 	#define INSE_USE_AGGREGATOR            0
 	#define USE_INQP                       0
+	
+	#define INSE_USE_LINK_METRIC           1
 
 	#define CHECK_INVARIANTS               0
 	#define DISTRIBUTOR_DEBUG_STATE        0
@@ -161,7 +169,6 @@
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	#define INSE_DEBUG_WARNING             1
 
 
 	#define INSE_CSMA_MODE                 1

@@ -1250,7 +1250,12 @@ namespace wiselib {
 				nap_control_.pop_caffeine("/act");
 				nap_control_.push_caffeine("ho_endact");
 				
+				debug_->debug("--- x");
+				
 				initiate_handover(se, true);
+				
+				debug_->debug("--- y");
+				
 				se.end_wait_for_activating_token();
 				
 				#if !WISELIB_DISABLE_DEBUG
@@ -1259,8 +1264,11 @@ namespace wiselib {
 							(int)se.in_activity_phase());
 				#endif
 				
+				debug_->debug("--- z");
+				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
 				
+				debug_->debug("--- z1");
 				#ifdef ARDUINO
 					digitalWrite(13, LOW);
 				#elif CONTIKI_TARGET_sky

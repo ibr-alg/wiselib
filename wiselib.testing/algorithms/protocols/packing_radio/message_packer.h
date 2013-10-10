@@ -42,6 +42,9 @@ namespace wiselib {
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
+			MessagePacker() : buffer_(0), buffer_size_(0), buffer_position_(0) {
+			}
+			
 			int init(block_data_t *buffer, size_type buffer_size) {
 				buffer_ = buffer;
 				buffer_size_ = buffer_size;

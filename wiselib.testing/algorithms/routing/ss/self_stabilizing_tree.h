@@ -31,7 +31,7 @@
 #include <util/pstl/map_static_vector.h>
 #include <util/string_util.h>
 
-#define INSE_USE_LINK_METRIC 1
+//#define INSE_USE_LINK_METRIC 1
 
 namespace wiselib {
 	
@@ -120,6 +120,10 @@ namespace wiselib {
 				NeighborEntry() : address_(NULL_NODE_ID), stable_(false), liked_(false) {
 				}
 				
+				~NeighborEntry() {
+					address_ = NULL_NODE_ID;
+				}
+				
 				NeighborEntry(node_id_t addr)
 					: address_(addr), stable_(false), liked_(false) {
 				}
@@ -160,23 +164,25 @@ namespace wiselib {
 				
 				node_id_t id() { return address_; }
 				
+			#if INSE_USE_LINK_METRIC
 				bool becomes_stable() { return link_metric_ >= LINK_METRIC_BECOMES_STABLE; }
 				bool looses_stable() { return link_metric_ <= LINK_METRIC_LOOSES_STABLE; }
 				bool stable() {
-				//#if INSE_USE_LINK_METRIC
 					return stable_ || liked_;
-				//#else
-					//return true;
-				//#endif
 				}
+			#else
+				bool becomes_stable() { return true; }
+				bool looses_stable() { return false; }
+				bool stable() { return true; }
+			#endif
 				
 				void seen_link_metric(link_metric_t l, int alpha = NeighborEntry::ALPHA) {
-				//#if INSE_USE_LINK_METRIC
+				#if INSE_USE_LINK_METRIC
 					
 					link_metric_ = ((100 - alpha) * link_metric_ + alpha * l) / 100;
 					if(stable_ && looses_stable()) { stable_ = false; }
 					else if(!stable_ && becomes_stable()) { stable_ = true; }
-				//#endif
+				#endif
 				}
 				void set_link_metric(link_metric_t l) { link_metric_ = l; }
 				link_metric_t link_metric() { return link_metric_; }
@@ -462,8 +468,11 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data, const typename Radio::ExtendedData& ex) {
 		#endif
 				
-					DBG("@%lu X bc from %lu len %d t %lu", (unsigned long)radio_->id(),
-							(unsigned long)from, (int)len, (unsigned long)now());
+				//#ifdef ISENSE
+					//GET_OS.debug("@%lu X bc from %lu l%d t%lu m%d", (unsigned long)radio_->id(),
+							//(unsigned long)from, (int)len, (unsigned long)now(), (int)ex.link_metric());
+				//#endif
+					
 				check();
 				
 				if(!is_node_id_sane(from)) {
@@ -477,7 +486,7 @@ namespace wiselib {
 				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
-					DBG("not treestate msg");
+					//GET_OS.debug("not treestate msg");
 					return;
 				}
 				assert((size_type)len >= (size_type)sizeof(TreeStateMessageT));
@@ -485,8 +494,8 @@ namespace wiselib {
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
-					DBG("@%lu bc from %lu t %lu", (unsigned long)radio_->id(),
-							(unsigned long)from, (unsigned long)now());
+					//GET_OS.debug("@%llx bc from %llx t %lu", (unsigned long long)radio_->id(),
+							//(unsigned long long)from, (unsigned long)now());
 					typename NeighborEntries::iterator ne = assess_link_metric(from, msg, t, ex.link_metric());
 					if(ne != neighbor_entries_.end() && ne->stable()) {
 						notify_event(SEEN_NEIGHBOR, from);
@@ -608,6 +617,8 @@ namespace wiselib {
 				else {
 					e.clear_like();
 				}
+				
+				//GET_OS.debug("---- new neigh addr %llx", e.address_);
 				
 				typename NeighborEntries::iterator r = neighbor_entries_.insert(e);
 				if(e.stable()) {
@@ -774,10 +785,17 @@ namespace wiselib {
 				node_id_t root = radio_->id(); assert(root != NULL_NODE_ID);
 				NeighborEntry *parent_ptr = 0;
 				
+				//#ifdef ISENSE
+				//GET_OS.debug("update state");
+				//#endif
+				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 					//iter->clear_like();
 						
 					if(iter->tree_state().root() == NULL_NODE_ID || (iter->tree_state().distance() + 1) == 0) { continue; }
+				//#ifdef ISENSE
+				//GET_OS.debug("neigh");
+				//#endif
 					
 					//#ifdef SHAWN
 					/*
@@ -810,6 +828,9 @@ namespace wiselib {
 					}
 					
 					if(!iter->stable()) {
+				//#ifdef ISENSE
+				//GET_OS.debug("!s");
+				//#endif
 						//debug_->debug("!s");
 						#ifdef SHAWN
 						//debug_->debug("@%lu unstable: %lu (%lu/%lu %f)",
@@ -849,6 +870,9 @@ namespace wiselib {
 						#ifdef SHAWN
 							DBG("->parent");
 						#endif
+				//#ifdef ISENSE
+				//GET_OS.debug("parent");
+				//#endif
 						parent_ptr = &*iter;
 						parent = iter->id();
 						root = iter->tree_state().root();
@@ -877,6 +901,9 @@ namespace wiselib {
 				}
 				
 				if(c || updated_neighbors_) {
+				//#ifdef ISENSE
+				//GET_OS.debug("changed!");
+				//#endif
 					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
 						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
 									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
@@ -884,12 +911,12 @@ namespace wiselib {
 						
 					notify_event(UPDATED_STATE, previous_parent);
 					
-					/*
-						debug_->debug("@%lu US %lu | %lu %lu %lu.. c=%d",
-								(unsigned long)radio_->id(),
-								(unsigned long)neighbors_[0].id(), (unsigned long)neighbors_[1].id(), (unsigned long)neighbors_[2].id(),
-								(unsigned long)neighbors_[3].id(), childs());
-					*/
+						//debug_->debug("@%llx US %llx | %llx %llx %llx.. c=%d",
+								//(unsigned long long)radio_->id(),
+								//(unsigned long long)neighbors_[0].id(),
+								//(unsigned long long)neighbors_[1].id(),
+								//(unsigned long long)neighbors_[2].id(),
+								//(unsigned long long)neighbors_[3].id(), (int)childs());
 						
 					// <DEBUG>
 					#if INSE_DEBUG_TREE

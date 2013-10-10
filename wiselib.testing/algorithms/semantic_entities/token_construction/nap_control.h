@@ -135,17 +135,19 @@ namespace wiselib {
 					debug_->debug("@%lu caf%lu %s", (unsigned long)radio_->id(), (unsigned long)caffeine_, s);
 				#endif
 				if(caffeine_ == 0) {
-					#if defined(CONTIKI)
-						NETSTACK_RDC.off(false);
-					#endif
-					radio_->disable_radio();
-					#if CONTIKI_TARGET_sky
-						leds_off(LEDS_RED);
-					#endif
-					#if NAP_CONTROL_DEBUG_STATE
-						debug_->debug("@%lu off t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); //, (int)radio_->id());
-					#elif NAP_CONTROL_DEBUG_ONOFF
-						debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
+					#if !NAP_CONTROL_ALWAYS_ON
+						#if defined(CONTIKI)
+							NETSTACK_RDC.off(false);
+						#endif
+						radio_->disable_radio();
+						#if CONTIKI_TARGET_sky
+							leds_off(LEDS_RED);
+						#endif
+						#if NAP_CONTROL_DEBUG_STATE
+							debug_->debug("@%lu off t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); //, (int)radio_->id());
+						#elif NAP_CONTROL_DEBUG_ONOFF
+							debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
+						#endif
 					#endif
 				}
 			}

@@ -365,6 +365,9 @@ namespace wiselib {
 			void read_buffer(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
 				//{{{
 				
+				
+				//GET_OS.debug("readbuffer this 0x%lx", (unsigned long)(void*)this);
+				
 				check();
 				
 				typename Shdt::Reader reader(&shdt_, buffer, buffer_size);
@@ -376,22 +379,27 @@ namespace wiselib {
 				//DBG("------------ read_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
 				
 				while(!reader.done()) {
-					//DBG("------------------ shdt %p buf %p field_id %d @%d %02x %02x %02x %02x", &shdt_, buffer, (int)field_id, (int)reader.position(), buffer[reader.position()], buffer[reader.position() + 1], buffer[reader.position() + 2], buffer[reader.position() + 3]);
+					//GET_OS.debug("- field_id %d @%d %02x %02x %02x %02x bufsiz %d", (int)field_id, (int)reader.position(), buffer[reader.position()], buffer[reader.position() + 1], buffer[reader.position() + 2], buffer[reader.position() + 3], (int)buffer_size);
 					
 					done = reader.read_field(field_id, data, data_size);
-					//DBG("------------------ fild_id %d", (int)field_id);
+					//GET_OS.debug("-- fild_id %d done %d data %d", (int)field_id, (int)done, (int)data_size);
 					
-					Value& v = reinterpret_cast<Value&>(*data);
+					Value v; // = reinterpret_cast<Value&>(*data);
+					memcpy(&v, data, sizeof(Value));
 					if(!done) { break; }
 					switch(field_id) {
 						case FIELD_UOM: {
+							//GET_OS.debug("ins: %s", (char*)data);
 							typename DictionaryT::key_type k = dictionary().insert(data);
+							//GET_OS.debug("ins done");
 							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_uom_key(k);
 							break;
 						}
 						case FIELD_TYPE: {
+							//GET_OS.debug("ins2: %s", (char*)data);
 							typename DictionaryT::key_type k = dictionary().insert(data);
+							//GET_OS.debug("ins2 done");
 							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_type_key(k);
 							break;
@@ -449,6 +457,7 @@ namespace wiselib {
 						}
 					} // switch
 				} // while
+				//GET_OS.debug("read_buffer done");
 				//}}}
 			}
 			

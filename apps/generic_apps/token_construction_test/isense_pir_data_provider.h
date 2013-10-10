@@ -110,6 +110,7 @@ namespace wiselib {
 		
 			
 			void update(bool value) {
+				GET_OS.debug("sens");
 				Tuple t;
 				
 				// DELETE (:me :hasValue *)
@@ -124,11 +125,11 @@ namespace wiselib {
 				tuple_store_->insert(t);
 				
 				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
-					GET_OS.debug("aggr");
 					float f = value;
 					Value v = *reinterpret_cast<Value*>(&f);
 					aggregator_->aggregate(rit->first, sensor_type_, uom_, (Value)value, Aggregator::FLOAT);
 				}
+				GET_OS.debug("/sens");
 			}
 			
 		private:
