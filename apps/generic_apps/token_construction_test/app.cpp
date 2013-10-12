@@ -7,7 +7,7 @@
 	}
 #endif
 
-#if APP_QUERY
+#if APP_QUERY || APP_EVAL
 	static const char* tuples[][3] = {
 		#include "nqxe_test.cpp"
 		{ 0, 0, 0 }
@@ -50,6 +50,7 @@ class App {
 		}
 		
 		void init3() {
+			debug_->debug("bt");
 			//debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			
 			//monitor_.report("bt0");
@@ -89,9 +90,7 @@ class App {
 			
 			// Fill node with initial semantics and construction rules
 			
-			#if APP_QUERY
-				insert_tuples();
-			#endif
+			insert_tuples();
 			
 			#if !APP_BLINK
 				initial_semantics(ts, &radio_, rand_);
@@ -281,7 +280,7 @@ class App {
 	#endif
 		
 		
-	#if APP_QUERY
+	#if APP_QUERY || APP_EVAL
 		template<typename TS>
 		void ins(TS& ts, const char* s, const char* p, const char* o) {
 			TupleT t;
@@ -304,7 +303,9 @@ class App {
 			}
 			debug_->debug("ins done: %d tuples", (int)i);
 		}
+	#endif
 		
+	#if APP_QUERY
 		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
 			// TODO: actually *DISTRIBUTE* query!!!!
 			size_t l = buf[0];
