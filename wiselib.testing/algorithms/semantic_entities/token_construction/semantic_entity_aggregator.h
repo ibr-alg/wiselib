@@ -167,8 +167,15 @@ namespace wiselib {
 								if(fv > fmax) { fmax = fv; }
 								++count();
 								
-								float fmean2 = (fv - fmean) / count();
+								float fmean2 = fmean + ((fv - fmean) / (float)count());
 								mean() = *reinterpret_cast<Value*>(&fmean2);
+								min() = *reinterpret_cast<Value*>(&fmin);
+								max() = *reinterpret_cast<Value*>(&fmax);
+								
+							#ifdef ISENSE
+								GET_OS.debug("faggr %f -> %f/%f/%f", fv, fmin, fmean2, fmax);
+							#endif
+								
 							}
 							else {
 								assert(false && "datatype not supported for aggregation!");
