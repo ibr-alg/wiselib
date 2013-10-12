@@ -9,7 +9,7 @@
 #define APP_QUERY 0
 
 #define INSE_CSMA_MODE                 1
-
+#define NAP_CONTROL_ALWAYS_ON          0
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -128,7 +128,7 @@
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
-	#define INSE_DEBUG_TOKEN               0
+	#define INSE_DEBUG_TOKEN               1
 	#define INSE_DEBUG_TOPOLOGY            0
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
@@ -161,7 +161,7 @@
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
 	#define NAP_CONTROL_DEBUG_STATE        0
-	#define NAP_CONTROL_DEBUG_ONOFF        1
+	#define NAP_CONTROL_DEBUG_ONOFF        0
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
