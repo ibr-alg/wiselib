@@ -54,19 +54,44 @@ namespace wiselib {
 			typedef Registry_P Registry;
 			typedef Aggregator_P Aggregator;
 			
+			/*
+			
+			<http://uberdust.cti.gr/rest/testbed/1/node/urn:wisebed:ctitestbed:0x190/capability/urn:wisebed:node:capability:pir/>
+        a       <http://www.w3.org/2002/07/owl#Thing> , <http://www.w3.org/2000/01/rdf-schema#Resource> , <http://spitfire-project.eu/ontology/ns/OV> , <http://purl.oclc.org/NET/ssnx/ssn#ObservationValue> , <http://qudt.org/schema/qudt#QuantityValue> ;
+        <http://purl.oclc.org/NET/ssnx/ssn#observedProperty>
+                <http://spitfire-project.eu/property/Movement> ;
+        <http://purl.oclc.org/NET/ssnx/ssn#observes>
+                <http://spitfire-project.eu/property/Movement> ;
+        <http://purl.org/dc/terms/#date>
+                "13-10-11T14:21:42Z" ;
+        <http://qudt.org/schema/qudt#quantityKind>
+                <http://spitfire-project.eu/property/Movement> ;
+        <http://spitfire-project.eu/ontology/ns/obs>
+                <http://spitfire-project.eu/property/Movement> ;
+        <http://spitfire-project.eu/ontology/ns/value>
+                "1.0"^^<http://www.w3.org/2001/XMLSchema#float> .
+				
+			*/
+				
 			/**
 			 * @me assumed to be long-lived.
 			 */
 			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg, Aggregator *agg) {
 				sensor_ = sensor;
-				uri_me_ = me;
 				tuple_store_ = ts;
 				registry_ = reg;
 				aggregator_ = agg;
 				
-				uri_has_value_ = "<http://www.ontologydesignpatterns.org/ont/dul/hasValue>";
-				sensor_type_ = tuple_store_->dictionary().insert((::uint8_t*)"<http://spitfire-project.eu/property/Occupancy>");
+				// Some RDF URIs
+				
+				uri_me_ = me;
+				uri_observes_ = "<http://spitfire-project.eu/ontology/ns/obs>";
+				uri_movement_ = "<http://spitfire-project.eu/property/Movement>";
+				uri_has_value_ = "<http://spitfire-project.eu/ontology/ns/value>";
+				sensor_type_ = tuple_store_->dictionary().insert((::uint8_t*)uri_movement_);
 				uom_ = tuple_store_->dictionary().insert((::uint8_t*)"<http://spitfire-project.eu/uom/Boolean>");
+				
+				ins(uri_me_, uri_observes_, uri_movement_);
 				
 				timeout_id_ = 0xff;
 				
@@ -89,8 +114,9 @@ namespace wiselib {
 			
 			void timeout(void* userdata) {
 				// after timeout auto-off
-				timeout_id_  = 0xff;
+				//timeout_id_  = 0xff;
 				GET_OS.add_task(this, (void*)0x02);
+				timeout_id_ = GET_OS.add_timeout_in(5000, this, NULL);
 			}
 			
 			void handle_sensor() {
@@ -99,6 +125,10 @@ namespace wiselib {
 					GET_OS.add_task(this, (void*)0x01); // on!
 				}
 				else {
+					// the value didnt change, but make sure to update the
+					// aggregate
+					GET_OS.add_task(this, (void*)0x01); // on!
+					
 					// we are still in on-state, so nothing to do
 					// except, cancel the off-timeout, and start a new one
 					GET_OS.remove_timeout(timeout_id_, this);
@@ -110,7 +140,7 @@ namespace wiselib {
 		
 			
 			void update(bool value) {
-				GET_OS.debug("sens");
+				GET_OS.debug("PIR %d", (int)value);
 				Tuple t;
 				
 				// DELETE (:me :hasValue *)
@@ -129,12 +159,24 @@ namespace wiselib {
 					Value v = *reinterpret_cast<Value*>(&f);
 					aggregator_->aggregate(rit->first, sensor_type_, uom_, (Value)value, Aggregator::FLOAT);
 				}
-				GET_OS.debug("/sens");
+				//GET_OS.debug("/sens");
 			}
 			
 		private:
+			
+			void ins(const char* s, const char* p, const char* o) {
+				TupleT t;
+				t.set(0, (block_data_t*)const_cast<char*>(s));
+				t.set(1, (block_data_t*)const_cast<char*>(p));
+				t.set(2, (block_data_t*)const_cast<char*>(o));
+				tuple_store_->insert(t);
+			}
+			
 			char *uri_me_;
 			char *uri_has_value_;
+			char *uri_observes_;
+			char *uri_movement_;
+			
 			typename TupleStore::Dictionary::key_type sensor_type_;
 			typename TupleStore::Dictionary::key_type uom_;
 			

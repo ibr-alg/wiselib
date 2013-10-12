@@ -397,7 +397,7 @@ namespace wiselib {
 							break;
 						}
 						case FIELD_TYPE: {
-							//GET_OS.debug("ins2: %s", (char*)data);
+							GET_OS.debug("ins2: %s", (char*)data);
 							typename DictionaryT::key_type k = dictionary().insert(data);
 							//GET_OS.debug("ins2 done");
 							assert(k != DictionaryT::NULL_KEY);

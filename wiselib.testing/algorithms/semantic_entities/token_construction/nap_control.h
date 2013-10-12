@@ -89,7 +89,11 @@ namespace wiselib {
 			}
 			
 			bool on() {
-				return caffeine_ > 0;
+				#if NAP_CONTROL_ALWAYS_ON
+					return true;
+				#else
+					return caffeine_ > 0;
+				#endif
 			}
 			
 			/**
@@ -140,6 +144,8 @@ namespace wiselib {
 							NETSTACK_RDC.off(false);
 						#endif
 						radio_->disable_radio();
+					#endif
+						
 						#if CONTIKI_TARGET_sky
 							leds_off(LEDS_RED);
 						#endif
@@ -148,7 +154,6 @@ namespace wiselib {
 						#elif NAP_CONTROL_DEBUG_ONOFF
 							debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
 						#endif
-					#endif
 				}
 			}
 		

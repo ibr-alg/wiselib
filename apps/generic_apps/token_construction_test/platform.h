@@ -30,6 +30,9 @@
 	#define LIGHT_ALPHA                  50
 
 #elif APP_QUERY
+	#define HAS_PIR                      1
+	#define HAS_ENV                      0
+
 	#define USE_INQP                     1
 	#define USE_STRING_INQUIRY           0
 	#define INSE_USE_AGGREGATOR          1
@@ -123,12 +126,13 @@
 #elif defined(ISENSE)
 	#define INSE_USE_LINK_METRIC           0
 
+	#define INSE_BCAST_INTERVAL            1000
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
-	#define DISTRIBUTOR_DEBUG_STATE        0
+	#define DISTRIBUTOR_DEBUG_STATE        1
 	#define INSE_DEBUG_STATE               0
 	#define INSE_DEBUG_TOKEN               1
 	#define INSE_DEBUG_TOPOLOGY            0
-	#define INSE_DEBUG_TREE                1
+	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
 	#define NAP_CONTROL_DEBUG_STATE        0

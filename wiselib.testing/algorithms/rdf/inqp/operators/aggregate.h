@@ -98,6 +98,9 @@ namespace wiselib {
 			}
 			#pragma GCC diagnostic pop
 			
+			uint8_t *aggregation_types() { return aggregation_types_; }
+			size_type aggregation_columns_logical() { return aggregation_columns_logical_; }
+			
 			void post_init() {
 				if(!post_inited_) {
 					operations_ = ::get_allocator().template allocate_array<Operation>(aggregation_columns_logical_).raw();
@@ -152,7 +155,7 @@ namespace wiselib {
 						i++;
 					}
 					aggregation_columns_physical_ = j;
-				GET_OS.debug("aggr phycol %d", (int)aggregation_columns_physical_);
+				//GET_OS.debug("aggr phycol %d", (int)aggregation_columns_physical_);
 					
 					local_aggregates_.init(aggregation_columns_physical_);
 					updated_aggregates_.init(aggregation_columns_physical_);
@@ -164,7 +167,7 @@ namespace wiselib {
 			size_type columns_physical() { return aggregation_columns_physical_; }
 			
 			void destruct() {
-				GET_OS.debug("aggr destR!");
+				//GET_OS.debug("aggr destR!");
 				
 				if(timer_info_ != 0) {
 					timer_info_->alive = false;
