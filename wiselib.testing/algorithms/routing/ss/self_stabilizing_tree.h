@@ -33,6 +33,10 @@
 
 //#define INSE_USE_LINK_METRIC 1
 
+#ifndef INSE_BCAST_INTERVAL
+	#define INSE_BCAST_INTERVAL (10000 * WISELIB_TIME_FACTOR)
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -81,7 +85,7 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR, ///< limit bcasts to this interval when things change all the time
-				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR, ///< send regular bcasts in this interval
+				BCAST_INTERVAL = INSE_BCAST_INTERVAL, ///< send regular bcasts in this interval
 				BCAST_TIMES_OUT = true,
 				BCAST_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, ///< stay awake at most this long waiting for bcasts
 				BCAST_KEEP_AWAKE = 200 * WISELIB_TIME_FACTOR, ///< stay awake at least this long waiting for bcasts (so others have a chance to contact us)

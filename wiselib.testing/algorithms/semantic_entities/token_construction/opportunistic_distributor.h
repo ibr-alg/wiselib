@@ -201,6 +201,10 @@ namespace wiselib {
 					}
 					::uint8_t push_operator(::uint8_t pos, ::uint8_t len, block_data_t *data) {
 						assert(pos + len <= OPERATOR_BUFFER_SIZE);
+						
+						GET_OS.fatal("cp this=%lx %lx %lx %d", (unsigned long)(void*)this, (unsigned long)(void*)(operator_buffer_ + pos),
+								(unsigned long)(void*)(data), (int)len);
+							
 						memcpy(operator_buffer_ + pos, data, len);
 						operator_buffer_size_ += len;
 						return pos + len;
@@ -245,14 +249,18 @@ namespace wiselib {
 						ANSWER_REQUEST = 5, RECEIVE_ANSWER = 6, DONE = 7
 					};
 					
+					State() : state_(INIT), header_sent_(false), virgin_(true) {
+					}
+					
 					::uint8_t state() { return state_; }
 					void set_state(::uint8_t s) { state_ = s; }
+					bool virgin() { return virgin_; }
 					
 					///@name Query level iteration
 					///@{
 					
 					typename QueryDescriptions::iterator& query_iterator() { return query_iterator_; }
-					void set_query_iterator(typename QueryDescriptions::iterator i) { query_iterator_ = i; }
+					void set_query_iterator(typename QueryDescriptions::iterator i) { query_iterator_ = i; virgin_ = false; }
 					void forward_to_requested(typename QueryDescriptions::iterator end) {
 						
 						bool stop = false;
@@ -309,6 +317,7 @@ namespace wiselib {
 					SemanticEntityId scope_;
 					query_id_t query_id_;
 					bool header_sent_;
+					bool virgin_;
 					::uint8_t state_;
 				//}}}
 			};
@@ -584,8 +593,8 @@ namespace wiselib {
 					debug_->debug("@%d to %d chi%d", (int)radio_->id(), (int)remote, (int)s.state());
 				#endif
 				
-				switch(s.state()) {
-					case State::RECEIVE_REQUEST:
+				//switch(s.state()) {
+					//case State::RECEIVE_REQUEST:
 						s.clear_requested();
 						while(p < end) {
 							query_id_t qid;
@@ -597,13 +606,13 @@ namespace wiselib {
 						s.set_state(State::ANSWER_REQUEST);
 						s.set_query_iterator(queries_.begin());
 						endpoint.request_send();
-						break;
+						//break;
 						
-					default:
-						debug_->debug("chi!%d", (int)s.state());
-						assert(false);
-						break;
-				}
+					//default:
+						//debug_->debug("chi!%d", (int)s.state());
+						//assert(false);
+						//break;
+				//}
 				//}}}
 			} // consume_handover_initiator
 			
@@ -742,6 +751,7 @@ namespace wiselib {
 									// len == 0, but can't be a new query -->
 									// we are done!
 									//done = true;
+									s.set_query_iterator(queries_.end());
 									break;
 								}
 								
@@ -801,23 +811,31 @@ namespace wiselib {
 							}
 							else {
 								assert(s.query_iterator() != queries_.end());
+								if(s.virgin() || s.query_iterator() == queries_.end()) { return; }
 								
+								block_data_t buf[256];
 								// If locally relevant, interpret
 								// operator descriptions
 								// registry will understand special SE ids
 								if(registry_->contains(s.query_iterator()->second.scope())) {
 									Query *q = query_processor_->get_query(s.query_iterator()->second.id());
 									assert(q != 0);
+									if(q == 0) { return; }
 									
 									#if DISTRIBUTOR_DEBUG_STATE
 										debug_->debug("@%d q%d +o%d", (int)radio_->id(),
 												(int)s.query_iterator()->second.id(),
 												(int)*p);
 									#endif
+									int n = end - p;
+									if(n > 255) { n = 255; }
+									memcpy(buf, p, n);
 									// TODO: possible alignment problem here?
-									query_processor_->handle_operator(q, (BOD*)(p));
+									// --> fixed with buf-copy
+									query_processor_->handle_operator(q, (BOD*)(buf));
 								}
 								
+								GET_OS.fatal("this=%lx", (unsigned long)(void*)this);
 								s.query_iterator()->second.push_operator(s.operator_position(), l, p - 1);
 								s.next_operator();
 								p += l - 1; // the length field itself was already added!
@@ -841,6 +859,10 @@ namespace wiselib {
 			}
 			
 			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
+				#if DISTRIBUTOR_DEBUG_STATE
+					debug_->debug("OD nd ev%d %lu", (int)event, (unsigned long)id);
+				#endif
+				
 				switch(event) {
 					case Neighborhood::SEEN_NEIGHBOR:
 						on_see_neighbor(id);
