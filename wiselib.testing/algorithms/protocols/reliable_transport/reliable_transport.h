@@ -430,13 +430,13 @@ namespace wiselib {
 					// ok
 				}
 				else {
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("@%lu ign %lu m.s%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
+					//#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("@%lu ign %lu m.s%d pl%d m.i%d m.a%d m.op%d ep.s%d ep.i%d",
 								//(int)msg.channel().rule(), (int)msg.channel().value(),
 								(unsigned long)radio_->id(),
 								(unsigned long)from,
-								(int)msg.sequence_number(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
-					#endif
+								(int)msg.sequence_number(), (int)msg.payload_size(), (int)msg.initiator(), (int)msg.is_ack(), (int)msg.is_open(), (int)ep.sequence_number(), (int)ep.initiator());
+					//#endif
 					
 					return;
 				}
@@ -444,8 +444,8 @@ namespace wiselib {
 				::uint8_t f = msg.flags() & (Message::FLAG_OPEN | Message::FLAG_CLOSE | Message::FLAG_ACK);
 				
 				#if RELIABLE_TRANSPORT_DEBUG_STATE
-					debug_->debug("Rrecv m0x%x t%d s%d f0x%x f'0x%d", (int)msg.type(), (int)now(), (int)msg.sequence_number(),
-							(int)msg.flags(), (int)f);
+					//debug_->debug("Rrecv m0x%x t%d s%d f0x%x f'0x%d", (int)msg.type(), (int)now(), (int)msg.sequence_number(),
+							//(int)msg.flags(), (int)f);
 				#endif
 				
 				switch(f) {
@@ -498,7 +498,7 @@ namespace wiselib {
 			void receive_open(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("reopen");
+						//debug_->debug("reopen");
 					#endif
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
@@ -562,10 +562,10 @@ namespace wiselib {
 				ep.consume(msg);
 				
 				#if RELIABLE_TRANSPORT_DEBUG_STATE
-					debug_->debug("cons t%d m.s%d e.s%d ws%d wc%d is%d fa%d",
-							(int)now(), (int)msg.sequence_number(), (int)ep.sequence_number(),
-							(int)ep.wants_send(), (int)ep.wants_close(), (int)is_sending_,
-							(int)force_ack);
+					//debug_->debug("cons t%d m.s%d e.s%d ws%d wc%d is%d fa%d",
+							//(int)now(), (int)msg.sequence_number(), (int)ep.sequence_number(),
+							//(int)ep.wants_send(), (int)ep.wants_close(), (int)is_sending_,
+							//(int)force_ack);
 				#endif
 					
 				if((!ep.wants_send() && !ep.wants_close()) || is_sending_ || force_ack) {
@@ -750,9 +750,9 @@ namespace wiselib {
 						}
 						
 						if(!send) {
-							#if RELIABLE_TRANSPORT_DEBUG_STATE
+							//#if RELIABLE_TRANSPORT_DEBUG_STATE
 								debug_->debug("prod0 i%d", (int)sending_endpoint().initiator());
-							#endif
+							//#endif
 							is_sending_ = false;
 							check_send();
 							return;
@@ -790,6 +790,7 @@ namespace wiselib {
 			/// ditto.
 			void try_send(void *) {
 				if(!is_sending_) {
+					debug_->debug("!iss");
 					return;
 				}
 				
@@ -805,16 +806,17 @@ namespace wiselib {
 					#if !WISELIB_DISABLE_DEBUG
 						debug_->debug("%d t %d s %d a %d // to %d send idx %d i %d f 0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(), (int)sending_.is_ack(), (int)addr, (int)sending_channel_idx_, (int)sending_.initiator(), (int)sending_.flags());
 					#endif
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("@%d snd t%d s%d to %d f0x%x r%d m0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(),
-								(int)addr, (int)sending_.flags(), (int)resends_, (int)sending_.type());
-					#endif
+					//#if RELIABLE_TRANSPORT_DEBUG_STATE
+						debug_->debug("@%lu snd t%lu s%d to %lu f0x%x r%d m0x%x l%d", (unsigned long)radio_->id(), (unsigned long)now(), (int)sending_.sequence_number(),
+								(unsigned long)addr, (int)sending_.flags(), (int)resends_, (int)sending_.type(),
+								(int)sending_.payload_size());
+					//#endif
 					radio_->send(addr, sending_.size(), sending_.data());
 				}
 				else {
-					#if !WISELIB_DISABLE_DEBUG
-						debug_->debug("%d not send to %d", (int)radio_->id(), (int)addr);
-					#endif
+					//#if !WISELIB_DISABLE_DEBUG
+						debug_->debug("%lu !send %lu", (unsigned long)radio_->id(), (unsigned long)addr);
+					//#endif
 				}
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT + (rand_->operator()() % RESEND_RAND_ADD), this, v);
 			}
