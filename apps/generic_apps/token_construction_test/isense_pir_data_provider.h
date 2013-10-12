@@ -155,9 +155,9 @@ namespace wiselib {
 				tuple_store_->insert(t);
 				
 				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
-					float f = value;
+					float f = (float)(int)value;
 					Value v = *reinterpret_cast<Value*>(&f);
-					aggregator_->aggregate(rit->first, sensor_type_, uom_, (Value)value, Aggregator::FLOAT);
+					aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
 				}
 				//GET_OS.debug("/sens");
 			}
