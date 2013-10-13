@@ -81,7 +81,8 @@ namespace wiselib {
 			enum State { IN_EDGE = 1, OUT_EDGE = 2, BIDI_EDGE = IN_EDGE | OUT_EDGE  };
 			enum Timing {
 				PUSH_INTERVAL = 500 * WISELIB_TIME_FACTOR, ///< limit bcasts to this interval when things change all the time
-				BCAST_INTERVAL = 10000 * WISELIB_TIME_FACTOR, ///< send regular bcasts in this interval
+				BCAST_INTERVAL = INSE_BCAST_INTERVAL,
+					//10000 * WISELIB_TIME_FACTOR, ///< send regular bcasts in this interval
 				BCAST_TIMES_OUT = true,
 				BCAST_TIMEOUT = 1000 * WISELIB_TIME_FACTOR, ///< stay awake at most this long waiting for bcasts
 				BCAST_KEEP_AWAKE = 200 * WISELIB_TIME_FACTOR, ///< stay awake at least this long waiting for bcasts (so others have a chance to contact us)
@@ -385,7 +386,7 @@ namespace wiselib {
 				msg.set_tree_state(tree_state_);
 				msg.set_user_data(user_data());
 				
-				#if INSE_DEBUG_STATE
+				#if INSE_DEBUG_STATE || APP_BLINK
 					debug_->debug("bc");
 				#endif
 				nap_control_->push_caffeine("bc");
@@ -462,8 +463,10 @@ namespace wiselib {
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data, const typename Radio::ExtendedData& ex) {
 		#endif
 				
-					DBG("@%lu X bc from %lu len %d t %lu", (unsigned long)radio_->id(),
+				#if APP_BLINK
+					printf("@%lu X bc from %lu len %d t %lu", (unsigned long)radio_->id(),
 							(unsigned long)from, (int)len, (unsigned long)now());
+				#endif
 				check();
 				
 				if(!is_node_id_sane(from)) {

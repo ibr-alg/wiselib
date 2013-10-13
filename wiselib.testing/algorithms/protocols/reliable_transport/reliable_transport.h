@@ -227,9 +227,9 @@ namespace wiselib {
 					bool supplementary() { return supplementary_; }
 					void set_callback(callback_t cb) { callback_ = cb; }
 				
+					callback_t callback_;
 				private:
 					ChannelId channel_id_;
-					callback_t callback_;
 					sequence_number_t sequence_number_;
 					abs_millis_t wait_;
 					node_id_t remote_address_;
@@ -844,7 +844,12 @@ namespace wiselib {
 			}
 			
 			void on_answer_timeout(void *ep_) {
+				
+				
 				Endpoint &ep = *reinterpret_cast<Endpoint*>(ep_);
+				
+				if(!ep.callback_) { return; }
+				
 				if(ep.expects_answer()) {
 						//DBG("@%lu RT noans blame %lu", (unsigned long)radio_->id(),
 								//(unsigned long)ep.remote_address());

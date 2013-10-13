@@ -7,12 +7,10 @@
 	}
 #endif
 
-#if APP_QUERY || APP_EVAL
 	static const char* tuples[][3] = {
 		#include "nqxe_test.cpp"
 		{ 0, 0, 0 }
 	};
-#endif
 
 class App {
 	public:
@@ -121,6 +119,7 @@ class App {
 				light_se.set(23, 42);
 				
 				//sensors_light_init();
+				/*
 				if(radio_.id() == token_construction_.tree().root()) {
 					light_on = true;
 					leds_on(LEDS_BLUE);
@@ -129,6 +128,8 @@ class App {
 					light_on = false;
 					leds_off(LEDS_BLUE);
 				}
+				*/
+				light_on = false;
 				SENSORS_ACTIVATE(light_sensor);
 				check_light(0);
 			#endif // CONTIKI_TARGET_sky
@@ -280,7 +281,7 @@ class App {
 	#endif
 		
 		
-	#if APP_QUERY || APP_EVAL
+	//#if APP_QUERY || APP_EVAL
 		template<typename TS>
 		void ins(TS& ts, const char* s, const char* p, const char* o) {
 			TupleT t;
@@ -303,7 +304,7 @@ class App {
 			}
 			debug_->debug("ins done: %d tuples", (int)i);
 		}
-	#endif
+	//#endif
 		
 	#if APP_QUERY
 		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
@@ -501,13 +502,13 @@ class App {
 			
 			light_val = (1.0 - LIGHT_ALPHA / 100.0) * light_val + (LIGHT_ALPHA / 100.0) * v;
 			
-			debug_->debug("light: %u %u",
+			debug_->debug("light: %u<%u<%u", (unsigned)LIGHT_OFF, light_val, (unsigned)LIGHT_ON);
 					//(unsigned)sensors_light1(),
 					//(unsigned)sensors_light2()
-					(unsigned)light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC),
-					(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
-			);
-			if(light_on && light_val < LIGHT_OFF) {
+					//(unsigned)light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC),
+					//(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
+			//);
+			if(light_on && light_val < LIGHT_OFF && (radio_.id() != token_construction_.tree().root())) {
 				debug_->debug("@%lu leave %u", (unsigned long)radio_.id(), light_val);
 				// unregister se
 				light_on = false;

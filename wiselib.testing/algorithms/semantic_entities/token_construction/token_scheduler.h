@@ -152,7 +152,11 @@ namespace wiselib {
 					//10000 * WISELIB_TIME_FACTOR,
 				
 				RECOVER_TOKEN_INTERVAL = 10 * HANDOVER_RETRY_INTERVAL,
+			#if APP_BLINK
+				ACTIVITY_PERIOD_ROOT = ACTIVITY_PERIOD,
+			#else
 				ACTIVITY_PERIOD_ROOT = 100 * WISELIB_TIME_FACTOR,
+			#endif
 			};
 			
 			// }}}
@@ -275,6 +279,9 @@ namespace wiselib {
 						ReliableTransportT::callback_t::template from_method<self_type, &self_type::callback_handover_recepient>(this)
 				);
 				
+				transport_.set_remote_address(se_id, true, neighborhood_.next_token_node(se_id));
+				transport_.set_remote_address(se_id, false, neighborhood_.prev_token_node(se_id));
+				
 				se.template schedule_activating_token<
 					self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token
 				>(clock_, timer_, this, &se);
@@ -297,14 +304,20 @@ namespace wiselib {
 				
 				
 				if(se->is_active(radio_->id())) {
-					end_activity(*se);
+					nap_control_.pop_caffeine("/act");
+					nap_control_.push_caffeine("ho_endact");
+					se->end_wait_for_activating_token();
 				}
+				
+				#if CONTIKI_TARGET_sky
+					leds_off(LEDS_GREEN);
+				#endif
 				
 				transport_.unregister_endpoint(se_id, true);
 				transport_.unregister_endpoint(se_id, false);
 				
-				se->destruct();
 				registry_.erase(se_id);
+				se->destruct();
 			}
 			
 			GlobalTreeT& tree() { return global_tree_; }
@@ -503,7 +516,7 @@ namespace wiselib {
 					transport_.flush();
 					nap_control_.pop_caffeine("/ho");
 				#if INSE_DEBUG_STATE
-					debug_->debug("/ho via %d m%d f%d is%d ch%d cond%d", (int)(ep.remote_address()), (int)main,
+					debug_->debug("/ho via %lu m%d f%d is%d ch%d cond%d", (unsigned long)(ep.remote_address()), (int)main,
 							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_endpoint().channel() != se.id()),
 							(int)(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id()))
 							);
