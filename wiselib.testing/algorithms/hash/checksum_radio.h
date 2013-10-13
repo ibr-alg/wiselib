@@ -140,9 +140,9 @@ namespace wiselib {
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data);
 				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
 				if(h_msg != h_check) {
-					#ifdef SHAWN
+					//#ifdef SHAWN
 					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
-					#endif
+					//#endif
 					return;
 				}
 				
