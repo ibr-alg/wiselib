@@ -126,9 +126,9 @@
 #elif defined(ISENSE)
 	#define INSE_USE_LINK_METRIC           0
 
-	#define INSE_BCAST_INTERVAL            10000
+	#define INSE_BCAST_INTERVAL            3000
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
-	#define DISTRIBUTOR_DEBUG_STATE        1
+	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
 	#define INSE_DEBUG_TOKEN               0
 	#define INSE_DEBUG_TOPOLOGY            0
@@ -144,12 +144,12 @@
 	#define INSE_DEBUG_WARNING             1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_MAX_NEIGHBORS             4
+	#define INSE_MAX_NEIGHBORS             8
 	#define WISELIB_MAX_NEIGHBORS          (INSE_MAX_NEIGHBORS)
-	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_SEMANTIC_ENTITIES     5
 	#define INSE_MAX_QUERIES               2
 
-	#define INSE_CSMA_MODE                 1
+	#define INSE_CSMA_MODE                 0
 	
 	
 #elif defined(CONTIKI_TARGET_sky)

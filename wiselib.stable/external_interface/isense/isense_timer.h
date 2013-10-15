@@ -29,7 +29,7 @@ namespace wiselib
 {
    namespace
    {
-      enum { MAX_INTERNAL_TIMERS = 30 };
+      enum { MAX_INTERNAL_TIMERS = 40 };
       // --------------------------------------------------------------------
       typedef delegate1<void, void*> isense_timer_delegate_t;
       // --------------------------------------------------------------------

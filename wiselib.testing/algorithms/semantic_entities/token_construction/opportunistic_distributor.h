@@ -201,10 +201,6 @@ namespace wiselib {
 					}
 					::uint8_t push_operator(::uint8_t pos, ::uint8_t len, block_data_t *data) {
 						assert(pos + len <= OPERATOR_BUFFER_SIZE);
-						
-						GET_OS.fatal("cp this=%lx %lx %lx %d", (unsigned long)(void*)this, (unsigned long)(void*)(operator_buffer_ + pos),
-								(unsigned long)(void*)(data), (int)len);
-							
 						memcpy(operator_buffer_ + pos, data, len);
 						operator_buffer_size_ += len;
 						return pos + len;
@@ -387,9 +383,9 @@ namespace wiselib {
 				
 				// if locally relevant, add query
 				if(registry_->contains(scope)) {
-					//#if DISTRIBUTOR_DEBUG_STATE
+					#if DISTRIBUTOR_DEBUG_STATE
 						debug_->debug("@%d +q%d", (int)radio_->id(), (int)qid);
-					//#endif
+					#endif
 					query_processor_->erase_query(qid);
 					Query *q = query_processor_->create_query(qid);
 					q->set_expected_operators(opcount);
@@ -401,12 +397,14 @@ namespace wiselib {
 						p += *p;
 					}
 					
+					debug_->debug("ltwake1");
 					timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(qid));
 				}
 				
 				try_send();
 				
 				nap_control_->push_caffeine("odwake");
+					debug_->debug("odwake1");
 				timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 			}
 			
@@ -525,7 +523,7 @@ namespace wiselib {
 						while(s.query_iterator() != queries_.end()) {
 							if(!s.header_sent()) {
 								if(p + QUERY_HEADER_SIZE > end) {
-									debug_->debug("phi hdr !fit");
+									//debug_->debug("phi hdr !fit");
 									// header doesnt fit!
 									break;
 								}
@@ -589,7 +587,7 @@ namespace wiselib {
 						break;
 						
 					default:
-						debug_->debug("@%d phi!%d", (int)radio_->id(), (int)s.state());
+						//debug_->debug("@%d phi!%d", (int)radio_->id(), (int)s.state());
 						assert(false);
 						break;
 						
@@ -626,7 +624,7 @@ namespace wiselib {
 						break;
 						
 					default:
-						debug_->debug("chi!%d", (int)s.state());
+						//debug_->debug("chi!%d", (int)s.state());
 						assert(false);
 						break;
 				}
@@ -687,7 +685,7 @@ namespace wiselib {
 							#endif
 						}
 						
-						debug_->debug("@%d phr sending rqs l=%d", (int)radio_->id(), (int)(p - start));
+						//debug_->debug("@%d phr sending rqs l=%d", (int)radio_->id(), (int)(p - start));
 						//debug_buffer<OsModel, 16>(debug_, start, p - start);
 						
 						message.set_payload_size(p - start);
@@ -740,7 +738,7 @@ namespace wiselib {
 										queries_.erase(it);
 										s.add_request(qid);
 										
-										debug_->debug("@%d to %d chr q%d r%d>%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev, (int)(it->second.revision()));
+										//debug_->debug("@%d to %d chr q%d r%d>%d", (int)radio_->id(), (int)remote, (int)qid, (int)rev, (int)(it->second.revision()));
 									}
 									break;
 								}
@@ -750,7 +748,7 @@ namespace wiselib {
 								// query not known at all
 								s.add_request(qid);
 								
-								debug_->debug("@%d to %d chr q%d new", (int)radio_->id(), (int)remote, (int)qid);
+								//debug_->debug("@%d to %d chr q%d new", (int)radio_->id(), (int)remote, (int)qid);
 							}
 						} // while(p < end)
 						
@@ -767,7 +765,7 @@ namespace wiselib {
 							//debug_->debug("@%d offs %d opl %d", (int)radio_->id(), (int)(p - start), (int)l);
 							if(l == 0) {
 								if(p > end - QUERY_HEADER_SIZE) {
-									debug_->debug("l0 p0x%lx end0x%lx", (unsigned long)(void*)p, (unsigned long)(void*)end);
+									//debug_->debug("l0 p0x%lx end0x%lx", (unsigned long)(void*)p, (unsigned long)(void*)end);
 									
 									// len == 0, but can't be a new query -->
 									// we are done!
@@ -802,14 +800,14 @@ namespace wiselib {
 								s.set_query_iterator(queries_.find(id));
 								s.rewind_operator();
 								
-								debug_->debug("RQ %lx.%lx", (unsigned long)scope.rule(), (unsigned long)scope.value());
+								//debug_->debug("RQ %lx.%lx", (unsigned long)scope.rule(), (unsigned long)scope.value());
 								
 								// If query locally relevant, delete old
 								// version, start creating new one
 								if(registry_->contains(scope)) {
-									//#if DISTRIBUTOR_DEBUG_STATE
+									#if DISTRIBUTOR_DEBUG_STATE
 										debug_->debug("@%d +q%d", (int)radio_->id(), (int)id);
-									//#endif
+									#endif
 										
 										
 									query_processor_->erase_query(id);
@@ -829,25 +827,22 @@ namespace wiselib {
 								//s.set_scope(scope);
 								
 								nap_control_->push_caffeine("odwake");
+								debug_->debug("odwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(id));
 							}
 							else {
-								debug_->debug("-a");
 								assert(s.query_iterator() != queries_.end());
 								if(s.virgin() || s.query_iterator() == queries_.end()) { return; }
 								
-								debug_->debug("-b");
 								block_data_t buf[256];
 								// If locally relevant, interpret
 								// operator descriptions
 								// registry will understand special SE ids
 								
-								debug_->debug("-c");
 								if(registry_->contains(s.query_iterator()->second.scope())) {
 									Query *q = query_processor_->get_query(s.query_iterator()->second.id());
 									assert(q != 0);
-								debug_->debug("-d");
 									if(q == 0) { return; }
 									
 									#if DISTRIBUTOR_DEBUG_STATE
@@ -857,15 +852,13 @@ namespace wiselib {
 									#endif
 									int n = end - p;
 									if(n > 255) { n = 255; }
-								debug_->debug("-e");
 									memcpy(buf, p, n);
-								debug_->debug("-f");
 									// TODO: possible alignment problem here?
 									// --> fixed with buf-copy
 									query_processor_->handle_operator(q, (BOD*)(buf));
 								}
 								
-								GET_OS.fatal("t=%lx", (unsigned long)(void*)this);
+								//GET_OS.fatal("t=%lx", (unsigned long)(void*)this);
 								s.query_iterator()->second.push_operator(s.operator_position(), l, p - 1);
 								s.next_operator();
 								p += l - 1; // the length field itself was already added!
@@ -930,8 +923,9 @@ namespace wiselib {
 				
 			
 			void try_send() {
-				for(typename Neighborhood::iterator it = nd_->begin_neighbors(); it != nd_->end_neighbors(); ++it) {
-					on_see_neighbor(it->id());
+				//for(typename Neighborhood::iterator it = nd_->begin_neighbors(); it != nd_->end_neighbors(); ++it) {
+				if(nd_->begin_neighbors() != nd_->end_neighbors()) {
+					on_see_neighbor(nd_->begin_neighbors()->id());
 				}
 			}
 				
@@ -976,6 +970,7 @@ namespace wiselib {
 						assert(ep.remote_address() == neighbor_id);
 						//if(transport_.is_sending() <= (transport_.sending_endpoint().remote_address() != neighbor_id)) {
 						if(!ep.is_open() && !ep.wants_something()) {
+							debug_->debug("OD to 0x%lx", (unsigned long)ep.remote_address());
 							int r = transport_.open(ep, true);
 							if(r == SUCCESS) {
 								communication_states_[neighbor_id].set_state(State::INIT);
@@ -984,7 +979,7 @@ namespace wiselib {
 						} // if not already sending
 					} // if found
 					else {
-						debug_->debug("!EP %lu", (unsigned long)neighbor_id);
+						//debug_->debug("!EP %lu", (unsigned long)neighbor_id);
 					} // if !up to date
 				}
 			} // on_see_neighbor()

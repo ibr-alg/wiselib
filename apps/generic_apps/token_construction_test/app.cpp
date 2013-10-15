@@ -14,10 +14,10 @@
 		#include "isense_pir_data_provider.h"
 	#endif
 	
-	static const char* tuples[][3] = {
-		#include "nqxe_test.cpp"
-		{ 0, 0, 0 }
-	};
+	//static const char* tuples[][3] = {
+		//#include "nqxe_test.cpp"
+		//{ 0, 0, 0 }
+	//};
 #endif
 
 class App {
@@ -318,10 +318,16 @@ class App {
 			ts.insert(t);
 		}
 		
+		void insert_room(int room) {
+			const char *foi = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
+			char room_uri[64];
+			snprintf(room_uri, 64, "<http://spitfire-project.eu/rooms/room-10%02d>", (int)room);
+			ins(ts, rdf_uri_, foi, room_uri);
+		}
+		
 		void insert_tuples() {
 			
 			const char *attachedSystem =  "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>";
-			const char *foi = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
 			const char *hasloc = "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation>";
 		
 		#if HAS_PIR
@@ -331,9 +337,18 @@ class App {
 			ins(ts, rdf_uri_, attachedSystem, light_uri_);
 		#endif
 			
-			char room_uri[64];
-			snprintf(room_uri, 64, "<http://spitfire-project.eu/rooms/room-10%d>", 42);
-			ins(ts, rdf_uri_, foi, room_uri);
+			int room = 1;
+			
+			if(radio_.id() <= 0x1202) {
+				insert_room(1);
+				insert_room(2);
+				insert_room(3);
+				insert_room(4);
+			
+			}
+			else if(radio_.id() <= 0x1204) { insert_room(2); }
+			else if(radio_.id() <= 0x1206) { insert_room(3); }
+			else if(radio_.id() <= 0x1208) { insert_room(4); }
 			
 			ins(ts, rdf_uri_, hasloc, "CTI Conference Room");
 			ins(ts, rdf_uri_, "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>", "38.2909");
@@ -478,6 +493,10 @@ class App {
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
 			monitor_.report("/act");
 			
+			#ifdef ISENSE
+			data_provider_.update_aggregate();
+			#endif
+			
 			if(radio_.id() == token_construction_.tree().root()) {
 			//if(radio_->id() == SINK_ID) {
 				//debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
@@ -499,9 +518,9 @@ class App {
 				
 				
 				
-				debug_->debug("@%d ag<", (int)radio_.id());
+				debug_->debug("@%d ====== ag<", (int)radio_.id());
 				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-					debug_->debug("@%d ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
+					debug_->debug("@%d ------ ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
 							(int)radio_.id(), (long)se.id().rule(), (long)se.id().value(),
 						//	(long)iter->first.type_key(), (long)iter->first.uom_key(),
 							(long)iter->first.datatype(),
@@ -538,7 +557,7 @@ class App {
 					uart_->write(len + 1, msg);
 					
 				}
-				debug_->debug("@%d ag>", (int)radio_.id());
+				debug_->debug("@%d ====== ag>", (int)radio_.id());
 				
 			}
 			/*
