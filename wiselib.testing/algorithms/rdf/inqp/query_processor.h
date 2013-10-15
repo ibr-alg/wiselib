@@ -380,11 +380,17 @@ namespace wiselib {
 			}
 			
 			Query* create_query(query_id_t qid) {
+				GET_OS.fatal("f:%d", (int)mem->mem_free());
+				
 				Query *q = ::get_allocator().template allocate<Query>().raw();
+				GET_OS.fatal("-1 f:%d", (int)mem->mem_free());
 				q->init(this, qid);
+				GET_OS.fatal("-2 f:%d", (int)mem->mem_free());
 				if(queries_.size() >= queries_.capacity()) {
+				GET_OS.fatal("-3 f:%d", (int)mem->mem_free());
 					assert(false && "queries full, clean them up from time to time!");
 				}
+				GET_OS.fatal("-4 f:%d", (int)mem->mem_free());
 				queries_[qid] = q;
 				return q;
 			}

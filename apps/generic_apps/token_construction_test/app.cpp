@@ -321,14 +321,14 @@ class App {
 		void insert_room(int room) {
 			const char *foi = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
 			char room_uri[64];
-			snprintf(room_uri, 64, "<http://spitfire-project.eu/rooms/room-10%02d>", (int)room);
+			snprintf(room_uri, 64, "<http://spitfire-project.eu/rooms/room-100%d>", (int)room);
 			ins(ts, rdf_uri_, foi, room_uri);
 		}
 		
 		void insert_tuples() {
 			
 			const char *attachedSystem =  "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>";
-			const char *hasloc = "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl/hasLocation>";
+			const char *hasloc = "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#hasLocation>";
 		
 		#if HAS_PIR
 			ins(ts, rdf_uri_, attachedSystem, pir_uri_);

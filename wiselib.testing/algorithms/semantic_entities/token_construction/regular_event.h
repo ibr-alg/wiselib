@@ -78,7 +78,11 @@ namespace wiselib {
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
 			enum Restrictions {
+			#if NAP_CONTROL_ALWAYS_ON
+				MIN_WINDOW_SIZE = 10000 * WISELIB_TIME_FACTOR,
+			#else
 				MIN_WINDOW_SIZE = 100 * WISELIB_TIME_FACTOR,
+			#endif
 				EARLY_HITS = 2,
 				TOLERATE_MISSES = 1,
 			};

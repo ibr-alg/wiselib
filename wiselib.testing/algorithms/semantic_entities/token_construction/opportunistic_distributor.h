@@ -397,14 +397,14 @@ namespace wiselib {
 						p += *p;
 					}
 					
-					debug_->debug("ltwake1");
+					debug_->debug("T ltwake1");
 					timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(qid));
 				}
 				
 				try_send();
 				
 				nap_control_->push_caffeine("odwake");
-					debug_->debug("odwake1");
+					debug_->debug("T odwake1");
 				timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 			}
 			
@@ -827,7 +827,7 @@ namespace wiselib {
 								//s.set_scope(scope);
 								
 								nap_control_->push_caffeine("odwake");
-								debug_->debug("odwake");
+								debug_->debug("T odwake ltwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(id));
 							}

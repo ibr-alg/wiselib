@@ -86,7 +86,7 @@ namespace wiselib {
 				
 				uri_me_ = me;
 				uri_observes_ = "<http://spitfire-project.eu/ontology/ns/obs>";
-				uri_movement_ = "<http://spitfire-project.eu/property/Movement>";
+				uri_movement_ = "<http://spitfire-project.eu/ontology/ns/sn/Movement>";
 				uri_has_value_ = "<http://spitfire-project.eu/ontology/ns/value>";
 				sensor_type_ = tuple_store_->dictionary().insert((::uint8_t*)uri_movement_);
 				uom_ = tuple_store_->dictionary().insert((::uint8_t*)"<http://spitfire-project.eu/uom/Boolean>");
@@ -119,7 +119,6 @@ namespace wiselib {
 				timeout_id_  = 0xff;
 				GET_OS.debug("-- task2");
 				GET_OS.add_task(this, (void*)0x02);
-				//timeout_id_ = GET_OS.add_timeout_in(5000, this, NULL);
 			}
 			
 			void handle_sensor() {
@@ -148,7 +147,10 @@ namespace wiselib {
 				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
 					float f = (float)(int)value_;
 					Value v = *reinterpret_cast<Value*>(&f);
-					aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
+					if(aggregator_->lock(rit->first, 1)) {
+						aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
+						aggregator_->release(rit->first, 1);
+					}
 				}
 			}
 			
