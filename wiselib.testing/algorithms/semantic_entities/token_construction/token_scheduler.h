@@ -602,7 +602,7 @@ namespace wiselib {
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						
 						if(call_again) {
-							debug_->debug("phi as+ %d", (int)sz);
+							//debug_->debug("phi as+ %d", (int)sz);
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 							endpoint.request_send();
 						}
@@ -626,11 +626,11 @@ namespace wiselib {
 						size_type sz = aggregator_.fill_buffer(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						message.set_payload_size(sz);
 						if(call_again) {
-							debug_->debug("phi a+ %d", (int)sz);
+							//debug_->debug("phi a+ %d", (int)sz);
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 						}
 						else {
-							debug_->debug("phi a cl %d", (int)sz);
+							//debug_->debug("phi a cl %d", (int)sz);
 							endpoint.request_close();
 						}
 						endpoint.request_send();
@@ -794,6 +794,7 @@ namespace wiselib {
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection", (int)radio_->id());
 						#endif
+							/*
 						debug_->debug("@%lu ho_op %lu t%lu s%d m%d",
 								(unsigned long)radio_->id(),
 								(unsigned long)endpoint.remote_address(),
@@ -801,6 +802,7 @@ namespace wiselib {
 								(unsigned long)endpoint.sequence_number(),
 								(int)(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING)
 								);
+							*/
 						nap_control_.push_caffeine("ho_op");
 						break;
 						
@@ -1250,11 +1252,7 @@ namespace wiselib {
 				nap_control_.pop_caffeine("/act");
 				nap_control_.push_caffeine("ho_endact");
 				
-				debug_->debug("--- x");
-				
 				initiate_handover(se, true);
-				
-				debug_->debug("--- y");
 				
 				se.end_wait_for_activating_token();
 				
@@ -1264,11 +1262,8 @@ namespace wiselib {
 							(int)se.in_activity_phase());
 				#endif
 				
-				debug_->debug("--- z");
-				
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
 				
-				debug_->debug("--- z1");
 				#ifdef ARDUINO
 					digitalWrite(13, LOW);
 				#elif CONTIKI_TARGET_sky

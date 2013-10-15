@@ -98,12 +98,14 @@ namespace wiselib {
 				sensor_->set_sensor_handler(this);
 				sensor_->set_pir_sensor_int_interval(1000);
 				sensor_->enable();
+				value_ = false;
 			}
 			
 			///@name isense stuff
 			///@{
 			
 			void execute(void* userdata) {
+				GET_OS.debug("-- task ex");
 				if(userdata == (void*)0x01) { // on
 					update(true);
 				}
@@ -114,32 +116,44 @@ namespace wiselib {
 			
 			void timeout(void* userdata) {
 				// after timeout auto-off
-				//timeout_id_  = 0xff;
+				timeout_id_  = 0xff;
+				GET_OS.debug("-- task2");
 				GET_OS.add_task(this, (void*)0x02);
-				timeout_id_ = GET_OS.add_timeout_in(5000, this, NULL);
+				//timeout_id_ = GET_OS.add_timeout_in(5000, this, NULL);
 			}
 			
 			void handle_sensor() {
 				if(timeout_id_ == 0xff) {
 					// we timed out before, now be on again!
+				GET_OS.debug("-- task1");
 					GET_OS.add_task(this, (void*)0x01); // on!
 				}
 				else {
 					// the value didnt change, but make sure to update the
 					// aggregate
-					GET_OS.add_task(this, (void*)0x01); // on!
+					//GET_OS.add_task(this, (void*)0x01); // on!
 					
 					// we are still in on-state, so nothing to do
 					// except, cancel the off-timeout, and start a new one
+				GET_OS.debug("-- cancel to5");
 					GET_OS.remove_timeout(timeout_id_, this);
 				}
+				GET_OS.debug("-- add to5");
 				timeout_id_ = GET_OS.add_timeout_in(5000, this, NULL);
 			}
 			
 			///@}
 		
+			void update_aggregate() {
+				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
+					float f = (float)(int)value_;
+					Value v = *reinterpret_cast<Value*>(&f);
+					aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
+				}
+			}
 			
 			void update(bool value) {
+				value_ = value;
 				GET_OS.debug("PIR %d", (int)value);
 				Tuple t;
 				
@@ -154,11 +168,6 @@ namespace wiselib {
 				t.set(uri_me_, uri_has_value_, value ? "1" : "0");
 				tuple_store_->insert(t);
 				
-				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
-					float f = (float)(int)value;
-					Value v = *reinterpret_cast<Value*>(&f);
-					aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
-				}
 				//GET_OS.debug("/sens");
 			}
 			
@@ -171,6 +180,8 @@ namespace wiselib {
 				t.set(2, (block_data_t*)const_cast<char*>(o));
 				tuple_store_->insert(t);
 			}
+			
+			bool value_;
 			
 			char *uri_me_;
 			char *uri_has_value_;

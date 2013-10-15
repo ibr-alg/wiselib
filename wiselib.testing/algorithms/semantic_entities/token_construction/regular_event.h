@@ -239,9 +239,9 @@ namespace wiselib {
 					
 					//DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", (int)absolute_millis(clock, clock->time()), (int)delta, (int)ne, (int)now, (int)window_);
 					
-					#ifdef ISENSE
-						GET_OS.debug("setting timer: %d", (int)delta);
-					#endif
+					//#ifdef ISENSE
+						//GET_OS.debug("setting timer: %d", (int)delta);
+					//#endif
 					
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, userdata_);
 				}
