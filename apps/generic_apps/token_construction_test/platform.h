@@ -75,7 +75,7 @@
 #define USE_LIST_CONTAINER             0
 #define USE_VECTOR_CONTAINER           1
 #define USE_BLOCK_CONTAINER            0
-#define TUPLE_CONTAINER_SIZE           10
+#define TUPLE_CONTAINER_SIZE           30
 
 #define USE_PRESCILLA_DICTIONARY       0
 #define USE_TREE_DICTIONARY            1

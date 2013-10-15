@@ -390,7 +390,10 @@ namespace wiselib {
 				GET_OS.fatal("-3 f:%d", (int)mem->mem_free());
 					assert(false && "queries full, clean them up from time to time!");
 				}
-				GET_OS.fatal("-4 f:%d", (int)mem->mem_free());
+				GET_OS.fatal("-4 f:%d sz %d cp %d", (int)mem->mem_free(), (int)queries_.size() ,(int)queries_.capacity());
+				for(typename Queries::iterator it  = queries_.begin(); it != queries_.end(); ++it) {
+					GET_OS.fatal("got q %d", (int)it->first);
+				}
 				queries_[qid] = q;
 				return q;
 			}

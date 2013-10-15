@@ -569,17 +569,24 @@ namespace wiselib {
 				iterator r;
 				r.set_dictionary(dictionary_);
 				
+				GET_OS.debug("-1");
 				int result = key_copy(r.query_, *query, mask, r.dictionary_);
+				GET_OS.debug("-2");
 				if(result == ERR_UNSPEC) {
+				GET_OS.debug("-3");
 					r.query_.destruct_deep();
+				GET_OS.debug("-4");
 					return end();
 				}
 				else {
+				GET_OS.debug("-5");
 					r.container_iterator_ = container_->begin();
 					r.container_end_ = container_->end();
 					r.set_dictionary(dictionary_);
 					r.column_mask_ = mask;
+				GET_OS.debug("-6");
 					r.forward();
+				GET_OS.debug("-7");
 					return r;
 				}
 			}
@@ -649,19 +656,27 @@ namespace wiselib {
 			 * some might not be!
 			 */
 			static int key_copy(Tuple& to, Tuple& from, column_mask_t mask, Dictionary* dictionary_) {
+				GET_OS.debug("f:%d", (int)mem->mem_free());
+				
 				for(size_type i = 0; i<COLUMNS; i++) {
 					
 					// are we caring for this column at all?
 					if(mask & (1 << i)) {
 						// is it a dict column?
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
+							GET_OS.debug("i=%d get(i)=%lx", (int)i, (unsigned long)(void*)from.get(i));
+							GET_OS.debug("s=%s", (char*)from.get(i));
 							key_type k = dictionary_->find(from.get(i));
+							GET_OS.debug("k=%lx", (unsigned long) k);
 							if(k == Dictionary::NULL_KEY) { return ERR_UNSPEC; }
 							
 							to.set_key(i, k); // to_bdt(k));
+							GET_OS.debug("sat");
 						}
 						else {
+							GET_OS.debug("set deep i=%d get(i)=%lx", (int)i, (unsigned long)(void*)from.get(i));
 							to.set_deep(i, from.get(i));
+							GET_OS.debug("satd");
 						}
 					}
 				}

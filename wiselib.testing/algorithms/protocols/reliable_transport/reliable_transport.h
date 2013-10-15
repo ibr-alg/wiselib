@@ -350,7 +350,7 @@ namespace wiselib {
 					
 					//debug_->debug("RT t ea %lu", (unsigned long)ANSWER_TIMEOUT);
 					
-				debug_->debug("T EA");
+				//debug_->debug("T EA");
 					//timer_->template set_timer<self_type, &self_type::on_answer_timeout>(ANSWER_TIMEOUT, this, &ep);
 				}
 			}
@@ -690,7 +690,7 @@ namespace wiselib {
 				
 				if(closest_wait) {
 					//debug_->debug("RT t csnd %lu", (unsigned long)closest_wait);
-				debug_->debug("T CS");
+				//debug_->debug("T CS");
 					timer_->template set_timer<self_type, &self_type::check_send>(closest_wait, this, 0);
 				}
 				
@@ -763,10 +763,11 @@ namespace wiselib {
 						
 						if(!send) {
 							//#if RELIABLE_TRANSPORT_DEBUG_STATE
-								debug_->debug("prod0 i%d, recheck", (int)sending_endpoint().initiator());
+							//	debug_->debug("prod0 i%d, recheck", (int)sending_endpoint().initiator());
 							//#endif
 							is_sending_ = false;
-							check_send();
+							timer_->template set_timer<self_type, &self_type::check_send>(50, this, 0);
+							//check_send();
 							return;
 						}
 						
@@ -835,7 +836,7 @@ namespace wiselib {
 				
 				abs_millis_t to = RESEND_TIMEOUT + (rand_->operator()() % RESEND_RAND_ADD);
 				//debug_->debug("RT t rsnd %lu d%lu t%lu", (unsigned long)addr, (unsigned long)to, (unsigned long)now());
-				debug_->debug("T ACK");
+				//debug_->debug("T ACK");
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(to, this, v);
 			}
 			

@@ -409,7 +409,7 @@ namespace wiselib {
 				#endif
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
 				//radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				debug_->debug("T SS");
+				//debug_->debug("T SS");
 			#if !NAP_CONTROL_ALWAYS_ON
 				timer_->template set_timer<self_type, &self_type::end_broadcast_state>(BCAST_KEEP_AWAKE, this, 0);
 			#endif
@@ -426,7 +426,7 @@ namespace wiselib {
 			void broadcast_state_regular(void* = 0) {
 				broadcast_state(TreeStateMessageT::REASON_REGULAR_BCAST);
 				last_push_ = now();
-				debug_->debug("T BSS");
+				//debug_->debug("T BSS");
 				timer_->template set_timer<self_type, &self_type::broadcast_state_regular>(BCAST_INTERVAL, this, 0);
 			}
 			
@@ -562,7 +562,7 @@ namespace wiselib {
 				// will call end_wait_for_regular_broadcast implicetely
 				if(ev.waiting()) {
 					ev.end_waiting();
-					debug_->debug("T GUWFRB");
+					//debug_->debug("T GUWFRB");
 					ev.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
@@ -645,7 +645,7 @@ namespace wiselib {
 					event.hit(t, clock_, radio_->id());
 					event.end_waiting();
 			#if !NAP_CONTROL_ALWAYS_ON
-				debug_->debug("T CR");
+				//debug_->debug("T CR");
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
@@ -721,7 +721,7 @@ namespace wiselib {
 					DBG("@%lu hit ue %p", (unsigned long)radio_->id(), (void*)&event);
 					event.hit(t, clock_, radio_->id());
 					event.end_waiting();
-				debug_->debug("T UE");
+				//debug_->debug("T UE");
 			#if !NAP_CONTROL_ALWAYS_ON
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
@@ -993,7 +993,7 @@ namespace wiselib {
 				}
 				else if(!timer_pending_) {
 					timer_pending_ = true;
-				debug_->debug("T PUSH");
+				//debug_->debug("T PUSH");
 					timer_->template set_timer<self_type, &self_type::changed>(PUSH_INTERVAL, this, (void*)(::uint8_t*)1);
 				}
 			}

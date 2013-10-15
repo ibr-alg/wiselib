@@ -320,9 +320,13 @@ class App {
 		
 		void insert_room(int room) {
 			const char *foi = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
+			const char *typ = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
+			const char *typ_room = "<http://spitfire-project.eu/foi/Room>";
+			
 			char room_uri[64];
 			snprintf(room_uri, 64, "<http://spitfire-project.eu/rooms/room-100%d>", (int)room);
 			ins(ts, rdf_uri_, foi, room_uri);
+			ins(ts, room_uri, typ, typ_room);
 		}
 		
 		void insert_tuples() {
@@ -391,8 +395,8 @@ class App {
 						SemanticEntityId::all(),
 						qid, 1 /* revision */,
 						Distributor::QUERY,
-						60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
-						60000 * WISELIB_TIME_FACTOR,
+						10000 * WISELIB_TIME_FACTOR, // waketime & lifetime
+						10000 * WISELIB_TIME_FACTOR,
 						opcount,
 						uart_query_pos, uart_query
 				);

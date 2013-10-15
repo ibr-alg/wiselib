@@ -55,8 +55,11 @@ namespace wiselib {
 					Node *e = reinterpret_cast<Node*>(p);
 					//e->length = l;
 					e->refcount = 1;
-					memset(e->childs, 0, sizeof(e->childs));
+					//memset(e->childs, 0, sizeof(e->childs));
+					e->childs[0] = 0;
+					e->childs[1] = 0;
 					memcpy(e->value, s, l);
+					GET_OS.debug("f:%d new: %lx %s",(int)mem->mem_free(), (unsigned long)(void*)e->value, (char*)e->value);
 					return e;
 				}
 				
@@ -66,7 +69,8 @@ namespace wiselib {
 				
 				Node *childs[2], *parent;
 				::uint16_t refcount;
-				block_data_t value[];
+				::uint16_t blub;
+				block_data_t value[0];
 				// }}}
 			};
 		
@@ -187,6 +191,8 @@ namespace wiselib {
 				check();
 				
 				Node *p = to_node(p_);
+				GET_OS.debug("ERASE: %s", (char*)p->value);
+				
 				//int c;
 				//Node *p = find_node(k, c);
 				//if(c != 0) { return 0; }
@@ -197,6 +203,8 @@ namespace wiselib {
 					check();
 					return 1;
 				}
+				
+				GET_OS.debug("ERASE2: %s", (char*)p->value);
 				
 				if(p->is_leaf()) {
 					if(p->parent) {
@@ -236,9 +244,11 @@ namespace wiselib {
 					s->childs[1] = p->childs[1];
 				}
 				
+				/*
 				get_allocator().free_array(
 						reinterpret_cast<block_data_t*>(p)
 				);
+				*/
 				
 				if(root_ == p) { root_ = 0; }
 				
@@ -280,13 +290,21 @@ namespace wiselib {
 			 * 
 			 */
 			Node* find_node(mapped_type v, int& c) {
+				GET_OS.debug("--------- this=%lx", (unsigned long)(void*)this);
 				assert(v != 0);
 				c = 0;
 				Node *p = root_, *prev = root_;
 				while(p) {
 					assert(p->value != 0);
 					
+					GET_OS.debug("pv: %lx v: %lx p: %lx", (unsigned long)(void*)p->value, (unsigned long)(void*)v, (unsigned long)(void*)p);
+					//GET_OS.debug("v: %s", (char*)v);
+					GET_OS.debug("pv: %s", (char*)p->value);
+					
 					c = strcmp((char*)p->value, (char*)v);
+					
+					//GET_OS.debug("c=%d", (int)c);
+					
 					if(c == 0) {
 						return p;
 					}

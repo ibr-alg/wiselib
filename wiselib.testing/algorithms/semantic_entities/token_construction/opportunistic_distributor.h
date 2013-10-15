@@ -377,6 +377,11 @@ namespace wiselib {
 				// L is the length of the following operator (which starts
 				// with an OID) plus the length of L. the length of L is 1.
 				
+				if(!queries_.contains(qid) && queries_.full()) {
+					GET_OS.fatal("QLIST FULL");
+					return;
+				}
+				
 				QueryDescription &q = queries_[qid];
 				q.init(scope, qid, revision, role, waketime, lifetime, opcount);
 				q.set_operators(oplen, opdata);
@@ -397,14 +402,14 @@ namespace wiselib {
 						p += *p;
 					}
 					
-					debug_->debug("T ltwake1");
+					//debug_->debug("T ltwake1");
 					timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(qid));
 				}
 				
 				try_send();
 				
 				nap_control_->push_caffeine("odwake");
-					debug_->debug("T odwake1");
+					//debug_->debug("T odwake1");
 				timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 			}
 			
@@ -827,7 +832,7 @@ namespace wiselib {
 								//s.set_scope(scope);
 								
 								nap_control_->push_caffeine("odwake");
-								debug_->debug("T odwake ltwake");
+								//debug_->debug("T odwake ltwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(id));
 							}
@@ -879,6 +884,7 @@ namespace wiselib {
 				query_id_t qid = (unsigned long)qid_ & 0xff;
 				debug_->debug("qlt%d", (int)qid);
 				query_processor_->erase_query(qid);
+				queries_.erase(qid);
 			}
 			
 			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
