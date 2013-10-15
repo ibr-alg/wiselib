@@ -117,11 +117,15 @@ namespace wiselib
    iSenseTimerModel<OsModel_P>::
    set_timer( millis_t millis, T *obj_pnt, void *userdata )
    {
+	   if(millis == 0) { millis = 50; }
+	   
       int idx = get_free_timer_item();
       if ( idx < 0 ) {
-	  	GET_OS.fatal("!tq");
+	  	GET_OS.fatal("!tqi");
          return ERR_UNSPEC;
       }
+	  
+	  GET_OS.debug("T %lu", (unsigned long)millis);
 
       isense_timer_callbacks[idx] = iSenseTimerCallback( isense_timer_delegate_t::from_method<T, TMethod>( obj_pnt ) );
       // only return success if task has been added

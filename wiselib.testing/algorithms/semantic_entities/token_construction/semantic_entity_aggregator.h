@@ -89,10 +89,20 @@ namespace wiselib {
 					}
 					
 					bool operator==(const AggregationKey& other) const {
-						return (se_id_ == other.se_id_) &&
+						bool r = (se_id_ == other.se_id_) &&
 							(datatype_ == other.datatype_) &&
 							(uom_key_ == other.uom_key_) &&
 							(type_key_ == other.type_key_);
+						if(!r) {
+							/*
+							GET_OS.debug("Aggr != %lx.%lx %d %lx %lx vs %lx.%lx %d %lx %lx",
+									(unsigned long)se_id_.rule(), (unsigned long)se_id_.value(), (int)datatype_, (unsigned long)uom_key_,
+									(unsigned long)type_key_,
+									(unsigned long)other.se_id_.rule(), (unsigned long)other.se_id_.value(), (int)other.datatype_, (unsigned long)other.uom_key_,
+									(unsigned long)other.type_key_);
+							*/
+						}
+						return r;
 					}
 					
 					void free_dictionary_references(DictionaryT& dict, bool soft=false) {
@@ -228,10 +238,14 @@ namespace wiselib {
 			}
 			
 			void aggregate(const SemanticEntityId& se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
+				if(this == 0) { return; }
+				if(&se_id == 0) { return; }
+				
 				check();
 				AggregationKey k(se_id, sensor_type, uom, datatype);
 				if(aggregation_entries_.contains(k)) {
 					AggregationValue& v = aggregation_entries_[k];
+					if(&v == 0) { return; }
 					v.aggregate(value, datatype);
 				}
 				else {
@@ -379,7 +393,7 @@ namespace wiselib {
 				
 				typename Shdt::Reader reader(&shdt_, buffer, buffer_size);
 				bool done = true;
-				block_data_t *data;
+				block_data_t *data = 0;
 				size_type data_size;
 				typename Shdt::field_id_t field_id = 0;
 				
@@ -391,9 +405,13 @@ namespace wiselib {
 					done = reader.read_field(field_id, data, data_size);
 					//GET_OS.debug("-- fild_id %d done %d data %d", (int)field_id, (int)done, (int)data_size);
 					
-					Value v; // = reinterpret_cast<Value&>(*data);
-					memcpy(&v, data, sizeof(Value));
 					if(!done) { break; }
+					
+					Value v; // = reinterpret_cast<Value&>(*data);
+					//GET_OS.fatal("cp 0x%lx 0x%lx %d f%d", (void*)&v, (void*)data, (int)sizeof(Value), (int)mem->mem_free());
+					memcpy(&v, data, sizeof(Value));
+					//GET_OS.fatal("post cp");
+					
 					switch(field_id) {
 						case FIELD_UOM: {
 							//GET_OS.debug("ins: %s", (char*)data);
@@ -444,6 +462,7 @@ namespace wiselib {
 							assert(read_buffer_key_.type_key() != DictionaryT::NULL_KEY);
 							
 							if(aggregation_entries_.contains(read_buffer_key_)) {
+								//GET_OS.debug("found");
 								// we are going to insert that key again, that
 								// would increase the number of references to
 								// type/uom strings without increasing the
@@ -452,8 +471,16 @@ namespace wiselib {
 								// compensate.
 								read_buffer_key_.free_dictionary_references(dictionary(), true);
 							}
+							else {
+								if(aggregation_entries_.full()) {
+									read_buffer_key_.init();
+									break;
+								}
+							}
 							
+							//GET_OS.debug("[]=");
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
+							//GET_OS.debug("[]= don");
 							//DBG("aggr read_buffer SE %2d.%08lx typedct %8lx uomdct %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
 									//(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
 									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),

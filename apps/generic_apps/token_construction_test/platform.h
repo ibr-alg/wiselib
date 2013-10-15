@@ -38,9 +38,11 @@
 	#define INSE_USE_AGGREGATOR          1
 
 	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
-	#define INSE_FORWARDING_MAP_BITS     128
+	#define INSE_FORWARDING_MAP_BITS     8
 	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
 	#define INSE_START_WAIT              (1)
+	#define INSE_USE_FORWARDING       0
+	#define NAP_CONTROL_ALWAYS_ON          1
 
 #elif APP_EVAL
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -126,7 +128,7 @@
 #elif defined(ISENSE)
 	#define INSE_USE_LINK_METRIC           0
 
-	#define INSE_BCAST_INTERVAL            3000
+	#define INSE_BCAST_INTERVAL            10000
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
@@ -137,7 +139,6 @@
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
 	#define NAP_CONTROL_DEBUG_STATE        0
 	#define NAP_CONTROL_DEBUG_ONOFF        0
-	#define NAP_CONTROL_ALWAYS_ON          1
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
@@ -149,7 +150,7 @@
 	#define INSE_MAX_SEMANTIC_ENTITIES     5
 	#define INSE_MAX_QUERIES               2
 
-	#define INSE_CSMA_MODE                 0
+	#define INSE_CSMA_MODE                 1
 	
 	
 #elif defined(CONTIKI_TARGET_sky)
