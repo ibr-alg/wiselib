@@ -19,7 +19,7 @@
 	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
 
 	#define CHECK_LIGHT_INTERVAL         3000
-#define INSE_CSMA_MODE                 0
+#define INSE_CSMA_MODE                 1
 
 	// In a dark room / in the evening
 
@@ -50,7 +50,7 @@
 	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     512
 	#define INSE_FORWARDING_SLOT_LENGTH  200 * WISELIB_TIME_FACTOR
-	#define INSE_START_WAIT              1 //(5 * 60)
+	#define INSE_START_WAIT              (5 * 60)
 	#define INSE_USE_IAM                 0
 
 #endif
