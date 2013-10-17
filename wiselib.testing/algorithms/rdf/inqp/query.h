@@ -82,7 +82,12 @@ namespace wiselib {
 			
 			template<typename OperatorT>
 			void add_operator(OperatorT* op) {
-				operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
+				if(!operators_.contains(op->id()) && operators_.full()) {
+					GET_OS.fatal("OPS FULL");
+				}
+				else {
+					operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
+				}
 			}
 			
 			template<typename DescriptionT, typename OperatorT>
@@ -92,7 +97,12 @@ namespace wiselib {
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
 				op->init(description, this);
 				//DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
-				operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
+				if(!operators_.contains(bod->id()) && operators_.full()) {
+					GET_OS.fatal("OPS FULL");
+				}
+				else {
+					operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
+				}
 				
 				//DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
 			}

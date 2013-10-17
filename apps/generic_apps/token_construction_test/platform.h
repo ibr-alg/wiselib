@@ -35,7 +35,7 @@
 
 	#define USE_INQP                     1
 	#define USE_STRING_INQUIRY           0
-	#define INSE_USE_AGGREGATOR          1
+	#define INSE_USE_AGGREGATOR          0
 
 	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     8
@@ -43,6 +43,8 @@
 	#define INSE_START_WAIT              (1)
 	#define INSE_USE_FORWARDING       0
 	#define NAP_CONTROL_ALWAYS_ON          1
+	#define INQP_WAKETIME (5000 * WISELIB_TIME_FACTOR)
+	#define INQP_LIFETIME (5000 * WISELIB_TIME_FACTOR)
 
 #elif APP_EVAL
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -119,7 +121,8 @@
 	#define CHECK_INVARIANTS           0
 	#define WISELIB_DISABLE_DEBUG      1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	#define USE_VECTOR_CONTAINER       1
+	#define USE_VECTOR_CONTAINER       0
+	#define USE_LIST_CONTAINER       0
 	#define USE_TREE_DICTIONARY        1
 	#define USE_INQP                   0
 	#define INSE_USE_AGGREGATOR        0
@@ -128,6 +131,7 @@
 #elif defined(ISENSE)
 	#define INSE_USE_LINK_METRIC           0
 
+	#define INSE_BLOOM_FILTER_BITS         8
 	#define INSE_BCAST_INTERVAL            10000
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
 	#define DISTRIBUTOR_DEBUG_STATE        0
@@ -142,7 +146,7 @@
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	#define INSE_DEBUG_WARNING             1
+	#define INSE_DEBUG_WARNING             0
 	
 	#define WISELIB_TIME_FACTOR            1
 	#define INSE_MAX_NEIGHBORS             8

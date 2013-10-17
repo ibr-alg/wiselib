@@ -102,7 +102,12 @@ class App {
 					
 					
 					snprintf(pir_uri_, sizeof(pir_uri_), "<http://spitfire-project.eu/nodes/%08lx/pir>", (unsigned long)radio_.id());
-					data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
+					
+					#if INSE_USE_AGGREGATOR
+						data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
+					#else
+						data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry());
+					#endif
 				#endif
 				insert_tuples();
 			#endif
@@ -156,7 +161,11 @@ class App {
 		#if APP_QUERY && defined(ISENSE)
 			char rdf_uri_[64];
 			char pir_uri_[64];
-			IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, Aggregator> data_provider_;
+			#if INSE_USE_AGGREGATOR
+				IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, Aggregator> data_provider_;
+			#else
+				IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, int> data_provider_;
+			#endif
 		#endif
 			
 			
@@ -395,8 +404,8 @@ class App {
 						SemanticEntityId::all(),
 						qid, 1 /* revision */,
 						Distributor::QUERY,
-						10000 * WISELIB_TIME_FACTOR, // waketime & lifetime
-						10000 * WISELIB_TIME_FACTOR,
+						INQP_WAKETIME,
+						INQP_LIFETIME,
 						opcount,
 						uart_query_pos, uart_query
 				);
@@ -434,6 +443,8 @@ class App {
 		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
 				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
 			*/
+			
+			//debug_->debug("--- ROW Q%d O%d", (int)query_id, (int)operator_id);
 			
 			typedef QueryProcessor::BasicOperator BasicOperator;
 			
@@ -522,14 +533,16 @@ class App {
 				
 				
 				
-				debug_->debug("@%d ====== ag<", (int)radio_.id());
+				//debug_->debug("@%d ====== ag<", (int)radio_.id());
 				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
+					/*
 					debug_->debug("@%d ------ ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
 							(int)radio_.id(), (long)se.id().rule(), (long)se.id().value(),
 						//	(long)iter->first.type_key(), (long)iter->first.uom_key(),
 							(long)iter->first.datatype(),
 							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
 							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
+					*/
 					
 					
 					int len = 35;
@@ -552,7 +565,7 @@ class App {
 					
 					block_data_t *type = ts.dictionary().get_value(iter->first.type_key());
 					h = Hash::hash(type, strlen((char*)type));
-					debug_->debug("h(%s) = %lu", (char*)type, (unsigned long)h);
+					//debug_->debug("h(%s) = %lu", (char*)type, (unsigned long)h);
 					wiselib::write<Os>(msg + 31, h);
 					
 					::uint8_t chk = 0;
@@ -561,7 +574,7 @@ class App {
 					uart_->write(len + 1, msg);
 					
 				}
-				debug_->debug("@%d ====== ag>", (int)radio_.id());
+				//debug_->debug("@%d ====== ag>", (int)radio_.id());
 				
 			}
 			/*
@@ -584,7 +597,7 @@ class App {
 		void distribute_query(void*) {
 			if(radio_.id() != token_construction_.tree().root()) { return; }
 			
-			debug_->debug("@%d distributing query", (int)radio_.id());
+			//debug_->debug("@%d distributing query", (int)radio_.id());
 			
 			// temperature query from ../inqp_test/example_app.cpp,
 			// each operator preceeded with one byte length information,

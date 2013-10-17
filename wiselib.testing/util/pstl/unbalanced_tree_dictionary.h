@@ -52,6 +52,7 @@ namespace wiselib {
 					::uint16_t l = strlen((char*)s) + 1;
 					
 					block_data_t* p = get_allocator().template allocate_array<block_data_t>(l + sizeof(Node)).raw();
+					
 					Node *e = reinterpret_cast<Node*>(p);
 					//e->length = l;
 					e->refcount = 1;
@@ -59,7 +60,7 @@ namespace wiselib {
 					e->childs[0] = 0;
 					e->childs[1] = 0;
 					memcpy(e->value, s, l);
-					GET_OS.debug("f:%d new: %lx %s",(int)mem->mem_free(), (unsigned long)(void*)e->value, (char*)e->value);
+					GET_OS.debug("f:%d new: %lx %s %s",(int)mem->mem_free(), (unsigned long)(void*)e->value,(char*)s, (char*)e->value);
 					return e;
 				}
 				
@@ -133,6 +134,7 @@ namespace wiselib {
 			}
 			
 			key_type insert(mapped_type v) {
+				GET_OS.debug("-- insert: %s", (char*)v);
 				check();
 				
 				int c;
@@ -171,6 +173,7 @@ namespace wiselib {
 			}
 			
 			key_type find(mapped_type v) {
+				GET_OS.debug("-- find: %s", (char*)v);
 				check();
 				
 				int c;
@@ -203,6 +206,8 @@ namespace wiselib {
 					check();
 					return 1;
 				}
+				
+				return 1;
 				
 				GET_OS.debug("ERASE2: %s", (char*)p->value);
 				
@@ -290,16 +295,16 @@ namespace wiselib {
 			 * 
 			 */
 			Node* find_node(mapped_type v, int& c) {
-				GET_OS.debug("--------- this=%lx", (unsigned long)(void*)this);
+				GET_OS.debug("-- find_node: %s", (char*)v);
 				assert(v != 0);
 				c = 0;
 				Node *p = root_, *prev = root_;
 				while(p) {
 					assert(p->value != 0);
 					
-					GET_OS.debug("pv: %lx v: %lx p: %lx", (unsigned long)(void*)p->value, (unsigned long)(void*)v, (unsigned long)(void*)p);
+					//GET_OS.debug("pv: %lx v: %lx p: %lx", (unsigned long)(void*)p->value, (unsigned long)(void*)v, (unsigned long)(void*)p);
 					//GET_OS.debug("v: %s", (char*)v);
-					GET_OS.debug("pv: %s", (char*)p->value);
+					//GET_OS.debug("pv: %s", (char*)p->value);
 					
 					c = strcmp((char*)p->value, (char*)v);
 					

@@ -445,6 +445,8 @@ namespace wiselib {
 			iterator insert(UserTuple& t) {
 				Tuple tmp;
 				
+				GET_OS.debug("TS ins (%s %s %s) %d/%d", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2), (int)container_->size(), (int)container_->capacity());
+				
 				for(size_type i=0; i<COLUMNS; i++) {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						typename Dictionary::key_type k = dictionary_->insert(t.get(i));
@@ -464,9 +466,11 @@ namespace wiselib {
 					// to insert a new one.
 					for(size_type i=0; i<COLUMNS; i++) {
 						if(DICTIONARY_COLUMNS & (1 << i)) {
+							GET_OS.debug("erase tmp %d", (int)i);
 							dictionary_->erase(tmp.get_key(i));
 						}
 						else {
+							GET_OS.debug("free deep tmp %d", (int)i);
 							tmp.free_deep(i);
 						}
 					}
@@ -754,6 +758,10 @@ namespace wiselib {
 				TupleStore_detail::deep_copy<COLUMNS>(tmp, t);
 				
 				typename TupleContainer::size_type sz = container_->size();
+				
+				GET_OS.debug("TS ins %d/%d", (int)container_->size(), (int)container_->capacity());
+				
+				
 				ContainerIterator ci = container_->insert(t);
 				if(container_->size() == sz) {
 					tmp.destruct_deep();

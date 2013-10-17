@@ -118,7 +118,7 @@ namespace wiselib {
 					int type = this->child(Base::CHILD_LEFT).result_type(col);
 					int c = compare_values(type, row[col], v);
 					
-					DBG("col%d row[col]%08lx vidx%d v%08lx",
+					GET_OS.debug("col%d row[col]%08lx vidx%d v%08lx",
 							(int)col, (long)row[col], (int)value_index, (long)v);
 					
 					if(!again) { col++; }

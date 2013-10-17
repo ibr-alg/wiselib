@@ -380,7 +380,7 @@ namespace wiselib {
 			}
 			
 			Query* create_query(query_id_t qid) {
-				GET_OS.fatal("f:%d", (int)mem->mem_free());
+				GET_OS.fatal("creat %d f:%d", (int)qid, (int)mem->mem_free());
 				
 				Query *q = ::get_allocator().template allocate<Query>().raw();
 				GET_OS.fatal("-1 f:%d", (int)mem->mem_free());
@@ -394,19 +394,23 @@ namespace wiselib {
 				for(typename Queries::iterator it  = queries_.begin(); it != queries_.end(); ++it) {
 					GET_OS.fatal("got q %d", (int)it->first);
 				}
+				GET_OS.fatal("[%d] = ...", (int)qid);
 				queries_[qid] = q;
 				return q;
 			}
 			
 			void add_query(query_id_t qid, Query* query) {
 				if(queries_.size() >= queries_.capacity()) {
-					assert(false && "queries full, clean them up from time to time!");
+					//assert(false && "queries full, clean them up from time to time!");
+					GET_OS.fatal("Qs FULL");
 				}
-				queries_[qid] = query;
+				else {
+					queries_[qid] = query;
+				}
 			}
 			
 			void erase_query(query_id_t qid) {
-				//DBG("del qry %d", (int)qid);
+				GET_OS.fatal("del qry %d", (int)qid);
 				if(queries_.contains(qid)) {
 					queries_[qid]->destruct();
 					::get_allocator().free(queries_[qid]);

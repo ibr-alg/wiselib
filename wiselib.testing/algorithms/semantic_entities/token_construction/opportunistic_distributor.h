@@ -137,7 +137,7 @@ namespace wiselib {
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			
 			enum Restrictions {
-				OPERATOR_BUFFER_SIZE = 64,
+				OPERATOR_BUFFER_SIZE = 512,
 				MAX_QUERIES = INSE_MAX_QUERIES,
 				MAX_NEIGHBORS = Neighborhood::MAX_NEIGHBORS
 			};
@@ -196,11 +196,19 @@ namespace wiselib {
 					
 					void set_operators(::uint8_t oplen, block_data_t* opdata) {
 						assert(oplen <= OPERATOR_BUFFER_SIZE);
+						if(oplen > OPERATOR_BUFFER_SIZE) {
+							GET_OS.fatal("ops too long!");
+							return;
+						}
 						memcpy(operator_buffer_, opdata, oplen);
 						operator_buffer_size_ = oplen;
 					}
 					::uint8_t push_operator(::uint8_t pos, ::uint8_t len, block_data_t *data) {
 						assert(pos + len <= OPERATOR_BUFFER_SIZE);
+						if(pos + len > OPERATOR_BUFFER_SIZE) {
+							GET_OS.fatal("ops too long!");
+							return -1;
+						}
 						memcpy(operator_buffer_ + pos, data, len);
 						operator_buffer_size_ += len;
 						return pos + len;
@@ -856,7 +864,10 @@ namespace wiselib {
 												(int)*p);
 									#endif
 									int n = end - p;
-									if(n > 255) { n = 255; }
+									if(n > 255) {
+										GET_OS.fatal("CUT OP");
+										n = 255;
+									}
 									memcpy(buf, p, n);
 									// TODO: possible alignment problem here?
 									// --> fixed with buf-copy

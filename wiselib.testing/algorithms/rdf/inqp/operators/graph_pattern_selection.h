@@ -80,7 +80,7 @@ namespace wiselib {
 			}
 			
 			void execute(TupleStoreT& ts) {
-				//DBG("GPS execute");
+				GET_OS.debug("gps x cols %d", (int)this->projection_info().columns());
 				typedef typename TupleStoreT::TupleContainer Container;
 				typedef typename Container::iterator Citer;
 				
@@ -88,7 +88,7 @@ namespace wiselib {
 				
 				//DBG("gps begin");
 				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
-					//DBG("gps (%lx %lx %lx)", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
+					DBG("gps (%lx %lx %lx)", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
 					
 					bool match = true;
 					size_type row_idx = 0;
@@ -121,13 +121,13 @@ namespace wiselib {
 							case ProjectionInfoBase::FLOAT: {
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
-								DBG("gps %d col %d FLOAT \"%s\" %f", (int)this->id_, i, s, f);
+								GET_OS.debug("gps %d col %d FLOAT \"%s\" %f", (int)this->id_, i, s, f);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
 								this->dictionary().free_value(s);
 								break;
 							}
 							case ProjectionInfoBase::STRING:
-								DBG("gps %d col %d STRING", (int)this->id_, i);
+								DBG("gps %d col %d STRING rowidx %d h=%lx", (int)this->id_, i, (int)row_idx, (unsigned long)v);
 								(*row)[row_idx++] = v;
 								this->reverse_translator().offer(iter->get_key(i), v);
 								break;

@@ -415,7 +415,8 @@ namespace wiselib {
 					switch(field_id) {
 						case FIELD_UOM: {
 							//GET_OS.debug("ins: %s", (char*)data);
-							typename DictionaryT::key_type k = dictionary().insert(data);
+							//typename DictionaryT::key_type k = dictionary().insert(data);
+							typename DictionaryT::key_type k = dictionary().find(data);
 							//GET_OS.debug("ins done");
 							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_uom_key(k);
@@ -423,7 +424,8 @@ namespace wiselib {
 						}
 						case FIELD_TYPE: {
 							//GET_OS.debug("ins2: %s", (char*)data);
-							typename DictionaryT::key_type k = dictionary().insert(data);
+							//typename DictionaryT::key_type k = dictionary().insert(data);
+							typename DictionaryT::key_type k = dictionary().find(data);
 							//GET_OS.debug("ins2 done");
 							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_type_key(k);
@@ -469,7 +471,7 @@ namespace wiselib {
 								// number of keys that reference it.
 								// Thus, free one set of references here to
 								// compensate.
-								read_buffer_key_.free_dictionary_references(dictionary(), true);
+								//read_buffer_key_.free_dictionary_references(dictionary(), true);
 							}
 							else {
 								if(aggregation_entries_.full()) {

@@ -67,6 +67,9 @@ namespace wiselib {
 			
 			void init(typename Dictionary::self_pointer_t dict) {
 				dictionary_ = dict;
+				for(int i = 0; i<MAX_SIZE; i++) {
+					lookup_table_[i] = KeyHashPair();
+				}
 			}
 			
 			hash_t translate(dict_key_t dict_key) {
@@ -78,7 +81,8 @@ namespace wiselib {
 					p.hash() = Hash::hash(s, strlen((char*)s));
 					
 				#if ISENSE
-					GET_OS.debug("h(%s) = %08lx %d %d %d %d",
+					GET_OS.debug("dt h(k=%lx->%s) = %08lx %d %d %d %d",
+							(unsigned long)p.dict_key(),
 							reinterpret_cast<char*>(s),
 							(unsigned long)p.hash(),
 							(int)((p.hash() >> 24) & 0xff),

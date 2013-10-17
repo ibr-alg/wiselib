@@ -76,7 +76,7 @@ namespace wiselib {
 			/**
 			 * @me assumed to be long-lived.
 			 */
-			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg, Aggregator *agg) {
+			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg, Aggregator *agg = 0) {
 				sensor_ = sensor;
 				tuple_store_ = ts;
 				registry_ = reg;
@@ -144,6 +144,7 @@ namespace wiselib {
 			///@}
 		
 			void update_aggregate() {
+				#if INSE_USE_AGGREGATOR
 				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
 					float f = (float)(int)value_;
 					Value v = *reinterpret_cast<Value*>(&f);
@@ -152,10 +153,10 @@ namespace wiselib {
 						aggregator_->release(rit->first, 1);
 					}
 				}
+				#endif
 			}
 			
 			void update(bool value) {
-				/*
 				value_ = value;
 				//GET_OS.debug("PIR %d me=%lx hv=%lx 0=%lx", (int)value, (unsigned long)(void*)uri_me_, (unsigned long)(void*)(uri_has_value_), (unsigned long)(const void*)"0");
 				Tuple t;
@@ -179,9 +180,9 @@ namespace wiselib {
 				//GET_OS.debug("pr");
 					
 				t.set(uri_me_, uri_has_value_, value ? "1" : "0");
+				GET_OS.debug("PIR +(%s %s %s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
 				//GET_OS.debug("pri %lx %lx %lx", (unsigned long)(void*)t.get(0), (unsigned long)(void*)t.get(1), (unsigned long)(void*)t.get(2));
 				tuple_store_->insert(t);
-			*/
 				//GET_OS.debug("/sens");
 			}
 			
