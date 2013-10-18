@@ -520,8 +520,8 @@ class App {
 				token_construction_.add_entity(light_se);
 			}
 			
-			if(light_on) { leds_on(LEDS_BLUE); }
-			else { leds_off(LEDS_BLUE); }
+			if(light_on) { leds_on(LEDS_GREEN); }
+			else { leds_off(LEDS_GREEN); }
 			
 			timer_->set_timer<App, &App::check_light>(CHECK_LIGHT_INTERVAL, this, 0);
 		}

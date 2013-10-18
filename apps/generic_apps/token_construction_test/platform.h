@@ -28,8 +28,8 @@
 
 	// Daytime / sunlight
 
-	#define LIGHT_ON                     400
-	#define LIGHT_OFF                    350
+	#define LIGHT_ON                     260
+	#define LIGHT_OFF                    180
 
 
 	#define LIGHT_ALPHA                  50
