@@ -310,7 +310,7 @@ namespace wiselib {
 				}
 				
 				#if CONTIKI_TARGET_sky
-					leds_off(LEDS_GREEN);
+					leds_off(LEDS_BLUE);
 				#endif
 				
 				transport_.unregister_endpoint(se_id, true);
@@ -1144,7 +1144,7 @@ namespace wiselib {
 				#ifdef ARDUINO
 					digitalWrite(13, HIGH);
 				#elif CONTIKI_TARGET_sky
-					leds_on(LEDS_GREEN);
+					leds_on(LEDS_BLUE);
 				#endif
 				
 				#if !WISELIB_DISABLE_DEBUG
@@ -1289,7 +1289,7 @@ namespace wiselib {
 				#ifdef ARDUINO
 					digitalWrite(13, LOW);
 				#elif CONTIKI_TARGET_sky
-					leds_off(LEDS_GREEN);
+					leds_off(LEDS_BLUE);
 				#endif
 			}
 			
