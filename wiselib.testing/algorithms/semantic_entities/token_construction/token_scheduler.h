@@ -431,6 +431,7 @@ namespace wiselib {
 					#if INSE_DEBUG_STATE
 						debug_->debug("ho tree");
 					#endif
+						se.set_token_send_start(now());
 						initiate_handover(se, false); // tree has changed, (re-)send token info
 					}
 				} // for
@@ -567,8 +568,13 @@ namespace wiselib {
 						msg.set_cycle_window(se->activating_token_window());
 						msg.set_token_state(se->token());
 						msg.set_source(radio_->id());
-						msg.set_sourcetime(now());
+						//msg.set_sourcetime(se->token_send_start()); //now());
 						message.set_payload_size(msg.size());
+						abs_millis_t delay = 0;
+						if(se->token_send_start()) {
+							delay = now() - se->token_send_start();
+						}
+						message.set_delay(delay);
 						transport_.expect_answer(endpoint);
 						
 					#if INSE_DEBUG_STATE
@@ -1115,10 +1121,12 @@ namespace wiselib {
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
 					//#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
-						debug_->debug("@%lu tok S%x.%x w%lu i%lu t%lu e%d c%d,%d r%d",
+						debug_->debug("@%lu tok S%x.%x w%lu i%lu t%lu tr%lu d%lu e%d c%d,%d r%d",
 								(unsigned long)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
-								(unsigned long)now(), (int)se.activating_token_early(), (int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()));
+								(unsigned long)now(), (unsigned long)t_recv, (unsigned long)delay,
+								(int)se.activating_token_early(),
+								(int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()));
 					//#endif
 						
 					begin_activity(se);
@@ -1169,8 +1177,23 @@ namespace wiselib {
 							(int)se.in_activity_phase());
 				#endif
 				
+				
+				// when to hand over the token?
+				
+				abs_millis_t activity = (radio_->id() == tree().root()) ? ACTIVITY_PERIOD_ROOT : ACTIVITY_PERIOD;
+				abs_millis_t delta = 0;
+				
+			#if INSE_COMPENSATE_DELAYS	
+				abs_millis_t n = now();
+				if(se.token_received() + activity > n) {
+					delta = se.token_received() + activity - n;
+				}
+			#else 
+				delta = activity;
+			#endif
+				
 				timer_->template set_timer<self_type, &self_type::end_activity>(
-						(radio_->id() == tree().root()) ? ACTIVITY_PERIOD_ROOT : ACTIVITY_PERIOD,
+						delta,
 						this, reinterpret_cast<void*>(&se));
 			}
 			
@@ -1275,6 +1298,7 @@ namespace wiselib {
 				nap_control_.pop_caffeine("/act");
 				nap_control_.push_caffeine("ho_endact");
 				
+				se.set_token_send_start(now());
 				initiate_handover(se, true);
 				se.end_wait_for_activating_token();
 				

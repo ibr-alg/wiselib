@@ -398,8 +398,8 @@ namespace wiselib {
 			abs_millis_t token_received_;
 			SemanticEntityId id_;
 			TokenState token_;
-			int main_handover_phase_;
 			typename GlobalTreeT::self_pointer_t global_tree_;
+			::uint8_t main_handover_phase_;
 			::uint8_t handover_state_initiator_;
 			::uint8_t handover_state_recepient_;
 			::uint8_t activity_phase_ : 1;
