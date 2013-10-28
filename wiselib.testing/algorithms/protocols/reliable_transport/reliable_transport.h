@@ -787,7 +787,8 @@ namespace wiselib {
 				v = loose_precision_cast<void*>(ack_timer_);
 				
 				if(addr != radio_->id() && addr != NULL_NODE_ID) {
-					sending_.set_delay(now() - send_start_);
+					sending_.set_delay(sending_.delay() + now() - send_start_);
+					send_start_ = now();
 					
 					#if !WISELIB_DISABLE_DEBUG
 						debug_->debug("%d t %d s %d a %d // to %d send idx %d i %d f 0x%x", (int)radio_->id(), (int)now(), (int)sending_.sequence_number(), (int)sending_.is_ack(), (int)addr, (int)sending_channel_idx_, (int)sending_.initiator(), (int)sending_.flags());

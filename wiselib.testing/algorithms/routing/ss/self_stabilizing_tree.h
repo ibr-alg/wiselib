@@ -631,7 +631,6 @@ namespace wiselib {
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
 					
 					
-					/*
 					debug_->debug("@%lu bc %lu w%lu i%lu t%lu e%d",
 							(unsigned long)radio_->id(),
 							(unsigned long)addr,
@@ -639,7 +638,6 @@ namespace wiselib {
 							(unsigned long)event.interval(),
 							(unsigned long)now(),
 							(int)event.early());
-					*/
 				}
 				return r;
 			}
@@ -704,7 +702,6 @@ namespace wiselib {
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
 					
-					/*
 					debug_->debug("@%lu bc %lu w%lu i%lu t%lu e%d",
 							(unsigned long)radio_->id(),
 							(unsigned long)addr,
@@ -712,7 +709,6 @@ namespace wiselib {
 							(unsigned long)event.interval(),
 							(unsigned long)now(),
 							(int)event.early());
-					*/
 				}
 				return ne;
 			}

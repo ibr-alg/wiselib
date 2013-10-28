@@ -4,12 +4,14 @@
 
 // App features / modes
 
-#define APP_BLINK 1
-#define APP_EVAL  0
+#define APP_BLINK 0
+#define APP_EVAL  1
 #define APP_QUERY 0
 
 #define INSE_CSMA_MODE                 1
-#define NAP_CONTROL_ALWAYS_ON          0
+#define NAP_CONTROL_ALWAYS_ON          1
+
+#define INSE_COMPENSATE_DELAYS         1
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
@@ -50,6 +52,7 @@
 	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     512
 	#define INSE_FORWARDING_SLOT_LENGTH  200 * WISELIB_TIME_FACTOR
+	#define INSE_FORWARDING_MIN_WINSLOTS 5
 	#define INSE_START_WAIT              (5 * 60)
 	#define INSE_USE_IAM                 0
 
@@ -164,12 +167,12 @@
 	#define INSE_DEBUG_TREE                0
 	#define INSE_ANYCAST_DEBUG_STATE       0
 	#define INSE_ROW_COLLECTOR_DEBUG_STATE 0
-	#define NAP_CONTROL_DEBUG_STATE        0
-	#define NAP_CONTROL_DEBUG_ONOFF        0
+	#define NAP_CONTROL_DEBUG_STATE        1
+	#define NAP_CONTROL_DEBUG_ONOFF        1
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	#define INSE_DEBUG_WARNING             0
+	#define INSE_DEBUG_WARNING             1
 
 
 	#define WISELIB_TIME_FACTOR            1

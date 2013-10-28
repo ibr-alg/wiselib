@@ -407,11 +407,11 @@ namespace wiselib {
 					size_type winslots = (cycle_window + slot_length_ - 1) / slot_length_;
 					if(winslots < MIN_WINSLOTS) { winslots = MIN_WINSLOTS; }
 					
-					#if INSE_DEBUG_FORWARDING || INSE_DEBUG_STATE
+					//#if INSE_DEBUG_FORWARDING || INSE_DEBUG_STATE
 						debug_->debug("@%lu fwd l t%lu cyc%d cyc/l=%d cur=%d/%d w%d ws%d",
 							(unsigned long)radio_->id(), (unsigned long)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
 							(int)cycle_window, (int)winslots);
-					#endif
+					//#endif
 					
 					schedule_wakeup(pos, winslots);
 				}
