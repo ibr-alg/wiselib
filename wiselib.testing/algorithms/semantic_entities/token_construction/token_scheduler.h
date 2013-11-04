@@ -794,7 +794,7 @@ namespace wiselib {
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
 						#if INSE_DEBUG_WARNING
-							debug_->debug("@%lu abrt%d %lu t%lu m%d",
+							debug_->debug("@%lu itabrt%d %lu t%lu m%d",
 									(unsigned long)radio_->id(),
 									(int)se->handover_state_initiator(),
 									(unsigned long)endpoint.remote_address(),
@@ -1045,6 +1045,16 @@ namespace wiselib {
 				#endif
 				
 				switch(event) {
+					case ReliableTransportT::EVENT_ABORT:
+							debug_->debug("@%lu rtabrt%d %lu t%lu m%d",
+									(unsigned long)radio_->id(),
+									(int)se->handover_state_recepient(),
+									(unsigned long)endpoint.remote_address(),
+									(unsigned long)now(),
+									(int)(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING)
+							);
+							break;
+							
 					case ReliableTransportT::EVENT_OPEN:
 						#if !WISELIB_DISABLE_DEBUG
 							debug_->debug("node %d // push handover_connection_r", (int)radio_->id());

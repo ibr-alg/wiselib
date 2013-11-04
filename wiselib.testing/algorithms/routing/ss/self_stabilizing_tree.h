@@ -617,7 +617,7 @@ namespace wiselib {
 					new_neighbors_ = true;
 					
 					
-					//debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m, (unsigned long)now());
+					debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)addr, (unsigned long)m, (unsigned long)now());
 					
 					
 					notify_event(NEW_NEIGHBOR, addr);
@@ -664,12 +664,12 @@ namespace wiselib {
 				
 				if(stable_now > stable_before) {
 					new_neighbors_ = true;
-					//debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
+					debug_->debug("@%lu N+ %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
 					notify_event(NEW_NEIGHBOR, it->address_);
 				}
 				else if(stable_now < stable_before) {
 					lost_neighbors_ = true;
-					//debug_->debug("@%lu N- %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
+					debug_->debug("@%lu N- %lu m%lu t%lu", (unsigned long)radio_->id(), (unsigned long)it->address_, (unsigned long)m, (unsigned long)now());
 					notify_event(LOST_NEIGHBOR, it->address_);
 					erase_regular_broadcast(it->address_);
 				}
@@ -876,10 +876,10 @@ namespace wiselib {
 				}
 				
 				if(c || updated_neighbors_) {
-					#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
+				//	#if (INSE_DEBUG_STATE || INSE_DEBUG_TOPOLOGY || INSE_DEBUG_TREE)
 						debug_->debug("@%lu p%lu d%d rt%lu c%d t%lu nn%d ln%d",
 									(unsigned long)radio_->id(), (unsigned long)parent, (int)distance, (unsigned long)root, (int)c, (unsigned long)now(), (int)new_neighbors_, (int)lost_neighbors_); //(int)(now() % 65536)/*, hex*/);
-					#endif
+				//	#endif
 						
 					notify_event(UPDATED_STATE, previous_parent);
 					

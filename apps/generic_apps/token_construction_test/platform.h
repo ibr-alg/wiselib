@@ -8,7 +8,7 @@
 #define APP_EVAL  1
 #define APP_QUERY 0
 
-#define INSE_CSMA_MODE                 1
+#define INSE_CSMA_MODE                 0
 #define NAP_CONTROL_ALWAYS_ON          1
 
 #define INSE_COMPENSATE_DELAYS         1
