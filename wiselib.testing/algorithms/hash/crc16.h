@@ -43,7 +43,6 @@ namespace wiselib {
 			
 			static hash_t hash(const block_data_t *s, size_type l) {
 				const hash_t mask = 0xa001;
-				::uint8_t b;
 				
 				hash_t crc = 0xffff;
 				const block_data_t *end = s + l;
