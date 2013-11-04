@@ -23,7 +23,8 @@
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
 
-#include <algorithms/protocols/reliable_transport/reliable_transport.h>
+//#include <algorithms/protocols/reliable_transport/reliable_transport.h>
+#include <algorithms/protocols/reliable_transport/one_at_a_time_reliable_transport.h>
 #include <algorithms/routing/ss/self_stabilizing_tree.h>
 #include <algorithms/bloom_filter/bloom_filter.h>
 
@@ -107,7 +108,8 @@ namespace wiselib {
 			typedef NapControl<OsModel, Radio> NapControlT;
 			typedef BloomFilter<OsModel, SemanticEntityId, BLOOM_FILTER_BITS> AmqT;
 			typedef SelfStabilizingTree<OsModel, AmqT, Radio, Clock, Timer, Debug, NapControlT, MAX_NEIGHBORS, MAX_SSTREE_LISTENERS> GlobalTreeT;
-			typedef ReliableTransport<OsModel, SemanticEntityId, GlobalTreeT, Radio, Timer, Clock, Rand, Debug, MAX_SEMANTIC_ENTITIES * 2, INSE_MESSAGE_TYPE_TOKEN_RELIABLE> ReliableTransportT;
+			//typedef ReliableTransport<OsModel, SemanticEntityId, GlobalTreeT, Radio, Timer, Clock, Rand, Debug, MAX_SEMANTIC_ENTITIES * 2, INSE_MESSAGE_TYPE_TOKEN_RELIABLE> ReliableTransportT;
+			typedef OneAtATimeReliableTransport<OsModel, SemanticEntityId, GlobalTreeT, Radio, Timer, Clock, Rand, Debug, MAX_SEMANTIC_ENTITIES * 2, INSE_MESSAGE_TYPE_TOKEN_RELIABLE> ReliableTransportT;
 			typedef SemanticEntity<OsModel, GlobalTreeT, Radio, Clock, Timer, MAX_NEIGHBORS> SemanticEntityT;
 			typedef SemanticEntityRegistry<OsModel, SemanticEntityT, GlobalTreeT, MAX_SEMANTIC_ENTITIES> SemanticEntityRegistryT;
 			typedef SemanticEntityAmqNeighborhood<OsModel, GlobalTreeT, AmqT, SemanticEntityRegistryT, Radio> SemanticEntityNeighborhoodT;
@@ -499,7 +501,7 @@ namespace wiselib {
 				if(found &&
 						(ep.remote_address() != NULL_NODE_ID) &&
 						(ep.remote_address() != radio_->id()) &&
-						(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id())) &&
+						(!transport_.is_sending() || (transport_.sending_endpoint().channel() != se.id())) &&
 						(transport_.open(ep, true) == SUCCESS)
 				) {
 				#if INSE_DEBUG_STATE
@@ -518,8 +520,8 @@ namespace wiselib {
 					nap_control_.pop_caffeine("/ho");
 				#if INSE_DEBUG_STATE
 					debug_->debug("/ho via %lu m%d f%d is%d ch%d cond%d", (unsigned long)(ep.remote_address()), (int)main,
-							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_endpoint().channel() != se.id()),
-							(int)(transport_.is_sending() <= (transport_.sending_endpoint().channel() != se.id()))
+							(int)found, (int)transport_.is_sending(), (int)(transport_.sending_channel() != se.id()),
+							(int)(!transport_.is_sending() || (transport_.sending_endpoint().channel() != se.id()))
 							);
 				#endif
 					
