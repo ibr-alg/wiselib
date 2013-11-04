@@ -168,12 +168,17 @@ namespace wiselib {
 				// if reliable transport packet we should forward:
 				//   forward it by se_id using amq
 				node_id_t target = amq_nhood_->forward_address(se_id, from, msg.initiator() != msg.is_ack());
+				
+				//#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
+					if(msg.initiator() != msg.is_ack()) {
+						debug_->debug("@%lu fwd %lu > %lu s%lu f%x", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)target, (unsigned long)msg.sequence_number(), (int)msg.flags());
+					}
+					else {
+						debug_->debug("@%lu fwd %lu < %lu s%lu f%x", (unsigned long)radio_->id(), (unsigned long)target, (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags());
+					}
+				//#endif
+						
 				if(target == NULL_NODE_ID) {
-					DBG("node %d SE %lx.%lx // forwarding ignores s %d fwd %d cidx %d from %lu",
-							(int)radio_->id(), (long)se_id.rule(), (long)se_id.value(),
-							(int)msg.sequence_number(), (int)(msg.initiator() != msg.is_ack()),
-							(int)amq_nhood_->tree().child_index(from), (unsigned long)from
-							);
 					return true;
 				}
 				
@@ -181,15 +186,6 @@ namespace wiselib {
 					return false;
 				}
 				else {
-					#if INSE_DEBUG_STATE || INSE_DEBUG_FORWARDING
-						if(msg.initiator() != msg.is_ack()) {
-							debug_->debug("@%lu fwd %lu > %lu s%lu f%x", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)target, (unsigned long)msg.sequence_number(), (int)msg.flags());
-						}
-						else {
-							debug_->debug("@%lu fwd %lu < %lu s%lu f%x", (unsigned long)radio_->id(), (unsigned long)target, (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags());
-						}
-					#endif
-					
 					if(msg.is_open() && msg.initiator() && !msg.is_ack() && !msg.is_supplementary()) {
 						TokenStateMessageT &m = *reinterpret_cast<TokenStateMessageT*>(msg.payload());
 						learn_token(m);
@@ -201,10 +197,12 @@ namespace wiselib {
 					// upwards?
 					// 
 					#if INSE_DEBUG_FORWARDING
+					/*
 						debug_->debug("@%lu fwd %lu>%lu p%lu i%d a%d l %d *m=%x",
 								(unsigned long)radio_->id(), (unsigned long)from, (unsigned long)target,
 								(unsigned long)amq_nhood_->tree().parent(), (int)msg.initiator(), (int)msg.is_ack(),
 								(int)msg.payload_size(), (msg.payload_size() == 0) ? (int)0 : (int)*msg.payload());
+				*/
 					#endif
 						
 				#if INSE_USE_IAM
@@ -408,9 +406,11 @@ namespace wiselib {
 					if(winslots < MIN_WINSLOTS) { winslots = MIN_WINSLOTS; }
 					
 					//#if INSE_DEBUG_FORWARDING || INSE_DEBUG_STATE
+					/*
 						debug_->debug("@%lu fwd l t%lu cyc%d cyc/l=%d cur=%d/%d w%d ws%d",
 							(unsigned long)radio_->id(), (unsigned long)now(), (int)cycle_time, (int)(cycle_time / slot_length_), current_slot(), (int)map_slots_,
 							(int)cycle_window, (int)winslots);
+					*/
 					//#endif
 					
 					schedule_wakeup(pos, winslots);
