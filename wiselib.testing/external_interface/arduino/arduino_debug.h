@@ -76,7 +76,9 @@ namespace wiselib
 
       ::Serial.println( buffer );
       
+      #if !defined(WISELIB_ARDUINO_DEBUG_NO_DELAY)
       delay(50);
+      #endif
       
       if(serialEventRun) { serialEventRun(); }
    }

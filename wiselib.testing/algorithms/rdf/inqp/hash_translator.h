@@ -109,12 +109,12 @@ namespace wiselib {
 					p.hash() = hash;
 					p.dict_key() = key;
 					
-					block_data_t *s = dictionary_->get_value(key);
-					dictionary_->free_value(s);
+					//block_data_t *s = dictionary_->get_value(key);
+					//dictionary_->free_value(s);
 				}
 				else {
-					block_data_t *s = dictionary_->get_value(key);
-					dictionary_->free_value(s);
+					//block_data_t *s = dictionary_->get_value(key);
+					//dictionary_->free_value(s);
 				}
 			}
 			

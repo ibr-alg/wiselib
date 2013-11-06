@@ -98,10 +98,10 @@ namespace wiselib {
 					for(size_type i = 0; i < Processor::TupleStoreT::COLUMNS; i++) {
 						
 						if(affected_[i]) {
-							t.set(i, (block_data_t*)this->processor().reverse_translator().translate(values_[i]));
+							t.set_key(i, this->processor().reverse_translator().translate(values_[i]));
 						}
 						else {
-							t.set(i, (block_data_t*)this->processor().reverse_translator().translate(row[j++]));
+							t.set_key(i, this->processor().reverse_translator().translate(row[j++]));
 						}
 					}
 					

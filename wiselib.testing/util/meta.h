@@ -162,6 +162,8 @@ template<> struct Uint<2> { typedef ::uint16_t t; };
 template<> struct Uint<4> { typedef ::uint32_t t; };
 template<> struct Uint<8> { typedef ::uint64_t t; };
 
+typedef Uint<sizeof(void*)>::t Uvoid ;
+
 template<int N_> struct Sint { };
 template<> struct Sint<1> { typedef ::int8_t t; };
 template<> struct Sint<2> { typedef ::int16_t t; };
@@ -173,10 +175,8 @@ template<> struct Sint<8> { typedef ::int64_t t; };
  *
  */
 template<typename T>
-//struct AsUint {
-//	typedef typename Uint<sizeof(T)>::t t;
-	typename Uint<sizeof(T)>::t as_uint(T& src) { return *reinterpret_cast<typename Uint<sizeof(T)>::t*>(&src); }
-//};
+typename Uint<sizeof(T)>::t as_uint(const T& src) { return *reinterpret_cast<const typename Uint<sizeof(T)>::t*>(&src); }
+
 
 template<int N_ >
 struct UintWithAtLeastBits {

@@ -87,7 +87,6 @@ namespace wiselib
                return MAX_RECEIVERS+i;
             }
          }
-
          return -1;
       }
       // --------------------------------------------------------------------

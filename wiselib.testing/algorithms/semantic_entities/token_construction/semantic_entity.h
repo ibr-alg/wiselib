@@ -22,7 +22,7 @@
 
 #include <util/pstl/vector_static.h>
 //#include <util/pstl/map_static_vector.h>
-#include <util/pstl/algorithm.h>
+//#include <util/pstl/algorithm.h>
 #include <util/serialization/serialization.h>
 
 #include "regular_event.h"
@@ -102,6 +102,12 @@ namespace wiselib {
 				CLOSE = 16
 			};
 			
+			enum MainHandoverPhase {
+				PHASE_INIT = 0x01,
+				PHASE_PENDING = 0x02,
+				PHASE_EXECUTING = 0x03
+			};
+			
 			//}}}
 			
 			/**
@@ -124,24 +130,37 @@ namespace wiselib {
 				// }}}
 			};
 			
-			SemanticEntity() : global_tree_(0) {
+			SemanticEntity() : global_tree_(0), main_handover_phase_(PHASE_INIT), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
+				token_received_ = 0;
 			}
 			
-			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), initiating_main_handover_(false) {
+			SemanticEntity(typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), global_tree_(t), /*initiating_main_handover_(false),*/ recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
+				token_received_ = 0;
 			}
 			
-			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), initiating_main_handover_(false) {
+			SemanticEntity(const SemanticEntityId& id, typename GlobalTreeT::self_pointer_t t) : activity_phase_(false), sending_token_(false), handover_state_initiator_(0), handover_state_recepient_(0), id_(id), global_tree_(t), /*initiating_main_handover_(false),*/ recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);
+				token_received_ = 0;
 			}
 			
 			SemanticEntity(const SemanticEntity& other) {
 				*this = other;
 			}
+			
+			void destruct() {
+				activating_token_.cancel();
+			}
+			
+			void set_token_received(abs_millis_t r) { token_received_ = r; }
+			abs_millis_t token_received() { return token_received_; }
+			
+			int main_handover_phase() { return main_handover_phase_; }
+			void set_main_handover_phase(int p) { main_handover_phase_ = p; }
 			
 			/**
 			 * @return true iff the entity is currently in an activity phase.
@@ -194,10 +213,10 @@ namespace wiselib {
 				token_count_t l = prev_token_state_.count();
 				//DBG("node %d l=%d is_root=%d root=%d tok.count=%d", (int)mynodeid, (int)l, (int)is_root(mynodeid), (int)tree().root(), (int)token().count());
 				if(is_root(mynodeid)) {
-					return l >= token().count();
+					return l == token().count();
 				}
 				else {
-					return l > token().count();
+					return l != token().count();
 				}
 			}
 			
@@ -220,6 +239,10 @@ namespace wiselib {
 					token().set_count(l);
 				}
 			}
+			
+			
+			bool recovering() { return recovering_; }
+			void set_recovering(bool r) { recovering_ = r; }
 			
 			/**
 			 * @return true iff this node is currently root of the SE tree.
@@ -258,8 +281,8 @@ namespace wiselib {
 				cancel_timers(neighbor);
 			}
 			
-			bool initiating_main_handover() { return initiating_main_handover_; }
-			void set_initiating_main_handover(bool i) { initiating_main_handover_ = i; }
+			//bool initiating_main_handover() { return initiating_main_handover_; }
+			//void set_initiating_main_handover(bool i) { initiating_main_handover_ = i; }
 			
 			///@name Timing
 			///@{
@@ -287,6 +310,10 @@ namespace wiselib {
 			}
 			abs_millis_t activating_token_interval() {
 				return activating_token_.interval();
+			}
+			
+			bool activating_token_early() {
+				return activating_token_.early();
 			}
 			
 			
@@ -368,14 +395,17 @@ namespace wiselib {
 			TokenState prev_token_state_; // just the token value of previous
 			//Childs childs_;
 			abs_millis_t token_send_start_;
+			abs_millis_t token_received_;
 			SemanticEntityId id_;
 			TokenState token_;
 			typename GlobalTreeT::self_pointer_t global_tree_;
+			::uint8_t main_handover_phase_;
 			::uint8_t handover_state_initiator_;
 			::uint8_t handover_state_recepient_;
 			::uint8_t activity_phase_ : 1;
 			::uint8_t sending_token_ : 1;
-			::uint8_t initiating_main_handover_ : 1;
+			//::uint8_t initiating_main_handover_ : 1;
+			::uint8_t recovering_ : 1;
 			
 	}; // SemanticEntity
 	

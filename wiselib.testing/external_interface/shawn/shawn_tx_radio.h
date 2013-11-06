@@ -22,6 +22,7 @@
 #include "external_interface/shawn/shawn_types.h"
 #include <cmath>
 #include <cstdio>
+#include <util/base_classes/radio_base.h>
 
 namespace wiselib
 {
@@ -31,7 +32,7 @@ namespace wiselib
    * OSA implementation of the \ref radio_concept "Radio concept" ...
    */
    template<typename OsModel_P>
-   class ShawnTxRadioModel
+   class ShawnTxRadioModel : public RadioBase<OsModel_P, ExtIfaceProcessor::node_id_t, ExtIfaceProcessor::size_t, ExtIfaceProcessor::block_data_t>
    {
    public:
       typedef OsModel_P OsModel;
@@ -44,6 +45,7 @@ namespace wiselib
       typedef ExtIfaceProcessor::size_t size_t;
       typedef ExtIfaceProcessor::message_id_t message_id_t;
       typedef ExtIfaceProcessor::ExtendedData ExtendedData;
+      typedef RadioBase<OsModel_P, node_id_t, size_t, block_data_t> Base;
 
       typedef delegate3<void, int, long, unsigned char*> radio_delegate_t;
       // --------------------------------------------------------------------
@@ -67,19 +69,24 @@ namespace wiselib
       // --------------------------------------------------------------------
       ShawnTxRadioModel( ShawnOs& os )
          : os_(os)
-      {}
+      {
+         enabled_ = true;
+         os.proc->template reg_recv_callback<self_type, &self_type::on_receive>(this);
+      }
       // --------------------------------------------------------------------
       int send( node_id_t id, size_t len, block_data_t *data )
       {
+         if(!enabled_) { return ERR_UNSPEC; }
+         //printf("@%lu => %lu l%u m%x\n", (unsigned long)os().proc->id(), (unsigned long)id, (unsigned)len, (unsigned)(len ? data[0] : 0));
          os().proc->send_wiselib_message( id, len, data );
          return SUCCESS;
       };
       // --------------------------------------------------------------------
       int enable_radio()
-      { return SUCCESS; }
+      { enabled_ = true; return SUCCESS; }
       // --------------------------------------------------------------------
       int disable_radio()
-      { return SUCCESS; }
+      { enabled_ = false; return SUCCESS; }
       // --------------------------------------------------------------------
       node_id_t id()
       {
@@ -94,7 +101,7 @@ namespace wiselib
       template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*)>
       int reg_recv_callback( T *obj_pnt )
       {
-         return os().proc->template reg_recv_callback<T, TMethod>( obj_pnt );
+         return Base::template reg_recv_callback<T, TMethod>( obj_pnt );
       }
       //-------------------------------------------------------
       template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*, ExtendedData const &)>
@@ -110,12 +117,20 @@ namespace wiselib
       // --------------------------------------------------------------------
       int unreg_recv_callback( int idx )
       { return ERR_NOTIMPL; }
+      
+      void on_receive(node_id_t from, size_t size, block_data_t* data) {
+         if(enabled_) {
+            printf("@%lu <= %lu\n", (unsigned long)os().proc->id(), (unsigned long)from);
+            this->notify_receivers(from, size, data);
+         }
+      }
 
    private:
       ShawnOs& os()
       { return os_; }
       // --------------------------------------------------------------------
       ShawnOs& os_;
+      bool enabled_;
    };
    // --------------------------------------------------------------------
    /** \brief Shawn Implementation of \ref txpower_concept "TxPower Concept"

@@ -57,6 +57,7 @@ namespace wiselib
          if (os().proc->template set_timeout<T, TMethod>( millis, obj_pnt, userdata ))
             return SUCCESS;
 
+		 assert(false);
          return ERR_UNSPEC;
       }
 

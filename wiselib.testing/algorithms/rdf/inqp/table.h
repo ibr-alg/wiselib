@@ -109,41 +109,63 @@ namespace wiselib {
 					size_type row_size_;
 			};
 			
+			Table() : row_size_(0), capacity_(0), size_(0), buffer_(0) {
+			}
+			
 			void init(size_type columns) {
 				row_size_ = columns * sizeof(typename RowT::Value);
 				capacity_ = 0;
 				size_ = 0;
 				buffer_ = 0;
+				check();
+			}
+			
+			/**
+			 * Can be called without prior call to init().
+			 */
+			void destruct() {
+				//DBG("table destr");
+				clear();
+				//DBG("table destr end");
 			}
 			
 			void insert(const RowT& row) {
+				check();
 				if(size_ >= capacity_) {
 					grow();
 				}
 				memcpy(buffer_ + size_ * row_size_, &row, row_size_);
 				size_++;
+				check();
 			}
 			
 			iterator begin() {
+				check();
 				return iterator(buffer_, row_size_);
 			}
 			
 			iterator end() {
+				check();
 				return iterator(buffer_ + size_ * row_size_, row_size_);
 			}
 			
 			void pack() {
+				check();
 				change_capacity(size_);
+				check();
 			}
 			
 			RowT& operator[](size_type n) {
+				check();
 				return *reinterpret_cast<RowT*>(
 						buffer_ + n * row_size_
 				);
 			}
 			
 			void set(size_type i, const RowT& row) {
+				check();
 				memcpy(buffer_ + i * row_size_, &row, row_size_);
+				check();
 			}
 			
 			size_type size() { return size_; }
@@ -155,10 +177,14 @@ namespace wiselib {
 			
 			template<typename Compare>
 			void sort(Compare& comp) {
+				check();
 				heap_sort(begin(), end(), comp);
+				check();
 			}
 			
 			void pop_back() {
+				check();
+				
 				if(size_ > 0) {
 					size_--;
 				}
@@ -166,6 +192,12 @@ namespace wiselib {
 				if(size_ < (capacity_ / 4)) {
 					shrink();
 				}
+				
+				check();
+			}
+			
+			void check() {
+				assert(row_size_ > 0);
 			}
 			
 		private:
@@ -189,13 +221,17 @@ namespace wiselib {
 			}
 			
 			void change_capacity(size_type n) {
+				assert((row_size_ == 0) <= (n == 0));
+				
 				block_data_t *new_buffer = 0;
 				if(n > 0) {
 					new_buffer = get_allocator().template allocate_array<block_data_t>(n * row_size_).raw();
 				}
 				if(buffer_) {
-					memcpy(new_buffer, buffer_, size_ * row_size_);
-					get_allocator().free_array(buffer_);
+					if(new_buffer) {
+						memcpy(new_buffer, buffer_, size_ * row_size_);
+					}
+					::get_allocator().free_array(buffer_);
 					buffer_ = 0;
 				}
 				buffer_ = new_buffer;

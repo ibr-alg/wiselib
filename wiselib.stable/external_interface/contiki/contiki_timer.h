@@ -19,12 +19,16 @@
 #ifndef CONNECTOR_CONTIKI_TIMER_H
 #define CONNECTOR_CONTIKI_TIMER_H
 
+#include "project-conf.h"
 #include "external_interface/contiki/contiki_types.h"
 #include "util/delegates/delegate.hpp"
+
+#include <stdio.h>
 
 extern "C" {
 #include "contiki.h"
 #include "sys/etimer.h"
+#include "sys/clock.h"
 }
 
 namespace wiselib
@@ -86,18 +90,20 @@ namespace wiselib
    ContikiTimer<OsModel_P>::
    set_timer( millis_t millis, T *obj_pnt, void *userdata )
    {
-      uint16_t secs = millis >> 10;
-      if (secs == 0)
-         secs = 1;
+      //uint16_t secs = millis >> 10;
+      //if (secs == 0)
+         //secs = 1;
       timer_item *item = get_timer_item_ref();
       if ( !item )
          return ERR_UNSPEC;
       item->p = PROCESS_CURRENT();
       item->cb = contiki_timer_delegate_t::from_method<T, TMethod>( obj_pnt );
       item->ptr = userdata;
+	  
+	  //printf("T(%lu+%lu)\n", (unsigned long)(millis),(unsigned long)(clock_time() * 1000.0 / CLOCK_SECOND));
 
       PROCESS_CONTEXT_BEGIN( &timer_process );
-      etimer_set( &item->etimer, CLOCK_SECOND * secs );
+      etimer_set( &item->etimer, millis * (CLOCK_SECOND / 1000.0)); //CLOCK_SECOND * secs );
       PROCESS_CONTEXT_END( &timer_process );
 
       return SUCCESS;

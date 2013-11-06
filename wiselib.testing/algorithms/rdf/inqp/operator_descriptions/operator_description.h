@@ -51,6 +51,7 @@ namespace wiselib {
 				SELECTION = 's',
 				SIMPLE_LOCAL_JOIN = 'j',
 				COLLECT = 'c',
+				CONSTRUCTION_RULE = 'R',
 				CONSTRUCT = 'C',
 				AGGREGATE = 'a',
 				DELETE = 'D',

@@ -128,7 +128,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       ///@name Operations
       ///@{
-      iterator find( const key_type& k )
+      iterator find( const key_type& k ) const
       {
          for ( iterator it = this->begin(); it != this->end(); ++it )
          {
@@ -179,11 +179,8 @@ namespace wiselib
       ///@}
       
       
-      bool contains (const key_type& k ){
-      iterator it = find(k);
-         if ( it != this->end() )
-         return true;
-         else return false;
+      bool contains (const key_type& k ) const {
+         return find(k) != this->end();
       }
 
    private:

@@ -97,13 +97,11 @@ namespace wiselib {
 			typedef typename Neighborhood::Neighbor Neighbor;
 			
 			enum MessageType {
-				MESSAGE_ID_OPERATOR,
-				MESSAGE_ID_QUERY,
+				MESSAGE_ID_OPERATOR = 'O',
+				MESSAGE_ID_QUERY = 'Q',
 				MESSAGE_ID_INTERMEDIATE_RESULT,
 				MESSAGE_ID_RESOLVE_HASHVALUE
 			};
-			
-			enum { MAX_QUERIES = 8 };
 			
 			typedef typename QueryProcessor::CommunicationType CommunicationType;
 			typedef QueryMessage<OsModel, QueryRadio, Query> QMessage;
@@ -118,9 +116,13 @@ namespace wiselib {
 				ian_->template reg_row_callback<self_type, &self_type::on_send_row>(this);
 				ian_->template reg_resolve_callback<self_type, &self_type::on_send_resolve>(this);
 				
+            // TODO: Receive messages from parent that
+            // are for a SE we know reliably
 				query_radio_->enable_radio();
 				query_radio_->template reg_recv_callback<self_type, &self_type::on_receive_query>(this);
 				
+            // TODO: Wait for parent to wake up if necessary, do a reliable
+            // transport upwards
 				result_radio_->enable_radio();
 				result_radio_->template reg_recv_callback<self_type, &self_type::on_receive_intermediate_result>(this);
 			}
@@ -129,7 +131,7 @@ namespace wiselib {
 				sink_id_ = sink;
 			}
 			
-			void on_send_row(CommunicationType type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
+			void on_send_row(int type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
 				block_data_t buf[ResultRadio::MAX_MESSAGE_LENGTH];
 				ResultMessage *message = reinterpret_cast<ResultMessage*>(buf);
 				message->set_message_id(MESSAGE_ID_INTERMEDIATE_RESULT);
@@ -142,19 +144,27 @@ namespace wiselib {
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
+						//DBG("srow sink");
+						//Serial.println("inqp send result");
 						result_radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
 					}
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
+						//Serial.println("inqp send aggre");
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 						if(ni == nd_->neighbors_end()) {
-							DBG("Want to aggregate but my ND doesnt know a parent! me=%d", result_radio_->id());
+						//Serial.println("inqp send aggr no parent");
+							DBG("com aggr no nd par me%d", (int)result_radio_->id());
 						}
 						else {
+						//DBG("srow aggr %d", (int)ni->id());
+						//Serial.println("inqp send aggr send");
 							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						}
 						break;
 					}
+					case QueryProcessor::COMMUNICATION_TYPE_CONSTRUCTION_RULE:
+						break;
 				} // switch
 			} // on_send_row()
 			
@@ -174,6 +184,10 @@ namespace wiselib {
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
+				DBG("recv query");
+				
+				//Serial.println("recv query");
+				
 				packet->from = from;
 				packet->len = len;
 				memcpy(data, buf, len);
@@ -189,6 +203,9 @@ namespace wiselib {
 				
 				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
+				
+				//Serial.println("recv result");
+				DBG("recv result");
 				
 				packet->from = from;
 				packet->len = len;
@@ -235,6 +252,7 @@ namespace wiselib {
 						DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
 						break;
 				}
+				::get_allocator().free(packet->data);
 				::get_allocator().free(packet);
 			} // on_receive_query
 			
@@ -248,12 +266,14 @@ namespace wiselib {
 				
 				switch(msg->message_id()) {
 					case MESSAGE_ID_INTERMEDIATE_RESULT:
-						ian_->handle_intermediate_result(msg, packet->from, packet->len);
+						ian_->handle_intermediate_result(msg, packet->from); //, packet->len);
 						break;
 					default:
 						DBG("unexpected message id: %d", msg->message_id());
 						break;
 				}
+				::get_allocator().free(packet->data);
+				::get_allocator().free(packet);
 			}
 				
 			QueryProcessor *ian_;
@@ -268,3 +288,4 @@ namespace wiselib {
 
 #endif // COMMUNICATOR_H
 
+/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/

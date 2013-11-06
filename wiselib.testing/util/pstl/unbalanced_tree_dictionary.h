@@ -99,6 +99,8 @@ namespace wiselib {
 						if(node_->parent) {
 							bool right;
 							do {
+								if(!node_->parent) { node_ = 0; return *this; }
+								
 								right = (node_ == node_->parent->childs[Node::RIGHT]);
 								node_ = node_->parent;
 							} while(right);
@@ -217,12 +219,21 @@ namespace wiselib {
 						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
 						p->parent->childs[child_idx] = s;
 					}
+					/*
 					if(p->childs[!successor_side]) { p->childs[!successor_side]->parent = s; }
 					if(p->childs[successor_side]) { p->childs[successor_side]->parent = s; }
+					*/
+					if(p->childs[0]) { p->childs[0]->parent = s; }
+					if(p->childs[1]) { p->childs[1]->parent = s; }
 					
 					s->parent = p->parent;
+					
+					/*
 					s->childs[!successor_side] = p->childs[!successor_side];
 					s->childs[successor_side] = p->childs[successor_side];
+					*/
+					s->childs[0] = p->childs[0];
+					s->childs[1] = p->childs[1];
 				}
 				
 				get_allocator().free_array(
@@ -275,7 +286,6 @@ namespace wiselib {
 				while(p) {
 					assert(p->value != 0);
 					
-					//DBG("strcmp(%lx, %lx, %lx)", (long int)(void*)p, (long int)(void*)p->value, (long int)(void*)v);
 					c = strcmp((char*)p->value, (char*)v);
 					if(c == 0) {
 						return p;

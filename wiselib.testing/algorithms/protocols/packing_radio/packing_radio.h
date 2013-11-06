@@ -78,14 +78,14 @@ namespace wiselib {
 			};
 			
 			enum {
-				TIMER_INTERVAL = 1000
+				TIMER_INTERVAL = 100 * WISELIB_TIME_FACTOR
 			};
 			
 			int init(Radio& radio, Debug& debug) {
 				radio_ = &radio;
 				debug_ = &debug;
 				timer_ = 0;
-				timer_set_ = false;
+				//timer_set_ = false;
 				packer_.init(buffer_ + sizeof(message_id_t), Radio::MAX_MESSAGE_LENGTH - sizeof(message_id_t));
 				message_id_t msg_id = MESSAGE_ID;
 				wiselib::write<OsModel, block_data_t, message_id_t>(buffer_, msg_id);
@@ -111,6 +111,7 @@ namespace wiselib {
 			node_id_t id() { return radio_->id(); }
 			
 			void send(node_id_t receiver, size_t size, block_data_t* data) {
+				//debug_->debug("@%d prad snd l %d", (int)radio_->radio().id(), (int)size);
 				assert(size <= MAX_MESSAGE_LENGTH);
 				
 				if(receiver != current_receiver_) {
@@ -124,19 +125,24 @@ namespace wiselib {
 					fit = packer_.append(size, data);
 					assert(fit);
 				}
-				else if(!timer_set_) {
-					timer_set_ = true;
-				}
+				//else if(!timer_set_) {
+					//timer_set_ = true;
+				//}
 				
 				current_receiver_ = receiver;
 			}
 			
 			void flush() {
 				if(!buffer_virgin()) {
+					//debug_->debug("@%d prad flsh l %d", (int)radio_->radio().id(),
+							//(int)(sizeof(message_id_t) + packer_.size()));
+					
 					radio_->send(current_receiver_, sizeof(message_id_t) + packer_.size(), buffer_);
 					packer_.clear();
 				}
 			}
+			
+			Radio& radio() { return *radio_; }
 			
 		private:
 			
@@ -148,6 +154,8 @@ namespace wiselib {
 			bool buffer_virgin() { return packer_.empty(); }
 		
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
+				//debug_->debug("@%d prad recv", (int)radio_->radio().id());
+				
 				typedef typename Packer::length_t length_t;
 				
 				message_id_t msg_id = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -165,8 +173,11 @@ namespace wiselib {
 					cont = p.next(len, d);
 					if(!cont) { break; }
 					
+					//DBG("unpkg");
+					//debug_->debug("@%d prad recv unpkg", (int)radio_->radio().id());
 					base_type::notify_receivers(from, len, d);
 				}
+					//DBG("unpkg don");
 				
 				/*
 				
@@ -189,7 +200,7 @@ namespace wiselib {
 			node_id_t current_receiver_;
 			Packer packer_;
 			block_data_t buffer_[Radio::MAX_MESSAGE_LENGTH];
-			bool timer_set_;
+			//bool timer_set_;
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
 			typename Timer::self_pointer_t timer_;

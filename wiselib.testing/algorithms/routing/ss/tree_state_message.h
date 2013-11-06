@@ -61,7 +61,9 @@ namespace wiselib {
 				POS_MESSAGE_ID = 0,
 				POS_REASON = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_TREE_STATE = POS_REASON + sizeof(reason_t),
-				POS_USER_DATA = POS_TREE_STATE + sizeof(TreeStateT),
+				
+				// make userdata aligned to multiple of 4
+				POS_USER_DATA = 4 * DivCeil<POS_TREE_STATE + sizeof(TreeStateT), 4>::value,
 				POS_END = POS_USER_DATA + sizeof(UserData)
 			};
 			
@@ -71,7 +73,7 @@ namespace wiselib {
 			};
 			
 			enum {
-				MESSAGE_TYPE = 't',
+				MESSAGE_TYPE = INSE_MESSAGE_TYPE_TREE_STATE,
 			};
 			
 			void init() {
@@ -99,15 +101,17 @@ namespace wiselib {
 			}
 			
 			void set_tree_state(TreeStateT& tree_state) {
-				wiselib::write<OsModel>(data_ + POS_TREE_STATE, tree_state);
+				wiselib::write<OsModel, block_data_t, TreeStateT>(data_ + POS_TREE_STATE, tree_state);
 			}
 			
-			UserData user_data() {
-				return wiselib::read<OsModel, block_data_t, UserData>(data_ + POS_USER_DATA);
+			UserData& user_data() {
+				//return wiselib::read<OsModel, block_data_t, UserData>(data_ + POS_USER_DATA);
+				return *reinterpret_cast<UserData*>(data_ + POS_USER_DATA);
 			}
 			
-			void set_user_data(UserData& user_data) {
-				wiselib::write<OsModel>(data_ + POS_USER_DATA, user_data);
+			void set_user_data(UserData& ud) {
+				//wiselib::write<OsModel>(data_ + POS_USER_DATA, user_data);
+				user_data() = ud;
 			}
 			
 			block_data_t* data() {
