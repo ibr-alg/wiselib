@@ -31,6 +31,7 @@ namespace wiselib
    class vector_static
    {
    public:
+      typedef OsModel_P OsModel;
       typedef Value_P value_type;
       typedef value_type* pointer;
       typedef const value_type* const_pointer;

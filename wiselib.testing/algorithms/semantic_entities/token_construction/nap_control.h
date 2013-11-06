@@ -20,6 +20,17 @@
 #ifndef NAP_CONTROL_H
 #define NAP_CONTROL_H
 
+#if defined(CONTIKI)
+	#include <contiki.h>
+	#include <netstack.h>
+#endif
+
+#if CONTIKI_TARGET_sky
+extern "C" {
+	#include <dev/leds.h>
+}
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -50,7 +61,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Radio_P,
-		typename Debug_P = typename OsModel_P::Debug
+		typename Debug_P = typename OsModel_P::Debug,
+		typename Clock_P = typename OsModel_P::Clock
 	>
 	class NapControl {
 		public:
@@ -62,13 +74,17 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef Radio_P Radio;
 			typedef Debug_P Debug;
+			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
+			typedef ::uint32_t abs_millis_t;
 			
 			NapControl() : caffeine_(0), radio_(0), debug_(0) {
 			}
 			
-			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug) {
+			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug, typename Clock::self_pointer_t clock) {
 				radio_ = radio;
 				debug_ = debug;
+				clock_ = clock;
 				caffeine_ = 0;
 			}
 			
@@ -78,36 +94,78 @@ namespace wiselib {
 			
 			/**
 			 */
-			void push_caffeine(void* = 0) {
+			void push_caffeine(const char *s = "") {
 				if(caffeine_ == 0) {
-					debug_->debug("node %d on 1", (int)radio_->id());
+					
+					#if defined(CONTIKI)
+						NETSTACK_RDC.on();
+					#endif
+					
 					radio_->enable_radio();
+					#if CONTIKI_TARGET_sky
+						leds_on(LEDS_RED);
+					#endif
+						
+					#if NAP_CONTROL_DEBUG_STATE
+						debug_->debug("@%lu on t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); // (int)radio_->id());
+					#elif NAP_CONTROL_DEBUG_ONOFF
+						debug_->debug("@%lu on t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); // (int)radio_->id());
+					#endif
 				}
 				caffeine_++;
+				
+				#if NAP_CONTROL_DEBUG_STATE
+					debug_->debug("@%lu caf%lu %s", (unsigned long)radio_->id(), (unsigned long)caffeine_, s);
+				#endif
 				#if !WISELIB_DISABLE_DEBUG
-				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
+					debug_->debug("node %lu caffeine %lu", (unsigned long)radio_->id(), (unsigned long)caffeine_);
 				#endif
 			}
 			
 			/**
 			 */
-			void pop_caffeine(void* = 0) {
+			void pop_caffeine(const char *s = "") {
 				assert(caffeine_ > 0);
 				caffeine_--;
 				#if !WISELIB_DISABLE_DEBUG
-				debug_->debug("node %d caffeine %d", (int)radio_->id(), (int)caffeine_);
+				debug_->debug("node %lu caffeine %lu", (unsigned long)radio_->id(), (unsigned long)caffeine_);
 				#endif
 				
+				#if NAP_CONTROL_DEBUG_STATE
+					debug_->debug("@%lu caf%lu %s", (unsigned long)radio_->id(), (unsigned long)caffeine_, s);
+				#endif
 				if(caffeine_ == 0) {
-					debug_->debug("node %d on 0", (int)radio_->id());
-					radio_->disable_radio();
+					#if !NAP_CONTROL_ALWAYS_ON
+						#if defined(CONTIKI)
+							NETSTACK_RDC.off(false);
+						#endif
+						radio_->disable_radio();
+						#if CONTIKI_TARGET_sky
+							leds_off(LEDS_RED);
+						#endif
+					#endif
+							
+					#if NAP_CONTROL_DEBUG_STATE
+						debug_->debug("@%lu off t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); //, (int)radio_->id());
+					#elif NAP_CONTROL_DEBUG_ONOFF
+						debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
+					#endif
 				}
 			}
 		
 		private:
+			abs_millis_t absolute_millis(const time_t& t) {
+				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
+			}
+			
+			abs_millis_t now() {
+				return absolute_millis(clock_->time());
+			}
+			
 			size_type caffeine_;
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
+			typename Clock::self_pointer_t clock_;
 		
 	}; // NapControl
 }

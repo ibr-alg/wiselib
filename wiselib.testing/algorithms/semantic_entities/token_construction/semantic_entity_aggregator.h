@@ -152,7 +152,23 @@ namespace wiselib {
 								if(v < min()) { min() = v; }
 								if(v > max()) { max() = v; }
 								++count();
-								mean() += (v - mean()) / count();
+								//DBG("aggr mean m %ld v %ld c %ld (v-m) %ld (v-m)/c %ld",
+										//(long)mean(), (long)v, (long)count(),
+										//(long)((long long)v - (long long)mean()), (long)(((long long)v - (long long)mean()) / (long long)count()));
+								mean() += ((long long)v - (long long)mean()) / (long long)count();
+							}
+							else if(datatype == FLOAT) {
+								float fv = *reinterpret_cast<float*>(&v);
+								float fmean = *reinterpret_cast<float*>(&mean());
+								float fmin = *reinterpret_cast<float*>(&min());
+								float fmax = *reinterpret_cast<float*>(&max());
+								
+								if(fv < fmin) { fmin = fv; }
+								if(fv > fmax) { fmax = fv; }
+								++count();
+								
+								float fmean2 = (fv - fmean) / count();
+								mean() = *reinterpret_cast<Value*>(&fmean2);
 							}
 							else {
 								assert(false && "datatype not supported for aggregation!");
@@ -199,12 +215,13 @@ namespace wiselib {
 			
 			void init(typename TupleStoreT::self_pointer_t ts) { //, const char* entity_format) {
 				tuple_store_ = ts;
-				shdt_.set_table_size(8);
+				shdt_.set_table_size(MAX_SHDT_TABLE_SIZE);
 				lock_ = SemanticEntityId::invalid();
 				//entity_format_ = entity_format;
 			}
 			
 			void aggregate(const SemanticEntityId& se_id, Value sensor_type, Value uom, Value value, ::uint8_t datatype) {
+				check();
 				AggregationKey k(se_id, sensor_type, uom, datatype);
 				if(aggregation_entries_.contains(k)) {
 					AggregationValue& v = aggregation_entries_[k];
@@ -221,7 +238,11 @@ namespace wiselib {
 			 */
 			void set_totals(const SemanticEntityId& se_id) {
 				for(iterator iter = begin(); iter != end(); ++iter) {
-					if(iter->first.se_id() != se_id) { continue; }
+					if(iter->first.se_id() != se_id) {
+						//DBG("set_totals: %lx.%lx != %lx.%lx", (long)iter->first.se_id().rule(), (long)iter->first.se_id().value(),
+								//(long)se_id.rule(), (long)se_id.value());
+						continue;
+					}
 					iter->second.set_totals();
 				}
 			}
@@ -235,6 +256,7 @@ namespace wiselib {
 			 * @return number of bytes written
 			 */
 			size_type fill_buffer_start(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
+				check();
 				shdt_.reset();
 				fill_buffer_iterator_ = aggregation_entries_.begin();
 				fill_buffer_state_ = FIELD_UOM;
@@ -245,6 +267,7 @@ namespace wiselib {
 			/// ditto.
 			size_type fill_buffer(const SemanticEntityId& se_id, block_data_t* buffer, size_type buffer_size, bool& call_again) {
 				//{{{
+				check();
 				
 				if(fill_buffer_iterator_ == aggregation_entries_.end()) {
 					call_again = false;
@@ -322,6 +345,7 @@ namespace wiselib {
 			/**
 			 */
 			void read_buffer_start(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
+				check();
 				shdt_.reset();
 				
 				typename AggregationEntries::iterator iter = aggregation_entries_.begin();
@@ -340,6 +364,8 @@ namespace wiselib {
 			 */
 			void read_buffer(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
 				//{{{
+				
+				check();
 				
 				typename Shdt::Reader reader(&shdt_, buffer, buffer_size);
 				bool done = true;
@@ -413,7 +439,7 @@ namespace wiselib {
 							}
 							
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
-							//DBG("aggr read_buffer SE %2d.%08lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
+							//DBG("aggr read_buffer SE %2d.%08lx typedct %8lx uomdct %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
 									//(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
 									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
 									//(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
@@ -458,10 +484,14 @@ namespace wiselib {
 				}
 			}
 			
+			void check() {
+				assert(tuple_store_ != 0);
+			}
+			
 		private:
 			
 			int fill_buffer_state_;
-			const char* entity_format_;
+			//const char* entity_format_;
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			AggregationEntries aggregation_entries_;
 			typename AggregationEntries::iterator fill_buffer_iterator_;

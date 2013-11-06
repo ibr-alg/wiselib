@@ -71,11 +71,13 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum
       {
-         CLOCKS_PER_SEC = 1000
+         CLOCKS_PER_SEC = CLOCK_SECOND
       };
       // --------------------------------------------------------------------
       ContikiClockModel(  )
-      {}
+      {
+         clock_init();
+      }
       // --------------------------------------------------------------------
       void init()
       {}
@@ -103,12 +105,13 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return (uint16_t)(time - int(time)) * 1000;
+         return ((time % CLOCKS_PER_SEC) * 1000.0) / CLOCKS_PER_SEC;
+            //(uint16_t)(time - int(time)) * 1000;
       }
       // --------------------------------------------------------------------
       uint32_t seconds( time_t time )
       {
-         return CLOCK_SECOND;
+         return clock_seconds();
       }
 
    private:

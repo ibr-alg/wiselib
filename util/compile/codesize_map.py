@@ -15,8 +15,8 @@ def read_map(fn):
 	f = open(fn)
 	
 	it = iter(f.readlines())
-	while it.next() != "Linker script and memory map\n":
-		pass
+#	while it.next() != "Linker script and memory map\n":
+#		pass
 	
 	#it.next()
 	

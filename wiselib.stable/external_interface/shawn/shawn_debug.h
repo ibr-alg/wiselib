@@ -50,6 +50,7 @@ namespace wiselib
       {
          va_list fmtargs;
          char buffer[1024];
+		 memset(buffer, 0, 1024);
          va_start( fmtargs, msg );
          vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
          va_end( fmtargs );

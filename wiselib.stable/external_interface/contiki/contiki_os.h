@@ -19,6 +19,8 @@
 #ifndef __CONNECTOR_CONTIKI_OS_MODEL_H__
 #define __CONNECTOR_CONTIKI_OS_MODEL_H__
 
+#include "project-conf.h"
+
 #include "external_interface/default_return_values.h"
 #include "external_interface/contiki/contiki_timer.h"
 #include "external_interface/contiki/contiki_radio.h"

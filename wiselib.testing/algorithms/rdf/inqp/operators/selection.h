@@ -64,6 +64,7 @@ namespace wiselib {
 			void init(SD *ad, Query *query) {
 				Base::init(ad, query);
 				hardcore_cast(this->push_, &self_type::push);
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				selection_columns_logical_ = ad->selection_columns();
 				selection_criteria_ = ::get_allocator().template allocate_array< ::uint8_t>(selection_columns_logical_).raw();
@@ -104,7 +105,7 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("selection row %08lx %08lx", (long)row[0], (long)row[1]);
+				DBG("sel row %08lx %08lx", (long)row[0], (long)row[1]);
 				
 				bool match = true;
 				size_type col = 0;
@@ -117,7 +118,7 @@ namespace wiselib {
 					int type = this->child(Base::CHILD_LEFT).result_type(col);
 					int c = compare_values(type, row[col], v);
 					
-					DBG("col=%d row[col]=%08lx vidx=%d v=%08lx",
+					DBG("col%d row[col]%08lx vidx%d v%08lx",
 							(int)col, (long)row[col], (int)value_index, (long)v);
 					
 					if(!again) { col++; }
@@ -126,14 +127,14 @@ namespace wiselib {
 							((criterion & SD::LT) && c < 0) ||
 							((criterion & SD::GT) && c > 0) ||
 							(criterion == SD::IGNORE))) {
-						DBG("criterion=%d c=%d", (int)criterion, (int)c);
+						DBG("crit%d c%d", (int)criterion, (int)c);
 						match = false;
 						break;
 					}
 				}
 				
 				if(match) {
-					DBG("------> selection row %08lx %08lx", (long)row[0], (long)row[1]);
+					//DBG("------> selection row %08lx %08lx", (long)row[0], (long)row[1]);
 					this->parent().push(row);
 				}
 				

@@ -16,6 +16,7 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
+#include "project-conf.h"
 #include "external_interface/contiki/contiki_radio.h"
 #include "external_interface/contiki/contiki_os.h"
 #include <string.h>

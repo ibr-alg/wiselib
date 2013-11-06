@@ -60,6 +60,8 @@ namespace wiselib {
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
 			void init(SLJD *sljd, Query *query) {
 				Base::init(reinterpret_cast<OperatorDescription<OsModel, Processor>* >(sljd), query);
+				//this->destruct_ = reinterpret_cast<typename Base::my_destruct_t>(&self_type::destruct);
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				left_column_ = sljd->left_column();
 				right_column_ = sljd->right_column();
@@ -67,8 +69,23 @@ namespace wiselib {
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
 				post_inited_ = false;
+				
+				if(left_column_ == SLJD::LEFT_COLUMN_INVALID && right_column_ == SLJD::RIGHT_COLUMN_INVALID) {
+					DBG("cross join");
+				}
+				else {
+					DBG("slj %d %d", (int)left_column_, (int)right_column_);
+				}
+				
+				left_ = 0;
+				right_ = 0;
 			}
 			#pragma GCC diagnostic pop
+			
+			void destruct() {
+				//DBG("sle destr");
+				table_.destruct();
+			}
 			
 			void post_init() {
 				if(!post_inited_) {
@@ -83,9 +100,13 @@ namespace wiselib {
 				
 				if(&row) {
 					if(port == Base::CHILD_LEFT) {
+						DBG("SLJl %d", (int)this->id_);
+						left_++;
 						table_.insert(row);
 					}
 					else {
+						right_++;
+						DBG("SLJr %d", (int)this->id_);
 						ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);
 						ProjectionInfo<OsModel>& r = this->child(Base::CHILD_RIGHT);
 						
@@ -143,6 +164,9 @@ namespace wiselib {
 					} // else port = left
 				} // if row
 				else if(port == Base::CHILD_RIGHT) {
+					DBG("slj %d push l %d r %d", (int)this->id_, (int)left_, (int)right_);
+					left_ = 0;
+					right_ = 0;
 					table_.clear();
 					this->parent().push(row);
 				}
@@ -155,6 +179,7 @@ namespace wiselib {
 			uint8_t right_column_;
 			bool post_inited_;
 			TableT table_;
+			int left_, right_;
 		
 	}; // SimpleLocalJoin
 }

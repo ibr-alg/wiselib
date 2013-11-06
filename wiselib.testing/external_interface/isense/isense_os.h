@@ -48,7 +48,7 @@
 
 
 #if (WISELIB_DISABLE_DEBUG_MESSAGES || WISELIB_DISABLE_DEBUG)
-	#define DBG(...)
+   #define DBG(...)
 #else
    #include <isense/util/get_os.h>
 	#define _WHERESTR "...%s:%d: "

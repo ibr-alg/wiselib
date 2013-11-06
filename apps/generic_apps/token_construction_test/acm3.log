@@ -1,0 +1,429 @@
+------------------
+port: /dev/ttyACM3 @ 9600
+address: auto
+template: auto
+firmware: None
+nodetype: arduino
+------------------
+noa
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+nover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noÿhello, world
+
+boot 2
+
+node 2 on 1
+node 2 on 0
+node 2 on 1
+free: 3655 // r1
+free: 3595 // r2
+free: 3541 // r3
+free: 3363 // init end
+Trcv
+NN: 3
+Trcv
+NN: 1
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 3
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 3
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+ehrO
+chr
+phr
+ehiO
+handover via 1
+Trcv
+pl0
+chr
+ehrC
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+Trcv
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+Trcv
+ehrO
+chr
+Trcv
+noans
+ehiA
+ehiC
+phr
+ehiO
+handover via 1
+noans
+ehrA
+ehrC
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+Trcv
+Trcv
+noans
+ehiA
+ehiC
+ehiO
+handover via 1
+phi
+Trcv
+ehrO
+chr
+noans
+ehiA
+ehiC
+phr
+Trcv
+noans
+ehrA
+ehrC
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv
+Trcv
+Trcv
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+ehiO
+handover via 1
+phi
+noans
+ehiA
+ehiC
+Trcv
+Trcv

@@ -2,6 +2,8 @@
 #ifndef BITARRAY_H
 #define BITARRAY_H
 
+#include <util/meta.h>
+
 namespace wiselib {
 	
 	template<
@@ -111,6 +113,15 @@ namespace wiselib {
 			static int8_t bit(size_type pos) { return pos % 8; }
 		private:
 			block_data_t data_[0];
+	};
+	
+	template<
+		typename OsModel_P,
+		size_t BITS_P
+	>
+	class StaticBitArray : public BitArray<OsModel_P> {
+		private:
+			typename BitArray<OsModel_P>::block_data_t buffer_[DivCeil<BITS_P, 8>::value];
 	};
 	
 }

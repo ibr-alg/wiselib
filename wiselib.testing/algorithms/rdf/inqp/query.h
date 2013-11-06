@@ -25,16 +25,12 @@
 #include "operator_descriptions/operator_description.h"
 
 #include "query_message.h"
+#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 namespace wiselib {
 	
 	/**
 	 * @brief
-	 * 
-	 * TODO: Store received packets here, order them by sequence number
-	 * e.g. using a priority queue, construct incrementally as possible.
-	 * Use a special "# of packets" packet that signifies when final
-	 * construction/execution can take place.
 	 * 
 	 * @ingroup
 	 * 
@@ -66,6 +62,20 @@ namespace wiselib {
 				processor_ = processor;
 				query_id_ = id;
 				expected_operators_set_ = false;
+				entity_ = SemanticEntityId::invalid();
+			}
+			
+			void destruct() {
+				for(typename Operators::iterator it = operators_.begin(); it != operators_.end(); ++it) {
+					BasicOperator* op = it->second;
+					//DBG("op destr");
+					//DBG("o=%p", it->second);
+					op->destruct();
+					//DBG("op fre");
+					::get_allocator().free(op);
+				}
+				//DBG("op clr");
+				operators_.clear();
 			}
 			
 			Operators& operators() { return operators_; }
@@ -77,10 +87,14 @@ namespace wiselib {
 			
 			template<typename DescriptionT, typename OperatorT>
 			void add_operator(BOD *bod) {
+				//DBG("1adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				DescriptionT *description = reinterpret_cast<DescriptionT*>(bod);
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
 				op->init(description, this);
+				//DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
+				
+				//DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
 			}
 			
 			void build_tree() {
@@ -98,6 +112,7 @@ namespace wiselib {
 			BasicOperator* get_operator(size_type i) { return operators_[i]; }
 			
 			bool ready() {
+				DBG("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			
@@ -106,12 +121,16 @@ namespace wiselib {
 				expected_operators_set_ = true;
 			}
 		
+			const SemanticEntityId& entity() { return entity_; }
+			void set_entity(const SemanticEntityId& se) { entity_ = se; }
+			
 		private:
 			query_id_t query_id_;
 			Operators operators_;
 			QueryProcessor* processor_;
 			size_type expected_operators_;
 			bool expected_operators_set_;
+			SemanticEntityId entity_;
 			
 		
 	}; // INQPQuery

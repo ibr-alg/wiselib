@@ -10,6 +10,7 @@ ARDUINO_BOARD=$(BOARD)
 ARDUINO_USE_RAWSD=1
 #ARDUINO_USE_SD=1
 ARDUINO_USE_XBEE=1
+ARDUINO_USE_SSERIAL=1
 
 export MCU=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.mcu)
 export CPU_SPEED=$(shell $(PARSE_BOARDS) $(BOARDS_PATH) $(ARDUINO_BOARD) build.f_cpu)
@@ -27,9 +28,11 @@ SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
 ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
 SD_PATH=$(ARDUINO_PATH)/libraries/SD
 XBEE_PATH=$(ARDUINO_PATH)/libraries/XBee
+SSERIAL_PATH=$(ARDUINO_PATH)/libraries/SoftwareSerial
+ASSERIAL_PATH=$(ARDUINO_PATH)/libraries/AltSoftSerial
 
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
-	-I$(ETHERNET_PATH)/utility -I$(SD_PATH)/utility -I$(XBEE_PATH)
+	-I$(ETHERNET_PATH)/utility -I$(SD_PATH)/utility -I$(XBEE_PATH) -I$(SSERIAL_PATH) -I$(ASSERIAL_PATH)
 
 ZEROCONF_PATH=/home/henning/repos/EthernetBonjour-rraf
 
@@ -54,6 +57,14 @@ ifeq ($(ARDUINO_USE_XBEE),1)
 	LIBS += -lxbee
 	FLAGS += -DARDUINO_USE_XBEE
 endif
+ifeq ($(ARDUINO_USE_SSERIAL),1)
+	LIBS += -lsoftwareserial
+	FLAGS += -DARDUINO_USE_SSERIAL
+endif
+ifeq ($(ARDUINO_USE_ASSERIAL),1)
+	LIBS += -laltsoftwareserial
+	FLAGS += -DARDUINO_USE_ASSERIAL
+endif
 LIBS += -Wl,--end-group
 
 
@@ -64,7 +75,7 @@ ifeq ($(PARTNO),uno)
 endif
 
 
-CXXFLAGS=-mmcu=$(MCU) -DF_CPU=$(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os \
+CXXFLAGS=-mmcu=$(MCU) -DF_CPU=$(CPU_SPEED) -DARDUINO_MATH -DARDUINO_WIRING_DIGITAL -DARDUINO_WIRING_ANALOG -DARDUINO_LITE -Os \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums $(INCLUDE) $(LIBS) $(FLAGS) \
 	-DOSMODEL=ArduinoOsModel -DARDUINO -fno-exceptions -fno-use-cxa-atexit -Wno-strict-aliasing
 
@@ -74,14 +85,14 @@ OUTPUT = out/arduino
 
 default: build-libs arduino
 #upload
-#build-libs: libarduino libzeroconf
+build-libs: libarduino libzeroconf
 
 libarduino:
 	make -C $(ARDUINO_PATH)
 
 libzeroconf:
 	make -C $(ZEROCONF_PATH)
-
+	
 arduino: ./$(APP_SRC) $(WISELIB_PATH_TESTING)/external_interface/arduino/standalone/main.cpp
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
