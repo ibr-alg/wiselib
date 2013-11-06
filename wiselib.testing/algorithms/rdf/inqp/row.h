@@ -26,7 +26,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Representation of a (intermediate) query result row.
 	 * 
 	 * Hint: In lots of places it is assumed that there will never be a row
 	 * more than 16 columns wide!

@@ -25,11 +25,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @brief Message for hash->string resolving.
 	 */
 	template<
 		typename OsModel_P,

@@ -26,11 +26,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * Message type representing a (partial) query.
 	 */
 	template<
 		typename OsModel_P,

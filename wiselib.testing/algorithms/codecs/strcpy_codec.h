@@ -3,6 +3,14 @@
 #define STRCPY_CODEC_H
 
 namespace wiselib {
+    
+    
+   /**
+    * Trivial codec that just copies its input for encoding as well as
+    * decoding.
+    * 
+    * @ingroup Codec_concept
+    */
    template<
       typename OsModel_P
    >
@@ -15,12 +23,16 @@ namespace wiselib {
          static block_data_t* encode(block_data_t* in_) {
             char *in = reinterpret_cast<char*>(in_);
             size_type l = strlen(in);
-            char *r = OsModel::allocator.template allocate_array<char>(l + 1).raw();
+            char *r = ::get_allocator().template allocate_array<char>(l + 1).raw();
             memcpy((void*)r, (void*)in, l + 1);
             return reinterpret_cast<block_data_t*>(r);
          }
          
          static block_data_t* decode(block_data_t* in) { return encode(in); }
+         
+         static void free_result(block_data_t* s) {
+             ::get_allocator().free_array(s);
+         }
    };
    
 } // namespace

@@ -23,11 +23,9 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief The larson hash.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @ingroup Hash_concept
 	 */
 	template<
 		typename OsModel_P,

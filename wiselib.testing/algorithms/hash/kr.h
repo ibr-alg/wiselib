@@ -23,13 +23,11 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
-	 * 
+	 * @brief Simple hash function used by K&R as example in a C++ book.
 	 * Source: http://www.cse.yorku.ca/~oz/hash.html (under "lose lose")
+	 * 
+	 * @ingroup Hash_concept
+	 * 
 	 */
 	template<
 		typename OsModel_P,

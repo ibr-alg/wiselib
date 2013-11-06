@@ -23,13 +23,11 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
-	 * 
+	 * @brief The Novak hash function, using a rijndael SBOX.
 	 * Source: http://www.strchr.com/hash_functions?allcomments=1#comment_363
+	 * 
+	 * @ingroup Hash_concept
+	 * 
 	 */
 	template<
 		typename OsModel_P,

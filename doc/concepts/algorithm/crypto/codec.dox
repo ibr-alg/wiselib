@@ -1,9 +1,29 @@
 
+namespace concepts {
+
 /**
- *
+ * A Codec takes a zero-terminated string, encodes/decodes it in some way and
+ * returns the result.
+ * 
+ * @ingroup Codec_concept
  */
 concept Codec {
-	static block_data_t* encode(block_data_t*);
-	static block_data_t* decode(block_data_t*);
+	/**
+	 * Encode @a s.
+	 */
+	static block_data_t* encode(block_data_t* s);
+	
+	/**
+	 * Decode @a s.
+	 */
+	static block_data_t* decode(block_data_t* s);
+	
+	/**
+	 * Free a result value returned by @a encode or @a decode.
+	 */
+	static void free_result(block_data_t *s);
 }
 
+} // namespace concepts
+
+// vim: set ft=cpp:

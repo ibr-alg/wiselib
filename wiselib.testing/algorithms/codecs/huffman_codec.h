@@ -7,8 +7,12 @@
 namespace wiselib
 {
 
+    /**
+     * @brief Huffman Codec. Tree is provided statically in compact form(generated from Billion Triple Challenge).
+     * @ingroup
+     */
     template<
-    typename OsModel_P
+    	typename OsModel_P
     >
     class HuffmanCodec
     {
@@ -23,8 +27,10 @@ namespace wiselib
             MAX_BITS_PER_SYMBOL = 64
         };
 
-        //static bitarray_t* encode(char* in) {
-
+        /**
+         * @return Huffmann encoded version of @a in_ as zero-terminated
+         * string.
+         */
         static block_data_t* encode(block_data_t* in_)
         {
 
@@ -32,27 +38,29 @@ namespace wiselib
             size_type sz = encode_internal(in, 0);
             bitarray_t *out = bitarray_t::make(get_allocator(), sz);
             encode_internal(in, out);
-			
-			//DBG("encode(%s) = %02x %02x %02x %02x len=%d",
-					//(char*)in_,
-					//((block_data_t*)out)[0],
-					//((block_data_t*)out)[1],
-					//((block_data_t*)out)[2],
-					//((block_data_t*)out)[3], (int)strlen((char*)out));
-			
             return reinterpret_cast<block_data_t*> (out);
 
         } // encode()
 
+        /**
+         * @return Decoded version as zero-terminated string.
+         */
         static block_data_t* decode(block_data_t* in_)
         {
-			//DBG("decoding len=%d", (int)strlen((char*)in_));
             bitarray_t* in = reinterpret_cast<bitarray_t*> (in_);
             size_type sz = decode_internal(in, 0);
             char *out = get_allocator().template allocate_array<char>(sz + 1).raw();
             out[sz] = '\0';
             decode_internal(in, out);
             return reinterpret_cast<block_data_t*> (out);
+        }
+        
+        /**
+         * Free result returned by @a encode or @a decode.
+         */
+        static void free_result(block_data_t *s)
+        {
+            get_allocator().template free_array(s);
         }
 
     private:
@@ -75,8 +83,8 @@ namespace wiselib
 
         static size_type decode_internal(bitarray_t* in, char* out)
         {
-			size_type l = strlen((char*)in);
-			
+            size_type l = strlen((char*)in);
+            
             zero_count_ = 0;
 
             size_type out_pos = 0;
@@ -190,79 +198,68 @@ namespace wiselib
                 // reverse symbol and add
                 for (int k = symbol_pos - 1; k >= 0; --k)
                 {
-					write_bit(out, out_pos, zero_count_, symbol->get(k));
+                    write_bit(out, out_pos, zero_count_, symbol->get(k));
                 }
             } // for c
 
             ::get_allocator().free(symbol);
-			
-			// first, fill up current byte with the first few bits of filler_,
-			// that will guarantee that the filling bits do not constitute
-			// a symbol that will be falsely decoded
-			for(size_type i = 0; out_pos % 8 != 0; i++) {
-				if(out) {
-					out->set(out_pos, (bool)(filler_ & (1 << i)));
-				}
-				out_pos++;
-			}
-			
-			for(size_type i = 0; i < 8; i++) {
-				if(out) {
-					out->set(out_pos, false);
-				}
-				out_pos++;
-			}
+            
+            // first, fill up current byte with the first few bits of filler_,
+            // that will guarantee that the filling bits do not constitute
+            // a symbol that will be falsely decoded
+            for(size_type i = 0; out_pos % 8 != 0; i++) {
+                if(out) {
+                    out->set(out_pos, (bool)(filler_ & (1 << i)));
+                }
+                out_pos++;
+            }
+            
+            for(size_type i = 0; i < 8; i++) {
+                if(out) {
+                    out->set(out_pos, false);
+                }
+                out_pos++;
+            }
 
-			/*
+            /*
             //add terminating 0-byte
             if(out){
                 //out_pos += out->terminate(out_pos);
-				
+                
             }else{
                 size_type zeros = 8;
                 if(out_pos % 8 != 0) {
                     zeros += 8 - out_pos % 8;
-				}
+                }
                 out_pos += zeros;
             }            
-			*/
+            */
             return out_pos;
         } // encode()
-		
-		static void write_bit(bitarray_t* out, size_type& out_pos, uint8_t& zeros, bool bit) {
-			if (out_pos % 8 == 7 && zeros == 7) {
-				if(out) { out->set(out_pos, true); }
-				out_pos++;
-			}
-			
-			if(out_pos % 8 == 0) { zeros = 0; }
-			if(!bit) { zeros++; }
-			if(out) { out->set(out_pos, bit); }
-			out_pos++;
-		}
-		
-		/*
-		static bool read_bit(bitarray_t* in, size_type& in_pos, size_type& zeros) {
-			if(in_pos % 8 == 7 && zeros == 7) {
-				// skip stuffed 1-bit
-				in_pos++;
-			}
-			if(in_pos % 8 == 0) { zeros = 0; }
-			bool bit = in->get(in_pos);
-			if(!bit) { zeros++; }
-			return bit;
-		}
-		*/
-
+        
+        static void write_bit(bitarray_t* out, size_type& out_pos, uint8_t& zeros, bool bit) {
+            if (out_pos % 8 == 7 && zeros == 7) {
+                if(out) { out->set(out_pos, true); }
+                out_pos++;
+            }
+            
+            if(out_pos % 8 == 0) { zeros = 0; }
+            if(!bit) { zeros++; }
+            if(out) { out->set(out_pos, bit); }
+            out_pos++;
+        }
+        
         static const uint8_t index_[256];
         static const uint8_t index_b_[32];
         static const uint8_t brackets_[128];
         static uint8_t zero_count_;        
-		
-		// filler_ is a sequence of 7 bits (LSB=first bit) such that
-		// - filler_ starts with a 1
-		// - no prefix of filler_ is a symbol in the huffman tree
-		static const uint8_t filler_;
+        
+        /**
+         * filler_ is a sequence of 7 bits (LSB=first bit) such that
+         * - filler_ starts with a 1
+         * - no prefix of filler_ is a symbol in the huffman tree
+         */
+        static const uint8_t filler_;
     };
 
     template<typename OsModel_P>
@@ -301,10 +298,10 @@ namespace wiselib
         1, 129, 192, 3, 101, 56, 255, 197, 33, 193, 59, 96, 94, 206, 192, 27, 172,
         197, 228, 34, 220, 82, 82, 62, 45, 209, 192, 255, 158, 43, 255, 255
     };
-	
-	template<typename OsModel_P>
-			const uint8_t HuffmanCodec<OsModel_P>::filler_ = 0x49; // = 0x 1001001
-	
+    
+    template<typename OsModel_P>
+            const uint8_t HuffmanCodec<OsModel_P>::filler_ = 0x49; // = 0x 1001001
+    
     template<typename OsModel_P>
             uint8_t HuffmanCodec<OsModel_P>::zero_count_ = 0;
 
@@ -313,3 +310,4 @@ namespace wiselib
 
 #endif // HUFFMAN_CODEC_H
 
+/* vim: set ts=4 sw=4 tw=78 expandtab :*/

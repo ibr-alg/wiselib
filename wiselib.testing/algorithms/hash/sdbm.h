@@ -23,11 +23,10 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief The "SDBM" hash function.
+	 * Source: http://www.cse.yorku.ca/~oz/hash.html#sdbm
 	 * 
 	 * @ingroup Hash_concept
-	 * 
-	 * Source: http://www.cse.yorku.ca/~oz/hash.html#sdbm
 	 */
 	template<
 		typename OsModel_P,

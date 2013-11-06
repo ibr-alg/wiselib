@@ -45,11 +45,12 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief INQP Query Processor.
+	 * This is the core component of the In-Network Query Processing system.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @tparam TupleStore_P Type of tuple store that leaf operators will
+	 * operato on, should implement @a TupleStore_concept.
+	 * @tparam Hash_P Hash implemenation to use, @a Hash_concept.
 	 */
 	template<
 		typename OsModel_P,
@@ -89,6 +90,8 @@ namespace wiselib {
 				MAX_NEIGHBORS = MAX_NEIGHBORS_P
 			};
 			
+			/**
+			 */
 			enum CommunicationType {
 				COMMUNICATION_TYPE_SINK,
 				COMMUNICATION_TYPE_AGGREGATE,
@@ -134,9 +137,18 @@ namespace wiselib {
 			typedef typename Query::query_id_t query_id_t;
 			typedef MapStaticVector<OsModel, query_id_t, Query*, MAX_QUERIES> Queries;
 			
+			/**
+			 * @param 1st type of the row communication, see @a CommunicationType.
+			 * @param 2nd # columns of the row.
+			 * @param 3rd reference to the actual row-data.
+			 * @param 4th id of the producing query.
+			 * @param 5th id of producing operator.
+			 */
 			typedef delegate5<void, int, size_type, RowT&, query_id_t, operator_id_t> row_callback_t;
 			typedef vector_static<OsModel, row_callback_t, MAX_ROW_RECEIVERS> RowCallbacks;
 			
+			/**
+			 */
 			void init(typename TupleStoreT::self_pointer_t tuple_store, typename Timer::self_pointer_t timer) {
 				tuple_store_ = tuple_store;
 				timer_ = timer;
@@ -147,17 +159,28 @@ namespace wiselib {
 				//DBG("%p send_row init cbs %d", this, (int)row_callbacks_.size());
 			}
 		
+			/**
+			 * Callback will be called whenever a new output row has been
+			 * produced, eg by a collect operator.
+			 */
 			template<typename T, void (T::*fn)(int, size_type, RowT&, query_id_t, operator_id_t)>
 			void reg_row_callback(T* obj) {
 				row_callbacks_.push_back(row_callback_t::template from_method<T, fn>(obj));
 				//DBG("%p send_row reg cbs %d", this, (int)row_callbacks_.size());
 			}
 			
+			/**
+			 * Callback will be called when a resolve request has been
+			 * answered.
+			 */
 			template<typename T, void (T::*fn)(hash_t, char*)>
 			void reg_resolve_callback(T* obj) {
 				resolve_callback_ = resolve_callback_t::template from_method<T, fn>(obj);
 			}
 			
+			/**
+			 * Call all registered row callbacks.
+			 */
 			void send_row(int type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
 				//DBG("%p send_row snd cbs %d", this, (int)row_callbacks_.size());
 				for(typename RowCallbacks::iterator it = row_callbacks_.begin(); it != row_callbacks_.end(); ++it) {
@@ -166,6 +189,9 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 * Execute all registered queries.
+			 */
 			void execute_all() {
 				for(typename Queries::iterator it = queries_.begin(); it != queries_.end(); ++it) {
 					execute(it->second);
@@ -173,6 +199,9 @@ namespace wiselib {
 			}
 				
 
+			/**
+			 * Execute the given query.
+			 */
 			void execute(Query *query) {
 				DBG("exec query %d", (int)query->id());
 				//#if INQP_DEBUG_STATE
@@ -225,12 +254,22 @@ namespace wiselib {
 				//Serial.println("exec don");
 			}
 			
+			
 			typedef delegate0<void> exec_done_callback_t;
 			exec_done_callback_t exec_done_callback_;
+			
+			/**
+			 * The callback @a cb will be called, when execution of a query
+			 * has finished locally.
+			 */
 			void set_exec_done_callback(exec_done_callback_t cb) {
 				exec_done_callback_ = cb;
 			}
 			
+			/**
+			 * Handle reception of the given operator description for query @a
+			 * query, that is, add an according operator to the query.
+			 */
 			void handle_operator(Query* query, BOD *bod) {
 				//DBG("hop %c %d", (char)bod->type(), (int)bod->id());
 				switch(bod->type()) {
@@ -276,6 +315,9 @@ namespace wiselib {
 				//DBG("/hop");
 			}
 			
+			/**
+			 * ditto.
+			 */
 			template<typename Message, typename node_id_t>
 			void handle_operator(Message *msg, node_id_t from, size_type size) {
 				BOD *bod = msg->operator_description();
@@ -287,6 +329,9 @@ namespace wiselib {
 				handle_operator(query, bod);
 			}
 			
+			/**
+			 * ditto.
+			 */
 			void handle_operator(query_id_t qid, size_type size, block_data_t* od) {
 				BOD *bod = reinterpret_cast<BOD*>(od);
 				Query *query = get_query(qid);
@@ -296,6 +341,10 @@ namespace wiselib {
 				handle_operator(query, bod);
 			}
 			
+			/**
+			 * Handle reception of a query info message (that is, send it to
+			 * the according query).
+			 */
 			template<typename Message, typename node_id_t>
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
 				//DBG("h qinf");
@@ -310,6 +359,9 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 * ditto.
+			 */
 			void handle_query_info(query_id_t qid, size_type nops) {
 				Query *query = get_query(qid);
 				if(!query) {
@@ -321,6 +373,10 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 * Handle string resolve message (answer it, and call the
+			 * according callback with the result).
+			 */
 			template<typename Message, typename node_id_t>
 			void handle_resolve(Message *msg, node_id_t from, size_type size) {
 				typename Dictionary::key_type k = reverse_translator_.translate(msg->hash());
@@ -331,6 +387,9 @@ namespace wiselib {
 				}
 			}
 		
+			/**
+			 * Handle reception of an intermediate result message.
+			 */
 			template<typename Message, typename node_id_t>
 			void handle_intermediate_result(Message *msg, node_id_t from) { //, size_type size) {
 				Query *query = get_query(msg->query_id());
@@ -365,6 +424,8 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 */
 			Query* get_query(query_id_t qid) {
 				if(queries_.contains(qid)) {
 					return queries_[qid];
@@ -372,6 +433,8 @@ namespace wiselib {
 				return 0;
 			}
 			
+			/**
+			 */
 			Query* create_query(query_id_t qid) {
 				Query *q = ::get_allocator().template allocate<Query>().raw();
 				q->init(this, qid);
@@ -382,6 +445,8 @@ namespace wiselib {
 				return q;
 			}
 			
+			/**
+			 */
 			void add_query(query_id_t qid, Query* query) {
 				if(queries_.size() >= queries_.capacity()) {
 					assert(false && "queries full, clean them up from time to time!");
@@ -389,6 +454,8 @@ namespace wiselib {
 				queries_[qid] = query;
 			}
 			
+			/**
+			 */
 			void erase_query(query_id_t qid) {
 				//DBG("del qry %d", (int)qid);
 				if(queries_.contains(qid)) {
@@ -398,10 +465,19 @@ namespace wiselib {
 				}
 			}
 			
+			///
 			TupleStoreT& tuple_store() { return *tuple_store_; }
+			
+			///
 			Dictionary& dictionary() { return tuple_store_->dictionary(); }
+			
+			///
 			Translator& translator() { return translator_; }
+			
+			///
 			ReverseTranslator& reverse_translator() { return reverse_translator_; }
+			
+			///
 			Timer& timer() { return *timer_; }
 			
 		private:
