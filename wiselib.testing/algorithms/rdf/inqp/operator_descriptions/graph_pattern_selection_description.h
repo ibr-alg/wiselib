@@ -26,7 +26,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Description of a Graph Pattern Selection operator.
 	 * 
 	 * GPSD gpsd;
 	 * size_t vidx = 0;

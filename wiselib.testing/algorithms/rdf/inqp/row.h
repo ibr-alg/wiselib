@@ -50,15 +50,25 @@ namespace wiselib {
 			enum { MAX_COLUMNS = 16 };
 			typedef typename UintWithAtLeastBits<MAX_COLUMNS>::t column_mask_t;
 			
+			/**
+			 * Allocate a row with the given number of elements using the
+			 * allocator.
+			 */
 			static Row* create(size_type n) {
 				return reinterpret_cast<Row*>( ::get_allocator()
 					.template allocate_array<block_data_t>(sizeof(self_type) + sizeof(Value) * n).raw() );
 			}
 			
+			/**
+			 * Free this row instance using the allocator.
+			 */
 			void destroy() {
 				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
 			}
 			
+			/**
+			 * access the i'th element in this row.
+			 */
 			Value& operator[](size_type i) {
 				return data_[i];
 			}
