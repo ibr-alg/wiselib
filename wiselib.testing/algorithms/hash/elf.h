@@ -23,11 +23,9 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Implementation of the ELF hash function.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @ingroup Hash_concept
 	 */
 	template<
 		typename OsModel_P

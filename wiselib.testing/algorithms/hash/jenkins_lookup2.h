@@ -23,11 +23,8 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @brief Jenkins "Lookup 2" hash function.
+	 * @ingroup Hash_concept
 	 */
 	template<
 		typename OsModel_P

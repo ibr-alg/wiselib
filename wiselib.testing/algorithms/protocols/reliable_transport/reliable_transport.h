@@ -30,9 +30,10 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Asynchronous reliable transport that multiplexes multiple
+	 * channels.
 	 * 
-	 * @ingroup
+	 * @ingroup ReliableTransport_concept
 	 * 
 	 * @tparam 
 	 */

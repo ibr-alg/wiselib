@@ -32,11 +32,12 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+     * @brief Radio wrapper that uses a given hash implementation as checksum
+     * to verify message integrity, discarding messages with wrong checksums.
 	 * 
-	 * @ingroup
+	 * @ingroup Radio_concept
 	 * 
-	 * @tparam 
+	 * @tparam Hash_P The hash algorithm to use.
 	 */
 	template<
 		typename OsModel_P,

@@ -1,6 +1,6 @@
 /***************************************************************************
  ** This file is part of the generic algorithm library Wiselib.           **
- ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ ** Copyright (C) 2013 by the Wisebed (www.wisebed.eu) project.      **
  **                                                                       **
  ** The Wiselib is free software: you can redistribute it and/or modify   **
  ** it under the terms of the GNU Lesser General Public License as        **
@@ -46,7 +46,11 @@ namespace wiselib
       typedef WiselibExtIface::size_t size_t;
       typedef WiselibExtIface::message_id_t message_id_t;
 
-      //typedef delegate3<void, int, long, unsigned char*> radio_delegate_t;
+      // extended data facet support
+      typedef ExtendedDataClass ExtendedData;  // extended data class in NS-3
+ 
+      // tx power facet support
+      typedef TxPowerClass TxPower;
       // --------------------------------------------------------------------
       enum ErrorCodes
       {
@@ -97,6 +101,27 @@ namespace wiselib
 
          return ERR_UNSPEC;
       }
+      // --------------------------------------------------------------------
+      // extended data radio facet
+      template<class T, void (T::*TMethod)(node_id_t, size_t, block_data_t*, ExtendedData*)>
+      int reg_recv_callback( T *obj_pnt )
+      {
+         if (os().proc.template RegExtendedDataRecvCallback<T, TMethod>( obj_pnt, node_id_))
+            return SUCCESS;
+
+         return ERR_UNSPEC;
+      }
+     
+      // tx power radio facet
+      void set_power (TxPower &p)
+      {
+        os().proc.SetTxPower (p, node_id_);
+      }
+ 
+      TxPower power ()
+      {
+        return os().proc.GetTxPower (node_id_);
+      }     
       // --------------------------------------------------------------------
       int unreg_recv_callback( int idx )
       { return ERR_NOTIMPL; }
