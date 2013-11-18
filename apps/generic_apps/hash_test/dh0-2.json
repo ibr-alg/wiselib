@@ -1,0 +1,120 @@
+{
+"data-0.nq": {
+  "tuples":  45595 ,
+  "elements_total":  182395 ,
+  "elements_unique":  29843 ,
+  "hashes": {
+     "fnv32": {
+  "hash_time_real": 0.476, "hash_time_user": 0.307, "hash_time_sys": 0.163,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "fnv64": {
+  "hash_time_real": 0.451, "hash_time_user": 0.307, "hash_time_sys": 0.140,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "jenkins": {
+  "hash_time_real": 0.471, "hash_time_user": 0.333, "hash_time_sys": 0.133,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "murmur": {
+  "hash_time_real": 0.461, "hash_time_user": 0.313, "hash_time_sys": 0.143,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "larson": {
+  "hash_time_real": 0.434, "hash_time_user": 0.283, "hash_time_sys": 0.147,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+},
+"data-1.nq": {
+  "tuples":  804375 ,
+  "elements_total":  3220097 ,
+  "elements_unique":  418358 ,
+  "hashes": {
+     "fnv32": {
+  "hash_time_real": 8.000, "hash_time_user": 5.967, "hash_time_sys": 2.027,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "fnv64": {
+  "hash_time_real": 8.055, "hash_time_user": 6.013, "hash_time_sys": 2.033,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "jenkins": {
+  "hash_time_real": 8.280, "hash_time_user": 6.253, "hash_time_sys": 2.030,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "murmur": {
+  "hash_time_real": 7.810, "hash_time_user": 5.923, "hash_time_sys": 1.887,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "larson": {
+  "hash_time_real": 7.837, "hash_time_user": 5.920, "hash_time_sys": 1.920,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+},
+"data-2.nq": {
+  "tuples":  19655239 ,
+  "elements_total":  50872052 ,
+  "elements_unique":  2413684 ,
+  "hashes": {
+     "fnv32": {
+  "hash_time_real": 42.902, "hash_time_user": 29.883, "hash_time_sys": 11.333,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "fnv64": {
+  "hash_time_real": 42.051, "hash_time_user": 29.653, "hash_time_sys": 12.180,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "jenkins": {
+  "hash_time_real": 42.548, "hash_time_user": 31.490, "hash_time_sys": 11.033,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "murmur": {
+  "hash_time_real": 43.554, "hash_time_user": 31.160, "hash_time_sys": 12.007,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+,     "larson": {
+  "hash_time_real": 40.347, "hash_time_user": 28.440, "hash_time_sys": 11.630,
+        "collisions":  0 ,
+        "hashes":  0
+      }
+},
+"__all__": {
+  "elements_total":  54274544 ,
+  "elements_unique":  2743943 ,
+  "hash_collisions": {
+     "fnv32": {
+  "collisions":  0 ,
+  "hashes":  0 ,
+  }
+,     "fnv64": {
+  "collisions":  0 ,
+  "hashes":  0 ,
+  }
+,     "jenkins": {
+  "collisions":  0 ,
+  "hashes":  0 ,
+  }
+,     "murmur": {
+  "collisions":  0 ,
+  "hashes":  0 ,
+  }
+,     "larson": {
+  "collisions":  0 ,
+  "hashes":  0 ,
+  }
+  }
+}

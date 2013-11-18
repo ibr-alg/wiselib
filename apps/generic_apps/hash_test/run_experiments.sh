@@ -15,7 +15,8 @@ sdbm8 sdbm16 sdbm32 sdbm64 \
 #HASH="./hash_test"
 HASH="./out/pc/hash_test"
 ELEMENTS="./elements"
-INPUT_PATH=/home/henning/data/ec2_hashes_2013_08_03
+#INPUT_PATH=/home/henning/data/ec2_hashes_2013_08_03
+INPUT_PATH=/home/henning/annexe/rdf_datasets/btc2012/projects/btc-2012/datahub
 #INPUT_PATH=/mnt
 #INPUT_PATH=/home/henning/data/billion_triple_challenge/projects/btc-2012/datahub
 #INPUT_FILES="$(echo $INPUT_PATH/data-?.nq)"
@@ -37,31 +38,73 @@ function find_collisions {
 		
 #		echo '  "elements_total": ' $(wc -l $INPUT_PATH/${fn}.elements | awk '{ print $1 }') ','
 #		sort -u $INPUT_PATH/${fn}.elements > $INPUT_PATH/${fn}.elements.unique
-		echo '  "elements_unique": ' $(wc -l $INPUT_PATH/${fn}.elements.unique | awk '{ print $1 }') ','
+		export elements_unique=$(wc -l $INPUT_PATH/${fn}.elements.unique | awk '{ print $1 }')
+		echo '  "elements_unique": ' $elements_unique ','
 		
 		echo '  "hashes": {'
 		comma=""
 		for hashfn in $HASHES; do
 			echo $comma'     "'$hashfn'": {'
 			
+			bits=32
+			if [[ $hashfn == *8 ]]; then
+				bits=8
+			elif [[ $hashfn == *16 ]]; then
+				bits=16
+			elif [[ $hashfn == *64 ]]; then
+				bits=64
+			fi
+				
+			echo '        "bits": ' $bits ','
+			export total_hashes=$(echo "2 ^ $bits" |bc -q)
+			echo '        "total_hashes": ' $total_hashes ','
+			
 			TIMEFORMAT='  "hash_time_real": %R, "hash_time_user": %U, "hash_time_sys": %S,'
 			( time $HASH $hashfn < $INPUT_PATH/${fn}.elements.unique > $DATA_PATH/${fn}.${hashfn}) 2>&1
 			sort $DATA_PATH/${fn}.${hashfn} > $DATA_PATH/${fn}.${hashfn}.sorted
 			
-			collisions=0
-			collision_hashes=0
-			uniq -cd $DATA_PATH/${fn}.${hashfn}.sorted > $DATA_PATH/${fn}.${hashfn}.collisions
-			while read n v; do
-				collisions=$(($collisions + $n - 1))
-				collision_hashes=$(($collision_hashes + 1))
-			done < $DATA_PATH/${fn}.${hashfn}.collisions
+			export sum=0
+			export sqsum=0
+			export collisions=0
+			export collision_hashes=0
+			export elems=0;
+			export hashes=0
+			# uniq -cd
+			uniq -c $DATA_PATH/${fn}.${hashfn}.sorted > $DATA_PATH/${fn}.${hashfn}.collisions
+			
+			awk 'BEGIN { collisions=0; collision_hashes=0; sum=0; sqsum=0; hashes=0 } \
+				{ if($1 > 1) { collisions += $1 - 1; collision_hashes++; } \
+					hashes++; sum += $1; sqsum += $1 * $1; } \
+				END { print collisions, collision_hashes, hashes, sum, sqsum }' < $DATA_PATH/${fn}.${hashfn}.collisions >/tmp/awk.out 
+			
+			read collisions collision_hashes hashes sum sqsum < /tmp/awk.out
+			
+			#while read n v; do
+				#if [ "$n" -gt 1 ]; then
+					#export collisions=$(echo "$collisions + $n - 1" |bc -q)
+					#export collision_hashes=$(echo "$collision_hashes + 1" |bc -q)
+				#fi
+				#export hashes=$(echo "$hashes + 1" |bc -q)
+				##export elems=$(echo "$elems + 1" |bc -q)
+				#export sum=$(echo "$sum + $n" |bc -q)
+				#export sqsum=$(echo "$sqsum + $n * $n" |bc -q)
+			#done < $DATA_PATH/${fn}.${hashfn}.collisions
+			
+			
+			export noncolliding=$(echo "$total_hashes - $hashes"|bc -q)
+			
+			echo '        "used_hashes": ' $hashes ','
+			echo '        "unused_hashes": ' $(echo "$total_hashes - $hashes"| bc -q) ','
 			echo '        "collisions": ' $collisions ','
-			echo '        "hashes": ' $collision_hashes
+			echo '        "colliding_hashes": ' $collision_hashes ','
+			echo '        "non_colliding_hashes": ' $noncolliding ','
+			echo '        "values_per_hash_mean": ' $(echo "scale=20; $sum / $total_hashes" |bc -q) ','
+			echo '        "values_per_hash_variance": ' $(echo "scale=20; ($sqsum / $total_hashes) - (($sum * $sum) / ($total_hashes * $total_hashes))" |bc -q)
 			echo '      }'
 			comma=","
 		done
 		
-		echo '},'
+		echo '}}'
 	done
 	echo '}'
 	
