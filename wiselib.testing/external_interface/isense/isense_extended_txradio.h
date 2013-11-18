@@ -236,6 +236,7 @@ namespace wiselib {
         int disable_radio() {
             enabled_ = false;
             os().radio().disable();
+            enabled_ = false;
             return SUCCESS;
         }
         // --------------------------------------------------------------------
