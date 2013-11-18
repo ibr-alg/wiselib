@@ -73,11 +73,19 @@ namespace wiselib {
 			};
 			
 			typedef ::uint32_t revision_t;
+			
+			/*
+			 * Layout:
+			 * [ msgtype (1) | hash (2) | { revision (4) } | payload ]
+			 */
+			
 			enum {
+				MESSAGE_TYPE = 0x39,
+				
 				#if CHECKSUM_RADIO_USE_REVISION
-					HEADER_SIZE = sizeof(hash_t) + sizeof(revision_t),
+					HEADER_SIZE = sizeof(::uint8_t) + sizeof(hash_t) + sizeof(revision_t),
 				#else
-					HEADER_SIZE = sizeof(hash_t)
+					HEADER_SIZE = sizeof(::uint8_t) + sizeof(hash_t)
 				#endif
 			};
 			
@@ -92,14 +100,29 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			node_id_t id() { return radio_->id(); }
+			node_id_t id() {
+				//#ifdef ISENSE
+				//if(debug_ && radio_) {
+					//debug_->debug("ID %llx", (unsigned long long)radio_->id());
+				//}
+				//#endif
+				return radio_->id();
+			}
 			
 			int enable_radio() { return radio_->enable_radio(); }
 			int disable_radio() { return radio_->disable_radio(); }
 			
 			int send(node_id_t dest, size_t len, block_data_t *data) {
+				//#ifdef ISENSE
+					//debug_->debug("csnd l%d %d %d %d %d", (int)len, (int)data[0], (int)data[1],
+							//(int)data[2], (int)data[3]);
+				//#endif
+				
+				
 				block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
 				block_data_t *p = buf;
+				*p = MESSAGE_TYPE;
+				++p;
 				
 				hash_t h = Hash::hash(data, len);
 				//DBG("checksum send: %04lx", (unsigned long)h);
@@ -125,11 +148,21 @@ namespace wiselib {
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
 		#endif
 				
-				DBG("@%lu chksum from %lu", (unsigned long)id(), (unsigned long)from);
+				//#ifdef ISENSE
+				//debug_->debug("@%lu chksum from %lu", (unsigned long)id(), (unsigned long)from);
+				//#endif
 				
 				if(len < HEADER_SIZE) {
-					#ifdef SHAWN
+					#ifdef SHAWN 
 					debug_->debug("msg too short: %d < %d", (int)len, (int)HEADER_SIZE);
+					#endif
+					return;
+				}
+				
+				::uint8_t msgt = data[0];
+				if(msgt != MESSAGE_TYPE) {
+					#ifdef ISENSE
+					debug_->debug("@%lu !t %x,%x", (int)MESSAGE_TYPE, (int)msgt);
 					#endif
 					return;
 				}
@@ -138,28 +171,31 @@ namespace wiselib {
 				//if(from == 49465) { return; }
 				
 				// checksum
-				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data);
+				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data + 1);
 				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
 				if(h_msg != h_check) {
-					//#ifdef SHAWN
+					#if defined(SHAWN) || defined(ISENSE)
 					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
-					//#endif
+					#endif
 					return;
 				}
 				
 				// revision
 			#if CHECKSUM_RADIO_USE_REVISION
-				revision_t rev = wiselib::read<OsModel, block_data_t, revision_t>(data + sizeof(hash_t));
+				revision_t rev = wiselib::read<OsModel, block_data_t, revision_t>(data + 1 + sizeof(hash_t));
 				if(rev != REVISION) {
 					debug_->debug("@%lu %lu !R %lx,%lx", (unsigned long)id(), (unsigned long)from, (unsigned long)REVISION, (unsigned long)rev);
 					return;
 				}
 			#endif
 				
+				block_data_t *d = data + HEADER_SIZE;
+				
 			#ifdef SHAWN
-				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(data + HEADER_SIZE));
+				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(d));
 			#else
-				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(data + HEADER_SIZE), ex);
+				//debug_->debug("recv %d %d %d %d", (int)d[0], (int)d[1], (int)d[2], (int)d[3]);
+				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(d), ex);
 			#endif
 			}
 		

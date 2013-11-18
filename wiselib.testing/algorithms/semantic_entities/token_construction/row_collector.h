@@ -63,6 +63,7 @@ namespace wiselib {
 			typedef typename QueryProcessor::Value Value;
 			typedef typename QueryProcessor::Query Query;
 			typedef typename QueryProcessor::BasicOperator BasicOperator;
+			typedef typename QueryProcessor::AggregateT AggregateT;
 			typedef typename QueryProcessor::BasicOperatorDescription BasicOperatorDescription;
 			typedef Debug_P Debug;
 			
@@ -111,7 +112,10 @@ namespace wiselib {
 				}
 				message->set_payload_size(columns * sizeof(typename RowT::Value));
 				
-				//debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
+				#if INSE_DEBUG_STATE || INSE_ROW_COLLECTOR_DEBUG_STATE
+				debug_->debug("@%d rowc send col%d t %d", (int)radio_->radio().radio().id(), (int)columns, (int)type);
+				#endif
+				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
 						//debug_->debug("@%d rowc send col%d", (int)radio_->radio().radio().id(), (int)columns);
@@ -172,7 +176,12 @@ namespace wiselib {
 							
 							Value* vp = (Value*)message.payload();
 							Value* vp_end = (Value*)(message.payload() + message.payload_size());
-							for( ; vp < vp_end; vp += op->projection_info().columns()) {
+							AggregateT *aggr = (AggregateT*)op;
+							//for( ; vp < vp_end; vp += op->projection_info().columns()) {
+							for( ; vp < vp_end; vp += aggr->columns_physical()) {
+								
+								//debug_->debug("vp %lu vp_end %lu", (unsigned long)vp, (unsigned long)vp_end);
+								
 								collect_callback_(message.query_id(), message.operator_id(), *(RowT*)vp);
 							}
 						}

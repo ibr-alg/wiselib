@@ -33,6 +33,10 @@
 	#define INSE_FORWARDING_MIN_WINSLOTS 1
 #endif
 
+#ifndef INSE_USE_FORWARDING
+	#define INSE_USE_FORWARDING 1
+#endif
+
 namespace wiselib {
 	
 	/**
@@ -145,7 +149,10 @@ namespace wiselib {
 				//set_all_asleep(next_map());
 				//set_all_asleep(slot_map());
 				slot_length_ = DEFAULT_SLOT_LENGTH;
+				
+			#if !NAP_CONTROL_ALWAYS_ON
 				next_cycle();
+			#endif
 				
 				//debug_->debug("@%d fwd slot %d
 				
@@ -257,6 +264,7 @@ namespace wiselib {
 			}
 			
 			void next_cycle(void * = 0) {
+		#if !NAP_CONTROL_ALWAYS_ON
 				check();
 				
 				// <DEBUG>
@@ -282,9 +290,11 @@ namespace wiselib {
 				//#endif
 				nap_control_->push_caffeine("fwd_cyc");
 				sleep(0);
+		#endif
 			}
 			
 			void wake_up(void *p) {
+		#if NAP_CONTROL_ALWAYS_ON
 				check();
 				
 				position_ = 0;
@@ -305,9 +315,11 @@ namespace wiselib {
 				}
 				size_type len = end - position_;
 				timer_->template set_timer<self_type, &self_type::sleep>(slot_length_ * len, this, loose_precision_cast<void*>(end));
+		#endif
 			}
 			
 			void sleep(void* p) {
+		#if NAP_CONTROL_ALWAYS_ON
 				check();
 				
 				position_ = 0;
@@ -339,6 +351,7 @@ namespace wiselib {
 						timer_->template set_timer<self_type, &self_type::wake_up>(slot_length_ * len, this, loose_precision_cast<void*>(start));
 					//}
 				}
+		#endif
 			}
 			
 			size_type current_slot() {
@@ -413,7 +426,9 @@ namespace wiselib {
 					*/
 					//#endif
 					
+				#if !NAP_CONTROL_ALWAYS_ON
 					schedule_wakeup(pos, winslots);
+				#endif
 				}
 			}
 			

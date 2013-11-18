@@ -97,8 +97,10 @@ namespace wiselib {
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
-								//DBG("gps %d nomatch [%d] = %08lx != %08lx", (int)this->id_,
+								//#ifdef ISENSE
+								//GET_OS.debug("gps %d nomatch [%d] = %08lx != %08lx", (int)this->id_,
 										//(int)i, (unsigned long)values_[i], (unsigned long)v);
+								//#endif
 								match = false;
 								break;
 							}

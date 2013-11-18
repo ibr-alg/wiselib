@@ -342,12 +342,16 @@ namespace wiselib {
 					 */
 					bool read_field(field_id_t& field_id, block_data_t*& data, size_type& data_size) {
 						Instruction in = serializer_->read_instruction(buffer_current_, buffer_end_);
+						
 						while(buffer_current_ < buffer_end_ && in.command() != CMD_VALUE && in.command() != CMD_TABLE_VALUE && in.command() != CMD_END) {
+					//GET_OS.debug("processing instruction cmd %d", (int)in.command());
 							serializer_->process_instruction(in);
+					//GET_OS.debug("read instr");
 							in = serializer_->read_instruction(buffer_current_, buffer_end_);
 						}
 						
 						if(in.command() == CMD_VALUE) {
+					//GET_OS.debug("value");
 							ValueInstruction &v = (ValueInstruction&)in;
 							field_id = v.field_id();
 							data = v.payload();
@@ -355,15 +359,19 @@ namespace wiselib {
 							return true;
 						}
 						else if(in.command() == CMD_TABLE_VALUE) {
+					//GET_OS.debug("table value");
 							TableValueInstruction &v = (TableValueInstruction&)in;
 							field_id = v.field_id();
 							data = serializer_->get_table(v.field_index(), data_size);
 							return true;
 						}
 						
+					//GET_OS.debug("nothing f%d %lu", (int)mem->mem_free(), (unsigned long)(void*)serializer_);
 						serializer_->process_instruction(in);
+					//GET_OS.debug("pi don.");
 						data = 0;
 						data_size = 0;
+					//GET_OS.debug("read field done");
 						return false;
 					}
 					
@@ -614,40 +622,90 @@ namespace wiselib {
 			Instruction read_instruction(block_data_t*& buffer, block_data_t* buffer_end) {
 				Instruction in;
 				
+			//GET_OS.debug("ri1");
+				
 				if((buffer_end - buffer) < MIN_INSTRUCTION_HEADER_SIZE) {
 					return in;
 				}
 				
+			//GET_OS.debug("ri2");
 				// read the first few byte of the instruction
 				// (as many as we can sure there will be regardless of the
 				// command type)
 				memcpy((block_data_t*)&in, buffer, MIN_INSTRUCTION_HEADER_SIZE);
 				buffer += MIN_INSTRUCTION_HEADER_SIZE;
 				
+			//GET_OS.debug("ri3");
 				// read rest of the instruction (if any)
 				int hs = in.header_size();
 				if(hs == -1) { hs = tuple_size_; }
 				int to_read = hs - MIN_INSTRUCTION_HEADER_SIZE;
 				assert(to_read >= 0);
 				
+			//GET_OS.debug("ri4");
 				if(to_read > 0) {
+			//GET_OS.debug("ri5");
 					memcpy(((block_data_t*)&in) + MIN_INSTRUCTION_HEADER_SIZE, buffer, to_read);
 					buffer += to_read;
 				}
 				
+			//GET_OS.debug("ri6");
 				if(in.has_payload()) {
+			//GET_OS.debug("ri7");
 					in.payload() = buffer;
 					buffer += in.payload_size();
 				}
+				
+			//GET_OS.debug("ri8");
 				return in;
 			}
 			
 			/**
 			 */
 			void process_instruction(Instruction& in) {
+				
+				if(in.command() == CMD_HEADER) {
+					HeaderInstruction *head = reinterpret_cast<HeaderInstruction*>(&in);
+					table_size_ = head->table_size();
+					assert(table_size_ > 0);
+					tuple_size_ = head->tuple_size();
+					
+					// TODO: Do something appropriate if we receive a
+					// wrong version number!
+				}
+				else if(in.command() == CMD_INSERT) {
+					//GET_OS.debug("ins donx. &ins=0x%lx", (unsigned long)(void*)(&in));
+					InsertInstruction *ins = reinterpret_cast<InsertInstruction*>(&in);
+					//assert(ins->index() < table_size());
+					//assert(ins->payload_size() > 0);
+					
+					//GET_OS.debug("ins"); //ert %d (%d)%s", (int)ins.index(), (int)ins.payload_size(), (char*)ins.payload());
+					set_table(ins->index(), ins->payload(), ins->payload_size());
+					//GET_OS.debug("ins don.");
+				}
+				else if(in.command() == CMD_CAT) {
+					CatInstruction *cat = reinterpret_cast<CatInstruction*>(&in);
+					
+					//assert(cat->source_index() < table_size_);
+					//assert(cat->target_index() < table_size_);
+					
+					size_type current_size;
+					block_data_t *current = get_table(cat->source_index(), current_size);
+					assert(current != 0);
+					
+					size_type l = cat->source_prefix() + cat->payload_size();
+					block_data_t buf[512];
+					memcpy(buf, current, cat->source_prefix()); //current_size);
+					memcpy(buf + cat->source_prefix(), cat->payload(), cat->payload_size());
+					set_table(cat->target_index(), buf, l);
+				}
+				//GET_OS.debug("/pi");
+			}
+				
+			#if 0
 				switch(in.command()) {
 					case CMD_HEADER: {
-						HeaderInstruction& head = (HeaderInstruction&)in;
+						HeaderInstruction& head = reinterpret_cast<HeaderInstruction&>(in);
 						table_size_ = head.table_size();
 						assert(table_size_ > 0);
 						tuple_size_ = head.tuple_size();
@@ -658,13 +716,18 @@ namespace wiselib {
 					}
 						
 					case CMD_INSERT: {
-						InsertInstruction& ins = (InsertInstruction&)in;
-						assert(ins.index() < table_size());
-						assert(ins.payload_size() > 0);
+						// XXX
+						GET_OS.debug("ins donx. &ins=0x%lx", (unsigned long)(void*)(&in));
+						InsertInstruction& ins = *reinterpret_cast<InsertInstruction*>(&in);
+						//assert(ins.index() < table_size());
+						//assert(ins.payload_size() > 0);
+						
+					GET_OS.debug("ins"); //ert %d (%d)%s", (int)ins.index(), (int)ins.payload_size(), (char*)ins.payload());
 						set_table(ins.index(), ins.payload(), ins.payload_size());
+					GET_OS.debug("ins don.");
 						break;
 					}
-						
+				
 					case CMD_VALUE:
 					case CMD_TABLE_VALUE:
 					case CMD_TUPLE:
@@ -675,7 +738,7 @@ namespace wiselib {
 						break;
 						
 					case CMD_CAT: {
-						CatInstruction& cat = (CatInstruction&)in;
+						CatInstruction& cat = reinterpret_cast<CatInstruction&>(in);
 						
 						assert(cat.source_index() < table_size_);
 						assert(cat.target_index() < table_size_);
@@ -693,12 +756,14 @@ namespace wiselib {
 					}
 					
 				}
-			}
+			#endif
 			
 			void set_table(table_id_t id, block_data_t* data, sz_t data_size) {
+				//GET_OS.debug("set table id %d sz %d", (int)id, (int)table_size_);
 				//assert(strlen((char*)data) + 1 >= data_size);
 				
 				if(lookup_table_[id]) {
+					//GET_OS.debug("freeing 0x%lx", (unsigned long)(void*)lookup_table_[id]);
 					get_allocator().free_array(lookup_table_[id]);
 					lookup_table_[id] = 0;
 				}
@@ -707,6 +772,10 @@ namespace wiselib {
 				
 				wiselib::write<OsModel>(d, data_size);
 				memcpy(d + sizeof(sz_t), data, data_size);
+				//GET_OS.debug("d=0x%lx", (unsigned long)(void*)d);
+				//GET_OS.debug("*d=%d %s", (int)d[0], (char*)(d+1));
+				//GET_OS.debug("f%d", (int)mem->mem_free());
+				//GET_OS.debug("/set table");
 			}
 			
 			block_data_t* get_table(table_id_t id, size_type& sz) {

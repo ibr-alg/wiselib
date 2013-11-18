@@ -89,7 +89,11 @@ namespace wiselib {
 			}
 			
 			bool on() {
-				return caffeine_ > 0;
+				#if NAP_CONTROL_ALWAYS_ON
+					return true;
+				#else
+					return caffeine_ > 0;
+				#endif
 			}
 			
 			/**
@@ -150,6 +154,15 @@ namespace wiselib {
 					#elif NAP_CONTROL_DEBUG_ONOFF
 						debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
 					#endif
+						
+						#if CONTIKI_TARGET_sky
+							leds_off(LEDS_RED);
+						#endif
+						#if NAP_CONTROL_DEBUG_STATE
+							debug_->debug("@%lu off t%lu %s", (unsigned long)radio_->id(), (unsigned long)(now() ), s); //, (int)radio_->id());
+						#elif NAP_CONTROL_DEBUG_ONOFF
+							debug_->debug("@%lu off t%lu", (unsigned long)radio_->id(), (unsigned long)(now())); //, (int)radio_->id());
+						#endif
 				}
 			}
 		
