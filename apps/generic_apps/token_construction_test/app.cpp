@@ -32,12 +32,12 @@ class App {
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 			
-		#if APP_QUERY
+		#if APP_QUERY && USE_INQP
 			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::uart_receive>(this);
-		#endif
 			uart_query_pos = 0;
+		#endif
 			
 			initcount = INSE_START_WAIT;
 			//debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
@@ -157,8 +157,8 @@ class App {
 		
 		}
 		
+		char rdf_uri_[64];
 		#if APP_QUERY && defined(ISENSE)
-			char rdf_uri_[64];
 			char pir_uri_[64];
 			IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, Aggregator> data_provider_;
 		#endif
@@ -374,7 +374,7 @@ class App {
 		}
 	//#endif
 		
-	#if APP_QUERY
+	#if APP_QUERY && USE_INQP
 		block_data_t uart_query[512];
 		size_t uart_query_pos;
 		
@@ -426,6 +426,8 @@ class App {
 		 */
 	#endif
 		
+	
+	#if USE_INQP
 		void on_result_row(
 				QueryProcessor::query_id_t query_id,
 				QueryProcessor::operator_id_t operator_id,

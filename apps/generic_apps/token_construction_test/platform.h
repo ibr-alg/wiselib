@@ -38,8 +38,14 @@
 
 #elif APP_QUERY
 	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
-	#define HAS_PIR                      1
-	#define HAS_ENV                      0
+
+	#if defined(ISENSE)
+		#define HAS_PIR                      1
+		#define HAS_ENV                      0
+	#else
+		#define HAS_PIR 0
+		#define HAS_ENV 0
+	#endif
 
 	#define USE_INQP                     1
 	#define USE_STRING_INQUIRY           0
@@ -230,7 +236,7 @@
 	#define INSE_FORWARDING_SLOT_LENGTH    1000 * WISELIB_TIME_FACTOR
 	
 	#define INSE_MAX_NEIGHBORS             32
-	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_SEMANTIC_ENTITIES     10
 	#define INSE_MAX_QUERIES               0
 	
 #endif
