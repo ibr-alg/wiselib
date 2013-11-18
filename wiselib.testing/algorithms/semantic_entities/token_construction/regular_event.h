@@ -283,7 +283,7 @@ namespace wiselib {
 			 * timer installed by start_waiting_timer!
 			 */
 			void begin_waiting(void*) {
-				printf("bw\n"); //, (unsigned long)now());
+				/*printf("bw\n"); //, (unsigned long)now());*/
 				
 				//DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%lx", (int)waiting_timer_set_, (int)waiting_, (int)cancel_, (long int)userdata_);
 						
