@@ -89,6 +89,9 @@ namespace wiselib {
 				assert(columns == 1);
 				SemanticEntityId se_id(qid, row[0]);
 				DBG("---- adding SE\n");
+				#if ISENSE
+					GET_OS.debug("joining SE %lx.%lx", (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+				#endif
 				construction_->add_entity(se_id);
 			}
 			

@@ -109,14 +109,14 @@ tree_state.h:109: error:                 struct Serialization<OsModel_P, Endiann
 serialization.h:113: error: incomplete type 'Serialization<iSenseOsModel, WISELIB_BIG_ENDIAN, unsigned char, TreeState<> >' used in nested name specifier
 	 * 
 	 */ 
-	#ifndef ISENSE
+	#if !defined(ISENSE) || 1
 	template<
 		typename OsModel_P,
-		Endianness Endianness_P,
+		//Endianness Endianness_P,
 		typename BlockData_P,
 		typename Radio_P
 	>
-	struct Serialization<OsModel_P, Endianness_P, BlockData_P, TreeState<OsModel_P, Radio_P> > {
+	struct Serialization<OsModel_P, WISELIB_ENDIANNESS, BlockData_P, TreeState<OsModel_P, Radio_P> > {
 		typedef OsModel_P OsModel;
 		typedef BlockData_P block_data_t;
 		typedef typename OsModel::size_t size_type;

@@ -245,14 +245,29 @@ namespace wiselib {
 						ANSWER_REQUEST = 5, RECEIVE_ANSWER = 6, DONE = 7
 					};
 					
+					State() : state_(INIT), header_sent_(false), virgin_(true) {
+						init();
+					}
+					
+					void init() {
+						requested_.clear();
+						operator_pos_ = 0;
+						scope_ = SemanticEntityId::invalid();
+						query_id_ = 0;
+						header_sent_ = false;
+						virgin_ = true;
+						state_ = INIT;
+					}
+					
 					::uint8_t state() { return state_; }
 					void set_state(::uint8_t s) { state_ = s; }
+					bool virgin() { return virgin_; }
 					
 					///@name Query level iteration
 					///@{
 					
 					typename QueryDescriptions::iterator& query_iterator() { return query_iterator_; }
-					void set_query_iterator(typename QueryDescriptions::iterator i) { query_iterator_ = i; }
+					void set_query_iterator(typename QueryDescriptions::iterator i) { query_iterator_ = i; virgin_ = false; }
 					void forward_to_requested(typename QueryDescriptions::iterator end) {
 						
 						bool stop = false;
@@ -309,6 +324,7 @@ namespace wiselib {
 					SemanticEntityId scope_;
 					query_id_t query_id_;
 					bool header_sent_;
+					bool virgin_;
 					::uint8_t state_;
 				//}}}
 			};
@@ -381,10 +397,15 @@ namespace wiselib {
 						p += *p;
 					}
 					
-					nap_control_->push_caffeine("odwake");
-					timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
+					debug_->debug("T ltwake1");
 					timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(qid));
 				}
+				
+				try_send();
+				
+				nap_control_->push_caffeine("odwake");
+					debug_->debug("T odwake1");
+				timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 			}
 			
 			bool callback_handover_initiator(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
@@ -404,6 +425,7 @@ namespace wiselib {
 					State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
+							s.init();
 							nap_control_->push_caffeine("od_op");
 							break;
 						case TransportT::EVENT_ABORT:
@@ -418,6 +440,7 @@ namespace wiselib {
 									sent_[remote].insert(QueryRevision(it->second.id(), it->second.revision()));
 								}
 							}
+							s.init();
 							break;
 					}
 				}
@@ -500,7 +523,7 @@ namespace wiselib {
 						while(s.query_iterator() != queries_.end()) {
 							if(!s.header_sent()) {
 								if(p + QUERY_HEADER_SIZE > end) {
-									debug_->debug("phi hdr !fit");
+									//debug_->debug("phi hdr !fit");
 									// header doesnt fit!
 									break;
 								}
@@ -560,10 +583,11 @@ namespace wiselib {
 						//debug_buffer<OsModel, 16>(debug_, start, p - start);
 						
 						message.set_payload_size(p - start);
+						if(p == start) { return false; }
 						break;
 						
 					default:
-						debug_->debug("@%d phi!%d", (int)radio_->id(), (int)s.state());
+						//debug_->debug("@%d phi!%d", (int)radio_->id(), (int)s.state());
 						assert(false);
 						break;
 						
@@ -600,7 +624,7 @@ namespace wiselib {
 						break;
 						
 					default:
-						debug_->debug("chi!%d", (int)s.state());
+						//debug_->debug("chi!%d", (int)s.state());
 						assert(false);
 						break;
 				}
@@ -609,7 +633,7 @@ namespace wiselib {
 			
 			bool callback_handover_recepient(int event, typename TransportT::Message* message, typename TransportT::Endpoint* endpoint) {
 				#if DISTRIBUTOR_DEBUG_STATE
-					debug_->debug("@%d evhr%c", (int)radio_->id(), (int)event);
+					debug_->debug("@%d evhr%c %lu", (int)radio_->id(), (int)event, (unsigned long)endpoint->remote_address());
 				#endif
 					
 				if(event == TransportT::EVENT_PRODUCE) {
@@ -620,14 +644,16 @@ namespace wiselib {
 				}
 				else {
 					node_id_t remote = endpoint->remote_address();
-					//State &s = communication_states_[remote];
+					State &s = communication_states_[remote];
 					switch(event) {
 						case TransportT::EVENT_OPEN:
+							s.init();
 							nap_control_->push_caffeine("odr_op");
 							break;
 						case TransportT::EVENT_ABORT:
 							break;
 						case TransportT::EVENT_CLOSE:
+							s.init();
 							nap_control_->pop_caffeine("/odr_op");
 							break;
 					}
@@ -739,9 +765,12 @@ namespace wiselib {
 							//debug_->debug("@%d offs %d opl %d", (int)radio_->id(), (int)(p - start), (int)l);
 							if(l == 0) {
 								if(p > end - QUERY_HEADER_SIZE) {
+									//debug_->debug("l0 p0x%lx end0x%lx", (unsigned long)(void*)p, (unsigned long)(void*)end);
+									
 									// len == 0, but can't be a new query -->
 									// we are done!
 									//done = true;
+									s.set_query_iterator(queries_.end());
 									break;
 								}
 								
@@ -771,12 +800,16 @@ namespace wiselib {
 								s.set_query_iterator(queries_.find(id));
 								s.rewind_operator();
 								
+								//debug_->debug("RQ %lx.%lx", (unsigned long)scope.rule(), (unsigned long)scope.value());
+								
 								// If query locally relevant, delete old
 								// version, start creating new one
 								if(registry_->contains(scope)) {
 									#if DISTRIBUTOR_DEBUG_STATE
 										debug_->debug("@%d +q%d", (int)radio_->id(), (int)id);
 									#endif
+										
+										
 									query_processor_->erase_query(id);
 									Query *q = query_processor_->create_query(id);
 									q->set_expected_operators(operator_count);
@@ -794,28 +827,38 @@ namespace wiselib {
 								//s.set_scope(scope);
 								
 								nap_control_->push_caffeine("odwake");
+								debug_->debug("T odwake ltwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(id));
 							}
 							else {
 								assert(s.query_iterator() != queries_.end());
+								if(s.virgin() || s.query_iterator() == queries_.end()) { return; }
 								
+								block_data_t buf[256];
 								// If locally relevant, interpret
 								// operator descriptions
 								// registry will understand special SE ids
+								
 								if(registry_->contains(s.query_iterator()->second.scope())) {
 									Query *q = query_processor_->get_query(s.query_iterator()->second.id());
 									assert(q != 0);
+									if(q == 0) { return; }
 									
 									#if DISTRIBUTOR_DEBUG_STATE
 										debug_->debug("@%d q%d +o%d", (int)radio_->id(),
 												(int)s.query_iterator()->second.id(),
 												(int)*p);
 									#endif
+									int n = end - p;
+									if(n > 255) { n = 255; }
+									memcpy(buf, p, n);
 									// TODO: possible alignment problem here?
-									query_processor_->handle_operator(q, (BOD*)(p));
+									// --> fixed with buf-copy
+									query_processor_->handle_operator(q, (BOD*)(buf));
 								}
 								
+								//GET_OS.fatal("t=%lx", (unsigned long)(void*)this);
 								s.query_iterator()->second.push_operator(s.operator_position(), l, p - 1);
 								s.next_operator();
 								p += l - 1; // the length field itself was already added!
@@ -834,10 +877,15 @@ namespace wiselib {
 			
 			void on_lifetime_over(void* qid_) {
 				query_id_t qid = (unsigned long)qid_ & 0xff;
+				debug_->debug("qlt%d", (int)qid);
 				query_processor_->erase_query(qid);
 			}
 			
 			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
+				//#if DISTRIBUTOR_DEBUG_STATE
+					//debug_->debug("OD nd ev%d %lu", (int)event, (unsigned long)id);
+				//#endif
+				
 				switch(event) {
 					case Neighborhood::SEEN_NEIGHBOR:
 						on_see_neighbor(id);
@@ -873,7 +921,18 @@ namespace wiselib {
 				}
 			} // on_neighborhood_event
 				
+			
+			void try_send() {
+				//for(typename Neighborhood::iterator it = nd_->begin_neighbors(); it != nd_->end_neighbors(); ++it) {
+				if(nd_->begin_neighbors() != nd_->end_neighbors()) {
+					on_see_neighbor(nd_->begin_neighbors()->id());
+				}
+			}
+				
+			
 			void on_see_neighbor(node_id_t neighbor_id) {
+				if(neighbor_id == radio_->id()) { return; }
+				
 				typename QueryDescriptions::iterator it = queries_.begin();
 				forward_to_matching(it, neighbor_id);
 				
@@ -909,7 +968,9 @@ namespace wiselib {
 					typename TransportT::Endpoint &ep = transport_.get_endpoint(neighbor_id, true, found);
 					if(found) {
 						assert(ep.remote_address() == neighbor_id);
-						if(transport_.is_sending() <= (transport_.sending_endpoint().channel() != neighbor_id)) {
+						//if(transport_.is_sending() <= (transport_.sending_endpoint().remote_address() != neighbor_id)) {
+						if(!ep.is_open() && !ep.wants_something()) {
+							debug_->debug("OD to 0x%lx", (unsigned long)ep.remote_address());
 							int r = transport_.open(ep, true);
 							if(r == SUCCESS) {
 								communication_states_[neighbor_id].set_state(State::INIT);
@@ -917,7 +978,10 @@ namespace wiselib {
 							transport_.flush();
 						} // if not already sending
 					} // if found
-				} // if !up to date
+					else {
+						//debug_->debug("!EP %lu", (unsigned long)neighbor_id);
+					} // if !up to date
+				}
 			} // on_see_neighbor()
 			
 		private:

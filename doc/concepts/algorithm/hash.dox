@@ -6,6 +6,8 @@ namespace concepts {
 	 * 
 	 * Hash Algorithms provide a static method that accepts a pointer to a
 	 * bunch of data to be hashed plus the number of bytes to process.
+     * 
+     * @ingroup Hash_concept
 	 */
 	concept Hash_concept {
 		typedef ... block_data_t;

@@ -26,18 +26,14 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief A table is a dynamic vector holding a set of rows with the same
+	 * number of columns.
 	 * 
 	 * Table t;
 	 * 
 	 * for(Table::iterator it = t.begin(); it != t.end(); ++it) {
 	 *    print(*it);
 	 * }
-	 * 
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
@@ -129,6 +125,8 @@ namespace wiselib {
 				//DBG("table destr end");
 			}
 			
+			/**
+			 */
 			void insert(const RowT& row) {
 				check();
 				if(size_ >= capacity_) {
@@ -139,22 +137,34 @@ namespace wiselib {
 				check();
 			}
 			
+			/**
+			 */
 			iterator begin() {
 				check();
 				return iterator(buffer_, row_size_);
 			}
 			
+			/**
+			 */
 			iterator end() {
 				check();
 				return iterator(buffer_ + size_ * row_size_, row_size_);
 			}
 			
+			/**
+			 * Compress in-memory rows. Useful if no insert() or pop_back()
+			 * operations are to be expected in the foreseeable future to
+			 * conserve some RAM.
+			 */
 			void pack() {
 				check();
 				change_capacity(size_);
 				check();
 			}
 			
+			/**
+			 * Access ith row.
+			 */
 			RowT& operator[](size_type n) {
 				check();
 				return *reinterpret_cast<RowT*>(
@@ -162,19 +172,30 @@ namespace wiselib {
 				);
 			}
 			
+			/**
+			 * Set ith row.
+			 */
 			void set(size_type i, const RowT& row) {
 				check();
 				memcpy(buffer_ + i * row_size_, &row, row_size_);
 				check();
 			}
 			
+			/**
+			 * # of rows.
+			 */
 			size_type size() { return size_; }
 			
+			/**
+			 */
 			void clear() {
 				size_ = 0;
 				change_capacity(0);
 			}
 			
+			/**
+			 * Sort rows in-place, according to the given comparator.
+			 */
 			template<typename Compare>
 			void sort(Compare& comp) {
 				check();
@@ -182,6 +203,9 @@ namespace wiselib {
 				check();
 			}
 			
+			/**
+			 * delete the last row from the table
+			 */
 			void pop_back() {
 				check();
 				

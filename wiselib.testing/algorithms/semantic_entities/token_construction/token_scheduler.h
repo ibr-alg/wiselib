@@ -99,7 +99,7 @@ namespace wiselib {
 				MAX_NEIGHBORS = INSE_MAX_NEIGHBORS,
 				MAX_SEMANTIC_ENTITIES = INSE_MAX_SEMANTIC_ENTITIES,
 				BLOOM_FILTER_BITS = INSE_BLOOM_FILTER_BITS,
-				MAX_AGGREGATOR_ENTRIES = 4,
+				MAX_AGGREGATOR_ENTRIES = 8,
 				MAX_SHDT_TABLE_SIZE = 8,
 				MAX_SSTREE_LISTENERS = 4,
 				FORWARDING_MAP_BITS = INSE_FORWARDING_MAP_BITS
@@ -326,6 +326,9 @@ namespace wiselib {
 			NapControlT& nap_control() { return nap_control_; }
 			SemanticEntityRegistryT& semantic_entity_registry() { return registry_; }
 			SemanticEntityNeighborhoodT& neighborhood() { return neighborhood_; }
+			#if INSE_USE_AGGREGATOR
+				SemanticEntityAggregatorT& aggregator() { return aggregator_; }
+			#endif
 		
 		private:
 			
@@ -340,6 +343,7 @@ namespace wiselib {
 						initiate_handover(se, false); // tree has changed, (re-)send token info
 					}
 				}
+				debug_->debug("T RECOV");
 				timer_->template set_timer<self_type, &self_type::on_recover_token>(RECOVER_TOKEN_INTERVAL, this, 0);
 			}
 				
@@ -370,6 +374,7 @@ namespace wiselib {
 					on_receive_task(from, len, data);
 				#else
 					PacketInfo *p = PacketInfo::create(now, from, len, data);
+				debug_->debug("T PKG");
 					timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
 				#endif
 			}
@@ -527,6 +532,7 @@ namespace wiselib {
 					
 					if(main && se.main_handover_phase() == SemanticEntityT::PHASE_PENDING) {
 						se.set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
+				debug_->debug("T TIMH");
 						timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>((int)HANDOVER_RETRY_INTERVAL, this, &se);
 					}
 					return false;
@@ -627,7 +633,7 @@ namespace wiselib {
 						size_type sz = aggregator_.fill_buffer_start(id, message.payload(), ReliableTransportT::Message::MAX_PAYLOAD_SIZE, call_again);
 						
 						if(call_again) {
-							debug_->debug("phi as+ %d", (int)sz);
+							//debug_->debug("phi as+ %d", (int)sz);
 							se->set_handover_state_initiator(SemanticEntityT::SEND_AGGREGATES);
 							endpoint.request_send();
 						}
@@ -766,6 +772,7 @@ namespace wiselib {
 			#endif
 							
 							se->set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
+				debug_->debug("T NACT");
 							timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, se);
 						}
 						//debug_->debug("chi n");
@@ -810,6 +817,7 @@ namespace wiselib {
 						*/
 						if(se->main_handover_phase() == SemanticEntityT::PHASE_EXECUTING) {
 							se->set_main_handover_phase(SemanticEntityT::PHASE_PENDING);
+				debug_->debug("T ABRTR");
 							timer_->template set_timer<self_type, &self_type::try_initiate_main_handover>(HANDOVER_RETRY_INTERVAL, this, se);
 						}
 						//timer_->template set_timer<self_type, &self_type::initiate_handover>(HANDOVER_RETRY_INTERVAL, this, se);
@@ -1312,6 +1320,7 @@ namespace wiselib {
 				
 				se.set_token_send_start(now());
 				initiate_handover(se, true);
+				
 				se.end_wait_for_activating_token();
 				
 				#if !WISELIB_DISABLE_DEBUG
@@ -1320,6 +1329,7 @@ namespace wiselib {
 							(int)se.in_activity_phase());
 				#endif
 				
+				debug_->debug("T SCHED");
 				se.template schedule_activating_token<self_type, &self_type::begin_wait_for_token, &self_type::end_wait_for_token>(clock_, timer_, this, &se);
 				
 				#ifdef ARDUINO

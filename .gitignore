@@ -9,6 +9,7 @@ wiselib.stable/config.h
 bin/
 out/
 build/
+data/
 *.so
 *.pdf
 doxygen_output/
@@ -26,3 +27,4 @@ tags
 .cproject
 .project
 .settings
+dot/

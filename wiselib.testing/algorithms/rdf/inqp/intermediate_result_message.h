@@ -26,11 +26,8 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Message for intermediate INQP results.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,

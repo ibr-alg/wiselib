@@ -1,0 +1,438 @@
+{
+"__all__": {
+  "elements_unique":  3320193 ,
+  "hashes": {
+     "bernstein8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 55.296, "hash_time_user": 39.383, "hash_time_sys": 15.700,
+        "used_hashes":  256 ,
+        "unused_hashes":  0 ,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  139540.75781250
+      }
+,     "bernstein16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 56.268, "hash_time_user": 40.317, "hash_time_sys": 15.577,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  56.66555405
+      }
+,     "bernstein32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 56.395, "hash_time_user": 40.307, "hash_time_sys": 15.607,
+        "used_hashes":  3318233 ,
+        "unused_hashes":  4291649063 ,
+        "collisions":  1959 ,
+        "colliding_hashes":  1957 ,
+        "non_colliding_hashes":  4291649063 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077336
+      }
+,     "bernstein64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 55.820, "hash_time_user": 39.533, "hash_time_sys": 15.953,
+        "used_hashes":  3320093 ,
+        "unused_hashes":  18446744073706231523 ,
+        "collisions":  99 ,
+        "colliding_hashes":  98 ,
+        "non_colliding_hashes":  18446744073706231523 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "bernstein2_8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 55.777, "hash_time_user": 40.250, "hash_time_sys": 15.293,
+        "used_hashes":  256 ,
+        "unused_hashes":  0 ,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  35954.93750000
+      }
+,     "bernstein2_16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 55.773, "hash_time_user": 40.470, "hash_time_sys": 14.993,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  53.95486069
+      }
+,     "bernstein2_32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 55.996, "hash_time_user": 39.603, "hash_time_sys": 16.110,
+        "used_hashes":  3318973 ,
+        "unused_hashes":  4291648323 ,
+        "collisions":  1219 ,
+        "colliding_hashes":  1219 ,
+        "non_colliding_hashes":  4291648323 ,
+        "values_per_hash_mean":  0.00077304 ,
+        "values_per_hash_variance": 0.00077302
+      }
+,     "bernstein2_64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 58.092, "hash_time_user": 40.810, "hash_time_sys": 16.400,
+        "used_hashes":  3320121 ,
+        "unused_hashes":  18446744073706231495 ,
+        "collisions":  71 ,
+        "colliding_hashes":  71 ,
+        "non_colliding_hashes":  18446744073706231495 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "elf32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 62.090, "hash_time_user": 46.163, "hash_time_sys": 15.617,
+        "used_hashes":  3150091 ,
+        "unused_hashes":  4291817205 ,
+        "collisions":  170101 ,
+        "colliding_hashes":  105909 ,
+        "non_colliding_hashes":  4291817205 ,
+        "values_per_hash_mean":  0.00077304 ,
+        "values_per_hash_variance": 0.00099552
+      }
+,     "firstchar8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 51.720, "hash_time_user": 36.113, "hash_time_sys": 15.420,
+        "used_hashes":  81 ,
+        "unused_hashes":  175 ,
+        "collisions":  3320111 ,
+        "colliding_hashes":  72 ,
+        "non_colliding_hashes":  175 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  14236516271.82031250
+      }
+,     "fletcher16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 54.773, "hash_time_user": 39.267, "hash_time_sys": 15.403,
+        "used_hashes":  64895 ,
+        "unused_hashes":  641 ,
+        "collisions":  3255297 ,
+        "colliding_hashes":  64581 ,
+        "non_colliding_hashes":  641 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  777.94942856
+      }
+,     "fnv1_16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 57.659, "hash_time_user": 41.687, "hash_time_sys": 15.623,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.76955795
+      }
+,     "fnv1_32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 59.282, "hash_time_user": 42.760, "hash_time_sys": 16.117,
+        "used_hashes":  3318889 ,
+        "unused_hashes":  4291648407 ,
+        "collisions":  1303 ,
+        "colliding_hashes":  1303 ,
+        "non_colliding_hashes":  4291648407 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077305
+      }
+,     "fnv1_64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 58.324, "hash_time_user": 41.547, "hash_time_sys": 15.857,
+        "used_hashes":  3320192 ,
+        "unused_hashes":  18446744073706231424 ,
+        "collisions":  0 ,
+        "colliding_hashes":  0 ,
+        "non_colliding_hashes":  18446744073706231424 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "fnv1a_16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 61.439, "hash_time_user": 44.333, "hash_time_sys": 16.603,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.60372543
+      }
+,     "fnv1a_32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 62.111, "hash_time_user": 44.543, "hash_time_sys": 17.050,
+        "used_hashes":  3318623 ,
+        "unused_hashes":  4291648673 ,
+        "collisions":  1569 ,
+        "colliding_hashes":  1569 ,
+        "non_colliding_hashes":  4291648673 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077318
+      }
+,     "fnv1a_64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 64.499, "hash_time_user": 46.233, "hash_time_sys": 18.010,
+        "used_hashes":  3320192 ,
+        "unused_hashes":  18446744073706231424 ,
+        "collisions":  0 ,
+        "colliding_hashes":  0 ,
+        "non_colliding_hashes":  18446744073706231424 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "lookup2_32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 65.316, "hash_time_user": 47.067, "hash_time_sys": 17.507,
+        "used_hashes":  3318973 ,
+        "unused_hashes":  4291648323 ,
+        "collisions":  1219 ,
+        "colliding_hashes":  1218 ,
+        "non_colliding_hashes":  4291648323 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077302
+      }
+,     "lookup3_32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 64.305, "hash_time_user": 46.013, "hash_time_sys": 17.830,
+        "used_hashes":  3318923 ,
+        "unused_hashes":  4291648373 ,
+        "collisions":  1269 ,
+        "colliding_hashes":  1269 ,
+        "non_colliding_hashes":  4291648373 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077304
+      }
+,     "oneatatime_32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 71.704, "hash_time_user": 50.797, "hash_time_sys": 19.423,
+        "used_hashes":  3318800 ,
+        "unused_hashes":  4291648496 ,
+        "collisions":  1392 ,
+        "colliding_hashes":  1391 ,
+        "non_colliding_hashes":  4291648496 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077310
+      }
+,     "kr8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 61.474, "hash_time_user": 43.503, "hash_time_sys": 17.700,
+        "used_hashes":  256 ,
+        "unused_hashes":  0 ,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  5732021.46875000
+      }
+,     "kr16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 60.471, "hash_time_user": 42.807, "hash_time_sys": 17.537,
+        "used_hashes":  48927 ,
+        "unused_hashes":  16609 ,
+        "collisions":  3271265 ,
+        "colliding_hashes":  37580 ,
+        "non_colliding_hashes":  16609 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  49868.92660141
+      }
+,     "kr32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 54.498, "hash_time_user": 38.630, "hash_time_sys": 15.600,
+        "used_hashes":  53061 ,
+        "unused_hashes":  4294914235 ,
+        "collisions":  3267131 ,
+        "colliding_hashes":  37438 ,
+        "non_colliding_hashes":  4294914235 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.79984383
+      }
+,     "kr64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 61.240, "hash_time_user": 43.183, "hash_time_sys": 17.560,
+        "used_hashes":  53061 ,
+        "unused_hashes":  18446744073709498555 ,
+        "collisions":  3267131 ,
+        "colliding_hashes":  37438 ,
+        "non_colliding_hashes":  18446744073709498555 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "larson8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 60.340, "hash_time_user": 42.793, "hash_time_sys": 17.323,
+        "used_hashes":  256 ,
+        "unused_hashes":  0 ,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  9975.38281250
+      }
+,     "larson16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 62.610, "hash_time_user": 44.897, "hash_time_sys": 17.333,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  55.88167953
+      }
+,     "larson32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 61.624, "hash_time_user": 43.443, "hash_time_sys": 17.620,
+        "used_hashes":  3319104 ,
+        "unused_hashes":  4291648192 ,
+        "collisions":  1088 ,
+        "colliding_hashes":  1088 ,
+        "non_colliding_hashes":  4291648192 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077295
+      }
+,     "larson64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 62.585, "hash_time_user": 44.833, "hash_time_sys": 17.153,
+        "used_hashes":  3320192 ,
+        "unused_hashes":  18446744073706231424 ,
+        "collisions":  0 ,
+        "colliding_hashes":  0 ,
+        "non_colliding_hashes":  18446744073706231424 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "novak8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 60.771, "hash_time_user": 43.830, "hash_time_sys": 16.727,
+        "used_hashes":  256 ,
+        "unused_hashes":  0 ,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  34107.60937500
+      }
+,     "novak16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 55.505, "hash_time_user": 39.473, "hash_time_sys": 15.713,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  203.12768173
+      }
+,     "novak32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 62.680, "hash_time_user": 44.490, "hash_time_sys": 17.433,
+        "used_hashes":  2259812 ,
+        "unused_hashes":  4292707484 ,
+        "collisions":  1060380 ,
+        "colliding_hashes":  297439 ,
+        "non_colliding_hashes":  4292707484 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00301844
+      }
+,     "novak64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 61.221, "hash_time_user": 42.977, "hash_time_sys": 17.583,
+        "used_hashes":  2260699 ,
+        "unused_hashes":  18446744073707290917 ,
+        "collisions":  1059493 ,
+        "colliding_hashes":  296884 ,
+        "non_colliding_hashes":  18446744073707290917 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+,     "sdbm8": {
+        "bits":  8 ,
+        "total_hashes":  256 ,
+  "hash_time_real": 60.140, "hash_time_user": 42.830, "hash_time_sys": 17.050,
+        "used_hashes":  256 ,
+        "unused_hashes":  0 ,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  2109882.04687500
+      }
+,     "sdbm16": {
+        "bits":  16 ,
+        "total_hashes":  65536 ,
+  "hash_time_real": 61.275, "hash_time_user": 43.153, "hash_time_sys": 17.593,
+        "used_hashes":  65536 ,
+        "unused_hashes":  0 ,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536 ,
+        "non_colliding_hashes":  0 ,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  97.04769516
+      }
+,     "sdbm32": {
+        "bits":  32 ,
+        "total_hashes":  4294967296 ,
+  "hash_time_real": 60.797, "hash_time_user": 43.260, "hash_time_sys": 17.150,
+        "used_hashes":  3319122 ,
+        "unused_hashes":  4291648174 ,
+        "collisions":  1070 ,
+        "colliding_hashes":  1070 ,
+        "non_colliding_hashes":  4291648174 ,
+        "values_per_hash_mean": 0.00077304 ,
+        "values_per_hash_variance": 0.00077295
+      }
+,     "sdbm64": {
+        "bits":  64 ,
+        "total_hashes":  18446744073709551616 ,
+  "hash_time_real": 63.698, "hash_time_user": 44.690, "hash_time_sys": 18.027,
+        "used_hashes":  3320192 ,
+        "unused_hashes":  18446744073706231424 ,
+        "collisions":  0 ,
+        "colliding_hashes":  0 ,
+        "non_colliding_hashes":  18446744073706231424 ,
+        "values_per_hash_mean":  0 ,
+        "values_per_hash_variance":  0
+      }
+}}
+}

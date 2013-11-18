@@ -57,7 +57,7 @@ typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 
 
 // --- < USE RAM >
-	/*
+	/**/
 
 	#include <util/tuple_store/prescilla_dictionary.h>
 	#include <util/pstl/unbalanced_tree_dictionary.h>
@@ -69,11 +69,12 @@ typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 	typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, RDF_COLS, &BrokerTupleT::compare> TupleStoreT;
 	typedef CodecTupleStore<Os, TupleStoreT, HuffmanCodec<Os>, RDF_COLS> CodecTupleStoreT;
 
-	*/
+	/**/
 
 // --- < / USE RAM >
 
 // --- < USE BLOCKMEMORY >
+	/*
 
 	#if (ARDUINO || ISENSE)
 		typedef Os::BlockMemory PhysicalBlockMemory;
@@ -112,6 +113,7 @@ typedef BrokerTuple<Os, bitmask_t> BrokerTupleT;
 
 	#define USE_BLOCK_TS 1
 
+	*/
 // --- < / USE_BLOCKMEMORY >
 
 //PrintInt<sizeof(block_data_t*)> _0;

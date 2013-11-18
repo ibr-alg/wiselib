@@ -23,11 +23,9 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Implementation of the CRC 16 bit checksum algorithm.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @ingroup Hash_concept.
 	 */
 	template<
 		typename OsModel_P

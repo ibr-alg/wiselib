@@ -46,8 +46,8 @@ char *test_tuples_mini[] = {
 
 char *test_tuples_btcsample[][3] = {
 	//#include "ssp.cpp"
-	//#include "btcsample0.cpp"
-	#include "incontextsensing.cpp"
+	#include "btcsample0.cpp"
+	//#include "incontextsensing.cpp"
 	0
 };
 
@@ -67,8 +67,8 @@ class ExampleApplication {
 			
 			//shdt_encode(100);
 			
-			for(size_type packet_size = 100; packet_size <= 1000100; packet_size += 1000000) {
-				for(size_type table_size = 10; table_size <= Shdt::MAX_TABLE_SIZE; table_size += 10) {
+			for(size_type packet_size = 20; packet_size <= 140; packet_size += 40) {
+				for(size_type table_size = 10; table_size <= Shdt::MAX_TABLE_SIZE; table_size += 1) {
 			//size_type packet_size = 100;
 			//size_type table_size=64;
 					sender.reset();

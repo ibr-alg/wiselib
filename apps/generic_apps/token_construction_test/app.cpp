@@ -7,10 +7,18 @@
 	}
 #endif
 
-	static const char* tuples[][3] = {
-		#include "nqxe_test.cpp"
-		{ 0, 0, 0 }
-	};
+#if APP_QUERY
+	
+	#if ISENSE
+		#include <isense/modules/security_module/pir_sensor.h>
+		#include "isense_pir_data_provider.h"
+	#endif
+	
+	//static const char* tuples[][3] = {
+		//#include "nqxe_test.cpp"
+		//{ 0, 0, 0 }
+	//};
+#endif
 
 class App {
 	public:
@@ -24,10 +32,11 @@ class App {
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 			
-		#if APP_QUERY
+		#if APP_QUERY && USE_INQP
 			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::uart_receive>(this);
+			uart_query_pos = 0;
 		#endif
 			
 			initcount = INSE_START_WAIT;
@@ -88,26 +97,38 @@ class App {
 			
 			// Fill node with initial semantics and construction rules
 			
-			insert_tuples();
+			#if APP_QUERY
+				#if defined(ISENSE)
+					snprintf(rdf_uri_, sizeof(rdf_uri_), "<http://spitfire-project.eu/nodes/%08lx/>", (unsigned long)radio_.id());
+					
+					
+					snprintf(pir_uri_, sizeof(pir_uri_), "<http://spitfire-project.eu/nodes/%08lx/pir>", (unsigned long)radio_.id());
+					data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
+				#endif
+				insert_tuples();
+			#endif
 			
-			#if !APP_BLINK
+			#if APP_EVAL
 				initial_semantics(ts, &radio_, rand_);
+			#endif
+				
+			#if APP_EVAL || APP_QUERY
 				create_rules();
 				rule_processor_.execute_all();
 			#endif
 			
-			#if USE_DICTIONARY && INSE_USE_AGGREGATOR
-				aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/property/Temperature>");
-				aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
-			#endif
+			//#if USE_DICTIONARY
+				//aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://me.exmpl/Temperature>");
+				//aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
+			//#endif
 				
 			//debug_->debug("hash(temp)=%lx", (long)STRHASH("<http://spitfire-project.eu/property/Temperature>"));
 			//debug_->debug("hash(centigrade)=%lx", (long)STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
 			
 			//debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
 			
-			//monitor_.report("/init");
-			#if USE_INQP
+			monitor_.report("/init");
+			#if USE_INQP && !APP_QUERY
 				//timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
 				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);
 			#endif
@@ -133,8 +154,16 @@ class App {
 				SENSORS_ACTIVATE(light_sensor);
 				check_light(0);
 			#endif // CONTIKI_TARGET_sky
+		
 		}
 		
+		char rdf_uri_[64];
+		#if APP_QUERY && defined(ISENSE)
+			char pir_uri_[64];
+			IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, Aggregator> data_provider_;
+		#endif
+			
+			
 		SemanticEntityId light_se;
 		
 		void init_blockmemory() {
@@ -247,7 +276,7 @@ class App {
 			/*
 			 * Add rule 1: (* <...#featureOfInterest> X)
 			 */
-			::uint8_t qid = 1;
+			::uint8_t qid = 101;
 			q1.init(&query_processor_, qid);
 			q1.set_expected_operators(2);
 			
@@ -284,6 +313,8 @@ class App {
 	//#if APP_QUERY || APP_EVAL
 		template<typename TS>
 		void ins(TS& ts, const char* s, const char* p, const char* o) {
+			debug_->debug("ins(%s %s %s)", s, p, o);
+			
 			TupleT t;
 			t.set(0, (block_data_t*)const_cast<char*>(s));
 			t.set(1, (block_data_t*)const_cast<char*>(p));
@@ -291,7 +322,43 @@ class App {
 			ts.insert(t);
 		}
 		
+		void insert_room(int room) {
+			const char *foi = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
+			char room_uri[64];
+			snprintf(room_uri, 64, "<http://spitfire-project.eu/rooms/room-100%d>", (int)room);
+			ins(ts, rdf_uri_, foi, room_uri);
+		}
+		
 		void insert_tuples() {
+			
+			const char *attachedSystem =  "<http://purl.oclc.org/NET/ssnx/ssn#attachedSystem>";
+			const char *hasloc = "<http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#hasLocation>";
+		
+		#if HAS_PIR
+			ins(ts, rdf_uri_, attachedSystem, pir_uri_);
+		#endif
+		#if HAS_ENV
+			ins(ts, rdf_uri_, attachedSystem, light_uri_);
+		#endif
+			
+			int room = 1;
+			
+			if(radio_.id() <= 0x1202) {
+				insert_room(1);
+				insert_room(2);
+				insert_room(3);
+				insert_room(4);
+			
+			}
+			else if(radio_.id() <= 0x1204) { insert_room(2); }
+			else if(radio_.id() <= 0x1206) { insert_room(3); }
+			else if(radio_.id() <= 0x1208) { insert_room(4); }
+			
+			ins(ts, rdf_uri_, hasloc, "CTI Conference Room");
+			ins(ts, rdf_uri_, "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>", "38.2909");
+			ins(ts, rdf_uri_, "<http://www.w3.org/2003/01/geo/wgs84_pos#long>", "21.796");
+			
+			/*
 			int i = 0;
 			for( ; tuples[i][0]; i++) {
 				//monitor_.report("ins");
@@ -303,44 +370,139 @@ class App {
 				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
 			}
 			debug_->debug("ins done: %d tuples", (int)i);
+			*/
 		}
 	//#endif
 		
-	#if APP_QUERY
+	#if APP_QUERY && USE_INQP
+		block_data_t uart_query[512];
+		size_t uart_query_pos;
+		
+		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
+			size_t l = buf[0];
+			block_data_t msgtype = buf[1];
+			block_data_t qid = buf[2];
+			
+			if(buf[1] == 'O') {
+				// length of field, including length field itself
+				uart_query[uart_query_pos++] = l - 1;
+				memcpy(uart_query + uart_query_pos, buf + 3, l - 2);
+				uart_query_pos += (l - 2);
+			}
+			else if(buf[1] == 'Q') {
+				block_data_t opcount = buf[3];
+				
+				distributor_.distribute(
+						SemanticEntityId::all(),
+						qid, 1 /* revision */,
+						Distributor::QUERY,
+						60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
+						60000 * WISELIB_TIME_FACTOR,
+						opcount,
+						uart_query_pos, uart_query
+				);
+				uart_query_pos = 0;
+			}
+		}
+		
+		
+		/* 
+		 * Process locally directly
+		 *
 		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
 			// TODO: actually *DISTRIBUTE* query!!!!
 			size_t l = buf[0];
 			if(buf[1] == 'Q') {
+				debug_->debug("Q%d %d", (int)buf[2], (int)buf[3]);
 				query_processor_.handle_query_info(buf[2], buf[3]);
 			}
 			else if(buf[1] == 'O') {
+				debug_->debug("O%d %d %d", (int)buf[2], (int)buf[3], (int)buf[4]);
 				query_processor_.handle_operator(buf[2], l - 3, buf + 3);
 			}
-			uart_->write(3, (block_data_t*)"yo");
+			//uart_->write(3, (block_data_t*)"yo");
 		}
+		 *
+		 */
+	#endif
 		
+	
+	#if USE_INQP
+		void on_result_row(
+				QueryProcessor::query_id_t query_id,
+				QueryProcessor::operator_id_t operator_id,
+				QueryProcessor::RowT& row
+		) {
+			/*
 		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
 				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
+			*/
 			
-			int msglen =  1 + 1 + 1 + 4*cols;
-			block_data_t msg[msglen];
+			typedef QueryProcessor::BasicOperator BasicOperator;
 			
-			msg[0] = type;
-			msg[1] = qid;
-			msg[2] = oid;
-			for(int i = 0; i< cols; i++) {
-				wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 2 + 4*i, row[i]);
+			Query *q = query_processor_.get_query(query_id);
+			if(!q) {
+				debug_->debug("!q %d", (int)query_id);
+				return;
+			}
+			BasicOperator *op = q->get_operator(operator_id);
+			if(!op) {
+				debug_->debug("!op %d", (int)operator_id);
+				return;
 			}
 			
-			uart_->write(msglen, msg);
+			int cols = op->projection_info().columns();
+			if(op->type() == QueryProcessor::BOD::AGGREGATE) {
+				QueryProcessor::AggregateT *aggr = (QueryProcessor::AggregateT*)op;
+				//int cols = op-> projection_info().columns();
+				//cols = aggr->columns_physical();
+				cols = aggr->columns_logical();
+			}
+			
+			int msglen =  1 + 1 + 1 + 1 + 4*cols;
+			block_data_t chk = 0;
+			msg[0] = 'R';
+			msg[1] = 2 + 4 * cols; // # bytes to follow after this one
+			msg[2] = query_id;
+			msg[3] = operator_id;
+			
+			if(op->type() == QueryProcessor::BOD::AGGREGATE) {
+				QueryProcessor::AggregateT *aggr = (QueryProcessor::AggregateT*)op;
+				int j = 0; // physical column
+				for(int i = 0; i< cols; i++, j++) { // logical column
+					if(aggr->aggregation_types()[i] & ~AggregateT::AD::AGAIN == AggregateT::AD::AVG) {
+						j++;
+					}
+					
+					Value v;
+					memcpy(&v, &row[j], sizeof(Value));
+					wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			else {
+				for(int i = 0; i< cols; i++) {
+					Value v;
+					memcpy(&v, &row[i], sizeof(Value));
+					wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			
+			for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
+			msg[msglen] = chk;
+			uart_->write(msglen + 1, msg);
 		}
 		
+			block_data_t msg[100]; //msglen];
+			
 	#endif
 		
 		#if INSE_USE_AGGREGATOR
-		typedef TC::SemanticEntityAggregatorT Aggregator;
 		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
 			monitor_.report("/act");
+			
+			#ifdef ISENSE
+			data_provider_.update_aggregate();
+			#endif
 			
 			if(radio_.id() == token_construction_.tree().root()) {
 			//if(radio_->id() == SINK_ID) {
@@ -358,26 +520,58 @@ class App {
 				
 				
 				aggregator.set_totals(se.id());
-				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
+				//aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
 				
 				
 				
 				
-				debug_->debug("@%d ag<", (int)radio_.id());
+				debug_->debug("@%d ====== ag<", (int)radio_.id());
 				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-					debug_->debug("@%d ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
+					debug_->debug("@%d ------ ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
 							(int)radio_.id(), (long)se.id().rule(), (long)se.id().value(),
 						//	(long)iter->first.type_key(), (long)iter->first.uom_key(),
 							(long)iter->first.datatype(),
 							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
 							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
+					
+					
+					int len = 35;
+					msg[0] = 'S';
+					msg[1] = len;
+					
+					Value v = se.id().rule();
+					wiselib::write<Os>(msg + 2, v);
+					v = se.id().value();
+					wiselib::write<Os>(msg + 6, v);
+					msg[10] = iter->first.datatype();
+					wiselib::write<Os, block_data_t, Value>(msg + 11, iter->second.total_count());
+					wiselib::write<Os, block_data_t, Value>(msg + 15, iter->second.total_min());
+					wiselib::write<Os, block_data_t, Value>(msg + 19, iter->second.total_mean());
+					wiselib::write<Os, block_data_t, Value>(msg + 23, iter->second.total_max());
+					
+					block_data_t *uom = ts.dictionary().get_value(iter->first.uom_key());
+					Hash::hash_t h = Hash::hash(uom, strlen((char*)uom));
+					wiselib::write<Os>(msg + 27, h);
+					
+					block_data_t *type = ts.dictionary().get_value(iter->first.type_key());
+					h = Hash::hash(type, strlen((char*)type));
+					debug_->debug("h(%s) = %lu", (char*)type, (unsigned long)h);
+					wiselib::write<Os>(msg + 31, h);
+					
+					::uint8_t chk = 0;
+					for(int i = 0; i<len; i++) { chk ^= msg[i]; }
+					msg[len] = chk;
+					uart_->write(len + 1, msg);
+					
 				}
-				debug_->debug("@%d ag>", (int)radio_.id());
+				debug_->debug("@%d ====== ag>", (int)radio_.id());
 				
 			}
+			/*
 			else {
 				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
 			}
+			*/
 			
 		}
 		#endif
@@ -466,7 +660,8 @@ class App {
 		}
 		#endif
 		
-		#if USE_INQP
+		#if USE_INQP && !APP_QUERY
+		/*
 		void on_result_row(
 				QueryProcessor::query_id_t query_id,
 				QueryProcessor::operator_id_t operator_id,
@@ -489,7 +684,7 @@ class App {
 				debug_->debug("@%d R%c  %d/%d %08lx", (int)radio_.id(), (char)op->type(), (int)i, (int)l, (unsigned long)row[i]);
 			}
 		} // on_result_row()
-	
+		*/	
 		#endif // USE_INQP
 		
 		
@@ -573,8 +768,8 @@ class App {
 		#endif
 			
 		#if USE_DICTIONARY
-			Dictionary::key_type aggr_key_temp_;
-			Dictionary::key_type aggr_key_centigrade_;
+			//Dictionary::key_type aggr_key_temp_;
+			//Dictionary::key_type aggr_key_centigrade_;
 		#endif
 			
 		#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER

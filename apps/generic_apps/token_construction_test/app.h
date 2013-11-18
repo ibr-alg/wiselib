@@ -97,6 +97,7 @@ typedef wiselib::TokenScheduler<Os, TS, Radio, Os::Timer, Os::Clock, Os::Debug, 
 	//typedef QueryProcessor::Hash Hash;
 	typedef QueryProcessor::Query Query;
 	typedef QueryProcessor::GraphPatternSelectionT GPS;
+	typedef QueryProcessor::AggregateT AggregateT;
 	//typedef QueryProcessor::CollectT Coll;
 	typedef QueryProcessor::ConstructionRuleT Cons;
 	typedef wiselib::ProjectionInfo<Os> Projection;
@@ -152,4 +153,8 @@ typedef wiselib::TokenScheduler<Os, TS, Radio, Os::Timer, Os::Clock, Os::Debug, 
 
 //typedef Os::Clock::time_t time_t;
 typedef ::uint32_t abs_millis_t;
+
+#if INSE_USE_AGGREGATOR
+	typedef TC::SemanticEntityAggregatorT Aggregator;
+#endif
 

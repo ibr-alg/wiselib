@@ -25,11 +25,20 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Simple Bloom Filter implementation.
 	 * 
-	 * @ingroup
+	 * A constant-size approximate membership set-like container, partially
+	 * implements the @a container_concept. However only inserting elements
+	 * and membership testing is possible. Also note that membership queries
+	 * are only answered approximatively, that is, there can be false
+	 * positives (be sure to read about bloom filters before blindly using
+	 * this!).
 	 * 
-	 * @tparam Size_P size in bits
+	 * @ingroup container_concept
+	 * 
+	 * @tparam OsModel_P Os Model
+	 * @tparam Value_P Type of values to be represented.
+	 * @tparam Size_P Desired size in bits
 	 */
 	template<
 		typename OsModel_P,
@@ -48,6 +57,9 @@ namespace wiselib {
 			
 			typedef BloomFilter self_type;
 			
+			/**
+			 * Allocate bloom filter in memory (uses allocator).
+			 */
 			static self_type* create() {
 				self_type *r = reinterpret_cast<self_type*>(
 						::get_allocator().template allocate_array<block_data_t>(SIZE_BYTES)
@@ -59,39 +71,57 @@ namespace wiselib {
 				memset(data_, 0x00, SIZE_BYTES);
 			}
 			
+			/**
+			 * Remove all elements from the filter.
+			 */
 			void clear() {
 				memset(data_, 0x00, SIZE_BYTES);
 			}
 		
+			/**
+			 * Free this instance from memory.
+			 * Only call this on instances created with @a create() before!
+			 */
 			void destroy() {
 				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
 			}
 			
+			/**
+			 * Insert element into the filter.
+			 */
 			void insert(const value_type& v) {
 				add(v.hash());
 			}
 			
+			/**
+			 * Return true if v is in the set. If v is not in the set, this
+			 * may either return true or false.
+			 */
 			bool contains(const value_type& v) const {
 				return test(v.hash());
 			}
 			
+			/**
+			 * Direct interface to internal bit-representation: Set bit number
+			 * @a v.
+			 */
 			void add(size_type v) {
 				v %= SIZE;
 				data_[byte(v)] |= (1 << bit(v));
 			}
 			
+			/**
+			 * Direct interface to internal bit-representation: Test bit number
+			 * @a v.
+			 */
 			bool test(size_type v) const {
 				v %= SIZE;
 				return data_[byte(v)] & (1 << bit(v));
 			}
 			
-			/*
-			BloomFilter& operator=(const self_type& other) {
-				memcpy(data_, other.data_, SIZE_BYTES);
-				return *this;
-			}
-			*/
-			
+			/**
+			 * Add all elements of given filter to this one.
+			 */
 			BloomFilter& operator|=(const self_type& other) {
 				for(size_type i = 0; i < SIZE_BYTES; i++) {
 					data_[i] |= other.data_[i];
@@ -99,11 +129,17 @@ namespace wiselib {
 				return *this;
 			}
 			
+			/**
+			 * @return pointer to the raw bit data.
+			 */
 			block_data_t* data() { return data_; }
 			
+			///
 			bool operator==(const self_type& other) {
 				return memcmp(data_, other.data_, SIZE_BYTES) == 0;
 			}
+			
+			///
 			bool operator!=(const self_type& other) {
 				return !(*this == other);
 			}

@@ -38,14 +38,25 @@
 
 #elif APP_QUERY
 	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
+
+	#if defined(ISENSE)
+		#define HAS_PIR                      1
+		#define HAS_ENV                      0
+	#else
+		#define HAS_PIR 0
+		#define HAS_ENV 0
+	#endif
+
 	#define USE_INQP                     1
 	#define USE_STRING_INQUIRY           0
-	#define INSE_USE_AGGREGATOR          0
+	#define INSE_USE_AGGREGATOR          1
 
-	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
-	#define INSE_FORWARDING_MAP_BITS     128
+	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
+	#define INSE_FORWARDING_MAP_BITS     8
 	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
 	#define INSE_START_WAIT              (1)
+	#define INSE_USE_FORWARDING       0
+	#define NAP_CONTROL_ALWAYS_ON          1
 
 #elif APP_EVAL
 	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
@@ -81,7 +92,7 @@
 #define USE_LIST_CONTAINER             0
 #define USE_VECTOR_CONTAINER           1
 #define USE_BLOCK_CONTAINER            0
-#define TUPLE_CONTAINER_SIZE           20
+#define TUPLE_CONTAINER_SIZE           10
 
 #define USE_PRESCILLA_DICTIONARY       0
 #define USE_TREE_DICTIONARY            1
@@ -132,6 +143,9 @@
 	#define BITMAP_ALLOCATOR_RAM_SIZE  1024
 
 #elif defined(ISENSE)
+	#define INSE_USE_LINK_METRIC           0
+
+	#define INSE_BCAST_INTERVAL            10000
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
 	#define DISTRIBUTOR_DEBUG_STATE        0
 	#define INSE_DEBUG_STATE               0
@@ -145,18 +159,23 @@
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
+	#define INSE_DEBUG_WARNING             1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_MAX_NEIGHBORS             16
+	#define INSE_MAX_NEIGHBORS             8
 	#define WISELIB_MAX_NEIGHBORS          (INSE_MAX_NEIGHBORS)
-	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_SEMANTIC_ENTITIES     5
 	#define INSE_MAX_QUERIES               2
+
+	#define INSE_CSMA_MODE                 1
 	
 	
 #elif defined(CONTIKI_TARGET_sky)
 	#define BITMAP_ALLOCATOR_RAM_SIZE      1024
 	#define INSE_USE_AGGREGATOR            0
 	#define USE_INQP                       0
+	
+	#define INSE_USE_LINK_METRIC           1
 
 	#define CHECK_INVARIANTS               0
 	#define DISTRIBUTOR_DEBUG_STATE        0
@@ -172,7 +191,6 @@
 	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
-	#define INSE_DEBUG_WARNING             1
 
 
 	#define WISELIB_TIME_FACTOR            1
@@ -218,7 +236,7 @@
 	#define INSE_FORWARDING_SLOT_LENGTH    1000 * WISELIB_TIME_FACTOR
 	
 	#define INSE_MAX_NEIGHBORS             32
-	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_SEMANTIC_ENTITIES     10
 	#define INSE_MAX_QUERIES               0
 	
 #endif

@@ -1,0 +1,12 @@
+{
+"data-0.nq.gz": {
+  "tuples":  45595 ,
+  "elements_total":  182353 ,
+  "elements_unique":  29117 ,
+  "hash_collisions": {
+     "fnv32": [
+   ]
+,     "fnv64": [
+   ]
+  } },
+"data-4.nq.gz": {

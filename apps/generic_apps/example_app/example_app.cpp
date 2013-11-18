@@ -2,7 +2,6 @@
  * Simple Wiselib Example
  */
 #include "external_interface/external_interface.h"
-#include "algorithms/routing/tree/tree_routing.h"
 
 typedef wiselib::OSMODEL Os;
 

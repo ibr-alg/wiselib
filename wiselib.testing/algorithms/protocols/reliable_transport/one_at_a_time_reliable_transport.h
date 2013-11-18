@@ -333,7 +333,6 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-		public:
 			void expect_answer(Endpoint& ep) {
 				if(!ep.expects_answer()) {
 					//ep.set_expect_answer(true);
