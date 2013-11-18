@@ -55,6 +55,11 @@ int path_cmp(const string_t &lhs, const string_t &rhs)
 		if( lhs[i] != rhs[i] )
 			return NOT_EQUAL;
 	}
+	
+	char hexchar(::uint8_t n) {
+		assert(n < 16);
+		return (n < 10) ? ('0' + n) : ('a' + n - 10);
+	}
 }
 
 }

@@ -54,6 +54,8 @@ namespace wiselib {
 			SemanticEntityId(Rule r, Value v) : value_(v), rule_(r) {
 			}
 			
+			static SemanticEntityId invalid() { return SemanticEntityId(); }
+			
 			bool operator==(const SemanticEntityId& other) const {
 				return value_ == other.value_ && rule_ == other.rule_;
 			}
