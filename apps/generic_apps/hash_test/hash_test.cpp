@@ -1,7 +1,7 @@
 
 
-#define COMPILE_HASH_CAT 1
-#define COMPILE_SPLITN3_CAT 0
+#define COMPILE_HASH_CAT 0
+#define COMPILE_SPLITN3_CAT 1
 
 #include <external_interface/external_interface.h>
 using namespace wiselib;
