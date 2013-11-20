@@ -68,7 +68,7 @@ fit(ax, range(plot_uris), occ[skip_uris:skip_uris + plot_uris])
 ax.set_xticks([x + 0.5 for x in range(plot_uris)])
 ax.grid()
 #ax.set_yscale('log')
-x_tick_names = plt.setp(ax, xticklabels = uris)
+x_tick_names = plt.setp(ax, xticklabels = uris[skip_uris:])
 
 plt.subplots_adjust(bottom = 0.5, top = 0.95)
 plt.setp(x_tick_names, rotation = 90, fontsize = 8)
