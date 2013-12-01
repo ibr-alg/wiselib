@@ -7,10 +7,10 @@ namespace concepts {
  * 
  * A tuple is a container for a fixed (small) number of elements.
  * Each of the elements will be either variable-length data represented by a
- * block_data_t* and a length value or a dictionary key that fits into a
+ * block_data_t* and a length value OR a dictionary key that fits into a
  * ::uint32_t.
  * It can be assumed that the user of the Tuple knows at which indices he
- * currently stores keys and at which data, so the tuple implemntation does
+ * currently stores keys and at which data, so the tuple implementation does
  * not need to hold type information.
  * 
  * Note: It is necessary to have distinct methods for key- vs. value access as
