@@ -508,21 +508,9 @@ namespace wiselib {
 			
 			void receive_open(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
-					//debug_->debug("RT op");
-					
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						//debug_->debug("reopen");
-					#endif
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
-					
 				}
-					// The endpoint wants to communicate to us
-					// so probably he thinks the link quality is good.
-					// To converge to a state where both sides think the same
-					// about the connection, praise him! praise him! amen!
-					//praise(ep.remote_address());
-					
 				ep.request_open();
 				ep.open();
 				consume_data(ep, msg);
@@ -530,9 +518,6 @@ namespace wiselib {
 			
 			void receive_close(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
-					//#if RELIABLE_TRANSPORT_DEBUG_STATE
-						//debug_->debug("RT cc");
-					//#endif
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -549,10 +534,6 @@ namespace wiselib {
 			
 			void receive_data(Endpoint& ep, node_id_t n, Message& msg) {
 				if(&ep == &sending_endpoint()) {
-					//DBG("@%lu RT data praise %lu", (unsigned long)radio_->id(),
-							//(unsigned long)ep.remote_address());
-					//praise(ep.remote_address());
-						//debug_->debug("RT rcv");
 					is_sending_ = false;
 					ack_timer_++; // invalidate ack timer
 				}
@@ -564,14 +545,9 @@ namespace wiselib {
 					DBG("node %d // ignoring ack", (int)radio_->id());
 					return;
 				}
-						//debug_->debug("RT ack");
-				//DBG("@%lu RT ack praise %lu", (unsigned long)radio_->id(),
-						//(unsigned long)ep.remote_address());
-				//praise(ep.remote_address());
 				is_sending_ = false;
 				ack_timer_++; // invalidate ack timer
 				
-				//ep.increase_sequence_number();
 				ep.set_sequence_number(msg.sequence_number());
 				if(ep.wants_close() /* && msg.is_close() */) {
 					ep.close();
@@ -582,17 +558,7 @@ namespace wiselib {
 				ep.set_sequence_number(msg.sequence_number());
 				ep.set_expect_answer(false);
 				ep.consume(msg);
-				
-				#if RELIABLE_TRANSPORT_DEBUG_STATE
-					//debug_->debug("cons t%d m.s%d e.s%d ws%d wc%d is%d fa%d",
-							//(int)now(), (int)msg.sequence_number(), (int)ep.sequence_number(),
-							//(int)ep.wants_send(), (int)ep.wants_close(), (int)is_sending_,
-							//(int)force_ack);
-				#endif
-					
-				//if((!ep.wants_send() && !ep.wants_close()) || is_sending_ || force_ack) {
 				if((!ep.wants_send() && !ep.wants_close()) || force_ack) {
-					//DBG("node %d // consume_data: sending ack to %d", (int)radio_->id(), (int)ep.remote_address());
 					send_ack_for(ep.remote_address(), msg);
 				}
 			}
@@ -646,10 +612,11 @@ namespace wiselib {
 				check();
 				abs_millis_t closest_wait = 0;
 				size_type closest_wait_idx = npos;
-				
 				size_type ole = sending_channel_idx_;
 				
 				/*
+				 * Keep as nice example for codesize saving
+				 * 
 				for(sending_channel_idx_++ ; sending_channel_idx_ < MAX_ENDPOINTS; sending_channel_idx_++) {
 					if(sending_endpoint().used() && sending_endpoint().wants_something()) {
 						if(sending_endpoint().wait_until() <= now()) {
@@ -704,8 +671,6 @@ namespace wiselib {
 				}
 				
 				if(closest_wait) {
-					//debug_->debug("RT t csnd %lu", (unsigned long)closest_wait);
-				debug_->debug("T CS");
 					timer_->template set_timer<self_type, &self_type::check_send>(closest_wait, this, 0);
 				}
 				
@@ -721,33 +686,17 @@ namespace wiselib {
 			
 			void check_send(void* = 0) {
 				if(is_sending_) {
-					   
-					//debug_->debug("busy to %d init %d wants send %d since %lu now %lu", (int)sending_endpoint().remote_address(), (int)sending_endpoint().initiator(), (int)sending_endpoint().wants_send(), (unsigned long)send_start_, (unsigned long)now());
-					
 					return;
 				}
 				if(switch_sending_endpoint()) {
-					
-					//debug_->debug("RT check");
-					
-					#if !WISELIB_DISABLE_DEBUG
-					DBG("node %d // check_send: found sending endpoint: idx=%d i=%d open=%d wants_open=%d wants_close=%d wants_send=%d s=%d",
-							(int)radio_->id(), (int)sending_channel_idx_,
-							(int)sending_endpoint().initiator(),
-							(int)sending_endpoint().is_open(), (int)sending_endpoint().wants_open(),
-							(int)sending_endpoint().wants_close(), (int)sending_endpoint().wants_send(), (int)sending_endpoint().sequence_number());
-					#endif
 					
 					send_start_ = now();
 					
 					int flags = (sending_endpoint().initiator() ? Message::FLAG_INITIATOR : 0);
 					
-					
 					if(sending_endpoint().wants_open()) {
 						flags |= Message::FLAG_OPEN;
 						sending_endpoint().open();
-						
-						praise(sending_endpoint().remote_address());
 					}
 					
 					if(sending_endpoint().wants_close()) {
@@ -803,16 +752,9 @@ namespace wiselib {
 			 */
 			void try_send() {
 				if(!is_sending_) { return; }
-				
 				resends_ = 0;
-				if(sending_.size()) {
-					try_send(0);
-				}
-				else {
-						//debug_->debug("RT 0");
-					//debug_->debug("node %d // try send: not sending empty message!", (int)radio_->id());
-					is_sending_ = false;
-				}
+				if(sending_.size()) { try_send(0); }
+				else { is_sending_ = false; }
 			}
 			
 			/// ditto.
@@ -843,32 +785,21 @@ namespace wiselib {
 					radio_->send(addr, sending_.size(), sending_.data());
 				}
 				else {
-					//#if !WISELIB_DISABLE_DEBUG
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("%lu !send %lu", (unsigned long)radio_->id(), (unsigned long)addr);
 					#endif
 				}
 				
 				abs_millis_t to = RESEND_TIMEOUT + (rand_->operator()() % RESEND_RAND_ADD);
-				//debug_->debug("RT t rsnd %lu d%lu t%lu", (unsigned long)addr, (unsigned long)to, (unsigned long)now());
 				debug_->debug("T ACK");
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(to, this, v);
 			}
 			
 			void ack_timeout(void *at_) {
-				//debug_->debug("RT loss");
-				
-				//::uint8_t ack_timer;
-				//ack_timer = (::uint8_t)(unsigned long)(at_);
 				if(is_sending_ && (at_ == loose_precision_cast<void*>(ack_timer_))) {
 					DBG("ack_timeout @%d resends=%d ack timer %d sqnr %d idx %d chan=/%d to=%lu", (int)radio_->id(), (int)resends_, (int)ack_timer_, (int)sending_endpoint().sequence_number(), (int)sending_channel_idx_,
 							//(int)sending_.channel().rule(), (int)sending_.channel().value(),
 							(int)sending_.initiator(), (unsigned long)RESEND_TIMEOUT);
-					
-					//DBG("@%lu RT loss blame %lu", (unsigned long)radio_->id(),
-							//(unsigned long)sending_endpoint().remote_address());
-					//blame(sending_endpoint().remote_address());
-					//nd_->blame_neighbor(sending_endpoint().remote_address());
 					
 					#if RELIABLE_TRANSPORT_DEBUG_STATE
 						debug_->debug("@%d loss s%d t%d", (int)radio_->id(), (int)sending_endpoint().sequence_number(), (int)(now() & 0xffff));
@@ -880,29 +811,18 @@ namespace wiselib {
 						//#endif
 						sending_endpoint().abort_produce();
 						sending_endpoint().close();
-						//debug_->debug("RT abrt");
 						is_sending_ = false;
 						check_send();
 					}
 					else {
-						//debug_->debug("RT loss resend");
 						try_send(0);
 					}
-				}
-				else {
-					//#if RELIABLE_TRANSPORT_DEBUG_STATE
-						//debug_->debug("nls%d/%d", (int)ack_timer, (int)ack_timer_);
-					//#endif
 				}
 			}
 			
 			void on_answer_timeout(void *ep_) {
-				
-				
 				Endpoint &ep = *reinterpret_cast<Endpoint*>(ep_);
-				
 				if(!ep.callback_) { return; }
-				
 				if(ep.expects_answer()) {
 					ack_timer_++; // invalidate running ack timer
 					//#if RELIABLE_TRANSPORT_DEBUG_STATE
@@ -919,20 +839,6 @@ namespace wiselib {
 			
 			//}}}
 			///@}
-			
-			void praise(node_id_t addr) {
-				if(nd_) {
-					//nd_->worship(addr;);
-					//nd_->update_state();
-					//nd_->praise(addr);
-					//nd_->praise(addr);
-					//nd_->praise(addr);
-					//nd_->praise(addr);
-					//nd_->praise(addr);
-					//nd_->praise(addr);
-				}
-			}
-			//void blame(node_id_t addr) { if(nd_) { nd_->blame(addr); } }
 			
 			abs_millis_t absolute_millis(const time_t& t) {
 				return clock_->seconds(t) * 1000 + clock_->milliseconds(t);
@@ -955,7 +861,6 @@ namespace wiselib {
 			ChannelId ack_timeout_channel_;
 			size_type sending_channel_idx_;
 			size_type resends_;
-			//sequence_number_t ack_timeout_sequence_number_;
 			abs_millis_t send_start_;
 			::uint8_t ack_timer_;
 			bool is_sending_;

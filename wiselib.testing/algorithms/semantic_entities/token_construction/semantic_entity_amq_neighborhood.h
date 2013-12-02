@@ -73,7 +73,7 @@ namespace wiselib {
 			}
 			
 			/**
-			 * Assuming we have the token, where should we send it to?
+			 * Assuming we had the token (actively), where should we send it to?
 			 */
 			node_id_t next_token_node(const SemanticEntityId& se_id) {
 				check();
