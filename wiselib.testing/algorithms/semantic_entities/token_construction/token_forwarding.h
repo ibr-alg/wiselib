@@ -100,6 +100,13 @@ namespace wiselib {
 				node_id_t source;
 				abs_millis_t received;
 				abs_millis_t delay;
+				
+				bool operator==(const TokenCacheEntry& other) {
+					return source == other.source &&
+						received == other.received &&
+						delay == other.delay &&
+						token_state_message == other.token_state_message;
+				}
 			};
 			
 		public:
@@ -128,23 +135,27 @@ namespace wiselib {
 			 * Schedule the current token state of the given SE for sending.
 			 */
 			void send(SemanticEntityT& se) {
-				
 				debug_->debug("@%lu TF S %lx.%lx", (unsigned long)radio_->id(),
 						(unsigned long)se.id().rule(), (unsigned long)se.id().value());
+				assert(se.id().is_valid());
 				
-				TokenStateMessageT &msg = token_cache_[se.id()].token_state_message;
+				TokenCacheEntry &entry = token_cache_[se.id()];
+				
+				TokenStateMessageT &msg = entry.token_state_message;
 				msg.set_token_state(se.token());
 				msg.set_cycle_time(se.activating_token_interval());
 				msg.set_cycle_window(se.activating_token_window());
 				
-				abs_millis_t &delay = token_cache_[se.id()].delay;
+				abs_millis_t &delay = entry.delay;
 				delay = 0;
 				if(se.token_send_start()) {
 					delay = now() - se.token_send_start();
 				}
 				
-				token_cache_[se.id()].received = now();
-				token_cache_[se.id()].source = radio_->id();
+				entry.received = now();
+				entry.source = radio_->id();
+				
+				assert(token_cache_[se.id()] == entry);
 				
 				try_deliver();
 			}
@@ -159,6 +170,7 @@ namespace wiselib {
 				if(!se) { return false; }
 				if(!token_cache_.contains(id)) { return false; }
 				
+				assert(id.is_valid());
 				TokenStateMessageT &msg = token_cache_[id];
 				msg.set_delay(
 						msg.delay() +
@@ -194,6 +206,7 @@ namespace wiselib {
 					case ReliableTransportT::EVENT_CLOSE:
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
 						if(se->transport_state().success) {
+							assert(id.is_valid());
 							token_cache_.erase(id);
 							try_deliver();
 						}
@@ -222,6 +235,7 @@ namespace wiselib {
 							(unsigned long)se.id().rule(), (unsigned long)se.id().value(),
 							(unsigned long)endpoint.remote_address());
 					
+					assert(id.is_valid());
 					received_token_callback_(msg, id, endpoint.remote_address(), now(), message.delay());
 				}
 				else {
@@ -230,6 +244,7 @@ namespace wiselib {
 							(unsigned long)endpoint.remote_address());
 					
 					// nope, put it in cache for sending later!
+					assert(id.is_valid());
 					token_cache_[id].token_state_message = msg;
 					token_cache_[id].source = endpoint.remote_address();
 					token_cache_[id].received = now();
@@ -244,10 +259,10 @@ namespace wiselib {
 			///@}
 			
 			void try_deliver() {
-				for(typename TokenCache::iterator iter = token_cache_.begin(); iter != token_cache_.end(); ++iter) {
+				for(typename TokenCache::iterator iter = token_cache_.begin(); iter != token_cache_.end(); ) {
 					SemanticEntityId& se_id = iter->first;
+					assert(se_id.is_valid());
 					TokenCacheEntry& entry = iter->second;
-					
 					node_id_t target = neighborhood_->forward_address(se_id, entry.source, true);
 					
 					if(target == radio_->id()) {
@@ -257,14 +272,21 @@ namespace wiselib {
 					else {
 						bool found;
 						typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se_id, true, found);
-						if(!found) { continue; }
 						
-						//node_id_t remote = ep.remote_address();
-						//if(!is_sane_remote_address(remote)) { continue; }
-						
-						if(transport_.is_sending()) { break; }
+						++iter;
+						if(!found) {
+							debug_->debug("TF EP not found %lu.%lu/1", (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+							continue;
+						}
+						if(transport_.is_sending()) {
+							debug_->debug("TF transport busy %lu.%lu", (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+							break;
+						}
 						transport_.set_remote_address(se_id, true, target);
-						if(transport_.open(ep, true) != SUCCESS) { continue; }
+						if(transport_.open(ep, true) != SUCCESS) {
+							debug_->debug("TF open failed %lu.%lu", (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+							continue;
+						}
 						transport_.flush();
 					}
 				}

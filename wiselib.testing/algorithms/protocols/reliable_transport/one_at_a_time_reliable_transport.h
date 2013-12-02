@@ -270,6 +270,56 @@ namespace wiselib {
 			int enable_radio() { return radio_->enable_radio(); }
 			int disable_radio() { return radio_->disable_radio(); }
 			
+			int register_event_callback(callback_t cb) {
+				event_callback_ = cb;
+				return SUCCESS;
+			}
+			
+			/**
+			 * Open a connection to given remote address.
+			 * @param channel_id identifies this channel.
+			 * @param remote_address address to connect to.
+			 */
+			int open(const ChannelId& channel_id, node_id_t remote_address) {
+				if(busy_) { return ERR_UNSPEC; }
+				busy_ = true;
+				channel_ = channel_id;
+				remote_address_ = remote_address_;
+				
+				sequence_number_ = rand_->operator()();
+				request_send_ = true;
+				request_close_ = false;
+				
+				flush();
+			}
+			
+			int close() {
+			}
+			
+			bool is_busy() { return busy_; }
+			
+			void flush() { check_send(); }
+			
+			///@{
+			///@name Endpoint methods
+			
+			ChannelId channel() { return channel_; }
+			
+			node_id_t remote_address() { return remote_address_; }
+			
+			void request_send() {
+				request_send_ = true;
+			}
+			
+			void request_close() {
+				// TODO
+			}
+			
+			///@}
+			
+			
+			// --- sweep line ---
+		/*
 			int register_endpoint(node_id_t addr, const ChannelId& channel, bool initiator, callback_t cb) {
 				#if RELIABLE_TRANSPORT_DEBUG_STATE
 					debug_->debug("T @%lx epreg %lx i%d", (unsigned long)radio_->id(),
@@ -384,29 +434,54 @@ namespace wiselib {
 				}
 				return ChannelId();
 			}
+		*/
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				Message &msg = *reinterpret_cast<Message*>(data);
 				if(msg.type() != Message::MESSAGE_TYPE) { return; }
 				if(from == radio_->id()) { return; }
 				
-				size_type idx = find_or_create_endpoint(msg.channel(), msg.is_ack() == msg.initiator(), false);
-				//Endpoint &ep = endpoints_[idx];
-				if(idx == npos) {
-					#if RELIABLE_TRANSPORT_DEBUG_STATE
-						debug_->debug("T @%lx rcv !ep", (unsigned long)radio_->id());
-					#endif
-					return;
+				// Case 1: OPEN
+				// 
+				// We are idle and the incoming message opens a
+				// communication or we are not idle but allow overtaking of
+				// the connection for symmetry breaking.
+				
+				// Symmetry breaking goes like this:
+				// 
+				// if we never allow a connection to be interrupted by
+				// an incoming connection on a different channel,
+				// the network might deadlock/livelock with everyone waiting
+				// for its target to answer
+				// 
+				// Here, we allow now incoming connections with lower
+				// seqnr to have precedence, thus there is always at
+				// least one connection that can proceed
+				// uninterruptedly (namely the one with the lowest
+				// initial seqnr)
+				// (ignoring the rare case of multiple connections
+				// starting with the same seqnr, prob for that is
+				// around 1.53 * 10^-5)
+				
+				if(msg.is_open() && !msg.is_ack() && (
+						(msg.sequence_number() < sequence_number_) || !busy_)) {
+					busy_ = true;
+					channel_ = msg.channel();
+					sequence_number_ = msg.sequence_number();
+					
+					// abort any possibly ongoing communication
+					cancel_ack_timeout();
+					abort_produce();
+					
+					consume_data(msg);
 				}
 				
-				#if RELIABLE_TRANSPORT_DEBUG_STATE
-					debug_->debug("T @%lx rcv %lx s%lu F%x l%d com%d S%lu idx%d=%d",
-						(unsigned long)radio_->id(),
-						(unsigned long)from,
-						(unsigned long)msg.sequence_number(),
-						(int)msg.flags(), (int)msg.size(), (int)communicating(), (unsigned long)(communicating() ? sending_endpoint().sequence_number() : 0), (int)idx, (int)sending_channel_idx_);
-				#endif
-					
+				// Case 2: DATA
+				// 
+				// We receive an expected data packet in the connected stream
+				
+				else if(
+				
 				if(communicating()) {
 					if(idx != sending_channel_idx_) {
 						// Do symmetry breaking here:

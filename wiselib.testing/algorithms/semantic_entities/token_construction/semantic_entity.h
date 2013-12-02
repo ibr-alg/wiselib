@@ -125,6 +125,11 @@ namespace wiselib {
 						token_count_++;
 					}
 					
+					// currently only used for assertions
+					bool operator==(TokenState other) {
+						return token_count_ == other.token_count_;
+					}
+					
 				private:
 					token_count_t token_count_;
 				// }}}

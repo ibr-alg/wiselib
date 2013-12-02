@@ -73,16 +73,9 @@ namespace wiselib {
 		snprintf(v, 10, "%d", radio->id());
 		v[9] = '\0';
 		
-#if APP_EVAL
-		ins(ts, myuri, "<featureOfInterest>", room1);
-		ins(ts, myuri, "<observedProperty>", "<Temperature>");
-		ins(ts, myuri, "<hasValue>", v);
-#else
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>", "<http://spitfire-project.eu/property/Temperature>");
 		ins(ts, myuri, "<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>", v);
-		
-#endif
 	}
 	
 }

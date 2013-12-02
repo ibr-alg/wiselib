@@ -325,6 +325,9 @@ namespace wiselib {
 							(unsigned long)se.id().value());
 				#endif
 				
+					
+				debug_->debug("add_entity act: %d", (int)se.is_active(radio_->id()));
+					
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
 				}
@@ -365,6 +368,7 @@ namespace wiselib {
 		
 		private:
 			
+			/*
 			void on_recover_token(void*) {
 				for(typename SemanticEntityRegistryT::iterator iter = registry_.begin(); iter != registry_.end(); ++iter) {
 					SemanticEntityT &se = iter->second;
@@ -379,7 +383,7 @@ namespace wiselib {
 				debug_->debug("T RECOV");
 				timer_->template set_timer<self_type, &self_type::on_recover_token>(RECOVER_TOKEN_INTERVAL, this, 0);
 			}
-				
+			*/	
 			
 			/*
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
@@ -888,6 +892,10 @@ namespace wiselib {
 				// and then again (during the actual activity)
 				if(se.in_activity_phase()) { return; }
 				
+				
+				debug_->debug("begin_activity");
+				
+				
 				#ifdef ARDUINO
 					digitalWrite(13, HIGH);
 				#elif CONTIKI_TARGET_sky
@@ -985,6 +993,8 @@ namespace wiselib {
 			void end_activity(SemanticEntityT& se) {
 				check();
 				if(!se.in_activity_phase()) { return; }
+				
+				debug_->debug("end_activity");
 				
 				se.end_activity_phase();
 				if(end_activity_callback_) {
