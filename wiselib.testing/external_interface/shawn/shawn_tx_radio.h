@@ -120,7 +120,7 @@ namespace wiselib
       
       void on_receive(node_id_t from, size_t size, block_data_t* data) {
          if(enabled_) {
-            printf("@%lu <= %lu\n", (unsigned long)os().proc->id(), (unsigned long)from);
+            //printf("@%lu <= %lu\n", (unsigned long)os().proc->id(), (unsigned long)from);
             this->notify_receivers(from, size, data);
          }
       }

@@ -270,6 +270,13 @@ namespace wiselib {
 						iter = token_cache_.erase(iter);
 					}
 					else {
+						++iter;
+						
+						if(transport_.is_busy()) { break; }
+						if(transport_.open(se_id, target) != SUCCESS) { continue; }
+						
+						/*
+						 * TODO
 						bool found;
 						typename ReliableTransportT::Endpoint &ep = transport_.get_endpoint(se_id, true, found);
 						
@@ -287,6 +294,7 @@ namespace wiselib {
 							debug_->debug("TF open failed %lu.%lu", (unsigned long)se_id.rule(), (unsigned long)se_id.value());
 							continue;
 						}
+						*/
 						transport_.flush();
 					}
 				}

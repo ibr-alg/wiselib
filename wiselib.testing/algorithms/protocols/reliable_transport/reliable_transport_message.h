@@ -104,6 +104,8 @@ namespace wiselib {
 			bool is_open() { return flags() & FLAG_OPEN; }
 			bool is_supplementary() { return flags() & FLAG_SUPPLEMENTARY; }
 			void set_open() { set_flags(flags() | FLAG_OPEN); }
+			void clear_open() { set_flags(flags() & ~FLAG_OPEN); }
+			void set_ack() { set_flags(flags() | FLAG_ACK); }
 			
 			bool is_close() { return flags() & FLAG_CLOSE; }
 			void set_close() { set_flags(flags() | FLAG_CLOSE); }
