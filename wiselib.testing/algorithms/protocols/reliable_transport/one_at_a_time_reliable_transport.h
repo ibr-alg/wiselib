@@ -468,6 +468,8 @@ namespace wiselib {
 					busy_ = true;
 					channel_ = msg.channel();
 					sequence_number_ = msg.sequence_number();
+					remote_address_ = from;
+					half_open_ = false;
 					
 					// abort any possibly ongoing communication
 					cancel_ack_timeout();
@@ -476,11 +478,42 @@ namespace wiselib {
 					consume_data(msg);
 				}
 				
-				// Case 2: DATA
+				// Case 2: OPEN-ACK
+				// 
+				// We opened the connection, now we're getting the first
+				// answer.
+				else if(busy_ && half_open_ && msg.is_open() && msg.is_ack() && (msg.sequence_number() == sequence_number_ + 1)) {
+					half_open_ = false;
+					cancel_ack_timeout();
+					consume_data(msg);
+					remote_address_ = from;
+				}
+				
+				// Case 3: DATA/ACK
 				// 
 				// We receive an expected data packet in the connected stream
 				
-				else if(
+				else if(busy_ && !half_open_ && msg.is_data() && (msg.sequence_number() == sequence_number_ + 1) && from == remote_address_) {
+					cancel_ack_timeout();
+					consume_data(msg);
+					
+					if(!send_requested_) {
+						send_ack(from, msg);
+					}
+				}
+				
+				// Case 4: CLOSE
+				
+				else if(busy_ && msg.is_close() && (msg.sequence_number() == sequence_number_ + 1) && from == remote_address_) {
+					cancel_ack_timeout();
+					abort_produce();
+					consume_data(msg);
+					
+					busy_ = false;
+					half_open_ = false;
+				}
+				
+				// -------XXX[ sweep line ]XXX------
 				
 				if(communicating()) {
 					if(idx != sending_channel_idx_) {
