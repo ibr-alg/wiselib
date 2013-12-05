@@ -612,6 +612,7 @@ namespace wiselib {
 			void check() {
 			}
 			
+		#if 0
 			bool communicating() { return sending_channel_idx_ != npos; }
 			void start_communicating(size_type idx) {
 				#if RELIABLE_TRANSPORT_DEBUG_STATE
@@ -768,6 +769,8 @@ namespace wiselib {
 						this, v
 				);
 			} // try_send()
+			
+		#endif
 			
 			void ack_timeout(void *at_) {
 				debug_->debug("T ackto is%d", (int)is_sending_);
