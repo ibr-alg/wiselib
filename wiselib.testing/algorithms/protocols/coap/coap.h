@@ -109,7 +109,7 @@ typedef wiselib::OSMODEL Os;
 typedef Os::TxRadio Radio;
 typedef Radio::node_id_t node_id_t;
 typedef Radio::block_data_t block_data_t;
-typedef wiselib::ResourceController<wiselib::StaticString> resource_t;
+
 
 namespace wiselib {
 
@@ -130,12 +130,114 @@ namespace wiselib {
         typedef typename Radio::message_id_t message_id_t;
         typedef typename Clock::time_t time_t;
 
+        typedef Coap<OsModel, Radio, Timer, Debug, Clock, Rand, String> self_type;
+
         typedef delegate1<char *, uint8_t> my_delegate_t;
+
+        enum CONTENT_TYPES {
+            TEXT_PLAIN = 0,
+            TEXT_XML = 1,
+            TEXT_CSV = 2,
+            TEXT_HTML = 3,
+            IMAGE_GIF = 21,
+            IMAGE_JPEG = 22,
+            IMAGE_PNG = 23,
+            IMAGE_TIFF = 24,
+            AUDIO_RAW = 25,
+            VIDEO_RAW = 26,
+            APPLICATION_LINK_FORMAT = 40,
+            APPLICATION_XML = 41,
+            APPLICATION_OCTET_STREAM = 42,
+            APPLICATION_RDF_XML = 43,
+            APPLICATION_SOAP_XML = 44,
+            APPLICATION_ATOM_XML = 45,
+            APPLICATION_XMPP_XML = 46,
+            APPLICATION_EXI = 47,
+            APPLICATION_FASTINFOSET = 48,
+            APPLICATION_SOAP_FASTINFOSET = 49,
+            APPLICATION_JSON = 50,
+            APPLICATION_X_OBIX_BINARY = 51
+        };
+
+        typedef enum OPTION_TYPES {
+            CONTENT_TYPE = 1,
+            MAX_AGE = 2,
+            PROXY_URI = 3,
+            ETAG = 4,
+            URI_HOST = 5,
+            LOCATION_PATH = 6,
+            URI_PORT = 7,
+            LOCATION_QUERY = 8,
+            URI_PATH = 9,
+            OBSERVE = 10,
+            TOKEN = 11,
+            ACCEPT = 12,
+            IF_MATCH = 13,
+            MAX_OFE = 14,
+            URI_QUERY = 15,
+            BLOCK2 = 17,
+            BLOCK1 = 19,
+            IF_NONE_MATCH = 21
+        };
+
+        typedef enum METHOD_TYPES {
+            GET = 1,
+            POST = 2,
+            PUT = 4,
+            DELETE = 8
+        };
+
+        typedef enum {
+            COAP_GET = 1,
+            COAP_POST,
+            COAP_PUT,
+            COAP_DELETE
+        };
+
+        typedef enum {
+            CON,
+            NON,
+            ACK,
+            RST
+        };
+
+        typedef enum COAP_STATUS_CODES {
+            NO_ERROR = 0,
+
+            CREATED = 65,
+            DELETED = 66,
+            VALID = 67,
+            CHANGED = 68,
+            CONTENT = 69,
+
+            BAD_REQUEST = 128,
+            UNATHORIZED = 129,
+            BAD_OPTION = 130,
+            FORBIDDEN = 131,
+            NOT_FOUND = 132,
+            METHOD_NOT_ALLOWED = 133,
+            PRECONDITION_FAILED = 140,
+            REQUEST_ENTITY_TOO_LARGE = 141,
+            UNSUPPORTED_MEDIA_TYPE = 143,
+
+            INTERNAL_SERVER_ERROR = 160,
+            NOT_IMPLEMENTED = 161,
+            BAD_GATEWAY = 162,
+            SERVICE_UNAVAILABLE = 163,
+            GATEWAY_TIMEOUT = 164,
+            PROXYING_NOT_SUPPORTED = 165
+        };
+
+        typedef uint8_t coap_status_t;
+
+
 #ifdef DEBUG_OPTION
-        typedef wiselib::CoapPacket<Debug> coap_packet_t;
+        typedef wiselib::CoapPacket<self_type, Debug> coap_packet_t;
 #else
-        typedef wiselib::CoapPacket coap_packet_t;
+        typedef wiselib::CoapPacket<self_type> coap_packet_t;
 #endif
+        typedef wiselib::ResourceController<self_type, wiselib::StaticString> resource_t;
+
         typedef wiselib::vector_static<OsModel, resource_t, CONF_MAX_RESOURCES> resource_vector_t;
         typedef typename resource_vector_t::iterator resource_iterator_t;
 
@@ -631,7 +733,7 @@ namespace wiselib {
             DBG_F(debug().debug("FUNCTION: resource_discovery"));
             if (args->method == COAP_GET) {
                 size_t index = 0;
-                index += sprintf((char*) args->output_data + index, "<.well-known/core>,");
+                //index += sprintf((char*) args->output_data + index, "<.well-known/core>,");
                 for (resource_iterator_t it = resources_.begin(); it != resources_.end(); it++) {
                     index += sprintf((char*) args->output_data + index, "<%s>,", it->name());
                 }
