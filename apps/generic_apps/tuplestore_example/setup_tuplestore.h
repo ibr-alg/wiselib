@@ -24,7 +24,7 @@ class Tuple {
 		// Define value_t to be an unsigned integer that is large
 		// enough for either of them using black template magic.
 		
-		typedef typename Uint< Max< sizeof(block_data_t*), 4 >::value >::t value_t;
+		typedef Uint< Max< sizeof(block_data_t*), 4 >::value >::t value_t;
 		
 		
 		typedef Tuple self_type;
