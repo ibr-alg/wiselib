@@ -72,7 +72,7 @@ class Tuple {
 		
 		void set_deep(size_type i, block_data_t* data) {
 			size_type l = strlen((char*)data) + 1;
-			set(i, ::get_allocator().template allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
+			set(i, ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
 			memcpy(get(i), data, l);
 		}
 		
