@@ -135,6 +135,18 @@ namespace wiselib {
 				// }}}
 			};
 			
+			struct TransportState {
+				TransportState() : success(true) {
+				}
+				
+				bool success;
+			};
+			
+			TransportState transport_state_;
+			
+			TransportState& transport_state() { return transport_state_; }
+			
+			
 			SemanticEntity() : global_tree_(0), main_handover_phase_(PHASE_INIT), recovering_(false) {
 				set_prev_token_count(0);
 				set_count(0);

@@ -240,7 +240,7 @@ namespace wiselib {
 				
 				forwarding_.init(
 						&neighborhood_, &registry_,
-						radio_, timer_, clock_, debug_,
+						radio_, timer_, clock_, rand_, debug_,
 						TokenForwardingT::ReceivedTokenCallbackT::template from_method<
 							self_type, &self_type::process_token_state
 						>(this)
@@ -829,6 +829,7 @@ namespace wiselib {
 #endif
 			
 			void process_token_state(TokenStateMessageT& msg, SemanticEntityId se_id, node_id_t from, abs_millis_t t_recv, abs_millis_t delay) {
+				debug_->debug("@%lu TF process_token_state", (unsigned long)radio_->id());
 				
 				SemanticEntityT *se_ = registry_.get(se_id);
 				if(!se_) { return; } // false; }
@@ -858,6 +859,8 @@ namespace wiselib {
 				bool activating = false;
 				bool active_before = se.is_active(radio_->id());
 				se.set_prev_token_count(s.count());
+				
+				debug_->debug("@%lu TF process_token_state 2", (unsigned long)radio_->id());
 				
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;

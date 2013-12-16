@@ -109,6 +109,7 @@ namespace wiselib {
 			
 			bool is_close() { return flags() & FLAG_CLOSE; }
 			void set_close() { set_flags(flags() | FLAG_CLOSE); }
+			void clear_close() { set_flags(flags() & ~FLAG_CLOSE); }
 			void set_supplementary() { set_flags(flags() | FLAG_SUPPLEMENTARY); }
 			
 			bool initiator() { return flags() & FLAG_INITIATOR; }

@@ -87,9 +87,10 @@ namespace wiselib {
 				SUCCESS = OsModel::SUCCESS
 			};
 			
-			typedef OneAtATimeReliableTransport<OsModel, SemanticEntityId,
-					Neighborhood, Radio, Timer, Clock, Rand, Debug,
-					MAX_SEMANTIC_ENTITIES, MESSAGE_TYPE> ReliableTransportT;
+			typedef OneAtATimeReliableTransport<
+				OsModel, SemanticEntityId, MESSAGE_TYPE,
+				Radio, Timer, Clock, Rand, Debug
+			> ReliableTransportT;
 			
 			typedef delegate5<void, TokenStateMessageT&, SemanticEntityId, node_id_t, abs_millis_t, abs_millis_t> ReceivedTokenCallbackT;
 			
@@ -119,6 +120,7 @@ namespace wiselib {
 					typename Radio::self_pointer_t radio,
 					typename Timer::self_pointer_t timer,
 					typename Clock::self_pointer_t clock,
+					typename Rand::self_pointer_t rand,
 					typename Debug::self_pointer_t debug,
 					ReceivedTokenCallbackT received_token_callback
 					) {
@@ -127,8 +129,16 @@ namespace wiselib {
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
+				rand_ = rand;
 				debug_ = debug;
 				received_token_callback_ = received_token_callback;
+				
+				transport_.init(radio_, timer_, clock_, rand_, debug_);
+				transport_.register_event_callback(
+					ReliableTransportT::callback_t::template from_method<
+						self_type, &self_type::on_reliable_transport_event
+					>(this)
+				);
 			}
 			
 			/**
@@ -163,17 +173,84 @@ namespace wiselib {
 			///@{
 			///@name Interface to reliable transport.
 			
-			bool produce_handover_initiator(typename ReliableTransportT::Message& message,
-					typename ReliableTransportT::Endpoint& endpoint) {
-				const SemanticEntityId &id = endpoint.channel();
-				SemanticEntityT *se = registry_.get(id);
+			bool on_reliable_transport_event(int event, typename ReliableTransportT::Message& message) {
+				
+				debug_->debug("@%lu TF ---- reliable trans", (unsigned long)radio_->id());
+				
+				SemanticEntityId se_id = transport_.channel();
+				assert(se_id.is_valid() && se_id.is_normal());
+				
+				SemanticEntityT *se = registry_->get(se_id);
+				if(!se) {
+					debug_->debug("@%lu TF !SE %lx.%lx", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+					return false;
+				}
+				debug_->debug("@%lu TF ---- reliable trans 2", (unsigned long)radio_->id());
+				
+				switch(event) {
+					case ReliableTransportT::EVENT_ABORT:
+						//if(transport_.is_initiator()) {
+							//se->transport_state().success =  false;
+						//}
+						try_deliver();
+						break;
+						
+					case ReliableTransportT::EVENT_PRODUCE:
+				debug_->debug("@%lu TF ---- reliable trans PROD", (unsigned long)radio_->id());
+						if(transport_.is_initiator()) {
+							return produce_handover_initiator(message);
+						}
+						break;
+						
+					case ReliableTransportT::EVENT_CONSUME:
+				debug_->debug("@%lu TF ---- reliable trans CONS", (unsigned long)radio_->id());
+						if(!transport_.is_initiator()) {
+							consume_handover_recepient(message);
+						}
+						else {
+							debug_->debug("@%lu TF consume initiator?!", (unsigned long)radio_->id());
+						}
+						break;
+						
+					case ReliableTransportT::EVENT_OPEN:
+						//se->transport_state().success = true;
+						se->set_handover_state_initiator(SemanticEntityT::INIT);
+						break;
+						
+					case ReliableTransportT::EVENT_CLOSE:
+						// Close is *always* a successful close (ie. no
+						// abort!)
+						
+						se->set_handover_state_initiator(SemanticEntityT::INIT);
+						//if(se->transport_state().success) {
+						//
+						
+						if(transport_.is_initiator()) {
+							// If we just sent a token it must have come from
+							// our cache, we don't need to keep it there
+							// anymore now!
+							assert(se_id.is_valid());
+							
+							debug_->debug("@%lu TF erase %lx.%lx", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+							token_cache_.erase(se_id);
+						}
+							try_deliver();
+						//}
+						break;
+				}
+				return false;
+			}
+			
+			bool produce_handover_initiator(typename ReliableTransportT::Message& message) {
+				const SemanticEntityId &id = transport_.channel();
+				SemanticEntityT *se = registry_->get(id);
 				if(!se) { return false; }
 				if(!token_cache_.contains(id)) { return false; }
 				
 				assert(id.is_valid());
-				TokenStateMessageT &msg = token_cache_[id];
-				msg.set_delay(
-						msg.delay() +
+				TokenStateMessageT &msg = token_cache_[id].token_state_message;
+				message.set_delay(
+						message.delay() +
 						token_cache_[id].delay + 
 						now() - token_cache_[id].received
 				);
@@ -181,14 +258,12 @@ namespace wiselib {
 				
 				*reinterpret_cast<TokenStateMessageT*>(message.payload()) = msg;
 				message.set_payload_size(msg.size());
-				endpoint.request_close();
+				//endpoint.close();
+				message.set_close();
 				return true;
 			}
 			
-			void consume_handover_initiator(typename ReliableTransportT::Message& message,
-					typename ReliableTransportT::Endpoint& endpoint) {
-			}
-			
+		/*
 			void event_handover_initiator(int event, typename ReliableTransportT::Endpoint& endpoint) {
 				const SemanticEntityId &id = endpoint.channel();
 				SemanticEntityT *se = registry_.get(id);
@@ -213,52 +288,51 @@ namespace wiselib {
 						break;
 				}
 			}
+		
+		*/
 			
-			void produce_handover_recepient(typename ReliableTransportT::Message& message,
-					typename ReliableTransportT::Endpoint& endpoint) {
-				return false;
-			}
-			
-			void consume_handover_recepient(typename ReliableTransportT::Message& message,
-					typename ReliableTransportT::Endpoint& endpoint) {
-				const SemanticEntityId &id = endpoint.channel();
-				SemanticEntityT *se = registry_.get(id);
-				if(!se) { return false; }
+			void consume_handover_recepient(typename ReliableTransportT::Message& message) {
+				debug_->debug("@%lu TF consume", (unsigned long)radio_->id());
+				
+				const SemanticEntityId &id = transport_.channel();
+				SemanticEntityT *se = registry_->get(id);
+				if(!se) { return; }
 				
 				TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 				
-				node_id_t target = neighborhood_->forward_address(endpoint.remote_address());
+				node_id_t target = neighborhood_->forward_address(id, transport_.remote_address(), true);
 				
 				// is this token for us?
 				if(target == radio_->id()) {
 					debug_->debug("@%lu TF P %lx.%lx S%lu", (unsigned long)radio_->id(),
-							(unsigned long)se.id().rule(), (unsigned long)se.id().value(),
-							(unsigned long)endpoint.remote_address());
+							(unsigned long)se->id().rule(), (unsigned long)se->id().value(),
+							(unsigned long)transport_.remote_address());
 					
 					assert(id.is_valid());
-					received_token_callback_(msg, id, endpoint.remote_address(), now(), message.delay());
+					received_token_callback_(msg, id, transport_.remote_address(), now(), message.delay());
 				}
 				else {
 					debug_->debug("@%lu TF C %lx.%lx S%lu", (unsigned long)radio_->id(),
-							(unsigned long)se.id().rule(), (unsigned long)se.id().value(),
-							(unsigned long)endpoint.remote_address());
+							(unsigned long)se->id().rule(), (unsigned long)se->id().value(),
+							(unsigned long)transport_.remote_address());
 					
 					// nope, put it in cache for sending later!
 					assert(id.is_valid());
 					token_cache_[id].token_state_message = msg;
-					token_cache_[id].source = endpoint.remote_address();
+					token_cache_[id].source = transport_.remote_address();
 					token_cache_[id].received = now();
 					token_cache_[id].delay = message.delay();
 					//token_cache_[id].delivered = false;
 					//token_cache_[id].from = 
 				}
 				
-				try_deliver();
+				//try_deliver();
 			}
 			
 			///@}
 			
 			void try_deliver() {
+						debug_->debug("@%lu TF try_deliver %d", (unsigned long)radio_->id(), token_cache_.size());
 				for(typename TokenCache::iterator iter = token_cache_.begin(); iter != token_cache_.end(); ) {
 					SemanticEntityId& se_id = iter->first;
 					assert(se_id.is_valid());
@@ -266,14 +340,36 @@ namespace wiselib {
 					node_id_t target = neighborhood_->forward_address(se_id, entry.source, true);
 					
 					if(target == radio_->id()) {
+						debug_->debug("@%lu TF p %lx.%lx S%lu %lu",
+								(unsigned long)radio_->id(),
+								(unsigned long)se_id.rule(),
+								(unsigned long)se_id.value(),
+								(unsigned long)entry.source,
+								(unsigned long)target);
+						
 						received_token_callback_(entry.token_state_message, se_id, entry.source, entry.received, entry.delay);
+						
+						debug_->debug("@%lu TF erase %lx.%lx", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value());
 						iter = token_cache_.erase(iter);
 					}
 					else {
+						debug_->debug("@%lu TF s %lx.%lx S%lu %lu",
+								(unsigned long)radio_->id(),
+								(unsigned long)se_id.rule(),
+								(unsigned long)se_id.value(),
+								(unsigned long)entry.source,
+								(unsigned long)target);
+						
 						++iter;
 						
-						if(transport_.is_busy()) { break; }
-						if(transport_.open(se_id, target) != SUCCESS) { continue; }
+						if(transport_.is_busy()) {
+							debug_->debug("@%lu TF busy to %lu init %d src %lu", (unsigned long)radio_->id(), (unsigned long)transport_.remote_address(), transport_.is_initiator(), entry.source);
+							break;
+						}
+						if(transport_.open(se_id, target) != SUCCESS) {
+							debug_->debug("@%lu TF !open", (unsigned long)radio_->id());
+							continue;
+						}
 						
 						/*
 						 * TODO
@@ -316,6 +412,7 @@ namespace wiselib {
 			
 			TokenCache token_cache_;
 			typename Clock::self_pointer_t clock_;
+			typename Rand::self_pointer_t rand_;
 			typename Timer::self_pointer_t timer_;
 			typename Debug::self_pointer_t debug_;
 			typename Radio::self_pointer_t radio_;

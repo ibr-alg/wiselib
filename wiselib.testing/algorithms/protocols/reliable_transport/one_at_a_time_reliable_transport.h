@@ -82,7 +82,7 @@ namespace wiselib {
 			
 			enum Restrictions {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - Message::HEADER_SIZE,
-				RESEND_TIMEOUT = 2000 * WISELIB_TIME_FACTOR, // job 23954
+				RESEND_TIMEOUT = 3000 * WISELIB_TIME_FACTOR, // job 23954
 				//RESEND_RAND_ADD = 500 * WISELIB_TIME_FACTOR,
 				MAX_RESENDS = 3,
 			};
@@ -155,16 +155,19 @@ namespace wiselib {
 				
 				sequence_number_ = rand_->operator()();
 				request_send_ = true;
-				request_close_ = false;
+				//request_close_ = false;
 				
 				sending_.set_open();
+				sending_.clear_close();
+				
+				event_callback_(EVENT_OPEN, sending_);
 				
 				flush();
 				return SUCCESS;
 			}
 			
-			int close() {
-			}
+			//int close() {
+			//}
 			
 			void flush() { check_send(); }
 			
@@ -172,9 +175,9 @@ namespace wiselib {
 				request_send_ = true;
 			}
 			
-			void request_close() {
-				// TODO
-			}
+			//void request_close() {
+				//// TODO
+			//}
 			
 			bool is_busy() { return busy_; }
 			bool is_initiator() { return initiator_; }
@@ -230,12 +233,21 @@ namespace wiselib {
 				
 				if(msg.is_open() && (
 						(msg.sequence_number() < sequence_number_) || !busy_)) {
+					
+					debug_->debug("@%lu RT rcv open r%lu", (unsigned long)radio_->id(), (unsigned long)from);
+					
 					busy_ = true;
 					initiator_ = false;
 					channel_ = msg.channel();
 					remote_address_ = from;
 					
+					event_callback_(EVENT_OPEN, msg);
+					
 					consume_data(msg);
+					
+					if(msg.is_close()) {
+						close(msg);
+					}
 				}
 				
 				// Case 2: DATA
@@ -247,18 +259,26 @@ namespace wiselib {
 						(msg.sequence_number() == sequence_number_) &&
 						from == remote_address_) {
 					
+					debug_->debug("@%lu RT rcv data r%lu", (unsigned long)radio_->id(), (unsigned long)from);
+					
 					consume_data(msg);
 				}
 				
-				// Case 3: Plain ACK
+				// Case 3: ACK / CLOSE-ACK
 				
 				else if(busy_ &&
 						msg.is_ack() &&
 						(msg.sequence_number() == sequence_number_) &&
 						from == remote_address_) {
 					
+					debug_->debug("@%lu RT rcv ack r%lu", (unsigned long)radio_->id(), (unsigned long)from);
+					
 					cancel_ack_timeout();
 					sequence_number_++;
+					
+					if(ACK_CLOSE && msg.is_close()) {
+						close(msg);
+					}
 				}
 				
 				// Case 4: CLOSE
@@ -268,8 +288,15 @@ namespace wiselib {
 						(msg.sequence_number() == sequence_number_ ) &&
 						from == remote_address_) {
 					
+					debug_->debug("@%lu RT rcv close r%lu", (unsigned long)radio_->id(), (unsigned long)from);
+					
 					consume_data(msg);
-					busy_ = false;
+					
+					close(msg);
+				}
+				
+				else {
+					debug_->debug("@%lu RT rcv invalid r%lu busy %d init %d open %d close %d ack %d msg.S%lx S%lx", (unsigned long)radio_->id(), (unsigned long)from, (int)busy_, (int)initiator_, (int)msg.is_open(), (int)msg.is_close(), (int)msg.is_ack(), (unsigned long)msg.sequence_number(), (unsigned long)sequence_number_);
 				}
 				
 				check_send();
@@ -286,34 +313,43 @@ namespace wiselib {
 				sending_.clear_open();
 				
 				if(msg.is_data()) {
+					debug_->debug("@%lu RT CONSUME", (unsigned long)radio_->id());
 					event_callback_(EVENT_CONSUME, msg);
 				}
+				else {
+					debug_->debug("@%lu RT CONSUME: IS NOT DATA! flags=%d s=%lx",
+							(unsigned long)radio_->id(),
+							(int)msg.flags(),
+							(unsigned long)msg.sequence_number());
+				}
+				
 				sequence_number_ = msg.sequence_number() + 1;
 				if(!request_send_ && (!msg.is_close() || ACK_CLOSE)) {
-					send_ack(sequence_number_);
+					send_ack(sequence_number_, msg.is_close());
 					sequence_number_++;
 				}
 			}
 			
 			void cancel_ack_timeout() {
-				waiting_for_ack_ = false;
+				//waiting_for_ack_ = false;
 				ack_index_++;
 				unacked_ = 0;
 			}
 			
 			void ack_timeout(void* idx) {
-				waiting_for_ack_ = false;
+				//waiting_for_ack_ = false;
 				if((Uvoid)idx != ack_index_) { return; }
 				
 				if(unacked_ < MAX_RESENDS) {
 					unacked_++;
 					
-					debug_->debug("@%lu unacked: %d", (unsigned long)radio_->id(),
-							(int)unacked_);
+					debug_->debug("@%lu RT unacked r%lu: %d", (unsigned long)radio_->id(), (unsigned long)remote_address_, (int)unacked_);
 					
 					send_acked();
 				}
 				else {
+					debug_->debug("@%lu RT unacked r%lu: %d ABORT", (unsigned long)radio_->id(), (unsigned long)remote_address_, (int)unacked_);
+					
 					// Too many ack timeouts, abort the whole process!
 					event_callback_(EVENT_ABORT, sending_);
 					busy_ = false;
@@ -329,11 +365,19 @@ namespace wiselib {
 			void check_send() {
 				if(request_send_) {
 					request_send_ = false;
+					
+					sending_.set_channel(channel_);
 					event_callback_(EVENT_PRODUCE, sending_);
 					
 					unacked_ = 0;
 					sequence_number_++;
 					send_acked();
+					
+					if(!ACK_CLOSE && sending_.is_close()) {
+						// if we dont ack close msgs, we can close immediately
+						// after sending the close msg.
+						close(sending_);
+					}
 				}
 			}
 			
@@ -342,25 +386,42 @@ namespace wiselib {
 			 */
 			void send_acked() {
 				sending_.set_sequence_number(sequence_number_ - 1);
-				/*
-				debug_->debug("@%lu snd to %lu S%lx l%lu R%lu",
+				
+				debug_->debug("@%lu RT snd to %lu S%lx l%lu R%lu open %d close %d",
 						(unsigned long)radio_->id(),
 						(unsigned long)remote_address_,
 						(unsigned long)sending_.sequence_number(),
 						(unsigned long)sending_.size(),
-						(unsigned long)unacked_);
-				*/
+						(unsigned long)unacked_, (int)sending_.is_open(), (int)sending_.is_close());
+				//*/
 				radio_->send(remote_address_, sending_.size(), sending_.data());
-				waiting_for_ack_ = true;
+				//waiting_for_ack_ = true;
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, (void*)ack_index_);
 			}
 			
-			void send_ack(sequence_number_t seqnr) {
+			void send_ack(sequence_number_t seqnr, bool closing = false) {
 				Message msg;
 				msg.set_sequence_number(seqnr);
 				msg.set_ack();
 				
+				if(closing) {
+					msg.set_close();
+				}
+				
+				debug_->debug("@%lu RT snd ack to %lu open %d close %d",
+						(unsigned long)radio_->id(),
+						(unsigned long)remote_address_,
+						(int)msg.is_open(), (int)msg.is_close()
+						);
+				
 				radio_->send(remote_address_, msg.size(), msg.data());
+			}
+			
+			void close(Message& msg) {
+				debug_->debug("@%lu RT close", (unsigned long)radio_->id());
+				busy_ = false;
+				request_send_ = false;
+				event_callback_(EVENT_CLOSE, msg);
 			}
 			
 			void check() {
@@ -393,8 +454,9 @@ namespace wiselib {
 			bool busy_;
 			bool initiator_;
 			bool request_send_;
-			bool request_close_;
-			bool waiting_for_ack_;
+			bool closing_;
+			//bool request_close_;
+			//bool waiting_for_ack_;
 			ChannelId channel_;
 			node_id_t remote_address_;
 			

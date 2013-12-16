@@ -227,8 +227,6 @@ namespace wiselib
             *cur = *(cur + 1);
 
          pop_back();
-         printf("++++ erase pos=%p end=%p", position, end());
-
          return position;
       }
       // --------------------------------------------------------------------

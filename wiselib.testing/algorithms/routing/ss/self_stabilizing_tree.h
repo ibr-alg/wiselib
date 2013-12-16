@@ -920,12 +920,12 @@ namespace wiselib {
 						
 					notify_event(UPDATED_STATE, previous_parent);
 					
-						//debug_->debug("@%llx US %llx | %llx %llx %llx.. c=%d",
-								//(unsigned long long)radio_->id(),
-								//(unsigned long long)neighbors_[0].id(),
-								//(unsigned long long)neighbors_[1].id(),
-								//(unsigned long long)neighbors_[2].id(),
-								//(unsigned long long)neighbors_[3].id(), (int)childs());
+						debug_->debug("@%llx US %llx | %llx %llx %llx.. c=%d",
+								(unsigned long long)radio_->id(),
+								(unsigned long long)neighbors_[0].id(),
+								(unsigned long long)neighbors_[1].id(),
+								(unsigned long long)neighbors_[2].id(),
+								(unsigned long long)neighbors_[3].id(), (int)childs());
 						
 					// <DEBUG>
 					#if INSE_DEBUG_TREE
