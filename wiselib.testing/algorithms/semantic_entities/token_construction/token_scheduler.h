@@ -162,7 +162,7 @@ namespace wiselib {
 			};
 			
 			enum Timings {
-				AGGREGATES_LOCK_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
+				//AGGREGATES_LOCK_INTERVAL = 1000 * WISELIB_TIME_FACTOR,
 				
 				/**
 				 * How long should we keep the token once we have it?
