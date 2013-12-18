@@ -47,7 +47,7 @@ for p in properties:
 
 re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
 re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+).*')
-re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+)')
+re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)')
 
 
 def parse(f):
@@ -97,18 +97,26 @@ def parse(f):
 		
 		m = re.match(re_tok, line)
 		if m is not None:
-			nodename, S, w, i, t_, tr, d, e, c0, c1, r = m.groups()
+			nodename, S, w, i, t_, tr, d, e, c0, c1, r, ri = m.groups()
 			name = nodename + ':' + S
 			t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'window' not in nodes[name]:
 				nodes[name]['window'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['window']['t'] = np.append(nodes[name]['window']['t'], t_)
-			nodes[name]['window']['v'] = np.append(nodes[name]['window']['v'], int(w))
+			nodes[name]['window']['v'] = np.append(nodes[name]['window']['v'], int(w) // 1000)
 			if 'interval' not in nodes[name]:
 				nodes[name]['interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['interval']['t'] = np.append(nodes[name]['interval']['t'], t_)
-			nodes[name]['interval']['v'] = np.append(nodes[name]['interval']['v'], int(i))
+			nodes[name]['interval']['v'] = np.append(nodes[name]['interval']['v'], int(i) // 1000)
+			if 'real-interval' not in nodes[name]:
+				nodes[name]['real-interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['real-interval']['t'] = np.append(nodes[name]['real-interval']['t'], t_)
+			nodes[name]['real-interval']['v'] = np.append(nodes[name]['real-interval']['v'], int(ri) // 1000)
+			if 'delay' not in nodes[name]:
+				nodes[name]['delay'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['delay']['t'] = np.append(nodes[name]['delay']['t'], t_)
+			nodes[name]['delay']['v'] = np.append(nodes[name]['delay']['v'], int(d) // 1000)
 
 		
 		# which node is this line about?
@@ -321,9 +329,15 @@ def fig_timings():
 		if 'window' in node:
 			r, = ax.plot(node['window']['t'], node['window']['v'], 'b-', label='window', drawstyle='steps-post')
 			property_styles['window'] = r
+		if 'real-interval' in node:
+			r, = ax.plot(node['real-interval']['t'], node['real-interval']['v'], 'm:', label='real-interval', drawstyle='steps-post')
+			property_styles['real-interval'] = r
 		if 'interval' in node:
 			r, = ax.plot(node['interval']['t'], node['interval']['v'], 'r-', label='interval', drawstyle='steps-post')
 			property_styles['interval'] = r
+		if 'delay' in node:
+			r, = ax.plot(node['delay']['t'], node['delay']['v'], 'g-', label='delay', drawstyle='steps-post')
+			property_styles['delay'] = r
 		
 		ax.set_title(name)
 		#pos = list(ax.get_position().bounds)
@@ -385,6 +399,9 @@ def fig_forward_timings():
 			if 'interval' in forward:
 				r, = ax.plot(forward['t'], forward['interval'], 'r-', label='interval', drawstyle='steps-post')
 				property_styles['interval'] = r
+			if 'delay' in forward:
+				r, = ax.plot(forward['t'], forward['delay'], 'r-', label='delay', drawstyle='steps-post')
+				property_styles['delay'] = r
 			
 			ax.set_title(name + ' fwd from ' + str(from_))
 			#pos = list(ax.get_position().bounds)

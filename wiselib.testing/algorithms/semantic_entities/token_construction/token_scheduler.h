@@ -841,10 +841,21 @@ namespace wiselib {
 				
 				check();
 				
+				// Different time values and -intervals in use here:
+				// 
+				// t_recv: The time the token was received by reliable
+				//   transport (usually pretty close to now()).
+				//   
+				// delay: The delay induced by forwarding nodes that sent the
+				//   token to us.
+				//   
+				// se.token_received: point in time we were supposed to have
+				//   received the *previous* token (t_recv - delay)
+				
 				//     now() - delay < se.token_received
 				// <=> now() < se.token_received + delay
 				
-				if(now() < se.token_received() + delay) {
+				if(t_recv < se.token_received() + delay) {
 					debug_->debug("@%lu TF process_token_state !! OLD! SE %lx.%lx now=%lu < recv=%lu + dly=%lu", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value(), (unsigned long)now(), (unsigned long)se.token_received(), (unsigned long)delay);
 					/*
 					debug_->debug("@%lu itok %lu < %lu t%lu",
@@ -858,7 +869,7 @@ namespace wiselib {
 					// If so, just ignore this one
 					return ; //false;
 				}
-				se.set_token_received(now() - delay);
+				se.set_token_received(t_recv - delay);
 				
 				TokenState s = msg.token_state();
 				bool activating = false;
@@ -869,15 +880,16 @@ namespace wiselib {
 				
 				if(se.is_active(radio_->id()) && !active_before) {
 					activating = true;
+					unsigned long last_encounter = se.last_token_encounter();
 					se.learn_activating_token(clock_, radio_->id(), t_recv - delay);
 					
 					//#if (INSE_DEBUG_STATE || INSE_DEBUG_TOKEN)
-						debug_->debug("@%lu tok S%x.%x w%lu i%lu t%lu tr%lu d%lu e%d c%d,%d r%d",
+						debug_->debug("@%lu tok S%x.%x w%lu i%lu t%lu tr%lu d%lu e%d c%d,%d r%d ri%lu",
 								(unsigned long)radio_->id(), (int)se.id().rule(), (int)se.id().value(),
 								(unsigned long)se.activating_token_window(), (unsigned long)se.activating_token_interval(),
 								(unsigned long)now(), (unsigned long)t_recv, (unsigned long)delay,
 								(int)se.activating_token_early(),
-								(int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()));
+								(int)s.count(), (int)se.count(), (int)se.is_root(radio_->id()), (unsigned long)((t_recv - delay) - last_encounter));
 					//#endif
 						
 					begin_activity(se);

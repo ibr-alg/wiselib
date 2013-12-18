@@ -328,6 +328,9 @@ namespace wiselib {
 			abs_millis_t activating_token_interval() {
 				return activating_token_.interval();
 			}
+			abs_millis_t last_token_encounter() {
+				return activating_token_.last_encounter();
+			}
 			
 			bool activating_token_early() {
 				return activating_token_.early();

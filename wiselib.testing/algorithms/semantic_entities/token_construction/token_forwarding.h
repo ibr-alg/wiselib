@@ -194,7 +194,7 @@ namespace wiselib {
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
 				debug_->debug("@%lu TF ---- reliable trans ABORT", (unsigned long)radio_->id());
-						nap_control_->pop_caffeine();
+						nap_control_->pop_caffeine("/abrt");
 						//if(transport_.is_initiator()) {
 							//se->transport_state().success =  false;
 						//}
@@ -220,14 +220,14 @@ namespace wiselib {
 						
 					case ReliableTransportT::EVENT_OPEN:
 				debug_->debug("@%lu TF ---- reliable trans OPEN", (unsigned long)radio_->id());
-						nap_control_->push_caffeine();
+						nap_control_->push_caffeine("open");
 						//se->transport_state().success = true;
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
 				debug_->debug("@%lu TF ---- reliable trans CLOSE", (unsigned long)radio_->id());
-						nap_control_->pop_caffeine();
+						nap_control_->pop_caffeine("/close");
 						// Close is *always* a successful close (ie. no
 						// abort!)
 						
@@ -260,7 +260,7 @@ namespace wiselib {
 				assert(id.is_valid());
 				TokenStateMessageT &msg = token_cache_[id].token_state_message;
 				message.set_delay(
-						message.delay() +
+						//message.delay() +
 						token_cache_[id].delay + 
 						now() - token_cache_[id].received
 				);
