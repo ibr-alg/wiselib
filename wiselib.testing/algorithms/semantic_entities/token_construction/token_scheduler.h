@@ -128,6 +128,7 @@ namespace wiselib {
 				OsModel, SemanticEntityT,
 				SemanticEntityNeighborhoodT,
 				SemanticEntityRegistryT,
+				NapControlT,
 				MAX_SEMANTIC_ENTITIES, MAX_NEIGHBORS,
 				INSE_MESSAGE_TYPE_TOKEN_RELIABLE,
 				Radio, Timer, Clock, Rand, Debug
@@ -239,7 +240,7 @@ namespace wiselib {
 				neighborhood_.init(&global_tree_, &registry_, radio_);
 				
 				forwarding_.init(
-						&neighborhood_, &registry_,
+						&neighborhood_, &registry_, &nap_control_,
 						radio_, timer_, clock_, rand_, debug_,
 						TokenForwardingT::ReceivedTokenCallbackT::template from_method<
 							self_type, &self_type::process_token_state
@@ -432,11 +433,11 @@ namespace wiselib {
 			void on_global_tree_event(typename GlobalTreeT::EventType e, node_id_t addr) {
 				check();
 				
-				/*
 				if(e == GlobalTreeT::SEEN_NEIGHBOR) {
 					//on_neighbor_awake(addr);
+					forwarding_.try_deliver(addr);
 					return;
-				}*/
+				}
 				
 				if(e != GlobalTreeT::UPDATED_STATE) { return; }
 				
@@ -460,13 +461,13 @@ namespace wiselib {
 					
 					if(!se.in_activity_phase()) {
 						// will be popped by initiate_handover
-						nap_control_.push_caffeine("hotre");
-					#if INSE_DEBUG_STATE
-						debug_->debug("ho tree");
-					#endif
-						se.set_token_send_start(now());
+						//nap_control_.push_caffeine("hotre");
+					//#if INSE_DEBUG_STATE
+						//debug_->debug("ho tree");
+					//#endif
 						
 						// TODO: schedule sending of token
+						//se.set_token_send_start(now());
 						//initiate_handover(se, false); // tree has changed, (re-)send token info
 					}
 				} // for
@@ -832,7 +833,10 @@ namespace wiselib {
 				debug_->debug("@%lu TF process_token_state", (unsigned long)radio_->id());
 				
 				SemanticEntityT *se_ = registry_.get(se_id);
-				if(!se_) { return; } // false; }
+				if(!se_) {
+					debug_->debug("@%lu TF process_token_state !! SE %lx.%lx", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value());
+					return;
+				} // false; }
 				SemanticEntityT &se = *se_;
 				
 				check();
@@ -841,6 +845,7 @@ namespace wiselib {
 				// <=> now() < se.token_received + delay
 				
 				if(now() < se.token_received() + delay) {
+					debug_->debug("@%lu TF process_token_state !! OLD! SE %lx.%lx now=%lu < recv=%lu + dly=%lu", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value(), (unsigned long)now(), (unsigned long)se.token_received(), (unsigned long)delay);
 					/*
 					debug_->debug("@%lu itok %lu < %lu t%lu",
 							(unsigned long)radio_->id(),
@@ -1029,7 +1034,7 @@ namespace wiselib {
 					//debug_->debug("ho endact");
 				#endif
 				nap_control_.pop_caffeine("/act");
-				nap_control_.push_caffeine("ho_endact");
+				//nap_control_.push_caffeine("ho_endact");
 				
 				se.set_token_send_start(now());
 				forwarding_.send(se);

@@ -39,6 +39,7 @@ namespace wiselib {
 		typename SemanticEntity_P,
 		typename Neighborhood_P,
 		typename Registry_P,
+		typename NapControl_P,
 		
 		size_t MAX_SEMANTIC_ENTITIES_P,
 		size_t MAX_NEIGHBORS_P,
@@ -60,6 +61,7 @@ namespace wiselib {
 			typedef Neighborhood_P Neighborhood;
 			//typedef GlobalTree_P GlobalTreeT;
 			typedef Registry_P RegistryT;
+			typedef NapControl_P NapControlT;
 			
 			typedef Radio_P Radio;
 			typedef Timer_P Timer;
@@ -85,6 +87,10 @@ namespace wiselib {
 			
 			enum {
 				SUCCESS = OsModel::SUCCESS
+			};
+			
+			enum {
+				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
 			typedef OneAtATimeReliableTransport<
@@ -117,6 +123,8 @@ namespace wiselib {
 			void init(
 					typename Neighborhood::self_pointer_t neighborhood,
 					typename RegistryT::self_pointer_t registry,
+					typename NapControlT::self_pointer_t napcontrol,
+					
 					typename Radio::self_pointer_t radio,
 					typename Timer::self_pointer_t timer,
 					typename Clock::self_pointer_t clock,
@@ -126,6 +134,7 @@ namespace wiselib {
 					) {
 				neighborhood_ = neighborhood;
 				registry_ = registry;
+				nap_control_ = napcontrol;
 				radio_ = radio;
 				timer_ = timer;
 				clock_ = clock;
@@ -174,9 +183,6 @@ namespace wiselib {
 			///@name Interface to reliable transport.
 			
 			bool on_reliable_transport_event(int event, typename ReliableTransportT::Message& message) {
-				
-				debug_->debug("@%lu TF ---- reliable trans", (unsigned long)radio_->id());
-				
 				SemanticEntityId se_id = transport_.channel();
 				assert(se_id.is_valid() && se_id.is_normal());
 				
@@ -185,10 +191,10 @@ namespace wiselib {
 					debug_->debug("@%lu TF !SE %lx.%lx", (unsigned long)radio_->id(), (unsigned long)se_id.rule(), (unsigned long)se_id.value());
 					return false;
 				}
-				debug_->debug("@%lu TF ---- reliable trans 2", (unsigned long)radio_->id());
-				
 				switch(event) {
 					case ReliableTransportT::EVENT_ABORT:
+				debug_->debug("@%lu TF ---- reliable trans ABORT", (unsigned long)radio_->id());
+						nap_control_->pop_caffeine();
 						//if(transport_.is_initiator()) {
 							//se->transport_state().success =  false;
 						//}
@@ -208,16 +214,20 @@ namespace wiselib {
 							consume_handover_recepient(message);
 						}
 						else {
-							debug_->debug("@%lu TF consume initiator?!", (unsigned long)radio_->id());
+							debug_->debug("@%lu TF !!! consume initiator?!", (unsigned long)radio_->id());
 						}
 						break;
 						
 					case ReliableTransportT::EVENT_OPEN:
+				debug_->debug("@%lu TF ---- reliable trans OPEN", (unsigned long)radio_->id());
+						nap_control_->push_caffeine();
 						//se->transport_state().success = true;
 						se->set_handover_state_initiator(SemanticEntityT::INIT);
 						break;
 						
 					case ReliableTransportT::EVENT_CLOSE:
+				debug_->debug("@%lu TF ---- reliable trans CLOSE", (unsigned long)radio_->id());
+						nap_control_->pop_caffeine();
 						// Close is *always* a successful close (ie. no
 						// abort!)
 						
@@ -292,11 +302,13 @@ namespace wiselib {
 		*/
 			
 			void consume_handover_recepient(typename ReliableTransportT::Message& message) {
-				debug_->debug("@%lu TF consume", (unsigned long)radio_->id());
 				
 				const SemanticEntityId &id = transport_.channel();
 				SemanticEntityT *se = registry_->get(id);
-				if(!se) { return; }
+				if(!se) {
+					debug_->debug("@%lu TF consume !! SE", (unsigned long)radio_->id());
+					return;
+				}
 				
 				TokenStateMessageT &msg = *reinterpret_cast<TokenStateMessageT*>(message.payload());
 				
@@ -331,8 +343,7 @@ namespace wiselib {
 			
 			///@}
 			
-			void try_deliver() {
-						debug_->debug("@%lu TF try_deliver %d", (unsigned long)radio_->id(), token_cache_.size());
+			void try_deliver(node_id_t target_hint = NULL_NODE_ID) {
 				for(typename TokenCache::iterator iter = token_cache_.begin(); iter != token_cache_.end(); ) {
 					SemanticEntityId& se_id = iter->first;
 					assert(se_id.is_valid());
@@ -366,6 +377,9 @@ namespace wiselib {
 							debug_->debug("@%lu TF busy to %lu init %d src %lu", (unsigned long)radio_->id(), (unsigned long)transport_.remote_address(), transport_.is_initiator(), entry.source);
 							break;
 						}
+					
+						if(target_hint != NULL_NODE_ID && target != target_hint) { continue; }
+					
 						if(transport_.open(se_id, target) != SUCCESS) {
 							debug_->debug("@%lu TF !open", (unsigned long)radio_->id());
 							continue;
@@ -394,6 +408,10 @@ namespace wiselib {
 						transport_.flush();
 					}
 				}
+				
+				
+				if(target_hint != NULL_NODE_ID) { try_deliver(); }
+				
 			} // try_deliver()
 		
 		private:
@@ -419,6 +437,7 @@ namespace wiselib {
 			ReliableTransportT transport_;
 			typename RegistryT::self_pointer_t registry_;
 			typename Neighborhood::self_pointer_t neighborhood_;
+			typename NapControlT::self_pointer_t nap_control_;
 			ReceivedTokenCallbackT received_token_callback_;
 			//typename GlobalTreeT::self_pointer_t global_tree_;
 		

@@ -147,6 +147,7 @@ namespace wiselib {
 			node_id_t forward_address(const SemanticEntityId& se_id, node_id_t sender, bool forward) {
 				check();
 				
+				/*
 				DBG("@%lu TF fwd %d src=%lu p=%lu rt%d has=%d child1=%d:%lu",
 						(unsigned long)radio_->id(),
 						(int)forward,
@@ -157,6 +158,7 @@ namespace wiselib {
 						(int)find_first_se_child(se_id, 0),
 						(unsigned long)(find_first_se_child(se_id, 0) == npos ? 0L : global_tree_->child(find_first_se_child(se_id, 0)))
 				);
+				*/
 				
 				if(forward) {
 					

@@ -12,7 +12,7 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 
-tmax = 10000
+tmax = 50000
 
 
 
@@ -32,8 +32,8 @@ properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count'
 
 def getnodes(namepattern):
 	global gnodes
-	print "namepattern=", namepattern
-	print "keys=", gnodes.keys()
+	#print "namepattern=", namepattern
+	#print "keys=", gnodes.keys()
 	nodes = dict(
 			(k, v) for (k, v) in gnodes.items() if re.match(namepattern, k)
 	)
@@ -46,6 +46,8 @@ for p in properties:
 	re_properties[p] = re.compile(r'\b' + p + r'\s*(=|\s)\s*([^= ]+)')
 
 re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
+re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+).*')
+re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+)')
 
 
 def parse(f):
@@ -80,6 +82,34 @@ def parse(f):
 			continue
 		
 		if t > tmax: break
+		
+		
+		m = re.match(re_onoff, line)
+		if m is not None:
+			nodename, onoff, t_ = m.groups()
+			if nodename not in nodes: nodes[nodename] = {}
+			if 'on' not in nodes[nodename]:
+				nodes[nodename]['on'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			print("{} -> {} t={}".format(nodename, onoff, t_))
+			nodes[nodename]['on']['t'] = np.append(nodes[nodename]['on']['t'], int(t_) // 1000)
+			nodes[nodename]['on']['v'] = np.append(nodes[nodename]['on']['v'], 1 if onoff == 'on' else 0)
+			continue
+		
+		m = re.match(re_tok, line)
+		if m is not None:
+			nodename, S, w, i, t_, tr, d, e, c0, c1, r = m.groups()
+			name = nodename + ':' + S
+			t_ = int(t_) // 1000
+			if name not in nodes: nodes[name] = {}
+			if 'window' not in nodes[name]:
+				nodes[name]['window'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['window']['t'] = np.append(nodes[name]['window']['t'], t_)
+			nodes[name]['window']['v'] = np.append(nodes[name]['window']['v'], int(w))
+			if 'interval' not in nodes[name]:
+				nodes[name]['interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['interval']['t'] = np.append(nodes[name]['interval']['t'], t_)
+			nodes[name]['interval']['v'] = np.append(nodes[name]['interval']['v'], int(i))
+
 		
 		# which node is this line about?
 		
@@ -283,6 +313,8 @@ def fig_timings():
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
+		print(node.keys())
+
 		if 'caffeine' in node:
 			r, = ax.plot(node['caffeine']['t'], node['caffeine']['v'], 'g-', label='caffeine', drawstyle='steps-post')
 			property_styles['caffeine'] = r
@@ -419,6 +451,7 @@ def fig_duty_cycle(namepattern = '.*'):
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
+		#print(node['on']['t'])
 		if 'on' in node:
 			r, = ax.plot(node['on']['t'], node['on']['v'], 'b-', label='on', drawstyle='steps-post')
 			property_styles['on'] = r
@@ -458,7 +491,8 @@ def fig_duty_cycle(namepattern = '.*'):
 
 
 print("parsing data...")
-parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log_office.txt', 'r'))
+#parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log_office.txt', 'r'))
+parse(open('log.txt', 'r'))
 
 for k, v in parents.items():
 	print(k + ":")
