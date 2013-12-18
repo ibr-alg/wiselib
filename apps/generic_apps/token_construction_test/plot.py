@@ -12,12 +12,12 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 
-tmax = 50000
+tmax = 200000
 
 
 
 
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
+rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
 
 

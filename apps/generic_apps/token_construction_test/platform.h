@@ -11,7 +11,7 @@
 #define INSE_CSMA_MODE                 0
 #define NAP_CONTROL_ALWAYS_ON          0
 
-#define INSE_COMPENSATE_DELAYS         1
+#define INSE_COMPENSATE_DELAYS         0
 
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR

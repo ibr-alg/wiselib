@@ -333,12 +333,14 @@ namespace wiselib {
 			void cancel_ack_timeout() {
 				//waiting_for_ack_ = false;
 				ack_index_++;
+				debug_->debug("@%lu RT cancel ack to: %lu", (unsigned long)radio_->id(), (unsigned long)ack_index_);
 				unacked_ = 0;
 			}
 			
 			void ack_timeout(void* idx) {
 				//waiting_for_ack_ = false;
 				if((Uvoid)idx != ack_index_) { return; }
+				debug_->debug("@%lu RT unacked: %lu", (unsigned long)radio_->id(), (unsigned long)ack_index_);
 				
 				if(unacked_ < MAX_RESENDS) {
 					unacked_++;
@@ -396,6 +398,7 @@ namespace wiselib {
 				//*/
 				radio_->send(remote_address_, sending_.size(), sending_.data());
 				//waiting_for_ack_ = true;
+				ack_index_++;
 				timer_->template set_timer<self_type, &self_type::ack_timeout>(RESEND_TIMEOUT, this, (void*)ack_index_);
 			}
 			
