@@ -1,0 +1,102 @@
+
+def on_transfer_interval_start():
+	radio on
+	
+	calculate_transfer_interval()
+	calculate_period()
+	
+	prepare_beacon()
+	send beacon reliably
+
+
+def on_transfer_interval_end():
+	radio off if not active for any SE
+
+
+def prepare_beacon():
+	b := Beacon()
+	b.seqnr = rand()
+
+	# ---- MBF ----
+
+	if am_root(): b.mbf_distance = 0
+	else:         b.mbf_distance := (min {b_ in $ND}: b_.mbf_distance) + 1
+		
+
+	# ---- Joined SEs: Token count, timing ---
+
+	for s in joined_ses:
+		b.ses[s].dist_first := 0
+		b.ses[s].dist_last := 0
+		
+		s.activity_slots--
+		if s.activity_slots == 0:
+			s.update_token_count()
+		
+		b.ses[s].token_count := s.token_count
+		b.ses[s].target := next(s, this)
+	
+	# ---- Adopted child SEs ----
+	
+	for s in child_ses:
+		assert ND.has_child(s) # else why is this SE in child_ses?
+		b.ses[s].dist_first := $ND.first_child(s).dist_first + 1
+		b.ses[s].dist_last := $ND.last_child(s).dist_last + 1
+		
+		if token count for s in forwarding cache:
+			b.ses[s].target := next(s, cache[s].source)
+			b.ses[s].token_count = cache[s].token_count
+	
+	# Are we LCA for a non-joined SE in our subtree?
+	
+	for s in child_ses that occur at least twice:
+		b.ses[s].subtree_interval := max {
+				
+			# b0 and b1 are direct neighboured siblings in $ND.childs(s)
+			max {b0, b1 in $ND.childs(s)}: b0.dist_last + b1.dist_first,
+		}
+	
+	return b
+
+
+def on_receive_beacon(b):
+	update $ND / $SEs with b
+	update transfer interval phase shift to that of parent
+	
+	for s in joined ses:
+		if s became active through b:
+			s.activity_slots = $ND.is_leaf(s) ? 2 : 1
+	
+	if this as target in b:
+		send(b.source, ack, b.seqnr)
+
+	for s in b.ses:
+		if adopted(s)
+
+
+def calculate_transfer_interval():
+	$transfer_interval := max {
+		# b0 and b1 are direct neighboured siblings in $ND.childs(s)
+		max <s in $child_ses> {
+			max <b0, b1 in $ND.childs(s)> { b0.dist_last + b1.dist_first },
+			#$ND.last_child(s).dist_last,
+			#$ND.first_child(s).dist_first
+		},
+		
+		max <s in SEs with subtree_interval> { $ND.parent(s).subtree_interval },
+		$min_transfer_interval_length,
+	}
+
+def update_token_count(s, predecessor_count):
+	if root and predecessor_count == s.token_count:
+		s.token_count++
+	elif not root and predecessor_count != s.token_count:
+		s.token_count = predecessor_count
+
+class ND:
+	def first_child(s: SE)
+	def last_child(s: SE)
+	def childs(s : SE)
+
+# vim: set ft=python ts=4 sw=4 noexpandtab:
+
