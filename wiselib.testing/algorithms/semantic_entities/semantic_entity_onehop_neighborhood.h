@@ -65,6 +65,22 @@ namespace wiselib {
 			}
 			
 			
+			void update_state() {
+				::uint8_t min_dist = -1;
+				node_id_t parent = NULL_NODE_ID;
+				
+				for(NeighborhoodT::iterator iter = begin(); iter != end(); ++iter) {
+					node_id_t addr = iter->first;
+					Neighbor& neigh = iter->second;
+					
+					if(neigh.root_distance() < min_dist) {
+						min_dist = neigh.root_distance();
+						parent = addr;
+					}
+				}
+				
+			}
+			
 			
 			/**
 			 * Return the maximum number of hops a message that will be
