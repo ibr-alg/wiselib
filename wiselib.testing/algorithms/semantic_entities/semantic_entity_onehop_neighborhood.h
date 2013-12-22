@@ -64,6 +64,22 @@ namespace wiselib {
 				// TODO
 			}
 			
+			void update_from_beacon(BeconMessageT& msg, node_id_t source) {
+				neighbors_[source].set_parent(msg.parent());
+				neighbors_[source].set_root_distance(msg.root_distance());
+				update_tree_state();
+				
+				for(size_type i = 0; i < msg.ses(); i++) {
+					node_id_t target = msg.target(i);
+					CacheKey k(source, msg.se_id(i));
+					bool there_before = beacon_cache_.contains(k);
+					beacon_cache_[k].distance_first = msg.distance_first(i);
+					beacon_cache_[k].distance_last = msg.distance_last(i);
+					beacon_cache_[k].token_count = msg.token_count(i);
+					
+					//if(msg.target(i) == radio_->id()) {
+				}
+			}
 			
 			void update_state() {
 				::uint8_t min_dist = -1;
