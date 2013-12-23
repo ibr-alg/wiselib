@@ -93,31 +93,27 @@ namespace wiselib {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - HEADER_SIZE
 			};
 			
+			ChecksumRadio() : radio_(0) {
+			}
+			
 			int init(Radio& radio, Debug& debug) {
 				radio_ = &radio;
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				debug_ = &debug;
+				
+				check();
 				return SUCCESS;
 			}
 			
-			node_id_t id() {
-				//#ifdef ISENSE
-				//if(debug_ && radio_) {
-					//debug_->debug("ID %llx", (unsigned long long)radio_->id());
-				//}
-				//#endif
-				return radio_->id();
-			}
+			node_id_t id() { return radio_->id(); }
 			
 			int enable_radio() { return radio_->enable_radio(); }
 			int disable_radio() { return radio_->disable_radio(); }
 			
 			int send(node_id_t dest, size_t len, block_data_t *data) {
-				//#ifdef ISENSE
-					//debug_->debug("csnd l%d %d %d %d %d", (int)len, (int)data[0], (int)data[1],
-							//(int)data[2], (int)data[3]);
-				//#endif
+				assert(len <= MAX_MESSAGE_LENGTH);
 				
+				check();
 				
 				block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
 				block_data_t *p = buf;
@@ -125,7 +121,6 @@ namespace wiselib {
 				++p;
 				
 				hash_t h = Hash::hash(data, len);
-				//DBG("checksum send: %04lx", (unsigned long)h);
 				wiselib::write<OsModel, block_data_t, hash_t>(p, h);
 				p += sizeof(hash_t);
 				
@@ -137,6 +132,8 @@ namespace wiselib {
 				
 				memcpy(p, data, len);
 				radio_->send(dest, len + HEADER_SIZE, buf);
+				
+				check();
 				return SUCCESS;
 			}
 			
@@ -148,9 +145,9 @@ namespace wiselib {
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
 		#endif
 				
-				//#ifdef ISENSE
-				//debug_->debug("@%lu chksum from %lu", (unsigned long)id(), (unsigned long)from);
-				//#endif
+				assert(len < Radio::MAX_MESSAGE_LENGTH);
+				
+				check();
 				
 				if(len < HEADER_SIZE) {
 					#ifdef SHAWN 
@@ -166,9 +163,6 @@ namespace wiselib {
 					#endif
 					return;
 				}
-				
-				// hardcoded weird sources that send confusing things
-				//if(from == 49465) { return; }
 				
 				// checksum
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data + 1);
@@ -197,9 +191,16 @@ namespace wiselib {
 				//debug_->debug("recv %d %d %d %d", (int)d[0], (int)d[1], (int)d[2], (int)d[3]);
 				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(d), ex);
 			#endif
+				
+				check();
 			}
 		
 		private:
+			
+			void check() {
+				assert(radio_ != 0);
+			}
+			
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
 			

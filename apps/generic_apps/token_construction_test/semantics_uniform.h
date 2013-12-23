@@ -44,21 +44,14 @@ namespace wiselib {
 	void initial_semantics(TS& ts, RadioPtr radio, RandPtr rand) {
 		DBG("initial semantics");
 		
-#if APP_EVAL
 		const char *room1 = "<room1>";
-#else
-		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
-#endif
 		
 		// Generate sensor URI
 		enum { MAX_URI_LENGTH = 256, DIGITPOS = 45 };
 		char myuri[MAX_URI_LENGTH];
 		
-#if APP_EVAL
 		snprintf(myuri, MAX_URI_LENGTH, "<v%lx>", (unsigned long)radio->id());
-#else
-		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)radio->id());
-	#endif
+		//snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)radio->id());
 		myuri[MAX_URI_LENGTH - 1] = '\0';
 		
 		/*

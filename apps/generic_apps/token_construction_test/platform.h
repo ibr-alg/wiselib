@@ -2,90 +2,31 @@
 
 /// Default config
 
-// App features / modes
+//#define INSE_CSMA_MODE                 0
 
-#define APP_BLINK 0
-#define APP_EVAL  1
-#define APP_QUERY 0
+//#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
+#define INSE_PERIOD                  10000 * WISELIB_TIME_FACTOR
+#define INSE_START_WAIT              (5 * 60)
 
-#define INSE_CSMA_MODE                 0
-#define NAP_CONTROL_ALWAYS_ON          0
+#define INSE_ESTIMATE_RTT              1
 
-#define INSE_COMPENSATE_DELAYS         0
-
-#if APP_BLINK
-	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
-	#define INSE_FORWARDING_MAP_BITS     128
-	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
-	#define INSE_START_WAIT              (1)
-	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
-
-	#define CHECK_LIGHT_INTERVAL         3000
-#define INSE_CSMA_MODE                 1
-
-	// In a dark room / in the evening
-
-	//#define LIGHT_ON                     180
-	//#define LIGHT_OFF                    120
-
-	// Daytime / sunlight
-
-	#define LIGHT_ON                     260
-	#define LIGHT_OFF                    180
+#define INSE_MAX_NEIGHBORS             8
+#define INSE_MAX_SEMANTIC_ENTITIES     4
+#define INSE_MAX_QUERIES               4
+//#define INSE_BLOOM_FILTER_BITS        64
 
 
-	#define LIGHT_ALPHA                  50
+#define INSE_MESSAGE_TYPE_BEACON       0x40
+#define INSE_MESSAGE_TYPE_BEACON_ACK   0x41
 
-#elif APP_QUERY
-	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
+//#define INSE_MESSAGE_TYPE_STRING_INQUIRY            0x40
+//#define INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER     0x41
+//#define INSE_MESSAGE_TYPE_STRING_ANYCAST            0x42
+//#define INSE_MESSAGE_TYPE_ROW_ANYCAST               0x43
+//#define INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT       0x44
 
-	#if defined(ISENSE)
-		#define HAS_PIR                      1
-		#define HAS_ENV                      0
-	#else
-		#define HAS_PIR 0
-		#define HAS_ENV 0
-	#endif
-
-	#define USE_INQP                     1
-	#define USE_STRING_INQUIRY           0
-	#define INSE_USE_AGGREGATOR          1
-
-	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
-	#define INSE_FORWARDING_MAP_BITS     8
-	#define INSE_FORWARDING_SLOT_LENGTH  100 * WISELIB_TIME_FACTOR
-	#define INSE_START_WAIT              (1)
-	#define INSE_USE_FORWARDING       0
-	#define NAP_CONTROL_ALWAYS_ON          1
-
-#elif APP_EVAL
-	#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
-	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
-	#define INSE_FORWARDING_MAP_BITS     512
-	#define INSE_FORWARDING_SLOT_LENGTH  200 * WISELIB_TIME_FACTOR
-	#define INSE_FORWARDING_MIN_WINSLOTS 5
-	#define INSE_START_WAIT              (5 * 60)
-	#define INSE_USE_IAM                 0
-
-#endif
-
-// Checks, Assertions, Debug messages
-#if 0
-#define CHECK_INVARIANTS               (defined(SHAWN))
-#define DISTRIBUTOR_DEBUG_STATE        1
-#define INSE_DEBUG_STATE               1
-#define INSE_DEBUG_TOKEN               1
-#define INSE_DEBUG_TREE                1
-#define INSE_DEBUG_WARNING             1
-#define INSE_DEBUG_FORWARDING          0
-#define INSE_ANYCAST_DEBUG_STATE       1
-#define INSE_ROW_COLLECTOR_DEBUG_STATE 1
-#define NAP_CONTROL_DEBUG_STATE        1
-#define NAP_CONTROL_DEBUG_ONOFF        1
-#define RELIABLE_TRANSPORT_DEBUG_STATE 1
-#define WISELIB_DISABLE_DEBUG          1 //(!defined(PC))
-#define WISELIB_DISABLE_DEBUG_MESSAGES 1 //(!defined(PC))
-#endif
+//#define INSE_MESSAGE_TYPE_OPPORTUNISTIC_RELIABLE    0x47
+//#define INSE_MESSAGE_TYPE_TREE_STATE                0x48
 
 // TupleStore config
 
@@ -100,11 +41,6 @@
 #define USE_NULL_DICTIONARY            0
 
 // Restrictions
-
-#define INSE_MAX_NEIGHBORS             8
-#define INSE_MAX_SEMANTIC_ENTITIES     4
-#define INSE_MAX_QUERIES               4
-#define INSE_BLOOM_FILTER_BITS        64
 
 // Memory sizes, word sizes, tec..    
 
@@ -122,15 +58,10 @@
 //#define INSE_FORWARDING_SLOT_LENGTH    (500 * 100)
 
 // Message types
-#define INSE_MESSAGE_TYPE_STRING_INQUIRY            0x40
-#define INSE_MESSAGE_TYPE_STRING_INQUIRY_ANSWER     0x41
-#define INSE_MESSAGE_TYPE_STRING_ANYCAST            0x42
-#define INSE_MESSAGE_TYPE_ROW_ANYCAST               0x43
-#define INSE_MESSAGE_TYPE_INTERMEDIATE_RESULT       0x44
-#define INSE_MESSAGE_TYPE_TOKEN_STATE               0x45
-#define INSE_MESSAGE_TYPE_TOKEN_RELIABLE            0x46
-#define INSE_MESSAGE_TYPE_OPPORTUNISTIC_RELIABLE    0x47
-#define INSE_MESSAGE_TYPE_TREE_STATE                0x48
+
+
+
+//#define INSE_MESSAGE_TYPE_TOKEN_RELIABLE            0x46
 
 #if defined(CONTIKI_TARGET_MICAZ)
 	#define CHECK_INVARIANTS           0
@@ -214,29 +145,36 @@
 
 	
 #elif defined(SHAWN)
-	#define INSE_USE_AGGREGATOR            0
-	#define USE_INQP                       0
+	//#define INSE_USE_AGGREGATOR            0
+	//#define USE_INQP                       0
 
-	#define CHECK_INVARIANTS               1
-	#define DISTRIBUTOR_DEBUG_STATE        1
-	#define INSE_DEBUG_STATE               1
-	#define INSE_DEBUG_TOKEN               1
-	#define INSE_DEBUG_TOPOLOGY            1
-	#define INSE_DEBUG_TREE                1
-	#define INSE_ANYCAST_DEBUG_STATE       1
-	#define INSE_ROW_COLLECTOR_DEBUG_STATE 1
-	#define NAP_CONTROL_DEBUG_STATE        1
-	#define NAP_CONTROL_DEBUG_ONOFF        1
-	#define RELIABLE_TRANSPORT_DEBUG_STATE 1
-	#define WISELIB_DISABLE_DEBUG          0
-	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
+	//#define CHECK_INVARIANTS               1
+	//#define DISTRIBUTOR_DEBUG_STATE        1
+	//#define INSE_DEBUG_STATE               1
+	//#define INSE_DEBUG_TOKEN               1
+	//#define INSE_DEBUG_TOPOLOGY            1
+	//#define INSE_DEBUG_TREE                1
+	//#define INSE_ANYCAST_DEBUG_STATE       1
+	//#define INSE_ROW_COLLECTOR_DEBUG_STATE 1
+	//#define NAP_CONTROL_DEBUG_STATE        1
+	//#define NAP_CONTROL_DEBUG_ONOFF        1
+	//#define RELIABLE_TRANSPORT_DEBUG_STATE 1
+	//#define WISELIB_DISABLE_DEBUG          0
+	//#define WISELIB_DISABLE_DEBUG_MESSAGES 0
 	
+	#undef WISELIB_TIME_FACTOR
 	#define WISELIB_TIME_FACTOR            100
-	#define INSE_FORWARDING_MAP_BITS       512
-	#define INSE_FORWARDING_SLOT_LENGTH    1000 * WISELIB_TIME_FACTOR
+
+	//#define INSE_FORWARDING_MAP_BITS       512
+	//#define INSE_FORWARDING_SLOT_LENGTH    1000 * WISELIB_TIME_FACTOR
 	
+	#undef INSE_MAX_NEIGHBORS
 	#define INSE_MAX_NEIGHBORS             32
+
+	#undef INSE_MAX_SEMANTIC_ENTITIES
 	#define INSE_MAX_SEMANTIC_ENTITIES     10
+
+	#undef INSE_MAX_QUERIES
 	#define INSE_MAX_QUERIES               0
 	
 #endif

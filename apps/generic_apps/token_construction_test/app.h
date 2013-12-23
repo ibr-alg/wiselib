@@ -16,8 +16,7 @@ using namespace wiselib;
 #include <algorithms/hash/sdbm.h>
 #include <algorithms/hash/crc16.h>
 #include <algorithms/hash/checksum_radio.h>
-#include <algorithms/semantic_entities/token_construction/token_scheduler.h>
-#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
+#include <algorithms/semantic_entities/token_scheduler.h>
 
 //#include "semantics_office1.h"
 #include "semantics_uniform.h"

@@ -17,8 +17,8 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
-#ifndef BEACON_MESSAGE_H
-#define BEACON_MESSAGE_H
+#ifndef BEACON_ACK_MESSAGE_H
+#define BEACON_ACK_MESSAGE_H
 
 #include <external_interface/external_interface.h>
 #include <util/serialization/serialization.h>
@@ -39,7 +39,7 @@ namespace wiselib {
 		typename Radio_P,
 		typename SemanticEntity_P
 	>
-	class BeaconMessage {
+	class BeaconAckMessage {
 		
 		public:
 			typedef OsModel_P OsModel;
@@ -57,30 +57,22 @@ namespace wiselib {
 			enum {
 				POS_MESSAGE_TYPE = 0,
 				POS_SEQUENCE_NUMBER = POS_MESSAGE_TYPE + sizeof(message_id_t),
-				POS_ROOT_DISTANCE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
-				POS_PARENT = POS_ROOT_DISTANCE + sizeof(::uint8_t),
 				
-				POS_SES = POS_PARENT + sizeof(node_id_t),
-				POS_SES_START = POS_SES + sizeof(::uint8_t)
+				POS_SES_START = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t)
 			};
 			
 			enum {
 				SEPOS_ID = 0,
-				SEPOS_DISTANCE_FIRST = 8,
-				SEPOS_DISTANCE_LAST = 9,
-				SEPOS_TOKEN_COUNT = 10,
-				SEPOS_TRANSFER_INTERVAL = 11,
-				SEPOS_TARGET = 12,
-				SEPOS_END = SEPOS_TARGET + sizeof(node_id_t)
+				SEPOS_FLAGS = 8,
+				SEPOS_END = 9
 			};
 			
-			BeaconMessage() {
-				set_message_type(INSE_MESSAGE_TYPE_BEACON);
-			}
+			enum {
+				FLAG_ACK = 0x01, FLAG_NACK = 0x00
+			};
 			
-			void init() {
-				set_message_type(INSE_MESSAGE_TYPE_BEACON);
-				set_semantic_entities(0);
+			BeaconAckMessage() {
+				set_message_type(INSE_MESSAGE_TYPE_BEACON_ACK);
 			}
 			
 			::uint8_t message_type() { return rd< ::uint8_t>(POS_MESSAGE_TYPE); }
@@ -89,29 +81,23 @@ namespace wiselib {
 			sequence_number_t sequence_number() { return rd<sequence_number_t>(POS_SEQUENCE_NUMBER); }
 			void set_sequence_number(sequence_number_t s) { wr(POS_SEQUENCE_NUMBER, s); }
 			
-			::uint8_t root_distance() { return rd< ::uint8_t>(POS_ROOT_DISTANCE); }
-			void set_root_distance(::uint8_t d) { wr(POS_ROOT_DISTANCE, d); }
+			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES_START); }
+			void set_semantic_entities(::uint8_t n) { wr(POS_SES_START, n); }
 			
-			node_id_t parent() { return rd<node_id_t>(POS_PARENT); }
-			void set_parent(node_id_t n) { wr(POS_PARENT, n); }
-			
-			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
-			void set_semantic_entities(::uint8_t n) { wr(POS_SES, n); }
-			
-			void add_se(SemanticEntityT& se, node_id_t target = NULL_NODE_ID) {
+			void ack_se(SemanticEntityId& id) {
 				::uint8_t s = semantic_entities();
-				
-				wrse(s, SEPOS_ID, se.id());
-				wrse(s, SEPOS_DISTANCE_FIRST, se.distance_first());
-				wrse(s, SEPOS_DISTANCE_LAST, se.distance_last());
-				wrse(s, SEPOS_TOKEN_COUNT, se.token_count());
-				wrse(s, SEPOS_TRANSFER_INTERVAL, se.transfer_interval());
-				wrse(s, SEPOS_TARGET, target);
+				wrse(s, SEPOS_ID, id);
+				wrse(s, SEPOS_FLAGS, FLAG_ACK);
 				set_semantic_entities(s + 1);
 			}
 			
-			bool has_target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET) != NULL_NODE_ID; }
-			node_id_t target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET); }
+			void nack_se(SemanticEntityId& id) {
+				::uint8_t s = semantic_entities();
+				wrse(s, SEPOS_ID, id);
+				wrse(s, SEPOS_FLAGS, FLAG_NACK);
+				set_semantic_entities(s + 1);
+			}
+			
 			SemanticEntityId semantic_entity_id(::uint8_t s) { return rdse<SemanticEntityId>(s, SEPOS_ID); }
 			
 			size_type size() { return semantic_entities() * SEPOS_END + POS_SES_START; }

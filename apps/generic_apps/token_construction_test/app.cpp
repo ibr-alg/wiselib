@@ -1,25 +1,6 @@
 
 #include "app.h"
 
-#ifdef CONTIKI_TARGET_sky
-	extern "C" {
-		#include <dev/light-sensor.h>
-	}
-#endif
-
-#if APP_QUERY
-	
-	#if ISENSE
-		#include <isense/modules/security_module/pir_sensor.h>
-		#include "isense_pir_data_provider.h"
-	#endif
-	
-	//static const char* tuples[][3] = {
-		//#include "nqxe_test.cpp"
-		//{ 0, 0, 0 }
-	//};
-#endif
-
 class App {
 	public:
 		
@@ -58,16 +39,12 @@ class App {
 		
 		void init3() {
 			debug_->debug("bt");
-			//debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			
-			//monitor_.report("bt0");
 			hardware_radio_->enable_radio();
 			radio_.init(*hardware_radio_, *debug_);
 			
-			
 			rand_->srand(radio_.id());
 			monitor_.init(debug_);
-			//monitor_.report("bt");
 			
 			// TupleStore
 			
@@ -85,54 +62,17 @@ class App {
 			 
 			token_construction_.init(&ts, &radio_, timer_, clock_, debug_, rand_);
 			
-			#if INSE_USE_AGGREGATOR
-				token_construction_.set_end_activity_callback(
-					TC::end_activity_callback_t::from_method<App, &App::on_end_activity>(this)
-				);
-			#endif
-			token_construction_.disable_immediate_answer_mode();
-			
 			init_inqp();
 			init_simple_rule_processor();
 			
 			// Fill node with initial semantics and construction rules
 			
-			#if APP_QUERY
-				#if defined(ISENSE)
-					snprintf(rdf_uri_, sizeof(rdf_uri_), "<http://spitfire-project.eu/nodes/%08lx/>", (unsigned long)radio_.id());
-					
-					
-					snprintf(pir_uri_, sizeof(pir_uri_), "<http://spitfire-project.eu/nodes/%08lx/pir>", (unsigned long)radio_.id());
-					data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
-				#endif
-				insert_tuples();
-			#endif
-			
-			#if APP_EVAL
-				initial_semantics(ts, &radio_, rand_);
-			#endif
+			initial_semantics(ts, &radio_, rand_);
 				
-			#if APP_EVAL || APP_QUERY
-				create_rules();
-				rule_processor_.execute_all();
-			#endif
-			
-			//#if USE_DICTIONARY
-				//aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://me.exmpl/Temperature>");
-				//aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
-			//#endif
-				
-			//debug_->debug("hash(temp)=%lx", (long)STRHASH("<http://spitfire-project.eu/property/Temperature>"));
-			//debug_->debug("hash(centigrade)=%lx", (long)STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
-			
-			//debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
+			create_rules();
+			rule_processor_.execute_all();
 			
 			monitor_.report("/init");
-			#if USE_INQP && !APP_QUERY
-				//timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
-				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);
-			#endif
-			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
 			
 			#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 				//light_sensor
@@ -267,36 +207,6 @@ class App {
 			#endif
 		}
 		
-	#if USE_INQP
-		Query q1;
-		Cons cons1;
-		GPS gps1;
-		
-		void create_rules() {
-			/*
-			 * Add rule 1: (* <...#featureOfInterest> X)
-			 */
-			::uint8_t qid = 101;
-			q1.init(&query_processor_, qid);
-			q1.set_expected_operators(2);
-			
-			cons1.init(
-					&q1, 2 /* opid */, 0 /* parent */, 0 /* parent port */,
-					Projection((long)BIN(11))
-					);
-			q1.add_operator(&cons1);
-			
-			gps1.init(
-					&q1, 1 /* op id */, 2 /* parent */, 0 /* parent port */,
-					Projection((long)BIN(110000)),
-					false, true, false,
-					0, STRHASH("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>"), 0
-					);
-			q1.add_operator<GPS>(&gps1);
-			
-			rule_processor_.add_rule(qid, &q1);
-		}
-	#else
 		void create_rules() {
 			/*
 			 * Add rule 1: (* <...#featureOfInterest> X)
@@ -307,10 +217,7 @@ class App {
 			t.set(1, (block_data_t*)p);
 			rule_processor_.add_rule(qid, t, BIN(010), 2);
 		}
-	#endif
 		
-		
-	//#if APP_QUERY || APP_EVAL
 		template<typename TS>
 		void ins(TS& ts, const char* s, const char* p, const char* o) {
 			debug_->debug("ins(%s %s %s)", s, p, o);
@@ -372,209 +279,6 @@ class App {
 			debug_->debug("ins done: %d tuples", (int)i);
 			*/
 		}
-	//#endif
-		
-	#if APP_QUERY && USE_INQP
-		block_data_t uart_query[512];
-		size_t uart_query_pos;
-		
-		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
-			size_t l = buf[0];
-			block_data_t msgtype = buf[1];
-			block_data_t qid = buf[2];
-			
-			if(buf[1] == 'O') {
-				// length of field, including length field itself
-				uart_query[uart_query_pos++] = l - 1;
-				memcpy(uart_query + uart_query_pos, buf + 3, l - 2);
-				uart_query_pos += (l - 2);
-			}
-			else if(buf[1] == 'Q') {
-				block_data_t opcount = buf[3];
-				
-				distributor_.distribute(
-						SemanticEntityId::all(),
-						qid, 1 /* revision */,
-						Distributor::QUERY,
-						60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
-						60000 * WISELIB_TIME_FACTOR,
-						opcount,
-						uart_query_pos, uart_query
-				);
-				uart_query_pos = 0;
-			}
-		}
-		
-		
-		/* 
-		 * Process locally directly
-		 *
-		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
-			// TODO: actually *DISTRIBUTE* query!!!!
-			size_t l = buf[0];
-			if(buf[1] == 'Q') {
-				debug_->debug("Q%d %d", (int)buf[2], (int)buf[3]);
-				query_processor_.handle_query_info(buf[2], buf[3]);
-			}
-			else if(buf[1] == 'O') {
-				debug_->debug("O%d %d %d", (int)buf[2], (int)buf[3], (int)buf[4]);
-				query_processor_.handle_operator(buf[2], l - 3, buf + 3);
-			}
-			//uart_->write(3, (block_data_t*)"yo");
-		}
-		 *
-		 */
-	#endif
-		
-	
-	#if USE_INQP
-		void on_result_row(
-				QueryProcessor::query_id_t query_id,
-				QueryProcessor::operator_id_t operator_id,
-				QueryProcessor::RowT& row
-		) {
-			/*
-		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
-				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
-			*/
-			
-			typedef QueryProcessor::BasicOperator BasicOperator;
-			
-			Query *q = query_processor_.get_query(query_id);
-			if(!q) {
-				debug_->debug("!q %d", (int)query_id);
-				return;
-			}
-			BasicOperator *op = q->get_operator(operator_id);
-			if(!op) {
-				debug_->debug("!op %d", (int)operator_id);
-				return;
-			}
-			
-			int cols = op->projection_info().columns();
-			if(op->type() == QueryProcessor::BOD::AGGREGATE) {
-				QueryProcessor::AggregateT *aggr = (QueryProcessor::AggregateT*)op;
-				//int cols = op-> projection_info().columns();
-				//cols = aggr->columns_physical();
-				cols = aggr->columns_logical();
-			}
-			
-			int msglen =  1 + 1 + 1 + 1 + 4*cols;
-			block_data_t chk = 0;
-			msg[0] = 'R';
-			msg[1] = 2 + 4 * cols; // # bytes to follow after this one
-			msg[2] = query_id;
-			msg[3] = operator_id;
-			
-			if(op->type() == QueryProcessor::BOD::AGGREGATE) {
-				QueryProcessor::AggregateT *aggr = (QueryProcessor::AggregateT*)op;
-				int j = 0; // physical column
-				for(int i = 0; i< cols; i++, j++) { // logical column
-					if(aggr->aggregation_types()[i] & ~AggregateT::AD::AGAIN == AggregateT::AD::AVG) {
-						j++;
-					}
-					
-					Value v;
-					memcpy(&v, &row[j], sizeof(Value));
-					wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 4 + 4*i, v);
-				}
-			}
-			else {
-				for(int i = 0; i< cols; i++) {
-					Value v;
-					memcpy(&v, &row[i], sizeof(Value));
-					wiselib::write<Os, block_data_t, QueryProcessor::Value>(msg + 4 + 4*i, v);
-				}
-			}
-			
-			for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
-			msg[msglen] = chk;
-			uart_->write(msglen + 1, msg);
-		}
-		
-			block_data_t msg[100]; //msglen];
-			
-	#endif
-		
-		#if INSE_USE_AGGREGATOR
-		void on_end_activity(TC::SemanticEntityT& se, Aggregator& aggregator) {
-			monitor_.report("/act");
-			
-			#ifdef ISENSE
-			data_provider_.update_aggregate();
-			#endif
-			
-			if(radio_.id() == token_construction_.tree().root()) {
-			//if(radio_->id() == SINK_ID) {
-				//debug_->debug("@%d aggr begin list BEFORE", (int)radio_->id());
-				//for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-					//debug_->debug("@%d aggr BEFORE SE %lx.%lx type %8lx uom %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-							//(int)radio_->id(), (int)se.id().rule(), (long)se.id().value(),
-							//(long)iter->first.type_key(), (long)iter->first.uom_key(), (long)iter->first.datatype(),
-							//(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
-							//(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
-				//}
-				
-				//debug_->debug("@%d aggr end list BEFORE", (int)radio_->id());
-				
-				
-				
-				aggregator.set_totals(se.id());
-				//aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
-				
-				
-				
-				
-				debug_->debug("@%d ====== ag<", (int)radio_.id());
-				for(Aggregator::iterator iter = aggregator.begin(); iter != aggregator.end(); ++iter) {
-					debug_->debug("@%d ------ ag S%lx.%lx dt%d C:%2d %2d/%2d/%2d T:%2d %2d/%2d/%2d",
-							(int)radio_.id(), (long)se.id().rule(), (long)se.id().value(),
-						//	(long)iter->first.type_key(), (long)iter->first.uom_key(),
-							(long)iter->first.datatype(),
-							(int)iter->second.count(), (int)iter->second.min(), (int)iter->second.max(), (int)iter->second.mean(),
-							(int)iter->second.total_count(), (int)iter->second.total_min(), (int)iter->second.total_max(), (int)iter->second.total_mean());
-					
-					
-					int len = 35;
-					msg[0] = 'S';
-					msg[1] = len;
-					
-					Value v = se.id().rule();
-					wiselib::write<Os>(msg + 2, v);
-					v = se.id().value();
-					wiselib::write<Os>(msg + 6, v);
-					msg[10] = iter->first.datatype();
-					wiselib::write<Os, block_data_t, Value>(msg + 11, iter->second.total_count());
-					wiselib::write<Os, block_data_t, Value>(msg + 15, iter->second.total_min());
-					wiselib::write<Os, block_data_t, Value>(msg + 19, iter->second.total_mean());
-					wiselib::write<Os, block_data_t, Value>(msg + 23, iter->second.total_max());
-					
-					block_data_t *uom = ts.dictionary().get_value(iter->first.uom_key());
-					Hash::hash_t h = Hash::hash(uom, strlen((char*)uom));
-					wiselib::write<Os>(msg + 27, h);
-					
-					block_data_t *type = ts.dictionary().get_value(iter->first.type_key());
-					h = Hash::hash(type, strlen((char*)type));
-					debug_->debug("h(%s) = %lu", (char*)type, (unsigned long)h);
-					wiselib::write<Os>(msg + 31, h);
-					
-					::uint8_t chk = 0;
-					for(int i = 0; i<len; i++) { chk ^= msg[i]; }
-					msg[len] = chk;
-					uart_->write(len + 1, msg);
-					
-				}
-				debug_->debug("@%d ====== ag>", (int)radio_.id());
-				
-			}
-			/*
-			else {
-				aggregator.aggregate(se.id(), aggr_key_temp_, aggr_key_centigrade_, (radio_.id() + 1) * 10, Aggregator::INTEGER);
-			}
-			*/
-			
-		}
-		#endif
 		
 		abs_millis_t absolute_millis(const Os::Clock::time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
 		abs_millis_t now() { return absolute_millis(clock_->time()); }
@@ -582,111 +286,6 @@ class App {
 		//
 		// Actions to perform
 		//
-		
-		#if USE_INQP
-		void distribute_query(void*) {
-			if(radio_.id() != token_construction_.tree().root()) { return; }
-			
-			debug_->debug("@%d distributing query", (int)radio_.id());
-			
-			// temperature query from ../inqp_test/example_app.cpp,
-			// each operator preceeded with one byte length information,
-			// without message types and query id
-			
-			/*
-			
-			COLLECT(?v) WHERE {
-			   ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
-			   ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
-			}
-
-			<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
-			<http://spitfire-project.eu/property/Temperature>            b23860b3
-			<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
-			
-			*/
-			
-			
-			/*
-			// collect all temperature values
-			char *query_temp = const_cast<char*>(
-				"\x08\x04" "c\x00\x01\x00\x00\x00"
-				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
-				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
-				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3" );
-			int opsize = 0x8 + 0x9 + 0xd + 0x11;
-			int opcount = 4;
-			*/
-			
-			// min, avg, max all temperature values
-			// BIN(10101010) = 0xaa 
-			// BIN(01010101) = 0x55
-			char *query_temp = const_cast<char*>(
-				"\x0c\x04" "a\x00\x55\x00\x00\x00\x03\x84\x82\x05"
-				"\x09\x03" "j\x04\x10\x00\x00\x00\x00"
-				"\x0d\x02" "g\x83\x13\x00\x00\x00\x02\x4d\x0f\x60\xb4"
-				"\x11\x01" "g\x03\x03\x00\x00\x00\x06\xbf\x26\xb8\x2e\xb2\x38\x60\xb3" );
-			int opsize = 0xc + 0x9 + 0xd + 0x11;
-			int opcount = 4;
-				
-			
-			distributor_.distribute(
-					SemanticEntityId::all(),
-					66 /* qid */,
-					1 /* rev */,
-					Distributor::QUERY,
-					60000 * WISELIB_TIME_FACTOR, 60000 * WISELIB_TIME_FACTOR,
-					opcount, opsize, (block_data_t*)query_temp);
-		}
-		#endif // USE_INQP
-		
-		
-		#if USE_STRING_INQUIRY
-		void query_strings(void*) {
-			// The SE from semantics_uniform
-			string_inquiry_.inquire(SemanticEntityId::all(), 0xda00726c);
-			
-		}
-		#endif
-		
-		
-		//
-		// Reactions to events in the network
-		// 
-		
-		#if USE_STRING_INQUIRY
-		void on_string_answer(Value v, const char *s) {
-			debug_->debug("resolv %08lx => %s", (unsigned long)v, s);
-		}
-		#endif
-		
-		#if USE_INQP && !APP_QUERY
-		/*
-		void on_result_row(
-				QueryProcessor::query_id_t query_id,
-				QueryProcessor::operator_id_t operator_id,
-				QueryProcessor::RowT& row
-		) {
-			QueryProcessor::Query *q = query_processor_.get_query(query_id);
-			if(q == 0) {
-				debug_->debug("@%d rowc x !q%d", (int)radio_.id(), (int)query_id);
-				return;
-			} // query not found
-			QueryProcessor::BasicOperator *op = q->get_operator(operator_id);
-			if(op == 0) {
-				debug_->debug("@%d rowc x !o%d", (int)radio_.id(), (int)operator_id);
-				return;
-			} // operator not found
-			
-			debug_->debug("@%d R%c %02d %02d:", (int)radio_.id(), (char)op->type(), (int)query_id, (int)operator_id);
-			int l = op->projection_info().columns();
-			for(int i = 0; i < l; i++) {
-				debug_->debug("@%d R%c  %d/%d %08lx", (int)radio_.id(), (char)op->type(), (int)i, (int)l, (unsigned long)row[i]);
-			}
-		} // on_result_row()
-		*/	
-		#endif // USE_INQP
-		
 		
 		bool light_on;
 		unsigned light_val;
@@ -753,15 +352,6 @@ class App {
 		TC token_construction_;
 		RuleProcessor rule_processor_;
 		
-		#if USE_INQP
-			QueryProcessor query_processor_;
-			//INQPCommunicator<Os, QueryProcessor> query_communicator_;
-			Distributor distributor_;
-			RowAnycastRadio row_anycast_radio_;
-			RowRadio row_radio_;
-			RowCollectorT row_collector_;
-		#endif
-			
 		#if USE_STRING_INQUIRY
 			StringAnycastRadio string_anycast_radio_;
 			StringInquiryT string_inquiry_;
@@ -775,10 +365,6 @@ class App {
 		#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
 			BlockMemory block_memory_;
 			BlockAllocator block_allocator_;
-		#endif
-			
-		#if APP_QUERY
-			Os::Uart::self_pointer_t uart_;
 		#endif
 };
 
