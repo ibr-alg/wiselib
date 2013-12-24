@@ -67,7 +67,7 @@ namespace wiselib {
 				SEPOS_END = 9
 			};
 			
-			enum {
+			enum Flags {
 				FLAG_ACK = 0x01, FLAG_NACK = 0x00
 			};
 			
@@ -99,6 +99,7 @@ namespace wiselib {
 			}
 			
 			SemanticEntityId semantic_entity_id(::uint8_t s) { return rdse<SemanticEntityId>(s, SEPOS_ID); }
+			::uint8_t flags(::uint8_t s) { return rdse< ::uint8_t>(s, SEPOS_FLAGS); }
 			
 			size_type size() { return semantic_entities() * SEPOS_END + POS_SES_START; }
 			block_data_t* data() { return data_; }

@@ -51,6 +51,7 @@ namespace wiselib {
 			typedef typename Radio::message_id_t message_id_t;
 			enum { NULL_NODE_ID = Radio::NULL_NODE_ID };
 			typedef ::uint16_t sequence_number_t;
+			typedef ::uint16_t delay_t;
 			
 			typedef SemanticEntity_P SemanticEntityT;
 			
@@ -59,8 +60,9 @@ namespace wiselib {
 				POS_SEQUENCE_NUMBER = POS_MESSAGE_TYPE + sizeof(message_id_t),
 				POS_ROOT_DISTANCE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
 				POS_PARENT = POS_ROOT_DISTANCE + sizeof(::uint8_t),
+				POS_DELAY = POS_PARENT + sizeof(node_id_t),
 				
-				POS_SES = POS_PARENT + sizeof(node_id_t),
+				POS_SES = POS_DELAY + sizeof(delay_t),
 				POS_SES_START = POS_SES + sizeof(::uint8_t)
 			};
 			
@@ -71,7 +73,8 @@ namespace wiselib {
 				SEPOS_TOKEN_COUNT = 10,
 				SEPOS_TRANSFER_INTERVAL = 11,
 				SEPOS_TARGET = 12,
-				SEPOS_END = SEPOS_TARGET + sizeof(node_id_t)
+				SEPOS_STATE = SEPOS_TARGET + sizeof(node_id_t),
+				SEPOS_END = SEPOS_STATE + sizeof(::uint8_t),
 			};
 			
 			BeaconMessage() {
@@ -95,8 +98,12 @@ namespace wiselib {
 			node_id_t parent() { return rd<node_id_t>(POS_PARENT); }
 			void set_parent(node_id_t n) { wr(POS_PARENT, n); }
 			
+			delay_t delay() { return rd<delay_t>(POS_DELAY); }
+			void set_delay(delay_t d) { wr(POS_DELAY, d); }
+			
 			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
 			void set_semantic_entities(::uint8_t n) { wr(POS_SES, n); }
+			
 			
 			void add_se(SemanticEntityT& se, node_id_t target = NULL_NODE_ID) {
 				::uint8_t s = semantic_entities();
@@ -107,12 +114,30 @@ namespace wiselib {
 				wrse(s, SEPOS_TOKEN_COUNT, se.token_count());
 				wrse(s, SEPOS_TRANSFER_INTERVAL, se.transfer_interval());
 				wrse(s, SEPOS_TARGET, target);
+				wrse(s, SEPOS_STATE, se.state());
 				set_semantic_entities(s + 1);
 			}
 			
-			bool has_target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET) != NULL_NODE_ID; }
+			void move_semantic_entity(::uint8_t from, ::uint8_t to) {
+				memcpy(data_ + POS_SES_START + to * SEPOS_END,
+						data_ + POS_SES_START + from * SEPOS_END,
+						SEPOS_END);
+			}
+			
+			::uint8_t semantic_entity_state(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_STATE); }
+				
 			node_id_t target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET); }
 			SemanticEntityId semantic_entity_id(::uint8_t s) { return rdse<SemanticEntityId>(s, SEPOS_ID); }
+			
+			bool has_target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET) != NULL_NODE_ID; }
+			bool has_targets() {
+				for(size_type i = 0; i < semantic_entities(); i++) {
+					if(has_target(i)) { return true; }
+				}
+				return false;
+			}
+			
+			::uint8_t token_count(::uint8_t s) { return rdse< ::uint8_t>(s, SEPOS_TOKEN_COUNT); }
 			
 			size_type size() { return semantic_entities() * SEPOS_END + POS_SES_START; }
 			block_data_t* data() { return data_; }

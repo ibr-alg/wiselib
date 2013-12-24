@@ -62,8 +62,8 @@ namespace wiselib {
 			};
 			
 			enum Restrictions {
-				MAX_NEIGHBORS = 8,
-				MAX_TOTAL_SEMANTIC_ENTITIES = 8
+				MAX_NEIGHBORS = INSE_MAX_NEIGHBORS,
+				MAX_TOTAL_SEMANTIC_ENTITIES = INSE_MAX_SEMANTIC_ENTITIES
 			};
 			
 			enum MessageOrientation {
@@ -71,20 +71,60 @@ namespace wiselib {
 			};
 			
 			enum SemanticEntityState {
-				UNAFFECTED, JOINED, ADOPTED
+				UNAFFECTED = SemanticEntityT::UNAFFECTED,
+				JOINED = SemanticEntityT::JOINED,
+				ADOPTED = SemanticEntityT::ADOPTED
 			};
 			
 			class NeighborEntity {
 				public:
+					NeighborEntity() :
+						semantic_entity_id_(),
+						semantic_entity_state_(UNAFFECTED),
+						fresh_(true),
+						token_count_(0),
+						prev_token_count_(0)
+					{
+					}
+					
+					NeighborEntity(SemanticEntityId id, SemanticEntityState state) :
+						semantic_entity_id_(id),
+						semantic_entity_state_(state),
+						fresh_(true),
+						token_count_(0),
+						prev_token_count_(0)
+					{
+					}
+					
 					bool operator<(NeighborEntity& other) { return semantic_entity_id_ < other.semantic_entity_id_; }
 					
-					SemanticEntityState semantic_entity_state() { return semantic_entity_state_; }
-					void set_semantic_entity_state(SemanticEntityState x) { semantic_entity_state_ = x; }
+					SemanticEntityId semantic_entity_id() { return semantic_entity_id_; }
+					void set_semantic_entity_id(SemanticEntityId x) { semantic_entity_id_ = x; }
+					
+					::uint8_t semantic_entity_state() { return semantic_entity_state_; }
+					void set_semantic_entity_state(::uint8_t x) { semantic_entity_state_ = x; }
+					
+					void refresh() { fresh_ = true; }
+					void outdate() { fresh_ = false; }
+					bool fresh() { return fresh_; }
+					
+					::uint8_t token_count() { return token_count_; }
+					void set_token_count(::uint8_t x) { token_count_ = x; }
+					
+					::uint8_t prev_token_count() { return prev_token_count_; }
+					void set_prev_token_count(::uint8_t x) { prev_token_count_ = x; }
+					
+					::uint8_t activity_rounds() { return activity_rounds_; }
+					void set_activity_rounds(::uint8_t x) { activity_rounds_ = x; }
 					
 					// TODO
 				private:
 					SemanticEntityId semantic_entity_id_;
-					SemanticEntityState semantic_entity_state_;
+					::uint8_t semantic_entity_state_ : 2;
+					::uint8_t fresh_ : 1;
+					::uint8_t activity_rounds_ : 2;
+					::uint8_t token_count_;
+					::uint8_t prev_token_count_;
 			};
 			
 			class Neighbor {
@@ -117,13 +157,37 @@ namespace wiselib {
 					
 					bool operator<(Neighbor& other) { return id_ < other.id_; }
 					
-					SemanticEntityState semantic_entity_state(SemanticEntityId id) {
+					::uint8_t semantic_entity_state(SemanticEntityId id) {
 						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 							if(iter->semantic_entity_id() == id) {
 								return iter->semantic_entity_state();
 							}
 						}
 						return UNAFFECTED;
+					}
+					
+					NeighborEntity& find_or_create_semantic_entity(SemanticEntityId id) {
+						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+							if(iter->semantic_entity_id() == id) {
+								return *iter;
+							}
+						}
+						NeighborEntity ne(id, UNAFFECTED);
+						typename Entities::iterator it = entities_.insert(ne);
+						return *it;
+					}
+					
+					void outdate_semantic_entities() {
+						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
+							iter->outdate();
+						}
+					}
+					
+					void erase_outdated_semantic_entities() {
+						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ) {
+							if(iter->fresh()) { ++iter; }
+							else { iter = entities_.erase(iter); }
+						}
 					}
 					
 				private:
@@ -240,6 +304,40 @@ namespace wiselib {
 				iter->set_last_beacon_received(t_recv);
 				update_tree_state();
 				
+				iter->outdate_semantic_entities();
+				
+				// Go through all SEs neighbor *iter reported in this beacon
+				
+				for(size_type i = 0; i<msg.semantic_entities(); i++) {
+					node_id_t target = msg.target(i);
+					SemanticEntityId se_id = msg.semantic_entity_id(i);
+					::uint8_t token_count = msg.token_count(i);
+					NeighborEntity &ne = iter->find_or_create_semantic_entity(se_id);
+					ne.set_semantic_entity_state(msg.semantic_entity_state(i));
+					
+					// Mark info as fresh, so we know, neigh still has this SE
+					ne.refresh();
+					
+					// If neigh has a token count for us for this SE,
+					// save the new token count and see whether it activates
+					// us (and for how long depending on the position in the
+					// tree)
+					
+					if(target == radio_->id()) {
+						ne.set_prev_token_count(token_count);
+						
+						// Dijkstras token ring
+						bool has_token = (is_root() == (ne.prev_token_count() == ne.token_count()));
+						
+						if(ne.activity_rounds() == 0 && has_token) {
+							ne.set_activity_rounds(is_leaf(se_id) ? 2 : 1);
+						}
+					}
+				}
+				
+				// Erase all SEs the neighbor has not reported in this beacon
+				iter->erase_outdated_semantic_entities();
+				
 				/*
 				neighbors_[source].set_parent(msg.parent());
 				neighbors_[source].set_root_distance(msg.root_distance());
@@ -259,6 +357,13 @@ namespace wiselib {
 			}
 			
 			void update_tree_state() {
+				if(is_root()) {
+					parent_ = NULL_NODE_ID;
+					changed_parent_ = false;
+					return;
+				}
+				
+				
 				::uint8_t min_dist = -1;
 				node_id_t parent = NULL_NODE_ID;
 				
@@ -266,14 +371,13 @@ namespace wiselib {
 					node_id_t addr = iter->id();
 					Neighbor& neigh = *iter;
 					
-					if(neigh.root_distance() < min_dist) {
-						//DBG(" %d (@%lu) < %d (@%lu)", (int)neigh.root_distance(), (unsigned long)addr, (int)min_dist, (unsigned long)radio_->id());
+					if( (neigh.root_distance() != (::uint8_t)(-1)) && (
+							(neigh.root_distance() < min_dist) ||
+							(neigh.root_distance() == min_dist && addr < parent))) {
+						
 						min_dist = neigh.root_distance();
 						parent = addr;
 					}
-					//else {
-						//DBG(" %d (@%lu) >= %d (@%lu)", (int)neigh.root_distance(), (unsigned long)addr, (int)min_dist, (unsigned long)radio_->id());
-					//}
 				}
 				
 				changed_parent_ = (parent != parent_);
@@ -336,6 +440,7 @@ namespace wiselib {
 			
 			void check() {
 				assert(radio_ != 0);
+				assert(!is_root() || (parent_ == NULL_NODE_ID));
 			}
 			
 			node_id_t first_child(SemanticEntityId id) {

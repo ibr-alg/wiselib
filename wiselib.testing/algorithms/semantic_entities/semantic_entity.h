@@ -41,7 +41,9 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			
-			SemanticEntity() : is_joined_(false) {
+			enum SemanticEntityState { UNAFFECTED = 0x00, JOINED = 0x01, ADOPTED = 0x02 };
+			
+			SemanticEntity() : state_(UNAFFECTED) {
 			}
 			
 			SemanticEntityId& id() { return id_; }
@@ -59,8 +61,10 @@ namespace wiselib {
 			::uint8_t transfer_interval() { return transfer_interval_; }
 			void set_transfer_interval(::uint8_t x) { transfer_interval_ = x; }
 			
-			bool is_joined() { return is_joined_; }
-			void set_is_joined(bool x) { is_joined_ = x; }
+			bool is_joined() { return state_ == JOINED; }
+			
+			::uint8_t state() { return state_; }
+			void set_state(::uint8_t x) { state_ = x; }
 		
 		private:
 			SemanticEntityId id_;
@@ -70,7 +74,7 @@ namespace wiselib {
 			::uint8_t token_count_;
 			::uint8_t transfer_interval_;
 			
-			::uint8_t is_joined_ : 1;
+			::uint8_t state_ : 2;
 		
 	}; // SemanticEntity
 }

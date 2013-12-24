@@ -5,7 +5,9 @@
 //#define INSE_CSMA_MODE                 0
 
 //#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
-#define INSE_PERIOD                  10000 * WISELIB_TIME_FACTOR
+#define INSE_PERIOD                          10000 * WISELIB_TIME_FACTOR
+#define INSE_MIN_TRANSFER_INTERVAL_LENGTH    100 * WISELIB_TIME_FACTOR
+
 #define INSE_START_WAIT              (5 * 60)
 
 #define INSE_ESTIMATE_RTT              1

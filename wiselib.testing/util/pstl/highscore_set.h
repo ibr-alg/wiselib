@@ -103,7 +103,7 @@ namespace wiselib {
 			bool full() { return size_ == CAPACITY; }
 			
 			iterator begin() { return iterator(elements_); }
-			iterator end() { return iterator(elements_ + CAPACITY); }
+			iterator end() { return iterator(elements_ + size_); }
 			
 			void clear() { size_ = 0; }
 		
