@@ -40,8 +40,9 @@ namespace wiselib {
 		typename SemanticEntity_P
 	>
 	class BeaconMessage {
-		
 		public:
+			typedef BeaconMessage self_type;
+			
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
@@ -105,26 +106,42 @@ namespace wiselib {
 			void set_semantic_entities(::uint8_t n) { wr(POS_SES, n); }
 			
 			
-			void add_se(SemanticEntityT& se, node_id_t target = NULL_NODE_ID) {
+			void add_semantic_entity(SemanticEntityT& se, node_id_t target = NULL_NODE_ID) {
 				::uint8_t s = semantic_entities();
 				
-				wrse(s, SEPOS_ID, se.id());
-				wrse(s, SEPOS_DISTANCE_FIRST, se.distance_first());
-				wrse(s, SEPOS_DISTANCE_LAST, se.distance_last());
-				wrse(s, SEPOS_TOKEN_COUNT, se.token_count());
-				wrse(s, SEPOS_TRANSFER_INTERVAL, se.transfer_interval());
-				wrse(s, SEPOS_TARGET, target);
-				wrse(s, SEPOS_STATE, se.state());
+				assert((s + 1) < max_semantic_entities());
+				
+				wrse(s, SEPOS_ID, (SemanticEntityId)se.id());
+				wrse(s, SEPOS_DISTANCE_FIRST, (::uint8_t)se.distance_first());
+				wrse(s, SEPOS_DISTANCE_LAST, (::uint8_t)se.distance_last());
+				wrse(s, SEPOS_TOKEN_COUNT, (::uint8_t)se.token_count());
+				wrse(s, SEPOS_TRANSFER_INTERVAL, (::uint8_t)se.transfer_interval());
+				wrse(s, SEPOS_TARGET, (node_id_t)target);
+				wrse(s, SEPOS_STATE, (::uint8_t)se.state());
 				set_semantic_entities(s + 1);
 			}
 			
 			void move_semantic_entity(::uint8_t from, ::uint8_t to) {
+				assert(from < max_semantic_entities());
+				assert(to < max_semantic_entities());
+				
 				memcpy(data_ + POS_SES_START + to * SEPOS_END,
 						data_ + POS_SES_START + from * SEPOS_END,
 						SEPOS_END);
 			}
 			
-			::uint8_t semantic_entity_state(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_STATE); }
+			void add_semantic_entity_from(self_type& other, ::uint8_t s_other) {
+				::uint8_t s = semantic_entities();
+				
+				assert((s + 1) < max_semantic_entities());
+				assert(s_other < max_semantic_entities());
+				
+				memcpy(data_ + POS_SES_START + s * SEPOS_END,
+						other.data_ + POS_SES_START + s_other * SEPOS_END, SEPOS_END);
+				set_semantic_entities(s + 1);
+			}
+			
+			::uint8_t semantic_entity_state(::uint8_t s) { return rdse< ::uint8_t>(s, SEPOS_STATE); }
 				
 			node_id_t target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET); }
 			SemanticEntityId semantic_entity_id(::uint8_t s) { return rdse<SemanticEntityId>(s, SEPOS_ID); }
@@ -143,6 +160,8 @@ namespace wiselib {
 			block_data_t* data() { return data_; }
 		
 		private:
+			
+			::uint8_t max_semantic_entities() { return (Radio::MAX_MESSAGE_LENGTH - POS_SES_START) / SEPOS_END; }
 			
 			// Convenience methods for calling wiselib::read / wiselib::write
 			

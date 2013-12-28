@@ -86,15 +86,15 @@ namespace wiselib {
 			
 			void ack_se(SemanticEntityId& id) {
 				::uint8_t s = semantic_entities();
-				wrse(s, SEPOS_ID, id);
-				wrse(s, SEPOS_FLAGS, FLAG_ACK);
+				wrse(s, SEPOS_ID, (SemanticEntityId)id);
+				wrse(s, SEPOS_FLAGS, (::uint8_t)FLAG_ACK);
 				set_semantic_entities(s + 1);
 			}
 			
 			void nack_se(SemanticEntityId& id) {
 				::uint8_t s = semantic_entities();
-				wrse(s, SEPOS_ID, id);
-				wrse(s, SEPOS_FLAGS, FLAG_NACK);
+				wrse(s, SEPOS_ID, (SemanticEntityId)id);
+				wrse(s, SEPOS_FLAGS, (::uint8_t)FLAG_NACK);
 				set_semantic_entities(s + 1);
 			}
 			

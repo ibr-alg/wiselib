@@ -105,7 +105,10 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			node_id_t id() { return radio_->id(); }
+			node_id_t id() {
+				check();
+				return radio_->id();
+			}
 			
 			int enable_radio() { return radio_->enable_radio(); }
 			int disable_radio() { return radio_->disable_radio(); }
@@ -199,6 +202,7 @@ namespace wiselib {
 			
 			void check() {
 				assert(radio_ != 0);
+				assert(debug_ != 0);
 			}
 			
 			typename Radio::self_pointer_t radio_;

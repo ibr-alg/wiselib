@@ -32,7 +32,8 @@ namespace wiselib {
 	 * @tparam 
 	 */
 	template<
-		typename OsModel_P
+		typename OsModel_P,
+		typename Radio_P = typename OsModel_P::Radio
 	>
 	class SemanticEntity {
 		
@@ -41,9 +42,14 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			
-			enum SemanticEntityState { UNAFFECTED = 0x00, JOINED = 0x01, ADOPTED = 0x02 };
+			typedef Radio_P Radio;
+			typedef typename Radio::node_id_t node_id_t;
+			enum { NULL_NODE_ID = Radio::NULL_NODE_ID };
 			
-			SemanticEntity() : state_(UNAFFECTED) {
+			enum SemanticEntityState { UNAFFECTED = 0x00, JOINED = 0x01, ADOPTED = 0x02 };
+			enum Orientation { UP = 0x00, DOWN = 0x01 };
+			
+			SemanticEntity() : source_(NULL_NODE_ID), distance_first_(0), distance_last_(0), token_count_(0), prev_token_count_(0), transfer_interval_(0), state_(UNAFFECTED), activity_rounds_(1), orientation_(UP) {
 			}
 			
 			SemanticEntityId& id() { return id_; }
@@ -58,6 +64,9 @@ namespace wiselib {
 			::uint8_t token_count() { return token_count_; }
 			void set_token_count(::uint8_t x) { token_count_ = x; }
 			
+			::uint8_t prev_token_count() { return prev_token_count_; }
+			void set_prev_token_count(::uint8_t x) { prev_token_count_ = x; }
+			
 			::uint8_t transfer_interval() { return transfer_interval_; }
 			void set_transfer_interval(::uint8_t x) { transfer_interval_ = x; }
 			
@@ -65,16 +74,30 @@ namespace wiselib {
 			
 			::uint8_t state() { return state_; }
 			void set_state(::uint8_t x) { state_ = x; }
+			
+			::uint8_t activity_rounds() { return activity_rounds_; }
+			void set_activity_rounds(::uint8_t x) { activity_rounds_ = x; }
+			
+			::uint8_t orientation() { return orientation_; }
+			void set_orientation(::uint8_t x) { orientation_ = x; }
+			
+			node_id_t source() { return source_; }
+			void set_source(node_id_t x) { source_ = x; }
 		
 		private:
 			SemanticEntityId id_;
 			
+			node_id_t source_;
+			
 			::uint8_t distance_first_;
 			::uint8_t distance_last_;
 			::uint8_t token_count_;
+			::uint8_t prev_token_count_;
 			::uint8_t transfer_interval_;
 			
 			::uint8_t state_ : 2;
+			::uint8_t activity_rounds_ : 2;
+			::uint8_t orientation_ : 1;
 		
 	}; // SemanticEntity
 }
