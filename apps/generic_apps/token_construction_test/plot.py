@@ -12,7 +12,7 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 
-tmax = 200000
+tmax = 20000
 
 
 
@@ -49,6 +49,7 @@ re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
 re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+).*')
 re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)')
 
+#re_tok = re.compile(r'@([0-9]+) tok ([v^]) F([0-9]+)
 
 def parse(f):
 	global gnodes, parents

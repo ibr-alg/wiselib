@@ -142,7 +142,7 @@ namespace wiselib {
 					rtt_estimate_ = 0;
 				#endif
 				
-				neighborhood_.init(radio_, debug_);
+				neighborhood_.init(radio_, debug_, clock_);
 				
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				
@@ -251,13 +251,14 @@ namespace wiselib {
 				
 				if(active) { radio_->enable_radio(); }
 				else {
-			//		radio_->disable_radio();
+					radio_->disable_radio();
 				}
 				
 				check();
 			}
 			
 			void on_receive_beacon(BeaconMessageT& msg, node_id_t from, link_metric_t lm) {
+				//{{{
 				check();
 				debug_->debug("@%lu on_receive_beacon s%lu ", (unsigned long)radio_->id(), (unsigned long)from);
 				
@@ -284,6 +285,7 @@ namespace wiselib {
 				}
 				
 				check();
+				//}}}
 			}
 			
 			void on_receive_ack(BeaconAckMessageT& msg, node_id_t from, link_metric_t lm) {
@@ -318,6 +320,15 @@ namespace wiselib {
 					} // for j
 				} // for i
 				
+				#if INSE_ESTIMATE_RTT
+					// if this is not a resend, use it to estimate the RTT
+					if(beacon.delay() == 0) {
+						abs_millis_t delta = now() - beacon_sent_;
+						rtt_estimate_ = (1.0 - INSE_ESTIMATE_RTT_ALPHA) * rtt_estimate_ + INSE_ESTIMATE_RTT_ALPHA * delta;
+						debug_->debug("@%lu rtt s%lu d%lu e%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_estimate_);
+					}
+				#endif // INSE_ESTIMATE_RTT
+				
 				// if everything with a target was acked, stop resends
 				if(!beacon.has_targets()) {
 					
@@ -333,15 +344,6 @@ namespace wiselib {
 						send_beacon();
 					}
 				}
-				
-				#if INSE_ESTIMATE_RTT
-					// if this is not a resend, use it to estimate the RTT
-					if(beacon.delay() == 0) {
-						abs_millis_t delta = now() - beacon_sent_;
-						rtt_estimate_ = (1.0 - INSE_ESTIMATE_RTT_ALPHA) * rtt_estimate_ + INSE_ESTIMATE_RTT_ALPHA * delta;
-						debug_->debug("@%lu rtt s%lu d%lu e%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_estimate_);
-					}
-				#endif // INSE_ESTIMATE_RTT
 				
 				check();
 			}
@@ -404,7 +406,7 @@ namespace wiselib {
 				abs_millis_t interval = next - now();
 				assert(interval <= PERIOD);
 				
-				debug_->debug("@%lu schedule_transfer_interval_start I=%lu", (unsigned long)radio_->id(), (unsigned long)interval);
+				debug_->debug("@%lu schedule_transfer_interval_start I%lu", (unsigned long)radio_->id(), (unsigned long)interval);
 				transfer_interval_start_guard_++;
 				timer_->template set_timer<self_type, &self_type::on_transfer_interval_start>(interval, this, (void*)transfer_interval_start_guard_);
 				check();
@@ -429,7 +431,7 @@ namespace wiselib {
 			void fill_beacon(BeaconMessageT& b) {
 				check();
 				
-				debug_->debug("@%lu FILL BEACON %lu", (unsigned long)radio_->id());
+				debug_->debug("@%lu FILL BEACON c%d,%d", (unsigned long)radio_->id(), (int)neighborhood_.begin_semantic_entities()->second.prev_token_count(), (int)neighborhood_.begin_semantic_entities()->second.token_count());
 						
 				for(typename NeighborhoodT::semantic_entity_iterator iter = neighborhood_.begin_semantic_entities();
 						iter != neighborhood_.end_semantic_entities();

@@ -42,7 +42,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Radio_P,
-		typename Debug_P = typename OsModel_P::Debug
+		typename Debug_P = typename OsModel_P::Debug,
+		typename Clock_P = typename OsModel_P::Clock
 	>
 	class SemanticEntityOnehopNeighborhood {
 		public:
@@ -52,6 +53,7 @@ namespace wiselib {
 			typedef Radio_P Radio;
 			typedef typename Radio::node_id_t node_id_t;
 			typedef Debug_P Debug;
+			typedef Clock_P Clock;
 			
 			typedef SemanticEntity<OsModel> SemanticEntityT;
 			typedef ::uint32_t abs_millis_t;
@@ -217,9 +219,10 @@ namespace wiselib {
 			SemanticEntityOnehopNeighborhood() : radio_(0), parent_(NULL_NODE_ID) {
 			}
 			
-			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug) {
+			void init(typename Radio::self_pointer_t radio, typename Debug::self_pointer_t debug, typename Clock::self_pointer_t clock) {
 				radio_ = radio;
 				debug_ = debug;
+				clock_ = clock;
 				parent_ = NULL_NODE_ID;
 				
 				check();
@@ -480,6 +483,8 @@ namespace wiselib {
 								target > radio_->id() &&
 								token_count > se.token_count()
 						) {
+							debug_->debug("@%lu adj F%lu T%lu c%d", (unsigned long)radio_->id(),
+									(unsigned long)source, (unsigned long)target, (int)token_count);
 							se.set_source(source);
 							se.set_prev_token_count(token_count);
 							se.set_token_count(token_count);
@@ -528,12 +533,13 @@ namespace wiselib {
 						if(token_count != se.prev_token_count()) {
 							int activity = is_leaf(se_id) ? 2 : 1;
 							
-							debug_->debug("@%lu tok v F%lu c%d,%d a%d",
+							debug_->debug("@%lu tok v F%lu c%d,%d a%d t%lu",
 									(unsigned long)radio_->id(),
 									(unsigned long)source,
 									(int)token_count,
 									(int)se.token_count(),
-									(int)activity
+									(int)activity,
+									(unsigned long)now()
 							);
 							
 							se.set_source(source);
@@ -569,11 +575,12 @@ namespace wiselib {
 						//       this case?
 						 
 						if(!is_root() && token_count != se.token_count()) {
-							debug_->debug("@%lu tok ^ F%lu c%d,%d a1",
+							debug_->debug("@%lu tok ^ F%lu c%d,%d a1 t%lu",
 									(unsigned long)radio_->id(),
 									(unsigned long)source,
 									(int)se.prev_token_count(),
-									(int)token_count
+									(int)token_count,
+									(unsigned long)now()
 							);
 							
 							se.set_source(source);
@@ -584,11 +591,12 @@ namespace wiselib {
 							se.set_activity_rounds(1);
 						}
 						else if(is_root() && token_count == se.token_count()) {
-							debug_->debug("@%lu tok ^ F%lu c%d,%d a0 R",
+							debug_->debug("@%lu tok ^ F%lu c%d,%d a0 t%lu R",
 									(unsigned long)radio_->id(),
 									(unsigned long)source,
 									(int)se.prev_token_count(),
-									(int)token_count
+									(int)token_count,
+									(unsigned long)now()
 							);
 							
 							se.set_source(source);
@@ -602,8 +610,17 @@ namespace wiselib {
 					case CLASS_UNKNOWN:
 					case CLASS_SHORTCUT:
 					default:
-						return;
+						break;
 				}
+				
+				debug_->debug("@%lu /process_token src %lu cls %d c' %d c%d,%d",
+					(unsigned long)radio_->id(),
+					(unsigned long)source,
+					(int)classify(source),
+					(int)token_count,
+					(int)se.prev_token_count(),
+					(int)se.token_count()
+				);
 			} // process_token
 			
 			void update_tree_state() {
@@ -742,10 +759,11 @@ namespace wiselib {
 						se.set_activity_rounds(se.activity_rounds() - 1);
 						if(se.activity_rounds() == 0) {
 							if(is_leaf(se.id()) || se.orientation() == SemanticEntityT::UP || is_root()) {
-						debug_->debug("@%lu be_active done!", (unsigned long)radio_->id());
+						debug_->debug("@%lu be_active done! A c%d,%d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count());
 								se.set_orientation(SemanticEntityT::UP);
-								se.set_token_count(se.prev_token_count() + is_root() ? 1 : 0);
+								se.set_token_count(se.prev_token_count() + (is_root() ? 1 : 0));
 								se.set_source(radio_->id());
+						debug_->debug("@%lu be_active done! B c%d,%d %d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count(), se.prev_token_count() + (is_root() ? 1 : 0));
 							}
 						} // if done
 					} // if active
@@ -812,7 +830,7 @@ namespace wiselib {
 							);
 					
 					if(addr > n && (m == NULL_NODE_ID || addr < m) &&
-							addr != parent_ && iter->semantic_entity_state(id) != UNAFFECTED) {
+							classify(addr) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {
 						m = addr;
 					}
 				}
@@ -821,13 +839,16 @@ namespace wiselib {
 			
 			///@}
 			
+			abs_millis_t absolute_millis(const time_t& t) { check(); return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+			abs_millis_t now() { check(); return absolute_millis(clock_->time()); }
+			
 			Neighbors neighbors_;
 			SemanticEntities semantic_entities_;
 			
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
 			//typename Timer::self_pointer_t timer_;
-			//typename Clock::self_pointer_t clock_;
+			typename Clock::self_pointer_t clock_;
 			//typename Rand::self_pointer_t rand_;
 			
 			node_id_t parent_;
