@@ -184,9 +184,14 @@ namespace wiselib {
 			}
 			
 			bool has_target(::uint8_t s) { return rdse<node_id_t>(s, SEPOS_TARGET) != NULL_NODE_ID; }
-			bool has_targets() {
+			
+			/**
+			 * Return true iff this beacon message contains SE infos with
+			 * targets other than 'self'.
+			 */
+			bool has_targets(node_id_t self) {
 				for(size_type i = 0; i < semantic_entities(); i++) {
-					if(has_target(i)) { return true; }
+					if(has_target(i) && target(i) != self) { return true; }
 				}
 				return false;
 			}

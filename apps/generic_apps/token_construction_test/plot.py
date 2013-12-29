@@ -12,7 +12,7 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 
-tmax = 20000
+tmax = 200000
 
 
 

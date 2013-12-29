@@ -288,6 +288,15 @@ namespace wiselib {
 				return end();
 			}
 			
+			iterator create_or_update_neighbor(node_id_t id, link_metric_t lm) {
+				iterator r = find_neighbor(id);
+				if(r == end()) {
+					r = neighbors_.insert(id, lm);
+				}
+				return r;
+			}
+				
+			
 			int classify(node_id_t n) {
 				if(n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return CLASS_UNKNOWN; }
 				if(n == parent_) { return CLASS_PARENT; }
@@ -330,8 +339,11 @@ namespace wiselib {
 				assert(semantic_entities_.contains(id));
 			}
 			
+			SemanticEntityT& get_semantic_entity(SemanticEntityId se_id) { return semantic_entities_[se_id]; }
+			
 		///@}
 			
+#if 0
 			/**
 			 * @param[in] msg Message containing the received beacon.
 			 * @param[in] source Source that sent the beacon.
@@ -502,6 +514,7 @@ namespace wiselib {
 				check();
 				return r;
 			}
+#endif
 			
 			void process_token(SemanticEntityId se_id, node_id_t source, ::uint8_t token_count) {
 				SemanticEntityT &se = semantic_entities_[se_id];
@@ -783,21 +796,6 @@ namespace wiselib {
 				return is_root() || is_leaf(se_id);
 			}
 		
-		private:
-			
-			void check() {
-				assert(radio_ != 0);
-				assert(!is_root() || (parent_ == NULL_NODE_ID));
-				
-				// There should be no SE in the SE container marked as
-				// "UNAFFECTED" (as it wouldnt make sense to keep track of
-				// those, so this signals some kind of error).
-				
-				for(typename SemanticEntities::iterator iter = semantic_entities_.begin(); iter != semantic_entities_.end(); ++iter) {
-					assert(iter->second.state() != SemanticEntityT::UNAFFECTED);
-				}
-			}
-			
 			///@{
 			///@name Child operations.
 			
@@ -838,6 +836,21 @@ namespace wiselib {
 			}
 			
 			///@}
+			
+		private:
+			
+			void check() {
+				assert(radio_ != 0);
+				assert(!is_root() || (parent_ == NULL_NODE_ID));
+				
+				// There should be no SE in the SE container marked as
+				// "UNAFFECTED" (as it wouldnt make sense to keep track of
+				// those, so this signals some kind of error).
+				
+				for(typename SemanticEntities::iterator iter = semantic_entities_.begin(); iter != semantic_entities_.end(); ++iter) {
+					assert(iter->second.state() != SemanticEntityT::UNAFFECTED);
+				}
+			}
 			
 			abs_millis_t absolute_millis(const time_t& t) { check(); return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
 			abs_millis_t now() { check(); return absolute_millis(clock_->time()); }
