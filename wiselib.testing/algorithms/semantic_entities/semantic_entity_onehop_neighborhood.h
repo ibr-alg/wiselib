@@ -81,6 +81,13 @@ namespace wiselib {
 				ADOPTED = SemanticEntityT::ADOPTED
 			};
 			
+			enum NeighborClass {
+				CLASS_UNKNOWN = 0,
+				CLASS_CHILD = 1,
+				CLASS_PARENT = 2,
+				CLASS_SHORTCUT = 3
+			};
+			
 			class NeighborEntity {
 				public:
 					NeighborEntity() :
@@ -219,8 +226,8 @@ namespace wiselib {
 			}
 			
 			
-			///@{
-			///@name Entity properties
+		///@{
+		///@name Entity properties
 			
 			bool is_joined(SemanticEntityId id) {
 				return semantic_entities_.contains(id) && semantic_entities_[id].is_joined();
@@ -234,14 +241,17 @@ namespace wiselib {
 				return is_in_subtree(id) && !is_joined(id);
 			}
 			
-			///@}
-			
-			///@{
-			///@name This nodes routing properties
+		///@}
+		
+		///@{
+		///@name This nodes routing properties
 			
 			bool is_leaf(SemanticEntityId id) {
 				for(iterator iter = begin(); iter != end(); ++iter) {
-					if(iter->semantic_entity_state(id) != UNAFFECTED) { return false; }
+					if(classify(iter->id()) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {
+						debug_->debug("@%lu no leaf because of %lu", (unsigned long)radio_->id(), (unsigned long)iter->id());
+						return false;
+					}
 				}
 				return true;
 			}
@@ -260,8 +270,8 @@ namespace wiselib {
 			
 			Neighbor& parent() { return *find_neighbor(parent_id()); }
 			
-			///@}
-			
+		///@}
+		
 		///@{
 		///@name Neighbors
 			
@@ -274,6 +284,28 @@ namespace wiselib {
 				}
 				return end();
 			}
+			
+			int classify(node_id_t n) {
+				if(n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return CLASS_UNKNOWN; }
+				if(n == parent_) { return CLASS_PARENT; }
+				
+				iterator iter = find_neighbor(n);
+				if(iter == end()) { return CLASS_UNKNOWN; }
+				
+				return iter->parent() == radio_->id() ? CLASS_CHILD : CLASS_SHORTCUT;
+			}
+
+			/*
+			bool is_child(node_id_t n) {
+				if(n == parent_ || n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return false; }
+				
+				for(typename Neighbors::iterator iter = neighbors_.begin(); iter != neighbors_.end(); ++iter) {
+					if(n == iter->id()) { return true; }
+				}
+				return false;
+			}
+			*/
+			
 			
 		///@}
 		
@@ -304,7 +336,7 @@ namespace wiselib {
 			 * @param[in] lm link metric when receiving the beacon.
 			 * @param[out] fwd new messages with parts of @a msg that need to
 			 * be forwarded to neighboring nodes.
-			 * @return true iff parts where added to @a fwd.
+			 * @return true iff parts where added to or altered in @a fwd.
 			 */
 			template<typename BeaconMessageT>
 			bool update_from_beacon(BeaconMessageT& msg, node_id_t source, abs_millis_t t_recv, link_metric_t lm, BeaconMessageT& fwd) {
@@ -337,10 +369,12 @@ namespace wiselib {
 					assert(msg.semantic_entity_state(i) != SemanticEntityT::UNAFFECTED);
 					ne.set_semantic_entity_state(msg.semantic_entity_state(i));
 					
-					debug_->debug("@%lu beacon %d src %lu tgt %lu S%lx.%lx c%d st %d",
+					debug_->debug("@%lu beacon %d src %lu cls %d nxt %lu tgt %lu S%lx.%lx c%d st %d",
 							(unsigned long)radio_->id(),
 							(int)i,
 							(unsigned long)source,
+							(int)classify(source),
+							(unsigned long)next_child(se_id, source),
 							(unsigned long)target,
 							(unsigned long)se_id.rule(),
 							(unsigned long)se_id.value(),
@@ -350,12 +384,10 @@ namespace wiselib {
 					// Mark info as fresh, so we know, neigh still has this SE
 					ne.refresh();
 					
-					// If neigh has a token count for us for this SE,
-					// save the new token count and see whether it activates
-					// us (and for how long depending on the position in the
-					// tree)
 					
 					if(target == radio_->id()) {
+						// Token data for us from our predecessor
+						
 						// TODO: Handle the case were we have not actually
 						// joined this SE (but eg. a child sending token info
 						// to us has)!
@@ -363,21 +395,20 @@ namespace wiselib {
 						// Should we forward the SE info with the next beacon
 						// wave or is it for us to process?
 						
-						if(is_child(source)) {
+						if(classify(source) == CLASS_CHILD) {
 							node_id_t n = next_child(se_id, source);
 							if(n == NULL_NODE_ID) {
+								// TODO: See if we can clear unnecessary
+								// forward-between-child messages!
+								
 								// msg came from our last child, accept it!
 								process_token(se_id, source, token_count);
 							}
 							else {
-								r = true;
-								
-								// TODO: edit target for msg part accordingly
-								
-								// TODO: see whether the SE is already there...
-								
-								// TODO: what then?
-								//   say everybody is in the same SE and we
+								//   See whether the SE is already there...
+								//   what then?
+								//   
+								//   Say everybody is in the same SE and we
 								//   have 100 childs that want to communicate
 								//   to the next in the ring at the same time
 								//   
@@ -396,13 +427,68 @@ namespace wiselib {
 								//        beacon for a higher sibling, they
 								//        silently switch their token-count to
 								//        that value.
-								fwd.add_semantic_entity_from(msg, i);
+								//        
+								//   ---> We go for c' here.
+								
+								size_type p = fwd.find_semantic_entity(se_id);
+								if(p == npos) {
+									// SE is not yet to be forwarded, add it
+									// to the message!
+									
+									fwd.add_semantic_entity_from(msg, i);
+									debug_->debug("@%lu FWD to %lu c=%d", (unsigned long)radio_->id(),
+											(unsigned long)next_hop(se_id, source), (int)token_count);
+									fwd.set_target(i, next_hop(se_id, source));
+									r = true;
+								}
+								else if(
+										(token_count > fwd.token_count(p)) ||
+										(token_count == fwd.token_count(p) && (next_hop(se_id, source) > fwd.target(p)))
+								) {
+									// A higher token count or a logically
+									// "later" child with the same token count
+									// was seen, update accordingly
+									
+									debug_->debug("@%lu FWD override to %lu c=%d", (unsigned long)radio_->id(),
+											(unsigned long)next_hop(se_id, source), (int)token_count);
+									fwd.set_token_count(p, token_count);
+									fwd.set_target(i, next_hop(se_id, source));
+									r = true;
+								}
+								else debug_->debug("@%lu FWD: nope tc %d tgt %lu fwd.tc=%d fwd.tgt=%lu", (unsigned long)radio_->id(), (int)token_count, (unsigned long)target, (int)fwd.token_count(p), (unsigned long)fwd.target(p));
 							}
 						}
 						else if(source == parent_id()) {
 							process_token(se_id, source, token_count);
 						}
 					} // if for us
+					
+					else if(source == parent_id()) {
+						// This is a bcast from our parent but not for us, it
+						// is either meant for a sibling of ours or our
+						// grandparent.  If it is for a higher (=later in the
+						// logical ring) sibling and the token count is
+						// higher, process the token here as well.
+						// 
+						// This way our parent only needs to forward the
+						// rightmost of highest token counts to its successor
+						// sibling, as all lower ones will auto-adjust.
+						
+						SemanticEntityT &se = semantic_entities_[se_id];
+						if(
+								msg.semantic_entity_flags(i) & BeaconMessageT::FLAG_DOWN &&
+								target > radio_->id() &&
+								token_count > se.token_count()
+						) {
+							se.set_source(source);
+							se.set_prev_token_count(token_count);
+							se.set_token_count(token_count);
+							
+							// TODO: consider this se as acked in the current
+							// broadcast (needs a little refactoring though)
+						}
+					} // if source == parent_id
+					
 				} // for SEs in msg
 				
 				// Erase all SEs the neighbor has not reported in this beacon
@@ -414,24 +500,111 @@ namespace wiselib {
 			
 			void process_token(SemanticEntityId se_id, node_id_t source, ::uint8_t token_count) {
 				SemanticEntityT &se = semantic_entities_[se_id];
-				se.set_source(source);
-				se.set_prev_token_count(token_count);
-				se.set_orientation(source == parent_id() ? SemanticEntityT::DOWN : SemanticEntityT::UP);
 				
-				if(se.state() == SemanticEntityT::UNAFFECTED) {
-					se.set_state(SemanticEntityT::ADOPTED);
+				debug_->debug("@%lu process_token src %lu cls %d c' %d c%d,%d",
+					(unsigned long)radio_->id(),
+					(unsigned long)source,
+					(int)classify(source),
+					(int)token_count,
+					(int)se.prev_token_count(),
+					(int)se.token_count()
+				);
+				
+				switch(classify(source)) {
+					case CLASS_PARENT: {
+						// if we get the token from our parent, we consider it
+						// activating iff it is different than se.prev_token_count.
+						// We will then set se.prev_token_count :=
+						// parent.token_count, handle the complete subtree in that
+						// state (with orientation == DOWN), and finally set
+						// se.token_count := se.prev_token_count when the subtree
+						// has been handled completely.
+						
+						// orientation is DOWN, ergo we can't be root (or
+						// something must be fishy)
+						assert(!is_root());
+						assert(source == parent_);
+						
+						if(token_count != se.prev_token_count()) {
+							int activity = is_leaf(se_id) ? 2 : 1;
+							
+							debug_->debug("@%lu tok v F%lu c%d,%d a%d",
+									(unsigned long)radio_->id(),
+									(unsigned long)source,
+									(int)token_count,
+									(int)se.token_count(),
+									(int)activity
+							);
+							
+							se.set_source(source);
+							se.set_orientation(SemanticEntityT::DOWN);
+							se.set_prev_token_count(token_count);
+							// Token is activating
+							se.set_activity_rounds(activity);
+						}
+						break;
+					}
+					
+					case CLASS_CHILD: {
+						assert(source != parent_);
+						
+						// The last child of the subtree sends us a token count c.
+						// If the system is stable, one of the following should
+						// hold:
+						//   (a) c == se.prev_token_count == se.token_count, i.e.
+						//       there is no activity around here right now,
+						//       nothing to be done in this case.
+						//       
+						//   (b) c == se.prev_token_count != se.token_count, i.e.
+						//       the token is arriving back from the subtree.
+						//       We should be active for one round and set
+						//       se.token_count := c to finalize our subtree wrt
+						//       to scheduling this epoch.
+						//       
+						// If the system is not yet stablilized, it might also be
+						// that
+						//   (c) c != se.prev_token_count
+						//       
+						//       TODO: whats the most reasonable course of action in
+						//       this case?
+						 
+						if(!is_root() && token_count != se.token_count()) {
+							debug_->debug("@%lu tok ^ F%lu c%d,%d a1",
+									(unsigned long)radio_->id(),
+									(unsigned long)source,
+									(int)se.prev_token_count(),
+									(int)token_count
+							);
+							
+							se.set_source(source);
+							se.set_orientation(SemanticEntityT::UP);
+							se.set_token_count(token_count);
+							// We just received a token from a child, so we can't
+							// be a leaf!
+							se.set_activity_rounds(1);
+						}
+						else if(is_root() && token_count == se.token_count()) {
+							debug_->debug("@%lu tok ^ F%lu c%d,%d a0 R",
+									(unsigned long)radio_->id(),
+									(unsigned long)source,
+									(int)se.prev_token_count(),
+									(int)token_count
+							);
+							
+							se.set_source(source);
+							se.set_orientation(SemanticEntityT::UP);
+							se.set_token_count(token_count + 1);
+							se.set_activity_rounds(0);
+						}
+						break;
+					} // CLASS_CHILD
+					
+					case CLASS_UNKNOWN:
+					case CLASS_SHORTCUT:
+					default:
+						return;
 				}
-				
-				// Dijkstras token ring
-				bool has_token = (is_root() == (se.prev_token_count() == se.token_count()));
-				
-				debug_->debug("@%lu tok r%d c%d,%d", (unsigned long)radio_->id(), (int)is_root(),
-						(int)se.prev_token_count(), (int)se.token_count());
-				
-				if(se.activity_rounds() == 0 && has_token) {
-					se.set_activity_rounds(is_leaf(se_id) ? 2 : 1);
-				}
-			}
+			} // process_token
 			
 			void update_tree_state() {
 				check();
@@ -467,6 +640,10 @@ namespace wiselib {
 				changed_parent_ = (parent != parent_);
 				parent_ = parent;
 				
+				if(changed_parent_) {
+					debug_->debug("PARENT(%lu) := %lu", (unsigned long)radio_->id(), (unsigned long)parent_);
+				}
+				
 				check();
 			}
 			
@@ -483,7 +660,7 @@ namespace wiselib {
 				return 2;
 			}
 			
-			node_id_t next_hop(SemanticEntityId id) { //, node_id_t source, MessageOrientation orientation) {
+			node_id_t next_hop(SemanticEntityId id, node_id_t src = NULL_NODE_ID) { //, node_id_t source, MessageOrientation orientation) {
 				assert(semantic_entities_.contains(id));
 				check();
 				
@@ -492,16 +669,20 @@ namespace wiselib {
 				// and tells us whether it should travel upwards or downwards
 				// now.
 				::uint8_t orientation = semantic_entities_[id].orientation();
-				node_id_t source = semantic_entities_[id].source();
+				node_id_t source = (src != NULL_NODE_ID) ? src : semantic_entities_[id].source();
 				
 				debug_->debug("@%lu next_hop: src %lu rt%d", (unsigned long)radio_->id(), (unsigned long)source, (int)is_root());
 				
 				
 				if(is_root()) {
-					if(!is_child(source)) {
-						debug_->debug("@%lu next_hop not child!", (unsigned long)radio_->id());
+					if(classify(source) != CLASS_CHILD && source != radio_->id()) {
+						debug_->debug("@%lu next_hop source %lu not child but %d", (unsigned long)radio_->id(), (unsigned long)source, classify(source));
 						return NULL_NODE_ID;
 					}
+					
+					// if source == radio_->id() (initial case), this will try
+					// to search the next child to radio_->id().
+					// Since the root id is 0, this will be the first child.
 					node_id_t nxt = next_child(id, source);
 					if(nxt == NULL_NODE_ID) {
 						debug_->debug("@%lu next_hop last child", (unsigned long)radio_->id());
@@ -521,7 +702,7 @@ namespace wiselib {
 					
 					debug_->debug("@%lu next_hop: not parent", (unsigned long)radio_->id());
 					
-					if(is_child(source)) {
+					if(classify(source) == CLASS_CHILD) {
 						node_id_t nxt = next_child(id, source);
 						// source was our last child, its for us
 						if(nxt == NULL_NODE_ID) { return radio_->id(); }
@@ -542,20 +723,46 @@ namespace wiselib {
 			 * Else, return false.
 			 */
 			bool be_active() {
+				
 				// TODO
 				bool r = false;
 				for(typename SemanticEntities::iterator iter = semantic_entities_.begin(); iter != semantic_entities_.end(); ++iter) {
 					SemanticEntityT &se = iter->second;
 					if(se.activity_rounds()) {
+						debug_->debug("@%lu be_active ar %d leaf %d up %d rt %d prevtc %d",
+								(unsigned long)radio_->id(),
+								(int)se.activity_rounds(),
+								(int)is_leaf(se.id()),
+								(int)(se.orientation() == SemanticEntityT::UP),
+								(int)is_root(),
+								(int)se.prev_token_count()
+						);
+						
 						r = true;
 						se.set_activity_rounds(se.activity_rounds() - 1);
 						if(se.activity_rounds() == 0) {
-							se.set_token_count(se.prev_token_count() + is_root() ? 1 : 0);
-							se.set_source(radio_->id());
-						}
-					}
-				}
+							if(is_leaf(se.id()) || se.orientation() == SemanticEntityT::UP || is_root()) {
+						debug_->debug("@%lu be_active done!", (unsigned long)radio_->id());
+								se.set_orientation(SemanticEntityT::UP);
+								se.set_token_count(se.prev_token_count() + is_root() ? 1 : 0);
+								se.set_source(radio_->id());
+							}
+						} // if done
+					} // if active
+				} // for SEs
 				return r;
+			}
+			
+			/**
+			 * Return true iff this node shall produce a new token count,
+			 * after being active for the given se.
+			 * This is not always true when we received an activating token.
+			 * Eg. when receiving it from our parent we communicate the
+			 * prospective now token state to our childs and only change it
+			 * after all childs have been processed.
+			 */
+			bool owns_token(SemanticEntityId se_id) {
+				return is_root() || is_leaf(se_id);
 			}
 		
 		private:
@@ -575,15 +782,6 @@ namespace wiselib {
 			
 			///@{
 			///@name Child operations.
-			
-			bool is_child(node_id_t n) {
-				if(n == parent_ || n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return false; }
-				
-				for(typename Neighbors::iterator iter = neighbors_.begin(); iter != neighbors_.end(); ++iter) {
-					if(n == iter->id()) { return true; }
-				}
-				return false;
-			}
 			
 			/**
 			 * Will ignore childs that have ID 0, (conveniently fixed by

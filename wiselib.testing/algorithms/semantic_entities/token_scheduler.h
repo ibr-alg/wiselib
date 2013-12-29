@@ -272,7 +272,14 @@ namespace wiselib {
 				
 				if(need_forward) {
 					if(sending_beacon()) {
+				debug_->debug("@%lu REQUEST BEACON %lu", (unsigned long)radio_->id());
 						requesting_beacon_ = true;
+					}
+					else {
+				debug_->debug("@%lu NEW BEACON %lu", (unsigned long)radio_->id());
+						swap_beacons();
+						clear_beacon(next_beacon());
+						sending_beacon();
 					}
 				}
 				
@@ -292,11 +299,15 @@ namespace wiselib {
 				// Go through the list of SEs that were ack'ed with this
 				// message and remove them from our held copy of the beacon
 				
+				debug_->debug("@%lu - ACK BEACON s%lu", (unsigned long)radio_->id(), (unsigned long)msg.sequence_number());
+				
 				for(size_type i = 0; i < msg.semantic_entities(); i++) {
 					assert(msg.flags(i) & BeaconAckMessageT::FLAG_ACK);
 					
 					for(size_type j = 0; j < beacon.semantic_entities(); j++) {
+							debug_->debug("@%lu -? ACK BEACON s%lu F%lu %lu S%lx.%lx %lx.%lx %d%d", (unsigned long)radio_->id(), (unsigned long)msg.sequence_number(), (unsigned long)from, (unsigned long)beacon.target(j), (unsigned long)msg.semantic_entity_id(i).rule(), (unsigned long)msg.semantic_entity_id(i).value(),  (unsigned long)beacon.semantic_entity_id(j).rule(), (unsigned long)beacon.semantic_entity_id(j).value(), (int)(from == beacon.target(j)), (int)(msg.semantic_entity_id(i) == beacon.semantic_entity_id(j)));
 						if(from == beacon.target(j) && msg.semantic_entity_id(i) == beacon.semantic_entity_id(j)) {
+							debug_->debug("@%lu -! ACK BEACON s%lu F%lu", (unsigned long)radio_->id(), (unsigned long)msg.sequence_number(), (unsigned long)from);
 							const ::uint8_t last = beacon.semantic_entities() - 1;
 							if(j < last) {
 								beacon.move_semantic_entity(last, j);
@@ -309,6 +320,8 @@ namespace wiselib {
 				
 				// if everything with a target was acked, stop resends
 				if(!beacon.has_targets()) {
+					
+					debug_->debug("@%lu ---- DELIVERED BEACON", (unsigned long)radio_->id());
 					
 					// Beacon successfully sent
 					
@@ -416,6 +429,8 @@ namespace wiselib {
 			void fill_beacon(BeaconMessageT& b) {
 				check();
 				
+				debug_->debug("@%lu FILL BEACON %lu", (unsigned long)radio_->id());
+						
 				for(typename NeighborhoodT::semantic_entity_iterator iter = neighborhood_.begin_semantic_entities();
 						iter != neighborhood_.end_semantic_entities();
 						++iter) {
@@ -431,7 +446,26 @@ namespace wiselib {
 					//SemanticEntityId& id = iter->first;
 					
 					debug_->debug("@%lu next_hop S%lx.%lx -> %lu c=%d", (unsigned long)radio_->id(), (unsigned long)se.id().rule(), (unsigned long)se.id().value(), (unsigned long)next_hop, (int)se.token_count());
-					b.add_semantic_entity(se, next_hop);
+					
+					::uint8_t s = b.add_semantic_entity();
+					b.set_semantic_entity_id(s, se.id());
+					/*
+					b.set_distance_first(s, se.distance_first());
+					b.set_distance_last(s, se.distance_last());
+					b.set_transfer_interval(s, se.transfer_interval());
+					*/
+					
+					::uint8_t next_class = neighborhood_.classify(next_hop);
+					
+					if(neighborhood_.is_root() || next_class == NeighborhoodT::CLASS_PARENT) {
+						b.set_token_count(s, se.token_count());
+					}
+					else {
+						b.set_token_count(s, se.prev_token_count());
+					}
+					b.set_target(s, next_hop);
+					b.set_semantic_entity_state(s, SemanticEntityT::JOINED);
+					
 				}
 				
 				check();
@@ -457,7 +491,6 @@ namespace wiselib {
 			 */
 			void send_beacon() {
 				check();
-				assert(in_transfer_interval());
 				
 				BeaconMessageT& b = current_beacon();
 				
@@ -467,10 +500,20 @@ namespace wiselib {
 				debug_->debug("@%lu send_beacon dist %d t%lu", (unsigned long)radio_->id(), (int)neighborhood_.root_distance(), (unsigned long)now());
 				//neighborhood_.update_state();
 				
+				debug_->debug("@%lu SEND BEACON %lu c%d t%lu",
+						(unsigned long)radio_->id(),
+						(unsigned long)b.target(0),
+						(int)b.token_count(0),
+						(unsigned long)now());
+				
+				assert(neighborhood_.is_root() || in_transfer_interval());
+				
 				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());
 				beacon_sent_ = now();
-					
-				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ack_timeout(), this, (void*)ack_timeout_guard_);
+				
+				if(b.has_targets()) {
+					timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ack_timeout(), this, (void*)ack_timeout_guard_);
+				}
 				
 				check();
 			}
@@ -502,7 +545,9 @@ namespace wiselib {
 					}
 				}
 				
-				radio_->send(from, ackmsg.size(), ackmsg.data());
+				if(ackmsg.semantic_entities()) {
+					radio_->send(from, ackmsg.size(), ackmsg.data());
+				}
 				
 				check();
 			} // send_ack

@@ -58,13 +58,14 @@ namespace wiselib {
 				POS_MESSAGE_TYPE = 0,
 				POS_SEQUENCE_NUMBER = POS_MESSAGE_TYPE + sizeof(message_id_t),
 				
-				POS_SES_START = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t)
+				POS_SES = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
+				POS_SES_START = POS_SES + sizeof(::uint8_t),
 			};
 			
 			enum {
 				SEPOS_ID = 0,
-				SEPOS_FLAGS = 8,
-				SEPOS_END = 9
+				SEPOS_FLAGS = SEPOS_ID + sizeof(SemanticEntityId),
+				SEPOS_END = SEPOS_FLAGS + sizeof(::uint8_t)
 			};
 			
 			enum Flags {
@@ -81,20 +82,20 @@ namespace wiselib {
 			sequence_number_t sequence_number() { return rd<sequence_number_t>(POS_SEQUENCE_NUMBER); }
 			void set_sequence_number(sequence_number_t s) { wr(POS_SEQUENCE_NUMBER, s); }
 			
-			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES_START); }
-			void set_semantic_entities(::uint8_t n) { wr(POS_SES_START, n); }
+			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
+			void set_semantic_entities(::uint8_t n) { wr(POS_SES, n); }
 			
 			void ack_se(SemanticEntityId& id) {
 				::uint8_t s = semantic_entities();
-				wrse(s, SEPOS_ID, (SemanticEntityId)id);
-				wrse(s, SEPOS_FLAGS, (::uint8_t)FLAG_ACK);
+				wrse<SemanticEntityId>(s, SEPOS_ID, (SemanticEntityId)id);
+				wrse< ::uint8_t>(s, SEPOS_FLAGS, (::uint8_t)FLAG_ACK);
 				set_semantic_entities(s + 1);
 			}
 			
 			void nack_se(SemanticEntityId& id) {
 				::uint8_t s = semantic_entities();
-				wrse(s, SEPOS_ID, (SemanticEntityId)id);
-				wrse(s, SEPOS_FLAGS, (::uint8_t)FLAG_NACK);
+				wrse<SemanticEntityId>(s, SEPOS_ID, (SemanticEntityId)id);
+				wrse< ::uint8_t>(s, SEPOS_FLAGS, (::uint8_t)FLAG_NACK);
 				set_semantic_entities(s + 1);
 			}
 			

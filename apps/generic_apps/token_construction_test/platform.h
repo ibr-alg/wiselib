@@ -6,13 +6,13 @@
 
 //#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
 #define INSE_PERIOD                          10000 * WISELIB_TIME_FACTOR
-#define INSE_MIN_TRANSFER_INTERVAL_LENGTH    100 * WISELIB_TIME_FACTOR
+#define INSE_MIN_TRANSFER_INTERVAL_LENGTH    1000 * WISELIB_TIME_FACTOR
 
 #define INSE_START_WAIT              (5 * 60)
 
 #define INSE_ESTIMATE_RTT              1
 
-#define INSE_MAX_NEIGHBORS             8
+#define INSE_MAX_NEIGHBORS             16
 #define INSE_MAX_SEMANTIC_ENTITIES     4
 #define INSE_MAX_QUERIES               4
 //#define INSE_BLOOM_FILTER_BITS        64

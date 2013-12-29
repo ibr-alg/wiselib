@@ -20,6 +20,9 @@ class App {
 			uart_query_pos = 0;
 		#endif
 			
+			debug_->debug("INSE boot. max_neighbors=%d", INSE_MAX_NEIGHBORS);
+			
+			
 			initcount = INSE_START_WAIT;
 			//debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
 			timer_->set_timer<App, &App::init2>(1000, this, 0);
