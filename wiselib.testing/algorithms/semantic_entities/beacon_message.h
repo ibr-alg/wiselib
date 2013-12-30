@@ -150,7 +150,7 @@ namespace wiselib {
 						SEPOS_END);
 			}
 			
-			void add_semantic_entity_from(self_type& other, ::uint8_t s_other) {
+			::uint8_t add_semantic_entity_from(self_type& other, ::uint8_t s_other) {
 				::uint8_t s = semantic_entities();
 				
 				assert((s + 1) < max_semantic_entities());
@@ -159,6 +159,8 @@ namespace wiselib {
 				memcpy(data_ + POS_SES_START + s * SEPOS_END,
 						other.data_ + POS_SES_START + s_other * SEPOS_END, SEPOS_END);
 				set_semantic_entities(s + 1);
+				
+				return s;
 			}
 			
 			size_type find_semantic_entity(SemanticEntityId id) {

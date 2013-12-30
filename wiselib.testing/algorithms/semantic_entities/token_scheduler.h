@@ -254,7 +254,7 @@ namespace wiselib {
 				in_transfer_interval_ = false;
 				schedule_transfer_interval_start();
 				
-				if(!seen_parent_) {
+				if(!neighborhood_.is_root() && !seen_parent_) {
 					debug_->debug("@%lu NOPAR t%lu", (unsigned long)radio_->id(), (unsigned long)now());
 				}
 				
@@ -375,10 +375,10 @@ namespace wiselib {
 									// SE is not yet to be forwarded, add it
 									// to the message!
 									
-									fwd.add_semantic_entity_from(msg, i);
+									p = fwd.add_semantic_entity_from(msg, i);
 									debug_->debug("@%lu FWD to %lu c=%d", (unsigned long)radio_->id(),
 											(unsigned long)neighborhood_.next_hop(se_id, from), (int)token_count);
-									fwd.set_target(i, neighborhood_.next_hop(se_id, from));
+									fwd.set_target(p, neighborhood_.next_hop(se_id, from));
 								}
 								else if(
 										(token_count > fwd.token_count(p)) ||
@@ -388,10 +388,16 @@ namespace wiselib {
 									// "later" child with the same token count
 									// was seen, update accordingly
 									
-									debug_->debug("@%lu FWD override to %lu c=%d", (unsigned long)radio_->id(),
-											(unsigned long)neighborhood_.next_hop(se_id, from), (int)token_count);
+									node_id_t next = neighborhood_.next_hop(se_id, from);
+									
+									debug_->debug("@%lu FWD override to %lu c=%d p=%d/%d", (unsigned long)radio_->id(),
+											(unsigned long)next, (int)token_count, (int)p, (int)fwd.semantic_entities());
+									
 									fwd.set_token_count(p, token_count);
-									fwd.set_target(i, neighborhood_.next_hop(se_id, from));
+									fwd.set_target(p, next);
+									
+									assert(fwd.token_count(p) == token_count);
+									assert(fwd.target(p) == next);
 								}
 								else debug_->debug("@%lu FWD: nope tc %d tgt %lu fwd.tc=%d fwd.tgt=%lu", (unsigned long)radio_->id(), (int)token_count, (unsigned long)target, (int)fwd.token_count(p), (unsigned long)fwd.target(p));
 							}
@@ -425,7 +431,7 @@ namespace wiselib {
 							se.set_prev_token_count(token_count);
 							se.set_token_count(token_count);
 							
-							// TODO: consider this se as acked in the current
+							// Consider this se as acked in the current
 							// broadcast (needs a little refactoring though)
 							if(sending_beacon_) {
 								erase_se_from_beacon(current_beacon(), from, se.id());
@@ -483,6 +489,13 @@ namespace wiselib {
 					assert(msg.flags(i) & BeaconAckMessageT::FLAG_ACK);
 					erase_se_from_beacon(current_beacon(), from, msg.semantic_entity_id(i));
 				} // for i
+				
+				if(!beacon.has_targets(radio_->id())) {
+					sending_beacon_ = false;
+					ack_timeout_guard_++;
+					
+					check_beacon_request();
+				}
 				
 				#if INSE_ESTIMATE_RTT
 					// if this is not a resend, use it to estimate the RTT
@@ -682,6 +695,8 @@ namespace wiselib {
 			 * if necessary.
 			 */
 			void check_beacon_request() {
+				debug_->debug("@%lu CBR sending %d has %d", (unsigned long)radio_->id(), (int)sending_beacon_, (int)next_beacon().semantic_entities());
+				
 				if(sending_beacon_) { return; }
 				
 				if(next_beacon().semantic_entities()) {
@@ -699,20 +714,30 @@ namespace wiselib {
 			void send_beacon() {
 				check();
 				
-				if(!in_transfer_interval()) { return; }
-				
 				BeaconMessageT& b = current_beacon();
+				
+				if(!in_transfer_interval() && !neighborhood_.is_root()) {
+					debug_->debug("@%lu BEACON TOO LATE %lu t%lu", (unsigned long)radio_->id(),
+							(unsigned long)b.target(0),
+							(unsigned long)now());
+					return;
+				}
 				
 				sending_beacon_ = true;
 				
 				debug_->debug("@%lu send_beacon dist %d t%lu", (unsigned long)radio_->id(), (int)neighborhood_.root_distance(), (unsigned long)now());
 				//neighborhood_.update_state();
 				
-				debug_->debug("@%lu SEND BEACON %lu c%d t%lu",
+				debug_->debug("@%lu SEND BEACON %lu c%d t%lu (%lu %lu %lu %lu)",
 						(unsigned long)radio_->id(),
 						(unsigned long)b.target(0),
 						(int)b.token_count(0),
-						(unsigned long)now());
+						(unsigned long)now(),
+						(unsigned long)b.target(1),
+						(unsigned long)b.target(2),
+						(unsigned long)b.target(3),
+						(unsigned long)b.target(4)
+						);
 				
 				//assert(neighborhood_.is_root() || in_transfer_interval());
 				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());

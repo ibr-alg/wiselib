@@ -49,6 +49,8 @@ re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
 re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+).*')
 re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)')
 
+re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+).*')
+
 #re_tok = re.compile(r'@([0-9]+) tok ([v^]) F([0-9]+)
 
 def parse(f):
@@ -118,6 +120,16 @@ def parse(f):
 				nodes[name]['delay'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['delay']['t'] = np.append(nodes[name]['delay']['t'], t_)
 			nodes[name]['delay']['v'] = np.append(nodes[name]['delay']['v'], int(d) // 1000)
+			
+		m = re.match(re_ti, line)
+		if m is not None:
+			nodename, t_, P, p = m.groups()
+			name = nodename
+			if name not in nodes: nodes[name] = {}
+			if 'phase' not in nodes[name]:
+				nodes[name]['phase'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['phase']['t'] = np.append(nodes[name]['phase']['t'], t_)
+			nodes[name]['phase']['v'] = np.append(nodes[name]['phase']['v'], int(P))
 
 		
 		# which node is this line about?
@@ -286,6 +298,11 @@ def fig_count(namepattern = '.*'):
 	#plt.show()
 	# }}}
 	
+def namesort(kva, kvb):
+	for a, b in zip(kva[0], kvb[0]):
+		if a != b: return cmp(a, b)
+	return cmp(len(kva[0]), len(kvb[0]))
+	
 def fig_timings():
 	global fig
 	global gnodes
@@ -299,11 +316,6 @@ def fig_timings():
 	i = 0
 	first_ax = None
 	last_ax = None
-	
-	def namesort(kva, kvb):
-		for a, b in zip(kva[0], kvb[0]):
-			if a != b: return cmp(a, b)
-		return cmp(len(kva[0]), len(kvb[0]))
 	
 	for name, node in sorted(nodes.items(), cmp=namesort):
 		if first_ax is None:
@@ -355,7 +367,24 @@ def fig_timings():
 	
 	fig.savefig('timings.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
+
+def fig_phases():
+	global fig
+	global gnodes
+	nodes = gnodes
+	fig = plt.figure() #figsize=(16, 40))
+	ax = plt.subplot(111)
 	
+	for name, node in sorted(nodes.items(), cmp=namesort):
+		if 'phase' in node and name in ('0', '1', '2'):
+			print (node['phase'])
+			r, = ax.plot(node['phase']['t'], node['phase']['v'], label=name,
+					drawstyle='steps-post')
+		
+	ax.legend()
+	fig.savefig('phases.pdf')
+
+
 def fig_forward_timings():
 	global fig
 	global gnodes
@@ -519,12 +548,16 @@ for k, v in parents.items():
 
 print nhood
 
+print("phases graph...")
+fig_phases()
+
 print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
-print("timings graph...")
-fig_timings()
-print("fwd timings graph...")
-fig_forward_timings()
+
+#print("timings graph...")
+#fig_timings()
+#print("fwd timings graph...")
+#fig_forward_timings()
 #print("counts graph...")
 #fig_count_onegraph(r'.*:1\.2')
 
