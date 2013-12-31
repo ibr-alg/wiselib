@@ -12,7 +12,7 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 
-tmax = 200000
+tmax = 300000
 
 
 
@@ -50,6 +50,8 @@ re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+).*')
 re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)')
 
 re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+).*')
+re_rtt = re.compile(r'@([0-9]+) rtt t([0-9]+) F([0-9]+) d([0-9]+) e([0-9]+).*')
+re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) c([0-9]+) t([0-9]+).*')
 
 #re_tok = re.compile(r'@([0-9]+) tok ([v^]) F([0-9]+)
 
@@ -93,7 +95,7 @@ def parse(f):
 			if nodename not in nodes: nodes[nodename] = {}
 			if 'on' not in nodes[nodename]:
 				nodes[nodename]['on'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			print("{} -> {} t={}".format(nodename, onoff, t_))
+			#print("{} -> {} t={}".format(nodename, onoff, t_))
 			nodes[nodename]['on']['t'] = np.append(nodes[nodename]['on']['t'], int(t_) // 1000)
 			nodes[nodename]['on']['v'] = np.append(nodes[nodename]['on']['v'], 1 if onoff == 'on' else 0)
 			continue
@@ -125,12 +127,35 @@ def parse(f):
 		if m is not None:
 			nodename, t_, P, p = m.groups()
 			name = nodename
+			t_ = int(t_) // 1000
+			P = int(P) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'phase' not in nodes[name]:
 				nodes[name]['phase'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['phase']['t'] = np.append(nodes[name]['phase']['t'], t_)
 			nodes[name]['phase']['v'] = np.append(nodes[name]['phase']['v'], int(P))
 
+		m = re.match(re_rtt, line)
+		if m is not None:
+			nodename, t_, F, d, e = m.groups()
+			name = nodename
+			t_ = int(t_) // 1000
+			if name not in nodes: nodes[name] = {}
+			if 'rtt' not in nodes[name]:
+				nodes[name]['rtt'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['rtt']['t'] = np.append(nodes[name]['rtt']['t'], t_)
+			nodes[name]['rtt']['v'] = np.append(nodes[name]['rtt']['v'], int(e))
+			
+		m = re.match(re_beacon, line)
+		if m is not None:
+			nodename, tgt, c, t_ = m.groups()
+			t_ = int(t_) // 1000
+			name = nodename
+			if name not in nodes: nodes[name] = {}
+			if 'beacon' not in nodes[name]:
+				nodes[name]['beacon'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			nodes[name]['beacon']['t'] = np.append(nodes[name]['beacon']['t'], t_)
+			nodes[name]['beacon']['v'] = np.append(nodes[name]['beacon']['v'], 1)
 		
 		# which node is this line about?
 		
@@ -334,7 +359,7 @@ def fig_timings():
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
-		print(node.keys())
+		#print(node.keys())
 
 		if 'caffeine' in node:
 			r, = ax.plot(node['caffeine']['t'], node['caffeine']['v'], 'g-', label='caffeine', drawstyle='steps-post')
@@ -374,15 +399,35 @@ def fig_phases():
 	nodes = gnodes
 	fig = plt.figure() #figsize=(16, 40))
 	ax = plt.subplot(111)
+	#ax.set_xlim((5000, 30000))
+	#ax.set_ylim((250000, 350000))
+	#ax.set_ylim((270, 400))
 	
 	for name, node in sorted(nodes.items(), cmp=namesort):
-		if 'phase' in node and name in ('0', '1', '2'):
-			print (node['phase'])
+		if 'phase' in node and name in ('0','1', '2', '3'):
+			#print (node['phase'])
 			r, = ax.plot(node['phase']['t'], node['phase']['v'], label=name,
 					drawstyle='steps-post')
 		
-	ax.legend()
+	#ax.legend()
 	fig.savefig('phases.pdf')
+	
+def fig_rtts():
+	global fig
+	global gnodes
+	nodes = gnodes
+	fig = plt.figure() #figsize=(16, 40))
+	ax = plt.subplot(111)
+	
+	for name, node in sorted(nodes.items(), cmp=namesort):
+		if 'rtt' in node: # and name in ('0', '1', '2'):
+			#print (node['rtt'])
+			r, = ax.plot(node['rtt']['t'], node['rtt']['v'], label=name,
+					drawstyle='steps-post')
+		
+	#ax.legend()
+	fig.savefig('rtts.pdf')
+
 
 
 def fig_forward_timings():
@@ -502,6 +547,13 @@ def fig_duty_cycle(namepattern = '.*'):
 		if 'on' in node:
 			r, = ax.plot(node['on']['t'], node['on']['v'], 'b-', label='on', drawstyle='steps-post')
 			property_styles['on'] = r
+			
+		if 'beacon' in node:
+			print(node['beacon']['t'])
+			ax.vlines(node['beacon']['t'], [0], node['beacon']['v'], colors=['r'], label='beacon')
+			#property_styles['beacon'] = r
+			
+			
 		if 'awake' in node:
 			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r-', label='awake', drawstyle='steps-post')
 			property_styles['awake'] = r
@@ -525,8 +577,9 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.get_xaxis().set_tick_params(size=1)
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
-	last_ax.set_xlim((-1, tmax))
+	#last_ax.set_xlim((-1, tmax))
 	#last_ax.set_xlim((4500, 5500))
+	#last_ax.set_xlim((23000, 30000))
 	
 	setp(last_ax.get_xticklabels(), visible = True)
 	
@@ -547,6 +600,9 @@ for k, v in parents.items():
 		print ("  " + src + " -> " + tgt)
 
 print nhood
+
+print("rtts graph...")
+fig_rtts()
 
 print("phases graph...")
 fig_phases()

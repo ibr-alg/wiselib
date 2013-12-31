@@ -778,6 +778,10 @@ namespace wiselib {
 								se.set_source(radio_->id());
 						debug_->debug("@%lu be_active done! B c%d,%d %d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count(), se.prev_token_count() + (is_root() ? 1 : 0));
 							}
+							else {
+								se.set_orientation(SemanticEntityT::DOWN);
+								se.set_source(radio_->id());
+							}
 						} // if done
 					} // if active
 				} // for SEs

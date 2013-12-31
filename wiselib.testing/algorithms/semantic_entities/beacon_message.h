@@ -62,8 +62,9 @@ namespace wiselib {
 				POS_ROOT_DISTANCE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
 				POS_PARENT = POS_ROOT_DISTANCE + sizeof(::uint8_t),
 				POS_DELAY = POS_PARENT + sizeof(node_id_t),
+				POS_FLAGS = POS_DELAY + sizeof(delay_t),
 				
-				POS_SES = POS_DELAY + sizeof(delay_t),
+				POS_SES = POS_FLAGS + sizeof(::uint8_t),
 				POS_SES_START = POS_SES + sizeof(::uint8_t)
 			};
 			
@@ -79,8 +80,11 @@ namespace wiselib {
 			};
 			
 			enum Flags {
-				FLAG_DOWN = 0x00, FLAG_UP = 0x04,
-				FLAG_ROOT = 0x08
+				FLAG_FIRST = 0x01
+			};
+			
+			enum SEFlags {
+				FLAG_DOWN = 0x00, FLAG_UP = 0x04
 			};
 			
 			enum { npos = (size_type)(-1) };
@@ -91,7 +95,12 @@ namespace wiselib {
 			
 			void init() {
 				set_message_type(INSE_MESSAGE_TYPE_BEACON);
+				set_sequence_number(-1);
+				set_root_distance(-1);
 				set_semantic_entities(0);
+				set_parent(NULL_NODE_ID);
+				set_delay(0);
+				set_flags(0);
 			}
 			
 			::uint8_t message_type() { return rd< ::uint8_t>(POS_MESSAGE_TYPE); }
@@ -108,6 +117,9 @@ namespace wiselib {
 			
 			delay_t delay() { return rd<delay_t>(POS_DELAY); }
 			void set_delay(delay_t d) { wr(POS_DELAY, d); }
+			
+			::uint8_t flags() { return rd< ::uint8_t>(POS_FLAGS); }
+			void set_flags(::uint8_t f) { wr< ::uint8_t>(POS_FLAGS, f); }
 			
 			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
 			void set_semantic_entities(::uint8_t n) { wr(POS_SES, n); }

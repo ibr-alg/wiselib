@@ -52,13 +52,24 @@
 #endif
 
 #ifndef INSE_ESTIMATE_RTT_ALPHA
-	#define INSE_ESTIMATE_RTT_ALPHA (4.0/8.0)
+	#define INSE_ESTIMATE_RTT_ALPHA (1.0/8.0)
 #endif
 
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief .
+	 * 
+	 *  ||                                (awake)              |     (awake/asleep depending on token)    ||
+	 *  ||                                                     |                                          ||
+	 *  || <----- WAKEUP_BEFORE_BEACON ----> |                 |                                          ||
+	 *  ||                                   |                 |                                          ||
+	 *  --------------------------------------------  ...  ------------------------ ... -------------------------
+	 *  ||                                   |                 |                                          ||
+	 *  ||                                   |                 |                                          ``----- on_transfer_interval _start
+	 *  ||                                   |                 `----- on_transfer_interval_end
+	 *  ||                                   `----- on_begin_sending
+	 *  ``----- on_transfer_interval_start
 	 * 
 	 * @ingroup
 	 * 
@@ -156,6 +167,7 @@ namespace wiselib {
 				
 				current_beacon_ = 0;
 				sending_beacon_ = 0;
+				beacons_sent_ = 0;
 				//requesting_beacon_ = 0;
 				
 				check();
@@ -228,6 +240,7 @@ namespace wiselib {
 				in_transfer_interval_ = true;
 				resends_ = 0;
 				seen_parent_ = false;
+				beacons_sent_ = 0;
 				
 				schedule_transfer_interval_end();
 				
@@ -266,7 +279,7 @@ namespace wiselib {
 				
 				if(active) { radio_->enable_radio(); }
 				else {
-					radio_->disable_radio();
+					//radio_->disable_radio();
 				}
 				
 				check();
@@ -276,7 +289,7 @@ namespace wiselib {
 				//{{{
 				check();
 				
-				debug_->debug("@%lu on_receive_beacon s%lu ", (unsigned long)radio_->id(), (unsigned long)from);
+				debug_->debug("@%lu on_receive_beacon s%lu t%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)now());
 				abs_millis_t t_recv = now();
 				if(neighborhood_.classify(from) == NeighborhoodT::CLASS_PARENT) {
 					seen_parent_ = true;
@@ -292,7 +305,10 @@ namespace wiselib {
 				typename NeighborhoodT::iterator iter = neighborhood_.create_or_update_neighbor(from, lm);
 				iter->set_parent(msg.parent());
 				iter->set_root_distance(msg.root_distance());
-				iter->set_last_beacon_received(t_recv);
+				
+				if(msg.flags() & BeaconMessageT::FLAG_FIRST) {
+					iter->set_last_beacon_received(t_recv);
+				}
 				
 				// Update topology info
 				
@@ -490,19 +506,23 @@ namespace wiselib {
 					erase_se_from_beacon(current_beacon(), from, msg.semantic_entity_id(i));
 				} // for i
 				
+				/*
 				if(!beacon.has_targets(radio_->id())) {
-					sending_beacon_ = false;
-					ack_timeout_guard_++;
-					
-					check_beacon_request();
+					on_beacon_success();
 				}
+				*/
 				
 				#if INSE_ESTIMATE_RTT
 					// if this is not a resend, use it to estimate the RTT
 					if(beacon.delay() == 0) {
 						abs_millis_t delta = now() - beacon_sent_;
 						rtt_estimate_ = (1.0 - INSE_ESTIMATE_RTT_ALPHA) * rtt_estimate_ + INSE_ESTIMATE_RTT_ALPHA * delta;
-						debug_->debug("@%lu rtt s%lu d%lu e%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_estimate_);
+						debug_->debug("@%lu rtt t%lu F%lu d%lu e%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_estimate_);
+					}
+					else {
+						abs_millis_t delta = now() - beacon_sent_;
+						abs_millis_t rtt_e = (1.0 - INSE_ESTIMATE_RTT_ALPHA) * rtt_estimate_ + INSE_ESTIMATE_RTT_ALPHA * delta;
+						debug_->debug("@%lu !rtt t%lu F%lu d%lu e%lu D%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_e, (unsigned long)beacon.delay());
 					}
 				#endif // INSE_ESTIMATE_RTT
 				
@@ -523,6 +543,14 @@ namespace wiselib {
 				//}
 				
 				check();
+			}
+			
+			void on_beacon_success() {
+				beacons_sent_++;
+				sending_beacon_ = false;
+				ack_timeout_guard_++;
+				
+				check_beacon_request();
 			}
 			
 			void on_ack_timeout(void *guard) {
@@ -604,12 +632,14 @@ namespace wiselib {
 		///@name Beacon preparation & sending
 			
 			/**
-			 * Set up @a b with the semantic entity information in this node.
+			 * Set up @a b with the semantic entity information in this node (as 'first beacon').
 			 */
 			void fill_beacon(BeaconMessageT& b) {
 				check();
 				
 				debug_->debug("@%lu FILL BEACON c%d,%d", (unsigned long)radio_->id(), (int)neighborhood_.begin_semantic_entities()->second.prev_token_count(), (int)neighborhood_.begin_semantic_entities()->second.token_count());
+				
+				b.set_flags(BeaconMessageT::FLAG_FIRST);
 						
 				for(typename NeighborhoodT::semantic_entity_iterator iter = neighborhood_.begin_semantic_entities();
 						iter != neighborhood_.end_semantic_entities();
@@ -684,9 +714,7 @@ namespace wiselib {
 				
 				// if everything with a target was acked, stop resends
 				if(!beacon.has_targets(radio_->id())) {
-					sending_beacon_ = false;
-					ack_timeout_guard_++;
-					check_beacon_request();
+					on_beacon_success();
 				}
 			}
 			
@@ -717,9 +745,11 @@ namespace wiselib {
 				BeaconMessageT& b = current_beacon();
 				
 				if(!in_transfer_interval() && !neighborhood_.is_root()) {
-					debug_->debug("@%lu BEACON TOO LATE %lu t%lu", (unsigned long)radio_->id(),
+					debug_->debug("@%lu BEACON TOO LATE %lu t%lu ti%lu b%d", (unsigned long)radio_->id(),
 							(unsigned long)b.target(0),
-							(unsigned long)now());
+							(unsigned long)now(),
+							(unsigned long)transfer_interval_start_,
+							(int)beacons_sent_);
 					return;
 				}
 				
@@ -801,6 +831,8 @@ namespace wiselib {
 			//::uint8_t requesting_beacon_ : 1;
 			::uint8_t seen_parent_ : 1;
 			
+			/// Number of beacons successfully sent this transfer interval.
+			::uint8_t beacons_sent_;
 			abs_millis_t beacon_sent_;
 			abs_millis_t transfer_interval_start_;
 			
@@ -822,4 +854,6 @@ namespace wiselib {
 }
 
 #endif // TOKEN_SCHEDULER_H
+
+/* vim: set ts=4 sw=4 tw=0 noexpandtab :*/
 
