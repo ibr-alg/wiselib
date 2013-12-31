@@ -194,6 +194,8 @@ namespace wiselib {
 				assert(transfer_interval_start_phase_ < PERIOD);
 			}
 			
+		///@{
+		///@name Receiving Beacons & Acks
 			
 			void on_receive(node_id_t from, typename Radio::size_type size, block_data_t *data) {
 				check();
@@ -220,68 +222,6 @@ namespace wiselib {
 						on_receive_ack(*reinterpret_cast<BeaconAckMessageT*>(data), from, ex.link_metric());
 						break;
 				}
-				check();
-			}
-			
-			void on_transfer_interval_start(void* guard) {
-				check();
-				if((void*)transfer_interval_start_guard_ != guard) {
-					debug_->debug("@%lu TI! t%lu P%lu p%lu %p,%p", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)transfer_interval_start_phase_, (unsigned long)neighborhood_.parent_id(), guard, (void*)transfer_interval_start_guard_);
-					return;
-				}
-				
-				debug_->debug("@%lu TI< t%lu P%lu p%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)transfer_interval_start_phase_, (unsigned long)neighborhood_.parent_id());
-				
-				debug_->debug("@%lu on t%lu", (unsigned long)radio_->id(), (unsigned long)now());
-				
-				radio_->enable_radio();
-				
-				transfer_interval_start_ = now();
-				in_transfer_interval_ = true;
-				resends_ = 0;
-				seen_parent_ = false;
-				beacons_sent_ = 0;
-				
-				schedule_transfer_interval_end();
-				
-				timer_->template set_timer<self_type, &self_type::on_begin_sending>(WAKEUP_BEFORE_BEACON, this, 0);
-				
-				check();
-			}
-			
-			void on_begin_sending(void* ) {
-				clear_beacon(next_beacon());
-				
-				clear_beacon(current_beacon());
-				fill_beacon(current_beacon());
-				send_beacon();
-				if(!sending_beacon_) { check_beacon_request(); }
-				
-			}
-			
-			void on_transfer_interval_end(void* _) {
-				check();
-				
-				debug_->debug("@%lu TI> t%lu P%lu p%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)transfer_interval_start_phase_, (unsigned long)neighborhood_.parent_id());
-				
-				in_transfer_interval_ = false;
-				schedule_transfer_interval_start();
-				
-				if(!neighborhood_.is_root() && !seen_parent_) {
-					debug_->debug("@%lu NOPAR t%lu", (unsigned long)radio_->id(), (unsigned long)now());
-				}
-				
-				// Should we have the radio on this round or not?
-				bool active = neighborhood_.be_active() || !seen_parent_;
-				
-				debug_->debug("@%lu %s t%lu", (unsigned long)radio_->id(),
-						active ? "on" : "off", (unsigned long)now());
-				
-				if(active) { radio_->enable_radio(); }
-				else {
-					//radio_->disable_radio();
-				}
-				
 				check();
 			}
 			
@@ -488,6 +428,14 @@ namespace wiselib {
 				//}}}
 			}
 			
+			void on_beacon_success() {
+				beacons_sent_++;
+				sending_beacon_ = false;
+				ack_timeout_guard_++;
+				
+				check_beacon_request();
+			}
+			
 			void on_receive_ack(BeaconAckMessageT& msg, node_id_t from, link_metric_t lm) {
 				check();
 				
@@ -545,12 +493,70 @@ namespace wiselib {
 				check();
 			}
 			
-			void on_beacon_success() {
-				beacons_sent_++;
-				sending_beacon_ = false;
-				ack_timeout_guard_++;
+		///@}
+		
+		///@{
+		///@name Timing Events
+		
+			void on_transfer_interval_start(void* guard) {
+				check();
+				if((void*)transfer_interval_start_guard_ != guard) {
+					debug_->debug("@%lu TI! t%lu P%lu p%lu %p,%p", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)transfer_interval_start_phase_, (unsigned long)neighborhood_.parent_id(), guard, (void*)transfer_interval_start_guard_);
+					return;
+				}
 				
-				check_beacon_request();
+				debug_->debug("@%lu TI< t%lu P%lu p%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)transfer_interval_start_phase_, (unsigned long)neighborhood_.parent_id());
+				
+				debug_->debug("@%lu on t%lu", (unsigned long)radio_->id(), (unsigned long)now());
+				
+				radio_->enable_radio();
+				
+				transfer_interval_start_ = now();
+				in_transfer_interval_ = true;
+				resends_ = 0;
+				seen_parent_ = false;
+				beacons_sent_ = 0;
+				
+				schedule_transfer_interval_end();
+				
+				timer_->template set_timer<self_type, &self_type::on_begin_sending>(WAKEUP_BEFORE_BEACON, this, 0);
+				
+				check();
+			}
+			
+			void on_begin_sending(void* ) {
+				clear_beacon(next_beacon());
+				
+				clear_beacon(current_beacon());
+				fill_beacon(current_beacon());
+				send_beacon();
+				if(!sending_beacon_) { check_beacon_request(); }
+			}
+			
+			void on_transfer_interval_end(void* _) {
+				check();
+				
+				debug_->debug("@%lu TI> t%lu P%lu p%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)transfer_interval_start_phase_, (unsigned long)neighborhood_.parent_id());
+				
+				in_transfer_interval_ = false;
+				schedule_transfer_interval_start();
+				
+				if(!neighborhood_.is_root() && !seen_parent_) {
+					debug_->debug("@%lu NOPAR t%lu", (unsigned long)radio_->id(), (unsigned long)now());
+				}
+				
+				// Should we have the radio on this round or not?
+				bool active = neighborhood_.be_active() || !seen_parent_;
+				
+				debug_->debug("@%lu %s t%lu", (unsigned long)radio_->id(),
+						active ? "on" : "off", (unsigned long)now());
+				
+				if(active) { radio_->enable_radio(); }
+				else {
+					//radio_->disable_radio();
+				}
+				
+				check();
 			}
 			
 			void on_ack_timeout(void *guard) {
@@ -571,6 +577,8 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ack_timeout(), this, (void*)ack_timeout_guard_);
 				check();
 			}
+			
+		///@}
 			
 			abs_millis_t ack_timeout() {
 				#if INSE_ESTIMATE_RTT
@@ -732,7 +740,6 @@ namespace wiselib {
 					clear_beacon(next_beacon());
 					send_beacon();
 				}
-				
 			}
 			
 			/**
@@ -828,7 +835,6 @@ namespace wiselib {
 			::uint8_t current_beacon_ : 1;
 			::uint8_t in_transfer_interval_ : 1;
 			::uint8_t sending_beacon_ : 1;
-			//::uint8_t requesting_beacon_ : 1;
 			::uint8_t seen_parent_ : 1;
 			
 			/// Number of beacons successfully sent this transfer interval.
@@ -855,5 +861,5 @@ namespace wiselib {
 
 #endif // TOKEN_SCHEDULER_H
 
-/* vim: set ts=4 sw=4 tw=0 noexpandtab :*/
+/* vim: set ts=4 sw=4 tw=0 noexpandtab fdm=indent fdl=3 :*/
 
