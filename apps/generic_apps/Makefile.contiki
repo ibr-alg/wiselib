@@ -59,14 +59,15 @@ contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
 		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_com_uart.cpp
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_byte_uart.o \
 		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_byte_com_uart.cpp
-	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_sky_button_listener.o \
-		-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_sky_button_listener.cpp
+	#msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_sky_button_listener.o \
+		#-c $(WISELIB_PATH_TESTING)/external_interface/contiki/contiki_sky_button_listener.cpp
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/$(BIN_OUT).o -c ./$(APP_SRC)
 	@echo "linking..."
 	msp430-g++ $(OUTPUT)/$(BIN_OUT).o $(LDFLAGS) -o $(OUTPUT)/$(BIN_OUT).elf  \
 		$(OUTPUT)/contiki_os.o $(OUTPUT)/contiki_timer.o $(OUTPUT)/contiki_radio.o \
 		$(OUTPUT)/contiki_ext_radio.o $(OUTPUT)/contiki_uart.o $(OUTPUT)/contiki_byte_uart.o \
-		$(OUTPUT)/contiki_sky_button_listener.o $(ADD_LDFLAGS)
+	   	$(ADD_LDFLAGS)
+		#$(OUTPUT)/contiki_sky_button_listener.o 
 	cp $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).exe
 	@echo "make hex..."
 	msp430-objcopy -O ihex $(OUTPUT)/$(BIN_OUT).elf $(OUTPUT)/$(BIN_OUT).hex

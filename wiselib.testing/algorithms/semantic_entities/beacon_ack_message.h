@@ -74,6 +74,7 @@ namespace wiselib {
 			
 			BeaconAckMessage() {
 				set_message_type(INSE_MESSAGE_TYPE_BEACON_ACK);
+				set_semantic_entities(0);
 			}
 			
 			::uint8_t message_type() { return rd< ::uint8_t>(POS_MESSAGE_TYPE); }

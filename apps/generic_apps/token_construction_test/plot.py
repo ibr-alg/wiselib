@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pylab import setp
+import math
 
 import re
 import io
@@ -11,8 +12,9 @@ from matplotlib import rc
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
 
+import pydot
 
-tmax = 300000
+tmax = 3000000
 
 
 
@@ -52,6 +54,7 @@ re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) 
 re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+).*')
 re_rtt = re.compile(r'@([0-9]+) rtt t([0-9]+) F([0-9]+) d([0-9]+) e([0-9]+).*')
 re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) c([0-9]+) t([0-9]+).*')
+re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
 
 #re_tok = re.compile(r'@([0-9]+) tok ([v^]) F([0-9]+)
 
@@ -122,18 +125,20 @@ def parse(f):
 				nodes[name]['delay'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['delay']['t'] = np.append(nodes[name]['delay']['t'], t_)
 			nodes[name]['delay']['v'] = np.append(nodes[name]['delay']['v'], int(d) // 1000)
+			continue
 			
 		m = re.match(re_ti, line)
 		if m is not None:
 			nodename, t_, P, p = m.groups()
 			name = nodename
 			t_ = int(t_) // 1000
-			P = int(P) // 1000
+			P = int(P) #// 1000
 			if name not in nodes: nodes[name] = {}
 			if 'phase' not in nodes[name]:
 				nodes[name]['phase'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['phase']['t'] = np.append(nodes[name]['phase']['t'], t_)
 			nodes[name]['phase']['v'] = np.append(nodes[name]['phase']['v'], int(P))
+			continue
 
 		m = re.match(re_rtt, line)
 		if m is not None:
@@ -145,6 +150,7 @@ def parse(f):
 				nodes[name]['rtt'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['rtt']['t'] = np.append(nodes[name]['rtt']['t'], t_)
 			nodes[name]['rtt']['v'] = np.append(nodes[name]['rtt']['v'], int(e))
+			continue
 			
 		m = re.match(re_beacon, line)
 		if m is not None:
@@ -156,17 +162,24 @@ def parse(f):
 				nodes[name]['beacon'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 			nodes[name]['beacon']['t'] = np.append(nodes[name]['beacon']['t'], t_)
 			nodes[name]['beacon']['v'] = np.append(nodes[name]['beacon']['v'], 1)
+			continue
+			
+		m = re.match(re_parent, line)
+		if m is not None:
+			nodename, parent = m.groups()
+			parents[nodename] = parent
+			continue
 		
 		# which node is this line about?
 		
-		if 'node' not in line: continue
+		#if 'node' not in line: continue
 		
-		kv = dict(re.findall(re_kv, line))
+		#kv = dict(re.findall(re_kv, line))
 		
-		name = nodename = get_value('node')
-		if name is None:
-			print ("[!!!] nodename is none in line: " + origline)
-			continue
+		#name = nodename = get_value('node')
+		#if name is None:
+			#print ("[!!!] nodename is none in line: " + origline)
+			#continue
 		
 		try: t = int(get_value('t')) / 1000
 		except: pass
@@ -182,53 +195,53 @@ def parse(f):
 		
 		# is it also about a SE?
 		
-		se = get_value('SE')
-		if se is not None: name += ':' + se.rstrip('.')
-		if name not in nodes: nodes[name] = {}
+		#se = get_value('SE')
+		#if se is not None: name += ':' + se.rstrip('.')
+		#if name not in nodes: nodes[name] = {}
 		
 		# update nhood
-		neighbor = get_value('neighbor')
-		if neighbor is not None:
-			nhood.add((nodename, neighbor))
+		#neighbor = get_value('neighbor')
+		#if neighbor is not None:
+			#nhood.add((nodename, neighbor))
 		
 		# update SE graph
 		
-		parent = get_value('parent')
-		if parent is not None and se is not None:
-			if se not in parents:
-				parents[se] = {}
-			parents[se][nodename] = parent
+		#parent = get_value('parent')
+		#if parent is not None and se is not None:
+			#if se not in parents:
+				#parents[se] = {}
+			#parents[se][nodename] = parent
 			
 		# forwards
 		
-		fwd_window = get_value('fwd_window')
-		if fwd_window is not None:
-			fwd_interval = get_value('fwd_interval')
-			fwd_from = get_value('fwd_from')
-			if 'forward' not in nodes[name]: nodes[name]['forward'] = {}
-			if fwd_from not in nodes[name]['forward']: nodes[name]['forward'][fwd_from] = { 't': np.array((),dtype=np.int32), 'window': np.array((),
-				dtype=np.int32), 'interval': np.array((), dtype=np.int32)}
-			nodes[name]['forward'][fwd_from]['t'] = np.append(nodes[name]['forward'][fwd_from]['t'], t)
-			nodes[name]['forward'][fwd_from]['window'] = np.append(nodes[name]['forward'][fwd_from]['window'], int(fwd_window))
-			nodes[name]['forward'][fwd_from]['interval'] = np.append(nodes[name]['forward'][fwd_from]['interval'], int(fwd_interval))
+		#fwd_window = get_value('fwd_window')
+		#if fwd_window is not None:
+			#fwd_interval = get_value('fwd_interval')
+			#fwd_from = get_value('fwd_from')
+			#if 'forward' not in nodes[name]: nodes[name]['forward'] = {}
+			#if fwd_from not in nodes[name]['forward']: nodes[name]['forward'][fwd_from] = { 't': np.array((),dtype=np.int32), 'window': np.array((),
+				#dtype=np.int32), 'interval': np.array((), dtype=np.int32)}
+			#nodes[name]['forward'][fwd_from]['t'] = np.append(nodes[name]['forward'][fwd_from]['t'], t)
+			#nodes[name]['forward'][fwd_from]['window'] = np.append(nodes[name]['forward'][fwd_from]['window'], int(fwd_window))
+			#nodes[name]['forward'][fwd_from]['interval'] = np.append(nodes[name]['forward'][fwd_from]['interval'], int(fwd_interval))
 		
-		# track other properties
+		## track other properties
 		
-		for k in properties:
-			v = get_value(k)
-			if v is not None:
-				if k not in nodes[name]: nodes[name][k] = {'t': np.array((),
-					dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+		#for k in properties:
+			#v = get_value(k)
+			#if v is not None:
+				#if k not in nodes[name]: nodes[name][k] = {'t': np.array((),
+					#dtype=np.int32), 'v': np.array((), dtype=np.int32)}
 				
-				#try:
-					#t = float(get_value('t')) / 1000.0
-				#except: pass
+				##try:
+					##t = float(get_value('t')) / 1000.0
+				##except: pass
 				
-				try: int(v)
-				except ValueError: pass
-				else:
-					nodes[name][k]['t'] = np.append(nodes[name][k]['t'], t)
-					nodes[name][k]['v'] = np.append(nodes[name][k]['v'], int(v))
+				#try: int(v)
+				#except ValueError: pass
+				#else:
+					#nodes[name][k]['t'] = np.append(nodes[name][k]['t'], t)
+					#nodes[name][k]['v'] = np.append(nodes[name][k]['v'], int(v))
 
 def fig_count_onegraph(namepattern = '.*'):
 	# {{{
@@ -398,16 +411,22 @@ def fig_phases():
 	global gnodes
 	nodes = gnodes
 	fig = plt.figure() #figsize=(16, 40))
-	ax = plt.subplot(111)
+	ax = plt.subplot(111, polar=True)
 	#ax.set_xlim((5000, 30000))
 	#ax.set_ylim((250000, 350000))
 	#ax.set_ylim((270, 400))
 	
+	PERIOD = 20000.0
+	F = 2.0 * math.pi / PERIOD
+	
 	for name, node in sorted(nodes.items(), cmp=namesort):
-		if 'phase' in node and name in ('0','1', '2', '3'):
+		if 'phase' in node:# and name in ('0','1', '2', '3'):
+			#print("---------- PHASES ----------")
 			#print (node['phase'])
-			r, = ax.plot(node['phase']['t'], node['phase']['v'], label=name,
-					drawstyle='steps-post')
+			#r, = ax.plot(node['phase']['t'], node['phase']['v'], label=name,
+					#drawstyle='steps-post')
+			r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], '-', label=name)
+					#drawstyle='steps-post')
 		
 	#ax.legend()
 	fig.savefig('phases.pdf')
@@ -578,7 +597,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
 	#last_ax.set_xlim((-1, tmax))
-	#last_ax.set_xlim((4500, 5500))
+	#last_ax.set_xlim((1500, 2500))
 	#last_ax.set_xlim((23000, 30000))
 	
 	setp(last_ax.get_xticklabels(), visible = True)
@@ -590,16 +609,26 @@ def fig_duty_cycle(namepattern = '.*'):
 	#plt.show()
 
 
+def fig_tree():
+	global parents
+	graph = pydot.Dot(graph_type='digraph')
+	for k, v in parents.items():
+		e = pydot.Edge(k, v)
+		graph.add_edge(e)
+	graph.write_pdf('tree.pdf')
+
 print("parsing data...")
 #parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log_office.txt', 'r'))
 parse(open('log.txt', 'r'))
 
-for k, v in parents.items():
-	print(k + ":")
-	for src, tgt in v.items():
-		print ("  " + src + " -> " + tgt)
+#for k, v in parents.items():
+	#print(k + ":")
+	#for src, tgt in v.items():
+		#print ("  " + src + " -> " + tgt)
 
-print nhood
+
+print("tree graph...")
+fig_tree()
 
 print("rtts graph...")
 fig_rtts()

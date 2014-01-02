@@ -54,6 +54,7 @@ namespace wiselib {
 			typedef typename Radio::node_id_t node_id_t;
 			typedef Debug_P Debug;
 			typedef Clock_P Clock;
+			typedef typename Clock::time_t time_t;
 			
 			typedef SemanticEntity<OsModel> SemanticEntityT;
 			typedef ::uint32_t abs_millis_t;
@@ -88,6 +89,11 @@ namespace wiselib {
 				CLASS_CHILD = 1,
 				CLASS_PARENT = 2,
 				CLASS_SHORTCUT = 3
+			};
+			
+			enum {
+				LM_THRESHOLD_LOW = 100,
+				LM_THRESHOLD_HIGH = 200
 			};
 			
 			class NeighborEntity {
@@ -200,11 +206,20 @@ namespace wiselib {
 						}
 					}
 					
+					link_metric_t link_metric() { return link_metric_; }
+					void set_link_metric(link_metric_t x) { link_metric_ = x; }
+					
+					void update_link_metric(link_metric_t x) {
+						link_metric_ = 0.8 * link_metric_ + 0.2 * x;
+					}
+					
+					
 				private:
 					list_dynamic<OsModel, NeighborEntity> entities_;
 					node_id_t id_;
 					abs_millis_t last_beacon_received_;
 					node_id_t parent_;
+					link_metric_t link_metric_;
 					::uint8_t root_distance_;
 			};
 			
@@ -291,9 +306,20 @@ namespace wiselib {
 			iterator create_or_update_neighbor(node_id_t id, link_metric_t lm) {
 				iterator r = find_neighbor(id);
 				if(r == end()) {
-					r = neighbors_.insert(id, lm);
+					if(lm > LM_THRESHOLD_HIGH) {
+						r = neighbors_.insert(id, lm);
+						return r;
+					}
+					return end();
 				}
-				return r;
+				else {
+					r->update_link_metric(lm);
+					if(r->link_metric() < LM_THRESHOLD_LOW) {
+						neighbors_.erase(r);
+						return end();
+					}
+					return r;
+				}
 			}
 				
 			
@@ -342,179 +368,6 @@ namespace wiselib {
 			SemanticEntityT& get_semantic_entity(SemanticEntityId se_id) { return semantic_entities_[se_id]; }
 			
 		///@}
-			
-#if 0
-			/**
-			 * @param[in] msg Message containing the received beacon.
-			 * @param[in] source Source that sent the beacon.
-			 * @param[in] t_recv time the beacon was received.
-			 * @param[in] lm link metric when receiving the beacon.
-			 * @param[out] fwd new messages with parts of @a msg that need to
-			 * be forwarded to neighboring nodes.
-			 * @return true iff parts where added to or altered in @a fwd.
-			 */
-			template<typename BeaconMessageT>
-			bool update_from_beacon(BeaconMessageT& msg, node_id_t source, abs_millis_t t_recv, link_metric_t lm, BeaconMessageT& fwd) {
-				check();
-				
-				bool r = false;
-				
-				iterator iter( find_neighbor(source) );
-				if(iter == end()) {
-					Neighbor n(source);
-					iter = neighbors_.insert(n, lm);
-				}
-				
-				iter->set_parent(msg.parent());
-				iter->set_root_distance(msg.root_distance());
-				iter->set_last_beacon_received(t_recv);
-				update_tree_state();
-				
-				iter->outdate_semantic_entities();
-				
-				// Go through all SEs the neighbor '*iter' reported in this beacon.
-				
-				debug_->debug("@%lu recv beacon with %d SEs", (unsigned long)radio_->id(), (int)msg.semantic_entities());
-				for(size_type i = 0; i<msg.semantic_entities(); i++) {
-					node_id_t target = msg.target(i);
-					SemanticEntityId se_id = msg.semantic_entity_id(i);
-					::uint8_t token_count = msg.token_count(i);
-					NeighborEntity &ne = iter->find_or_create_semantic_entity(se_id);
-					
-					assert(msg.semantic_entity_state(i) != SemanticEntityT::UNAFFECTED);
-					ne.set_semantic_entity_state(msg.semantic_entity_state(i));
-					
-					debug_->debug("@%lu beacon %d src %lu cls %d nxt %lu tgt %lu S%lx.%lx c%d st %d",
-							(unsigned long)radio_->id(),
-							(int)i,
-							(unsigned long)source,
-							(int)classify(source),
-							(unsigned long)next_child(se_id, source),
-							(unsigned long)target,
-							(unsigned long)se_id.rule(),
-							(unsigned long)se_id.value(),
-							(int)token_count,
-							(int)msg.semantic_entity_state(i));
-					
-					// Mark info as fresh, so we know, neigh still has this SE
-					ne.refresh();
-					
-					
-					if(target == radio_->id()) {
-						// Token data for us from our predecessor
-						
-						// TODO: Handle the case were we have not actually
-						// joined this SE (but eg. a child sending token info
-						// to us has)!
-						
-						// Should we forward the SE info with the next beacon
-						// wave or is it for us to process?
-						
-						if(classify(source) == CLASS_CHILD) {
-							node_id_t n = next_child(se_id, source);
-							if(n == NULL_NODE_ID) {
-								// TODO: See if we can clear unnecessary
-								// forward-between-child messages!
-								
-								// msg came from our last child, accept it!
-								process_token(se_id, source, token_count);
-							}
-							else {
-								//   See whether the SE is already there...
-								//   what then?
-								//   
-								//   Say everybody is in the same SE and we
-								//   have 100 childs that want to communicate
-								//   to the next in the ring at the same time
-								//   
-								//   (a) only forward (all) parts that will
-								//       activate. Problem: Our info might be
-								//       just one round out of date!
-								//       
-								//   (b) send multiple beacons if necessary
-								//   
-								//   (c) only forward the highest token count
-								//       (if multiple, highest node-id)
-								//       -> only works if the scheduling is
-								//       already stable!
-								//       
-								//   (c') as in (c), but when childs see a
-								//        beacon for a higher sibling, they
-								//        silently switch their token-count to
-								//        that value.
-								//        
-								//   ---> We go for c' here.
-								
-								size_type p = fwd.find_semantic_entity(se_id);
-								if(p == npos) {
-									// SE is not yet to be forwarded, add it
-									// to the message!
-									
-									fwd.add_semantic_entity_from(msg, i);
-									debug_->debug("@%lu FWD to %lu c=%d", (unsigned long)radio_->id(),
-											(unsigned long)next_hop(se_id, source), (int)token_count);
-									fwd.set_target(i, next_hop(se_id, source));
-									r = true;
-								}
-								else if(
-										(token_count > fwd.token_count(p)) ||
-										(token_count == fwd.token_count(p) && (next_hop(se_id, source) > fwd.target(p)))
-								) {
-									// A higher token count or a logically
-									// "later" child with the same token count
-									// was seen, update accordingly
-									
-									debug_->debug("@%lu FWD override to %lu c=%d", (unsigned long)radio_->id(),
-											(unsigned long)next_hop(se_id, source), (int)token_count);
-									fwd.set_token_count(p, token_count);
-									fwd.set_target(i, next_hop(se_id, source));
-									r = true;
-								}
-								else debug_->debug("@%lu FWD: nope tc %d tgt %lu fwd.tc=%d fwd.tgt=%lu", (unsigned long)radio_->id(), (int)token_count, (unsigned long)target, (int)fwd.token_count(p), (unsigned long)fwd.target(p));
-							}
-						}
-						else if(source == parent_id()) {
-							process_token(se_id, source, token_count);
-						}
-					} // if for us
-					
-					else if(source == parent_id()) {
-						// This is a bcast from our parent but not for us, it
-						// is either meant for a sibling of ours or our
-						// grandparent.  If it is for a higher (=later in the
-						// logical ring) sibling and the token count is
-						// higher, process the token here as well.
-						// 
-						// This way our parent only needs to forward the
-						// rightmost of highest token counts to its successor
-						// sibling, as all lower ones will auto-adjust.
-						
-						SemanticEntityT &se = semantic_entities_[se_id];
-						if(
-								msg.semantic_entity_flags(i) & BeaconMessageT::FLAG_DOWN &&
-								target > radio_->id() &&
-								token_count > se.token_count()
-						) {
-							debug_->debug("@%lu adj F%lu T%lu c%d", (unsigned long)radio_->id(),
-									(unsigned long)source, (unsigned long)target, (int)token_count);
-							se.set_source(source);
-							se.set_prev_token_count(token_count);
-							se.set_token_count(token_count);
-							
-							// TODO: consider this se as acked in the current
-							// broadcast (needs a little refactoring though)
-						}
-					} // if source == parent_id
-					
-				} // for SEs in msg
-				
-				// Erase all SEs the neighbor has not reported in this beacon
-				iter->erase_outdated_semantic_entities();
-				
-				check();
-				return r;
-			}
-#endif
 			
 			void process_token(SemanticEntityId se_id, node_id_t source, ::uint8_t token_count) {
 				SemanticEntityT &se = semantic_entities_[se_id];
@@ -713,6 +566,11 @@ namespace wiselib {
 					// if source == radio_->id() (initial case), this will try
 					// to search the next child to radio_->id().
 					// Since the root id is 0, this will be the first child.
+					
+					if(source == radio_->id()) {
+						return first_child(id);
+					}
+					
 					node_id_t nxt = next_child(id, source);
 					if(nxt == NULL_NODE_ID) {
 						debug_->debug("@%lu next_hop last child", (unsigned long)radio_->id());

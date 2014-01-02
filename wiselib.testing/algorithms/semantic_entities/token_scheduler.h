@@ -113,7 +113,8 @@ namespace wiselib {
 			
 			enum {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
-				NULL_NODE_ID = Radio::NULL_NODE_ID
+				NULL_NODE_ID = Radio::NULL_NODE_ID,
+				ROOT_NODE_ID = INSE_ROOT_NODE_ID
 			};
 			
 			enum {
@@ -153,7 +154,11 @@ namespace wiselib {
 				debug_ = debug;
 				
 				#if INSE_ESTIMATE_RTT
-					rtt_estimate_ = 2000;
+					#if defined(SHAWN)
+						rtt_estimate_ = 2000;
+					#elif defined(CONTIKI)
+						rtt_estimate_ = 700;
+					#endif
 				#endif
 				
 				neighborhood_.init(radio_, debug_, clock_);
@@ -197,6 +202,8 @@ namespace wiselib {
 		///@{
 		///@name Receiving Beacons & Acks
 			
+		#if defined(SHAWN)
+			/*
 			void on_receive(node_id_t from, typename Radio::size_type size, block_data_t *data) {
 				check();
 				switch(data[0]) {
@@ -210,8 +217,10 @@ namespace wiselib {
 				}
 				check();
 			}
+			*/
+		#endif
 			
-			void on_receive(node_id_t from, typename Radio::size_type size, block_data_t *data, typename Radio::ExtendedData& ex) {
+			void on_receive(node_id_t from, typename Radio::size_type size, block_data_t *data, const typename Radio::ExtendedData& ex) {
 				check();
 				switch(data[0]) {
 					case INSE_MESSAGE_TYPE_BEACON: 
@@ -229,7 +238,14 @@ namespace wiselib {
 				//{{{
 				check();
 				
-				debug_->debug("@%lu on_receive_beacon s%lu t%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)now());
+				debug_->debug("@%lu on_receive_beacon s%lu t%lu l%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)now(), (unsigned long)lm);
+				typename NeighborhoodT::iterator iter = neighborhood_.create_or_update_neighbor(from, lm);
+				if(iter == neighborhood_.end()) {
+					neighborhood_.update_tree_state();
+					return;
+				}
+				
+				
 				abs_millis_t t_recv = now();
 				if(neighborhood_.classify(from) == NeighborhoodT::CLASS_PARENT) {
 					seen_parent_ = true;
@@ -242,7 +258,6 @@ namespace wiselib {
 				
 				// Find or create neighbor entry for this beacon
 				
-				typename NeighborhoodT::iterator iter = neighborhood_.create_or_update_neighbor(from, lm);
 				iter->set_parent(msg.parent());
 				iter->set_root_distance(msg.root_distance());
 				
@@ -405,24 +420,7 @@ namespace wiselib {
 					schedule_transfer_interval_start();
 				}
 				
-				/*
-				if(fwd.semantic_entities()) {
-					// TODO: Add a timeout here to collect some child beacons
-					// before sending our own
-					if(sending_beacon()) {
-				debug_->debug("@%lu REQUEST BEACON %lu", (unsigned long)radio_->id());
-						requesting_beacon_ = true;
-					}
-					else {
-				debug_->debug("@%lu NEW BEACON %lu", (unsigned long)radio_->id());
-						swap_beacons();
-						clear_beacon(next_beacon());
-						sending_beacon();
-					}
-				}
-				*/
 				check_beacon_request();
-				
 				
 				check();
 				//}}}
@@ -430,6 +428,7 @@ namespace wiselib {
 			
 			void on_beacon_success() {
 				beacons_sent_++;
+				beacon_sent_ = 0;
 				sending_beacon_ = false;
 				ack_timeout_guard_++;
 				
@@ -446,20 +445,6 @@ namespace wiselib {
 					return;
 				}
 				
-				// Go through the list of SEs that were ack'ed with this
-				// message and remove them from our held copy of the beacon
-				
-				for(size_type i = 0; i < msg.semantic_entities(); i++) {
-					assert(msg.flags(i) & BeaconAckMessageT::FLAG_ACK);
-					erase_se_from_beacon(current_beacon(), from, msg.semantic_entity_id(i));
-				} // for i
-				
-				/*
-				if(!beacon.has_targets(radio_->id())) {
-					on_beacon_success();
-				}
-				*/
-				
 				#if INSE_ESTIMATE_RTT
 					// if this is not a resend, use it to estimate the RTT
 					if(beacon.delay() == 0) {
@@ -474,21 +459,13 @@ namespace wiselib {
 					}
 				#endif // INSE_ESTIMATE_RTT
 				
-				// if everything with a target was acked, stop resends
-				//if(!beacon.has_targets()) {
-					
-					//debug_->debug("@%lu ---- DELIVERED BEACON", (unsigned long)radio_->id());
-					
-					//// Beacon successfully sent
-					
-					//sending_beacon_ = false;
-					//ack_timeout_guard_++;
-					//if(requesting_beacon_) {
-						//swap_beacons();
-						//clear_beacon(next_beacon());
-						//send_beacon();
-					//}
-				//}
+				// Go through the list of SEs that were ack'ed with this
+				// message and remove them from our held copy of the beacon
+				
+				for(size_type i = 0; i < msg.semantic_entities(); i++) {
+					assert(msg.flags(i) & BeaconAckMessageT::FLAG_ACK);
+					erase_se_from_beacon(current_beacon(), from, msg.semantic_entity_id(i));
+				} // for i
 				
 				check();
 			}
@@ -570,7 +547,9 @@ namespace wiselib {
 				resends_++;
 				
 				BeaconMessageT &b = current_beacon();
-				b.set_delay(now() - beacon_sent_);
+				abs_millis_t t = now();
+				b.set_delay(t - beacon_sent_);
+				beacon_sent_ = t;
 				
 				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());
 				
@@ -601,7 +580,9 @@ namespace wiselib {
 				
 				if(!neighborhood_.is_root() && neighborhood_.is_connected()) {
 					#if INSE_ESTIMATE_RTT
-						transfer_interval_start_phase_ = (neighborhood_.parent().last_beacon_received() - WAKEUP_BEFORE_BEACON - rtt_estimate_ / 2) % PERIOD;
+						transfer_interval_start_phase_ =
+							0.75 * transfer_interval_start_phase_
+							+ 0.25 * ((neighborhood_.parent().last_beacon_received() - WAKEUP_BEFORE_BEACON - rtt_estimate_ / 2) % PERIOD);
 					#else
 						transfer_interval_start_phase_ = (neighborhood_.parent().last_beacon_received() - WAKEUP_BEFORE_BEACON) % PERIOD;
 					#endif
@@ -795,6 +776,7 @@ namespace wiselib {
 				
 				BeaconAckMessageT ackmsg;
 				ackmsg.set_sequence_number(msg.sequence_number());
+				ackmsg.set_semantic_entities(0);
 				
 				size_type ses = msg.semantic_entities();
 				for(size_type i = 0; i < ses; i++) {
