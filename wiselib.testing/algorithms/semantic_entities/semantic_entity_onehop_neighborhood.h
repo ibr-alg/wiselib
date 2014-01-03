@@ -91,10 +91,17 @@ namespace wiselib {
 				CLASS_SHORTCUT = 3
 			};
 			
+		#if defined(SHAWN)
+			enum {
+				LM_THRESHOLD_LOW = 0,
+				LM_THRESHOLD_HIGH = 0
+			};
+		#else // Contiki/Sky
 			enum {
 				LM_THRESHOLD_LOW = 100,
 				LM_THRESHOLD_HIGH = 200
 			};
+		#endif
 			
 			class NeighborEntity {
 				public:
@@ -306,7 +313,7 @@ namespace wiselib {
 			iterator create_or_update_neighbor(node_id_t id, link_metric_t lm) {
 				iterator r = find_neighbor(id);
 				if(r == end()) {
-					if(lm > LM_THRESHOLD_HIGH) {
+					if(lm >= LM_THRESHOLD_HIGH) {
 						r = neighbors_.insert(id, lm);
 						return r;
 					}

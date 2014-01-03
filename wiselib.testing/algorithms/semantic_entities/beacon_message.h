@@ -53,6 +53,7 @@ namespace wiselib {
 			enum { NULL_NODE_ID = Radio::NULL_NODE_ID };
 			typedef ::uint16_t sequence_number_t;
 			typedef ::uint16_t delay_t;
+			typedef ::uint32_t abs_millis_t;
 			
 			typedef SemanticEntity_P SemanticEntityT;
 			
@@ -79,6 +80,13 @@ namespace wiselib {
 				SEPOS_END = SEPOS_FLAGS + sizeof(::uint8_t),
 			};
 			
+			enum {
+				RTTPOS_NODE = 0,
+				RTTPOS_SEQUENCE_NUMBER = RTTPOS_NODE + sizeof(node_id_t),
+				RTTPOS_DELTA = RTTPOS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
+				RTTPOS_END = RTTPOS_DELTA + sizeof(abs_millis_t)
+			};
+			
 			enum Flags {
 				FLAG_FIRST = 0x01
 			};
@@ -98,6 +106,7 @@ namespace wiselib {
 				set_sequence_number(-1);
 				set_root_distance(-1);
 				set_semantic_entities(0);
+				set_rtt_infos(0);
 				set_parent(NULL_NODE_ID);
 				set_delay(0);
 				set_flags(0);
@@ -122,33 +131,15 @@ namespace wiselib {
 			void set_flags(::uint8_t f) { wr< ::uint8_t>(POS_FLAGS, f); }
 			
 			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
-			void set_semantic_entities(::uint8_t n) { wr(POS_SES, n); }
-			
-			
-			/*
-			void add_semantic_entity(SemanticEntityT& se, ::uint8_t flags, node_id_t target = NULL_NODE_ID) {
-				::uint8_t s = semantic_entities();
-				
-				assert((s + 1) < max_semantic_entities());
-				
-				wrse(s, SEPOS_ID, (SemanticEntityId)se.id());
-				wrse(s, SEPOS_DISTANCE_FIRST, (::uint8_t)se.distance_first());
-				wrse(s, SEPOS_DISTANCE_LAST, (::uint8_t)se.distance_last());
-				wrse< ::uint8_t>(s, SEPOS_TOKEN_COUNT,
-						(flags & (FLAG_UP | FLAG_ROOT)) ? se.token_count() : se.prev_token_count()
-				);
-				wrse(s, SEPOS_TRANSFER_INTERVAL, (::uint8_t)se.transfer_interval());
-				wrse(s, SEPOS_TARGET, (node_id_t)target);
-				wrse< ::uint8_t>(s, SEPOS_FLAGS, (se.state() & 0x03) | flags);
-				
-				assert(semantic_entity_state(s) == se.state());
-				
-				set_semantic_entities(s + 1);
+			void set_semantic_entities(::uint8_t n) {
+				wr(POS_SES, n);
+				set_rtt_infos(0);
 			}
-			*/
+			
 			::uint8_t add_semantic_entity() {
 				::uint8_t s = semantic_entities();
 				assert((s + 1) < max_semantic_entities());
+				assert(rtt_infos() == 0);
 				set_semantic_entities(s + 1);
 				return s;
 			}
@@ -164,6 +155,8 @@ namespace wiselib {
 			
 			::uint8_t add_semantic_entity_from(self_type& other, ::uint8_t s_other) {
 				::uint8_t s = semantic_entities();
+				
+				assert(size() + SEPOS_END <= Radio::MAX_MESSAGE_LENGTH);
 				
 				assert((s + 1) < max_semantic_entities());
 				assert(s_other < max_semantic_entities());
@@ -216,7 +209,31 @@ namespace wiselib {
 			::uint8_t semantic_entity_flags(::uint8_t s) { return rdse< ::uint8_t>(s, SEPOS_FLAGS); }
 			void set_semantic_entity_flags(::uint8_t s, ::uint8_t c) { wrse< ::uint8_t>(s, SEPOS_FLAGS, c); }
 			
-			size_type size() { return semantic_entities() * SEPOS_END + POS_SES_START; }
+			size_type rtt_infos_start() { return semantic_entities() * SEPOS_END + POS_SES_START; }
+
+			::uint8_t rtt_infos() { return rd< ::uint8_t>(rtt_infos_start()); }
+			void set_rtt_infos(::uint8_t x) { wr< ::uint8_t>(rtt_infos_start(), x); }
+			
+			void add_rtt_info(node_id_t node, sequence_number_t seqnr, abs_millis_t delta) {
+				assert(size() + RTTPOS_END <= Radio::MAX_MESSAGE_LENGTH);
+
+				::uint8_t x = rtt_infos();
+				set_rtt_node(x, node);
+				set_rtt_sequence_number(x, seqnr);
+				set_rtt_delta(x, delta);
+				set_rtt_infos(x + 1);
+			}
+
+			node_id_t rtt_node(::uint8_t x) { return rdrtt<node_id_t>(x, RTTPOS_NODE); }
+			void set_rtt_node(::uint8_t x, node_id_t n) { wrrtt<node_id_t>(x, RTTPOS_NODE, n); }
+
+			sequence_number_t rtt_sequence_number(::uint8_t x) { return rdrtt<sequence_number_t>(x, RTTPOS_SEQUENCE_NUMBER); }
+			void set_rtt_sequence_number(::uint8_t x, sequence_number_t n) { wrrtt<sequence_number_t>(x, RTTPOS_SEQUENCE_NUMBER, n); }
+			
+			abs_millis_t rtt_delta(::uint8_t x) { return rdrtt<abs_millis_t>(x, RTTPOS_DELTA); }
+			void set_rtt_delta(::uint8_t x, abs_millis_t n) { wrrtt<abs_millis_t>(x, RTTPOS_DELTA, n); }
+			
+			size_type size() { return rtt_infos_start() + 1 + rtt_infos() * RTTPOS_END; }
 			block_data_t* data() { return data_; }
 		
 		private:
@@ -224,6 +241,16 @@ namespace wiselib {
 			::uint8_t max_semantic_entities() { return (Radio::MAX_MESSAGE_LENGTH - POS_SES_START) / SEPOS_END; }
 			
 			// Convenience methods for calling wiselib::read / wiselib::write
+			
+			template<typename T>
+			T rdrtt(size_type s, size_type p) {
+				return wiselib::read<OsModel, block_data_t, T>(data_ + rtt_infos_start() + 1 + s * RTTPOS_END + p);
+			}
+			
+			template<typename T>
+			void wrrtt(size_type s, size_type p, T v) {
+				wiselib::write<OsModel, block_data_t, T>(data_ + rtt_infos_start() + 1 + s * RTTPOS_END + p, v);
+			}
 			
 			template<typename T>
 			T rdse(size_type s, size_type p) {
