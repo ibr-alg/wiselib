@@ -98,12 +98,13 @@ namespace wiselib {
 			};
 		#else // Contiki/Sky
 			enum {
-				LM_THRESHOLD_LOW = 100,
-				LM_THRESHOLD_HIGH = 200
+				LM_THRESHOLD_LOW = 180,
+				LM_THRESHOLD_HIGH = 240
 			};
 		#endif
 			
 			class NeighborEntity {
+				// {{{
 				public:
 					NeighborEntity() :
 						semantic_entity_id_(),
@@ -148,9 +149,11 @@ namespace wiselib {
 					::uint8_t fresh_ : 1;
 					//::uint8_t token_count_;
 					//::uint8_t prev_token_count_;
+				// }}}
 			};
 			
 			class Neighbor {
+				// {{{
 					typedef list_dynamic<OsModel, NeighborEntity> Entities;
 				
 				public:
@@ -213,6 +216,8 @@ namespace wiselib {
 						}
 					}
 					
+					link_metric_t score() { return link_metric_; }
+					
 					link_metric_t link_metric() { return link_metric_; }
 					void set_link_metric(link_metric_t x) { link_metric_ = x; }
 					
@@ -228,6 +233,7 @@ namespace wiselib {
 					node_id_t parent_;
 					link_metric_t link_metric_;
 					::uint8_t root_distance_;
+				// }}}
 			};
 			
 			//typedef vector_static<OsModel, Neighbor, MAX_NEIGHBORS> Neighbors;
@@ -314,7 +320,9 @@ namespace wiselib {
 				iterator r = find_neighbor(id);
 				if(r == end()) {
 					if(lm >= LM_THRESHOLD_HIGH) {
+						debug_->debug("@%lu N+ %lu l%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)now());
 						r = neighbors_.insert(id, lm);
+						r->set_link_metric(lm);
 						return r;
 					}
 					return end();
@@ -322,9 +330,12 @@ namespace wiselib {
 				else {
 					r->update_link_metric(lm);
 					if(r->link_metric() < LM_THRESHOLD_LOW) {
+						debug_->debug("@%lu N- %lu l%lu L%d t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
 						neighbors_.erase(r);
 						return end();
 					}
+					
+					debug_->debug("@%lu N= %lu l%lu L%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)now());
 					return r;
 				}
 			}
@@ -520,7 +531,7 @@ namespace wiselib {
 					
 					if( (neigh.root_distance() != (::uint8_t)(-1)) && (
 							(neigh.root_distance() < min_dist) ||
-							(neigh.root_distance() == min_dist && addr < parent))) {
+							(neigh.root_distance() == min_dist && addr < parent)) ) {
 						
 						min_dist = neigh.root_distance();
 						parent = addr;
@@ -531,7 +542,7 @@ namespace wiselib {
 				parent_ = parent;
 				
 				if(changed_parent_) {
-					debug_->debug("PARENT(%lu) := %lu", (unsigned long)radio_->id(), (unsigned long)parent_);
+					debug_->debug("@%lu par%lu t%lu", (unsigned long)radio_->id(), (unsigned long)parent_, (unsigned long)now());
 				}
 				
 				check();

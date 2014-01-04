@@ -64,7 +64,7 @@ namespace wiselib {
 					for(iterator iter = begin(); iter != end(); ++iter) {
 						if(score(iter) < s) {
 							*iter = v;
-							set_score(iter, s);
+							//set_score(iter, s);
 							return iter;
 						}
 					}
@@ -72,7 +72,7 @@ namespace wiselib {
 				}
 				elements_[size_] = v;
 				++size_;
-				set_score(end() - 1, s);
+				//set_score(end() - 1, s);
 				return iterator(end() - 1);
 			}
 			
@@ -89,14 +89,17 @@ namespace wiselib {
 				
 				// overwrite with last element
 				*iter = *(end() - 1);
-				set_score(iter, score(end() - 1));
+				//set_score(iter, score(end() - 1));
 				
 				// stay at this position, a new element came in here!
 				return iter;
 			}
 			
-			score_type score(iterator iter) { return scores_[iter - begin()]; }
-			void set_score(iterator iter, score_type s) { scores_[iter - begin()] = s; }
+			score_type score(iterator iter) {
+				return iter->score();
+				//return scores_[iter - begin()];
+			}
+			//void set_score(iterator iter, score_type s) { scores_[iter - begin()] = s; }
 			
 			size_type size() { return size_; }
 			size_type capacity() { return CAPACITY; }
@@ -110,7 +113,7 @@ namespace wiselib {
 		private:
 			
 			value_type elements_[CAPACITY];
-			score_type scores_[CAPACITY];
+			//score_type scores_[CAPACITY];
 			size_type size_;
 			
 		

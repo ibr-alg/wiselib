@@ -5,8 +5,11 @@
 //#define INSE_CSMA_MODE                 0
 //#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
 
-//#define INSE_ROOT_NODE_ID              47430 // lowest ID in 1A+
-#define INSE_ROOT_NODE_ID              0 // lowest ID in 1A+
+#if defined(SHAWN)
+	#define INSE_ROOT_NODE_ID              0 // lowest ID in 1A+
+#else
+	#define INSE_ROOT_NODE_ID              47430 // lowest ID in 1A+
+#endif
 
 #define INSE_PERIOD                          20000 * WISELIB_TIME_FACTOR
 #define INSE_MIN_TRANSFER_INTERVAL_LENGTH    3000 * WISELIB_TIME_FACTOR

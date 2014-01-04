@@ -53,8 +53,12 @@ re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) 
 
 re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+).*')
 re_rtt = re.compile(r'@([0-9]+) rtt t([0-9]+) F([0-9]+) d([0-9]+) e([0-9]+).*')
-re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) c([0-9]+) t([0-9]+).*')
-re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
+re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) S[0-9]+ c([0-9]+) t([0-9]+).*')
+#re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
+re_parent = re.compile(r'@([0-9]+) par([0-9]+) t([0-9]+)')
+re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+) t([0-9]+)')
+re_neigh_stay = re.compile(r'@([0-9]+) N= ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
+re_neigh_erase = re.compile(r'@([0-9]+) N- ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
 
 #re_tok = re.compile(r'@([0-9]+) tok ([v^]) F([0-9]+)
 
@@ -166,8 +170,51 @@ def parse(f):
 			
 		m = re.match(re_parent, line)
 		if m is not None:
-			nodename, parent = m.groups()
+			nodename, parent, t_ = m.groups()
+			t_ = int(t_) // 1000
 			parents[nodename] = parent
+			continue
+
+		m = re.match(re_neigh_add, line)
+		if m is not None:
+			nodename, addr, l, t_ = m.groups()
+			name = nodename
+			t_ = int(t_) // 1000
+			if name not in nodes: nodes[name] = {}
+			if 'link_metric' not in nodes[name]:
+				nodes[name]['link_metric'] = {}
+			if addr not in nodes[name]['link_metric']:
+				nodes[name]['link_metric'][addr] = { 't': [], 'v': [] }
+			nodes[name]['link_metric'][addr]['t'].append(t_)
+			nodes[name]['link_metric'][addr]['v'].append(int(l))
+			continue
+			
+		m = re.match(re_neigh_stay, line)
+		if m is not None:
+			nodename, addr, l, L, t_ = m.groups()
+			name = nodename
+			t_ = int(t_) // 1000
+			if name not in nodes: nodes[name] = {}
+			if 'link_metric' not in nodes[name]:
+				nodes[name]['link_metric'] = {}
+			if addr not in nodes[name]['link_metric']:
+				nodes[name]['link_metric'][addr] = { 't': [], 'v': [] }
+			nodes[name]['link_metric'][addr]['t'].append(t_)
+			nodes[name]['link_metric'][addr]['v'].append(int(L))
+			continue
+			
+		m = re.match(re_neigh_erase, line)
+		if m is not None:
+			nodename, addr, l, L, t_ = m.groups()
+			name = nodename
+			t_ = int(t_) // 1000
+			if name not in nodes: nodes[name] = {}
+			if 'link_metric' not in nodes[name]:
+				nodes[name]['link_metric'] = {}
+			if addr not in nodes[name]['link_metric']:
+				nodes[name]['link_metric'][addr] = { 't': [], 'v': [] }
+			nodes[name]['link_metric'][addr]['t'].append(t_)
+			nodes[name]['link_metric'][addr]['v'].append(int(L))
 			continue
 		
 		# which node is this line about?
@@ -406,6 +453,35 @@ def fig_timings():
 	fig.savefig('timings.pdf') #, bbox_inches='tight', pad_inches=.1)
 	#plt.show()
 
+def interpolate_phases():
+	global gnodes
+	nodes = gnodes
+	PERIOD = 20000.0
+	step = 0.001 * PERIOD
+	
+	for name, node in nodes.items():
+		if 'phase' in node:
+			vs = node['phase']['v']
+			ts = node['phase']['t']
+			
+			vs_ = [vs[0]]
+			ts_ = [ts[0]]
+			for v, t in zip(vs, ts):
+				delta = (v - vs_[-1])
+				while delta < -PERIOD: delta += PERIOD
+				while delta > PERIOD: delta -= PERIOD
+				print("delta={}".format(delta))
+				sgn = 1 if delta > 0 else -1
+				for i in range(0, int((delta if delta > 0 else -delta) * (1.0 / step))):
+					vs_.append(vs_[-1] + sgn * i / step)
+					# equivalent to steps-post
+					ts_.append(ts_[-1])
+				vs_.append(v)
+				ts_.append(t)
+			
+			node['phase']['v'] = vs_
+			node['phase']['t'] = ts_
+
 def fig_phases():
 	global fig
 	global gnodes
@@ -430,6 +506,7 @@ def fig_phases():
 		
 	#ax.legend()
 	fig.savefig('phases.pdf')
+	fig.savefig('phases.png')
 	
 def fig_rtts():
 	global fig
@@ -447,7 +524,17 @@ def fig_rtts():
 	#ax.legend()
 	fig.savefig('rtts.pdf')
 
-
+def fig_link_metric():
+	global fig
+	global gnodes
+	nodes = gnodes
+	fig = plt.figure()
+	ax = plt.subplot(111)
+	
+	name, node = sorted([(k,v) for k,v in nodes.items() if 'link_metric' in v])[0]
+	for name2, node2 in node['link_metric'].items():
+		ax.plot(node2['t'], node2['v'])
+	fig.savefig('link_metric.pdf')
 
 def fig_forward_timings():
 	global fig
@@ -634,10 +721,13 @@ print("rtts graph...")
 fig_rtts()
 
 print("phases graph...")
+#interpolate_phases()
 fig_phases()
 
 print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
+
+fig_link_metric()
 
 #print("timings graph...")
 #fig_timings()

@@ -252,7 +252,7 @@ namespace wiselib {
 				debug_->debug("@%lu on_receive_beacon s%lu t%lu l%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)now(), (unsigned long)lm);
 				typename NeighborhoodT::iterator iter = neighborhood_.create_or_update_neighbor(from, lm);
 				if(iter == neighborhood_.end()) {
-					neighborhood_.update_tree_state();
+					//neighborhood_.update_tree_state();
 					return;
 				}
 				
@@ -441,8 +441,9 @@ namespace wiselib {
 							
 							abs_millis_t t = now();
 							
-							debug_->debug("@%lu xrtt F%lu S%lu %lu %lu %lu",
+							debug_->debug("@%lu xrtt i%d F%lu S%lu t%lu %lu %lu",
 									(unsigned long)radio_->id(),
+									(int)i,
 									(unsigned long)from,
 									(unsigned long)msg.rtt_sequence_number(i),
 									(unsigned long)t, (unsigned long)beacon_sent_,
@@ -568,7 +569,7 @@ namespace wiselib {
 				
 				if(active) { radio_->enable_radio(); }
 				else {
-					//radio_->disable_radio();
+					radio_->disable_radio();
 				}
 				
 				check();
@@ -580,18 +581,22 @@ namespace wiselib {
 				
 				check();
 				
-				debug_->debug("@%lu ack_timeout %lu t%lu r%d", (unsigned long)radio_->id(), (unsigned long)current_beacon().target(0), (unsigned long)now(), (int)resends_);
 				
 				resends_++;
 				
 				BeaconMessageT &b = current_beacon();
 				abs_millis_t t = now();
-				b.set_delay(t - beacon_sent_);
+				b.set_delay(b.delay() + t - beacon_sent_);
+				b.set_sequence_number(b.sequence_number() + 1);
+				
 				beacon_sent_ = t;
 				
+				debug_->debug("@%lu ack_timeout %lu t%lu r%d D%lu S%lu", (unsigned long)radio_->id(), (unsigned long)current_beacon().target(0), (unsigned long)now(), (int)resends_, (unsigned long)b.delay(), (unsigned long)b.sequence_number());
 				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());
 				
-				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ack_timeout(), this, (void*)ack_timeout_guard_);
+				if(b.has_targets(radio_->id())) {
+					timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ack_timeout(), this, (void*)ack_timeout_guard_);
+				}
 				check();
 			}
 			
@@ -713,6 +718,14 @@ namespace wiselib {
 				}
 				
 				for(typename BeaconsSeenT::iterator iter = beacons_seen_.begin(); iter != beacons_seen_.end(); iter++) {
+					debug_->debug("@%lu SEEN t%lu F%lu at %lu S%lu",
+							(unsigned long)radio_->id(),
+							(unsigned long)now(),
+							(unsigned long)iter->first,
+							(unsigned long)iter->second.last_seen_,
+							(unsigned long)iter->second.sequence_number_);
+					
+							
 					assert(now() >= iter->second.last_seen_);
 					b.add_rtt_info(iter->first, iter->second.sequence_number_, now() - iter->second.last_seen_);
 				}
@@ -808,8 +821,8 @@ namespace wiselib {
 						);
 				
 				//assert(neighborhood_.is_root() || in_transfer_interval());
-				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());
 				beacon_sent_ = now();
+				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());
 				
 				if(b.has_targets(radio_->id())) {
 					timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ack_timeout(), this, (void*)ack_timeout_guard_);
