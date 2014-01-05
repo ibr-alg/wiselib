@@ -34,8 +34,6 @@ properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count'
 
 def getnodes(namepattern):
 	global gnodes
-	#print "namepattern=", namepattern
-	#print "keys=", gnodes.keys()
 	nodes = dict(
 			(k, v) for (k, v) in gnodes.items() if re.match(namepattern, k)
 	)
@@ -57,239 +55,185 @@ re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) S[0-9]+ c([0-9]+) t([0-9
 #re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
 re_parent = re.compile(r'@([0-9]+) par([0-9]+) t([0-9]+)')
 re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+) t([0-9]+)')
-re_neigh_stay = re.compile(r'@([0-9]+) N= ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
+re_neigh_stay = re.compile(r'@([0-9]+) N[=] ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
 re_neigh_erase = re.compile(r'@([0-9]+) N- ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
+
+re_time_sN = re.compile(r'^T([0-9]+)\.([0-9]+)\|(.*)$')
 
 #re_tok = re.compile(r'@([0-9]+) tok ([v^]) F([0-9]+)
 
 def parse(f):
 	global gnodes, parents
+	global t0
 	gnodes = {}
 	nodes = gnodes
 	parents = {}
 	t = 0
 	t_report = 1000
 	
-	for line in f:
-		
-		kv = {}
-		def get_value(s):
-			return kv.get(s, None)
-			#m = re.search(r'\b' + s + r'\s*(=|\s)\s*([^= ]+)', line)
-			#m = re.search(re_properties[s], line)
-			#if m is None: return None
-			#return m.group(2).strip()
-		
-		# strip off comments
-		
-		origline = line
-		comment_idx = line.find('//')
-		if comment_idx != -1: line = line[:comment_idx]
-		
-		# is this a begin iteration line?
-		
+	
+	def extract_time_sN(line):
+		m = re.match(re_time_sN, line)
+		if m is None:
+			return None, line
+		else:
+			s, N, line = m.groups()
+			return float(s) + 10**-9 * float(N), line
+	
+	def extract_time_shawn(line):
 		m = re.match(re_begin_iteration, line)
 		if m is not None:
-			t = int(m.group(1))
-			continue
+			return t, None
+		else:
+			return None, line
+	
+	t0 = None
+	
+	for line in f:
 		
-		if t > tmax: break
+		t_, line = extract_time_sN(line)
+		if t_ is not None: t = t_
 		
+		t_, line = extract_time_shawn(line)
+		if t_ is not None: t = t_
+		
+		if t is not None and t0 is None or t < t0:
+			t0 = t
+		if t > t_report:
+			print(t)
+			t_report = t + 1000
+		
+		if (t - t0) > tmax: break
+		
+		if not line: continue
 		
 		m = re.match(re_onoff, line)
 		if m is not None:
 			nodename, onoff, t_ = m.groups()
 			if nodename not in nodes: nodes[nodename] = {}
 			if 'on' not in nodes[nodename]:
-				nodes[nodename]['on'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			#print("{} -> {} t={}".format(nodename, onoff, t_))
-			nodes[nodename]['on']['t'] = np.append(nodes[nodename]['on']['t'], int(t_) // 1000)
-			nodes[nodename]['on']['v'] = np.append(nodes[nodename]['on']['v'], 1 if onoff == 'on' else 0)
+				nodes[nodename]['on'] = {'t': [], 'v': []}
+			nodes[nodename]['on']['t'].append(t)
+			nodes[nodename]['on']['v'].append(1 if onoff == 'on' else 0)
 			continue
 		
-		m = re.match(re_tok, line)
-		if m is not None:
-			nodename, S, w, i, t_, tr, d, e, c0, c1, r, ri = m.groups()
-			name = nodename + ':' + S
-			t_ = int(t_) // 1000
-			if name not in nodes: nodes[name] = {}
-			if 'window' not in nodes[name]:
-				nodes[name]['window'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['window']['t'] = np.append(nodes[name]['window']['t'], t_)
-			nodes[name]['window']['v'] = np.append(nodes[name]['window']['v'], int(w) // 1000)
-			if 'interval' not in nodes[name]:
-				nodes[name]['interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['interval']['t'] = np.append(nodes[name]['interval']['t'], t_)
-			nodes[name]['interval']['v'] = np.append(nodes[name]['interval']['v'], int(i) // 1000)
-			if 'real-interval' not in nodes[name]:
-				nodes[name]['real-interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['real-interval']['t'] = np.append(nodes[name]['real-interval']['t'], t_)
-			nodes[name]['real-interval']['v'] = np.append(nodes[name]['real-interval']['v'], int(ri) // 1000)
-			if 'delay' not in nodes[name]:
-				nodes[name]['delay'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['delay']['t'] = np.append(nodes[name]['delay']['t'], t_)
-			nodes[name]['delay']['v'] = np.append(nodes[name]['delay']['v'], int(d) // 1000)
-			continue
+		#m = re.match(re_tok, line)
+		#if m is not None:
+			#nodename, S, w, i, t_, tr, d, e, c0, c1, r, ri = m.groups()
+			#name = nodename + ':' + S
+			##t_ = int(t_) // 1000
+			#if name not in nodes: nodes[name] = {}
+			#if 'window' not in nodes[name]:
+				#nodes[name]['window'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			#nodes[name]['window']['t'] = np.append(nodes[name]['window']['t'], t)
+			#nodes[name]['window']['v'] = np.append(nodes[name]['window']['v'], int(w) // 1000)
+			#if 'interval' not in nodes[name]:
+				#nodes[name]['interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			#nodes[name]['interval']['t'] = np.append(nodes[name]['interval']['t'], t)
+			#nodes[name]['interval']['v'] = np.append(nodes[name]['interval']['v'], int(i) // 1000)
+			#if 'real-interval' not in nodes[name]:
+				#nodes[name]['real-interval'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			#nodes[name]['real-interval']['t'] = np.append(nodes[name]['real-interval']['t'], t_)
+			#nodes[name]['real-interval']['v'] = np.append(nodes[name]['real-interval']['v'], int(ri) // 1000)
+			#if 'delay' not in nodes[name]:
+				#nodes[name]['delay'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
+			#nodes[name]['delay']['t'] = np.append(nodes[name]['delay']['t'], t_)
+			#nodes[name]['delay']['v'] = np.append(nodes[name]['delay']['v'], int(d) // 1000)
+			#continue
 			
 		m = re.match(re_ti, line)
 		if m is not None:
 			nodename, t_, P, p = m.groups()
 			name = nodename
-			t_ = int(t_) // 1000
-			P = int(P) #// 1000
+			#t_ = float(t_) / 1000.0
+			P = float(P) #// 1000
 			if name not in nodes: nodes[name] = {}
 			if 'phase' not in nodes[name]:
-				nodes[name]['phase'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['phase']['t'] = np.append(nodes[name]['phase']['t'], t_)
-			nodes[name]['phase']['v'] = np.append(nodes[name]['phase']['v'], int(P))
+				nodes[name]['phase'] = {'t': [], 'v': []}
+			nodes[name]['phase']['t'].append(t)
+			nodes[name]['phase']['v'].append(P)
 			continue
 
 		m = re.match(re_rtt, line)
 		if m is not None:
 			nodename, t_, F, d, e = m.groups()
+			if int(e) > 200: continue
+			
 			name = nodename
-			t_ = int(t_) // 1000
+			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'rtt' not in nodes[name]:
-				nodes[name]['rtt'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['rtt']['t'] = np.append(nodes[name]['rtt']['t'], t_)
-			nodes[name]['rtt']['v'] = np.append(nodes[name]['rtt']['v'], int(e))
+				nodes[name]['rtt'] = {'t': [], 'v': []}
+			nodes[name]['rtt']['t'].append(t)
+			nodes[name]['rtt']['v'].append(int(e))
 			continue
 			
 		m = re.match(re_beacon, line)
 		if m is not None:
 			nodename, tgt, c, t_ = m.groups()
-			t_ = int(t_) // 1000
+			#t_ = float(t_) / 1000.0
 			name = nodename
 			if name not in nodes: nodes[name] = {}
 			if 'beacon' not in nodes[name]:
-				nodes[name]['beacon'] = {'t': np.array((), dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-			nodes[name]['beacon']['t'] = np.append(nodes[name]['beacon']['t'], t_)
-			nodes[name]['beacon']['v'] = np.append(nodes[name]['beacon']['v'], 1)
+				nodes[name]['beacon'] = {'t': [], 'v': []}
+			nodes[name]['beacon']['t'].append(t)
+			nodes[name]['beacon']['v'].append(1)
 			continue
 			
 		m = re.match(re_parent, line)
 		if m is not None:
 			nodename, parent, t_ = m.groups()
-			t_ = int(t_) // 1000
+			#t_ = int(t_) // 1000
 			parents[nodename] = parent
 			continue
 
 		m = re.match(re_neigh_add, line)
 		if m is not None:
 			nodename, addr, l, t_ = m.groups()
+			assert(int(l) < 1000)
 			name = nodename
-			t_ = int(t_) // 1000
+			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'link_metric' not in nodes[name]:
 				nodes[name]['link_metric'] = {}
 			if addr not in nodes[name]['link_metric']:
 				nodes[name]['link_metric'][addr] = { 't': [], 'v': [] }
-			nodes[name]['link_metric'][addr]['t'].append(t_)
+			nodes[name]['link_metric'][addr]['t'].append(t)
 			nodes[name]['link_metric'][addr]['v'].append(int(l))
 			continue
-			
+		
 		m = re.match(re_neigh_stay, line)
 		if m is not None:
 			nodename, addr, l, L, t_ = m.groups()
+			#assert(int(L) < 1000)
 			name = nodename
-			t_ = int(t_) // 1000
+			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'link_metric' not in nodes[name]:
 				nodes[name]['link_metric'] = {}
 			if addr not in nodes[name]['link_metric']:
 				nodes[name]['link_metric'][addr] = { 't': [], 'v': [] }
-			nodes[name]['link_metric'][addr]['t'].append(t_)
+			nodes[name]['link_metric'][addr]['t'].append(t)
 			nodes[name]['link_metric'][addr]['v'].append(int(L))
 			continue
 			
 		m = re.match(re_neigh_erase, line)
 		if m is not None:
 			nodename, addr, l, L, t_ = m.groups()
+			assert(int(L) < 1000)
 			name = nodename
-			t_ = int(t_) // 1000
+			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'link_metric' not in nodes[name]:
 				nodes[name]['link_metric'] = {}
 			if addr not in nodes[name]['link_metric']:
 				nodes[name]['link_metric'][addr] = { 't': [], 'v': [] }
-			nodes[name]['link_metric'][addr]['t'].append(t_)
+			nodes[name]['link_metric'][addr]['t'].append(t)
 			nodes[name]['link_metric'][addr]['v'].append(int(L))
 			continue
 		
-		# which node is this line about?
+		print(line)
 		
-		#if 'node' not in line: continue
-		
-		#kv = dict(re.findall(re_kv, line))
-		
-		#name = nodename = get_value('node')
-		#if name is None:
-			#print ("[!!!] nodename is none in line: " + origline)
-			#continue
-		
-		try: t = int(get_value('t')) / 1000
-		except: pass
-		
-		if t >= t_report:
-			print(t)
-			t_report += 1000
-		
-		#print "--------------"
-		#print re.findall(re_kv, line)
-		#print "--------------"
-		
-		
-		# is it also about a SE?
-		
-		#se = get_value('SE')
-		#if se is not None: name += ':' + se.rstrip('.')
-		#if name not in nodes: nodes[name] = {}
-		
-		# update nhood
-		#neighbor = get_value('neighbor')
-		#if neighbor is not None:
-			#nhood.add((nodename, neighbor))
-		
-		# update SE graph
-		
-		#parent = get_value('parent')
-		#if parent is not None and se is not None:
-			#if se not in parents:
-				#parents[se] = {}
-			#parents[se][nodename] = parent
-			
-		# forwards
-		
-		#fwd_window = get_value('fwd_window')
-		#if fwd_window is not None:
-			#fwd_interval = get_value('fwd_interval')
-			#fwd_from = get_value('fwd_from')
-			#if 'forward' not in nodes[name]: nodes[name]['forward'] = {}
-			#if fwd_from not in nodes[name]['forward']: nodes[name]['forward'][fwd_from] = { 't': np.array((),dtype=np.int32), 'window': np.array((),
-				#dtype=np.int32), 'interval': np.array((), dtype=np.int32)}
-			#nodes[name]['forward'][fwd_from]['t'] = np.append(nodes[name]['forward'][fwd_from]['t'], t)
-			#nodes[name]['forward'][fwd_from]['window'] = np.append(nodes[name]['forward'][fwd_from]['window'], int(fwd_window))
-			#nodes[name]['forward'][fwd_from]['interval'] = np.append(nodes[name]['forward'][fwd_from]['interval'], int(fwd_interval))
-		
-		## track other properties
-		
-		#for k in properties:
-			#v = get_value(k)
-			#if v is not None:
-				#if k not in nodes[name]: nodes[name][k] = {'t': np.array((),
-					#dtype=np.int32), 'v': np.array((), dtype=np.int32)}
-				
-				##try:
-					##t = float(get_value('t')) / 1000.0
-				##except: pass
-				
-				#try: int(v)
-				#except ValueError: pass
-				#else:
-					#nodes[name][k]['t'] = np.append(nodes[name][k]['t'], t)
-					#nodes[name][k]['v'] = np.append(nodes[name][k]['v'], int(v))
-
 def fig_count_onegraph(namepattern = '.*'):
 	# {{{
 	global fig
@@ -419,8 +363,6 @@ def fig_timings():
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
-		#print(node.keys())
-
 		if 'caffeine' in node:
 			r, = ax.plot(node['caffeine']['t'], node['caffeine']['v'], 'g-', label='caffeine', drawstyle='steps-post')
 			property_styles['caffeine'] = r
@@ -497,12 +439,7 @@ def fig_phases():
 	
 	for name, node in sorted(nodes.items(), cmp=namesort):
 		if 'phase' in node:# and name in ('0','1', '2', '3'):
-			#print("---------- PHASES ----------")
-			#print (node['phase'])
-			#r, = ax.plot(node['phase']['t'], node['phase']['v'], label=name,
-					#drawstyle='steps-post')
 			r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], '-', label=name)
-					#drawstyle='steps-post')
 		
 	#ax.legend()
 	fig.savefig('phases.pdf')
@@ -516,7 +453,8 @@ def fig_rtts():
 	ax = plt.subplot(111)
 	
 	for name, node in sorted(nodes.items(), cmp=namesort):
-		if 'rtt' in node: # and name in ('0', '1', '2'):
+		#if 'rtt' in node and name in ('47430','47442'): # and name in ('0', '1', '2'):
+		if 'rtt' in node:
 			#print (node['rtt'])
 			r, = ax.plot(node['rtt']['t'], node['rtt']['v'], label=name,
 					drawstyle='steps-post')
@@ -531,7 +469,8 @@ def fig_link_metric():
 	fig = plt.figure()
 	ax = plt.subplot(111)
 	
-	name, node = sorted([(k,v) for k,v in nodes.items() if 'link_metric' in v])[0]
+	name, node = sorted([(k,v) for k,v in nodes.items() if 'link_metric' in v])[3]
+	#print(name, node)
 	for name2, node2 in node['link_metric'].items():
 		ax.plot(node2['t'], node2['v'])
 	fig.savefig('link_metric.pdf')
@@ -649,16 +588,12 @@ def fig_duty_cycle(namepattern = '.*'):
 		#ax.get_xaxis().set_tick_params(size=0)
 		last_ax = ax
 
-		#print(node['on']['t'])
 		if 'on' in node:
 			r, = ax.plot(node['on']['t'], node['on']['v'], 'b-', label='on', drawstyle='steps-post')
 			property_styles['on'] = r
 			
 		if 'beacon' in node:
-			print(node['beacon']['t'])
 			ax.vlines(node['beacon']['t'], [0], node['beacon']['v'], colors=['r'], label='beacon')
-			#property_styles['beacon'] = r
-			
 			
 		if 'awake' in node:
 			r, = ax.plot(node['awake']['t'], node['awake']['v'], 'r-', label='awake', drawstyle='steps-post')
@@ -684,7 +619,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
 	#last_ax.set_xlim((-1, tmax))
-	#last_ax.set_xlim((1500, 2500))
+	#last_ax.set_xlim((1200, 1205))
 	#last_ax.set_xlim((23000, 30000))
 	
 	setp(last_ax.get_xticklabels(), visible = True)
@@ -708,11 +643,15 @@ print("parsing data...")
 #parse(open('/home/henning/repos/wiselib/apps/generic_apps/token_construction_test/log_office.txt', 'r'))
 parse(open('log.txt', 'r'))
 
-#for k, v in parents.items():
-	#print(k + ":")
-	#for src, tgt in v.items():
-		#print ("  " + src + " -> " + tgt)
+print("adjusting time shift... t0={}".format(t0))
 
+def shift(d):
+	ks = list(d.keys())
+	for k in ks:
+		if k == 't': d[k] = map(lambda x: float(x) - t0, d[k])
+		elif type(d[k]) == dict: shift(d[k])
+
+shift(gnodes)
 
 print("tree graph...")
 fig_tree()
@@ -727,6 +666,7 @@ fig_phases()
 print("duty cycle graph...")
 fig_duty_cycle() #r'.*:1\.2')
 
+print("link metric graph...")
 fig_link_metric()
 
 #print("timings graph...")

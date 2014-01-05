@@ -335,7 +335,7 @@ namespace wiselib {
 						return end();
 					}
 					
-					debug_->debug("@%lu N= %lu l%lu L%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)now());
+					debug_->debug("@%lu N= %lu l%lu L%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
 					return r;
 				}
 			}
@@ -497,6 +497,7 @@ namespace wiselib {
 						break;
 				}
 				
+				/*
 				debug_->debug("@%lu /process_token src %lu cls %d c' %d c%d,%d",
 					(unsigned long)radio_->id(),
 					(unsigned long)source,
@@ -505,6 +506,7 @@ namespace wiselib {
 					(int)se.prev_token_count(),
 					(int)se.token_count()
 				);
+				*/
 			} // process_token
 			
 			void update_tree_state() {
@@ -572,12 +574,12 @@ namespace wiselib {
 				::uint8_t orientation = semantic_entities_[id].orientation();
 				node_id_t source = (src != NULL_NODE_ID) ? src : semantic_entities_[id].source();
 				
-				debug_->debug("@%lu next_hop: src %lu rt%d", (unsigned long)radio_->id(), (unsigned long)source, (int)is_root());
+				//debug_->debug("@%lu next_hop: src %lu rt%d", (unsigned long)radio_->id(), (unsigned long)source, (int)is_root());
 				
 				
 				if(is_root()) {
 					if(classify(source) != CLASS_CHILD && source != radio_->id()) {
-						debug_->debug("@%lu next_hop source %lu not child but %d", (unsigned long)radio_->id(), (unsigned long)source, classify(source));
+						//debug_->debug("@%lu next_hop source %lu not child but %d", (unsigned long)radio_->id(), (unsigned long)source, classify(source));
 						return NULL_NODE_ID;
 					}
 					
@@ -591,7 +593,7 @@ namespace wiselib {
 					
 					node_id_t nxt = next_child(id, source);
 					if(nxt == NULL_NODE_ID) {
-						debug_->debug("@%lu next_hop last child", (unsigned long)radio_->id());
+						//debug_->debug("@%lu next_hop last child", (unsigned long)radio_->id());
 						return first_child(id);
 					}
 					return nxt;
@@ -599,14 +601,14 @@ namespace wiselib {
 				
 				
 				if(source == radio_->id()) {
-					debug_->debug("@%lu next_hop: from ourselves o=%d in_subtree=%d", (unsigned long)radio_->id(), (int)orientation, (int)is_in_subtree(id));
+					//debug_->debug("@%lu next_hop: from ourselves o=%d in_subtree=%d", (unsigned long)radio_->id(), (int)orientation, (int)is_in_subtree(id));
 					if(orientation == UP) { return parent_id(); }
 					return is_in_subtree(id) ? first_child(id) : parent_id();
 				}
 				else {
 					if(source == parent_id()) { return radio_->id(); }
 					
-					debug_->debug("@%lu next_hop: not parent", (unsigned long)radio_->id());
+					//debug_->debug("@%lu next_hop: not parent", (unsigned long)radio_->id());
 					
 					if(classify(source) == CLASS_CHILD) {
 						node_id_t nxt = next_child(id, source);
@@ -614,7 +616,7 @@ namespace wiselib {
 						if(nxt == NULL_NODE_ID) { return radio_->id(); }
 						return nxt;
 					}
-					debug_->debug("@%lu next_hop: not child", (unsigned long)radio_->id());
+					//debug_->debug("@%lu next_hop: not child", (unsigned long)radio_->id());
 				}
 				
 				check();
@@ -648,11 +650,11 @@ namespace wiselib {
 						se.set_activity_rounds(se.activity_rounds() - 1);
 						if(se.activity_rounds() == 0) {
 							if(is_leaf(se.id()) || se.orientation() == SemanticEntityT::UP || is_root()) {
-						debug_->debug("@%lu be_active done! A c%d,%d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count());
+						//debug_->debug("@%lu be_active done! A c%d,%d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count());
 								se.set_orientation(SemanticEntityT::UP);
 								se.set_token_count(se.prev_token_count() + (is_root() ? 1 : 0));
 								se.set_source(radio_->id());
-						debug_->debug("@%lu be_active done! B c%d,%d %d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count(), se.prev_token_count() + (is_root() ? 1 : 0));
+						//debug_->debug("@%lu be_active done! B c%d,%d %d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count(), se.prev_token_count() + (is_root() ? 1 : 0));
 							}
 							else {
 								se.set_orientation(SemanticEntityT::DOWN);
@@ -686,14 +688,15 @@ namespace wiselib {
 			node_id_t first_child(SemanticEntityId id) { return next_child(id, 0); }
 			
 			node_id_t next_child(SemanticEntityId id, node_id_t n) {
-				debug_->debug("@%lu next_child(%lx.%lx, %lu)", (unsigned long)radio_->id(),
-						(unsigned long)id.rule(), (unsigned long)id.value(), (unsigned long)n);
+				//debug_->debug("@%lu next_child(%lx.%lx, %lu)", (unsigned long)radio_->id(),
+						//(unsigned long)id.rule(), (unsigned long)id.value(), (unsigned long)n);
 				
 				node_id_t m = NULL_NODE_ID;
 				
 				for(typename Neighbors::iterator iter = neighbors_.begin(); iter != neighbors_.end(); ++iter) {
 					node_id_t addr = iter->id();
 					
+					/*
 					debug_->debug("@%lu next_child %lu m%lu n%lu p%lu s%d %d%d%d%d",
 							(unsigned long)radio_->id(),
 							(unsigned long)addr,
@@ -706,6 +709,7 @@ namespace wiselib {
 							(int)(addr != parent_),
 							(int)(iter->semantic_entity_state(id) != UNAFFECTED)
 							);
+					*/
 					
 					if(addr > n && (m == NULL_NODE_ID || addr < m) &&
 							classify(addr) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {

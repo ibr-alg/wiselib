@@ -16,7 +16,7 @@
 #define INSE_START_WAIT              (5 * 60)
 #define INSE_ESTIMATE_RTT              1
 
-#define INSE_MAX_NEIGHBORS             8
+#define INSE_MAX_NEIGHBORS             20
 #define INSE_MAX_SEMANTIC_ENTITIES     4
 #define INSE_MAX_QUERIES               4
 //#define INSE_BLOOM_FILTER_BITS        64

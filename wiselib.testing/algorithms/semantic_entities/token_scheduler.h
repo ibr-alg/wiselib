@@ -170,7 +170,7 @@ namespace wiselib {
 					#if defined(SHAWN)
 						rtt_estimate_ = 2000;
 					#elif defined(CONTIKI)
-						rtt_estimate_ = 700;
+						rtt_estimate_ = 200;
 					#endif
 				#endif
 				
@@ -203,13 +203,15 @@ namespace wiselib {
 			
 		private:
 			void check() {
-				assert(radio_ != 0);
-				assert(timer_ != 0);
-				assert(clock_ != 0);
-				assert(debug_ != 0);
-				assert(rand_ != 0);
-				
-				assert(transfer_interval_start_phase_ < PERIOD);
+				#if defined(SHAWN)
+					assert(radio_ != 0);
+					assert(timer_ != 0);
+					assert(clock_ != 0);
+					assert(debug_ != 0);
+					assert(rand_ != 0);
+					
+					assert(transfer_interval_start_phase_ < PERIOD);
+				#endif
 			}
 			
 		///@{
@@ -249,7 +251,8 @@ namespace wiselib {
 				//{{{
 				check();
 				
-				debug_->debug("@%lu on_receive_beacon s%lu t%lu l%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)now(), (unsigned long)lm);
+				abs_millis_t t_recv = now();
+				
 				typename NeighborhoodT::iterator iter = neighborhood_.create_or_update_neighbor(from, lm);
 				if(iter == neighborhood_.end()) {
 					//neighborhood_.update_tree_state();
@@ -257,7 +260,6 @@ namespace wiselib {
 				}
 				
 				
-				abs_millis_t t_recv = now();
 				if(neighborhood_.classify(from) == NeighborhoodT::CLASS_PARENT) {
 					seen_parent_ = true;
 				}
@@ -279,6 +281,8 @@ namespace wiselib {
 					iter->set_last_beacon_received(t_recv);
 				}
 				
+				debug_->debug("@%lu RB s%lu t%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)t_recv, (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
+				
 				// Update topology info
 				
 				neighborhood_.update_tree_state();
@@ -289,7 +293,7 @@ namespace wiselib {
 				// For each one find out whether we need to relay the token
 				// count to another node (through the use of 'fwd') or process
 				// it directly.
-				debug_->debug("@%lu recv beacon with %d SEs", (unsigned long)radio_->id(), (int)msg.semantic_entities());
+				//debug_->debug("@%lu recv beacon with %d SEs", (unsigned long)radio_->id(), (int)msg.semantic_entities());
 				for(size_type i = 0; i<msg.semantic_entities(); i++) {
 					node_id_t target = msg.target(i);
 					SemanticEntityId se_id = msg.semantic_entity_id(i);
@@ -299,6 +303,7 @@ namespace wiselib {
 					assert(msg.semantic_entity_state(i) != SemanticEntityT::UNAFFECTED);
 					ne.set_semantic_entity_state(msg.semantic_entity_state(i));
 					
+					/*
 					debug_->debug("@%lu beacon %d src %lu cls %d nxt %lu tgt %lu S%lx.%lx c%d st %d",
 							(unsigned long)radio_->id(),
 							(int)i,
@@ -310,6 +315,7 @@ namespace wiselib {
 							(unsigned long)se_id.value(),
 							(int)token_count,
 							(int)msg.semantic_entity_state(i));
+					*/
 					
 					// Mark info as fresh, so we know, neigh still has this SE
 					ne.refresh();
@@ -439,20 +445,17 @@ namespace wiselib {
 					if(msg.rtt_node(i) == radio_->id()) {
 						if(msg.rtt_sequence_number(i) == current_beacon().sequence_number()) {
 							
-							abs_millis_t t = now();
-							
 							debug_->debug("@%lu xrtt i%d F%lu S%lu t%lu %lu %lu",
 									(unsigned long)radio_->id(),
 									(int)i,
 									(unsigned long)from,
 									(unsigned long)msg.rtt_sequence_number(i),
-									(unsigned long)t, (unsigned long)beacon_sent_,
+									(unsigned long)t_recv, (unsigned long)beacon_sent_,
 									(unsigned long)msg.rtt_delta(i));
 							
 							//assert(t > (beacon_sent_ + msg.rtt_delta(i) + msg.delay()));
-							if(t > (beacon_sent_ + msg.rtt_delta(i) + msg.delay())) {
-							
-							on_rtt_observed(now() - beacon_sent_ - msg.rtt_delta(i) - msg.delay(), from);
+							if(t_recv > (beacon_sent_ + msg.rtt_delta(i) + msg.delay())) {
+								on_rtt_observed(t_recv - beacon_sent_ - msg.rtt_delta(i) - msg.delay(), from);
 							}
 						}
 						break;
@@ -478,6 +481,8 @@ namespace wiselib {
 			void on_receive_ack(BeaconAckMessageT& msg, node_id_t from, link_metric_t lm) {
 				check();
 				
+				abs_millis_t t_recv = now();
+				
 				BeaconMessageT& beacon = current_beacon();
 				
 				if(msg.sequence_number() != beacon.sequence_number()) {
@@ -486,14 +491,13 @@ namespace wiselib {
 				}
 				
 				#if INSE_ESTIMATE_RTT
-					// if this is not a resend, use it to estimate the RTT
-					if(beacon.delay() == 0) {
-						on_rtt_observed(now() - beacon_sent_, from);
+					if(t_recv > beacon_sent_) {
+						on_rtt_observed(t_recv - beacon_sent_, from);
 					}
 					else {
-						abs_millis_t delta = now() - beacon_sent_;
+						abs_millis_t delta = t_recv - beacon_sent_;
 						abs_millis_t rtt_e = (1.0 - INSE_ESTIMATE_RTT_ALPHA) * rtt_estimate_ + INSE_ESTIMATE_RTT_ALPHA * delta;
-						debug_->debug("@%lu !rtt t%lu F%lu d%lu e%lu D%lu", (unsigned long)radio_->id(), (unsigned long)now(), (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_e, (unsigned long)beacon.delay());
+						debug_->debug("@%lu !rtt t%lu snt%lu F%lu d%lu e%lu D%lu", (unsigned long)radio_->id(), (unsigned long)t_recv, (unsigned long)beacon_sent_, (unsigned long)from, (unsigned long)delta, (unsigned long)rtt_e, (unsigned long)beacon.delay());
 					}
 				#endif // INSE_ESTIMATE_RTT
 				
@@ -577,21 +581,25 @@ namespace wiselib {
 			
 			void on_ack_timeout(void *guard) {
 				if((void*)ack_timeout_guard_ != guard) { return; }
-				if(!in_transfer_interval()) { return; }
 				
 				check();
 				
+				BeaconMessageT &b = current_beacon();
+				abs_millis_t t = now();
+
+				if(!in_transfer_interval()) {
+					debug_->debug("@%lu !ack_timeout %lu t%lu r%d D%lu S%lu", (unsigned long)radio_->id(), (unsigned long)b.target(0), (unsigned long)t, (int)resends_, (unsigned long)b.delay(), (unsigned long)b.sequence_number());
+					return;
+				}
 				
 				resends_++;
 				
-				BeaconMessageT &b = current_beacon();
-				abs_millis_t t = now();
 				b.set_delay(b.delay() + t - beacon_sent_);
 				b.set_sequence_number(b.sequence_number() + 1);
 				
 				beacon_sent_ = t;
 				
-				debug_->debug("@%lu ack_timeout %lu t%lu r%d D%lu S%lu", (unsigned long)radio_->id(), (unsigned long)current_beacon().target(0), (unsigned long)now(), (int)resends_, (unsigned long)b.delay(), (unsigned long)b.sequence_number());
+				debug_->debug("@%lu ack_timeout %lu t%lu r%d D%lu S%lu", (unsigned long)radio_->id(), (unsigned long)current_beacon().target(0), (unsigned long)t, (int)resends_, (unsigned long)b.delay(), (unsigned long)b.sequence_number());
 				radio_->send(BROADCAST_ADDRESS, b.size(), b.data());
 				
 				if(b.has_targets(radio_->id())) {
@@ -626,13 +634,13 @@ namespace wiselib {
 			 */
 			void schedule_transfer_interval_start() {
 				check();
-				debug_->debug("@%lu schedule_transfer_interval_start", (unsigned long)radio_->id());
+				//debug_->debug("@%lu schedule_transfer_interval_start", (unsigned long)radio_->id());
 				
 				if(!neighborhood_.is_root() && neighborhood_.is_connected()) {
 					#if INSE_ESTIMATE_RTT
 						transfer_interval_start_phase_ =
-							0.75 * transfer_interval_start_phase_
-							+ 0.25 * ((neighborhood_.parent().last_beacon_received() - WAKEUP_BEFORE_BEACON - rtt_estimate_ / 2) % PERIOD);
+							0.0 * transfer_interval_start_phase_
+							+ 1.0 * ((neighborhood_.parent().last_beacon_received() - WAKEUP_BEFORE_BEACON - rtt_estimate_ / 2) % PERIOD);
 					#else
 						transfer_interval_start_phase_ = (neighborhood_.parent().last_beacon_received() - WAKEUP_BEFORE_BEACON) % PERIOD;
 					#endif
@@ -651,7 +659,7 @@ namespace wiselib {
 				abs_millis_t interval = next - now();
 				assert(interval <= PERIOD);
 				
-				debug_->debug("@%lu schedule_transfer_interval_start I%lu", (unsigned long)radio_->id(), (unsigned long)interval);
+				//debug_->debug("@%lu schedule_transfer_interval_start I%lu", (unsigned long)radio_->id(), (unsigned long)interval);
 				transfer_interval_start_guard_++;
 				timer_->template set_timer<self_type, &self_type::on_transfer_interval_start>(interval, this, (void*)transfer_interval_start_guard_);
 				check();
@@ -659,10 +667,9 @@ namespace wiselib {
 			
 			void schedule_transfer_interval_end() {
 				check();
-				debug_->debug("@%lu schedule_transfer_interval_end", (unsigned long)radio_->id());
+				//debug_->debug("@%lu schedule_transfer_interval_end", (unsigned long)radio_->id());
 				
 				abs_millis_t interval = MIN_TRANSFER_INTERVAL_LENGTH;
-				
 				timer_->template set_timer<self_type, &self_type::on_transfer_interval_end>(interval, this, 0);
 				check();
 			}
@@ -676,7 +683,7 @@ namespace wiselib {
 			void fill_beacon(BeaconMessageT& b) {
 				check();
 				
-				debug_->debug("@%lu FILL BEACON c%d,%d t%lu", (unsigned long)radio_->id(), (int)neighborhood_.begin_semantic_entities()->second.prev_token_count(), (int)neighborhood_.begin_semantic_entities()->second.token_count(), (unsigned long)now());
+				//debug_->debug("@%lu FILL BEACON c%d,%d t%lu", (unsigned long)radio_->id(), (int)neighborhood_.begin_semantic_entities()->second.prev_token_count(), (int)neighborhood_.begin_semantic_entities()->second.token_count(), (unsigned long)now());
 				
 				b.set_flags(BeaconMessageT::FLAG_FIRST);
 						
@@ -694,7 +701,7 @@ namespace wiselib {
 					
 					//SemanticEntityId& id = iter->first;
 					
-					debug_->debug("@%lu next_hop S%lx.%lx -> %lu c=%d", (unsigned long)radio_->id(), (unsigned long)se.id().rule(), (unsigned long)se.id().value(), (unsigned long)next_hop, (int)se.token_count());
+					//debug_->debug("@%lu next_hop S%lx.%lx -> %lu c=%d", (unsigned long)radio_->id(), (unsigned long)se.id().rule(), (unsigned long)se.id().value(), (unsigned long)next_hop, (int)se.token_count());
 					
 					::uint8_t s = b.add_semantic_entity();
 					b.set_semantic_entity_id(s, se.id());
@@ -718,12 +725,14 @@ namespace wiselib {
 				}
 				
 				for(typename BeaconsSeenT::iterator iter = beacons_seen_.begin(); iter != beacons_seen_.end(); iter++) {
+					/*
 					debug_->debug("@%lu SEEN t%lu F%lu at %lu S%lu",
 							(unsigned long)radio_->id(),
 							(unsigned long)now(),
 							(unsigned long)iter->first,
 							(unsigned long)iter->second.last_seen_,
 							(unsigned long)iter->second.sequence_number_);
+					*/
 					
 							
 					assert(now() >= iter->second.last_seen_);
@@ -775,7 +784,7 @@ namespace wiselib {
 			 * if necessary.
 			 */
 			void check_beacon_request() {
-				debug_->debug("@%lu CBR sending %d has %d", (unsigned long)radio_->id(), (int)sending_beacon_, (int)next_beacon().semantic_entities());
+				//debug_->debug("@%lu CBR sending %d has %d", (unsigned long)radio_->id(), (int)sending_beacon_, (int)next_beacon().semantic_entities());
 				
 				if(sending_beacon_) { return; }
 				
@@ -806,7 +815,7 @@ namespace wiselib {
 				
 				sending_beacon_ = true;
 				
-				debug_->debug("@%lu send_beacon dist %d t%lu", (unsigned long)radio_->id(), (int)neighborhood_.root_distance(), (unsigned long)now());
+				//debug_->debug("@%lu send_beacon dist %d t%lu", (unsigned long)radio_->id(), (int)neighborhood_.root_distance(), (unsigned long)now());
 				//neighborhood_.update_state();
 				
 				debug_->debug("@%lu SEND BEACON %lu S%lu c%d t%lu SES %d RTTs %d l%d",
@@ -835,7 +844,7 @@ namespace wiselib {
 			
 			void send_ack(BeaconMessageT& msg, node_id_t from) {
 				check();
-				debug_->debug("@%lu send_ack", (unsigned long)radio_->id());
+				//debug_->debug("@%lu send_ack", (unsigned long)radio_->id());
 				
 				BeaconAckMessageT ackmsg;
 				ackmsg.set_sequence_number(msg.sequence_number());
