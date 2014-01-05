@@ -190,7 +190,7 @@ def parse(f):
 		m = re.match(re_neigh_add, line)
 		if m is not None:
 			nodename, addr, l, t_ = m.groups()
-			assert(int(l) < 1000)
+			#assert(int(l) < 1000)
 			name = nodename
 			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
@@ -220,7 +220,7 @@ def parse(f):
 		m = re.match(re_neigh_erase, line)
 		if m is not None:
 			nodename, addr, l, L, t_ = m.groups()
-			assert(int(L) < 1000)
+			#assert(int(L) < 1000)
 			name = nodename
 			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}

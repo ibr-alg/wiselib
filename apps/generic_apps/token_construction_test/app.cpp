@@ -41,7 +41,7 @@ class App {
 		}
 		
 		void init3() {
-			debug_->debug("bt");
+			debug_->debug("@%lu bt", (unsigned long)radio_.id());
 			
 			hardware_radio_->enable_radio();
 			radio_.init(*hardware_radio_, *debug_);

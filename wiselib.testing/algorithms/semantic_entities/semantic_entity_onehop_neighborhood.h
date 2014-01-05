@@ -402,15 +402,32 @@ namespace wiselib {
 				switch(classify(source)) {
 					case CLASS_PARENT: {
 						// if we get the token from our parent, we consider it
-						// activating iff it is different than se.prev_token_count.
+						// activating iff the conditions below are met.
+						// 
 						// We will then set se.prev_token_count :=
 						// parent.token_count, handle the complete subtree in that
 						// state (with orientation == DOWN), and finally set
 						// se.token_count := se.prev_token_count when the subtree
 						// has been handled completely.
 						
-						// orientation is DOWN, ergo we can't be root (or
+						// We got it from our parent, ergo we can't be root (or
 						// something must be fishy)
+						
+						// If the system is stable, one of the following should
+						// hold:
+						//   (a) c == se.prev_token_count == se.token_count, i.e.
+						//       there is no activity around here right now,
+						//       nothing to be done in this case.
+						//       
+						//   (b) c != se.prev_token_count == se.token_count, i.e. our parent sends
+						//       us a new (increased) token value so we shall
+						//       be active and then activate our subtree
+						//       
+						// If the system is not yet stablilized, it might also be
+						// that
+						//   (c) c != se.prev_token_count, c == se.token_count
+						
+						
 						assert(!is_root());
 						assert(source == parent_);
 						

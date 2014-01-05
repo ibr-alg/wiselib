@@ -101,6 +101,10 @@ namespace wiselib {
 				set_message_type(INSE_MESSAGE_TYPE_BEACON);
 			}
 			
+			BeaconMessage(BeaconMessage& other) {
+				memcpy(data_, other.data_, Radio::MAX_MESSAGE_LENGTH);
+			}
+			
 			void init() {
 				set_message_type(INSE_MESSAGE_TYPE_BEACON);
 				set_sequence_number(-1);
