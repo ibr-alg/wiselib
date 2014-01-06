@@ -390,7 +390,7 @@ namespace wiselib {
 			void process_token(SemanticEntityId se_id, node_id_t source, ::uint8_t token_count) {
 				SemanticEntityT &se = semantic_entities_[se_id];
 				
-				debug_->debug("@%lu process_token src %lu cls %d c' %d c%d,%d",
+				debug_->debug("@%lu PT F%lu C%d c%d:%d,%d",
 					(unsigned long)radio_->id(),
 					(unsigned long)source,
 					(int)classify(source),
@@ -560,9 +560,9 @@ namespace wiselib {
 				changed_parent_ = (parent != parent_);
 				parent_ = parent;
 				
-				if(changed_parent_) {
+				//if(changed_parent_) {
 					debug_->debug("@%lu par%lu t%lu", (unsigned long)radio_->id(), (unsigned long)parent_, (unsigned long)now());
-				}
+				//}
 				
 				check();
 			}

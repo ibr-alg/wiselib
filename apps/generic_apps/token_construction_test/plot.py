@@ -41,22 +41,22 @@ def getnodes(namepattern):
 	
 
 re_begin_iteration = re.compile('-+ BEGIN ITERATION (\d+)')
-re_properties = {}
-for p in properties:
-	re_properties[p] = re.compile(r'\b' + p + r'\s*(=|\s)\s*([^= ]+)')
+#re_properties = {}
+#for p in properties:
+	#re_properties[p] = re.compile(r'\b' + p + r'\s*(=|\s)\s*([^= ]+)')
 
-re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)')
-re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+).*')
-re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)')
+re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)$')
+re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+)$')
+re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)$')
 
-re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+).*')
-re_rtt = re.compile(r'@([0-9]+) rtt t([0-9]+) F([0-9]+) d([0-9]+) e([0-9]+).*')
-re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) S[0-9]+ c([0-9]+) t([0-9]+).*')
+re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+)$')
+re_rtt = re.compile(r'@([0-9]+) rtt t([0-9]+) F([0-9]+) d([0-9]+) e([0-9]+)$')
+re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) S[0-9]+ c([0-9]+) t([0-9]+) SES [0-9]+ RTTs [0-9]+ l[0-9]+$')
 #re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
-re_parent = re.compile(r'@([0-9]+) par([0-9]+) t([0-9]+)')
-re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+) t([0-9]+)')
-re_neigh_stay = re.compile(r'@([0-9]+) N[=] ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
-re_neigh_erase = re.compile(r'@([0-9]+) N- ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)')
+re_parent = re.compile(r'@([0-9]+) par([0-9]+) t([0-9]+)$')
+re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+) t([0-9]+)$')
+re_neigh_stay = re.compile(r'@([0-9]+) N[=] ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)$')
+re_neigh_erase = re.compile(r'@([0-9]+) N- ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)$')
 
 re_time_sN = re.compile(r'^T([0-9]+)\.([0-9]+)\|(.*)$')
 
@@ -158,6 +158,8 @@ def parse(f):
 		if m is not None:
 			nodename, t_, F, d, e = m.groups()
 			if int(e) > 200: continue
+			if int(e) < 40:
+				print("----------------- " + line)
 			
 			name = nodename
 			#t_ = int(t_) // 1000
