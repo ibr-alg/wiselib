@@ -280,7 +280,7 @@ namespace wiselib {
 			bool is_leaf(SemanticEntityId id) {
 				for(iterator iter = begin(); iter != end(); ++iter) {
 					if(classify(iter->id()) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {
-						debug_->debug("@%lu no leaf because of %lu", (unsigned long)radio_->id(), (unsigned long)iter->id());
+						//debug_->debug("@%lu no leaf because of %lu", (unsigned long)radio_->id(), (unsigned long)iter->id());
 						return false;
 					}
 				}
@@ -320,7 +320,8 @@ namespace wiselib {
 				iterator r = find_neighbor(id);
 				if(r == end()) {
 					if(lm >= LM_THRESHOLD_HIGH) {
-						debug_->debug("@%lu N+ %lu l%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)now());
+						//debug_->debug("@%lu N+ %lu l%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)now());
+						debug_->debug("N+ %lu l%lu", (unsigned long)id, (unsigned long)lm);
 						r = neighbors_.insert(id, lm);
 						r->set_link_metric(lm);
 						return r;
@@ -330,12 +331,14 @@ namespace wiselib {
 				else {
 					r->update_link_metric(lm);
 					if(r->link_metric() < LM_THRESHOLD_LOW) {
-						debug_->debug("@%lu N- %lu l%lu L%d t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
+						//debug_->debug("@%lu N- %lu l%lu L%d t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
+						debug_->debug("N- %lu l%lu L%lu", (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric()); 
 						neighbors_.erase(r);
 						return end();
 					}
 					
-					debug_->debug("@%lu N= %lu l%lu L%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
+					//debug_->debug("@%lu N= %lu l%lu L%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
+					debug_->debug("N= %lu l%lu L%lu", (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric()); 
 					return r;
 				}
 			}
@@ -390,6 +393,14 @@ namespace wiselib {
 			void process_token(SemanticEntityId se_id, node_id_t source, ::uint8_t token_count) {
 				SemanticEntityT &se = semantic_entities_[se_id];
 				
+				debug_->debug("PT F%lu C%d c%d:%d,%d",
+					(unsigned long)source,
+					(int)classify(source),
+					(int)token_count,
+					(int)se.prev_token_count(),
+					(int)se.token_count()
+				);
+				/*
 				debug_->debug("@%lu PT F%lu C%d c%d:%d,%d",
 					(unsigned long)radio_->id(),
 					(unsigned long)source,
@@ -398,6 +409,7 @@ namespace wiselib {
 					(int)se.prev_token_count(),
 					(int)se.token_count()
 				);
+				*/
 				
 				switch(classify(source)) {
 					case CLASS_PARENT: {
@@ -434,13 +446,19 @@ namespace wiselib {
 						if(token_count != se.prev_token_count()) {
 							int activity = is_leaf(se_id) ? 2 : 1;
 							
-							debug_->debug("@%lu tok v F%lu c%d,%d a%d t%lu",
-									(unsigned long)radio_->id(),
+							//debug_->debug("@%lu tok v F%lu c%d,%d a%d t%lu",
+									//(unsigned long)radio_->id(),
+									//(unsigned long)source,
+									//(int)token_count,
+									//(int)se.token_count(),
+									//(int)activity,
+									//(unsigned long)now()
+							//);
+							debug_->debug("tok v F%lu c%d,%d a%d",
 									(unsigned long)source,
 									(int)token_count,
 									(int)se.token_count(),
-									(int)activity,
-									(unsigned long)now()
+									(int)activity
 							);
 							
 							se.set_source(source);
@@ -476,12 +494,17 @@ namespace wiselib {
 						//       this case?
 						 
 						if(!is_root() && token_count != se.token_count()) {
-							debug_->debug("@%lu tok ^ F%lu c%d,%d a1 t%lu",
-									(unsigned long)radio_->id(),
+							//debug_->debug("@%lu tok ^ F%lu c%d,%d a1 t%lu",
+									//(unsigned long)radio_->id(),
+									//(unsigned long)source,
+									//(int)se.prev_token_count(),
+									//(int)token_count,
+									//(unsigned long)now()
+							//);
+							debug_->debug("tok ^ F%lu c%d,%d a1",
 									(unsigned long)source,
 									(int)se.prev_token_count(),
-									(int)token_count,
-									(unsigned long)now()
+									(int)token_count
 							);
 							
 							se.set_source(source);
@@ -492,12 +515,17 @@ namespace wiselib {
 							se.set_activity_rounds(1);
 						}
 						else if(is_root() && token_count == se.token_count()) {
-							debug_->debug("@%lu tok ^ F%lu c%d,%d a0 t%lu R",
-									(unsigned long)radio_->id(),
+							//debug_->debug("@%lu tok ^ F%lu c%d,%d a0 t%lu R",
+									//(unsigned long)radio_->id(),
+									//(unsigned long)source,
+									//(int)se.prev_token_count(),
+									//(int)token_count,
+									//(unsigned long)now()
+							//);
+							debug_->debug("tok ^ F%lu c%d,%d a0 R",
 									(unsigned long)source,
 									(int)se.prev_token_count(),
-									(int)token_count,
-									(unsigned long)now()
+									(int)token_count
 							);
 							
 							se.set_source(source);
@@ -560,9 +588,10 @@ namespace wiselib {
 				changed_parent_ = (parent != parent_);
 				parent_ = parent;
 				
-				//if(changed_parent_) {
-					debug_->debug("@%lu par%lu t%lu", (unsigned long)radio_->id(), (unsigned long)parent_, (unsigned long)now());
-				//}
+				if(changed_parent_) {
+					//debug_->debug("@%lu par%lu t%lu", (unsigned long)radio_->id(), (unsigned long)parent_, (unsigned long)now());
+					debug_->debug("par%lu", (unsigned long)parent_);
+				}
 				
 				check();
 			}
@@ -654,13 +683,20 @@ namespace wiselib {
 				for(typename SemanticEntities::iterator iter = semantic_entities_.begin(); iter != semantic_entities_.end(); ++iter) {
 					SemanticEntityT &se = iter->second;
 					if(se.activity_rounds()) {
-						debug_->debug("@%lu be_active ar %d leaf %d up %d rt %d prevtc %d",
-								(unsigned long)radio_->id(),
+						//debug_->debug("@%lu be_active ar %d leaf %d up %d rt %d prevtc %d",
+								//(unsigned long)radio_->id(),
+								//(int)se.activity_rounds(),
+								//(int)is_leaf(se.id()),
+								//(int)(se.orientation() == SemanticEntityT::UP),
+								//(int)is_root(),
+								//(int)se.prev_token_count()
+						//);
+						debug_->debug("ACT a%d u%d rt%d c%d,%d",
 								(int)se.activity_rounds(),
-								(int)is_leaf(se.id()),
 								(int)(se.orientation() == SemanticEntityT::UP),
 								(int)is_root(),
-								(int)se.prev_token_count()
+								(int)se.prev_token_count(),
+								(int)se.token_count()
 						);
 						
 						r = true;

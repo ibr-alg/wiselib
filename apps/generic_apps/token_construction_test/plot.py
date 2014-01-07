@@ -28,9 +28,9 @@ parents = {}
 gnodes = {}
 nhood = set()
 
-properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count', 'node',
-		'SE', 'parent', 'neighbor', 't', 'fwd_window', 'fwd_interval', 'fwd_from',
-		'forwarding', 'waiting_for_broadcast')
+#properties = ('on', 'awake', 'active', 'window', 'interval', 'caffeine', 'count', 'node',
+		#'SE', 'parent', 'neighbor', 't', 'fwd_window', 'fwd_interval', 'fwd_from',
+		#'forwarding', 'waiting_for_broadcast')
 
 def getnodes(namepattern):
 	global gnodes
@@ -45,18 +45,18 @@ re_begin_iteration = re.compile('-+ BEGIN ITERATION (\d+)')
 #for p in properties:
 	#re_properties[p] = re.compile(r'\b' + p + r'\s*(=|\s)\s*([^= ]+)')
 
-re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)$')
-re_onoff = re.compile(r'@([0-9]+) (on|off) t([0-9]+)$')
-re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)$')
+#re_kv = re.compile(r'([A-Za-z_]+) *[= ] *([0-9a-fA-Fx.-]+)$')
+re_onoff = re.compile(r'@([0-9]+) (on|off)$')
+#re_tok = re.compile(r'@([0-9]+) tok S([0-9a-f]+\.[0-9a-f]+) w([0-9]+) i([0-9]+) t([0-9]+) tr([0-9]+) d([0-9]+) e([0-9]+) c([0-9]+),([0-9]+) r([0-9]+) ri([0-9]+)$')
 
-re_ti = re.compile(r'@([0-9]+) TI< t([0-9]+) P([0-9]+) p([0-9]+)$')
-re_rtt = re.compile(r'@([0-9]+) rtt t([0-9]+) F([0-9]+) d([0-9]+) e([0-9]+)$')
-re_beacon = re.compile(r'@([0-9]+) SEND BEACON ([0-9]+) S[0-9]+ c([0-9]+) t([0-9]+) SES [0-9]+ RTTs [0-9]+ l[0-9]+$')
+re_ti = re.compile(r'@([0-9]+) TI< P([0-9]+) p([0-9]+)$')
+re_rtt = re.compile(r'@([0-9]+) rtt F([0-9]+) d([0-9]+) e([0-9]+)$')
+re_beacon = re.compile(r'@([0-9]+) SB ([0-9]+) S[0-9]+ c([0-9]+) l[0-9]+$')
 #re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
-re_parent = re.compile(r'@([0-9]+) par([0-9]+) t([0-9]+)$')
-re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+) t([0-9]+)$')
-re_neigh_stay = re.compile(r'@([0-9]+) N[=] ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)$')
-re_neigh_erase = re.compile(r'@([0-9]+) N- ([0-9]+) l([0-9]+) L([0-9]+) t([0-9]+)$')
+re_parent = re.compile(r'@([0-9]+) par([0-9]+)$')
+re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+)$')
+re_neigh_stay = re.compile(r'@([0-9]+) N[=] ([0-9]+) l([0-9]+) L([0-9]+)$')
+re_neigh_erase = re.compile(r'@([0-9]+) N- ([0-9]+) l([0-9]+) L([0-9]+)$')
 
 re_time_sN = re.compile(r'^T([0-9]+)\.([0-9]+)\|(.*)$')
 
@@ -109,7 +109,7 @@ def parse(f):
 		
 		m = re.match(re_onoff, line)
 		if m is not None:
-			nodename, onoff, t_ = m.groups()
+			nodename, onoff = m.groups()
 			if nodename not in nodes: nodes[nodename] = {}
 			if 'on' not in nodes[nodename]:
 				nodes[nodename]['on'] = {'t': [], 'v': []}
@@ -143,9 +143,8 @@ def parse(f):
 			
 		m = re.match(re_ti, line)
 		if m is not None:
-			nodename, t_, P, p = m.groups()
+			nodename, P, p = m.groups()
 			name = nodename
-			#t_ = float(t_) / 1000.0
 			P = float(P) #// 1000
 			if name not in nodes: nodes[name] = {}
 			if 'phase' not in nodes[name]:
@@ -156,13 +155,12 @@ def parse(f):
 
 		m = re.match(re_rtt, line)
 		if m is not None:
-			nodename, t_, F, d, e = m.groups()
+			nodename, F, d, e = m.groups()
 			if int(e) > 200: continue
 			if int(e) < 40:
 				print("----------------- " + line)
 			
 			name = nodename
-			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'rtt' not in nodes[name]:
 				nodes[name]['rtt'] = {'t': [], 'v': []}
@@ -172,8 +170,7 @@ def parse(f):
 			
 		m = re.match(re_beacon, line)
 		if m is not None:
-			nodename, tgt, c, t_ = m.groups()
-			#t_ = float(t_) / 1000.0
+			nodename, tgt, c = m.groups()
 			name = nodename
 			if name not in nodes: nodes[name] = {}
 			if 'beacon' not in nodes[name]:
@@ -184,17 +181,14 @@ def parse(f):
 			
 		m = re.match(re_parent, line)
 		if m is not None:
-			nodename, parent, t_ = m.groups()
-			#t_ = int(t_) // 1000
+			nodename, parent = m.groups()
 			parents[nodename] = parent
 			continue
 
 		m = re.match(re_neigh_add, line)
 		if m is not None:
-			nodename, addr, l, t_ = m.groups()
-			#assert(int(l) < 1000)
+			nodename, addr, l = m.groups()
 			name = nodename
-			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'link_metric' not in nodes[name]:
 				nodes[name]['link_metric'] = {}
@@ -206,10 +200,8 @@ def parse(f):
 		
 		m = re.match(re_neigh_stay, line)
 		if m is not None:
-			nodename, addr, l, L, t_ = m.groups()
-			#assert(int(L) < 1000)
+			nodename, addr, l, L = m.groups()
 			name = nodename
-			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'link_metric' not in nodes[name]:
 				nodes[name]['link_metric'] = {}
@@ -221,10 +213,8 @@ def parse(f):
 			
 		m = re.match(re_neigh_erase, line)
 		if m is not None:
-			nodename, addr, l, L, t_ = m.groups()
-			#assert(int(L) < 1000)
+			nodename, addr, l, L = m.groups()
 			name = nodename
-			#t_ = int(t_) // 1000
 			if name not in nodes: nodes[name] = {}
 			if 'link_metric' not in nodes[name]:
 				nodes[name]['link_metric'] = {}
