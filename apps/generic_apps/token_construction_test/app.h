@@ -26,7 +26,8 @@ typedef Sdbm<Os> Hash;
 typedef Crc16<Os> ChecksumHash;
 
 typedef Tuple<Os> TupleT;
-typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
+typedef Os::Radio Radio;
+//typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
 
 
 //#define SINK_ID 57

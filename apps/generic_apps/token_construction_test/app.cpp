@@ -7,7 +7,8 @@ class App {
 		size_t initcount ;
 		
 		void init(Os::AppMainParameter& value) {
-			hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			//hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
@@ -41,12 +42,14 @@ class App {
 		}
 		
 		void init3() {
-			debug_->debug("@%lu bt", (unsigned long)radio_.id());
+			debug_->debug("@%lu bt", (unsigned long)radio_->id());
 			
-			hardware_radio_->enable_radio();
-			radio_.init(*hardware_radio_, *debug_);
+			radio_->enable_radio();
 			
-			rand_->srand(radio_.id());
+			//hardware_radio_->enable_radio();
+			//radio_->init(*hardware_radio_, *debug_);
+			
+			rand_->srand(radio_->id());
 			monitor_.init(debug_);
 			
 			// TupleStore
@@ -63,14 +66,14 @@ class App {
 			
 			// Token Scheduler
 			 
-			token_construction_.init(&ts, &radio_, timer_, clock_, debug_, rand_);
+			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
 			
 			init_inqp();
 			init_simple_rule_processor();
 			
 			// Fill node with initial semantics and construction rules
 			
-			initial_semantics(ts, &radio_, rand_);
+			initial_semantics(ts, radio_, rand_);
 				
 			create_rules();
 			rule_processor_.execute_all();
@@ -84,7 +87,7 @@ class App {
 				
 				//sensors_light_init();
 				/*
-				if(radio_.id() == token_construction_.tree().root()) {
+				if(radio_->id() == token_construction_.tree().root()) {
 					light_on = true;
 					leds_on(LEDS_BLUE);
 				}
@@ -152,14 +155,14 @@ class App {
 						debug_, timer_, clock_, rand_
 				);
 				
-				row_anycast_radio_.init(
+				row_anycast_radio_->init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
 						&radio_, timer_, debug_
 				);
 				
 			#if USE_STRING_INQUIRY
-				string_anycast_radio_.init(
+				string_anycast_radio_->init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
 						&radio_, timer_, debug_
@@ -169,12 +172,12 @@ class App {
 				// Transport rows for collect and aggregation operators
 				
 				// --- packing on top of anycast
-				row_radio_.init(row_anycast_radio_, *debug_, *timer_);
+				row_radio_->init(row_anycast_radio_, *debug_, *timer_);
 				
 				// --- anycast on top of packing
 				//static PackingOsRadio packing_radio_;
-				//packing_radio_.init(*radio_, *debug_, *timer_);
-				//row_radio_.init(
+				//packing_radio_->init(*radio_, *debug_, *timer_);
+				//row_radio_->init(
 						//&token_construction_.semantic_entity_registry(),
 						//&token_construction_.neighborhood(),
 						//&packing_radio_, timer_, debug_
@@ -197,7 +200,7 @@ class App {
 			#endif
 				
 				/*
-				anycast_radio_.reg_recv_callback<
+				anycast_radio_->reg_recv_callback<
 					ExampleApplication, &ExampleApplication::on_test_anycast_receive
 				>(this);
 				*/
@@ -253,16 +256,16 @@ class App {
 			
 			int room = 1;
 			
-			if(radio_.id() <= 0x1202) {
+			if(radio_->id() <= 0x1202) {
 				insert_room(1);
 				insert_room(2);
 				insert_room(3);
 				insert_room(4);
 			
 			}
-			else if(radio_.id() <= 0x1204) { insert_room(2); }
-			else if(radio_.id() <= 0x1206) { insert_room(3); }
-			else if(radio_.id() <= 0x1208) { insert_room(4); }
+			else if(radio_->id() <= 0x1204) { insert_room(2); }
+			else if(radio_->id() <= 0x1206) { insert_room(3); }
+			else if(radio_->id() <= 0x1208) { insert_room(4); }
 			
 			ins(ts, rdf_uri_, hasloc, "CTI Conference Room");
 			ins(ts, rdf_uri_, "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>", "38.2909");
@@ -305,14 +308,14 @@ class App {
 					//(unsigned)light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC),
 					//(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
 			//);
-			if(light_on && light_val < LIGHT_OFF && (radio_.id() != token_construction_.tree().root())) {
-				debug_->debug("@%lu leave %u", (unsigned long)radio_.id(), light_val);
+			if(light_on && light_val < LIGHT_OFF && (radio_->id() != token_construction_.tree().root())) {
+				debug_->debug("@%lu leave %u", (unsigned long)radio_->id(), light_val);
 				// unregister se
 				light_on = false;
 				token_construction_.erase_entity(light_se);
 			}
-			else if(!light_on && (light_val > LIGHT_ON || (radio_.id() == token_construction_.tree().root()))) {
-				debug_->debug("@%lu join %u", (unsigned long)radio_.id(), light_val);
+			else if(!light_on && (light_val > LIGHT_ON || (radio_->id() == token_construction_.tree().root()))) {
+				debug_->debug("@%lu join %u", (unsigned long)radio_->id(), light_val);
 				light_on = true;
 				token_construction_.add_entity(light_se);
 			}
@@ -336,8 +339,9 @@ class App {
 		TupleContainer container;
 		TS ts;
 		
-		Os::Radio::self_pointer_t hardware_radio_;
-		Radio radio_;
+		//Os::Radio::self_pointer_t hardware_radio_;
+		Os::Radio::self_pointer_t radio_;
+		//Radio radio_;
 		
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;

@@ -224,7 +224,7 @@ namespace wiselib {
 		///@name Receiving Beacons & Acks
 			
 		#if defined(SHAWN)
-			void on_receive(node_id_t from, typename Radio::size_type size, block_data_t *data) {
+			void on_receive(node_id_t from, typename Radio::size_t size, block_data_t *data) {
 				check();
 				switch(data[0]) {
 					case INSE_MESSAGE_TYPE_BEACON: 
@@ -238,19 +238,59 @@ namespace wiselib {
 				check();
 			}
 		#else
-			void on_receive(node_id_t from, typename Radio::size_type size, block_data_t *data, const typename Radio::ExtendedData& ex) {
+			
+			struct PacketInfo {
+				static PacketInfo* create(node_id_t from, typename Radio::size_t size, link_metric_t lm, abs_millis_t t_recv, block_data_t *data) {
+					PacketInfo *r = reinterpret_cast<PacketInfo*>(
+							::get_allocator().template allocate_array<block_data_t>(sizeof(PacketInfo) + size).raw()
+					);
+					r->from = from;
+					r->size = size;
+					r->lm = lm;
+					r->t_recv = t_recv;
+					memcpy(r->data, data, size);
+					return r;
+				}
+				
+				void destroy() {
+					::get_allocator().template free_array(reinterpret_cast<block_data_t*>(this));
+				}
+
+				
+				node_id_t from;
+				typename Radio::size_t size;
+				link_metric_t lm;
+				abs_millis_t t_recv;
+				block_data_t data[0];
+			};
+			
+			void on_receive(node_id_t from, typename Radio::size_t size, block_data_t *data, const typename Radio::ExtendedData& ex) {
+				if(data[0] == INSE_MESSAGE_TYPE_BEACON || data[0] == INSE_MESSAGE_TYPE_BEACON_ACK) {
+					PacketInfo *p = PacketInfo::create(from, size, ex.link_metric(), now(), data);
+					timer_->template set_timer<self_type, &self_type::on_receive_task>(0, this, (void*)p);
+				}
+			}
+
+			void on_receive_task(void *p) {
 				check();
-				switch(data[0]) {
+				PacketInfo *packet_info = reinterpret_cast<PacketInfo*>(p);
+				
+				switch(packet_info->data[0]) {
 					case INSE_MESSAGE_TYPE_BEACON: 
-						on_receive_beacon(*reinterpret_cast<BeaconMessageT*>(data), from, ex.link_metric());
+						on_receive_beacon(*reinterpret_cast<BeaconMessageT*>(packet_info->data), packet_info->from, packet_info->lm);
 						break;
 					
 					case INSE_MESSAGE_TYPE_BEACON_ACK:
-						on_receive_ack(*reinterpret_cast<BeaconAckMessageT*>(data), from, ex.link_metric());
+						on_receive_ack(*reinterpret_cast<BeaconAckMessageT*>(packet_info->data), packet_info->from, packet_info->lm);
 						break;
 				}
+				
+				packet_info->destroy();
 				check();
 			}
+			
+			
+			
 		#endif
 			
 			void on_receive_beacon(BeaconMessageT& msg, node_id_t from, link_metric_t lm) {

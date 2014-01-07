@@ -68,6 +68,11 @@ namespace wiselib
       vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
       va_end( fmtargs );
       printf( "%s\n", buffer );
+      //va_list fmtargs;
+	  //va_start(fmtargs, msg);
+	  //vprintf(msg, fmtargs);
+      //va_end( fmtargs );
+	  //printf("\n");
    }
 }
 
