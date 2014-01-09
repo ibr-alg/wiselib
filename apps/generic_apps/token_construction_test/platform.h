@@ -2,6 +2,8 @@
 
 /// Default config
 
+#define USE_CHECKSUM_RADIO 1
+
 //#define INSE_CSMA_MODE                 0
 //#define INSE_BCAST_INTERVAL          10000 * WISELIB_TIME_FACTOR
 
@@ -190,26 +192,28 @@
 
 // Allocator
 
-#define NEED_ALLOCATOR (defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ))
+#define NEED_ALLOCATOR 1
+#define NEED_OWN_ALLOCATOR (defined(TINYOS) || defined(CONTIKI) || defined(CONTIKI_TARGET_MICAZ))
 
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
 typedef wiselib::OSMODEL Os;
 
 #if NEED_ALLOCATOR
-	#warning "Using BITMAP allocator"
+	#if NEED_OWN_ALLOCATOR
+		#warning "Using BITMAP allocator"
 
-	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, BITMAP_ALLOCATOR_RAM_SIZE> Allocator;
-	Allocator allocator_;
-	Allocator& get_allocator() { return allocator_; }
-#else
-	#include <util/allocators/malloc_free_allocator.h>
-	typedef wiselib::MallocFreeAllocator<Os> Allocator;
-	Allocator allocator_;
-	Allocator& get_allocator() { return allocator_; }
+		#include <util/allocators/bitmap_allocator.h>
+		typedef wiselib::BitmapAllocator<Os, BITMAP_ALLOCATOR_RAM_SIZE> Allocator;
+		Allocator allocator_;
+		Allocator& get_allocator() { return allocator_; }
+	#else
+		#include <util/allocators/malloc_free_allocator.h>
+		typedef wiselib::MallocFreeAllocator<Os> Allocator;
+		Allocator allocator_;
+		Allocator& get_allocator() { return allocator_; }
+	#endif
 #endif
-
 
 // OS quirks
 

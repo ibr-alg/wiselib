@@ -63,7 +63,7 @@ namespace wiselib
    debug( const char *msg, ... )
    {
       va_list fmtargs;
-      char buffer[1024];
+      char buffer[256];
       va_start( fmtargs, msg );
       vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
       va_end( fmtargs );

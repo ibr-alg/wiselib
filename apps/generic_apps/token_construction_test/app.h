@@ -26,7 +26,12 @@ typedef Sdbm<Os> Hash;
 typedef Crc16<Os> ChecksumHash;
 
 typedef Tuple<Os> TupleT;
-typedef Os::Radio Radio;
+
+#if USE_CHECKSUM_RADIO
+	typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
+#else
+	typedef Os::Radio Radio;
+#endif
 //typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
 
 

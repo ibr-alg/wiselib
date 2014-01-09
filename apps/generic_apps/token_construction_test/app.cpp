@@ -7,8 +7,15 @@ class App {
 		size_t initcount ;
 		
 		void init(Os::AppMainParameter& value) {
-			//hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
-			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			
+			hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+		#if USE_CHECKSUM_RADIO
+			radio_ = &checksum_radio_;
+		#else
+			radio_ = hardware_radio_; //&wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+		#endif
+
+
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
@@ -42,14 +49,16 @@ class App {
 		}
 		
 		void init3() {
-			debug_->debug("@%lu bt", (unsigned long)radio_->id());
+			debug_->debug("@%lu bt", (unsigned long)hardware_radio_->id());
 			
-			radio_->enable_radio();
+			hardware_radio_->enable_radio();
 			
 			//hardware_radio_->enable_radio();
-			//radio_->init(*hardware_radio_, *debug_);
+			#if USE_CHECKSUM_RADIO
+				radio_->init(*hardware_radio_, *debug_);
+			#endif
 			
-			rand_->srand(radio_->id());
+			rand_->srand(hardware_radio_->id());
 			monitor_.init(debug_);
 			
 			// TupleStore
@@ -340,8 +349,11 @@ class App {
 		TS ts;
 		
 		//Os::Radio::self_pointer_t hardware_radio_;
-		Os::Radio::self_pointer_t radio_;
-		//Radio radio_;
+		#if USE_CHECKSUM_RADIO
+			Radio checksum_radio_;
+		#endif
+		Os::Radio::self_pointer_t hardware_radio_;
+		Radio::self_pointer_t radio_;
 		
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;

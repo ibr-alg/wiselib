@@ -71,6 +71,7 @@ def parse(f):
 	t = 0
 	t_report = 1000
 	
+	garbage = open('garbage_lines.txt', 'w')
 	
 	def extract_time_sN(line):
 		m = re.match(re_time_sN, line)
@@ -156,9 +157,9 @@ def parse(f):
 		m = re.match(re_rtt, line)
 		if m is not None:
 			nodename, F, d, e = m.groups()
-			if int(e) > 200: continue
-			if int(e) < 40:
-				print("----------------- " + line)
+			#if int(e) > 200: continue
+			#if int(e) < 40:
+				#print("----------------- " + line)
 			
 			name = nodename
 			if name not in nodes: nodes[name] = {}
@@ -224,7 +225,7 @@ def parse(f):
 			nodes[name]['link_metric'][addr]['v'].append(int(L))
 			continue
 		
-		print(line)
+		garbage.write(line + '\n')
 		
 def fig_count_onegraph(namepattern = '.*'):
 	# {{{

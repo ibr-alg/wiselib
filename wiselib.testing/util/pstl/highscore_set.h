@@ -25,8 +25,13 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief A set implementation that keeps the N most "important" elements.
 	 * 
+	 * Importance is defined by a score provided by each element (currently
+	 * using the elements .score() method).
+	 * When a new element is added while the contanier is full an element with
+	 * lower score is removed (if possible) to free space for the new element.
+	 *
 	 * @ingroup
 	 * 
 	 * @tparam 
@@ -61,6 +66,10 @@ namespace wiselib {
 				if(full()) {
 					// is there an element with lower score
 					// to make room for our new guest?
+					//
+					// TODO: If a more deterministic behavior is required,
+					// change this to substitute the element with the lowest
+					// score.
 					for(iterator iter = begin(); iter != end(); ++iter) {
 						if(score(iter) < s) {
 							*iter = v;
@@ -96,6 +105,9 @@ namespace wiselib {
 			}
 			
 			score_type score(iterator iter) {
+				// TODO: for more flexible use allow this to be overridden in
+				// some way (eg. via template parameter or callback).
+				// Eg. score() := constant for a simple set implementation
 				return iter->score();
 				//return scores_[iter - begin()];
 			}
