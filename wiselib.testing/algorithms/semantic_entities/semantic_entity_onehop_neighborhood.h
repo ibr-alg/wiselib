@@ -171,8 +171,11 @@ namespace wiselib {
 					node_id_t id() { return id_; }
 					void set_id(node_id_t x) { id_ = x; }
 					
-					abs_millis_t last_beacon_received() { return last_beacon_received_; }
-					void set_last_beacon_received(abs_millis_t x) { last_beacon_received_ = x; }
+					//abs_millis_t last_beacon_received() { return last_beacon_received_; }
+					//void set_last_beacon_received(abs_millis_t x) { last_beacon_received_ = x; }
+
+					abs_millis_t last_confirmed_ti_start() { return last_confirmed_ti_start_; }
+					void set_last_confirmed_ti_start(abs_millis_t x) { last_confirmed_ti_start_ = x; }
 					
 					node_id_t parent() { return parent_; }
 					void set_parent(node_id_t p) { parent_ = p; }
@@ -185,6 +188,10 @@ namespace wiselib {
 					bool operator<(Neighbor& other) { return id_ < other.id_; }
 					
 					::uint8_t semantic_entity_state(SemanticEntityId id) {
+						if(id.is_all()) {
+							return JOINED;
+						}
+
 						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 							if(iter->semantic_entity_id() == id) {
 								return iter->semantic_entity_state();
@@ -194,27 +201,27 @@ namespace wiselib {
 					}
 					
 					NeighborEntity& find_or_create_semantic_entity(SemanticEntityId id) {
-				printf("[foc_se]\n");
+				//printf("[foc_se]\n");
 						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 							if(iter->semantic_entity_id() == id) {
 								return *iter;
 							}
 						}
-				printf("[foc_se c S%lx.%lx]\n", (unsigned long)id.rule(), (unsigned long)id.value());
+				//printf("[foc_se c S%lx.%lx]\n", (unsigned long)id.rule(), (unsigned long)id.value());
 						NeighborEntity ne(id, UNAFFECTED);
 						typename Entities::iterator it = entities_.insert(ne);
 						return *it;
 					}
 					
 					void outdate_semantic_entities() {
-				printf("[outdate_ses]\n");
+				//printf("[outdate_ses]\n");
 						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ++iter) {
 							iter->outdate();
 						}
 					}
 					
 					void erase_outdated_semantic_entities() {
-				printf("[erase_oses]\n");
+				//printf("[erase_oses]\n");
 						for(typename Entities::iterator iter = entities_.begin(); iter != entities_.end(); ) {
 							if(iter->fresh()) { ++iter; }
 							else { iter = entities_.erase(iter); }
@@ -227,7 +234,7 @@ namespace wiselib {
 					void set_link_metric(link_metric_t x) { link_metric_ = x; }
 					
 					void update_link_metric(link_metric_t x) {
-						link_metric_ = 0.8 * link_metric_ + 0.2 * x;
+						link_metric_ = (1.0 - INSE_LINK_METRIC_ALPHA) * (float)link_metric_ + INSE_LINK_METRIC_ALPHA * (float)x;
 					}
 					
 					
@@ -235,7 +242,8 @@ namespace wiselib {
 					//list_dynamic<OsModel, NeighborEntity> entities_;
 					Entities entities_;
 					node_id_t id_;
-					abs_millis_t last_beacon_received_;
+					//abs_millis_t last_beacon_received_;
+					abs_millis_t last_confirmed_ti_start_;
 					node_id_t parent_;
 					link_metric_t link_metric_;
 					::uint8_t root_distance_;
@@ -285,7 +293,7 @@ namespace wiselib {
 			
 			bool is_leaf(SemanticEntityId id) {
 				for(iterator iter = begin(); iter != end(); ++iter) {
-					if(classify(iter->id()) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {
+					if(classify(iter) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {
 						//debug_->debug("@%lu no leaf because of %lu", (unsigned long)radio_->id(), (unsigned long)iter->id());
 						return false;
 					}
@@ -316,7 +324,7 @@ namespace wiselib {
 			iterator end() { return neighbors_.end(); }
 			
 			iterator find_neighbor(node_id_t id) {
-				debug_->debug("[findn]");
+				//debug_->debug("[findn]");
 				for(iterator iter = begin(); iter != end(); ++iter) {
 					if(iter->id() == id) { return iter; }
 				}
@@ -324,7 +332,7 @@ namespace wiselib {
 			}
 			
 			iterator create_or_update_neighbor(node_id_t id, link_metric_t lm) {
-				debug_->debug("[corun]");
+				//debug_->debug("[corun]");
 				iterator r = find_neighbor(id);
 				if(r == end()) {
 					if(lm >= LM_THRESHOLD_HIGH) {
@@ -351,6 +359,17 @@ namespace wiselib {
 				}
 			}
 				
+
+			int classify(iterator iter) {
+				if(iter == end()) { return CLASS_UNKNOWN; }
+				
+				node_id_t n = iter->id();
+				if(n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return CLASS_UNKNOWN; }
+				if(n == parent_) { return CLASS_PARENT; }
+				
+				return iter->parent() == radio_->id() ? CLASS_CHILD : CLASS_SHORTCUT;
+			}
+
 			
 			int classify(node_id_t n) {
 				if(n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return CLASS_UNKNOWN; }
@@ -399,7 +418,7 @@ namespace wiselib {
 		///@}
 			
 			void process_token(SemanticEntityId se_id, node_id_t source, ::uint8_t token_count) {
-				debug_->debug("[proct]");
+				//debug_->debug("[proct]");
 				SemanticEntityT &se = semantic_entities_[se_id];
 				
 				debug_->debug("PT F%lu C%d c%d:%d,%d",
@@ -469,6 +488,18 @@ namespace wiselib {
 									(int)se.token_count(),
 									(int)activity
 							);
+							//debug_->debug("tok v F%lu c%d,%d a%d",
+									//(unsigned long)source,
+									//(int)token_count,
+									//(int)se.token_count(),
+									//(int)activity
+							//);
+							//debug_->debug("tok v F%lu c%d,%d a%d",
+									//(unsigned long)source,
+									//(int)token_count,
+									//(int)se.token_count(),
+									//(int)activity
+							//);
 							
 							se.set_source(source);
 							se.set_orientation(SemanticEntityT::DOWN);
@@ -564,13 +595,14 @@ namespace wiselib {
 			} // process_token
 			
 			void update_tree_state() {
-				debug_->debug("[uptree]");
+				//debug_->debug("[uptree]");
 				check();
 				
 				if(is_root()) {
 					parent_ = NULL_NODE_ID;
 					changed_parent_ = false;
 					
+					debug_topo();
 					check();
 					return;
 				}
@@ -599,11 +631,30 @@ namespace wiselib {
 				parent_ = parent;
 				
 				if(changed_parent_) {
-					//debug_->debug("@%lu par%lu t%lu", (unsigned long)radio_->id(), (unsigned long)parent_, (unsigned long)now());
-					debug_->debug("par%lu", (unsigned long)parent_);
+					debug_->debug("@%lu par%lu t%lu", (unsigned long)radio_->id(), (unsigned long)parent_, (unsigned long)now());
 				}
-				
+
+				debug_topo();
+
 				check();
+			}
+
+			void debug_topo() {
+				/*
+				debug_->debug("topo<%lu:", (unsigned long)parent_);
+				//debug_->debug("ch<");
+				
+				node_id_t addr = 0;
+				int i = 0;
+				while(true) {
+					addr = next_child(SemanticEntityId::all(), addr);
+					if(addr == NULL_NODE_ID) { break; }
+					debug_->debug("ch%d %lu:", (int)i, (unsigned long)addr);
+					i++;
+				}
+
+				debug_->debug("topo>%d:", (int)i);
+				*/
 			}
 			
 			bool changed_parent() { return changed_parent_; }
@@ -620,7 +671,7 @@ namespace wiselib {
 			}
 			
 			node_id_t next_hop(SemanticEntityId id, node_id_t src = NULL_NODE_ID) { //, node_id_t source, MessageOrientation orientation) {
-				debug_->debug("[nextho]");
+				//debug_->debug("[nextho]");
 				assert(semantic_entities_.contains(id));
 				check();
 				
@@ -688,7 +739,7 @@ namespace wiselib {
 			 * Else, return false.
 			 */
 			bool be_active() {
-				debug_->debug("[beact]");
+				//debug_->debug("[beact]");
 				
 				// TODO
 				bool r = false;
@@ -747,13 +798,16 @@ namespace wiselib {
 			///@name Child operations.
 			
 			/**
-			 * Will ignore childs that have ID 0, (conveniently fixed by
-			 * defining 0 as the root!)
+			 * Will not report childs that have ID 0! 
+			 * Conveniently fixed by
+			 * defining 0 as the root or disallowing the ID 0 in the network!
+			 * In real networks usually the latter is true, in eg. shawn just
+			 * choose ID 0 as root.
 			 */
 			node_id_t first_child(SemanticEntityId id) { return next_child(id, 0); }
 			
 			node_id_t next_child(SemanticEntityId id, node_id_t n) {
-				debug_->debug("[nextch]");
+				//debug_->debug("[nextch]");
 				//debug_->debug("@%lu next_child(%lx.%lx, %lu)", (unsigned long)radio_->id(),
 						//(unsigned long)id.rule(), (unsigned long)id.value(), (unsigned long)n);
 				
@@ -776,9 +830,13 @@ namespace wiselib {
 							(int)(iter->semantic_entity_state(id) != UNAFFECTED)
 							);
 					*/
+
+					bool x = (addr > n) &&
+						(m == NULL_NODE_ID || addr < m) &&
+						(classify(iter) == CLASS_CHILD) &&
+						iter->semantic_entity_state(id) != UNAFFECTED;
 					
-					if(addr > n && (m == NULL_NODE_ID || addr < m) &&
-							classify(addr) == CLASS_CHILD && iter->semantic_entity_state(id) != UNAFFECTED) {
+					if(x) {
 						m = addr;
 					}
 				}

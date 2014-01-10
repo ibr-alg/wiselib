@@ -13,12 +13,19 @@
 	#define INSE_ROOT_NODE_ID              47430 // lowest ID in 1A+
 #endif
 
-#define INSE_PERIOD                          20000 * WISELIB_TIME_FACTOR
-#define INSE_MIN_TRANSFER_INTERVAL_LENGTH    3000 * WISELIB_TIME_FACTOR
-#define INSE_START_WAIT              (5 * 60)
-#define INSE_ESTIMATE_RTT              1
+//#define INSE_PERIOD                          20000 * WISELIB_TIME_FACTOR
+//#define INSE_MIN_TRANSFER_INTERVAL_LENGTH    3000 * WISELIB_TIME_FACTOR
 
-#define INSE_MAX_NEIGHBORS             20
+#define INSE_PERIOD                          5000 * WISELIB_TIME_FACTOR
+#define INSE_MIN_TRANSFER_INTERVAL_LENGTH    1000 * WISELIB_TIME_FACTOR
+
+#define INSE_LINK_METRIC_ALPHA         (4.0 / 8.0)
+
+#define INSE_START_WAIT                (5 * 60)
+#define INSE_ESTIMATE_RTT              1
+#define INSE_ESTIMATE_RTT_ALPHA        (1.0/8.0)
+
+#define INSE_MAX_NEIGHBORS             30
 #define INSE_MAX_SEMANTIC_ENTITIES     4
 #define INSE_MAX_QUERIES               4
 //#define INSE_BLOOM_FILTER_BITS        64

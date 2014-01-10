@@ -16,7 +16,7 @@ import pydot
 
 tmax = 3000000
 
-
+PERIOD = 5000.0
 
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
@@ -51,7 +51,7 @@ re_onoff = re.compile(r'@([0-9]+) (on|off)$')
 
 re_ti = re.compile(r'@([0-9]+) TI< P([0-9]+) p([0-9]+)$')
 re_rtt = re.compile(r'@([0-9]+) rtt F([0-9]+) d([0-9]+) e([0-9]+)$')
-re_beacon = re.compile(r'@([0-9]+) SB ([0-9]+) S[0-9]+ c([0-9]+) l[0-9]+$')
+re_beacon = re.compile(r'@([0-9]+) SB ([0-9]+) S[0-9]+ c([0-9]+) l[0-9]+ d[0-9]+ P([0-9]+)$')
 #re_parent = re.compile(r'PARENT\(([0-9]+)\) := ([0-9]+)')
 re_parent = re.compile(r'@([0-9]+) par([0-9]+)$')
 re_neigh_add = re.compile(r'@([0-9]+) N\+ ([0-9]+) l([0-9]+)$')
@@ -171,13 +171,19 @@ def parse(f):
 			
 		m = re.match(re_beacon, line)
 		if m is not None:
-			nodename, tgt, c = m.groups()
+			nodename, tgt, c, P = m.groups()
 			name = nodename
 			if name not in nodes: nodes[name] = {}
 			if 'beacon' not in nodes[name]:
 				nodes[name]['beacon'] = {'t': [], 'v': []}
 			nodes[name]['beacon']['t'].append(t)
 			nodes[name]['beacon']['v'].append(1)
+
+			#if name not in nodes: nodes[name] = {}
+			if 'phase' not in nodes[name]:
+				nodes[name]['phase'] = {'t': [], 'v': []}
+			nodes[name]['phase']['t'].append(t)
+			nodes[name]['phase']['v'].append(int(P))
 			continue
 			
 		m = re.match(re_parent, line)
@@ -391,7 +397,7 @@ def fig_timings():
 def interpolate_phases():
 	global gnodes
 	nodes = gnodes
-	PERIOD = 20000.0
+	#PERIOD = 20000.0
 	step = 0.001 * PERIOD
 	
 	for name, node in nodes.items():
@@ -426,15 +432,18 @@ def fig_phases():
 	#ax.set_xlim((5000, 30000))
 	#ax.set_ylim((250000, 350000))
 	#ax.set_ylim((270, 400))
+
+	#ax.set_xticklabels(
 	
-	PERIOD = 20000.0
+	#PERIOD = 20000.0
 	F = 2.0 * math.pi / PERIOD
 	
-	for name, node in sorted(nodes.items(), cmp=namesort):
+	#for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
+	for name, node in sorted(nodes.items(), cmp=namesort)[20:]:
 		if 'phase' in node:# and name in ('0','1', '2', '3'):
 			r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], '-', label=name)
 		
-	#ax.legend()
+	ax.legend()
 	fig.savefig('phases.pdf')
 	fig.savefig('phases.png')
 	
@@ -444,13 +453,14 @@ def fig_rtts():
 	nodes = gnodes
 	fig = plt.figure() #figsize=(16, 40))
 	ax = plt.subplot(111)
+	ax.set_ylim((0, 50))
 	
 	for name, node in sorted(nodes.items(), cmp=namesort):
 		#if 'rtt' in node and name in ('47430','47442'): # and name in ('0', '1', '2'):
 		if 'rtt' in node:
 			#print (node['rtt'])
-			r, = ax.plot(node['rtt']['t'], node['rtt']['v'], label=name,
-					drawstyle='steps-post')
+			r, = ax.plot(node['rtt']['t'], node['rtt']['v'], label=name)
+					#drawstyle='steps-post')
 		
 	#ax.legend()
 	fig.savefig('rtts.pdf')
@@ -461,11 +471,16 @@ def fig_link_metric():
 	nodes = gnodes
 	fig = plt.figure()
 	ax = plt.subplot(111)
+
+	ax.set_ylim((200, 370))
 	
-	name, node = sorted([(k,v) for k,v in nodes.items() if 'link_metric' in v])[3]
+	#name, node = sorted([(k,v) for k,v in nodes.items() if 'link_metric' in v])[3]
+	node = nodes['47430']
 	#print(name, node)
 	for name2, node2 in node['link_metric'].items():
 		ax.plot(node2['t'], node2['v'])
+	
+	ax.legend()
 	fig.savefig('link_metric.pdf')
 
 def fig_forward_timings():
@@ -612,7 +627,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
 	#last_ax.set_xlim((-1, tmax))
-	#last_ax.set_xlim((1200, 1205))
+	last_ax.set_xlim((600, 700))
 	#last_ax.set_xlim((23000, 30000))
 	
 	setp(last_ax.get_xticklabels(), visible = True)

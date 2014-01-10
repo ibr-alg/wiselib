@@ -171,9 +171,9 @@ namespace wiselib {
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data + 1);
 				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
 				if(h_msg != h_check) {
-					#if defined(SHAWN) || defined(ISENSE)
-					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
-					#endif
+					//#if defined(SHAWN) || defined(ISENSE)
+					debug_->debug("!C %lu l%d h%x,%x", (unsigned long)from, (int)len, (unsigned)h_msg, (unsigned)h_check);
+					//#endif
 					return;
 				}
 				
