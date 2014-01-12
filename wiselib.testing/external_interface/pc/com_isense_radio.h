@@ -78,6 +78,10 @@ namespace wiselib {
 				MAX_MESSAGE_LENGTH = 116
 			};
 
+			enum {
+				SUCCESS = OsModel::SUCCESS
+			};
+
 			ComISenseRadioModel();
 			ComISenseRadioModel(typename OsModel::Os& os);
 

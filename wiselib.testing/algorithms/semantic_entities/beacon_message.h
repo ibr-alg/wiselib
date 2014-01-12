@@ -92,7 +92,7 @@ namespace wiselib {
 			};
 			
 			enum SEFlags {
-				FLAG_DOWN = 0x00, FLAG_UP = 0x04
+				FLAG_UP = 0x04
 			};
 			
 			enum { npos = (size_type)(-1) };
@@ -133,7 +133,7 @@ namespace wiselib {
 			
 			::uint8_t flags() { return rd< ::uint8_t>(POS_FLAGS); }
 			void set_flags(::uint8_t f) { wr< ::uint8_t>(POS_FLAGS, f); }
-			
+
 			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
 			void set_semantic_entities(::uint8_t n) {
 				wr(POS_SES, n);
@@ -212,6 +212,9 @@ namespace wiselib {
 			
 			::uint8_t semantic_entity_flags(::uint8_t s) { return rdse< ::uint8_t>(s, SEPOS_FLAGS); }
 			void set_semantic_entity_flags(::uint8_t s, ::uint8_t c) { wrse< ::uint8_t>(s, SEPOS_FLAGS, c); }
+			
+			bool is_down(::uint8_t i) { return !(semantic_entity_flags(i) & FLAG_UP); }
+			bool is_up(::uint8_t i) { return (semantic_entity_flags(i) & FLAG_UP); }
 			
 			size_type rtt_infos_start() { return semantic_entities() * SEPOS_END + POS_SES_START; }
 

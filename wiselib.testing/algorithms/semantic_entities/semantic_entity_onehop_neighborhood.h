@@ -337,7 +337,7 @@ namespace wiselib {
 				if(r == end()) {
 					if(lm >= LM_THRESHOLD_HIGH) {
 						//debug_->debug("@%lu N+ %lu l%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)now());
-						debug_->debug("N+ %lu l%lu", (unsigned long)id, (unsigned long)lm);
+						//debug_->debug("N+ %lu l%lu", (unsigned long)id, (unsigned long)lm);
 						r = neighbors_.insert(id, lm);
 						r->set_link_metric(lm);
 						return r;
@@ -348,13 +348,13 @@ namespace wiselib {
 					r->update_link_metric(lm);
 					if(r->link_metric() < LM_THRESHOLD_LOW) {
 						//debug_->debug("@%lu N- %lu l%lu L%d t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
-						debug_->debug("N- %lu l%lu L%lu", (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric()); 
+						//debug_->debug("N- %lu l%lu L%lu", (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric()); 
 						neighbors_.erase(r);
 						return end();
 					}
 					
 					//debug_->debug("@%lu N= %lu l%lu L%lu t%lu", (unsigned long)radio_->id(), (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric(), (unsigned long)now());
-					debug_->debug("N= %lu l%lu L%lu", (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric()); 
+					//debug_->debug("N= %lu l%lu L%lu", (unsigned long)id, (unsigned long)lm, (unsigned long)r->link_metric()); 
 					return r;
 				}
 			}
@@ -365,7 +365,7 @@ namespace wiselib {
 				
 				node_id_t n = iter->id();
 				if(n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return CLASS_UNKNOWN; }
-				if(n == parent_) { return CLASS_PARENT; }
+				if(!is_root() && n == parent_) { return CLASS_PARENT; }
 				
 				return iter->parent() == radio_->id() ? CLASS_CHILD : CLASS_SHORTCUT;
 			}
@@ -373,7 +373,7 @@ namespace wiselib {
 			
 			int classify(node_id_t n) {
 				if(n == NULL_NODE_ID || n == BROADCAST_ADDRESS) { return CLASS_UNKNOWN; }
-				if(n == parent_) { return CLASS_PARENT; }
+				if(!is_root() && n == parent_) { return CLASS_PARENT; }
 				
 				iterator iter = find_neighbor(n);
 				if(iter == end()) { return CLASS_UNKNOWN; }
@@ -482,9 +482,10 @@ namespace wiselib {
 									//(int)activity,
 									//(unsigned long)now()
 							//);
-							debug_->debug("tok v F%lu c%d,%d a%d",
+							debug_->debug("tok v F%lu c%d:%d,%d a%d",
 									(unsigned long)source,
 									(int)token_count,
+									(int)se.prev_token_count(),
 									(int)se.token_count(),
 									(int)activity
 							);
@@ -541,10 +542,11 @@ namespace wiselib {
 									//(int)token_count,
 									//(unsigned long)now()
 							//);
-							debug_->debug("tok ^ F%lu c%d,%d a1",
+							debug_->debug("tok ^ F%lu c%d:%d,%d a1",
 									(unsigned long)source,
+									(int)token_count,
 									(int)se.prev_token_count(),
-									(int)token_count
+									(int)se.token_count()
 							);
 							
 							se.set_source(source);
@@ -562,10 +564,11 @@ namespace wiselib {
 									//(int)token_count,
 									//(unsigned long)now()
 							//);
-							debug_->debug("tok ^ F%lu c%d,%d a0 R",
+							debug_->debug("tok ^ F%lu c:%d:%d,%d a0 R",
 									(unsigned long)source,
+									(int)token_count,
 									(int)se.prev_token_count(),
-									(int)token_count
+									(int)se.token_count()
 							);
 							
 							se.set_source(source);
@@ -778,6 +781,22 @@ namespace wiselib {
 							}
 						} // if done
 					} // if active
+					else {
+						// Ensure consistency, when prevcount == count, send
+						// up, else down
+
+						if(is_leaf(se.id()) || is_root() || se.token_count() == se.prev_token_count()) {
+							se.set_orientation(SemanticEntityT::UP);
+							if(is_root()) {
+								se.set_token_count(se.prev_token_count() + 1);
+							}
+						}
+						else {
+							se.set_orientation(SemanticEntityT::DOWN);
+						}
+						se.set_source(radio_->id());
+					}
+
 				} // for SEs
 				return r;
 			}

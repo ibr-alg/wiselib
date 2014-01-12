@@ -376,7 +376,7 @@ namespace wiselib {
 				
 				//debug_->debug("@%lu RB F%lu S%lu t%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)msg.sequence_number(), (unsigned long)t_recv, (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
 				//debug_->debug("@%lu RB F%lu S%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)msg.sequence_number(), (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
-				debug_->debug("RB F%lu S%lu f%d", (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags());
+				debug_->debug("RB F%lu S%lu f%d c%d", (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags(), (int)msg.token_count(0));
 				
 				// Update topology info
 				
@@ -464,8 +464,8 @@ namespace wiselib {
 									// to the message!
 									
 									p = fwd.add_semantic_entity_from(msg, i);
-									//debug_->debug("@%lu FWD to %lu c=%d", (unsigned long)radio_->id(),
-											//(unsigned long)neighborhood_.next_hop(se_id, from), (int)token_count);
+									debug_->debug("@%lu FWD to %lu c=%d", (unsigned long)radio_->id(),
+											(unsigned long)neighborhood_.next_hop(se_id, from), (int)token_count);
 									fwd.set_target(p, neighborhood_.next_hop(se_id, from));
 								}
 								else if(
@@ -478,8 +478,8 @@ namespace wiselib {
 									
 									node_id_t next = neighborhood_.next_hop(se_id, from);
 									
-									//debug_->debug("@%lu FWD override to %lu c=%d p=%d/%d", (unsigned long)radio_->id(),
-											//(unsigned long)next, (int)token_count, (int)p, (int)fwd.semantic_entities());
+									debug_->debug("@%lu FWD override to %lu c=%d p=%d/%d", (unsigned long)radio_->id(),
+											(unsigned long)next, (int)token_count, (int)p, (int)fwd.semantic_entities());
 									
 									fwd.set_token_count(p, token_count);
 									fwd.set_target(p, next);
@@ -511,7 +511,7 @@ namespace wiselib {
 						SemanticEntityT &se = neighborhood_.get_semantic_entity(se_id);
 						
 						if(
-								msg.semantic_entity_flags(i) & BeaconMessageT::FLAG_DOWN &&
+								msg.is_down(i) &&
 								target > radio_->id() &&
 								token_count > se.token_count()
 						) {

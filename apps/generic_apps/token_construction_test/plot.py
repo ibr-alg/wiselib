@@ -427,7 +427,7 @@ def fig_phases():
 	global fig
 	global gnodes
 	nodes = gnodes
-	fig = plt.figure() #figsize=(16, 40))
+	fig = plt.figure(figsize=(6,6)) #figsize=(16, 40))
 	ax = plt.subplot(111, polar=True)
 	#ax.set_xlim((5000, 30000))
 	#ax.set_ylim((250000, 350000))
@@ -439,12 +439,13 @@ def fig_phases():
 	F = 2.0 * math.pi / PERIOD
 	
 	#for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
-	for name, node in sorted(nodes.items(), cmp=namesort)[20:]:
+
+	for name, node in sorted(nodes.items(), cmp=namesort):
 		if 'phase' in node:# and name in ('0','1', '2', '3'):
 			r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], '-', label=name)
 		
-	ax.legend()
-	fig.savefig('phases.pdf')
+	#ax.legend()
+	fig.savefig('phases.pdf', bbox_inches='tight', pad_inches=.1)
 	fig.savefig('phases.png')
 	
 def fig_rtts():
@@ -453,17 +454,19 @@ def fig_rtts():
 	nodes = gnodes
 	fig = plt.figure() #figsize=(16, 40))
 	ax = plt.subplot(111)
-	ax.set_ylim((0, 50))
+	ax.set_ylim((10, 40))
 	
-	for name, node in sorted(nodes.items(), cmp=namesort):
+	n = 0;
+	for name, node in sorted(nodes.items(), cmp=namesort)[:10]:
 		#if 'rtt' in node and name in ('47430','47442'): # and name in ('0', '1', '2'):
 		if 'rtt' in node:
 			#print (node['rtt'])
-			r, = ax.plot(node['rtt']['t'], node['rtt']['v'], label=name)
-					#drawstyle='steps-post')
+			r, = ax.plot([x + n for x in node['rtt']['t']], node['rtt']['v'],
+					'-', label=name) #, drawstyle='steps-post')
+			n += 1
 		
 	#ax.legend()
-	fig.savefig('rtts.pdf')
+	fig.savefig('rtts.pdf', bbox_inches='tight', pad_inches=.1)
 
 def fig_link_metric():
 	global fig
@@ -481,7 +484,7 @@ def fig_link_metric():
 		ax.plot(node2['t'], node2['v'])
 	
 	ax.legend()
-	fig.savefig('link_metric.pdf')
+	fig.savefig('link_metric.pdf', bbox_inches='tight', pad_inches=.1)
 
 def fig_forward_timings():
 	global fig
@@ -627,7 +630,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	#last_ax.spines['bottom'].set_visible(True)
 	#last_ax.set_xlim((-1, 1801))
 	#last_ax.set_xlim((-1, tmax))
-	last_ax.set_xlim((600, 700))
+	#last_ax.set_xlim((1250, 1260))
 	#last_ax.set_xlim((23000, 30000))
 	
 	setp(last_ax.get_xticklabels(), visible = True)
@@ -635,7 +638,7 @@ def fig_duty_cycle(namepattern = '.*'):
 	kv = list(property_styles.items())
 	fig.legend(tuple(x[1] for x in kv), tuple(x[0] for x in kv))
 	
-	fig.savefig('duty_cycle.pdf', bbox_inches='tight') #, pad_inches=.1)
+	fig.savefig('duty_cycle.pdf', bbox_inches='tight', pad_inches=.1) #, pad_inches=.1)
 	#plt.show()
 
 
