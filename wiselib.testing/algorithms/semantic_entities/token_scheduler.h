@@ -376,7 +376,7 @@ namespace wiselib {
 				
 				//debug_->debug("@%lu RB F%lu S%lu t%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)msg.sequence_number(), (unsigned long)t_recv, (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
 				//debug_->debug("@%lu RB F%lu S%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)msg.sequence_number(), (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
-				debug_->debug("RB F%lu S%lu f%d c%d", (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags(), (int)msg.token_count(0));
+				debug_->debug("RB %lu F%lu S%lu f%d c%d C%d", (unsigned long)msg.target(0), (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags(), (int)msg.token_count(0), (int)neighborhood_.classify(from));
 				
 				// Update topology info
 				
@@ -515,9 +515,12 @@ namespace wiselib {
 								target > radio_->id() &&
 								token_count > se.token_count()
 						) {
+							debug_->debug("OVR F%lu c%d:%d,%d",
+									(unsigned long)from, (int)token_count,
+									(int)se.prev_token_count(), (int)se.token_count());
 							//debug_->debug("@%lu adj F%lu T%lu c%d", (unsigned long)radio_->id(),
 									//(unsigned long)from, (unsigned long)target, (int)token_count);
-							se.set_source(from);
+							//se.set_source(from);
 							se.set_prev_token_count(token_count);
 							se.set_token_count(token_count);
 							
@@ -843,10 +846,11 @@ namespace wiselib {
 					assert(se.state() != SemanticEntityT::UNAFFECTED);
 					
 					node_id_t next_hop = neighborhood_.next_hop(iter->first);
+				debug_->debug("NH hop %lu",  (unsigned long)next_hop);
 					
-					if(next_hop == radio_->id()) {
-						se.set_source(radio_->id());
-					}
+					//if(next_hop == radio_->id()) {
+						//se.set_source(radio_->id());
+					//}
 					
 					//SemanticEntityId& id = iter->first;
 					

@@ -406,7 +406,7 @@ namespace wiselib {
 				
 				SemanticEntityT &se = semantic_entities_[id];
 				se.set_id(id);
-				se.set_source(radio_->id());
+				//se.set_source(radio_->id());
 				se.set_state(SemanticEntityT::JOINED);
 				
 				check();
@@ -475,13 +475,13 @@ namespace wiselib {
 						assert(!is_root());
 						assert(source == parent_);
 
-						if(token_count != se.prev_token_count() && token_count == se.token_count()) {
-							se.set_prev_token_count(se.token_count());
-							se.set_source(radio_->id());
-							se.set_orientation(SemanticEntityT::UP);
-							se.set_activity_rounds(0);
-						}
-						else if(token_count != se.prev_token_count()) {
+						//if(token_count != se.prev_token_count() && token_count == se.token_count()) {
+							//se.set_prev_token_count(se.token_count());
+							//se.set_source(radio_->id());
+							//se.set_orientation(SemanticEntityT::UP);
+							//se.set_activity_rounds(0);
+						//}
+						if(token_count != se.prev_token_count()) {
 							int activity = is_leaf(se_id) ? 2 : 1;
 							
 							//debug_->debug("@%lu tok v F%lu c%d,%d a%d t%lu",
@@ -512,8 +512,8 @@ namespace wiselib {
 									//(int)activity
 							//);
 							
-							se.set_source(source);
-							se.set_orientation(SemanticEntityT::DOWN);
+							//se.set_source(source);
+							//se.set_orientation(SemanticEntityT::DOWN);
 							se.set_prev_token_count(token_count);
 							// Token is activating
 							se.set_activity_rounds(activity);
@@ -523,6 +523,7 @@ namespace wiselib {
 					
 					case CLASS_CHILD: {
 						assert(source != parent_);
+						assert(!is_leaf());
 						
 						// The last child of the subtree sends us a token count c.
 						// If the system is stable, one of the following should
@@ -558,14 +559,18 @@ namespace wiselib {
 						// thing, I might simplify / speedup!
 
 						// case (c)
-						if(!is_root() && token_count != se.token_count() && token_count != se.prev_token_count()) {
-							// do nothing in this case
+						if(!is_root() && token_count != se.prev_token_count() && se.prev_token_count() != se.token_count()) {
+
+							// We could pass this on, however prev_token_count
+							// is still something else then we just received
+							// so we are currently
+							// inducing activity in our subtree (prev tc != tc)
 						}
 
 						// case (c) for root node
-						else if(is_root() && token_count != se.token_count() && token_count != se.prev_token_count()) {
-							// same here
-						}
+						//else if(is_root() && token_count != se.token_count() && token_count != se.prev_token_count()) {
+							//// same here
+						//}
 
 						else if(!is_root() && token_count != se.token_count()) {
 							//debug_->debug("@%lu tok ^ F%lu c%d,%d a1 t%lu",
@@ -582,13 +587,20 @@ namespace wiselib {
 									(int)se.token_count()
 							);
 							
-							se.set_source(source);
-							se.set_orientation(SemanticEntityT::UP);
-							se.set_prev_token_count(token_count);
+							//se.set_source(source);
+							//se.set_orientation(SemanticEntityT::UP);
 							se.set_token_count(token_count);
+							//se.set_token_count(token_count);
 							// We just received a token from a child, so we can't
 							// be a leaf!
 							se.set_activity_rounds(1);
+
+							debug_->debug("tok2 ^ F%lu c%d:%d,%d a1",
+									(unsigned long)source,
+									(int)token_count,
+									(int)se.prev_token_count(),
+									(int)se.token_count()
+							);
 						}
 						else if(is_root() && token_count == se.token_count()) {
 							//debug_->debug("@%lu tok ^ F%lu c%d,%d a0 t%lu R",
@@ -598,15 +610,15 @@ namespace wiselib {
 									//(int)token_count,
 									//(unsigned long)now()
 							//);
-							debug_->debug("tok ^ F%lu c:%d:%d,%d a0 R",
+							debug_->debug("tok < F%lu c:%d:%d,%d a0",
 									(unsigned long)source,
 									(int)token_count,
 									(int)se.prev_token_count(),
 									(int)se.token_count()
 							);
 							
-							se.set_source(source);
-							se.set_orientation(SemanticEntityT::UP);
+							//se.set_source(source);
+							//se.set_orientation(SemanticEntityT::UP);
 							se.set_token_count(token_count + 1);
 							se.set_activity_rounds(0);
 						}
@@ -706,6 +718,11 @@ namespace wiselib {
 				// TODO
 				return 2;
 			}
+
+			::uint8_t orientation(SemanticEntityT& se) {
+				if(is_root()) { return DOWN; }
+				return (se.prev_token_count() == se.token_count()) ? UP : DOWN;
+			}
 			
 			node_id_t next_hop(SemanticEntityId id, node_id_t src = NULL_NODE_ID) { //, node_id_t source, MessageOrientation orientation) {
 				//debug_->debug("[nextho]");
@@ -716,10 +733,11 @@ namespace wiselib {
 				// ourselves (source == radio_->id())
 				// and tells us whether it should travel upwards or downwards
 				// now.
-				::uint8_t orientation = semantic_entities_[id].orientation();
-				node_id_t source = (src != NULL_NODE_ID) ? src : semantic_entities_[id].source();
+				//::uint8_t orientation = semantic_entities_[id].orientation();
+				SemanticEntityT &s = semantic_entities_[id];
+				node_id_t source = (src != NULL_NODE_ID) ? src : radio_->id(); //s.source();
 				
-				//debug_->debug("@%lu next_hop: src %lu rt%d", (unsigned long)radio_->id(), (unsigned long)source, (int)is_root());
+				debug_->debug("NH src %lu",  (unsigned long)source);
 				
 				
 				if(is_root()) {
@@ -747,7 +765,7 @@ namespace wiselib {
 				
 				if(source == radio_->id()) {
 					//debug_->debug("@%lu next_hop: from ourselves o=%d in_subtree=%d", (unsigned long)radio_->id(), (int)orientation, (int)is_in_subtree(id));
-					if(orientation == UP) { return parent_id(); }
+					if(orientation(s) == UP) { return parent_id(); }
 					return is_in_subtree(id) ? first_child(id) : parent_id();
 				}
 				else {
@@ -791,49 +809,41 @@ namespace wiselib {
 								//(int)is_root(),
 								//(int)se.prev_token_count()
 						//);
-						debug_->debug("ACT a%d %c rt%d c%d,%d",
+						debug_->debug("ACT a%d rt%d c%d,%d l%d",
 								(int)se.activity_rounds(),
-								(se.orientation() == SemanticEntityT::UP) ? '^' : 'v',
 								(int)is_root(),
 								(int)se.prev_token_count(),
-								(int)se.token_count()
+								(int)se.token_count(),
+								(int)is_leaf(se.id())
 						);
 						
 						r = true;
 						se.set_activity_rounds(se.activity_rounds() - 1);
 						if(se.activity_rounds() == 0) {
-							if(is_leaf(se.id()) || se.orientation() == SemanticEntityT::UP || is_root()) {
-						//debug_->debug("@%lu be_active done! A c%d,%d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count());
-								se.set_orientation(SemanticEntityT::UP);
+							//se.set_source(radio_->id());
+							if(is_leaf(se.id())) {
 								se.set_token_count(se.prev_token_count() + (is_root() ? 1 : 0));
-								se.set_source(radio_->id());
-						//debug_->debug("@%lu be_active done! B c%d,%d %d", (unsigned long)radio_->id(), (int)se.prev_token_count(), (int)se.token_count(), se.prev_token_count() + (is_root() ? 1 : 0));
-							}
-							else {
-								se.set_orientation(SemanticEntityT::DOWN);
-								se.set_source(radio_->id());
 							}
 						} // if done
 					} // if active
-					else {
-						// Ensure consistency, when prevcount == count, send
-						// up, else down
+					//else {
+						//// Ensure consistency, when prevcount == count, send
+						//// up, else down
 
-						if(is_leaf(se.id()) || is_root() || se.token_count() == se.prev_token_count()) {
-							se.set_orientation(SemanticEntityT::UP);
-							if(is_root()) {
-								se.set_token_count(se.prev_token_count() + 1);
-							}
-						}
-						else {
-							se.set_orientation(SemanticEntityT::DOWN);
-						}
-						se.set_source(radio_->id());
-					}
+						//if(is_leaf(se.id()) || is_root() || se.token_count() == se.prev_token_count()) {
+							//se.set_orientation(SemanticEntityT::UP);
+							//if(is_root()) {
+								//se.set_token_count(se.prev_token_count() + 1);
+							//}
+						//}
+						//else {
+							//se.set_orientation(SemanticEntityT::DOWN);
+						//}
+						//se.set_source(radio_->id());
+					//}
 
-						debug_->debug("act a%d %c rt%d c%d,%d",
+						debug_->debug("act a%d rt%d c%d,%d",
 								(int)se.activity_rounds(),
-								(se.orientation() == SemanticEntityT::UP) ? '^' : 'v',
 								(int)is_root(),
 								(int)se.prev_token_count(),
 								(int)se.token_count()

@@ -49,7 +49,7 @@ namespace wiselib {
 			enum SemanticEntityState { UNAFFECTED = 0x00, JOINED = 0x01, ADOPTED = 0x02 };
 			enum Orientation { UP = 0x00, DOWN = 0x01 };
 			
-			SemanticEntity() : source_(NULL_NODE_ID), distance_first_(0), distance_last_(0), token_count_(0), prev_token_count_(0), transfer_interval_(0), state_(UNAFFECTED), activity_rounds_(1), orientation_(UP) {
+			SemanticEntity() : /*source_(NULL_NODE_ID),*/ distance_first_(0), distance_last_(0), token_count_(0), prev_token_count_(0), transfer_interval_(0), state_(UNAFFECTED), activity_rounds_(1), orientation_(UP) {
 			}
 			
 			SemanticEntityId& id() { return id_; }
@@ -78,16 +78,16 @@ namespace wiselib {
 			::uint8_t activity_rounds() { return activity_rounds_; }
 			void set_activity_rounds(::uint8_t x) { activity_rounds_ = x; }
 			
-			::uint8_t orientation() { return orientation_; }
-			void set_orientation(::uint8_t x) { orientation_ = x; }
+			//::uint8_t orientation() { return orientation_; }
+			//void set_orientation(::uint8_t x) { orientation_ = x; }
 			
-			node_id_t source() { return source_; }
-			void set_source(node_id_t x) { source_ = x; }
+			//node_id_t source() { return source_; }
+			//void set_source(node_id_t x) { source_ = x; }
 		
 		private:
 			SemanticEntityId id_;
 			
-			node_id_t source_;
+			//node_id_t source_;
 			
 			::uint8_t distance_first_;
 			::uint8_t distance_last_;
