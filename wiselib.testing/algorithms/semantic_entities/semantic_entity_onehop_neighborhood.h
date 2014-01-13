@@ -466,12 +466,22 @@ namespace wiselib {
 						// If the system is not yet stablilized, it might also be
 						// that
 						//   (c) c != se.prev_token_count, c == se.token_count
+						//
+						//   In this case we should just set
+						//   s.prev_token_count := c, as its the turn of an
+						//   upwards successor
 						
 						
 						assert(!is_root());
 						assert(source == parent_);
-						
-						if(token_count != se.prev_token_count()) {
+
+						if(token_count != se.prev_token_count() && token_count == se.token_count()) {
+							se.set_prev_token_count(se.token_count());
+							se.set_source(radio_->id());
+							se.set_orientation(SemanticEntityT::UP);
+							se.set_activity_rounds(0);
+						}
+						else if(token_count != se.prev_token_count()) {
 							int activity = is_leaf(se_id) ? 2 : 1;
 							
 							//debug_->debug("@%lu tok v F%lu c%d,%d a%d t%lu",
@@ -531,10 +541,33 @@ namespace wiselib {
 						// that
 						//   (c) c != se.prev_token_count
 						//       
-						//       TODO: whats the most reasonable course of action in
-						//       this case?
-						 
-						if(!is_root() && token_count != se.token_count()) {
+						//       This means, we have gotten an update from our
+						//       logical (parent-side) predecessor while
+						//       circulating the token in our subtree.
+						//       Thus ignore the subtree value (which is c)
+						//       and care for distributing the most recent
+						//       update from parent side!
+						//
+						//       (That is, just ignore this token count!)
+						
+
+						// Note: I know this if-tree does some unnecssary
+						// evaluations which might not even get completely
+						// optimized out, for now I want to leave it like this
+						// for clarity. Once I'm confident it does the right
+						// thing, I might simplify / speedup!
+
+						// case (c)
+						if(!is_root() && token_count != se.token_count() && token_count != se.prev_token_count()) {
+							// do nothing in this case
+						}
+
+						// case (c) for root node
+						else if(is_root() && token_count != se.token_count() && token_count != se.prev_token_count()) {
+							// same here
+						}
+
+						else if(!is_root() && token_count != se.token_count()) {
 							//debug_->debug("@%lu tok ^ F%lu c%d,%d a1 t%lu",
 									//(unsigned long)radio_->id(),
 									//(unsigned long)source,
@@ -551,6 +584,7 @@ namespace wiselib {
 							
 							se.set_source(source);
 							se.set_orientation(SemanticEntityT::UP);
+							se.set_prev_token_count(token_count);
 							se.set_token_count(token_count);
 							// We just received a token from a child, so we can't
 							// be a leaf!
@@ -757,9 +791,9 @@ namespace wiselib {
 								//(int)is_root(),
 								//(int)se.prev_token_count()
 						//);
-						debug_->debug("ACT a%d u%d rt%d c%d,%d",
+						debug_->debug("ACT a%d %c rt%d c%d,%d",
 								(int)se.activity_rounds(),
-								(int)(se.orientation() == SemanticEntityT::UP),
+								(se.orientation() == SemanticEntityT::UP) ? '^' : 'v',
 								(int)is_root(),
 								(int)se.prev_token_count(),
 								(int)se.token_count()
@@ -796,6 +830,14 @@ namespace wiselib {
 						}
 						se.set_source(radio_->id());
 					}
+
+						debug_->debug("act a%d %c rt%d c%d,%d",
+								(int)se.activity_rounds(),
+								(se.orientation() == SemanticEntityT::UP) ? '^' : 'v',
+								(int)is_root(),
+								(int)se.prev_token_count(),
+								(int)se.token_count()
+						);
 
 				} // for SEs
 				return r;
