@@ -1047,10 +1047,10 @@ namespace wiselib {
 						(unsigned long)transfer_interval_start_phase_,
 						(unsigned long)b.sequence_number(),
 						(int)b.semantic_entities(),
-						(int)b.rtt_infos()
+						(int)b.rtt_infos(),
 
 						(unsigned long)b.target(0), (int)b.token_count(0),
-						(unsigned long)b.target(1), (int)b.token_count(1),
+						(unsigned long)b.target(1), (int)b.token_count(1)
 						//(int)b.size(),
 						//(unsigned long)(now() - transfer_interval_start_),
 						);
