@@ -376,7 +376,6 @@ namespace wiselib {
 				
 				//debug_->debug("@%lu RB F%lu S%lu t%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)msg.sequence_number(), (unsigned long)t_recv, (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
 				//debug_->debug("@%lu RB F%lu S%lu l%lu f%d", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)msg.sequence_number(), (unsigned long)lm, (int)(msg.flags() & BeaconMessageT::FLAG_FIRST));
-				debug_->debug("RB %lu F%lu S%lu f%d c%d C%d", (unsigned long)msg.target(0), (unsigned long)from, (unsigned long)msg.sequence_number(), (int)msg.flags(), (int)msg.token_count(0), (int)neighborhood_.classify(from));
 				
 				// Update topology info
 				
@@ -416,6 +415,18 @@ namespace wiselib {
 					ne.refresh();
 					
 					if(target == radio_->id()) {
+						
+						{
+							SemanticEntityT &se = neighborhood_.get_semantic_entity(se_id);
+
+							debug_->debug("RB F%lu C%d S%lu f%d c%d:%d,%d",
+									(unsigned long)from,
+									(int)neighborhood_.classify(from),
+									(unsigned long)msg.sequence_number(),
+									(int)msg.flags(),
+									(int)token_count, (int)se.prev_token_count(), (int)se.token_count());
+						}
+
 						// Token data for us from our predecessor
 						
 						// Should we forward the SE info with the next beacon
@@ -1032,15 +1043,16 @@ namespace wiselib {
 						(int)b.size()
 						);
 				*/
-				debug_->debug("SB %lu S%lu c%d l%d d%lu P%lu s%d e%d",
-						(unsigned long)b.target(0),
-						(unsigned long)b.sequence_number(),
-						(int)b.token_count(0),
-						(int)b.size(),
-						(unsigned long)(now() - transfer_interval_start_),
+				debug_->debug("SB P%lu S%lu s%d e%d [%lu:%d %lu:%d]",
 						(unsigned long)transfer_interval_start_phase_,
+						(unsigned long)b.sequence_number(),
 						(int)b.semantic_entities(),
 						(int)b.rtt_infos()
+
+						(unsigned long)b.target(0), (int)b.token_count(0),
+						(unsigned long)b.target(1), (int)b.token_count(1),
+						//(int)b.size(),
+						//(unsigned long)(now() - transfer_interval_start_),
 						);
 				//debug_->debug("SB %lu S%lu c%d l%d",
 						//(unsigned long)b.target(0),
