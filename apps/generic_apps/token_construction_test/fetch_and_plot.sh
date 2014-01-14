@@ -15,6 +15,8 @@ for file in $JOBID/*/output.txt; do
 done	
 
 sort log_unsorted.txt > log.txt
+./reltime.py log.txt > log_reltime.txt &
+
 python2 ./plot.py
 
 

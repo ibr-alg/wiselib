@@ -764,6 +764,11 @@ namespace wiselib {
 				
 				
 				if(source == radio_->id()) {
+					if(s.activity_rounds()) {
+						// While active for the token,
+						// send it it to ourselves
+						return radio_->id();
+					}
 					//debug_->debug("@%lu next_hop: from ourselves o=%d in_subtree=%d", (unsigned long)radio_->id(), (int)orientation, (int)is_in_subtree(id));
 					if(orientation(s) == UP) { return parent_id(); }
 					return is_in_subtree(id) ? first_child(id) : parent_id();
@@ -826,6 +831,19 @@ namespace wiselib {
 							}
 						} // if done
 					} // if active
+
+
+					else {
+						// We might become a leaf suddenly due to topology
+						// changes. In that case stop waiting for childs
+						// (which is denoted by prev_token_count !=
+						// token_count)!
+
+						if(is_leaf(se.id()) && !is_root()) {
+							se.set_token_count(se.prev_token_count());
+						}
+					}
+
 					//else {
 						//// Ensure consistency, when prevcount == count, send
 						//// up, else down

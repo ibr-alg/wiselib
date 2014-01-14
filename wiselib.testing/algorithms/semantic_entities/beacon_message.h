@@ -129,14 +129,14 @@ namespace wiselib {
 			void set_parent(node_id_t n) { wr(POS_PARENT, n); }
 			
 			delay_t delay() { return rd<delay_t>(POS_DELAY); }
-			void set_delay(delay_t d) { wr(POS_DELAY, d); }
+			void set_delay(delay_t d) { wr<delay_t>(POS_DELAY, d); }
 			
 			::uint8_t flags() { return rd< ::uint8_t>(POS_FLAGS); }
 			void set_flags(::uint8_t f) { wr< ::uint8_t>(POS_FLAGS, f); }
 
 			::uint8_t semantic_entities() { return rd< ::uint8_t>(POS_SES); }
 			void set_semantic_entities(::uint8_t n) {
-				wr(POS_SES, n);
+				wr< ::uint8_t>(POS_SES, n);
 				set_rtt_infos(0);
 			}
 			
@@ -145,6 +145,7 @@ namespace wiselib {
 				assert((s + 1) < max_semantic_entities());
 				assert(rtt_infos() == 0);
 				set_semantic_entities(s + 1);
+				set_rtt_infos(0);
 				return s;
 			}
 			
@@ -168,6 +169,7 @@ namespace wiselib {
 				memcpy(data_ + POS_SES_START + s * SEPOS_END,
 						other.data_ + POS_SES_START + s_other * SEPOS_END, SEPOS_END);
 				set_semantic_entities(s + 1);
+				set_rtt_infos(0);
 				
 				return s;
 			}

@@ -464,13 +464,13 @@ namespace wiselib {
 									// to the message!
 									
 									p = fwd.add_semantic_entity_from(msg, i);
-									debug_->debug("@%lu FWD to %lu c=%d", (unsigned long)radio_->id(),
-											(unsigned long)neighborhood_.next_hop(se_id, from), (int)token_count);
+									debug_->debug("FWD %lu to %lu c=%d B%d", (unsigned long)from,
+											(unsigned long)neighborhood_.next_hop(se_id, from), (int)token_count, (int)current_beacon_);
 									fwd.set_target(p, neighborhood_.next_hop(se_id, from));
 								}
 								else if(
 										(token_count > fwd.token_count(p)) ||
-										(token_count == fwd.token_count(p) && (neighborhood_.next_hop(se_id, from) > fwd.target(p)))
+										((token_count == fwd.token_count(p)) && (neighborhood_.next_hop(se_id, from) > fwd.target(p)))
 								) {
 									// A higher token count or a logically
 									// "later" child with the same token count
@@ -478,8 +478,8 @@ namespace wiselib {
 									
 									node_id_t next = neighborhood_.next_hop(se_id, from);
 									
-									debug_->debug("@%lu FWD override to %lu c=%d p=%d/%d", (unsigned long)radio_->id(),
-											(unsigned long)next, (int)token_count, (int)p, (int)fwd.semantic_entities());
+									debug_->debug("FWD ovr %lu to %lu c=%d p=%d/%d B%d", (unsigned long)from,
+											(unsigned long)next, (int)token_count, (int)p, (int)fwd.semantic_entities(), (int)current_beacon_);
 									
 									fwd.set_token_count(p, token_count);
 									fwd.set_target(p, next);
@@ -515,6 +515,7 @@ namespace wiselib {
 								target > radio_->id() &&
 								token_count > se.token_count()
 						) {
+							/*
 							debug_->debug("OVR F%lu c%d:%d,%d",
 									(unsigned long)from, (int)token_count,
 									(int)se.prev_token_count(), (int)se.token_count());
@@ -529,6 +530,7 @@ namespace wiselib {
 							if(sending_beacon_) {
 								erase_se_from_beacon(current_beacon(), from, se.id());
 							}
+							*/
 						}
 					} // if from == parent_id
 					
@@ -842,38 +844,70 @@ namespace wiselib {
 				for(typename NeighborhoodT::semantic_entity_iterator iter = neighborhood_.begin_semantic_entities();
 						iter != neighborhood_.end_semantic_entities();
 						++iter) {
+					SemanticEntityId se_id = iter->first;
 					SemanticEntityT& se = iter->second;
 					assert(se.state() != SemanticEntityT::UNAFFECTED);
-					
-					node_id_t next_hop = neighborhood_.next_hop(iter->first);
-				debug_->debug("NH hop %lu",  (unsigned long)next_hop);
-					
-					//if(next_hop == radio_->id()) {
-						//se.set_source(radio_->id());
-					//}
-					
-					//SemanticEntityId& id = iter->first;
-					
-					//debug_->debug("@%lu next_hop S%lx.%lx -> %lu c=%d", (unsigned long)radio_->id(), (unsigned long)se.id().rule(), (unsigned long)se.id().value(), (unsigned long)next_hop, (int)se.token_count());
-					
-					::uint8_t s = b.add_semantic_entity();
-					b.set_semantic_entity_id(s, se.id());
-					/*
-					b.set_distance_first(s, se.distance_first());
-					b.set_distance_last(s, se.distance_last());
-					b.set_transfer_interval(s, se.transfer_interval());
-					*/
-					
-					::uint8_t next_class = neighborhood_.classify(next_hop);
-					
-					if(neighborhood_.is_root() || next_class == NeighborhoodT::CLASS_PARENT) {
-						b.set_token_count(s, se.token_count());
-					}
-					else {
+
+					// Token state for first child (downwards)
+					// 
+					if(!neighborhood_.is_leaf(se_id) && !neighborhood_.is_root()) {
+						node_id_t next_hop = neighborhood_.first_child(se_id);
+						::uint8_t s = b.add_semantic_entity();
+						b.set_semantic_entity_id(s, se_id);
+						b.set_semantic_entity_state(s, SemanticEntityT::JOINED);
+						b.set_target(s, next_hop);
 						b.set_token_count(s, se.prev_token_count());
 					}
-					b.set_target(s, next_hop);
-					b.set_semantic_entity_state(s, SemanticEntityT::JOINED);
+
+					// Token state for parent (upwards)
+					if(!neighborhood_.is_root() && neighborhood_.orientation(se) == NeighborhoodT::UP) {
+						node_id_t next_hop = neighborhood_.parent_id();
+						::uint8_t s = b.add_semantic_entity();
+						b.set_semantic_entity_id(s, se.id());
+						b.set_semantic_entity_state(s, SemanticEntityT::JOINED);
+						b.set_target(s, next_hop);
+						b.set_token_count(s, se.token_count());
+					}
+
+					if(neighborhood_.is_root()) {
+						node_id_t next_hop = neighborhood_.first_child(se_id);
+						::uint8_t s = b.add_semantic_entity();
+						b.set_semantic_entity_id(s, se.id());
+						b.set_semantic_entity_state(s, SemanticEntityT::JOINED);
+						b.set_target(s, next_hop);
+						b.set_token_count(s, se.token_count());
+					}
+
+					
+					//node_id_t next_hop = neighborhood_.next_hop(iter->first);
+				//debug_->debug("NH hop %lu",  (unsigned long)next_hop);
+					
+					////if(next_hop == radio_->id()) {
+						////se.set_source(radio_->id());
+					////}
+					
+					////SemanticEntityId& id = iter->first;
+					
+					////debug_->debug("@%lu next_hop S%lx.%lx -> %lu c=%d", (unsigned long)radio_->id(), (unsigned long)se.id().rule(), (unsigned long)se.id().value(), (unsigned long)next_hop, (int)se.token_count());
+					
+					//::uint8_t s = b.add_semantic_entity();
+					//b.set_semantic_entity_id(s, se.id());
+					//[>
+					//b.set_distance_first(s, se.distance_first());
+					//b.set_distance_last(s, se.distance_last());
+					//b.set_transfer_interval(s, se.transfer_interval());
+					//*/
+					
+					//::uint8_t next_class = neighborhood_.classify(next_hop);
+					
+					//if(neighborhood_.is_root() || next_class == NeighborhoodT::CLASS_PARENT) {
+						//b.set_token_count(s, se.token_count());
+					//}
+					//else {
+						//b.set_token_count(s, se.prev_token_count());
+					//}
+					//b.set_target(s, next_hop);
+					//b.set_semantic_entity_state(s, SemanticEntityT::JOINED);
 					
 				}
 				
@@ -922,6 +956,11 @@ namespace wiselib {
 			 * considered sent and if so requested, a new beacon will be sent.
 			 */
 			void erase_se_from_beacon(BeaconMessageT& beacon, node_id_t from, SemanticEntityId se_id) {
+				if(!beacon.has_targets(radio_->id())) {
+					on_beacon_success();
+					return;
+				}
+
 				//debug_->debug("[eraseb]");
 				for(size_type j = 0; j < beacon.semantic_entities(); j++) {
 					if(from == beacon.target(j) && se_id == beacon.semantic_entity_id(j)) {
@@ -946,7 +985,7 @@ namespace wiselib {
 			 */
 			void check_beacon_request() {
 				//debug_->debug("[checkb]");
-				//debug_->debug("@%lu CBR sending %d has %d", (unsigned long)radio_->id(), (int)sending_beacon_, (int)next_beacon().semantic_entities());
+				debug_->debug("CBR s%d h%d B%d", (int)sending_beacon_, (int)next_beacon().semantic_entities(), (int)current_beacon_);
 				
 				if(sending_beacon_) { return; }
 				
@@ -993,15 +1032,15 @@ namespace wiselib {
 						(int)b.size()
 						);
 				*/
-				debug_->debug("SB %lu S%lu c%d l%d d%lu P%lu",
+				debug_->debug("SB %lu S%lu c%d l%d d%lu P%lu s%d e%d",
 						(unsigned long)b.target(0),
 						(unsigned long)b.sequence_number(),
 						(int)b.token_count(0),
-						//(int)b.semantic_entities(),
-						//(int)b.rtt_infos(),
 						(int)b.size(),
 						(unsigned long)(now() - transfer_interval_start_),
-						(unsigned long)transfer_interval_start_phase_
+						(unsigned long)transfer_interval_start_phase_,
+						(int)b.semantic_entities(),
+						(int)b.rtt_infos()
 						);
 				//debug_->debug("SB %lu S%lu c%d l%d",
 						//(unsigned long)b.target(0),
