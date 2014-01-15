@@ -34,6 +34,7 @@ class App {
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
       		radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
+			radio_->reg_recv_callback<App, &App::on_receive>(this);
 			radio_->enable_radio();
       		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
       		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
@@ -58,13 +59,13 @@ class App {
 
 					// Checksum correct, start sending!
 					bytes_sent_ = 0;
-					//send_rdf();
+					send_rdf();
 
 					// XXX: This leads to the node not ever sending out
 					// anything, just for testing
 					// (else it will crash when not managing to send out stuff
 					// before next packet comes in over uart)
-					bytes_received_ = 0;
+					//bytes_received_ = 0;
 				}
 				else {
 					//debug_->debug("[%x != %x br %d]", (unsigned)h, (unsigned)wiselib::read<OsModel, block_data_t, ::uint16_t>(rdf_buffer_ + bytes_received_ - 4), (int)bytes_received_);
@@ -93,7 +94,7 @@ class App {
 
 		void send_rdf() {
 			size_type s = sending_size();
-			if(s == 0) { return; }
+			//if(s == 0) { return; }
 
 			// sending_ = [ 0x99 | POS (2) | data.... ]
 			
@@ -110,9 +111,10 @@ class App {
 			if(data[0] == 0xAA) {
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 1);
 				if(pos == bytes_sent_) {
-					bytes_sent_ += sending_size();
+					int s = sending_size();
+					bytes_sent_ += s;
 					ack_timeout_guard_++;
-					send_rdf();
+					if(s) { send_rdf(); }
 				}
 			}
 		}

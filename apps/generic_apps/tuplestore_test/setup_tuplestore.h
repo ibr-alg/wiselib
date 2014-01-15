@@ -253,16 +253,20 @@ typedef TupleStore<
 // codec.
 
 // Don't use a codec
-//typedef TupleStoreT CodecTupleStoreT;
 
-// Use Huffman codec
-#include <algorithms/codecs/huffman_codec.h>
-#include <util/tuple_store/codec_tuplestore.h>
-typedef CodecTupleStore<
-		Os, TupleStoreT,
-		HuffmanCodec<Os> /* use this codec */,
-		BIN(111) /* Use codec on these columns */
-	> CodecTupleStoreT;
+#if TS_CODEC_NONE
+	typedef TupleStoreT CodecTupleStoreT;
 
+#elif TS_CODEC_HUFFMAN
+
+	// Use Huffman codec
+	#include <algorithms/codecs/huffman_codec.h>
+	#include <util/tuple_store/codec_tuplestore.h>
+	typedef CodecTupleStore<
+			Os, TupleStoreT,
+			HuffmanCodec<Os> /* use this codec */,
+			BIN(111) /* Use codec on these columns */
+		> CodecTupleStoreT;
+#endif
 
 
