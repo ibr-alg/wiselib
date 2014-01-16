@@ -39,8 +39,8 @@ class App {
       		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet(amp);
       		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
       		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
-			//uart_->set_address("/dev/tmotesky");
-			uart_->set_address("/dev/ttyUSB0");
+			uart_->set_address("/dev/tmotesky1");
+			//uart_->set_address("/dev/ttyUSB0");
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
 

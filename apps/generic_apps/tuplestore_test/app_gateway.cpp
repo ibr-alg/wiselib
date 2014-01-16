@@ -33,9 +33,11 @@ class App {
       		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet(amp);
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
+
       		radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
-			radio_->reg_recv_callback<App, &App::on_receive>(this);
 			radio_->enable_radio();
+			radio_->reg_recv_callback<App, &App::on_receive>(this);
+
       		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
       		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 			bytes_received_ = 0;
@@ -59,7 +61,7 @@ class App {
 
 					// Checksum correct, start sending!
 					bytes_sent_ = 0;
-					send_rdf();
+					timer_->set_timer<App, &App::send_rdf>(20, this, 0); // send_rdf();
 
 					// XXX: This leads to the node not ever sending out
 					// anything, just for testing
@@ -84,7 +86,7 @@ class App {
 		Uvoid ack_timeout_guard_;
 
 		size_type sending_size() {
-			size_type s = Radio::MAX_MESSAGE_LENGTH - 3;
+			size_type s = Radio::MAX_MESSAGE_LENGTH - 3 - 80;
 			if(bytes_sent_ + s > bytes_received_) {
 				s = bytes_received_ - bytes_sent_;
 			}
@@ -92,23 +94,30 @@ class App {
 		}
 
 
-		void send_rdf() {
+		void send_rdf(void*_=0) {
 			size_type s = sending_size();
 			//if(s == 0) { return; }
 
 			// sending_ = [ 0x99 | POS (2) | data.... ]
 			
+
 			sending_[0] = 0x99;
 			wiselib::write<OsModel, block_data_t, ::uint16_t>(sending_ + 1, bytes_sent_);
 			memcpy(sending_ + 3, rdf_buffer_ + bytes_sent_, s);
 
-			radio_->send( Os::Radio::BROADCAST_ADDRESS, s, sending_);
+			debug_->debug("send %x %x %x s=%d", (int)sending_[0], (int)sending_[1], (int)sending_[2], (int)s);
 
-			timer_->set_timer<App, &App::on_ack_timeout>(100, this, (void*)ack_timeout_guard_);
+			radio_->send( Os::Radio::BROADCAST_ADDRESS, s, sending_);
+			//radio_->send( 6, s, sending_);
+
+			timer_->set_timer<App, &App::on_ack_timeout>(1000, this, (void*)ack_timeout_guard_);
 		}
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
 			if(data[0] == 0xAA) {
+				debug_->debug("ack %x %x %x",
+						(int)data[0], (int)data[1], (int)data[2]);
+
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 1);
 				if(pos == bytes_sent_) {
 					int s = sending_size();

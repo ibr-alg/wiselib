@@ -13,7 +13,7 @@ all: pc
 export APP_SRC=app_host.cpp
 export BIN_OUT=app_host
 
-export ADD_CXXFLAGS="-Wno-write-strings"
+export ADD_CXXFLAGS="-Wno-write-strings -m32"
 export WISELIB_EXIT_MAIN=0
 export PC_COMPILE_DEBUG=1
 
