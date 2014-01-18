@@ -4,7 +4,7 @@ echo boot $(date) >>/tmp/log/timestamps
 echo $(hostname) >/tmp/log/hostname.txt
 
 #ls -l /dev/* >/tmp/log/ls_dev.txt
-sleep $((2 * 60))
+sleep $((5 * 60))
 	
 
 if [ "$(hostname)" = inode001 ]; then

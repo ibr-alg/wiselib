@@ -12,7 +12,7 @@ typedef Os::size_t size_type;
 	//Allocator& get_allocator();
 
 	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, 1000> Allocator;
+	typedef wiselib::BitmapAllocator<Os, 4000> Allocator;
 	Allocator& get_allocator();
 	//Allocator allocator_;
 	//Allocator& get_allocator() { return allocator_; }
@@ -33,10 +33,15 @@ typedef Os::size_t size_type;
 #define TS_CODEC_NONE 1
 #define TS_CODEC_HUFFMAN 0
 
-//#include "setup_tuplestore.h"
+#include "setup_tuplestore.h"
 
 #include <util/serialization/serialization.h>
 #include <util/meta.h>
+
+#if defined(CONTIKI)
+	#include <contiki.h>
+	#include <netstack.h>
+#endif
 
 class App {
 	public:
@@ -47,9 +52,9 @@ class App {
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 
-		//CodecTupleStoreT::Dictionary dictionary_;
-		//CodecTupleStoreT::TupleContainer container_;
-		//CodecTupleStoreT tuplestore_;
+		CodecTupleStoreT::Dictionary dictionary_;
+		CodecTupleStoreT::TupleContainer container_;
+		CodecTupleStoreT tuplestore_;
 
 		void init(Os::AppMainParameter& amp) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
@@ -59,7 +64,7 @@ class App {
 			radio_->enable_radio();
 			radio_->reg_recv_callback<App, &App::on_receive>(this);
 
-			//initialize_tuplestore();
+			initialize_tuplestore();
 		#if APP_DATABASE_DEBUG
 			debug_->debug("db boot %lu", (unsigned long)radio_->id());
 		#endif
@@ -73,36 +78,8 @@ class App {
 		 * Do all necessary runtime initialization for the Wiselib TupleStore.
 		 */
 		void initialize_tuplestore() {
-			/*
-			#if TS_USE_BLOCK_MEMORY // Only needed & useful for block memory
-				
-				#ifdef PC
-					block_cache_.physical().init("block_memory.img");
-				#else
-					block_cache_.physical().init();
-				#endif
-				block_cache_.init();
-				block_allocator_.init(&block_cache_, debug_);
-				
-				// WARNING: This formats your block memory.
-				// (Necessary, the block allocator won't work on a plain
-				// blanked disc!)
-				block_allocator_.wipe();
-				
-				// Cache can count the number of i/o's for us. Reset counter
-				// here.
-				block_cache_.reset_stats();
-				
-				dictionary_.init(&block_allocator_, debug_);
-				container_.init(&block_allocator_, debug_);
-			#else
-			*/
-				// RAM
-				
-//				dictionary_.init(debug_);
-			//#endif
-				
-//			tuplestore_.init(&dictionary_, &container_, debug_);
+			dictionary_.init(debug_);
+			tuplestore_.init(&dictionary_, &container_, debug_);
 		}
 
 
@@ -119,7 +96,8 @@ class App {
 					#if APP_DATABASE_DEBUG
 						debug_->debug("recv end");
 					#endif
-	//				timer_->set_timer<App, &App::start_insert>(5000, this, 0);
+					timer_->set_timer<App, &App::start_insert>(5000, this, 0);
+					timer_->set_timer<App, &App::disable_radio>(1000, this, 0);
 				}
 				else {
 					#if APP_DATABASE_DEBUG
@@ -134,23 +112,46 @@ class App {
 			}
 		}
 
-		/*
+		void disable_radio(void*) {
+			radio_->disable_radio();
+			#if defined(CONTIKI)
+				NETSTACK_RDC.off(false);
+			#endif
+		}
+
+		void enable_radio(void*) {
+			#if defined(CONTIKI)
+				NETSTACK_RDC.on();
+			#endif
+			radio_->enable_radio();
+		}
+		
 		void start_insert(void*) {
 			block_data_t *e = rdf_buffer_;
 
 			while(*e) {
+				if(*(e + 2) == 0 || *(e + 3) == 0) {
+					// e does not point at a tuple but at the two-byte
+					// checksum at the end of all tuples which is followed by
+					// two 0-bytes ==> ergo, we are done.
+					break;
+				}
+
 				Tuple t;
-				t.set(0, e); e += strlen((char*)e);
-				t.set(1, e); e += strlen((char*)e);
-				t.set(2, e); e += strlen((char*)e);
+				t.set(0, e); e += strlen((char*)e) + 1;
+				t.set(1, e); e += strlen((char*)e) + 1;
+				t.set(2, e); e += strlen((char*)e) + 1;
 
 					#if APP_DATABASE_DEBUG
-						debug_->debug("ins %s %s %s", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
+						debug_->debug("ins (%s,%s,%s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
 					#endif
 				tuplestore_.insert(t);
+				debug_->debug("ins done");
 			}
+
+			timer_->set_timer<App, &App::enable_radio>(1000, this, 0);
 		}
-		*/
+		
 
 };
 
