@@ -3,19 +3,36 @@
 echo boot $(date) >>/tmp/log/timestamps
 echo $(hostname) >/tmp/log/hostname.txt
 
-sleep $((5 * 50))
 #ls -l /dev/* >/tmp/log/ls_dev.txt
+sleep $((2 * 60))
+	
 
-while :; do
-        echo dump $(date) >>/tmp/log/timestamps
+if [ "$(hostname)" = inode001 ]; then
 
-        #sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
-        sudo stdbuf -oL -eL /tmp/mnt/app_host < incontextsensing.rdf | while read l; do
-                echo $(date +'T%s.%N|')$l
-        done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
+	while :; do
+			echo app_host $(date) >>/tmp/log/timestamps
 
-        sleep 5
-done
+			#sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
+			sudo stdbuf -oL -eL /tmp/mnt/app_host < incontextsensing.rdf | while read l; do
+					echo $(date +'T%s.%N|')$l
+			done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
 
+			sleep 5
+	done 2>>/tmp/log/error2.txt
+
+else
+
+	while :; do
+			echo serialdump $(date) >>/tmp/log/timestamps
+
+			sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
+			#sudo stdbuf -oL -eL /tmp/mnt/app_host < incontextsensing.rdf | while read l; do
+					echo $(date +'T%s.%N|')$l
+			done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
+
+			sleep 5
+	done 2>>/tmp/log/error2.txt
+
+fi
 
 

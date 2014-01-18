@@ -107,22 +107,23 @@ class App {
 
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
-			#if APP_DATABASE_DEBUG
-				debug_->debug("recv %x %x %x", (int)data[0], (int)data[1], (int)data[2]);
-			#endif
 
-				/*
 			if(data[0] == 0x99) {
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 1);
+
+			#if APP_DATABASE_DEBUG
+				debug_->debug("recv %x %x %x p=%d", (int)data[0], (int)data[1], (int)data[2], (int)pos);
+			#endif
+
 				if(len == 3) {
 					#if APP_DATABASE_DEBUG
 						debug_->debug("recv end");
 					#endif
-					timer_->set_timer<App, &App::start_insert>(5000, this, 0);
+	//				timer_->set_timer<App, &App::start_insert>(5000, this, 0);
 				}
 				else {
 					#if APP_DATABASE_DEBUG
-						debug_->debug("recv l %d", (int)len);
+						debug_->debug("recv l=%d", (int)len);
 					#endif
 					memcpy(rdf_buffer_ + pos, data + 3, len - 3);
 				}
@@ -131,7 +132,6 @@ class App {
 				wiselib::write<Os, block_data_t, ::uint16_t>(ack + 1, pos);
 				radio_->send(from, 3, ack); 
 			}
-			*/
 		}
 
 		/*

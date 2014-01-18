@@ -20,7 +20,12 @@ class App {
 	// {{{
 	public:
 
-		block_data_t rdf_buffer_[1024];
+		enum { BUFFER_SIZE = 1024 };
+
+		enum State { RECV_UART, SEND_RADIO };
+		int state_;
+		
+		block_data_t rdf_buffer_[BUFFER_SIZE];
 		size_type bytes_received_;
 		size_type bytes_sent_;
 		
@@ -41,11 +46,20 @@ class App {
       		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
       		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 			bytes_received_ = 0;
+			state_ = RECV_UART;
 		}
 
 		void on_receive_uart(Uart::size_t len, Uart::block_data_t *data) {
-			//::uint16_t pos = wiselib::read<OsModel, ::uint16_t, block_data_t>(data + 0);
-			//::uint16_t checksum = wiselib::read<OsModel, ::uint16_t, block_data_t>(data + len - 2);
+			if(state_ != RECV_UART) {
+				debug_->debug("recv uart in state %d: l=%d d=%s", (int)state_, (int)len, (char*)data);
+				return;
+			}
+
+			if(len == 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0) {
+				// reset
+				bytes_received_ = 0;
+				return;
+			}
 
 			memcpy(rdf_buffer_ + bytes_received_, data, len);
 			bytes_received_ += len;
@@ -56,11 +70,16 @@ class App {
 
 				::uint16_t h = Crc16<Os>::hash(rdf_buffer_, bytes_received_ - 4);
 				if(h == wiselib::read<OsModel, block_data_t, ::uint16_t>(rdf_buffer_ + bytes_received_ - 4)) {
-					Uart::block_data_t ack[] = "OK";
-					uart_->write(sizeof(ack), ack);
+					//Uart::block_data_t ack[] = "OK";
+					//uart_->write(sizeof(ack), ack);
+					debug_->debug("OK");
+					debug_->debug("OK");
+					debug_->debug("OK");
 
 					// Checksum correct, start sending!
 					bytes_sent_ = 0;
+
+					state_ = SEND_RADIO;
 					timer_->set_timer<App, &App::send_rdf>(20, this, 0); // send_rdf();
 
 					// XXX: This leads to the node not ever sending out
@@ -72,8 +91,11 @@ class App {
 				else {
 					//debug_->debug("[%x != %x br %d]", (unsigned)h, (unsigned)wiselib::read<OsModel, block_data_t, ::uint16_t>(rdf_buffer_ + bytes_received_ - 4), (int)bytes_received_);
 
-					Uart::block_data_t ack[] = "ERR";
-					uart_->write(sizeof(ack), ack);
+					//Uart::block_data_t ack[] = "ERR";
+					//uart_->write(sizeof(ack), ack);
+					debug_->debug("ERR");
+					debug_->debug("ERR");
+					debug_->debug("ERR");
 					bytes_received_ = 0;
 				}
 
@@ -95,6 +117,15 @@ class App {
 
 
 		void send_rdf(void*_=0) {
+			if(state_ != SEND_RADIO) {
+				debug_->debug("send_rdf in state %d", (int)state_);
+				return;
+			}
+
+			//Uart::block_data_t ack[] = "OK";
+			//uart_->write(sizeof(ack), ack);
+			debug_->debug("OK");
+
 			size_type s = sending_size();
 			//if(s == 0) { return; }
 
@@ -105,27 +136,54 @@ class App {
 			wiselib::write<OsModel, block_data_t, ::uint16_t>(sending_ + 1, bytes_sent_);
 			memcpy(sending_ + 3, rdf_buffer_ + bytes_sent_, s);
 
-			debug_->debug("send %x %x %x s=%d", (int)sending_[0], (int)sending_[1], (int)sending_[2], (int)s);
 
-			radio_->send( Os::Radio::BROADCAST_ADDRESS, s, sending_);
+			radio_->send( Os::Radio::BROADCAST_ADDRESS, s + 3, sending_);
 			//radio_->send( 6, s, sending_);
 
-			timer_->set_timer<App, &App::on_ack_timeout>(1000, this, (void*)ack_timeout_guard_);
+			timer_->set_timer<App, &App::report_send>(50, this, (void*)s);
+
+			if(s) {
+				timer_->set_timer<App, &App::on_ack_timeout>(1000, this, (void*)ack_timeout_guard_);
+			}
+			else {
+				bytes_sent_ = 0;
+				bytes_received_ = 0;
+				state_ = RECV_UART;
+			}
+		}
+
+		void report_send(void* _) {
+			int s = (int)_;
+			debug_->debug("send %x %x %x s=%d bs=%d", (int)sending_[0], (int)sending_[1], (int)sending_[2], (int)s, (int)bytes_sent_);
+			//debug_->debug("X send %x %x %x s=%d bs=%d", (int)sending_[0], (int)sending_[1], (int)sending_[2], (int)s, (int)bytes_sent_);
 		}
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
 			if(data[0] == 0xAA) {
-				debug_->debug("ack %x %x %x",
-						(int)data[0], (int)data[1], (int)data[2]);
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 1);
 				if(pos == bytes_sent_) {
 					int s = sending_size();
+				//debug_->debug("ack %x %x %x s=%d pos=%d", (int)data[0], (int)data[1], (int)data[2], (int)s, (int)pos);
+				//debug_->debug("X ack %x %x %x s=%d pos=%d", (int)data[0], (int)data[1], (int)data[2], (int)s, (int)pos);
+
 					bytes_sent_ += s;
+			timer_->set_timer<App, &App::report_ack>(0, this, (void*)s);
 					ack_timeout_guard_++;
-					if(s) { send_rdf(); }
+					//if(s) {
+						timer_->set_timer<App, &App::send_rdf>(50, this, 0);
+					//}
+					//else {
+					//if(!s) {
+						//bytes_sent_ = 0;
+						//bytes_received_ = 0;
+					//}
 				}
 			}
+		}
+
+		void report_ack(void *) {
+			debug_->debug("ack bs=%d", (int)bytes_sent_);
 		}
 
 		void on_ack_timeout(void* atog) {

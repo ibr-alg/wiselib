@@ -14,6 +14,7 @@ typedef Os::Uart Uart;
 
 #include <util/split_n3.h>
 #include <util/serialization/serialization.h>
+#include <util/meta.h>
 #include <algorithms/hash/crc16.h>
 
 #include <iostream>
@@ -69,7 +70,7 @@ class App {
 				}
 
 				if(buf[0] == 0) { break; }
-				debug_->debug("PARSE: [[[%s]]]", (char*)buf);
+				//debug_->debug("PARSE: [[[%s]]]", (char*)buf);
 
 				sp.parse_line(buf);
 
@@ -82,7 +83,9 @@ class App {
 					block_data_t summary[] = {0, 0, 0, 0};
 					wiselib::write<Os, block_data_t, ::uint16_t>(summary, checksum);
 					uart_->write(4, reinterpret_cast<Uart::block_data_t*>(summary));
+						timer_->sleep(TUPLE_SLEEP);
 					debug_->debug("sent %d tuples chk=%x b=%d", (int)triples, (unsigned)checksum, (int)bytes_sent_);
+					timer_->set_timer<App, &App::on_uart_timeout>(5000, this, 0);
 					triples = 0;
 
 					return;
@@ -105,6 +108,7 @@ class App {
 				block_data_t summary[] = {0, 0, 0, 0};
 				wiselib::write<Os, block_data_t, ::uint16_t>(summary, checksum);
 				uart_->write(4, reinterpret_cast<Uart::block_data_t*>(summary));
+						timer_->sleep(TUPLE_SLEEP);
 				debug_->debug("final sent %d tuples chk=%x b=%d", (int)triples, (unsigned)checksum, (int)bytes_sent_);
 				buf_empty = true;
 				triples = 0;
@@ -113,17 +117,25 @@ class App {
 
 		} // read_n3
 
-		void on_receive_uart(Uart::size_t len, Uart::block_data_t *data) {
-			if(len >= 1 && data[0] == 'O' && data[1] == 'K') {
-				debug_->debug("OK");
-				timer_->set_timer<App, &App::read_n3>(SEND_INTERVAL, this, 0);
-			}
-			else if(len >= 1 && data[0] == 'E' && data[1] == 'R' && data[2] == 'R') {
-				debug_->debug("ERR");
+		Uvoid ato_guard_;
+		void on_uart_timeout(void*ato_guard) {
+			if((Uvoid)ato_guard != ato_guard_) { return; }
 
+			debug_->debug("uart timeout");
+			uart_resend();
+		}
+
+		void uart_resend() {
 				enum { BUFSIZE = 100 };
 
 				debug_->debug("resending b=%d", (int)bytes_sent_);
+
+			// first send an end-marker with a wrong CRC so the position
+			// counter in the gateway gets reset
+			Uart::block_data_t reset[] = { 0, 0, 0, 0 };
+			uart_->write(4, reset);
+
+
 				size_type snt = 0;
 				while(snt < bytes_sent_) {
 					size_type s = ((bytes_sent_ - snt) < BUFSIZE) ? (bytes_sent_ - snt) : BUFSIZE;
@@ -132,9 +144,21 @@ class App {
 					snt += s;
 				}
 				debug_->debug("resend done");
+				timer_->set_timer<App, &App::on_uart_timeout>(5000, this, (void*)ato_guard_);
+		}
+
+		void on_receive_uart(Uart::size_t len, Uart::block_data_t *data) {
+			if(len >= 1 && data[0] == 'O' && data[1] == 'K') {
+				debug_->debug("OK");
+				ato_guard_++;
+				timer_->set_timer<App, &App::read_n3>(SEND_INTERVAL, this, 0);
+			}
+			else if(len >= 1 && data[0] == 'E' && data[1] == 'R' && data[2] == 'R') {
+				debug_->debug("ERR");
+				uart_resend();
 			}
 			else {
-				debug_->debug("uart garbage: %s", (char*)data);
+				debug_->debug("{{%s}}", (char*)data);
 			}
 		}
 
