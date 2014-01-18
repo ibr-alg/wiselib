@@ -103,26 +103,29 @@ def cum(l):
         r.append(s)
     return r
 
-def plot_experiment(n):
+def plot_experiment(n, ax):
+    global fig
     ts, vs = parse_energy(open('{}.csv'.format(n), 'r'))
+    #fig_energy(ts, vs)
     tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'))
     energy_sums, time_sums = find_tuple_spikes(ts, vs)
 
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    print("XXX", energy_sums)
-    print("YYY", tc)
-    ax.plot(cum(tc[:len(energy_sums)]), cum([x/y for x, y in zip(energy_sums, tc)]),
-            'o-')
-
-    ax.plot(cum(tc[:len(time_sums)]), cum([x/y for x, y in zip(time_sums, tc)]),
-            'x-')
-    fig.savefig('energy_inserts.pdf')
+    #ax = plt.subplot(111)
+    #print("XXX", energy_sums)
+    #print("YYY", tc)
+    ax.plot(cum(tc[:len(energy_sums)]), cum([x/y for x, y in zip(energy_sums, tc)]), 'o-') 
+    ax.plot(cum(tc[:len(time_sums)]), cum([x/y for x, y in zip(time_sums, tc)]), 'x-')
 
 #ts, vs = parse_energy(open('tuplestore_24526_1242.csv', 'r'))
 #ts, vs = parse_energy(open('tuplestore_24528_1242.csv', 'r'))
 #fig_energy(ts, vs)
 #print()
 
-plot_experiment(24529)
+fig = plt.figure()
+ax = plt.subplot(111)
+
+plot_experiment(24529, ax)
+plot_experiment(24530, ax)
+
+fig.savefig('energy_inserts.pdf')
 
