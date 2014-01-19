@@ -15,11 +15,16 @@
 
 #else
 	#define WISELIB_MAX_NEIGHBORS 4
+	#define WISELIB_TIME_FACTOR 1
 
 #endif
 #define INQP_TEST_USE_BLOCK 0
 #define INQP_AGGREGATE_CHECK_INTERVAL 1000
 #define WISELIB_MAX_NEIGHBORS 100
+#define BITMAP_ALLOCATOR_RAM_SIZE 4000
+
+
+#define SINK 47430
 
 
 /// ------ /Config
@@ -57,9 +62,19 @@ typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
 using namespace wiselib;
 
-#include <util/allocators/malloc_free_allocator.h>
-typedef MallocFreeAllocator<Os> Allocator;
-Allocator& get_allocator();
+#if defined(CONTIKI)
+	#warning "Using BITMAP allocator"
+
+	#include <util/allocators/bitmap_allocator.h>
+	typedef wiselib::BitmapAllocator<Os, BITMAP_ALLOCATOR_RAM_SIZE> Allocator;
+	Allocator allocator_;
+	Allocator& get_allocator() { return allocator_; }
+#else
+	#include <util/allocators/malloc_free_allocator.h>
+	typedef wiselib::MallocFreeAllocator<Os> Allocator;
+	Allocator allocator_;
+	Allocator& get_allocator() { return allocator_; }
+#endif
 
 #include <util//string_util.h>
 //#include <algorithms/rdf/inqp/query.h>
@@ -142,8 +157,6 @@ typedef INQPCommunicator<Os, Processor> Communicator;
 #ifdef ISENSE
 #include <isense/util/get_os.h>
 #endif
-
-#define SINK 1
 
 
 
@@ -858,8 +871,8 @@ class ExampleApplication
 		#endif
 };
 
-Allocator allocator_;
-Allocator& get_allocator() { return allocator_; }
+//Allocator allocator_;
+//Allocator& get_allocator() { return allocator_; }
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, ExampleApplication> example_app;
 // --------------------------------------------------------------------------
