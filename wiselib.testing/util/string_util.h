@@ -73,7 +73,7 @@ namespace wiselib {
 		Value v2 = v;
 		//int base = 10;
 		for( ; v2; digits++) { v2 /= base; }
-		if(digits >= buflen) { return 0; }
+		if((unsigned long)digits >= buflen) { return 0; }
 		
 		buffer[digits + 1] = '\0';
 		for( ; digits; digits--) {

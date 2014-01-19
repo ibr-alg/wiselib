@@ -7,24 +7,31 @@
 #if defined(SHAWN)
 	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
+	#define SINK 0
 
 #elif defined(PC)
+	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
 	#define WISELIB_DISABLE_DEBUG 0
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
+	#define SINK 0
 
 #else
 	#define WISELIB_MAX_NEIGHBORS 4
 	#define WISELIB_TIME_FACTOR 1
 
+	#define BITMAP_ALLOCATOR_RAM_SIZE 2000
+	#define SINK 47430
+	#define TS_MAX_TUPLES 76
+
+	#define USE_UART 0
+	#define INQP_TEST_USE_BLOCK 0
+
 #endif
-#define INQP_TEST_USE_BLOCK 0
+
 #define INQP_AGGREGATE_CHECK_INTERVAL 1000
-#define WISELIB_MAX_NEIGHBORS 100
-#define BITMAP_ALLOCATOR_RAM_SIZE 4000
+//#define WISELIB_MAX_NEIGHBORS 100
 
-
-#define SINK 47430
 
 
 /// ------ /Config
@@ -117,7 +124,7 @@ typedef Tuple<Os> TupleT;
 //#include <util/pstl/unbalanced_tree_dictionary.h>
 //typedef wiselib::list_dynamic<Os, TupleT> TupleList;
 //typedef wiselib::UniqueContainer<TupleList> TupleContainer;
-typedef wiselib::vector_static<Os, TupleT, 100> TupleContainer;
+typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
 typedef wiselib::PrescillaDictionary<Os> Dictionary;
 //typedef UnbalancedTreeDictionary<Os> Dictionary;
 #else
@@ -146,6 +153,9 @@ typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111),
 
 typedef INQPQueryProcessor<Os, TS, Hash> Processor;
 typedef INQPCommunicator<Os, Processor> Communicator;
+typedef Processor::Query Query;
+typedef Processor::Value Value;
+typedef Processor::AggregateT AggregateT;
 
 #define LEFT 0
 #define RIGHT 0x80
@@ -173,19 +183,17 @@ class NullMonitor {
 };
 
 static const char* tuples[][3] = {
-	
-#if defined(SHAWN)
-	#include "ssp.cpp"
-#elif defined(PC)
-	#include "nqxe_test.cpp"
-#else
-	#include "incontextsensing.cpp"
-#endif
-	{ 0, 0, 0 }
+	#if defined(SHAWN)
+		#include "ssp.cpp"
+	#elif defined(PC)
+		#include "nqxe_test.cpp"
+	#else
+		#include "incontextsensing.cpp"
+	#endif
+		{ 0, 0, 0 }
 };
 
-class ExampleApplication
-{
+class App {
 	public:
 		
 		template<typename TS>
@@ -204,15 +212,14 @@ class ExampleApplication
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			
-			//block_memory_ = &wiselib::FacetProvider<Os, Os::BlockMemory>::get_facet( value );
-			//
+		#if USE_UART
+			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
+			uart_->enable_serial_comm();
+			uart_->reg_read_callback<App, &App::uart_receive>(this);
+			uart_query_pos = 0;
+		#endif // USE_UART
 			
 			monitor_.init(debug_);
-			
-			//test_heap();
-			//test_atol();
-			//hashes();
-			//return;
 			
 		#if !defined(PC)
 			radio_->enable_radio();
@@ -234,14 +241,7 @@ class ExampleApplication
 			
 		#endif
 			
-			//debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
-			
-			//print_memstat();
-			
-			
 			init_ts();
-			
-			//monitor_.report();
 			
 		#if defined(ISENSE) || defined(PC)
 			be_standalone();
@@ -250,9 +250,7 @@ class ExampleApplication
 			if(radio_->id() == SINK) {
 				debug_->debug("sink\n");
 				//be_sink();
-				timer_->set_timer<ExampleApplication, &ExampleApplication::be_sink>(100, this, 0);
-				
-				//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_ask_hash_resolve>(1000, this, 0);
+				timer_->set_timer<App, &App::be_sink>(100, this, 0);
 			}
 			else {
 				be();
@@ -263,50 +261,6 @@ class ExampleApplication
 		Dictionary dictionary;
 		TupleContainer container;
 		TS ts;
-		
-		void test_atol() {
-			DBG("%ld", wiselib::atol((char*)"12345"));
-			DBG("%f", wiselib::atof((char*)"12345.67"));
-		}
-		
-		void test_heap() {
-			typedef wiselib::PriorityQueueDynamic<Os, int> Heap;
-			Heap h;
-			
-			/*
-			h.push(77);
-			h.push(2);
-			h.push(-4);
-			h.push(312);
-			h.push(234);
-			h.push(456);
-			h.push(1);
-			h.push(77);
-			h.push(3);
-			*/
-			
-			h.push(6);
-			h.push(5);
-			h.push(4);
-			h.push(3);
-			h.push(2);
-			h.push(1);
-			h.push(0);
-			
-			while(h.size()) {
-				debug_->debug("%d", h.pop());
-			}
-		}
-		
-		void hashes() {
-			const char *strings[] = {
-				"A", "measures", "m1", "m2", "has_value", "12", "14"
-			};
-			for(const char **s = strings; *s; s++) {
-				DBG("%-60s %08lx", *s, (unsigned long)Hash::hash((block_data_t*)*s, strlen(*s)));
-			}
-		}
-			
 		
 		void init_ts() {
 		#if !INQP_TEST_USE_BLOCK
@@ -320,32 +274,130 @@ class ExampleApplication
 			container.init(&block_allocator_, debug_);
 			dictionary.init(&block_allocator_, debug_);
 		#endif
-			
-			//debug_->debug("tsi don");
 		}
 		
 		void insert_tuples() {
 			int i = 0;
 			for( ; tuples[i][0]; i++) {
-				//monitor_.report("ins");
-				
-				//for(int j = 0; j < 3; j++) {
-					//debug_->debug("%-60s %08lx", tuples[i][j], (unsigned long)Hash::hash((block_data_t*)tuples[i][j], strlen(tuples[i][j])));
-				//}
-				
 				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
 			}
 			debug_->debug("ins done: %d tuples", (int)i);
 			
 		}
+
+		
+	#if USE_UART
+		block_data_t uart_query[512];
+		size_t uart_query_pos;
+		
+		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
+			//size_t l = buf[0];
+			//block_data_t msgtype = buf[1];
+			//block_data_t qid = buf[2];
+
+			process_nqxe_message((block_data_t*)buf);
+			
+			//if(buf[1] == 'O') {
+				//// length of field, including length field itself
+				//uart_query[uart_query_pos++] = l - 1;
+				//memcpy(uart_query + uart_query_pos, buf + 3, l - 2);
+				//uart_query_pos += (l - 2);
+			//}
+			//else if(buf[1] == 'Q') {
+				//block_data_t opcount = buf[3];
+				
+				//distributor_.distribute(
+						//SemanticEntityId::all(),
+						//qid, 1 [> revision <],
+						//Distributor::QUERY,
+						//60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
+						//60000 * WISELIB_TIME_FACTOR,
+						//opcount,
+						//uart_query_pos, uart_query
+				//);
+				//uart_query_pos = 0;
+			//}
+		}
+
+		void send_result_row_to_nqxe(
+				Processor::query_id_t query_id,
+				Processor::operator_id_t operator_id,
+				Processor::RowT& row
+		) {
+			block_data_t msg[100];
+
+			/*
+		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
+				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
+			*/
+			
+			typedef Processor::BasicOperator BasicOperator;
+			
+			Query *q = ian_.get_query(query_id);
+			if(!q) {
+				debug_->debug("!q %d", (int)query_id);
+				return;
+			}
+			BasicOperator *op = q->get_operator(operator_id);
+			if(!op) {
+				debug_->debug("!op %d", (int)operator_id);
+				return;
+			}
+			
+			int cols = op->projection_info().columns();
+			if(op->type() == Processor::BOD::AGGREGATE) {
+				Processor::AggregateT *aggr = (Processor::AggregateT*)op;
+				//int cols = op-> projection_info().columns();
+				//cols = aggr->columns_physical();
+				cols = aggr->columns_logical();
+			}
+			
+			int msglen =  1 + 1 + 1 + 1 + 4*cols;
+			block_data_t chk = 0;
+			msg[0] = 'R';
+			msg[1] = 2 + 4 * cols; // # bytes to follow after this one
+			msg[2] = query_id;
+			msg[3] = operator_id;
+			
+			if(op->type() == Processor::BOD::AGGREGATE) {
+				Processor::AggregateT *aggr = (Processor::AggregateT*)op;
+				int j = 0; // physical column
+				for(int i = 0; i< cols; i++, j++) { // logical column
+					//printf("tach %d", Processor::AggregateT::AD::AGAIN);
+					if((aggr->aggregation_types()[i] & ~AGAIN) == AggregateT::AD::AVG) {
+						j++;
+					}
+					
+					Value v;
+					memcpy(&v, &row[j], sizeof(Value));
+					wiselib::write<Os, block_data_t, Processor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			else {
+				for(int i = 0; i< cols; i++) {
+					Value v;
+					memcpy(&v, &row[i], sizeof(Value));
+					wiselib::write<Os, block_data_t, Processor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			
+			for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
+			msg[msglen] = chk;
+			uart_->write(msglen + 1, (Os::Uart::block_data_t*)msg);
+
+		} // send_result_row_to_nqxe()
+
+
+	#endif // USE_UART
+
 		
 		/**
 		 * @param q { len, 'O' or 'Q', ... }
 		 */
-		void process_nqxe_message(char* q) {
+		void process_nqxe_message(block_data_t* q) {
 			assert(q[1] == 'O' || q[1] == 'Q');
 			size_t l = q[0];
-			process(l, (block_data_t*)(q + 1));
+			process(l, q + 1);
 		}
 		
 		/**
@@ -368,7 +420,7 @@ class ExampleApplication
 			ian_.init(&ts, timer_);
 			
 	#if defined(PC)
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_nqxe_test>(1000, this, 0);
+			timer_->set_timer<App, &App::query_nqxe_test>(1000, this, 0);
 			
 	#else
 			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
@@ -376,12 +428,12 @@ class ExampleApplication
 			// we play in-network node
 			fndradio_.set_parent(SINK);
 			
-			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
+			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
 			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross_p>(1000, this, 0);
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_p>(1000, this, 0);
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all_p>(1000, this, 0);
+			//timer_->set_timer<App, &App::query_cross_p>(1000, this, 0);
+			//timer_->set_timer<App, &App::query_temp_p>(1000, this, 0);
+			timer_->set_timer<App, &App::query_all_p>(1000, this, 0);
 	#endif
 		}
 		
@@ -409,13 +461,13 @@ class ExampleApplication
 			ian_.erase_query(qid);
 			
 			//monitor_.report("aft");
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_gps1>(1000, this, 0);
+			timer_->set_timer<App, &App::query_temp_gps1>(1000, this, 0);
 		}
 		
 		void query_temp_p1() { query_temp_p(0); }
 		void query_temp_p(void*) {
-			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_temp_p1>(this));
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
+			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<App, &App::query_temp_p1>(this));
+			timer_->set_timer<App, &App::query_temp>(1000, this, 0);
 		}
 		void query_temp(void*) {
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
@@ -446,38 +498,38 @@ class ExampleApplication
 			ian_.erase_query(qid);
 			
 			monitor_.report("aft");
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
+			//timer_->set_timer<App, &App::query_temp>(1000, this, 0);
 		}
 		
 		void query_nqxe_test(void*) {
 			// 1,1,'g',LEFT | 3,BIN(00000011),0,0,0,BIN(110),"<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>","<http://me.exmpl/Temperature>",
-			char op0[] = {18, 79, 1, 1, 103, 3, 3, 0, 0, 0, 6, -65, 38, -72, 46, 87, -12, 33, 99};
+			block_data_t op0[] = {18, 79, 1, 1, 103, 3, 3, 0, 0, 0, 6, -65, 38, -72, 46, 87, -12, 33, 99};
 			process_nqxe_message(op0);
 			// 1,2,'g',RIGHT | 3,BIN(00100011),0,0,0,BIN(010),"<http://www.ontologydesignpatterns.org/ont/dul/hasValue>",
-			char op1[] = {14, 79, 1, 2, 103, -125, 35, 0, 0, 0, 2, 122, -98, 87, -99};
+			block_data_t op1[] = {14, 79, 1, 2, 103, -125, 35, 0, 0, 0, 2, 122, -98, 87, -99};
 			process_nqxe_message(op1);
 			// 1,3,'j',LEFT | 5,BIN(00100011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
-			char op2[] = {10, 79, 1, 3, 106, 5, 35, 0, 0, 0, 0};
+			block_data_t op2[] = {10, 79, 1, 3, 106, 5, 35, 0, 0, 0, 0};
 			process_nqxe_message(op2);
 			// 1,4,'g',RIGHT | 5,BIN(00110011),0,0,0,BIN(010),"<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>",
-			char op3[] = {14, 79, 1, 4, 103, -123, 51, 0, 0, 0, 2, -56, -77, -12, 58};
+			block_data_t op3[] = {14, 79, 1, 4, 103, -123, 51, 0, 0, 0, 2, -56, -77, -12, 58};
 			process_nqxe_message(op3);
 			// 1,5,'j',LEFT | 7,BIN(11001011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
-			char op4[] = {10, 79, 1, 5, 106, 7, -53, 0, 0, 0, 0};
+			block_data_t op4[] = {10, 79, 1, 5, 106, 7, -53, 0, 0, 0, 0};
 			process_nqxe_message(op4);
 			// 1,6,'g',RIGHT | 7,BIN(00000011),0,0,0,BIN(110),"<http://www.ontologydesignpatterns.org/ont/dul/hasLocation>","<http://me.exmpl/DERI>",
-			char op5[] = {18, 79, 1, 6, 103, -121, 3, 0, 0, 0, 6, -95, 18, -76, 121, -24, 60, -50, -19};
+			block_data_t op5[] = {18, 79, 1, 6, 103, -121, 3, 0, 0, 0, 6, -95, 18, -76, 121, -24, 60, -50, -19};
 			process_nqxe_message(op5);
 			// 1,7,'j',LEFT | 8,BIN(00111000),0,0,0,LEFT_COL(2) | RIGHT_COL(0),
-			char op6[] = {10, 79, 1, 7, 106, 8, 56, 0, 0, 0, 32};
+			block_data_t op6[] = {10, 79, 1, 7, 106, 8, 56, 0, 0, 0, 32};
 			process_nqxe_message(op6);
 			// 1,8,'a',LEFT | 0,BIN(11010110),0,0,0,4,AGAIN | 2,AGAIN | 4,5,0,
-			char op7[] = {14, 79, 1, 8, 97, 0, -42, 0, 0, 0, 4, -126, -124, 5, 0};
+			block_data_t op7[] = {14, 79, 1, 8, 97, 0, -42, 0, 0, 0, 4, -126, -124, 5, 0};
 			process_nqxe_message(op7);
-			char q[] = { 3, 'Q', 1, 8};
+			block_data_t q[] = { 3, 'Q', 1, 8};
 			process_nqxe_message(q);
 			
-			ian_.reg_row_callback<ExampleApplication, &ExampleApplication::print_result_row>(this);
+			ian_.reg_row_callback<App, &App::print_result_row>(this);
 		}
 		
 		void print_result_row(int type, Processor::size_type cols, Processor::RowT& row, Processor::query_id_t qid, Processor::operator_id_t oid) {
@@ -492,8 +544,8 @@ class ExampleApplication
 		
 		void query_all_p1() { query_all_p(0); }
 		void query_all_p(void*) {
-			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_all_p1>(this));
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
+			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<App, &App::query_all_p1>(this));
+			timer_->set_timer<App, &App::query_all>(1000, this, 0);
 		}
 		void query_all(void*) {
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
@@ -515,13 +567,13 @@ class ExampleApplication
 			
 			ian_.erase_query(qid);
 			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
+			//timer_->set_timer<App, &App::query_all>(1000, this, 0);
 		}
 		
 		void query_cross_p1() { query_cross_p(0); }
 		void query_cross_p(void*) {
-			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_cross_p1>(this));
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross>(1000, this, 0);
+			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<App, &App::query_cross_p1>(this));
+			timer_->set_timer<App, &App::query_cross>(1000, this, 0);
 		}
 		
 		void query_cross(void*) {
@@ -562,7 +614,7 @@ class ExampleApplication
 			
 			debug_->debug("/qry");
 			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross>(1000, this, 0);
+			//timer_->set_timer<App, &App::query_cross>(1000, this, 0);
 		}
 		
 		#pragma GCC diagnostic push
@@ -588,13 +640,13 @@ class ExampleApplication
 			
 			//ian_.reverse_translator().fill();
 			
-			//pradio_.reg_recv_callback<ExampleApplication, &ExampleApplication::node_receive_query>( this );
+			//pradio_.reg_recv_callback<App, &App::node_receive_query>( this );
 			debug_->debug("rtr");
 		}
 		#pragma GCC diagnostic pop
 		
 		void sink_ask_hash_resolve(void*) {
-			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
+			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
 			block_data_t msg[] = {
 				Communicator::MESSAGE_ID_RESOLVE_HASHVALUE,
@@ -617,12 +669,16 @@ class ExampleApplication
 			// we play in-network node
 			fndradio_.set_parent(SINK);
 			
-			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
+			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
 #ifdef SHAWN
-			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_ssp_query>(10000, this, 0);
+			timer_->set_timer<App, &App::sink_send_ssp_query>(10000, this, 0);
 #else
-			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+
+		#if !USE_UART
+			// If we dont use the UART, send out a predefined query after 10s
+			timer_->set_timer<App, &App::sink_send_query>(10000, this, 0);
+		#endif
 #endif
 		}
 		
@@ -681,7 +737,7 @@ class ExampleApplication
 			send(sizeof(cmd), cmd);
 			
 			query_radio_.flush();
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+			//timer_->set_timer<App, &App::sink_send_query>(10000, this, 0);
 			
 			/*
 			 * Some hash values:
@@ -807,7 +863,7 @@ class ExampleApplication
 			//send(sizeof(exec), exec);
 			query_radio_.flush();
 			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_ask_hash_resolve>(10000, this, 0);
+			//timer_->set_timer<App, &App::sink_ask_hash_resolve>(10000, this, 0);
 			// }}}
 		#endif
 			
@@ -846,6 +902,7 @@ class ExampleApplication
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
+		Os::Uart::self_pointer_t uart_;
 		
 		PRadio query_radio_;
 		FNDRadio fndradio_;
@@ -874,7 +931,7 @@ class ExampleApplication
 //Allocator allocator_;
 //Allocator& get_allocator() { return allocator_; }
 // --------------------------------------------------------------------------
-wiselib::WiselibApplication<Os, ExampleApplication> example_app;
+wiselib::WiselibApplication<Os, App> example_app;
 // --------------------------------------------------------------------------
 void application_main( Os::AppMainParameter& value )
 {
