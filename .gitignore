@@ -3,6 +3,8 @@
 *.d
 *.swp
 *.pyc
+*.a
+*.map
 Makefile.local
 wiselib.testing/config_testing.h
 wiselib.stable/config.h
@@ -28,3 +30,5 @@ tags
 .project
 .settings
 dot/
+symbols.c
+symbols.h
