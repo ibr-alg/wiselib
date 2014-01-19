@@ -3,6 +3,10 @@
 *.d
 *.swp
 *.pyc
+*.a
+*.map
+symbols.h
+symbols.c
 Makefile.local
 wiselib.testing/config_testing.h
 wiselib.stable/config.h
@@ -28,3 +32,4 @@ tags
 .project
 .settings
 dot/
+apps/generic_apps/token_construction_test/24*

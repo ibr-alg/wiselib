@@ -204,14 +204,33 @@ class App {
 			t.set(2, (block_data_t*)const_cast<char*>(o));
 			ts.insert(t);
 		}
-		
-		void init( Os::AppMainParameter& value )
-		{
+
+		void init( Os::AppMainParameter& value ) {
+
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+
+			debug_->debug("boot0 %lu", (unsigned long)radio_->id());
+
+		//	timer_->set_timer<App, &App::init2>(1000, this, (void*)&value);
+
+			timer_->set_timer<App, &App::heartbeat>(10000, this, 0);
+		}
+
+		void heartbeat(void*) {
+			debug_->debug("<3");
+			timer_->set_timer<App, &App::heartbeat>(10000, this, 0);
+		}
 			
+		
+		//void init2( Os::AppMainParameter& value ) {
+		void init2(void* v_) {
+			Os::AppMainParameter& value = *reinterpret_cast<Os::AppMainParameter*>(v_);
+
+			debug_->debug("boot1 %lu", (unsigned long)radio_->id());
+
 		#if USE_UART
 			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
 			uart_->enable_serial_comm();
@@ -237,9 +256,8 @@ class App {
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			
-			debug_->debug("boot %d", (int)radio_->id());
-			
 		#endif
+			debug_->debug("boot2 %lu", (unsigned long)radio_->id());
 			
 			init_ts();
 			
@@ -256,6 +274,7 @@ class App {
 				be();
 			}
 		#endif
+			debug_->debug("boot3 %lu", (unsigned long)radio_->id());
 		}
 		
 		Dictionary dictionary;
