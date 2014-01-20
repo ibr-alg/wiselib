@@ -185,6 +185,7 @@ namespace wiselib {
 				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
 				DBG("recv query");
+				printf("rcv qry f %lu", (unsigned long)from);
 				
 				//Serial.println("recv query");
 				
@@ -237,6 +238,7 @@ namespace wiselib {
 				typedef typename QueryRadio::message_id_t qmsgid_t;
 				Packet *packet = reinterpret_cast<Packet*>(q);
 				
+				printf("<rcv qry task f %d>", (int)packet->query_message()->message_id());
 				
 				switch(packet->query_message()->message_id()) {
 					case MESSAGE_ID_OPERATOR:
@@ -254,6 +256,7 @@ namespace wiselib {
 				}
 				::get_allocator().free(packet->data);
 				::get_allocator().free(packet);
+				printf("end rcv qry task f");
 			} // on_receive_query
 			
 			

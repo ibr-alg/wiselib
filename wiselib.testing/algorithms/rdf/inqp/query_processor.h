@@ -274,6 +274,7 @@ namespace wiselib {
 			 * query, that is, add an according operator to the query.
 			 */
 			void handle_operator(Query* query, BOD *bod) {
+				printf("<hopa%c,%d>", (char)bod->type(), (int)bod->id());
 				//DBG("hop %c %d", (char)bod->type(), (int)bod->id());
 				switch(bod->type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
@@ -313,9 +314,12 @@ namespace wiselib {
 						break;
 				}
 				if(query->ready()) {
+					printf("<hopa_exec>");
 					execute(query);
+					printf("</hopa_exec>");
 				}
 				//DBG("/hop");
+				printf("</hopa%c,%d>", (char)bod->type(), (int)bod->id());
 			}
 			
 			/**
@@ -323,13 +327,17 @@ namespace wiselib {
 			 */
 			template<typename Message, typename node_id_t>
 			void handle_operator(Message *msg, node_id_t from, size_type size) {
+				printf("<hopb%d>", (int)msg->query_id());
 				BOD *bod = msg->operator_description();
 				Query *query = get_query(msg->query_id());
 				if(!query) {
+					printf("<hopbCQ>");
 					query = create_query(msg->query_id());
+					printf("</hopbCQ>");
 				}
 				
 				handle_operator(query, bod);
+				printf("</hopb%d>", (int)msg->query_id());
 			}
 			
 			/**
@@ -339,6 +347,7 @@ namespace wiselib {
 				#ifdef ISENSE
 					GET_OS.debug("hop %d", (int)qid);
 				#endif
+				printf("<hopc%d>", (int)qid);
 					
 				BOD *bod = reinterpret_cast<BOD*>(od);
 				Query *query = get_query(qid);
@@ -346,6 +355,7 @@ namespace wiselib {
 					query = create_query(qid);
 				}
 				handle_operator(query, bod);
+				printf("</hopc%d>", (int)qid);
 			}
 			
 			/**
@@ -356,14 +366,18 @@ namespace wiselib {
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
 				//DBG("h qinf");
 				query_id_t query_id = msg->query_id();
+				printf("<hqi%d>", (int)query_id);
 				Query *query = get_query(query_id);
 				if(!query) {
 					query = create_query(query_id);
 				}
 				query->set_expected_operators(msg->operators());
 				if(query->ready()) {
+					printf("<exec>");
 					execute(query);
+					printf("</exec>");
 				}
+				printf("</hqi%d>", (int)query_id);
 			}
 			
 			/**

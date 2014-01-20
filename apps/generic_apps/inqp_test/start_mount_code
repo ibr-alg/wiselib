@@ -3,8 +3,8 @@
 echo boot $(date) >>/tmp/log/timestamps
 echo $(hostname) >/tmp/log/hostname.txt
 
-#ls -l /dev/* >/tmp/log/ls_dev.txt
-#sleep $((5 * 60))
+ls -l /dev/* >/tmp/log/ls_dev.txt
+sleep $((5 * 60))
 	
 
 	while :; do

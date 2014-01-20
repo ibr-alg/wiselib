@@ -308,6 +308,7 @@ typedef wiselib::OSMODEL Os;
 	*/
 #endif
 
+
 #if defined(ISENSE)
 	void* malloc(size_t n) { return isense::malloc(n); }
 	void free(void* p) { isense::free(p); }
