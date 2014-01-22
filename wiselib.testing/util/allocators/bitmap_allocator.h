@@ -185,7 +185,7 @@ class BitmapAllocator {
 				best_start_pos = start_pos;
 			}
 			
-			if(best_length == -1) {
+			if(best_length == (size_type)(-1)) {
 				#ifdef CONTIKI
 				printf("!allocb %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
 				#endif

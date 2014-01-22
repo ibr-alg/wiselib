@@ -62,9 +62,9 @@ class App {
 
 		void insert_tuple(char* s, char* p, char* o) {
 			Tuple t;
-			t.set(0, s);
-			t.set(1, p);
-			t.set(2, o);
+			t.set(0, (block_data_t*)s);
+			t.set(1, (block_data_t*)p);
+			t.set(2, (block_data_t*)o);
 
 			#if APP_DATABASE_DEBUG
 				debug_->debug("ins (%s,%s,%s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));

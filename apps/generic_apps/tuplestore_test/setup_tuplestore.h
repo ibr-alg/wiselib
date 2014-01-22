@@ -151,8 +151,10 @@ class Tuple {
 	 * multiple instances of the same tuple can occur in your store or not!
 	 */
 
-	#include <util/pstl/list_dynamic.h>
-	typedef list_dynamic<Os, Tuple> TupleContainer;
+	//#include <util/pstl/list_dynamic.h>
+	//typedef list_dynamic<Os, Tuple> TupleContainer;
+	#include <util/pstl/vector_static.h>
+	typedef vector_static<Os, Tuple, 80> TupleContainer;
 
 	/* There are a number of dictionary implementations available currently
 	 * available:
@@ -176,8 +178,10 @@ class Tuple {
 	 * 		This stores common prefixes only once, useful if tuple elements
 	 * 		exhibit common prefixes, e.g. because they are URIs.
 	 */
-	#include <util/pstl/unbalanced_tree_dictionary.h>
-	typedef UnbalancedTreeDictionary<Os> Dictionary;
+	#include <util/tuple_store/null_dictionary.h>
+	typedef NullDictionary<Os> Dictionary;
+	//#include <util/pstl/unbalanced_tree_dictionary.h>
+	//typedef UnbalancedTreeDictionary<Os> Dictionary;
 
 	//#include <util/tuple_store/prescilla_dictionary.h>
 	//typedef PrescillaDictionary<Os> Dictionary;
@@ -244,7 +248,8 @@ typedef TupleStore<
 		Os,
 		TupleContainer, Dictionary,
 		Os::Debug,
-		BIN(111), /* Which columns should the dictionary be used for? */
+		//BIN(111), /* Which columns should the dictionary be used for? */
+		BIN(000),
 		&Tuple::compare /* How to compare tuples? */
 	> TupleStoreT;
 
