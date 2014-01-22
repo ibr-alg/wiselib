@@ -68,7 +68,7 @@ def find_tuple_spikes(ts, vs):
             time_sums.append(t - t0)
             energy_sums.append(esum)
         elif state == "M":
-            assert v < HIGH
+            #assert v < HIGH
             esum += (t - tprev) * v
             tprev = t
     
@@ -88,7 +88,7 @@ def fig_energy(ts, vs):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((250, 310))
+    #ax.set_xlim((250, 310))
     #ax.set_ylim((0, 3))
     ax.grid()
 
@@ -127,8 +127,15 @@ def plot_experiment(n, ax, **kwargs):
 fig = plt.figure()
 ax = plt.subplot(111)
 
-plot_experiment(24529, ax, label='ts')
 plot_experiment(24539, ax, label='antelope')
+
+# unbaltreedict, list_dynamic container
+#plot_experiment(24529, ax, label='ts')
+
+# nulldict, vector_static container
+plot_experiment(24570, ax, label='ts')
+
+
 
 fig.savefig('energy_inserts.pdf')
 

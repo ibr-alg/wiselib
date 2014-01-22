@@ -37,14 +37,14 @@ class Tuple {
 		}
 		
 		void free_deep(size_type i) {
-			if(get(i)) {
-				::get_allocator().free(get(i));
-				set(i, 0);
-			}
+			//if(get(i)) {
+				//::get_allocator().free(get(i));
+				//set(i, 0);
+			//}
 		}
 		
 		void destruct_deep() {
-			for(size_type i = 0; i < SIZE; i++) { free_deep(i); }
+			//for(size_type i = 0; i < SIZE; i++) { free_deep(i); }
 		}
 		
 		///@{
@@ -71,9 +71,9 @@ class Tuple {
 		}
 		
 		void set_deep(size_type i, block_data_t* data) {
-			size_type l = strlen((char*)data) + 1;
-			set(i, ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
-			memcpy(get(i), data, l);
+			//size_type l = strlen((char*)data) + 1;
+			//set(i, ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
+			//memcpy(get(i), data, l);
 		}
 		
 		///@}
@@ -154,7 +154,7 @@ class Tuple {
 	//#include <util/pstl/list_dynamic.h>
 	//typedef list_dynamic<Os, Tuple> TupleContainer;
 	#include <util/pstl/vector_static.h>
-	typedef vector_static<Os, Tuple, 80> TupleContainer;
+	typedef vector_static<Os, Tuple,76> TupleContainer;
 
 	/* There are a number of dictionary implementations available currently
 	 * available:
@@ -178,14 +178,17 @@ class Tuple {
 	 * 		This stores common prefixes only once, useful if tuple elements
 	 * 		exhibit common prefixes, e.g. because they are URIs.
 	 */
-	#include <util/tuple_store/null_dictionary.h>
-	typedef NullDictionary<Os> Dictionary;
+	//#include <util/tuple_store/null_dictionary.h>
+	//typedef NullDictionary<Os> Dictionary;
+	
 	//#include <util/pstl/unbalanced_tree_dictionary.h>
 	//typedef UnbalancedTreeDictionary<Os> Dictionary;
 
 	//#include <util/tuple_store/prescilla_dictionary.h>
 	//typedef PrescillaDictionary<Os> Dictionary;
 
+	#include <util/tuple_store/static_dictionary.h>
+	typedef StaticDictionary<Os, 100, 15> Dictionary;
 	
 #else
 	// ---- TupleStore instantiation on BLOCK MEMORY
@@ -249,7 +252,7 @@ typedef TupleStore<
 		TupleContainer, Dictionary,
 		Os::Debug,
 		//BIN(111), /* Which columns should the dictionary be used for? */
-		BIN(000),
+		BIN(111),
 		&Tuple::compare /* How to compare tuples? */
 	> TupleStoreT;
 

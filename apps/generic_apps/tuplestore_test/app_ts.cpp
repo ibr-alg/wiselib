@@ -11,16 +11,16 @@ typedef Os::size_t size_type;
 	//typedef MallocFreeAllocator<Os> Allocator;
 	//Allocator& get_allocator();
 
-	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, 4000> Allocator;
-	Allocator& get_allocator();
+	//#include <util/allocators/bitmap_allocator.h>
+	//typedef wiselib::BitmapAllocator<Os, 3000> Allocator;
+	//Allocator& get_allocator();
 	//Allocator allocator_;
 	//Allocator& get_allocator() { return allocator_; }
 
 #include "platform.h"
 
 
-#define APP_DATABASE_DEBUG 0
+#define APP_DATABASE_DEBUG 1
 
 
 #undef TS_USE_BLOCK_MEMORY
@@ -79,8 +79,8 @@ class App {
 // {{{
 	
 	// Application Entry Point & Definiton of allocator
-	Allocator allocator_;
-	Allocator& get_allocator() { return allocator_; }
+	//Allocator allocator_;
+	//Allocator& get_allocator() { return allocator_; }
 	wiselib::WiselibApplication<Os, App> app;
 	void application_main(Os::AppMainParameter& amp) { app.init(amp); }
 	

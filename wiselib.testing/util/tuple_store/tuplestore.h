@@ -517,6 +517,7 @@ namespace wiselib {
 				return iterator(ci, container_->end(), dictionary_, 0, 0);
 			} // insert()
 			
+
 			iterator erase(iterator iter) {
 				assert(iter != end());
 
@@ -740,8 +741,13 @@ namespace wiselib {
 				
 				typename TupleContainer::size_type sz = container_->size();
 				ContainerIterator ci = container_->insert(t);
+
 				if(container_->size() == sz) {
-					tmp.destruct_deep();
+					// Container size didnt change, i.e.
+					// this tuple was either already in there or
+					// it was full. In any case the deep contents of $tmp are not
+					// needed anymore!
+					//tmp.destruct_deep();
 				}
 				
 				return iterator(ci, container_->end(), 0, 0);
