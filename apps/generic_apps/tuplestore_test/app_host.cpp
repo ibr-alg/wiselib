@@ -32,8 +32,8 @@ class App {
 
 		enum {
 			SEND_INTERVAL_START = 10000,
-			SEND_INTERVAL = 10000,
-			TUPLE_SLEEP = 20
+			SEND_INTERVAL = 30000,
+			TUPLE_SLEEP = 50
 		};
 
 		void init(Os::AppMainParameter& amp) {
@@ -135,6 +135,7 @@ class App {
 			Uart::block_data_t reset[] = { 0, 0, 0, 0 };
 			uart_->write(4, reset);
 
+					timer_->sleep(3*TUPLE_SLEEP);
 
 				size_type snt = 0;
 				while(snt < bytes_sent_) {

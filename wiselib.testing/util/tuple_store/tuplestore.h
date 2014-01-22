@@ -445,6 +445,7 @@ namespace wiselib {
 			iterator insert(UserTuple& t) {
 				Tuple tmp;
 				
+			printf("[TScpy2tmp]");
 				for(size_type i=0; i<COLUMNS; i++) {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						typename Dictionary::key_type k = dictionary_->insert(t.get(i));

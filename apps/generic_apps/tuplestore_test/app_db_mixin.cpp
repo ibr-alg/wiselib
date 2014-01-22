@@ -23,15 +23,23 @@
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 
+		::uint16_t lastpos;
 
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
 
 			if(data[0] == 0x99) {
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 1);
+				if(pos != 0 && pos <= lastpos) {
+					// only accept "later" writes, especially important
+					// so we dont process the end marker twice (triggering
+					// timers at the double, ouch!)
+					return;
+				}
+				lastpos = pos;
 
 			#if APP_DATABASE_DEBUG
-				debug_->debug("recv %x %x %x p=%d", (int)data[0], (int)data[1], (int)data[2], (int)pos);
+				debug_->debug("(rcv %x %x %x p%d l%d)", (int)data[0], (int)data[1], (int)data[2], (int)pos, (int)len);
 			#endif
 
 				if(len == 3) {
@@ -69,6 +77,9 @@
 		}
 
 		void start_insert(void*) {
+			#if APP_DATABASE_DEBUG
+				debug_->debug("<<start_ins>>");
+			#endif
 			block_data_t *e = rdf_buffer_;
 
 			while(*e) {
@@ -90,6 +101,9 @@
 				debug_->debug("ins done");
 			#endif
 			}
+			#if APP_DATABASE_DEBUG
+				debug_->debug("[[start_ins_done]]");
+			#endif
 
 			timer_->set_timer<App, &App::enable_radio>(1000, this, 0);
 		}

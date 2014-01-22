@@ -1,4 +1,6 @@
 
+#include "platform.h"
+
 #include "external_interface/external_interface.h"
 #include "external_interface/external_interface_testing.h"
 using namespace wiselib;
@@ -16,8 +18,6 @@ typedef Os::size_t size_type;
 	//Allocator& get_allocator();
 	//Allocator allocator_;
 	//Allocator& get_allocator() { return allocator_; }
-
-#include "platform.h"
 
 
 #define APP_DATABASE_DEBUG 1

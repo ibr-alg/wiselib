@@ -32,7 +32,7 @@ LDFLAGS += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
    contiki-$(TARGET).a
 
-ADD_LDFLAGS :=
+#ADD_LDFLAGS :=
 ifeq ($(TARGET), sky)
 	  ADD_LDFLAGS  += $(OBJECTDIR)/sht11-sensor.o \
 			  $(OBJECTDIR)/sht11.o \

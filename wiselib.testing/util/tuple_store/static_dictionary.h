@@ -69,7 +69,8 @@ namespace wiselib {
 			enum { SIMPLE_STRING_LENGTH = P_SLOT_WIDTH * P_SLOT_WIDTH };
 
 			struct Slot {
-				refcount_t refcount_;
+				::uint8_t refcount_ : 7;
+				::uint8_t meta_ : 1;
 				//key_type next_;
 				block_data_t data_[SLOT_WIDTH];
 			};
@@ -78,7 +79,9 @@ namespace wiselib {
 				//strncpy(reinterpret_cast<char*>(slots_[0].data_), "<http://www.", SLOT_WIDTH);
 				//slots_[0].refcount_ = 1;
 
-				for(key_type k = 0; k < SLOTS; k++) { slots_[k].refcount_ = 0; }
+				for(key_type k = 0; k < SLOTS; k++) {
+					slots_[k].refcount_ = 0;
+				}
 			}
 
 			template<typename Debug>
@@ -103,12 +106,26 @@ namespace wiselib {
 				int i = 0;
 				for( ; p < end; p += SLOT_WIDTH, i++) {
 					bool found;
-					key_type x = find_slot(Math::template min<long>(end - p, SLOT_WIDTH), p, found);
-					assert(x != NULL_KEY);
+					key_type x = find_slot(
+							Math::template min<long>(end - p, SLOT_WIDTH), p, found,
+							false /* seek a non-meta-slot */
+					);
+					//assert(x != NULL_KEY);
+					if(x == NULL_KEY) {
+						// TODO: for clean recovery we have to also erase the
+						// formerly allocated string slots, currently
+						// we assume, shit is hitting the fan anyways so we
+						// dont care
+						return NULL_KEY;
+					}
 
-					if(!found) {
+					if(found) {
+						slots_[x].refcount_++;
+					}
+					else {
 						slots_[x].refcount_ = 1;
-						mystrncpy(reinterpret_cast<char*>(slots_[x].data_), reinterpret_cast<char*>(p), SLOT_WIDTH);
+						slots_[x].meta_ = false;
+						strncpy(reinterpret_cast<char*>(slots_[x].data_), reinterpret_cast<char*>(p), SLOT_WIDTH);
 					}
 					s.data_[i] = x;
 				}
@@ -117,7 +134,7 @@ namespace wiselib {
 				// If not, find a free slot and put it there.
 
 				bool found;
-				key_type x = find_slot(i, s.data_, found);
+				key_type x = find_slot(i, s.data_, found, true);
 
 				if(!found) {
 					slots_[x] = s;
@@ -164,7 +181,7 @@ namespace wiselib {
 				int i = 0;
 				for( ; p < end; p += SLOT_WIDTH, i++) {
 					bool found;
-					key_type x = find_slot(Math::template min<long>(end - p, SLOT_WIDTH), p, found);
+					key_type x = find_slot(Math::template min<long>(end - p, SLOT_WIDTH), p, found, false);
 					if(!found) {
 						// Well, if there is a part of the string we don't
 						// have, we can't have the whole string, can we?
@@ -177,7 +194,7 @@ namespace wiselib {
 				// If not, find a free slot and put it there.
 
 				bool found;
-				key_type x = find_slot(i, s.data_, found);
+				key_type x = find_slot(i, s.data_, found, true);
 
 				if(!found) { return NULL_KEY; }
 				return x;
@@ -186,10 +203,12 @@ namespace wiselib {
 			size_type erase(key_type k) {
 				if(slots_[k].refcount_ == 0) { return 0; }
 
-				// delete all referenced substrings, too (or decrease
-				// their refcount at least)
-				for(int i = 0; slots_[k].data_[i] != NULL_KEY && i < SLOT_WIDTH; i++) {
-					erase(slots_[k].data_[i]);
+				if(slots_[k].meta_) {
+					// delete all referenced substrings, too (or decrease
+					// their refcount at least)
+					for(int i = 0; slots_[k].data_[i] != NULL_KEY && i < SLOT_WIDTH; i++) {
+						erase(slots_[k].data_[i]);
+					}
 				}
 				slots_[k].refcount_--;
 				return 1;
@@ -220,23 +239,24 @@ namespace wiselib {
 		private:
 
 			void make_meta(Slot& s) {
-				mymemset(s.data_, NULL_KEY, sizeof(s.data_));
+				memset(s.data_, NULL_KEY, sizeof(s.data_));
 				//s.next_ = NULL_KEY;
 				s.refcount_ = 1;
+				s.meta_ = true;
 			}
 
 			/**
 			 * Return key for a slot containing the given data, if not found,
 			 * return key for an unused slot.
 			 */
-			key_type find_slot(size_type l, block_data_t *data, bool &found) {
+			key_type find_slot(size_type l, block_data_t *data, bool &found, bool meta) {
 				key_type start_pos = Hash::hash(data, l) % SLOTS;
 				key_type end_pos = start_pos ? (start_pos - 1) : (SLOTS - 1);
 				key_type free = NULL_KEY;
 
 				for(key_type i = start_pos; i != end_pos; i = (i+1) % SLOTS) {
-					if(slots_[i].refcount_) {
-						if(mymemcmp(data, slots_[i].data_, l) == 0) {
+					if(slots_[i].refcount_ && slots_[i].meta_ == meta) {
+						if(memcmp(data, slots_[i].data_, l) == 0) {
 							// a used slot that looks like s!
 							slots_[i].refcount_++;
 							found = true;

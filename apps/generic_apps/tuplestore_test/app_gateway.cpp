@@ -56,6 +56,7 @@ class App {
 			}
 
 			if(len == 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0) {
+				debug_->debug("[RESET]");
 				// reset
 				bytes_received_ = 0;
 				return;
@@ -73,8 +74,8 @@ class App {
 					//Uart::block_data_t ack[] = "OK";
 					//uart_->write(sizeof(ack), ack);
 					debug_->debug("OK");
-					debug_->debug("OK");
-					debug_->debug("OK");
+					//debug_->debug("OK");
+					//debug_->debug("OK");
 
 					// Checksum correct, start sending!
 					bytes_sent_ = 0;
@@ -124,7 +125,7 @@ class App {
 
 			//Uart::block_data_t ack[] = "OK";
 			//uart_->write(sizeof(ack), ack);
-			debug_->debug("OK");
+			//debug_->debug("OK");
 
 			size_type s = sending_size();
 			//if(s == 0) { return; }
@@ -171,7 +172,7 @@ class App {
 			timer_->set_timer<App, &App::report_ack>(0, this, (void*)s);
 					ack_timeout_guard_++;
 					//if(s) {
-						timer_->set_timer<App, &App::send_rdf>(50, this, 0);
+						timer_->set_timer<App, &App::send_rdf>(100, this, 0);
 					//}
 					//else {
 					//if(!s) {

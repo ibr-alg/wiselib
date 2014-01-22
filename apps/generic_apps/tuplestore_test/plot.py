@@ -7,7 +7,13 @@ from matplotlib import rc
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
+# avg over 64 measurements,
+# 3000 measurements per sec.
+# measurement interval is in seconds
+
 MEASUREMENT_INTERVAL = 64.0 / 3000.0
+
+# mA
 CURRENT_FACTOR = 70.0 / 4095.0
 
 def parse_energy(f):
@@ -88,7 +94,7 @@ def fig_energy(ts, vs):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((250, 310))
+    ax.set_xlim((0, 300))
     #ax.set_ylim((0, 3))
     ax.grid()
 
@@ -110,9 +116,12 @@ def plot_experiment(n, ax, **kwargs):
     tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'))
     energy_sums, time_sums = find_tuple_spikes(ts, vs)
 
+    # incontextsensing
+    #tc = [7, 6, 8, 11, 11, 10, 11, 9]
+
     #ax = plt.subplot(111)
-    #print("XXX", energy_sums)
-    #print("YYY", tc)
+    print("XXX", energy_sums)
+    print("YYY", tc)
     ax.plot(cum(tc[:len(energy_sums)]), cum([x/y for x, y in zip(energy_sums, tc)]), 'o-',
             **kwargs) 
     ax.plot(cum(tc[:len(time_sums)]), cum([x/y for x, y in zip(time_sums, tc)]), 'x-',
@@ -132,9 +141,19 @@ plot_experiment(24539, ax, label='antelope')
 # unbaltreedict, list_dynamic container
 #plot_experiment(24529, ax, label='ts')
 
-# nulldict, vector_static container
-plot_experiment(24570, ax, label='ts')
+# ts staticdict(100, 15), staticvector(76)
+#plot_experiment(24578, ax, label='ts')
 
+# antelope with more realistic config?
+#plot_experiment(24579, ax, label='antelope2')
+
+# ts staticdict(100, 15), staticvector(76), strncmp_etc_builtin
+plot_experiment(24580, ax, label='ts100')
+
+# ts staticdict(200, 15), staticvector(76), strncmp_etc_builtin
+plot_experiment(24582, ax, label='ts200a')
+# ts staticdict(200, 15), staticvector(76), strncmp_etc_builtin
+plot_experiment(24583, ax, label='ts200b')
 
 
 fig.savefig('energy_inserts.pdf')
