@@ -1,4 +1,5 @@
 
+
 #include "external_interface/external_interface.h"
 #include "external_interface/external_interface_testing.h"
 using namespace wiselib;
@@ -49,23 +50,44 @@ class App {
 			state_ = RECV_UART;
 		}
 
+		Uart::block_data_t uart_buf[1024];
+		Uart::size_t uart_len;
+
 		void on_receive_uart(Uart::size_t len, Uart::block_data_t *data) {
+			//memcpy(uart_buf, data, len);
+			//uart_len = len;
+			//timer_->set_timer<App, &App::on_receive_uart_task>(10, this, 0);
+		//}
+
+		//void on_receive_uart_task(void*) {
+			//Uart::size_t len = uart_len;
+			//Uart::block_data_t *data = uart_buf;
+
+			//debug_->debug("UART%d", (int)len);
+
+				//debug_->debug("RUS %d: l=%d d=%s", (int)state_, (int)len, (char*)data);
 			if(state_ != RECV_UART) {
-				debug_->debug("recv uart in state %d: l=%d d=%s", (int)state_, (int)len, (char*)data);
 				return;
 			}
 
-			if(len == 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0) {
-				debug_->debug("[RESET]");
-				// reset
-				bytes_received_ = 0;
-				return;
-			}
+			//if(len == 4 && data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 0) {
+				////debug_->debug("RESET");
+				//// reset
+				//bytes_received_ = 0;
+				//return;
+			//}
 
 			memcpy(rdf_buffer_ + bytes_received_, data, len);
 			bytes_received_ += len;
 
 			if(bytes_received_ > 4 && rdf_buffer_[bytes_received_ - 1] == 0 && rdf_buffer_[bytes_received_ - 2] == 0) {
+				if(rdf_buffer_[bytes_received_ - 3] == 0 && rdf_buffer_[bytes_received_ - 4] == 0) {
+					// RESET
+					bytes_received_ = 0;
+					return;
+				}
+
+
 				// buffer content ends with two 0-bytes => we're done!
 				// Now check the CRC!
 
@@ -73,15 +95,21 @@ class App {
 				if(h == wiselib::read<OsModel, block_data_t, ::uint16_t>(rdf_buffer_ + bytes_received_ - 4)) {
 					//Uart::block_data_t ack[] = "OK";
 					//uart_->write(sizeof(ack), ack);
-					debug_->debug("OK");
+					//debug_->debug("OK\n");
+					////fflush(stdout);
 					//debug_->debug("OK");
 					//debug_->debug("OK");
+					//debug_->debug("OK");
+					//debug_->debug("OK");
+					//debug_->debug("OK");
+					//debug_->debug("OK\n\n\n");
+					//uart_->write(2, (Uart::block_data_t*)"OK");
 
 					// Checksum correct, start sending!
 					bytes_sent_ = 0;
 
 					state_ = SEND_RADIO;
-					timer_->set_timer<App, &App::send_rdf>(20, this, 0); // send_rdf();
+					timer_->set_timer<App, &App::send_rdf>(100, this, 0); // send_rdf();
 
 					// XXX: This leads to the node not ever sending out
 					// anything, just for testing
@@ -94,15 +122,20 @@ class App {
 
 					//Uart::block_data_t ack[] = "ERR";
 					//uart_->write(sizeof(ack), ack);
-					debug_->debug("ERR");
-					debug_->debug("ERR");
-					debug_->debug("ERR");
+					//debug_->debug("ERR");
+					//debug_->debug("ERR");
+					//debug_->debug("ERR");
+					//uart_->write(3, (Uart::block_data_t*)"ERR");
+					timer_->set_timer<App, &App::send_err>(100, this, 0);
 					bytes_received_ = 0;
 				}
 
 			}
 		} // on_receive_uart()
 
+		void send_err(void*) {
+			debug_->debug("ERR");
+		}
 
 		block_data_t sending_[Radio::MAX_MESSAGE_LENGTH];
 
@@ -125,7 +158,7 @@ class App {
 
 			//Uart::block_data_t ack[] = "OK";
 			//uart_->write(sizeof(ack), ack);
-			//debug_->debug("OK");
+			debug_->debug("OK");
 
 			size_type s = sending_size();
 			//if(s == 0) { return; }
@@ -141,7 +174,8 @@ class App {
 			radio_->send( Os::Radio::BROADCAST_ADDRESS, s + 3, sending_);
 			//radio_->send( 6, s, sending_);
 
-			timer_->set_timer<App, &App::report_send>(50, this, (void*)s);
+			//timer_->set_timer<App, &App::report_send>(50, this, (void*)s);
+			report_send(0);
 
 			if(s) {
 				timer_->set_timer<App, &App::on_ack_timeout>(1000, this, (void*)ack_timeout_guard_);

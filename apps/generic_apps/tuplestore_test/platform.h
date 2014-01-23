@@ -38,6 +38,7 @@
 	*/
 	extern "C" {
 #include <string.h>
+#include <stdio.h>
 	}
 
 /*
