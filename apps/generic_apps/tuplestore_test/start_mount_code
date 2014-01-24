@@ -2,6 +2,7 @@
 
 echo boot $(date) >>/tmp/log/timestamps
 echo $(hostname) >/tmp/log/hostname.txt
+python --version >> /tmp/log/hostname.txt
 
 #ls -l /dev/* >/tmp/log/ls_dev.txt
 sleep $((5 * 60))

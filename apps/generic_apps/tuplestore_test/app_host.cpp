@@ -23,6 +23,97 @@ typedef Os::Uart Uart;
 class App {
 	// {{{
 	public:
+		Os::Debug::self_pointer_t debug_;
+		Os::Timer::self_pointer_t timer_;
+		block_data_t rdf_buffer_[1024];
+
+		void init(Os::AppMainParameter& amp) {
+			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
+			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
+
+			init_serial();
+		}
+
+
+		void main_loop() {
+			char line[1024];
+			SplitN3<Os> n3;
+
+			bytes_sent_ = 0;
+			bool need_line = true;
+
+			while(std::cin) {
+				// read line from stdin
+				if(need_line) {
+					std::cin.getline(line, sizeof(line));
+					n3.parse_line(line);
+					need_line = false;
+				}
+
+				size_t l0 = strlen(n3[0]),
+					   l1 = strlen(n3[1]),
+					   l2 = strlen(n3[2]);
+				size_t lensum = l0 + l1 + l2 + 3;
+
+				bool expect_answer = false;
+
+				if(bytes_sent_ + lensum > 1020) {
+					// send summary (=footer)
+					::uint16_t checksum = Crc16<Os>::hash(rdf_, bytes_sent_);
+					block_data_t summary[] = {0, 0, 0, 0};
+					wiselib::write<Os, block_data_t, ::uint16_t>(summary, checksum);
+					send_serial(4, summary);
+					debug_->debug("sent %d tuples chk=%x b=%d", (int)triples, (unsigned)checksum, (int)bytes_sent_);
+					expect_answer = true;
+					//timer_->set_timer<App, &App::on_uart_timeout>(UART_RESEND_
+				}
+				else {
+					for(size_type i = 0; i < 3; i++) {
+						strcpy((char*)rdf_ + bytes_sent_, (char*)n3[i]);
+						send_serial(strlen(n3[i]) + 1, reinterpret_cast<block_data_t*>(n3[i]));
+						bytes_sent_ += strlen(n3[i]) + 1;
+					}
+					triples++;
+					need_line = true;
+				}
+
+				while(expect_answer) {
+					// TODO: set timeout here!
+					nfound = select(FD_SETSIZE, &smask, (fd_set*)0, (fd_set*)0, (struct timeval *)0);
+
+					// TODO: if timed out, resend buffer!
+
+					if(nfound < 0) {
+						if(errno = EINTR) {
+							fprintf(stderr, "syscal interrupted\n");
+							continue;
+						}
+						perror("select fuckup");
+						exit(1);
+					}
+
+					if(FD_ISSET(serial_fd, &smask)) {
+						int i, j, n = ::read(serial_fd, buf, sizeof(buf));
+						if(n < 0) {
+							perror("couldnt read");
+							exit(-1);
+						}
+						on_receive_uart(n, buf);
+					}
+				}
+
+
+			}
+		}
+
+
+
+
+
+
+
+
+
 
 		Os::Uart::self_pointer_t uart_;
 		Os::Debug::self_pointer_t debug_;
@@ -58,6 +149,90 @@ class App {
 
 		char buf[1024];
 		bool buf_empty;
+
+		// Most of the serial code is stolen from serialdump
+
+		int serial_fd;
+
+		void init_serial() {
+			struct termios options;
+			fd_set mask, smask;
+			speed_t speed = B115200;
+			char *device = "/dev/tmotesky1";
+			char *timeformat = NULL;
+			unsigned char buf[BUFSIZE], outbuf[HCOLS];
+			unsigned char mode = MODE_START_TEXT;
+			int nfound, flags = 0;
+			unsigned char lastc = '\0';
+			
+			serial_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_DIRECT | O_SYNC);
+
+			if(serial_fd < 0) {
+				perror(device);
+				exit(-1);
+			}
+
+			if(fcntl(serial_fd, F_SETFL, 0) < 0) {
+				perror("fcntl problem");
+				exit(-1);
+			}
+			if(tcgetattr(serial_fd, &options) < 0) {
+				perror("couldnt get options");
+				exit(-1);
+			}
+
+			cfsetispeed(&options, speed);
+			cfsetospeed(&options, speed);
+			options.c_cflag |= CLOCAL | CREAD;
+			options.c_cflag &= ~(CSIZE | PARENB | PARODD);
+			options.c_cflag |= CS8;
+
+			options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+			options.c_oflag &= ~OPOST;
+
+			if(tcsetattr(serial_fd, TCSANOW, &opteions) < 0) {
+				perror("couldnt set options");
+				exit(-1);
+			}
+
+			FD_ZERO(&mask);
+			FD_SET(serial_fd, &mask);
+
+			index = 0;
+			while(true) {
+				smask = mask;
+				nfound = select(FD_SETSIZE, &smask, (fd_set*)0, (fd_set*)0, (struct timeval *)0);
+				if(nfound < 0) {
+					if(errno = EINTR) {
+						fprintf(stderr, "syscal interrupted\n");
+						continue;
+					}
+					perror("select fuckup");
+					exit(1);
+				}
+
+				if(FD_ISSET(serial_fd, &smask)) {
+					int i, j, n = ::read(serial_fd, buf, sizeof(buf));
+					if(n < 0) {
+						perror("couldnt read");
+						exit(-1);
+					}
+					on_receive_uart(n, buf);
+				}
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
 
 		void send_contiki(size_type l, block_data_t *data) {
 			//block_data_t buffer[1024];

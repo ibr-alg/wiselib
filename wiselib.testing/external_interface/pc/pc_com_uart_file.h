@@ -298,7 +298,8 @@ namespace wiselib {
 			}
 		}
 
-		timer_.template set_timer<self_type, &self_type::try_read>(10, this, 0);
+		//timer_.template set_timer<self_type, &self_type::try_read>(10, this, 0);
+		timer_.template set_timer<self_type, &self_type::try_read>(1, this, 0);
 	} // try_read
 	
 } // ns wiselib
