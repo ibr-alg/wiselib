@@ -103,16 +103,18 @@ class App {
 					/*
 					uart_->write(4, reinterpret_cast<Uart::block_data_t*>(summary));
 					*/
+					debug_->debug("sending summary");
 					send_contiki(4, summary);
 					//timer_->sleep(TUPLE_SLEEP);
-					//debug_->debug("sent %d tuples chk=%x b=%d", (int)triples, (unsigned)checksum, (int)bytes_sent_);
-					timer_->set_timer<App, &App::on_uart_timeout>(UART_RESEND_INTERVAL, this, 0);
+					debug_->debug("sent %d tuples chk=%x b=%d", (int)triples, (unsigned)checksum, (int)bytes_sent_);
+					timer_->set_timer<App, &App::on_uart_timeout>(UART_RESEND_INTERVAL, this, (void*)ato_guard_);
 					triples = 0;
 
 					return;
 				}
 				else {
 					for(size_type i = 0; i < 3; i++) {
+						debug_->debug("i=%d", (int)i);
 						strcpy((char*)rdf_buffer_ + bytes_sent_, (char*)sp[i]);
 						debug_->debug("WR UART: (%d) %s", (int)strlen(sp[i]) + 1, (char*)sp[i]);
 						//uart_->write(strlen(sp[i]) + 1, sp[i]);
@@ -131,6 +133,7 @@ class App {
 				block_data_t summary[] = {0, 0, 0, 0};
 				wiselib::write<Os, block_data_t, ::uint16_t>(summary, checksum);
 				//uart_->write(4, reinterpret_cast<Uart::block_data_t*>(summary));
+				debug_->debug("sending final summary");
 				send_contiki(4, summary);
 				timer_->sleep(TUPLE_SLEEP);
 				debug_->debug("final sent %d tuples chk=%x b=%d", (int)triples, (unsigned)checksum, (int)bytes_sent_);
@@ -143,9 +146,9 @@ class App {
 
 		Uvoid ato_guard_;
 		void on_uart_timeout(void*ato_guard) {
+			debug_->debug("uart timeout %lu,%lu", (unsigned long)(Uvoid)ato_guard, (unsigned long)ato_guard_);
 			if((Uvoid)ato_guard != ato_guard_) { return; }
 
-			debug_->debug("uart timeout");
 			uart_resend();
 		}
 
@@ -159,6 +162,7 @@ class App {
 			// counter in the gateway gets reset
 			block_data_t reset[] = { 0, 0, 0, 0 };
 			//uart_->write(4, reset);
+			debug_->debug("sending reset");
 			send_contiki(4, reset);
 			timer_->sleep(3*TUPLE_SLEEP);
 
@@ -166,6 +170,7 @@ class App {
 			while(snt < bytes_sent_) {
 				size_type s = ((bytes_sent_ - snt) < BUFSIZE) ? (bytes_sent_ - snt) : BUFSIZE;
 				//uart_->write(s, (Uart::block_data_t*)rdf_buffer_ + snt);
+				debug_->debug("resending chunk");
 				send_contiki(s, (block_data_t*)rdf_buffer_ + snt);
 				timer_->sleep(TUPLE_SLEEP);
 				snt += s;
@@ -194,6 +199,7 @@ class App {
 			}
 			else if(len >= 1 && data[0] == 'E' && data[1] == 'R' && data[2] == 'R') {
 				debug_->debug("ERR");
+				ato_guard_++;
 				if(!waiting_for_resend) {
 					timer_->set_timer<App, &App::uart_resend>(1000, this, 0); //uart_resend();
 				}
