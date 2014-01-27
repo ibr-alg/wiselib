@@ -82,7 +82,7 @@ class App {
 			memcpy(rdf_buffer_ + bytes_received_, data, len);
 			bytes_received_ += len;
 
-			if(bytes_received_ > 4 && rdf_buffer_[bytes_received_ - 1] == 0 && rdf_buffer_[bytes_received_ - 2] == 0) {
+			if(bytes_received_ >= 4 && rdf_buffer_[bytes_received_ - 1] == 0 && rdf_buffer_[bytes_received_ - 2] == 0) {
 				if(rdf_buffer_[bytes_received_ - 3] == 0 && rdf_buffer_[bytes_received_ - 4] == 0) {
 					//debug_->debug("RST");
 					// RESET

@@ -40,6 +40,14 @@ namespace wiselib {
 		typename OsModel_P,
 		int P_SLOTS = 100,
 		int P_SLOT_WIDTH = 15,
+
+		/**
+		 * Iff true try not to find & reuse existing entries at other places
+		 * than the position calculated by hash.
+		 * This can reduce energy consumption but may also lead to duplicate
+		 * entries in the dictionary and thus waste space.
+		 */
+		bool P_LOW_ENERGY = false,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class StaticDictionary {
@@ -254,16 +262,45 @@ namespace wiselib {
 				key_type end_pos = start_pos ? (start_pos - 1) : (SLOTS - 1);
 				key_type free = NULL_KEY;
 
-				for(key_type i = start_pos; i != end_pos; i = (i+1) % SLOTS) {
-					if(slots_[i].refcount_ && slots_[i].meta_ == meta) {
-						if(memcmp(data, slots_[i].data_, l) == 0) {
-							// a used slot that looks like s!
-							slots_[i].refcount_++;
-							found = true;
-							return i;
+				if(P_LOW_ENERGY) {
+					key_type i = start_pos;
+					if(slots_[i].refcount_) {
+						if(slots_[i].meta_ == meta) {
+							if(memcmp(data, slots_[i].data_, l) == 0) {
+								// a used slot that looks like s!
+								slots_[i].refcount_++;
+								found = true;
+								return i;
+							}
+						}
+						// start_pos did not contain (exactly) what we looked
+						// for, go and find a free slot now.
+
+						found = false;
+						// find a free slot
+						for(key_type i = start_pos; i != end_pos; i = (i+1) % SLOTS) {
+							if(!slots_[i].refcount_) { return i; }
 						}
 					}
-					else if(free == NULL_KEY) { free = i; }
+					else {
+						// start_pos is empty, we found a free slot!
+						found = false;
+						return i;
+					}
+				}
+
+				else { // not P_LOW_ENERGY
+					for(key_type i = start_pos; i != end_pos; i = (i+1) % SLOTS) {
+						if(slots_[i].refcount_ && slots_[i].meta_ == meta) {
+							if(memcmp(data, slots_[i].data_, l) == 0) {
+								// a used slot that looks like s!
+								slots_[i].refcount_++;
+								found = true;
+								return i;
+							}
+						}
+						else if(free == NULL_KEY) { free = i; }
+					}
 				}
 				
 				found = false;

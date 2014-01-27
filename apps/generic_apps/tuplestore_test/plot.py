@@ -32,12 +32,17 @@ def parse_energy(f):
 
     return ts, vs
 
-def parse_tuple_counts(f):
+def parse_tuple_counts(f, expid):
     r = []
     for line in f:
-        m = re.search(r'sent ([0-9]+) tuples', line)
+        m = re.search(r'sent ([0-9]+) tuples chk', line)
         if m is not None:
-            r.append(int(m.groups()[0]))
+            if expid >= 24638:
+                # starting from exp 24638 tuple counts are reported
+                # incrementally
+                r.append(int(m.groups()[0]) - (sum(r) if len(r) else 0))
+            else:
+                r.append(int(m.groups()[0]))
     return r
 
 def find_tuple_spikes(ts, vs):
@@ -94,7 +99,7 @@ def fig_energy(ts, vs):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((0, 300))
+    ax.set_xlim((200, 500))
     #ax.set_ylim((0, 3))
     ax.grid()
 
@@ -113,7 +118,7 @@ def plot_experiment(n, ax, **kwargs):
     global fig
     ts, vs = parse_energy(open('{}.csv'.format(n), 'r'))
     fig_energy(ts, vs)
-    tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'))
+    tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'), int(n))
     energy_sums, time_sums = find_tuple_spikes(ts, vs)
 
     # incontextsensing
@@ -122,9 +127,9 @@ def plot_experiment(n, ax, **kwargs):
     #ax = plt.subplot(111)
     print("XXX", energy_sums)
     print("YYY", tc)
-    ax.plot(cum(tc[:len(energy_sums)]), cum([x/y for x, y in zip(energy_sums, tc)]), 'o-',
+    ax.plot(cum(tc[:len(energy_sums)]), ([x/y for x, y in zip(energy_sums, tc)]), 'o-',
             **kwargs) 
-    ax.plot(cum(tc[:len(time_sums)]), cum([x/y for x, y in zip(time_sums, tc)]), 'x-',
+    ax.plot(cum(tc[:len(time_sums)]), ([x/y for x, y in zip(time_sums, tc)]), 'x-',
             **kwargs)
     ax.legend()
 
@@ -136,25 +141,42 @@ def plot_experiment(n, ax, **kwargs):
 fig = plt.figure()
 ax = plt.subplot(111)
 
-plot_experiment(24539, ax, label='antelope')
+#plot_experiment(24539, ax, label='antelope 39')
 
-# unbaltreedict, list_dynamic container
-#plot_experiment(24529, ax, label='ts')
+## unbaltreedict, list_dynamic container
+##plot_experiment(24529, ax, label='ts')
 
-# ts staticdict(100, 15), staticvector(76)
-#plot_experiment(24578, ax, label='ts')
+## ts staticdict(100, 15), staticvector(76)
+##plot_experiment(24578, ax, label='ts')
 
-# antelope with more realistic config?
-#plot_experiment(24579, ax, label='antelope2')
+## antelope with more realistic config?
+##plot_experiment(24579, ax, label='antelope2')
 
-# ts staticdict(100, 15), staticvector(76), strncmp_etc_builtin
-plot_experiment(24580, ax, label='ts100')
+## ts staticdict(100, 15), staticvector(76), strncmp_etc_builtin
+##plot_experiment(24580, ax, label='ts100')
 
-# ts staticdict(200, 15), staticvector(76), strncmp_etc_builtin
-plot_experiment(24582, ax, label='ts200a')
-# ts staticdict(200, 15), staticvector(76), strncmp_etc_builtin
-plot_experiment(24583, ax, label='ts200b')
+## ts staticdict(200, 15), staticvector(76), strncmp_etc_builtin
+##plot_experiment(24582, ax, label='ts200a')
+## ts staticdict(200, 15), staticvector(76), strncmp_etc_builtin
+##plot_experiment(24583, ax, label='ts200b')
 
+# ts insert incontextsensing staticdict(200, 15), staticvector(76), strncmp_etc_builtin
+#plot_experiment(24638, ax, label='ts200')
+# ts insert incontextsensing staticdict(100, 15), staticvector(76), strncmp_etc_builtin
+#plot_experiment(24639, ax, label='ts100')
+
+# ts insert incontextsensing staticdict-le(100, 15), staticvector(76), strncmp_etc_builtin
+plot_experiment(24643, ax, label='ts100le 43')
+plot_experiment(24644, ax, label='ts100le 44')
+plot_experiment(24645, ax, label='ts100le 45')
+#plot_experiment(24646, ax, label='ts100le 46')
+plot_experiment(24648, ax, label='ts100le 48')
+plot_experiment(24649, ax, label='ts100le 49')
+
+plot_experiment(24641, ax, label='antelope 41')
+
+plot_experiment(24650, ax, label='antelope 50')
+plot_experiment(24651, ax, label='antelope 51')
 
 fig.savefig('energy_inserts.pdf')
 
