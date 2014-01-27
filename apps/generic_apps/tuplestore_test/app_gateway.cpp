@@ -49,7 +49,7 @@ class App {
 			bytes_received_ = 0;
 			state_ = RECV_UART;
 
-			debug_->debug("GWBT");
+			//debug_->debug("GWBT");
 		}
 
 		Uart::block_data_t uart_buf[1024];
@@ -84,7 +84,7 @@ class App {
 
 			if(bytes_received_ > 4 && rdf_buffer_[bytes_received_ - 1] == 0 && rdf_buffer_[bytes_received_ - 2] == 0) {
 				if(rdf_buffer_[bytes_received_ - 3] == 0 && rdf_buffer_[bytes_received_ - 4] == 0) {
-					debug_->debug("RST");
+					//debug_->debug("RST");
 					// RESET
 					bytes_received_ = 0;
 					return;
@@ -138,9 +138,9 @@ class App {
 		} // on_receive_uart()
 
 		void send_err(void*) {
-			debug_->debug("ERR");
-			debug_->debug("ERR");
-			debug_->debug("ERR");
+			debug_->debug("ER");
+			//debug_->debug("ERR");
+			//debug_->debug("ERR");
 		}
 
 		block_data_t sending_[Radio::MAX_MESSAGE_LENGTH];
@@ -157,16 +157,16 @@ class App {
 
 
 		void send_rdf(void*_=0) {
-			debug_->debug("OK");
-			debug_->debug("OK");
-			debug_->debug("OK");
+			//debug_->debug("OK");
+			//debug_->debug("OK");
+			//debug_->debug("OK");
 			timer_->set_timer<App, &App::send_rdf2>(100, this, (void*)1);
 		}
 
 
 		void send_rdf2(void*_=0) {
 			if(state_ != SEND_RADIO) {
-				debug_->debug("send_rdf in state %d", (int)state_);
+				//debug_->debug("send_rdf in state %d", (int)state_);
 				return;
 			}
 
@@ -175,12 +175,12 @@ class App {
 			//debug_->debug("OK");
 			//debug_->debug("OK");
 			if(_ != 0) {
-				debug_->debug("OK");
-				debug_->debug("OK");
-				debug_->debug("OK");
-				debug_->debug("OK");
+				//debug_->debug("OK");
+				//debug_->debug("OK");
+				//debug_->debug("OK");
+				//debug_->debug("OK");
 			}
-			debug_->debug("snd");
+			//debug_->debug("snd");
 
 			size_type s = sending_size();
 			//if(s == 0) { return; }

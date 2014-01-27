@@ -25,15 +25,82 @@ class App {
 	public:
 		Os::Debug::self_pointer_t debug_;
 		Os::Timer::self_pointer_t timer_;
-		block_data_t rdf_buffer_[1024];
+		block_data_t rdf_[1024];
+		size_t bytes_sent_;
+		size_t triples;
+
+		enum { TUPLE_SLEEP = 50 };
 
 		void init(Os::AppMainParameter& amp) {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 
+			bytes_sent_ = 0;
 			init_serial();
+			main_loop();
 		}
 
+		fd_set fds_serial, fds_none;
+		int serial_fd;
+
+		void init_serial() {
+			struct termios options;
+			//speed_t speed = B115200;
+			speed_t speed = B57600;
+			char *device = "/dev/ttyUSB0";
+			//char *timeformat = NULL;
+			//int nfound, flags = 0;
+			//unsigned char lastc = '\0';
+			
+			//serial_fd = ::open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_DIRECT | O_SYNC);
+			serial_fd = ::open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC);
+
+			if(serial_fd < 0) {
+				perror(device);
+				exit(-1);
+			}
+
+			debug_->debug("opening %s...", device);
+
+			if(fcntl(serial_fd, F_SETFL, 0) < 0) {
+				perror("fcntl problem");
+				exit(-1);
+			}
+			if(tcgetattr(serial_fd, &options) < 0) {
+				perror("couldnt get options");
+				exit(-1);
+			}
+
+			cfsetispeed(&options, speed);
+			cfsetospeed(&options, speed);
+			options.c_cflag |= CLOCAL | CREAD;
+			options.c_cflag &= ~(CSIZE | PARENB | PARODD);
+			options.c_cflag |= CS8;
+
+			options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+			options.c_oflag &= ~OPOST;
+
+			if(tcsetattr(serial_fd, TCSANOW, &options) < 0) {
+				perror("couldnt set options");
+				exit(-1);
+			}
+
+			FD_ZERO(&fds_serial);
+			FD_SET(serial_fd, &fds_serial);
+		}
+
+		void send_serial(size_t n, block_data_t* data) {
+			for(size_t i = 0; i < n; i++) {
+				if(write(serial_fd, data + i, 1) <= 0) {
+					perror("write");
+					exit(1);
+				}
+				else {
+					fflush(NULL);
+					usleep(6000);
+				}
+			}
+		}
 
 		void main_loop() {
 			char line[1024];
@@ -79,27 +146,75 @@ class App {
 
 				while(expect_answer) {
 					// TODO: set timeout here!
-					nfound = select(FD_SETSIZE, &smask, (fd_set*)0, (fd_set*)0, (struct timeval *)0);
+					struct timeval timeout;
+					timeout.tv_sec = 10;
+					timeout.tv_usec = 0;
+					FD_ZERO(&fds_serial);
+					FD_SET(serial_fd, &fds_serial);
+
+					debug_->debug("waiting for answer...");
+
+					int nfound = select(1, &fds_serial, (fd_set*)0, (fd_set*)0, &timeout);
+
+					debug_->debug("select() returned %d", (int)nfound);
+
+					//struct timespec timeout;
+					//nfound = pselect(1, &fds_serial, (fd_set*)0, (fd_set*)0, &timeout, (struct sigset_t*)0);
 
 					// TODO: if timed out, resend buffer!
 
 					if(nfound < 0) {
-						if(errno = EINTR) {
+						if(errno == EINTR) {
 							fprintf(stderr, "syscal interrupted\n");
 							continue;
 						}
-						perror("select fuckup");
-						exit(1);
+						//perror("select fuckup");
+						//exit(1);
+
+						// Send everything again!
+
+						enum { BUFSIZE = 100 };
+						debug_->debug("resending b=%d", (int)bytes_sent_);
+
+						// first send an end-marker with a wrong CRC so the position
+						// counter in the gateway gets reset
+						block_data_t reset[] = { 0, 0, 0, 0 };
+						//uart_->write(4, reset);
+						debug_->debug("sending reset");
+						send_serial(4, reset);
+						timer_->sleep(3*TUPLE_SLEEP);
+
+						size_type snt = 0;
+						while(snt < bytes_sent_) {
+							size_type s = ((bytes_sent_ - snt) < BUFSIZE) ? (bytes_sent_ - snt) : BUFSIZE;
+							debug_->debug("resending chunk @%d", (int)snt);
+							send_serial(s, (block_data_t*)rdf_ + snt);
+							timer_->sleep(TUPLE_SLEEP);
+							snt += s;
+						}
+						debug_->debug("resend done");
+						//timer_->set_timer<App, &App::on_uart_timeout>(UART_RESEND_INTERVAL, this, (void*)ato_guard_);
+					}
+					else {
+						block_data_t buf[100];
+
+						if(FD_ISSET(serial_fd, &fds_serial)) {
+							int n = ::read(serial_fd, buf, sizeof(buf));
+							if(n < 0) {
+								perror("couldnt read");
+								exit(-1);
+							}
+
+							if(n >= 2 && buf[0] == 'O' && buf[1] == 'K') {
+								debug_->debug("OK");
+								expect_answer = false;
+							}
+							else { debug_->debug("{{%s}}", (char*)buf); }
+						}
 					}
 
-					if(FD_ISSET(serial_fd, &smask)) {
-						int i, j, n = ::read(serial_fd, buf, sizeof(buf));
-						if(n < 0) {
-							perror("couldnt read");
-							exit(-1);
-						}
-						on_receive_uart(n, buf);
-					}
+					//FD_ZERO(&fds_serial);
+					//FD_SET(serial_fd, &fds_serial);
 				}
 
 
@@ -114,7 +229,7 @@ class App {
 
 
 
-
+#if 0
 		Os::Uart::self_pointer_t uart_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Timer::self_pointer_t timer_;
@@ -153,75 +268,6 @@ class App {
 		// Most of the serial code is stolen from serialdump
 
 		int serial_fd;
-
-		void init_serial() {
-			struct termios options;
-			fd_set mask, smask;
-			speed_t speed = B115200;
-			char *device = "/dev/tmotesky1";
-			char *timeformat = NULL;
-			unsigned char buf[BUFSIZE], outbuf[HCOLS];
-			unsigned char mode = MODE_START_TEXT;
-			int nfound, flags = 0;
-			unsigned char lastc = '\0';
-			
-			serial_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_DIRECT | O_SYNC);
-
-			if(serial_fd < 0) {
-				perror(device);
-				exit(-1);
-			}
-
-			if(fcntl(serial_fd, F_SETFL, 0) < 0) {
-				perror("fcntl problem");
-				exit(-1);
-			}
-			if(tcgetattr(serial_fd, &options) < 0) {
-				perror("couldnt get options");
-				exit(-1);
-			}
-
-			cfsetispeed(&options, speed);
-			cfsetospeed(&options, speed);
-			options.c_cflag |= CLOCAL | CREAD;
-			options.c_cflag &= ~(CSIZE | PARENB | PARODD);
-			options.c_cflag |= CS8;
-
-			options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-			options.c_oflag &= ~OPOST;
-
-			if(tcsetattr(serial_fd, TCSANOW, &opteions) < 0) {
-				perror("couldnt set options");
-				exit(-1);
-			}
-
-			FD_ZERO(&mask);
-			FD_SET(serial_fd, &mask);
-
-			index = 0;
-			while(true) {
-				smask = mask;
-				nfound = select(FD_SETSIZE, &smask, (fd_set*)0, (fd_set*)0, (struct timeval *)0);
-				if(nfound < 0) {
-					if(errno = EINTR) {
-						fprintf(stderr, "syscal interrupted\n");
-						continue;
-					}
-					perror("select fuckup");
-					exit(1);
-				}
-
-				if(FD_ISSET(serial_fd, &smask)) {
-					int i, j, n = ::read(serial_fd, buf, sizeof(buf));
-					if(n < 0) {
-						perror("couldnt read");
-						exit(-1);
-					}
-					on_receive_uart(n, buf);
-				}
-			}
-		}
-
 
 
 
@@ -369,20 +415,22 @@ class App {
 
 			if(len >= 1 && data[0] == 'O' && data[1] == 'K') {
 				debug_->debug("OK");
-				ato_guard_++;
-				timer_->set_timer<App, &App::read_n3>(SEND_INTERVAL, this, 0);
+				//ato_guard_++;
+				//timer_->set_timer<App, &App::read_n3>(SEND_INTERVAL, this, 0);
+				expect_answer = false;
 			}
-			else if(len >= 1 && data[0] == 'E' && data[1] == 'R' && data[2] == 'R') {
-				debug_->debug("ERR");
-				ato_guard_++;
-				if(!waiting_for_resend) {
-					timer_->set_timer<App, &App::uart_resend>(1000, this, 0); //uart_resend();
-				}
-			}
+			//else if(len >= 1 && data[0] == 'E' && data[1] == 'R' && data[2] == 'R') {
+				//debug_->debug("ERR");
+				////ato_guard_++;
+				////if(!waiting_for_resend) {
+					////timer_->set_timer<App, &App::uart_resend>(1000, this, 0); //uart_resend();
+				////}
+			//}
 			else {
 				debug_->debug("{{%s}}", (char*)data);
 			}
 		}
+#endif
 
 	// }}}
 };
