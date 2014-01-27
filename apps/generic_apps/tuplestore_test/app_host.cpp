@@ -44,6 +44,7 @@ class App {
       		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 			uart_->set_address("/dev/tmotesky1");
 			//uart_->set_address("/dev/ttyUSB0");
+			uart_->set_baudrate(57600);
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
 
