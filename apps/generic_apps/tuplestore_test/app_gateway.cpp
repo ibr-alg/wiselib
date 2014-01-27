@@ -112,7 +112,9 @@ class App {
 					bytes_sent_ = 0;
 
 					state_ = SEND_RADIO;
-					debug_->debug("OK");
+					//debug_->debug("OK");
+					char O = 'O';
+					uart_->write(1, (Uart::block_data_t*)&O);
 					timer_->set_timer<App, &App::send_rdf>(1000, this, 0); // send_rdf();
 
 					// XXX: This leads to the node not ever sending out
@@ -130,18 +132,22 @@ class App {
 					//debug_->debug("ERR");
 					//debug_->debug("ERR");
 					//uart_->write(3, (Uart::block_data_t*)"ERR");
-					timer_->set_timer<App, &App::send_err>(1000, this, 0);
+					//timer_->set_timer<App, &App::send_err>(1000, this, 0);
+			char E = 'E';
+			uart_->write(1, (Uart::block_data_t*)&E);
 					bytes_received_ = 0;
 				}
 
 			}
 		} // on_receive_uart()
 
-		void send_err(void*) {
-			debug_->debug("ER");
-			//debug_->debug("ERR");
-			//debug_->debug("ERR");
-		}
+		//void send_err(void*) {
+			//char E = 'E';
+			//uart_->write(1, (Uart::block_data_t*)&E);
+			////debug_->debug("E");
+			////debug_->debug("ERR");
+			////debug_->debug("ERR");
+		//}
 
 		block_data_t sending_[Radio::MAX_MESSAGE_LENGTH];
 
