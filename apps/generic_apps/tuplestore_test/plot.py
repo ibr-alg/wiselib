@@ -163,7 +163,7 @@ ax = plt.subplot(111)
 # ts insert incontextsensing staticdict(200, 15), staticvector(76), strncmp_etc_builtin
 #plot_experiment(24638, ax, label='ts200')
 # ts insert incontextsensing staticdict(100, 15), staticvector(76), strncmp_etc_builtin
-#plot_experiment(24639, ax, label='ts100')
+plot_experiment(24639, ax, label='ts100')
 
 # ts insert incontextsensing staticdict-le(100, 15), staticvector(76), strncmp_etc_builtin
 plot_experiment(24643, ax, label='ts100le 43')
@@ -177,6 +177,7 @@ plot_experiment(24641, ax, label='antelope 41')
 
 plot_experiment(24650, ax, label='antelope 50')
 plot_experiment(24651, ax, label='antelope 51')
+plot_experiment(24652, ax, label='antelope 52')
 
 fig.savefig('energy_inserts.pdf')
 

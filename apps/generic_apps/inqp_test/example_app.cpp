@@ -119,13 +119,15 @@ typedef Tuple<Os> TupleT;
 #if !INQP_TEST_USE_BLOCK
 //#include <util/pstl/list_dynamic.h>
 #include <util/pstl/unique_container.h>
-#include <util/tuple_store/prescilla_dictionary.h>
+//#include <util/tuple_store/prescilla_dictionary.h>
+#include <util/tuple_store/static_dictionary.h>
 #include <util/pstl/vector_static.h>
 //#include <util/pstl/unbalanced_tree_dictionary.h>
 //typedef wiselib::list_dynamic<Os, TupleT> TupleList;
 //typedef wiselib::UniqueContainer<TupleList> TupleContainer;
 typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
-typedef wiselib::PrescillaDictionary<Os> Dictionary;
+//typedef wiselib::PrescillaDictionary<Os> Dictionary;
+typedef wiselib::StaticDictionary<Os, 100, 15> Dictionary;
 //typedef UnbalancedTreeDictionary<Os> Dictionary;
 #else
 
