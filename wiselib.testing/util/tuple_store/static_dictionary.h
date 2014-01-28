@@ -58,6 +58,8 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			typedef StandaloneMath<OsModel> Math;
 			typedef Debug_P Debug;
+			typedef StaticDictionary self_type;
+			typedef self_type* self_pointer_t;
 
 			enum { SLOTS = P_SLOTS, SLOT_WIDTH = P_SLOT_WIDTH };
 		
@@ -76,6 +78,7 @@ namespace wiselib {
 			/// Strings of this length can be represented with one metaslot
 			enum { SIMPLE_STRING_LENGTH = P_SLOT_WIDTH * P_SLOT_WIDTH };
 
+		private:
 			struct Slot {
 				::uint8_t refcount_ : 7;
 				::uint8_t meta_ : 1;
@@ -83,6 +86,29 @@ namespace wiselib {
 				block_data_t data_[SLOT_WIDTH];
 			};
 		
+		public:
+			class iterator {
+				public:
+					iterator(Slot* s, key_type k) : slots_(s), key_(k) { forward(); }
+					iterator(const iterator& other) { slots_ = other.slots_; key_ = other.key_; }
+					bool operator==(const iterator& other) { return key_ == other.key_; }
+					bool operator!=(const iterator& other) { return !(*this == other); }
+					key_type operator*() { return key_; }
+					iterator& operator++() {
+						key_++;
+						forward();
+					}
+
+				private:
+					void forward() {
+						for( ; key_ < SLOTS && (!slots_[key_].refcount_ || !slots_[key_].meta_); ++key_) {
+						}
+					}
+
+					key_type key_;
+					Slot *slots_;
+			}; // class iterator
+
 			void init() {
 				//strncpy(reinterpret_cast<char*>(slots_[0].data_), "<http://www.", SLOT_WIDTH);
 				//slots_[0].refcount_ = 1;
@@ -221,6 +247,9 @@ namespace wiselib {
 				slots_[k].refcount_--;
 				return 1;
 			}
+
+			iterator begin_keys() { return iterator(slots_, 0); }
+			iterator end_keys() { return iterator(slots_, SLOTS); }
 
 			void debug() {
 				for(key_type k = 0; k<SLOTS; k++) {
