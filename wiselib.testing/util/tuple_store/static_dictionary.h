@@ -97,6 +97,7 @@ namespace wiselib {
 					iterator& operator++() {
 						key_++;
 						forward();
+						return *this;
 					}
 
 				private:
@@ -105,18 +106,26 @@ namespace wiselib {
 						}
 					}
 
-					key_type key_;
 					Slot *slots_;
+					key_type key_;
 			}; // class iterator
 
 			void init() {
 				//strncpy(reinterpret_cast<char*>(slots_[0].data_), "<http://www.", SLOT_WIDTH);
 				//slots_[0].refcount_ = 1;
 
+			#if !STATIC_DICTIONARY_OUTSOURCE
 				for(key_type k = 0; k < SLOTS; k++) {
 					slots_[k].refcount_ = 0;
 				}
+			#endif
 			}
+
+		#if STATIC_DICTIONARY_OUTSOURCE
+			void set_data(const char* data) {
+				slots_ = reinterpret_cast<Slot*>(const_cast<char*>(data));
+			}
+		#endif
 
 			template<typename Debug>
 			void init(Debug* dbg) {
@@ -185,7 +194,7 @@ namespace wiselib {
 				//block_data_t *d = ::get_allocator().template allocate_array<block_data_t>(len * SLOT_WIDTH);
 				key_type i = 0;
 				for(; i<SLOT_WIDTH && slots_[k].data_[i] != NULL_KEY; i++) {
-					memcpy(buffer_ + i * SLOT_WIDTH, slots_[i].data_, SLOT_WIDTH);
+					memcpy(buffer_ + i * SLOT_WIDTH, slots_[slots_[k].data_[i]].data_, SLOT_WIDTH);
 				}
 				buffer_[i * SLOT_WIDTH] = 0;
 				return buffer_;
@@ -344,7 +353,11 @@ namespace wiselib {
 				//return NULL_KEY;
 			//}
 
+		#if STATIC_DICTIONARY_OUTSOURCE
+			Slot *slots_;
+		#else
 			Slot slots_[SLOTS];
+		#endif
 			typename Debug::self_pointer_t debug_;
 		
 	}; // StaticDictionary

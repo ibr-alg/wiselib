@@ -46,6 +46,20 @@ namespace wiselib
 
       typedef typename iterator::difference_type difference_type;
       typedef typename OsModel_P::size_t size_type;
+
+
+   #if VECTOR_STATIC_OUTSOURCE
+      void set_data(value_type* vec) {
+         vec_ = vec;
+         finish_ = -start_ + vec_;
+         start_ = vec_;
+         end_of_storage_ = start_ + VECTOR_SIZE;
+      }
+      void set_size(size_type sz) {
+         finish_ = start_ + sz;
+      }
+   #endif
+
       // --------------------------------------------------------------------
       vector_static()
       {
@@ -272,7 +286,11 @@ namespace wiselib
       ///@}
 
    protected:
+#if VECTOR_STATIC_OUTSOURCE
+      value_type *vec_;
+#endif
       value_type vec_[VECTOR_SIZE];
+#endif
 
       pointer start_, finish_, end_of_storage_;
    };

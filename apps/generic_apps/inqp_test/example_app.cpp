@@ -1,4 +1,9 @@
 
+#if defined(CONTIKI)
+	extern "C" {
+		#include <string.h>
+	}
+#endif
 
 
 /// ----- Config
@@ -20,7 +25,7 @@
 	#define WISELIB_MAX_NEIGHBORS 4
 	#define WISELIB_TIME_FACTOR 1
 
-	#define BITMAP_ALLOCATOR_RAM_SIZE 2000
+	#define BITMAP_ALLOCATOR_RAM_SIZE 1000
 	#define SINK 47430
 	#define TS_MAX_TUPLES 76
 
@@ -91,8 +96,8 @@ using namespace wiselib;
 #include <algorithms/rdf/inqp/communicator.h>
 #include <util/meta.h>
 #include <util/debugging.h>
-#include <util/pstl/map_static_vector.h>
-#include <util/pstl/priority_queue_dynamic.h>
+//#include <util/pstl/map_static_vector.h>
+//#include <util/pstl/priority_queue_dynamic.h>
 #include <util/tuple_store/tuplestore.h>
 #include "tuple.h"
 
@@ -117,35 +122,42 @@ typedef Tuple<Os> TupleT;
 
 // RAM
 #if !INQP_TEST_USE_BLOCK
-//#include <util/pstl/list_dynamic.h>
-#include <util/pstl/unique_container.h>
-//#include <util/tuple_store/prescilla_dictionary.h>
-#include <util/tuple_store/static_dictionary.h>
-#include <util/pstl/vector_static.h>
-//#include <util/pstl/unbalanced_tree_dictionary.h>
-//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
-//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
-typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
-//typedef wiselib::PrescillaDictionary<Os> Dictionary;
-typedef wiselib::StaticDictionary<Os, 100, 15> Dictionary;
-//typedef UnbalancedTreeDictionary<Os> Dictionary;
+	//#include <util/pstl/list_dynamic.h>
+	#include <util/pstl/unique_container.h>
+	//#include <util/tuple_store/prescilla_dictionary.h>
+	#include <util/tuple_store/static_dictionary.h>
+	#include <util/pstl/vector_static.h>
+	//#include <util/pstl/unbalanced_tree_dictionary.h>
+	//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
+	//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+	
+	//typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
+	//typedef wiselib::PrescillaDictionary<Os> Dictionary;
+	//typedef wiselib::StaticDictionary<Os, 50, 15> Dictionary;
+	//typedef UnbalancedTreeDictionary<Os> Dictionary;
+	
+	#include "precompiled_ts.cpp"
+	typedef PrecompiledDictionary Dictionary;
+	typedef PrecompiledTupleContainer TupleContainer;
+
+
 #else
 
-// BLOCK
-#define BLOCK_CACHE_SIZE 2
-#define BLOCK_CACHE_SPECIAL 1
-#define BLOCK_CACHE_WRITE_THROUGH 1
-#define BLOCK_CHUNK_SIZE 8
-#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
-
-#include <algorithms/block_memory/bitmap_chunk_allocator.h>
-#include <algorithms/block_memory/cached_block_memory.h>
-typedef CachedBlockMemory<Os, Os::BlockMemory, BLOCK_CACHE_SIZE, BLOCK_CACHE_SPECIAL, BLOCK_CACHE_WRITE_THROUGH> BlockMemory;
-typedef BitmapChunkAllocator<Os, BlockMemory, BLOCK_CHUNK_SIZE, BLOCK_CHUNK_ADDRESS_TYPE> BlockAllocator;
-#include <algorithms/block_memory/b_plus_hash_set.h>
-typedef BPlusHashSet<Os, BlockAllocator, Hash, TupleT, true> TupleContainer;
-#include <algorithms/block_memory/b_plus_dictionary.h>
-typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
+	// BLOCK
+	#define BLOCK_CACHE_SIZE 2
+	#define BLOCK_CACHE_SPECIAL 1
+	#define BLOCK_CACHE_WRITE_THROUGH 1
+	#define BLOCK_CHUNK_SIZE 8
+	#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
+	
+	#include <algorithms/block_memory/bitmap_chunk_allocator.h>
+	#include <algorithms/block_memory/cached_block_memory.h>
+	typedef CachedBlockMemory<Os, Os::BlockMemory, BLOCK_CACHE_SIZE, BLOCK_CACHE_SPECIAL, BLOCK_CACHE_WRITE_THROUGH> BlockMemory;
+	typedef BitmapChunkAllocator<Os, BlockMemory, BLOCK_CHUNK_SIZE, BLOCK_CHUNK_ADDRESS_TYPE> BlockAllocator;
+	#include <algorithms/block_memory/b_plus_hash_set.h>
+	typedef BPlusHashSet<Os, BlockAllocator, Hash, TupleT, true> TupleContainer;
+	#include <algorithms/block_memory/b_plus_dictionary.h>
+	typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
 #endif
 
 typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
@@ -185,13 +197,8 @@ class NullMonitor {
 };
 
 static const char* tuples[][3] = {
-	#if defined(SHAWN)
-		#include "ssp.cpp"
-	#elif defined(PC)
-		#include "nqxe_test.cpp"
-	#else
-		#include "incontextsensing.cpp"
-	#endif
+		#include "incontextsensing_very_short.cpp"
+	//{ "<foo>", "<bar>", "<baz>" },
 		{ 0, 0, 0 }
 };
 
@@ -206,6 +213,17 @@ class App {
 			t.set(2, (block_data_t*)const_cast<char*>(o));
 			ts.insert(t);
 		}
+
+		int heart;
+		void heartbeat(void*_ =0) {
+			debug_->debug("<3 %d0", heart++);
+			timer_->set_timer<App, &App::heartbeat>(10000, this ,0);
+			if(heart == 0) {
+				init2();
+			}
+			//else {
+			//}
+		}
 		
 		void init( Os::AppMainParameter& value )
 		{
@@ -213,13 +231,21 @@ class App {
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+
+			debug_->debug("bwait %lu", (unsigned long)radio_->id());
+
+			heart = -30;
+			heartbeat();
+		}
 			
-		#if USE_UART
-			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
-			uart_->enable_serial_comm();
-			uart_->reg_read_callback<App, &App::uart_receive>(this);
-			uart_query_pos = 0;
-		#endif // USE_UART
+		void init2() {
+			//debug_->debug("init2");
+		//#if USE_UART
+			//uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
+			//uart_->enable_serial_comm();
+			//uart_->reg_read_callback<App, &App::uart_receive>(this);
+			//uart_query_pos = 0;
+		//#endif // USE_UART
 			
 			monitor_.init(debug_);
 			
@@ -239,10 +265,21 @@ class App {
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			
-			debug_->debug("boot %d", (int)radio_->id());
+			debug_->debug("boot %lu", (unsigned long)radio_->id());
 			
 		#endif
 			
+			init_ts();
+			if(radio_->id() == SINK) {
+				debug_->debug("sink\n");
+				//be_sink();
+				timer_->set_timer<App, &App::be_sink>(100, this, 0);
+			}
+			else {
+				be();
+			}
+
+			/*
 			init_ts();
 			
 		#if defined(ISENSE) || defined(PC)
@@ -258,6 +295,7 @@ class App {
 				be();
 			}
 		#endif
+			*/
 		}
 		
 		Dictionary dictionary;
@@ -416,6 +454,7 @@ class App {
 			}
 		}
 		
+		/*
 		void be_standalone() {
 			insert_tuples();
 			
@@ -438,8 +477,10 @@ class App {
 			timer_->set_timer<App, &App::query_all_p>(1000, this, 0);
 	#endif
 		}
+		*/
 		
 		
+		/*
 		void query_temp_gps1(void*) {
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
 			enum { ROOT = 0 };
@@ -502,7 +543,9 @@ class App {
 			monitor_.report("aft");
 			//timer_->set_timer<App, &App::query_temp>(1000, this, 0);
 		}
+		*/
 		
+		/*
 		void query_nqxe_test(void*) {
 			// 1,1,'g',LEFT | 3,BIN(00000011),0,0,0,BIN(110),"<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>","<http://me.exmpl/Temperature>",
 			block_data_t op0[] = {18, 79, 1, 1, 103, 3, 3, 0, 0, 0, 6, -65, 38, -72, 46, 87, -12, 33, 99};
@@ -540,10 +583,11 @@ class App {
 				debug_->debug("  %08lx %f", (unsigned long)row[i], *reinterpret_cast<float*>(&row[i]));
 			}
 		}
+		*/
 		
 		
 		
-		
+	/*	
 		void query_all_p1() { query_all_p(0); }
 		void query_all_p(void*) {
 			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<App, &App::query_all_p1>(this));
@@ -618,6 +662,7 @@ class App {
 			
 			//timer_->set_timer<App, &App::query_cross>(1000, this, 0);
 		}
+		*/
 		
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wwrite-strings"
@@ -673,17 +718,18 @@ class App {
 			
 			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
-#ifdef SHAWN
-			timer_->set_timer<App, &App::sink_send_ssp_query>(10000, this, 0);
-#else
+//#ifdef SHAWN
+			//timer_->set_timer<App, &App::sink_send_ssp_query>(10000, this, 0);
+//#else
 
-		#if !USE_UART
+		//#if !USE_UART
 			// If we dont use the UART, send out a predefined query after 10s
-			timer_->set_timer<App, &App::sink_send_query>(10000, this, 0);
-		#endif
-#endif
+			timer_->set_timer<App, &App::sink_send_query>(30000, this, 0);
+		//#endif
+//#endif
 		}
 		
+		/*
 		void sink_send_ssp_query(void*) {
 			block_data_t qid = 1;
 			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
@@ -701,8 +747,11 @@ class App {
 			
 			query_radio_.flush();
 		}
+		*/
 		
 		void sink_send_query(void*) {
+
+			debug_->debug("sink_send_query");
 			
 			/*
 			 * MIN(?v) MEAN(?v) MAX(?v) {
@@ -740,6 +789,7 @@ class App {
 			
 			query_radio_.flush();
 			//timer_->set_timer<App, &App::sink_send_query>(10000, this, 0);
+			debug_->debug("query sent!");
 			
 			/*
 			 * Some hash values:
@@ -876,7 +926,6 @@ class App {
 		}
 		
 		void sink_receive_answer( PAnsRadio::node_id_t from, PAnsRadio::size_t len, PAnsRadio::block_data_t *buf ) {
-			/*
 			PAnsRadio::message_id_t msgid = wiselib::read<Os, block_data_t, PRadio::message_id_t>(buf);
 			
 			debug_->debug("sink recv %d -> %d", from, result_radio_.id());
@@ -885,19 +934,18 @@ class App {
 				debug_->debug("sink recv from %d", from);
 				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, buf, len);
 			}
-			*/
 		}
 		
-		void print_memstat() {
-			debug_->debug("rad %d tim %d dbg %d clk %d",
-					(int)sizeof(Os::Radio), (int)sizeof(Os::Timer), (int)sizeof(Os::Debug),
-					(int)sizeof(Os::Clock));
-			debug_->debug("qrad %d fndrad %d pansrad %d trad %d",
-					(int)sizeof(PRadio), (int)sizeof(FNDRadio), (int)sizeof(PAnsRadio),
-					(int)sizeof(TRadio));
-			debug_->debug("proc %d com %d alloc %d",
-					(int)sizeof(Processor), (int)sizeof(Communicator), (int)sizeof(Allocator));
-		}
+		//void print_memstat() {
+			//debug_->debug("rad %d tim %d dbg %d clk %d",
+					//(int)sizeof(Os::Radio), (int)sizeof(Os::Timer), (int)sizeof(Os::Debug),
+					//(int)sizeof(Os::Clock));
+			//debug_->debug("qrad %d fndrad %d pansrad %d trad %d",
+					//(int)sizeof(PRadio), (int)sizeof(FNDRadio), (int)sizeof(PAnsRadio),
+					//(int)sizeof(TRadio));
+			//debug_->debug("proc %d com %d alloc %d",
+					//(int)sizeof(Processor), (int)sizeof(Communicator), (int)sizeof(Allocator));
+		//}
 		
 	private:
 		Os::Radio::self_pointer_t radio_;

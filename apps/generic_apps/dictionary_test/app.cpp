@@ -16,10 +16,16 @@ typedef Os::size_t size_type;
 	Allocator& get_allocator();
 
 
-enum { SLOTS = 10 };
+//#include <util/tuple_store/static_dictionary.h>
+//enum { SLOTS = 10 };
+//typedef StaticDictionary<Os, SLOTS, 15> Dictionary;
 
+#define STATIC_DICTIONARY_OUTSOURCE 1
+#include "precompiled_ts.cpp"
 #include <util/tuple_store/static_dictionary.h>
-typedef StaticDictionary<Os, SLOTS, 15> Dictionary;
+enum { SLOTS = 200, SLOT_WIDTH = 9 };
+typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
+
 
 #include <util/split_n3.h>
 
@@ -34,11 +40,17 @@ class App {
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(amp);
 
 			dictionary_.init(debug_);
-			//test_insert();
-			read_n3(0);
 
-			for(int i = 0; i < 10; i++) { erase_random(); }
+		#if STATIC_DICTIONARY_OUTSOURCE
+			dictionary_.set_data(dict_data_);
+		#endif
+
+			//test_insert();
+	//		read_n3(0);
+
+	//		for(int i = 0; i < 10; i++) { erase_random(); }
 			dictionary_.debug();
+			print_dictionary();
 		}
 
 		void read_n3(void*) {
@@ -85,6 +97,15 @@ class App {
 
 			dictionary_.debug();
 		}
+
+		void print_dictionary() {
+			for(Dictionary::iterator iter = dictionary_.begin_keys(); iter != dictionary_.end_keys(); ++iter) {
+				block_data_t *v = dictionary_.get_value(*iter);
+				debug_->debug("%lu => %s", (unsigned long)*iter, (char*)v);
+				dictionary_.free_value(v);
+			}
+		}
+
 
 		//Os::Radio::self_pointer_t radio_;
 		//Os::Timer::self_pointer_t timer_;

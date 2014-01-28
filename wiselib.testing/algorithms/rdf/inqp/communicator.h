@@ -237,6 +237,7 @@ namespace wiselib {
 				typedef typename QueryRadio::message_id_t qmsgid_t;
 				Packet *packet = reinterpret_cast<Packet*>(q);
 				
+				printf("recv query task\n");
 				
 				switch(packet->query_message()->message_id()) {
 					case MESSAGE_ID_OPERATOR:
