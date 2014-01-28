@@ -125,8 +125,8 @@ typedef Tuple<Os> TupleT;
 	//#include <util/pstl/list_dynamic.h>
 	#include <util/pstl/unique_container.h>
 	//#include <util/tuple_store/prescilla_dictionary.h>
-	#include <util/tuple_store/static_dictionary.h>
-	#include <util/pstl/vector_static.h>
+	//#include <util/tuple_store/static_dictionary.h>
+	//#include <util/pstl/vector_static.h>
 	//#include <util/pstl/unbalanced_tree_dictionary.h>
 	//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
 	//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
@@ -197,8 +197,9 @@ class NullMonitor {
 };
 
 static const char* tuples[][3] = {
-		#include "incontextsensing_very_short.cpp"
+		//#include "incontextsensing_very_short.cpp"
 	//{ "<foo>", "<bar>", "<baz>" },
+		{ 0, 0, 0 },
 		{ 0, 0, 0 }
 };
 
@@ -304,6 +305,15 @@ class App {
 		
 		void init_ts() {
 		#if !INQP_TEST_USE_BLOCK
+
+			#if VECTOR_STATIC_OUTSOURCE
+				container.set_data(tuple_data_);
+				container.set_size(VECTOR_STATIC_SIZE);
+			#endif
+			#if STATIC_DICTIONARY_OUTSOURCE
+				dictionary.set_data(dict_data_);
+			#endif
+
 			dictionary.init(debug_);
 			ts.init(&dictionary, &container, debug_);
 		#else

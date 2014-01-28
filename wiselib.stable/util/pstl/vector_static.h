@@ -22,12 +22,21 @@
 #include "util/pstl/iterator.h"
 #include <string.h>
 
+   template<typename OsModel_P,
+            typename Value_P,
+            int VECTOR_SIZE,
+            bool Outsource_P = false>
+   class vector_static;
+
+#include <util/meta.h>
+
 namespace wiselib
 {
 
    template<typename OsModel_P,
             typename Value_P,
-            int VECTOR_SIZE>
+            int VECTOR_SIZE,
+            bool Outsource_P = false>
    class vector_static
    {
    public:
@@ -48,17 +57,20 @@ namespace wiselib
       typedef typename OsModel_P::size_t size_type;
 
 
-   #if VECTOR_STATIC_OUTSOURCE
-      void set_data(value_type* vec) {
-         vec_ = vec;
-         finish_ = -start_ + vec_;
-         start_ = vec_;
+   //#if VECTOR_STATIC_OUTSOURCE
+      template<typename T>
+      void set_data(T* v) {
+         value_type *vec = reinterpret_cast<value_type*>(v);
+         //vec_ = vec;
+         finish_ = vec + (finish_ - start_);
+         start_ = vec;
          end_of_storage_ = start_ + VECTOR_SIZE;
       }
+
       void set_size(size_type sz) {
          finish_ = start_ + sz;
       }
-   #endif
+   //#endif
 
       // --------------------------------------------------------------------
       vector_static()
@@ -88,8 +100,8 @@ namespace wiselib
       // --------------------------------------------------------------------
       vector_static& operator=( const vector_static& vec )
       {
-         memcpy( vec_, vec.vec_, sizeof(vec_) );
-         start_ = &vec_[0];
+         memcpy( start_, vec.start_, sizeof(value_type) * vec.size() );
+         //start_ = &vec_[0];
          finish_ = start_ + (vec.finish_ - vec.start_);
          end_of_storage_ = start_ + VECTOR_SIZE;
          return *this;
@@ -286,11 +298,15 @@ namespace wiselib
       ///@}
 
    protected:
-#if VECTOR_STATIC_OUTSOURCE
-      value_type *vec_;
-#endif
-      value_type vec_[VECTOR_SIZE];
-#endif
+//#if VECTOR_STATIC_OUTSOURCE
+      //value_type *vec_;
+//#else
+      //value_type vec_[VECTOR_SIZE];
+//#endif
+      //typedef ENABLE_IF(Outsource_P, value_type*, vec_);
+      //typedef ENABLE_IF(!Outsource_P, value_type X[VECTOR_SIZE]);
+
+      value_type vec_[VECTOR_SIZE * Outsource_P];
 
       pointer start_, finish_, end_of_storage_;
    };

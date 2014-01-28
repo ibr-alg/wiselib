@@ -177,6 +177,8 @@ print('''
 #define STATIC_DICTIONARY_OUTSOURCE 1
 #define STATIC_DICTIONARY_SLOTS {}
 #define STATIC_DICTIONARY_SLOT_WIDTH {}
+#include <util/tuple_store/static_dictionary.h>
+
 typedef wiselib::StaticDictionary<Os, STATIC_DICTIONARY_SLOTS, STATIC_DICTIONARY_SLOT_WIDTH> PrecompiledDictionary;
 
 /*
@@ -185,7 +187,7 @@ typedef wiselib::StaticDictionary<Os, STATIC_DICTIONARY_SLOTS, STATIC_DICTIONARY
 	#endif
 */
 
-const char dict_data_[{}] =
+const char dict_data_[{} + 1 /* for 0-byte at end of string */] =
 {};
 '''.format(DICT_SLOTS, DICT_SLOT_WIDTH, len(b), ss))
 
@@ -199,7 +201,8 @@ ss += '}'
 print('''
 #define VECTOR_STATIC_OUTSOURCE 1
 #define VECTOR_STATIC_SIZE {}
-typedef wiselib::vector_static<Os, Tuple, VECTOR_STATIC_SIZE> PrecompiledTupleContainer;
+#include <util/pstl/vector_static.h>
+typedef wiselib::vector_static<Os, TupleT, VECTOR_STATIC_SIZE> PrecompiledTupleContainer;
 
 /*
 	#if VECTOR_STATIC_OUTSOURCE
@@ -208,7 +211,7 @@ typedef wiselib::vector_static<Os, Tuple, VECTOR_STATIC_SIZE> PrecompiledTupleCo
 	#endif
 */
 
-Uint<sizeof(block_data_t*)>::t tuples_data_[VECTOR_STATIC_SIZE] = {};
+Uint<sizeof(block_data_t*)>::t tuple_data_[VECTOR_STATIC_SIZE * 3] = {};
 
 '''.format(len(tuples), ss))
 

@@ -20,7 +20,7 @@
 #ifndef META_H
 #define META_H
 
-#include <external_interface/external_interface.h>
+//#include <external_interface/external_interface.h>
 
 /**
  * Provide for binary literals (up to 8 bits).
