@@ -58,7 +58,9 @@ namespace wiselib {
 			 * the message was not appended).
 			 */
 			bool append(length_t size, block_data_t *data) {
+				printf("pac ap %d s%d p%d\n", (int)size, (int)buffer_size_, (int)buffer_position_);
 				if(buffer_position_ + size + sizeof(length_t) > buffer_size_) {
+					printf("pac ap no\n");
 					return false;
 				}
 				
@@ -67,6 +69,7 @@ namespace wiselib {
 				memcpy(buffer_ + buffer_position_, data, size);
 				buffer_position_ += size;
 				
+				printf("pac ap1\n");
 				return true;
 			}
 			
@@ -86,9 +89,11 @@ namespace wiselib {
 			 * @return true if there is a next message.
 			 */
 			bool next(length_t& size, block_data_t*& data) {
+				printf("pac nxt\n");
 				if(buffer_position_ >= buffer_size_) {
 					size = 0;
 					data = 0;
+				printf("pac n0\n");
 					return false;
 				}
 				else {
@@ -96,6 +101,7 @@ namespace wiselib {
 					size = wiselib::read<OsModel, block_data_t, length_t>(buffer_ + buffer_position_);
 					data = buffer_ + buffer_position_ + sizeof(length_t);
 					buffer_position_ += sizeof(length_t) + size;
+				printf("pac n1\n");
 					return true;
 				}
 			}

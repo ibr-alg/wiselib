@@ -75,7 +75,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       vector_static()
       {
-         start_ = &vec_[0];
+         start_ = vec_; // &vec_[0];
          finish_ = start_;
          end_of_storage_ = start_ + VECTOR_SIZE;
       }
@@ -306,7 +306,7 @@ namespace wiselib
       //typedef ENABLE_IF(Outsource_P, value_type*, vec_);
       //typedef ENABLE_IF(!Outsource_P, value_type X[VECTOR_SIZE]);
 
-      value_type vec_[VECTOR_SIZE * Outsource_P];
+      value_type vec_[VECTOR_SIZE * (1 - Outsource_P)];
 
       pointer start_, finish_, end_of_storage_;
    };

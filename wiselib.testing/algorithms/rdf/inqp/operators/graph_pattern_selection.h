@@ -86,9 +86,9 @@ namespace wiselib {
 				
 				RowT *row = RowT::create(this->projection_info().columns()); //TupleStoreT::COLUMNS);
 				
-				//DBG("gps begin");
+				printf("gps begin\n");
 				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
-					//DBG("gps (%lx %lx %lx)", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
+					printf("gps (%lx %lx %lx)\n", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
 					
 					bool match = true;
 					size_type row_idx = 0;
@@ -98,8 +98,8 @@ namespace wiselib {
 						if(affected_[i]) {
 							if(values_[i] != v) {
 								//#ifdef ISENSE
-								//GET_OS.debug("gps %d nomatch [%d] = %08lx != %08lx", (int)this->id_,
-										//(int)i, (unsigned long)values_[i], (unsigned long)v);
+								printf("gps %d nomatch [%d] = %08lx != %08lx\n", (int)this->id_,
+										(int)i, (unsigned long)values_[i], (unsigned long)v);
 								//#endif
 								match = false;
 								break;
@@ -108,10 +108,10 @@ namespace wiselib {
 						
 						switch(this->projection_info().type(i)) {
 							case ProjectionInfoBase::IGNORE:
-								DBG("gps %d col %d ignore", (int)this->id_, i);
+								printf("gps %d col %d ignore\n", (int)this->id_, i);
 								break;
 							case ProjectionInfoBase::INTEGER: {
-								DBG("gps %d col %d INT", (int)this->id_, i);
+								printf("gps %d col %d INT\n", (int)this->id_, i);
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
@@ -121,24 +121,24 @@ namespace wiselib {
 							case ProjectionInfoBase::FLOAT: {
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
-								DBG("gps %d col %d FLOAT \"%s\" %f", (int)this->id_, i, s, f);
+								printf("gps %d col %d FLOAT \"%s\" %f\n", (int)this->id_, i, s, f);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
 								this->dictionary().free_value(s);
 								break;
 							}
 							case ProjectionInfoBase::STRING:
-								DBG("gps %d col %d STRING", (int)this->id_, i);
+								printf("gps %d col %d STRING\n", (int)this->id_, i);
 								(*row)[row_idx++] = v;
 								this->reverse_translator().offer(iter->get_key(i), v);
 								break;
 						}
 					}
 					if(match) {
-						DBG("---------- gps %d push", (int)this->id_);
+						printf("---------- gps %d push", (int)this->id_);
 						this->parent().push(*row);
 					}
 				}
-				//DBG("gps end");
+				printf("gps end\n");
 				
 				row->destroy();
 				this->parent().push(Base::END_OF_INPUT);

@@ -91,17 +91,22 @@ namespace wiselib {
 			void enable_radio() { radio_->enable_radio(); }
 			void disable_radio() { radio_->disable_radio(); }
 			node_id_t id() { return radio_->id(); }
+					
+			
+			block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
 			
 			int send(node_id_t receiver, size_t size, block_data_t* data) {
 				//Serial.print("fwd send ");
 				//Serial.print(receiver);
 				//Serial.println();
-					
+				
+
 				if(receiver == id()) {
+				printf("fsndn l%d", (int)size);
 					this->notify_receivers(id(), size, data);
 				}
 				else {
-					block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
+				printf("fsnds l%d", (int)size);
 					Message *message = reinterpret_cast<Message*>(buf);
 					
 					message->set_message_id(MESSAGE_ID_FODND);
@@ -113,16 +118,19 @@ namespace wiselib {
 						//DBG("fwd: %d nopar", radio_->id());
 					}
 					
+				printf("fsnds1 l%d", (int)size);
 					for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 							iter != nd_->neighbors_end();
 							++iter
 					) {
+				printf("fsnds2 %lu %d+%d", (unsigned long)iter->id(), (int)Message::HEADER_LENGTH, (int)size);
 						//DBG("fwd to %d", (int)iter->id());
 						radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
 						//radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
 						//radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
 					}
 				}
+				printf("fsnd don");
 				return OsModel::SUCCESS;
 			}
 		
@@ -135,6 +143,7 @@ namespace wiselib {
 				//Serial.println();
 				
 				if(message->message_id() == MESSAGE_ID_FODND) {
+					printf("fodnd recv\n");
 					
 					//DBG("(%d ->) %d -> %d (-> %d)", message->source(), from, radio_->id(), message->target());
 					

@@ -203,7 +203,7 @@ namespace wiselib {
 			 * Execute the given query.
 			 */
 			void execute(Query *query) {
-				DBG("exec query %d", (int)query->id());
+				printf("exec query %d\n", (int)query->id());
 				//#if INQP_DEBUG_STATE
 					//debug_->debug("xq%d", (int)query->id());
 				//#endif
@@ -216,6 +216,7 @@ namespace wiselib {
 				
 				for(operator_id_t id = 0; id < MAX_OPERATOR_ID; id++) {
 					if(!query->operators().contains(id)) { continue; }
+				printf("exec op%d\n", (int)id);
 					
 					BasicOperator *op = query->operators()[id];
 					//DBG("e %d %c F%d", (int)id, (char)op->type(), (int)ArduinoMonitor<Os>::free());
@@ -250,6 +251,7 @@ namespace wiselib {
 					}
 				}
 				
+				printf("//exec query %d\n", (int)query->id());
 				if(exec_done_callback_) {
 					exec_done_callback_();
 				}
@@ -274,6 +276,7 @@ namespace wiselib {
 			 * query, that is, add an according operator to the query.
 			 */
 			void handle_operator(Query* query, BOD *bod) {
+				printf("[hop]");
 				//DBG("hop %c %d", (char)bod->type(), (int)bod->id());
 				switch(bod->type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:

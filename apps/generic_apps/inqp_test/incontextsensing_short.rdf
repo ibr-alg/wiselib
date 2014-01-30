@@ -1,0 +1,6 @@
+<http://spitfire-project.eu/sensor/sensor1234> <http://www.w3.org/2000/01/rdf-schema#type> <http://purl.oclc.org/NET/ssnx/ssn#Sensor> .
+<http://spitfire-project.eu/sensor/sensor1234> <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
+<http://spitfire-project.eu/sensor/sensor1234> <http://spitfire-project.eu/cc/spitfireCC_n3.owl#uomInUse> <http://spitfire-project.eu/uom/Centigrade> .
+<http://spitfire-project.eu/sensor/sensor1234> <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> "10.2" .
+<http://spitfire-project.eu/uom/Centigrade> <http://www.w3.org/2000/01/rdf-schema#type> <http://purl.oclc.org/NET/muo/muo#UnitOfMeasurement> .
+<http://spitfire-project.eu/uom/Centigrade> <http://purl.oclc.org/NET/muo/muo#prefSymbol> "C" .

@@ -16,5 +16,7 @@ rsync -CHaPx $USER@$HOST:$LOGS_DIR/$EXP_ID .
 
 echo Dumping SQL databases for experiment $EXP_ID ....
 
-echo "SELECT * FROM inqp_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann " >  ${EXP_ID}.csv
+echo "SHOW TABLES" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann "|grep $EXP_ID|sort|tail -n 10
+
+echo "SELECT * FROM inqp_test_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann " >  ${EXP_ID}.csv
 

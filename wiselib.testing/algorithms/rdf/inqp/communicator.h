@@ -24,7 +24,6 @@
 #include <algorithms/protocols/packing_radio/packing_radio.h>
 #include <algorithms/routing/forward_on_directed_nd/forward_on_directed_nd.h>
 #include "query_message.h"
-#include <util/pstl/priority_queue_dynamic.h>
 #include <util/pstl/map_static_vector.h>
 #include "resolve_message.h"
 #include "intermediate_result_message.h"
@@ -95,6 +94,11 @@ namespace wiselib {
 			
 			typedef Neighborhood_P Neighborhood;
 			typedef typename Neighborhood::Neighbor Neighbor;
+
+		private:
+			struct Packet;
+
+		public:
 			
 			enum MessageType {
 				MESSAGE_ID_OPERATOR = 'O',
@@ -177,21 +181,27 @@ namespace wiselib {
 				result_radio_->send(sink_id_, ResolveMessageT::HEADER_SIZE + strlen(s) + 1, buf);
 			}
 			
+			Packet query_packet_;
+			//block_data_t query
+
 			void on_receive_query(
 					typename QueryRadio::node_id_t from,
 					typename QueryRadio::size_t len,
 					typename QueryRadio::block_data_t* buf) {
-				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
-				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
+				//Packet* packet = ::get_allocator().template allocate<Packet>().raw();
+				//block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
+				Packet *packet = &query_packet_;
+
 				DBG("recv query");
 				
 				//Serial.println("recv query");
 				
 				packet->from = from;
 				packet->len = len;
-				memcpy(data, buf, len);
-				packet->data = data;
+				//memcpy(data, buf, len);
+				//packet->data = data;
+				memcpy(packet->data, buf, len);
 				timer_->template set_timer<self_type, &self_type::on_receive_query_task>(0, this, packet);
 			}
 			
@@ -201,16 +211,18 @@ namespace wiselib {
 					typename ResultRadio::block_data_t* buf) {
 				if(from == result_radio_->id()) { return; }
 				
-				Packet* packet = ::get_allocator().template allocate<Packet>().raw();
-				block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
+				Packet *packet = &query_packet_;
+				//Packet* packet = ::get_allocator().template allocate<Packet>().raw();
+				//block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
 				
 				//Serial.println("recv result");
 				DBG("recv result");
 				
 				packet->from = from;
 				packet->len = len;
-				memcpy(data, buf, len);
-				packet->data = data;
+				//memcpy(data, buf, len);
+				//packet->data = data;
+				memcpy(packet->data, buf, len);
 				timer_->template set_timer<self_type, &self_type::on_receive_result_task>(0, this, packet);
 			}
 			
@@ -219,7 +231,7 @@ namespace wiselib {
 			struct Packet {
 				typename QueryRadio::node_id_t from;
 				size_type len;
-				block_data_t *data;
+				block_data_t data[QueryRadio::MAX_MESSAGE_LENGTH];
 				
 				QMessage* query_message() { return reinterpret_cast<QMessage*>(data); }
 				ResolveMessageT* resolve_message() { return reinterpret_cast<ResolveMessageT*>(data); }
@@ -237,7 +249,7 @@ namespace wiselib {
 				typedef typename QueryRadio::message_id_t qmsgid_t;
 				Packet *packet = reinterpret_cast<Packet*>(q);
 				
-				printf("recv query task\n");
+				printf("<recv query task>\n");
 				
 				switch(packet->query_message()->message_id()) {
 					case MESSAGE_ID_OPERATOR:
@@ -253,8 +265,10 @@ namespace wiselib {
 						DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
 						break;
 				}
-				::get_allocator().free(packet->data);
-				::get_allocator().free(packet);
+				printf("</recv query task>\n");
+				//::get_allocator().free(packet->data);
+				//::get_allocator().free(packet);
+				//printf("[/RECV QUERY TASK]\n");
 			} // on_receive_query
 			
 			
@@ -273,8 +287,8 @@ namespace wiselib {
 						DBG("unexpected message id: %d", msg->message_id());
 						break;
 				}
-				::get_allocator().free(packet->data);
-				::get_allocator().free(packet);
+				//::get_allocator().free(packet->data);
+				//::get_allocator().free(packet);
 			}
 				
 			QueryProcessor *ian_;

@@ -3,11 +3,19 @@
 import rdflib
 import sys
 
+# incontextsensing
+
+# 140x52 = 7420
 # 170x15 = 2720
 # 190x11 = 2280
+# 194x10 = 2134
 # 200x9 = 2000
+# 197x9 = 1970
+#DICT_SLOTS = 197
+#DICT_SLOT_WIDTH = 9
 
-DICT_SLOTS = 200
+# incontextsensing_short
+DICT_SLOTS = 53
 DICT_SLOT_WIDTH = 9
 
 
@@ -138,7 +146,7 @@ def to_string(x):
 
 g = rdflib.Graph()
 #g.parse('test.rdf', format='n3')
-g.parse('incontextsensing.rdf', format='n3')
+g.parse('incontextsensing_short.rdf', format='n3')
 for s, p, o in g:
 	insert_tuple(to_string(s), to_string(p), to_string(o))
 
@@ -211,7 +219,8 @@ typedef wiselib::vector_static<Os, TupleT, VECTOR_STATIC_SIZE> PrecompiledTupleC
 	#endif
 */
 
-Uint<sizeof(block_data_t*)>::t tuple_data_[VECTOR_STATIC_SIZE * 3] = {};
+//Uint<sizeof(block_data_t*)>::t
+TupleT::value_t tuple_data_[VECTOR_STATIC_SIZE * 3] = {};
 
 '''.format(len(tuples), ss))
 

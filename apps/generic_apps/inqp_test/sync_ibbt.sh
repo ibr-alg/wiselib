@@ -11,6 +11,6 @@ FILENAME_DATABASE=app_20140107091518.exe
 #rsync ./out/pc/app_host start_mount_code *.rdf $USER@$HOST:$PLATFORM_DIR
 
 #echo rsync ./out/contik-sky/app_database.exe $USER@$HOST:$APP_DIR/app_database_20140116235959.exe
-rsync ./out/contiki-sky/example_app.exe $USER@$HOST:$APP_DIR/$FILENAME_DATABASE
+rsync -P ./out/contiki-sky/example_app.exe $USER@$HOST:$APP_DIR/$FILENAME_DATABASE
 #rsync ./out/contiki-sky/app_gateway.exe $USER@$HOST:$APP_DIR/$FILENAME_GATEWAY
 
