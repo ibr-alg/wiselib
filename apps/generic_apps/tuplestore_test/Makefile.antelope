@@ -7,6 +7,7 @@ export BIN_OUT=app_database
 export APPS=antelope
 
 export ADD_CXXFLAGS="-Wno-write-strings"
+export ADD_LDFLAGS=-Wl,-lc -Wl,-L/opt/mspgcc/lib
 export WISELIB_EXIT_MAIN=0
 
 include ../Makefile

@@ -99,7 +99,7 @@ def fig_energy(ts, vs):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((200, 500))
+    #ax.set_xlim((200, 500))
     #ax.set_ylim((0, 3))
     ax.grid()
 
@@ -118,20 +118,20 @@ def plot_experiment(n, ax, **kwargs):
     global fig
     ts, vs = parse_energy(open('{}.csv'.format(n), 'r'))
     fig_energy(ts, vs)
-    tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'), int(n))
-    energy_sums, time_sums = find_tuple_spikes(ts, vs)
+    #tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'), int(n))
+    #energy_sums, time_sums = find_tuple_spikes(ts, vs)
 
-    # incontextsensing
-    #tc = [7, 6, 8, 11, 11, 10, 11, 9]
+    ## incontextsensing
+    ##tc = [7, 6, 8, 11, 11, 10, 11, 9]
 
-    #ax = plt.subplot(111)
-    print("XXX", energy_sums)
-    print("YYY", tc)
-    ax.plot(cum(tc[:len(energy_sums)]), ([x/y for x, y in zip(energy_sums, tc)]), 'o-',
-            **kwargs) 
-    ax.plot(cum(tc[:len(time_sums)]), ([x/y for x, y in zip(time_sums, tc)]), 'x-',
-            **kwargs)
-    ax.legend()
+    ##ax = plt.subplot(111)
+    #print("XXX", energy_sums)
+    #print("YYY", tc)
+    #ax.plot(cum(tc[:len(energy_sums)]), ([x/y for x, y in zip(energy_sums, tc)]), 'o-',
+            #**kwargs) 
+    #ax.plot(cum(tc[:len(time_sums)]), ([x/y for x, y in zip(time_sums, tc)]), 'x-',
+            #**kwargs)
+    #ax.legend()
 
 #ts, vs = parse_energy(open('tuplestore_24526_1242.csv', 'r'))
 #ts, vs = parse_energy(open('tuplestore_24528_1242.csv', 'r'))
@@ -163,21 +163,23 @@ ax = plt.subplot(111)
 # ts insert incontextsensing staticdict(200, 15), staticvector(76), strncmp_etc_builtin
 #plot_experiment(24638, ax, label='ts200')
 # ts insert incontextsensing staticdict(100, 15), staticvector(76), strncmp_etc_builtin
-plot_experiment(24639, ax, label='ts100')
+#plot_experiment(24639, ax, label='ts100')
 
-# ts insert incontextsensing staticdict-le(100, 15), staticvector(76), strncmp_etc_builtin
-plot_experiment(24643, ax, label='ts100le 43')
-plot_experiment(24644, ax, label='ts100le 44')
-plot_experiment(24645, ax, label='ts100le 45')
-#plot_experiment(24646, ax, label='ts100le 46')
-plot_experiment(24648, ax, label='ts100le 48')
-plot_experiment(24649, ax, label='ts100le 49')
+## ts insert incontextsensing staticdict-le(100, 15), staticvector(76), strncmp_etc_builtin
+#plot_experiment(24643, ax, label='ts100le 43')
+#plot_experiment(24644, ax, label='ts100le 44')
+#plot_experiment(24645, ax, label='ts100le 45')
+##plot_experiment(24646, ax, label='ts100le 46')
+#plot_experiment(24648, ax, label='ts100le 48')
+#plot_experiment(24649, ax, label='ts100le 49')
 
-plot_experiment(24641, ax, label='antelope 41')
+#plot_experiment(24641, ax, label='antelope 41')
 
-plot_experiment(24650, ax, label='antelope 50')
-plot_experiment(24651, ax, label='antelope 51')
-plot_experiment(24652, ax, label='antelope 52')
+#plot_experiment(24650, ax, label='antelope 50')
+#plot_experiment(24651, ax, label='antelope 51')
+#plot_experiment(24652, ax, label='antelope 52')
+
+plot_experiment(24773, ax, label='antelope')
 
 fig.savefig('energy_inserts.pdf')
 

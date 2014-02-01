@@ -2,6 +2,7 @@
 
 import rdflib
 import sys
+import string
 
 # incontextsensing
 
@@ -144,6 +145,51 @@ def to_string(x):
 	else:
 		return '"' + str(x) + '"'
 
+def to_quoted_cpp_string(s):
+	r = ''
+	for x in s:
+		if chr(x) in string.printable and chr(x) not in '"\t\n\r\x0b\x0c':
+			r += chr(x)
+		elif x == '"':
+			r += '\\"'
+		else:
+			r += '\\x{:02x}'.format(x)
+	return r
+
+def dict_to_cpp_string():
+	ss = ''
+
+	for i in range(DICT_SLOTS):
+		if not dictionary[i]:
+			ss += '             "' + r'\x00' * (DICT_SLOT_WIDTH + 1) + '"\n'
+		else:
+			v = dictionary[i]
+			assert v['refcount'] <= 127
+			ss += '/* {:02x} */ "\\x{:02x}{}"\n'.format(
+					i,
+					v['refcount'] + (v['meta'] * 128),
+					to_quoted_cpp_string(v['s'])
+			)
+
+	return '''
+#define STATIC_DICTIONARY_OUTSOURCE 1
+#define STATIC_DICTIONARY_SLOTS {}
+#define STATIC_DICTIONARY_SLOT_WIDTH {}
+#include <util/tuple_store/static_dictionary.h>
+
+typedef wiselib::StaticDictionary<Os, STATIC_DICTIONARY_SLOTS, STATIC_DICTIONARY_SLOT_WIDTH> PrecompiledDictionary;
+
+/*
+        #if STATIC_DICTIONARY_OUTSOURCE
+                dictionary_->set_data(dict_data_);
+        #endif
+*/
+
+const char dict_data_[{} + 1 /* for 0-byte at end of string */] =
+{};
+    '''.format(DICT_SLOTS, DICT_SLOT_WIDTH, DICT_SLOTS * (DICT_SLOT_WIDTH + 1), ss)
+
+
 g = rdflib.Graph()
 #g.parse('test.rdf', format='n3')
 g.parse('incontextsensing_short.rdf', format='n3')
@@ -180,30 +226,32 @@ for bt in b:
 		i = 0
 ss += '"'
 
+print(dict_to_cpp_string())
+
 #print(s_dict)
-print('''
-#define STATIC_DICTIONARY_OUTSOURCE 1
-#define STATIC_DICTIONARY_SLOTS {}
-#define STATIC_DICTIONARY_SLOT_WIDTH {}
-#include <util/tuple_store/static_dictionary.h>
+#print('''
+##define STATIC_DICTIONARY_OUTSOURCE 1
+##define STATIC_DICTIONARY_SLOTS {}
+##define STATIC_DICTIONARY_SLOT_WIDTH {}
+##include <util/tuple_store/static_dictionary.h>
 
-typedef wiselib::StaticDictionary<Os, STATIC_DICTIONARY_SLOTS, STATIC_DICTIONARY_SLOT_WIDTH> PrecompiledDictionary;
+#typedef wiselib::StaticDictionary<Os, STATIC_DICTIONARY_SLOTS, STATIC_DICTIONARY_SLOT_WIDTH> PrecompiledDictionary;
 
-/*
-	#if STATIC_DICTIONARY_OUTSOURCE
-		dictionary_->set_data(dict_data_);
-	#endif
-*/
+#/*
+	##if STATIC_DICTIONARY_OUTSOURCE
+		#dictionary_->set_data(dict_data_);
+	##endif
+#*/
 
-const char dict_data_[{} + 1 /* for 0-byte at end of string */] =
-{};
-'''.format(DICT_SLOTS, DICT_SLOT_WIDTH, len(b), ss))
+#const char dict_data_[{} + 1 /* for 0-byte at end of string */] =
+#{};
+#'''.format(DICT_SLOTS, DICT_SLOT_WIDTH, len(b), ss))
 
 ss = '{ '
 ks, kp, ko = tuples[0]
 ss += '{}, {}, {}'.format(ks, kp, ko)
 for ks, kp, ko in tuples[1:]:
-	ss += ', {}, {}, {}'.format(ks, kp, ko)
+	ss += ', {}, {}, {} // (%s %s %s)\n'.format(ks, kp, ko)
 ss += '}'
 
 print('''
@@ -232,3 +280,4 @@ TupleT::value_t tuple_data_[VECTOR_STATIC_SIZE * 3] = {};
 			#find_dictionary(kp)['s'],
 			#find_dictionary(ko)['s'])
 
+#  vim: set ts=4 sw=4 tw=78 noexpandtab :

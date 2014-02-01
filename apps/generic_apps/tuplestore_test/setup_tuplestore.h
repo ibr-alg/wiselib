@@ -154,7 +154,7 @@ class Tuple {
 	//#include <util/pstl/list_dynamic.h>
 	//typedef list_dynamic<Os, Tuple> TupleContainer;
 	#include <util/pstl/vector_static.h>
-	typedef vector_static<Os, Tuple,76> TupleContainer;
+	typedef wiselib::vector_static<Os, Tuple, 76, false> TupleContainer;
 
 	/* There are a number of dictionary implementations available currently
 	 * available:

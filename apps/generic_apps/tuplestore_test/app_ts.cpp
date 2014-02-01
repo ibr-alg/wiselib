@@ -1,5 +1,14 @@
 
+#include "ntuples.h"
+#define APP_DATABASE_DEBUG 0
+#define APP_DATABASE_FIND  0
+#define APP_HEARTBEAT 0
+
 #include "platform.h"
+
+extern "C" {
+	#include <string.h>
+}
 
 #include "external_interface/external_interface.h"
 #include "external_interface/external_interface_testing.h"
@@ -8,28 +17,9 @@ typedef OSMODEL Os;
 typedef OSMODEL OsModel;
 typedef Os::block_data_t block_data_t;
 typedef Os::size_t size_type;
-	// Enable dynamic memory allocation using malloc() & free()
-	//#include "util/allocators/malloc_free_allocator.h"
-	//typedef MallocFreeAllocator<Os> Allocator;
-	//Allocator& get_allocator();
-
-	//#include <util/allocators/bitmap_allocator.h>
-	//typedef wiselib::BitmapAllocator<Os, 3000> Allocator;
-	//Allocator& get_allocator();
-	//Allocator allocator_;
-	//Allocator& get_allocator() { return allocator_; }
-
-
-#define APP_DATABASE_DEBUG 1
 
 
 #undef TS_USE_BLOCK_MEMORY
-
-//#define TS_CONTAINER_STATIC_VECTOR 0
-//#define TS_CONTAINER_LIST 1
-
-//#define TS_DICT_UNBAL 1
-
 #define TS_CODEC_NONE 1
 #define TS_CODEC_HUFFMAN 0
 
@@ -39,8 +29,14 @@ typedef Os::size_t size_type;
 #include <util/meta.h>
 
 #if defined(CONTIKI)
+extern "C" {
+	#define delete why_on_earth_do_you_guys_name_a_variable_delete
+	#define DOMAIN DOMAIN_WHAT_IS_THIS_I_DONT_EVEN
+
 	#include <contiki.h>
 	#include <netstack.h>
+	#include <stdlib.h>
+}
 #endif
 
 class App {
@@ -72,6 +68,20 @@ class App {
 			tuplestore_.insert(t);
 		}
 
+		size_type size() { return tuplestore_.size(); }
+
+		void find(block_data_t* s, block_data_t* p, block_data_t* o, char *out) {
+			Tuple t;
+			t.set(0, s);
+			t.set(1, p);
+			t.set(2, o);
+
+			CodecTupleStoreT::column_mask_t mask =
+				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
+
+			Tuple v;
+			v = *tuplestore_.begin(t, mask);
+		}
 
 };
 

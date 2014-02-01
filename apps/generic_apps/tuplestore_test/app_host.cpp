@@ -39,17 +39,25 @@ class App {
 		void init(Os::AppMainParameter& amp) {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
+			debug_->debug("hello!");
 
 			bytes_sent_ = 0;
 			
 			wait = 1;
 			timer_->set_timer<App, &App::go>(10000, this, 0);
+			timer_->set_timer<App, &App::exit_app>(10UL * 60UL * 1000UL, this, 0);
+		}
+
+		void exit_app(void*_=0) {
+			debug_->debug("bye!");
+			exit(0);
 		}
 
 		void go(void*) {
 			wait--;
 			if(wait == 0) {
 				init_serial();
+				send_reboot();
 				read_boot_babble();
 				main_loop();
 			}
@@ -57,9 +65,6 @@ class App {
 				timer_->set_timer<App, &App::go>(10000, this, 0);
 			}
 		}
-
-
-
 
 		fd_set fds_serial, fds_none;
 		int serial_fd;
@@ -70,17 +75,7 @@ class App {
 			//speed_t speed = B57600;
 			//char *device = "/dev/ttyUSB0";
 			char *device = "/dev/tmotesky1";
-			//char *timeformat = NULL;
-			//int nfound, flags = 0;
-			//unsigned char lastc = '\0';
-			
-			//serial_fd = ::open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_DIRECT | O_SYNC);
-//			serial_fd = ::open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC);
-//#ifndef __APPLE__
-  //serial_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_DIRECT | O_SYNC );
-//#else
-  serial_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC );
-//#endif
+			serial_fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY | O_SYNC );
 
 			if(serial_fd < 0) {
 				perror(device);
@@ -168,6 +163,7 @@ class App {
 
 			bytes_sent_ = 0;
 			bool need_line = true;
+			triples = 0;
 			while(std::cin) {
 				// read line from stdin
 				if(need_line) {
@@ -189,14 +185,20 @@ class App {
 					expect_answer = true;
 				}
 				else {
-					for(size_type i = 0; i < 3; i++) {
-						//strcpy((char*)rdf_ + bytes_sent_, (char*)n3[i]);
-						memcpy((char*)rdf_ + bytes_sent_, (char*)n3[i], strlen(n3[i]) + 1);
-						send_serial(strlen(n3[i]) + 1, reinterpret_cast<block_data_t*>(n3[i]));
-						bytes_sent_ += strlen(n3[i]) + 1;
+					if(!*n3[0] || !*n3[1] || !*n3[2]) {
+						debug_->debug("incomplete triple read: (%s,%s,%s)", (char*)n3[0], (char*)n3[1], (char*)n3[2]);
 					}
-					triples++;
-					need_line = true;
+					else {
+						debug_->debug("(%s,%s,%s)", n3[0], n3[1], n3[2]);
+						for(size_type i = 0; i < 3; i++) {
+							//strcpy((char*)rdf_ + bytes_sent_, (char*)n3[i]);
+							memcpy((char*)rdf_ + bytes_sent_, (char*)n3[i], strlen(n3[i]) + 1);
+							send_serial(strlen(n3[i]) + 1, reinterpret_cast<block_data_t*>(n3[i]));
+							bytes_sent_ += strlen(n3[i]) + 1;
+						}
+						triples++;
+						need_line = true;
+					}
 				}
 
 				while(expect_answer) {
@@ -241,6 +243,14 @@ class App {
 			wiselib::write<Os, block_data_t, ::uint16_t>(summary, checksum);
 			send_serial(4, summary);
 			return checksum;
+		}
+
+		void send_reboot() {
+			block_data_t reboot[] = { 0xff, 0xff, 0, 0 };
+			debug_->debug("sending reboot");
+			send_serial(4, reboot);
+			send_serial(4, reboot);
+			send_serial(4, reboot);
 		}
 
 		/**
