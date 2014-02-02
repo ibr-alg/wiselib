@@ -16,6 +16,9 @@ MEASUREMENT_INTERVAL = 64.0 / 3000.0
 # mA
 CURRENT_FACTOR = 70.0 / 4095.0
 
+
+BASELINE_ENERGY = 0.568206918430233
+
 def parse_energy(f):
     ts = []
     vs = []
@@ -55,39 +58,158 @@ def find_tuple_spikes(ts, vs):
     # then back to 1
 
     HIGH = 7.0
-    IDLE = 1.5
+    RADIO = 1.5
     MEASUREMENT = 1.5
 
+    class State: pass
+
+    idle_high = State()
+
+    idle_before = State()
+    insert = State()
+    idle_between = State()
+    find = State()
+    idle_after = State()
+
+    state = idle_high
+
     # unit: mA * s = mC
-    energy_sums = []
-    time_sums = []
+    energy_sums_insert = []
+    energy_sums_find = []
+    time_sums_insert = []
+    time_sums_find = []
+    thigh = 0
 
-    state = "H"
-    oldstate = "H"
+    esums_i = []
+    esums_f = []
+    tsums_i = []
+    tsums_f = []
+
+    baseline_estimate = 0
+    baseline_estimate_n = 0
+
     for t, v in zip(ts, vs):
-        if state == "H" and v < IDLE:
-            state = "I0"
-        elif state == "I1" and v > HIGH:
-            state = "H"
-        elif state == "I0" and v > MEASUREMENT:
-            state = "M"
-            t0 = t
-            tprev = t
-            esum = 0
-        elif state == "M" and v < IDLE:
-            state = "I1"
-            time_sums.append(t - t0)
-            energy_sums.append(esum)
-        elif state == "M":
-            #assert v < HIGH
-            esum += (t - tprev) * v
-            tprev = t
-    
-        if state != oldstate:
-            print("{}: {} ({} -> {})".format(t, v, oldstate, state))
-            oldstate = state
+        if state is idle_high:
+            if v < RADIO:
+                if t - thigh > 500:
+                    # reboot
+                    esums_i.append(energy_sums_insert)
+                    esums_f.append(energy_sums_find)
+                    tsums_i.append(time_sums_insert)
+                    tsums_f.append(time_sums_find)
+                    energy_sums_insert = []
+                    energy_sums_find = []
+                    time_sums_insert = []
+                    time_sums_find = []
+                state = idle_before
 
-    return energy_sums, time_sums
+        elif state is idle_before:
+            if v > MEASUREMENT:
+                state = insert
+                t0 = t
+                tprev = t
+                esum = 0
+            else:
+                baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
+                baseline_estimate_n += 1.0
+                baseline_estimate += v / baseline_estimate_n 
+
+        elif state is insert:
+            if v < MEASUREMENT:
+                state = idle_between
+                time_sums_insert.append(t - t0)
+                energy_sums_insert.append(esum)
+            else:
+                assert v < HIGH
+                esum += (t - tprev) * (v - BASELINE_ENERGY)
+                tprev = t
+
+        elif state is idle_between:
+            if v > HIGH:
+                print("find measurement skipped high at {} l={}".format(t,
+len(esums_i)))
+                time_sums_find.append(0)
+                energy_sums_find.append(0)
+                state = idle_high
+                thigh = t
+            elif v > MEASUREMENT:
+                state = find
+                t0 = t
+                tprev = t
+                esum = 0
+            else:
+                baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
+                baseline_estimate_n += 1.0
+                baseline_estimate += v / baseline_estimate_n 
+
+        elif state is find:
+            if v < MEASUREMENT:
+                #print("find measurement at {} e {}".format(t, esum))
+                state = idle_after
+                time_sums_find.append(t - t0)
+                energy_sums_find.append(esum)
+            elif v > HIGH:
+                print("find measurement aborted high at {} t0={} esum={}".format(t, t0, esum
+- BASELINE_ENERGY))
+                # what we thought was a find measurement was actually a
+                # rising edge for the high idle state,
+                # seems there was no (measurable) find process, record a
+                # 0-measurement
+                state = idle_high
+                thigh = t
+                time_sums_find.append(0)
+                energy_sums_find.append(0)
+            else:
+                esum += (t - tprev) * (v - BASELINE_ENERGY)
+                tprev = t
+
+        elif state is idle_after:
+            if v > HIGH:
+                state = idle_high
+                thigh = t
+            else:
+                baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
+                baseline_estimate_n += 1.0
+                baseline_estimate += v / baseline_estimate_n 
+
+
+    print("baseline estimate: {}".format(baseline_estimate))
+
+    #state = "H"
+    #oldstate = "H"
+    #for t, v in zip(ts, vs):
+        #if state == "H" and v < IDLE:
+            #state = "I0"
+        #elif state == "I1" and v > HIGH:
+            #state = "H"
+        #elif state == "I0" and v > MEASUREMENT:
+            #state = "M"
+            #t0 = t
+            #tprev = t
+            #esum = 0
+        #elif state == "M" and v < IDLE:
+            #state = "I1"
+            #time_sums.append(t - t0)
+            #energy_sums.append(esum)
+        #elif state == "M":
+            ##assert v < HIGH
+            #esum += (t - tprev) * v
+            #tprev = t
+    
+        #if state != oldstate:
+            #print("{}: {} ({} -> {})".format(t, v, oldstate, state))
+            #oldstate = state
+
+    esums_i.append(energy_sums_insert)
+    esums_f.append(energy_sums_find)
+    tsums_i.append(time_sums_insert)
+    tsums_f.append(time_sums_find)
+    return {
+        'e_insert': esums_i,
+        't_insert': tsums_i,
+        'e_find': esums_f,
+        't_find': tsums_f,
+    }
 
 def frange(a, b, step):
     return [x * step for x in range(int(a / step), int(b / step))]
@@ -99,7 +221,7 @@ def fig_energy(ts, vs):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((200, 500))
+    ax.set_xlim((3810, 3826))
     #ax.set_ylim((0, 3))
     ax.grid()
 
@@ -119,7 +241,22 @@ def plot_experiment(n, ax, **kwargs):
     ts, vs = parse_energy(open('{}.csv'.format(n), 'r'))
     fig_energy(ts, vs)
     #tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'), int(n))
-    #energy_sums, time_sums = find_tuple_spikes(ts, vs)
+    d = find_tuple_spikes(ts, vs)
+    
+    tc = [7, 6, 8, 11, 11, 10, 11, 9]
+    #ax = plt.subplot(111)
+    for e in range(len(d['e_insert'])):
+        es = d['e_insert'][e]
+        fs = d['e_find'][e]
+        fs = d['e_find'][e]
+
+        print(d['e_insert'][e])
+        print(d['t_insert'][e])
+
+        #ax.plot(cum(tc[:len(es)]), ([x/y for x, y in zip(es, tc)]), 'o-', **kwargs) 
+        ax.plot(cum(tc[:len(fs)]), ([x/y for x, y in zip(fs, tc)]), 'x-', **kwargs) 
+        ax.plot(cum(tc[:len(fs)]), ([x/y for x, y in zip(d['t_find'][e], tc)]), 'x-', **kwargs) 
+            
 
     ## incontextsensing
     ##tc = [7, 6, 8, 11, 11, 10, 11, 9]
@@ -179,7 +316,7 @@ ax = plt.subplot(111)
 #plot_experiment(24651, ax, label='antelope 51')
 #plot_experiment(24652, ax, label='antelope 52')
 
-plot_experiment(24773, ax, label='antelope')
+plot_experiment(24778, ax, label='antelope')
 
 fig.savefig('energy_inserts.pdf')
 

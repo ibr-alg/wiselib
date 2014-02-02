@@ -1,5 +1,37 @@
 #!/bin/sh
 
+VARFILE=$(hostname).vars
+
+echo boot $(date) >>/tmp/log/timestamps
+echo $(hostname) >/tmp/log/hostname.txt
+
+if [ -e $VARFILE ]; then
+	. $VARFILE
+	cp $VARFILE /tmp/log/
+
+	while :; do
+			echo app_host $(date) >>/tmp/log/timestamps
+			sudo stdbuf -oL -eL /tmp/mnt/app_host < $DATASET | while read l; do
+					echo $(date +'T%s.%N|')$l
+			done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
+
+			sleep $((5 * 60))
+	done 2>>/tmp/log/error2.txt
+	
+else
+	while :; do
+			echo serialdump $(date) >>/tmp/log/timestamps
+			sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
+					echo $(date +'T%s.%N|')$l
+			done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
+			sleep 5
+	done 2>>/tmp/log/error2.txt
+fi
+
+
+
+
+
 RDF_FILE=data.rdf
 
 echo boot $(date) >>/tmp/log/timestamps
@@ -27,12 +59,9 @@ else
 
 	while :; do
 			echo serialdump $(date) >>/tmp/log/timestamps
-
 			sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
-			#sudo stdbuf -oL -eL /tmp/mnt/app_host < $RDF_FILE | while read l; do
 					echo $(date +'T%s.%N|')$l
 			done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
-
 			sleep 5
 	done 2>>/tmp/log/error2.txt
 

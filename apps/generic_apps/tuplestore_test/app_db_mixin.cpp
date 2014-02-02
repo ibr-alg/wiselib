@@ -17,6 +17,7 @@
 			//initialize_db();
 			first_receive = true;
 			lastpos = 0;
+			tuples = 0;
 
 		#if APP_DATABASE_DEBUG
 			debug_->debug("db boot %lu", (unsigned long)radio_->id());
@@ -33,6 +34,7 @@
 		#endif
 			first_receive = true;
 			lastpos = 0;
+			tuples = 0;
 		}
 
 		#if APP_HEARTBEAT
@@ -54,7 +56,7 @@
 		//Os::Rand::self_pointer_t rand_;
 
 		::uint16_t lastpos;
-
+		::uint16_t tuples;
 
 		bool first_receive;
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
@@ -146,6 +148,7 @@
 				e = (block_data_t*)o + strlen(o) + 1;
 
 				insert_tuple(s, p, o);
+				tuples++;
 
 				#if APP_DATABASE_FIND
 					if(choice.choose() && !chosen) {
@@ -211,7 +214,7 @@
 					case 1:
 						find(find_s_, 0, find_o_, buf);
 						break;
-					case 2:
+					default:
 						find(find_s_, find_p_, 0, buf);
 						break;
 				}
