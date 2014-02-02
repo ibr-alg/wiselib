@@ -74,9 +74,12 @@ function generate_stuff() {
 
 	cp ${INODE_GATEWAY}.vars exp${EXP_NR}.vars
 
-	make -f Makefile.gateway && cp out/contiki-sky/app_database.exe $FILENAME_GATEWAY &&
-	make -f Makefile.$DB && cp out/contiki-sky/app_database.exe $FILENAME_DB &&
-	make -f Makefile.host
+	make -f Makefile.host clean
+	make -f Makefile.gateway || exit 1
+	cp out/contiki-sky/app_gateway.exe $FILENAME_GATEWAY &&
+	make -f Makefile.$DB || exit 1
+	cp out/contiki-sky/app_database.exe $FILENAME_DB &&
+	make -f Makefile.host || exit 1
 
 	echo
 	echo '****************************'

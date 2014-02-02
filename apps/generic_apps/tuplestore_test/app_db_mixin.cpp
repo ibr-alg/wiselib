@@ -95,7 +95,7 @@
 				}
 
 				block_data_t ack[] = { 0xAA, EXP_NR, 0, 0 };
-				wiselib::write<Os, block_data_t, ::uint16_t>(ack + 1, pos);
+				wiselib::write<Os, block_data_t, ::uint16_t>(ack + 2, pos);
 				radio_->send(from, 4, ack); 
 			}
 			else if(data[0] == 0xbb && data[1] == EXP_NR) {
