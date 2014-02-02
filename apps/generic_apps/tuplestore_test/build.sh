@@ -9,10 +9,20 @@ function generate_stuff() {
 			INODE_GATEWAY=inode001
 			FILENAME_DB=app_ackto2000_r3_20131003082019.exe
 			;;
-		beta)
+		bravo)
 			FILENAME_GATEWAY=example_app_20130920065808.exe
-			INODE_GATEWAY=inode003
+			INODE_GATEWAY=inode005
 			FILENAME_DB=example_app_contiki_20130923150233.exe
+			;;
+		charlie)
+			FILENAME_GATEWAY=csma1_csmamode1_nullrdc_20131007080404.exe
+			INODE_GATEWAY=inode007
+			FILENAME_DB=csma1_csmode0_nullrdc_20131007102520.exe
+			;;
+		delta)
+			FILENAME_GATEWAY=csma0_csmamode0_nullrdc_20131007122009.exe
+			INODE_GATEWAY=inode009
+			FILENAME_DB=csma0_csmamode0_nullrdc_T10k_20131013061532.exe
 			;;
 		*)
 			echo AREA unknown.
