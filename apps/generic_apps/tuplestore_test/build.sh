@@ -41,7 +41,10 @@ function generate_stuff() {
 	if [ -e current_exp_nr ]; then
 		EXP_NR=$(< current_exp_nr)
 	fi
-	EXP_NR=$((0$EXP_NR + 1))
+	if [ -z "$EXP_NR" ]; then
+		EXP_NR=0
+	fi
+	EXP_NR=$(($EXP_NR + 1))
 	echo $EXP_NR > current_exp_nr
 
 	#cp $RDF ${AREA}.rdf

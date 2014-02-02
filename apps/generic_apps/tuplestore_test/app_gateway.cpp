@@ -145,9 +145,9 @@ class App {
 		void send_reboot(void*_=0) {
 			block_data_t b[] = {0xBB, EXP_NR};
 
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, &b);
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, &b);
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, &b);
+			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, b);
+			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, b);
+			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, b);
 		}
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
