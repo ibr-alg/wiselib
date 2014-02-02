@@ -80,7 +80,7 @@ class App {
 				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
 
 			Tuple v;
-			v = *tuplestore_.begin(t, mask);
+			v = *tuplestore_.begin(&t, mask);
 		}
 
 };
