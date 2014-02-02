@@ -1,4 +1,5 @@
 
+#include "defs.h"
 
 #include "external_interface/external_interface.h"
 #include "external_interface/external_interface_testing.h"
@@ -124,11 +125,12 @@ class App {
 			// sending_ = [ 0x99 | POS (2) | data.... ]
 
 			sending_[0] = 0x99;
-			wiselib::write<OsModel, block_data_t, ::uint16_t>(sending_ + 1, bytes_sent_);
-			memcpy(sending_ + 3, rdf_buffer_ + bytes_sent_, s);
+			sending_[1] = EXP_NR;
+			wiselib::write<OsModel, block_data_t, ::uint16_t>(sending_ + 2, bytes_sent_);
+			memcpy(sending_ + 4, rdf_buffer_ + bytes_sent_, s);
 
 
-			radio_->send( Os::Radio::BROADCAST_ADDRESS, s + 3, sending_);
+			radio_->send( Os::Radio::BROADCAST_ADDRESS, s + 4, sending_);
 
 			if(s) {
 				timer_->set_timer<App, &App::on_ack_timeout>(1000, this, (void*)ack_timeout_guard_);
@@ -141,16 +143,17 @@ class App {
 		}
 
 		void send_reboot(void*_=0) {
-			block_data_t b = 0xBB;
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 1, &b);
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 1, &b);
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 1, &b);
+			block_data_t b[] = {0xBB, EXP_NR};
+
+			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, &b);
+			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, &b);
+			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, &b);
 		}
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
-			if(data[0] == 0xAA) {
+			if(data[0] == 0xAA && data[1] == EXP_NR) {
 
-				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 1);
+				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
 				if(pos == bytes_sent_) {
 					int s = sending_size();
 

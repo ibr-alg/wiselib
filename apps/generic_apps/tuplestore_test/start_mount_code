@@ -1,13 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
-VARFILE=$(hostname).vars
+VARFILE=/tmp/mnt/$(hostname).vars
 
 echo boot $(date) >>/tmp/log/timestamps
 echo $(hostname) >/tmp/log/hostname.txt
 
 if [ -e $VARFILE ]; then
+	echo varfile ex >>/tmp/log/timestamps
 	. $VARFILE
+	echo varfile ex2 >>/tmp/log/timestamps
 	cp $VARFILE /tmp/log/
+	echo varfile ex3 >>/tmp/log/timestamps
 
 	while :; do
 			echo app_host $(date) >>/tmp/log/timestamps
@@ -19,6 +22,7 @@ if [ -e $VARFILE ]; then
 	done 2>>/tmp/log/error2.txt
 	
 else
+	echo varfile nex >>/tmp/log/timestamps
 	while :; do
 			echo serialdump $(date) >>/tmp/log/timestamps
 			sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do

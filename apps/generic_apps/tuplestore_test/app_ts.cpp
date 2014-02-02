@@ -1,8 +1,5 @@
 
-#include "ntuples.h"
-#define APP_DATABASE_DEBUG 0
-#define APP_DATABASE_FIND  0
-#define APP_HEARTBEAT 0
+#include "defs.h"
 
 #include "platform.h"
 

@@ -4,6 +4,9 @@ import re
 import matplotlib.pyplot as plt
 import csv
 from matplotlib import rc
+import sys
+import os
+import os.path
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
@@ -15,25 +18,128 @@ MEASUREMENT_INTERVAL = 64.0 / 3000.0
 
 # mA
 CURRENT_FACTOR = 70.0 / 4095.0
-
-
 BASELINE_ENERGY = 0.568206918430233
 
-def parse_energy(f):
+
+# Gateway hostname -> DB hostname
+gateway_to_db = {
+    'inode001': 'inode004',
+    'inode005': 'inode006',
+    'inode007': 'inode008',
+    'inode009': 'inode010'
+}
+
+# Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
+experiments = {}
+
+def main():
+    process_directories(sys.argv[1:])
+    
+    for k, v in experiments.items():
+        plot_energies([v], k.reprname() + '.pdf')
+
+class ExperimentClass:
+    def __init__(self, d):
+        self.__dict__.update(d)
+
+    def __eq__(self, other):
+        return (
+            self.dataset == other.dataset and
+            self.mode == other.mode and
+            self.debug == other.debug
+        )
+
+    def reprname(self):
+        return self.dataset.replace('.rdf', '') + '_' + self.mode + (' DBG' if
+self.debug else '')
+
+    def __hash__(self):
+        return hash(self.dataset) ^ hash(self.mode) ^ hash(self.debug)
+
+class Experiment:
+    def __init__(self):
+        self.time = []
+        self.energy = []
+        self.tuplecounts = []
+
+    def add_measurement(self, i, t, e):
+        while len(self.time) < i + 1:
+            self.energy.append([])
+            self.time.append([])
+        self.time[i].append(t)
+        self.energy[i].append(t)
+
+    def set_tuplecounts(self, tcs):
+        self.tuplecounts = tcs
+
+def add_experiment(cls):
+    global experiments
+    if cls not in experiments:
+        experiments[cls] = Experiment()
+    return experiments[cls]
+
+def inode_to_mote_id(s): return '10' + s[5:]
+
+def process_directories(dirs):
+    for d in dirs:
+        process_directory(d)
+
+def process_directory(d):
+    d = str(d).strip('/')
+    energy = read_energy(d + '.csv')
+    for gw, db in gateway_to_db.items():
+        fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
+        fn_dbout = d + '/' + db + '/output.txt'
+        if not os.path.exists(fn_gwinfo):
+            print("{} not found, ignoring that area.".format(fn_gwinfo))
+            continue
+
+        print("processing {}, {}".format(gw, db))
+
+        v = read_vars(fn_gwinfo)
+        cls = ExperimentClass(v)
+        exp = add_experiment(cls)
+        tc = parse_tuple_counts(open(fn_dbout, 'r'), d)
+        exp.set_tuplecounts(tc)
+        #print(energy[inode_to_mote_id(db)])
+        runs_t, runs_e = process_energy(energy[inode_to_mote_id(db)], v['mode'])
+
+        for ts, es in zip(runs_t, runs_e):
+            for i, (t, e) in enumerate(zip(ts, es)):
+                if t != 0 or e != 0:
+                    exp.add_measurement(i, t, e)
+
+def read_vars(fn):
+    r = {}
+    for line in open(fn, 'r'):
+        k, v = line.split('=')
+        k = k.strip()
+        v = v.strip()
+        k = k.lower()
+        if v.startswith('"'):
+            r[k] = v[1:-1]
+        else:
+            r[k] = int(v)
+    return r
+
+def read_energy(fn):
     ts = []
     vs = []
+    r = {}
 
     #reader = csv.DictReader(f, delimiter=';', quotechar='"')
-    reader = csv.DictReader(f, delimiter='\t', quotechar='"')
+    reader = csv.DictReader(open(fn, 'r'), delimiter='\t', quotechar='"')
     t = 0
     for row in reader:
         v = float(row['avg']) * CURRENT_FACTOR
         t += MEASUREMENT_INTERVAL
+        mote_id = row['motelabMoteID']
+        if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
+        #print(r.keys())
+        r[mote_id]['ts'].append(t)
+        r[mote_id]['vs'].append(v)
 
-        ts.append(t)
-        vs.append(v)
-
-    return ts, vs
+    return r
 
 def parse_tuple_counts(f, expid):
     r = []
@@ -48,7 +154,13 @@ def parse_tuple_counts(f, expid):
                 r.append(int(m.groups()[0]))
     return r
 
-def find_tuple_spikes(ts, vs):
+#def find_tuple_spikes(ts, vs):
+def process_energy(d, mode):
+    ts = d['ts']
+    vs = d['vs']
+    for k, v in d.items():
+        print(k, len(v))
+
     # setup as follows:
     #
     # (1) first, start in high-load mode ( >= HIGH ),
@@ -74,16 +186,24 @@ def find_tuple_spikes(ts, vs):
     state = idle_high
 
     # unit: mA * s = mC
-    energy_sums_insert = []
-    energy_sums_find = []
-    time_sums_insert = []
-    time_sums_find = []
-    thigh = 0
+    #energy_sums_insert = []
+    #energy_sums_find = []
+    #time_sums_insert = []
+    #time_sums_find = []
+    sums_e = []
+    sums_t = []
+    runs_e = []
+    runs_t = []
 
-    esums_i = []
-    esums_f = []
-    tsums_i = []
-    tsums_f = []
+    thigh = 0
+    t0 = 0
+    tprev = 0
+    esum = 0
+
+    #esums_i = []
+    #esums_f = []
+    #tsums_i = []
+    #tsums_f = []
 
     baseline_estimate = 0
     baseline_estimate_n = 0
@@ -93,22 +213,28 @@ def find_tuple_spikes(ts, vs):
             if v < RADIO:
                 if t - thigh > 500:
                     # reboot
-                    esums_i.append(energy_sums_insert)
-                    esums_f.append(energy_sums_find)
-                    tsums_i.append(time_sums_insert)
-                    tsums_f.append(time_sums_find)
-                    energy_sums_insert = []
-                    energy_sums_find = []
-                    time_sums_insert = []
-                    time_sums_find = []
+                    runs_e.append(sums_e)
+                    runs_t.append(sums_t)
+                    sums_e = []
+                    sums_t = []
+                    
+                    #esums_i.append(energy_sums_insert)
+                    #esums_f.append(energy_sums_find)
+                    #tsums_i.append(time_sums_insert)
+                    #tsums_f.append(time_sums_find)
+                    #energy_sums_insert = []
+                    #energy_sums_find = []
+                    #time_sums_insert = []
+                    #time_sums_find = []
                 state = idle_before
 
         elif state is idle_before:
             if v > MEASUREMENT:
                 state = insert
-                t0 = t
-                tprev = t
-                esum = 0
+                if mode == 'insert':
+                    t0 = t
+                    tprev = t
+                    esum = 0
             else:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
@@ -117,26 +243,30 @@ def find_tuple_spikes(ts, vs):
         elif state is insert:
             if v < MEASUREMENT:
                 state = idle_between
-                time_sums_insert.append(t - t0)
-                energy_sums_insert.append(esum)
+                if mode == 'insert':
+                    sums_t.append(t - t0)
+                    sums_e.append(esum)
             else:
                 assert v < HIGH
-                esum += (t - tprev) * (v - BASELINE_ENERGY)
-                tprev = t
+                if mode == 'insert':
+                    esum += (t - tprev) * (v - BASELINE_ENERGY)
+                    tprev = t
 
         elif state is idle_between:
             if v > HIGH:
                 print("find measurement skipped high at {} l={}".format(t,
 len(esums_i)))
-                time_sums_find.append(0)
-                energy_sums_find.append(0)
+                if mode == 'find':
+                    sums_e.append(0)
+                    sums_t.append(0)
                 state = idle_high
                 thigh = t
             elif v > MEASUREMENT:
                 state = find
-                t0 = t
-                tprev = t
-                esum = 0
+                if mode == 'find':
+                    t0 = t
+                    tprev = t
+                    esum = 0
             else:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
@@ -146,8 +276,9 @@ len(esums_i)))
             if v < MEASUREMENT:
                 #print("find measurement at {} e {}".format(t, esum))
                 state = idle_after
-                time_sums_find.append(t - t0)
-                energy_sums_find.append(esum)
+                if mode == 'find':
+                    sums_t.append(t - t0)
+                    sums_e.append(esum)
             elif v > HIGH:
                 print("find measurement aborted high at {} t0={} esum={}".format(t, t0, esum
 - BASELINE_ENERGY))
@@ -157,11 +288,13 @@ len(esums_i)))
                 # 0-measurement
                 state = idle_high
                 thigh = t
-                time_sums_find.append(0)
-                energy_sums_find.append(0)
+                if mode == 'find':
+                    sums_t.append(0)
+                    sums_e.append(0)
             else:
-                esum += (t - tprev) * (v - BASELINE_ENERGY)
-                tprev = t
+                if mode == 'find':
+                    esum += (t - tprev) * (v - BASELINE_ENERGY)
+                    tprev = t
 
         elif state is idle_after:
             if v > HIGH:
@@ -173,7 +306,7 @@ len(esums_i)))
                 baseline_estimate += v / baseline_estimate_n 
 
 
-    print("baseline estimate: {}".format(baseline_estimate))
+    print("  baseline estimate: {}".format(baseline_estimate))
 
     #state = "H"
     #oldstate = "H"
@@ -200,19 +333,27 @@ len(esums_i)))
             #print("{}: {} ({} -> {})".format(t, v, oldstate, state))
             #oldstate = state
 
-    esums_i.append(energy_sums_insert)
-    esums_f.append(energy_sums_find)
-    tsums_i.append(time_sums_insert)
-    tsums_f.append(time_sums_find)
-    return {
-        'e_insert': esums_i,
-        't_insert': tsums_i,
-        'e_find': esums_f,
-        't_find': tsums_f,
-    }
+    #esums_i.append(energy_sums_insert)
+    #esums_f.append(energy_sums_find)
+    #tsums_i.append(time_sums_insert)
+    #tsums_f.append(time_sums_find)
+    runs_t.append(sums_t)
+    runs_e.append(sums_e)
+    return (runs_t, runs_e)
 
 def frange(a, b, step):
     return [x * step for x in range(int(a / step), int(b / step))]
+
+
+def plot_energies(experiments, fname='energies.pdf'):
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    ax.set_xticklabels(experiments[0].tuplecounts)
+    for exp in experiments:
+        print(exp.energy)
+        plt.boxplot(exp.energy)
+    print("writing {}.".format(fname))
+    fig.savefig(fname)
 
 def fig_energy(ts, vs):
     fig = plt.figure()
@@ -275,8 +416,8 @@ def plot_experiment(n, ax, **kwargs):
 #fig_energy(ts, vs)
 #print()
 
-fig = plt.figure()
-ax = plt.subplot(111)
+#fig = plt.figure()
+#ax = plt.subplot(111)
 
 #plot_experiment(24539, ax, label='antelope 39')
 
@@ -316,7 +457,11 @@ ax = plt.subplot(111)
 #plot_experiment(24651, ax, label='antelope 51')
 #plot_experiment(24652, ax, label='antelope 52')
 
-plot_experiment(24778, ax, label='antelope')
+#plot_experiment(24778, ax, label='antelope')
 
-fig.savefig('energy_inserts.pdf')
+#fig.savefig('energy_inserts.pdf')
+
+if __name__ == '__main__':
+    main()
+
 

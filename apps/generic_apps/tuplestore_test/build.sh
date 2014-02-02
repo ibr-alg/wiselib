@@ -95,10 +95,24 @@ MODE=find
 DEBUG=0
 generate_stuff
 
-AREA=beta
+AREA=bravo
 DB=tuplestore
 RDF=incontextsensing.rdf
 MODE=find
+DEBUG=0
+generate_stuff
+
+AREA=charlie
+DB=antelope
+RDF=incontextsensing.rdf
+MODE=insert
+DEBUG=0
+generate_stuff
+
+AREA=delta
+DB=tuplestore
+RDF=incontextsensing.rdf
+MODE=insert
 DEBUG=0
 generate_stuff
 

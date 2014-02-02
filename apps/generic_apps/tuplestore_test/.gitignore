@@ -1,2 +1,5 @@
 *.csv
 24*
+*.exe
+*.vars
+*.class

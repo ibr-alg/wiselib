@@ -1,8 +1,8 @@
 
-#include "ntuples.h"
-#define APP_DATABASE_DEBUG 0
-#define APP_DATABASE_FIND  1
-#define APP_HEARTBEAT 0
+#include "defs.h"
+//#define APP_DATABASE_DEBUG 0
+//#define APP_DATABASE_FIND  1
+//#define APP_HEARTBEAT 0
 
 extern "C" {
 	#include <string.h>
