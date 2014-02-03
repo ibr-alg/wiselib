@@ -6,23 +6,27 @@ function generate_stuff() {
 	case $AREA in
 		alpha)
 			FILENAME_GATEWAY=app_20140107091518.exe
-			INODE_GATEWAY=inode001
 			FILENAME_DB=app_ackto2000_r3_20131003082019.exe
+			INODE_GATEWAY=inode001
+			INODE_DB=inode004
 			;;
 		bravo)
 			FILENAME_GATEWAY=example_app_20130920065808.exe
-			INODE_GATEWAY=inode005
 			FILENAME_DB=example_app_contiki_20130923150233.exe
+			INODE_GATEWAY=inode007
+			INODE_DB=inode010
 			;;
 		charlie)
-			FILENAME_GATEWAY=csma1_csmamode1_nullrdc_20131007080404.exe
-			INODE_GATEWAY=inode007
-			FILENAME_DB=csma1_csmode0_nullrdc_20131007102520.exe
+			FILENAME_GATEWAY=csma0_csmamode0_nullrdc_20131007122009.exe
+			FILENAME_DB=csma0_csmamode0_nullrdc_T10k_20131013061532.exe
+			INODE_GATEWAY=inode013
+			INODE_DB=inode012
 			;;
 		delta)
-			FILENAME_GATEWAY=csma0_csmamode0_nullrdc_20131007122009.exe
+			FILENAME_GATEWAY=csma1_csmamode1_nullrdc_20131007080404.exe
+			FILENAME_DB=csma1_csmode0_nullrdc_20131007102520.exe
 			INODE_GATEWAY=inode009
-			FILENAME_DB=csma0_csmamode0_nullrdc_T10k_20131013061532.exe
+			INODE_DB=inode008
 			;;
 		*)
 			echo AREA unknown.
@@ -30,7 +34,7 @@ function generate_stuff() {
 			;;
 	esac
 
-	GIT_STATUS=$(git status -s |grep -v '^??'|grep -v build.sh)
+	GIT_STATUS=$(git status -s |grep -v '^??'|grep -v build.sh|grep -v plot.py)
 	if [ ! -z "$GIT_STATUS" ]; then
 		echo 'Git working dir not clean, commit!'
 		exit 1
@@ -69,16 +73,24 @@ function generate_stuff() {
 	echo GIT_COMMIT=\"$GIT_COMMIT\" >> ${INODE_GATEWAY}.vars
 	echo GIT_MSG=\"$GIT_MSG\" >> ${INODE_GATEWAY}.vars
 	echo DATASET=\"$RDF\" >> ${INODE_GATEWAY}.vars
+	echo DATABASE=\"$DB\" >> ${INODE_GATEWAY}.vars
 	echo GENERATED=\"$(date)\" >> ${INODE_GATEWAY}.vars
 	echo INODE_GATEWAY=\"${INODE_GATEWAY}\" >> ${INODE_GATEWAY}.vars
+	echo INODE_DB=\"${INODE_DB}\" >> ${INODE_GATEWAY}.vars
+	#cat ${INODE_GATEWAY}.vars
 
 	cp ${INODE_GATEWAY}.vars exp${EXP_NR}.vars
 
+	make -f Makefile.gateway clean
+	make -f Makefile.$DB clean
 	make -f Makefile.host clean
+
 	make -f Makefile.gateway || exit 1
-	cp out/contiki-sky/app_gateway.exe $FILENAME_GATEWAY &&
+	cp out/contiki-sky/app_gateway.exe $FILENAME_GATEWAY || exit 1
+
 	make -f Makefile.$DB || exit 1
-	cp out/contiki-sky/app_database.exe $FILENAME_DB &&
+	cp out/contiki-sky/app_database.exe $FILENAME_DB || exit 1
+
 	make -f Makefile.host || exit 1
 
 	echo
@@ -93,33 +105,30 @@ function generate_stuff() {
 	echo
 }
 
+DEBUG=1
 
 AREA=alpha
 DB=antelope
 RDF=incontextsensing.rdf
 MODE=find
-DEBUG=0
 generate_stuff
 
 AREA=bravo
 DB=tuplestore
 RDF=incontextsensing.rdf
 MODE=find
-DEBUG=0
 generate_stuff
 
 AREA=charlie
 DB=antelope
 RDF=incontextsensing.rdf
 MODE=insert
-DEBUG=0
 generate_stuff
 
 AREA=delta
 DB=tuplestore
 RDF=incontextsensing.rdf
 MODE=insert
-DEBUG=0
 generate_stuff
 
 ./sync_ibbt.sh 

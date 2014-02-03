@@ -3,6 +3,9 @@
 	//#define NTUPLES 76
 //#endif
 
+#if APP_DATABASE_DEBUG
+	#define APP_HEARTBEAT 1
+#endif
 
 
 		void init(Os::AppMainParameter& amp) {
@@ -61,7 +64,7 @@
 		bool first_receive;
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
 
-			if(data[0] == 0x99 && data[1] == EXP_NR) {
+			if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {
 				if(first_receive) {
 					initialize_db();
 					first_receive = false;
@@ -69,6 +72,10 @@
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
 				if(pos != 0 && pos <= lastpos) {
+					#if APP_DATABASE_DEBUG
+						debug_->debug("ignpos %d <= %d", (int)pos, (int)lastpos);
+					#endif
+
 					// only accept "later" writes, especially important
 					// so we dont process the end marker twice (triggering
 					// timers at the double, ouch!)
@@ -94,14 +101,23 @@
 					memcpy(rdf_buffer_ + pos, data + 4, len - 4);
 				}
 
-				block_data_t ack[] = { 0xAA, EXP_NR, 0, 0 };
+				block_data_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
 				wiselib::write<Os, block_data_t, ::uint16_t>(ack + 2, pos);
 				radio_->send(from, 4, ack); 
 			}
-			else if(data[0] == 0xbb && data[1] == EXP_NR) {
-				//debug_->debug("reboot!");
+			else if(data[0] == 0xbb && data[1] == (EXP_NR & 0xff)) {
+				#if APP_DATABASE_DEBUG
+					debug_->debug("reboot!");
+				#endif
 				// REBOOT command
 				reboot();
+			}
+			else {
+				#if APP_DATABASE_DEBUG
+					debug_->debug("ign %02x %02x %02x %02x expnr %02x",
+						(int)data[0], (int)data[1], (int)data[2], (int)data[3],
+						(int)EXP_NR);
+				#endif
 			}
 		}
 

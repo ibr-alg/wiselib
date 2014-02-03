@@ -24,9 +24,9 @@ BASELINE_ENERGY = 0.568206918430233
 # Gateway hostname -> DB hostname
 gateway_to_db = {
     'inode001': 'inode004',
-    'inode005': 'inode006',
-    'inode007': 'inode008',
-    'inode009': 'inode010'
+    'inode007': 'inode010',
+    'inode009': 'inode008',
+    'inode013': 'inode012'
 }
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
@@ -46,15 +46,16 @@ class ExperimentClass:
         return (
             self.dataset == other.dataset and
             self.mode == other.mode and
-            self.debug == other.debug
+            self.debug == other.debug and
+            self.database == other.database
         )
 
     def reprname(self):
-        return self.dataset.replace('.rdf', '') + '_' + self.mode + (' DBG' if
+        return self.database + '_' + self.dataset.replace('.rdf', '') + '_' + self.mode + (' DBG' if
 self.debug else '')
 
     def __hash__(self):
-        return hash(self.dataset) ^ hash(self.mode) ^ hash(self.debug)
+        return hash(self.dataset) ^ hash(self.mode) ^ hash(self.debug) ^ hash(self.database)
 
 class Experiment:
     def __init__(self):
@@ -70,7 +71,7 @@ class Experiment:
         self.energy[i].append(t)
 
     def set_tuplecounts(self, tcs):
-        self.tuplecounts = tcs
+        self.tuplecounts = cum(tcs)
 
 def add_experiment(cls):
     global experiments
@@ -89,7 +90,8 @@ def process_directory(d):
     energy = read_energy(d + '.csv')
     for gw, db in gateway_to_db.items():
         fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
-        fn_dbout = d + '/' + db + '/output.txt'
+        #fn_dbout = d + '/' + db + '/output.txt'
+        fn_gwout = d + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
@@ -98,16 +100,29 @@ def process_directory(d):
 
         v = read_vars(fn_gwinfo)
         cls = ExperimentClass(v)
+        print("  db:{} rdf:{} mode:{}".format(cls.database, cls.dataset, cls.mode))
+
         exp = add_experiment(cls)
-        tc = parse_tuple_counts(open(fn_dbout, 'r'), d)
+        tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
+        if not tc:
+            print("  no tuplecounts found in {}, using default".format(fn_gwout))
+            tc = [7, 6, 8, 11, 11, 10, 11, 9]
         exp.set_tuplecounts(tc)
         #print(energy[inode_to_mote_id(db)])
-        runs_t, runs_e = process_energy(energy[inode_to_mote_id(db)], v['mode'])
+        mid = inode_to_mote_id(db)
+        if mid not in energy:
+            print("  no energy values for {}. got values for {}".format(mid, str(energy.keys())))
+            continue
 
+        runs_t, runs_e = process_energy(energy[mid], v['mode'])
+
+        runs_count = 0
         for ts, es in zip(runs_t, runs_e):
+            runs_count += 1
             for i, (t, e) in enumerate(zip(ts, es)):
                 if t != 0 or e != 0:
                     exp.add_measurement(i, t, e)
+        print("  processed {} experiment runs.".format(runs_count))
 
 def read_vars(fn):
     r = {}
@@ -120,23 +135,24 @@ def read_vars(fn):
             r[k] = v[1:-1]
         else:
             r[k] = int(v)
+    if 'database' not in r:
+        r['database'] = 'db'
+
     return r
 
 def read_energy(fn):
-    ts = []
-    vs = []
     r = {}
 
     #reader = csv.DictReader(f, delimiter=';', quotechar='"')
     reader = csv.DictReader(open(fn, 'r'), delimiter='\t', quotechar='"')
-    t = 0
+    #t = {}
     for row in reader:
-        v = float(row['avg']) * CURRENT_FACTOR
-        t += MEASUREMENT_INTERVAL
         mote_id = row['motelabMoteID']
         if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
-        #print(r.keys())
+
+        t = r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
         r[mote_id]['ts'].append(t)
+        v = float(row['avg']) * CURRENT_FACTOR
         r[mote_id]['vs'].append(v)
 
     return r
@@ -146,7 +162,7 @@ def parse_tuple_counts(f, expid):
     for line in f:
         m = re.search(r'sent ([0-9]+) tuples chk', line)
         if m is not None:
-            if expid >= 24638:
+            if int(expid) >= 24638:
                 # starting from exp 24638 tuple counts are reported
                 # incrementally
                 r.append(int(m.groups()[0]) - (sum(r) if len(r) else 0))
@@ -158,8 +174,7 @@ def parse_tuple_counts(f, expid):
 def process_energy(d, mode):
     ts = d['ts']
     vs = d['vs']
-    for k, v in d.items():
-        print(k, len(v))
+    fig_energy(ts, vs)
 
     # setup as follows:
     #
@@ -254,8 +269,7 @@ def process_energy(d, mode):
 
         elif state is idle_between:
             if v > HIGH:
-                print("find measurement skipped high at {} l={}".format(t,
-len(esums_i)))
+                print("  find measurement skipped high at {}".format(t))
                 if mode == 'find':
                     sums_e.append(0)
                     sums_t.append(0)
@@ -280,7 +294,7 @@ len(esums_i)))
                     sums_t.append(t - t0)
                     sums_e.append(esum)
             elif v > HIGH:
-                print("find measurement aborted high at {} t0={} esum={}".format(t, t0, esum
+                print("  find measurement aborted high at {} t0={} esum={}".format(t, t0, esum
 - BASELINE_ENERGY))
                 # what we thought was a find measurement was actually a
                 # rising edge for the high idle state,
@@ -348,10 +362,22 @@ def frange(a, b, step):
 def plot_energies(experiments, fname='energies.pdf'):
     fig = plt.figure()
     ax = plt.subplot(111)
-    ax.set_xticklabels(experiments[0].tuplecounts)
+    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
+    for exp in experiments:
+        if exp.energy:
+            print(len(exp.energy), len(exp.tuplecounts))
+            ax.boxplot(exp.energy, positions=exp.tuplecounts[:len(exp.energy)])
+    print("writing {}.".format(fname))
+    fig.savefig(fname)
+
+def plot_times(experiments, fname='times.pdf'):
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
     for exp in experiments:
         print(exp.energy)
-        plt.boxplot(exp.energy)
+        if exp.energy:
+            ax.boxplot(exp.energy, positions=exp.tuplecounts)
     print("writing {}.".format(fname))
     fig.savefig(fname)
 
@@ -362,7 +388,7 @@ def fig_energy(ts, vs):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((3810, 3826))
+    ax.set_xlim((500, 600))
     #ax.set_ylim((0, 3))
     ax.grid()
 
