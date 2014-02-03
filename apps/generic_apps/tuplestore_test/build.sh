@@ -117,30 +117,27 @@ function generate_stuff() {
 
 rm *.exe
 
-DEBUG=1
+DEBUG=0
+RDF=incontextsensing.rdf
 
+DB=tuplestore
+MODE=insert
 AREA=alpha
-DB=antelope
-RDF=incontextsensing.rdf
-MODE=insert
 generate_stuff
 
+DB=tuplestore
+MODE=find
 AREA=bravo
-DB=antelope
-RDF=incontextsensing.rdf
-MODE=insert
 generate_stuff
 
+DB=antelope
+MODE=insert
 AREA=charlie
-DB=antelope
-RDF=incontextsensing.rdf
-MODE=insert
 generate_stuff
 
-AREA=delta
 DB=antelope
-RDF=incontextsensing.rdf
-MODE=insert
+MODE=find
+AREA=delta
 generate_stuff
 
 ls -lh *.exe

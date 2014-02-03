@@ -23,20 +23,73 @@ BASELINE_ENERGY = 0.568206918430233
 
 # Gateway hostname -> DB hostname
 gateway_to_db = {
-    'inode001': 'inode004',
+    'inode015': 'inode016',
     'inode007': 'inode010',
-    'inode009': 'inode008',
-    'inode013': 'inode012'
+    'inode011': 'inode014',
+    'inode009': 'inode008'
 }
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
 experiments = {}
 
+def median(l):
+    #print("{} -> {}".format(l, sorted(l)[int(len(l) / 2)]))
+    sl = sorted(l)
+    if len(l) % 2:
+        return sorted(l)[int(len(l) / 2)]
+    return (sl[int(len(l) / 2)] + sl[int(len(l) / 2 - 1)]) / 2.0
+
 def main():
     process_directories(sys.argv[1:])
     
-    for k, v in experiments.items():
-        plot_energies([v], k.reprname() + '.pdf')
+    fig_e = plt.figure()
+    ax_e = plt.subplot(111)
+
+    fig_t = plt.figure()
+    ax_t = plt.subplot(111)
+
+    shift = 1
+    for k, exp in experiments.items():
+        #plot_energies([v], k.reprname() + '.pdf')
+        if k.mode == 'insert':
+            pos_e = [x + shift for x in exp.tuplecounts[:len(exp.energy)]]
+            pos_t = [x + shift for x in exp.tuplecounts[:len(exp.time)]]
+
+            ax_e.boxplot(exp.energy, positions=pos_e)
+            ax_e.plot(pos_e, [median(x) for x in exp.energy], label=k.database)
+
+            ax_t.boxplot(exp.time, positions=[x + shift for x in exp.tuplecounts[:len(exp.time)]])
+            ax_t.plot(pos_t, [median(x) for x in exp.time], label=k.database)
+            shift -= 1
+
+    ax_e.legend()
+
+    fig_e.savefig('energies.pdf')
+    fig_t.savefig('times.pdf')
+            
+
+
+def plot_energies(experiments, fname='energies.pdf'):
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
+    for exp in experiments:
+        if exp.energy:
+            #print(len(exp.energy), len(exp.tuplecounts))
+            ax.boxplot(exp.energy, positions=exp.tuplecounts[:len(exp.energy)])
+    print("writing {}.".format(fname))
+    fig.savefig(fname)
+
+def plot_times(experiments, fname='times.pdf'):
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
+    for exp in experiments:
+        #print(exp.energy)
+        if exp.energy:
+            ax.boxplot(exp.energy, positions=exp.tuplecounts)
+    print("writing {}.".format(fname))
+    fig.savefig(fname)
 
 class ExperimentClass:
     def __init__(self, d):
@@ -114,7 +167,7 @@ def process_directory(d):
             print("  no energy values for {}. got values for {}".format(mid, str(energy.keys())))
             continue
 
-        runs_t, runs_e = process_energy(energy[mid], v['mode'])
+        runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=v['mode'] + '_' + v['database'])
 
         runs_count = 0
         for ts, es in zip(runs_t, runs_e):
@@ -171,10 +224,10 @@ def parse_tuple_counts(f, expid):
     return r
 
 #def find_tuple_spikes(ts, vs):
-def process_energy(d, mode):
+def process_energy(d, mode, lbl=''):
     ts = d['ts']
     vs = d['vs']
-    fig_energy(ts, vs)
+    fig_energy(ts, vs, lbl)
 
     # setup as follows:
     #
@@ -262,7 +315,8 @@ def process_energy(d, mode):
                     sums_t.append(t - t0)
                     sums_e.append(esum)
             else:
-                assert v < HIGH
+                #print(v, t)
+                #assert v < HIGH
                 if mode == 'insert':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
                     tprev = t
@@ -359,41 +413,19 @@ def frange(a, b, step):
     return [x * step for x in range(int(a / step), int(b / step))]
 
 
-def plot_energies(experiments, fname='energies.pdf'):
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
-    for exp in experiments:
-        if exp.energy:
-            print(len(exp.energy), len(exp.tuplecounts))
-            ax.boxplot(exp.energy, positions=exp.tuplecounts[:len(exp.energy)])
-    print("writing {}.".format(fname))
-    fig.savefig(fname)
-
-def plot_times(experiments, fname='times.pdf'):
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
-    for exp in experiments:
-        print(exp.energy)
-        if exp.energy:
-            ax.boxplot(exp.energy, positions=exp.tuplecounts)
-    print("writing {}.".format(fname))
-    fig.savefig(fname)
-
-def fig_energy(ts, vs):
+def fig_energy(ts, vs, n):
     fig = plt.figure()
     ax = plt.subplot(111)
     
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((500, 600))
+    #ax.set_xlim((263, 278))
     #ax.set_ylim((0, 3))
     ax.grid()
 
     ax.plot(ts, vs)
-    fig.savefig('energy.pdf')
+    fig.savefig('energy_{}.pdf'.format(n))
 
 def cum(l):
     s = 0
@@ -406,7 +438,7 @@ def cum(l):
 def plot_experiment(n, ax, **kwargs):
     global fig
     ts, vs = parse_energy(open('{}.csv'.format(n), 'r'))
-    fig_energy(ts, vs)
+    fig_energy(ts, vs, n)
     #tc = parse_tuple_counts(open('{}/inode001/output.txt'.format(n), 'r', encoding='latin1'), int(n))
     d = find_tuple_spikes(ts, vs)
     
