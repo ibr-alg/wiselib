@@ -172,6 +172,7 @@ clean:
 		obj_* symbols.* contiki-* \
 		_TOSSIMmodule.so TOSSIM.* build/ simbuild/ app.xml
 	rm -f out/*
-	find . -executable -type f -and -not -iname '*.py' -and -not -iname '*.sh' -delete
+	# Sorry guys, but this is waaaay to spooky
+	#find . -executable -type f -and -not -iname '*.py' -and -not -iname '*.sh' -delete
 	rm *.d *.hex
 	rmdir out

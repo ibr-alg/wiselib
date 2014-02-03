@@ -131,6 +131,8 @@ RDF=incontextsensing.rdf
 MODE=insert
 generate_stuff
 
+ls -lh *.exe
+
 ./sync_ibbt.sh 
 
 
