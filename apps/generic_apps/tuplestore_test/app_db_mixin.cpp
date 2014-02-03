@@ -7,6 +7,7 @@
 	#define APP_HEARTBEAT 1
 #endif
 
+		//node_id_t gateway_address;
 
 		void init(Os::AppMainParameter& amp) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
@@ -21,6 +22,8 @@
 			first_receive = true;
 			lastpos = 0;
 			tuples = 0;
+			
+			//gateway_address = Radio::BROADCAST_ADDRESS;
 
 		#if APP_DATABASE_DEBUG
 			debug_->debug("db boot %lu", (unsigned long)radio_->id());
@@ -83,6 +86,8 @@
 				}
 				lastpos = pos;
 
+				//gateway_address = from;
+
 			#if APP_DATABASE_DEBUG
 				debug_->debug("(rcv %x %x %x p%d l%d)", (int)data[0], (int)data[1], (int)data[2], (int)pos, (int)len);
 			#endif
@@ -109,6 +114,7 @@
 				#if APP_DATABASE_DEBUG
 					debug_->debug("reboot!");
 				#endif
+				//gateway_address = from;
 				// REBOOT command
 				reboot();
 			}

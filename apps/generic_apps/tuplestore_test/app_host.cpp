@@ -31,7 +31,8 @@ class App {
 		size_t triples;
 
 		enum { TUPLE_SLEEP = 50 };
-		enum { SEND_INTERVAL = 30000 };
+		enum { SEND_INTERVAL = 60000 };
+		//enum { RESEND_INTERVAL = 1000 };
 
 
 		::uint32_t wait; // * 10s
@@ -45,7 +46,7 @@ class App {
 			
 			wait = 1;
 			timer_->set_timer<App, &App::go>(10000, this, 0);
-			timer_->set_timer<App, &App::exit_app>(10UL * 60UL * 1000UL, this, 0);
+			timer_->set_timer<App, &App::exit_app>(20UL * 60UL * 1000UL, this, 0);
 		}
 
 		void exit_app(void*_=0) {

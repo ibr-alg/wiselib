@@ -36,6 +36,8 @@ class App {
 		Os::Radio::self_pointer_t radio_;
 		Os::Timer::self_pointer_t timer_;
 
+		node_id_t db_address;
+
 		void init(Os::AppMainParameter& amp) {
       		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet(amp);
 			uart_->enable_serial_comm();
@@ -50,6 +52,8 @@ class App {
 			bytes_received_ = 0;
 			state_ = RECV_UART;
 
+			db_address = Radio::BROADCAST_ADDRESS;
+
 			//debug_->debug("GWBT");
 		}
 
@@ -58,7 +62,7 @@ class App {
 
 		void on_receive_uart(Uart::size_t len, Uart::block_data_t *data) {
 			if(state_ != RECV_UART) {
-				return;
+				//return;
 			}
 
 			memcpy(rdf_buffer_ + bytes_received_, data, len);
@@ -145,9 +149,9 @@ class App {
 		void send_reboot(void*_=0) {
 			block_data_t b[] = {0xBB, EXP_NR};
 
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, b);
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, b);
-			radio_->send(Os::Radio::BROADCAST_ADDRESS, 2, b);
+			radio_->send(db_address, 2, b);
+			radio_->send(db_address, 2, b);
+			//radio_->send(db_address, 2, b);
 		}
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
@@ -155,6 +159,8 @@ class App {
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
 				if(pos == bytes_sent_) {
+					db_address = from;
+
 					int s = sending_size();
 
 					bytes_sent_ += s;

@@ -4,6 +4,8 @@ VARFILE=/tmp/mnt/$(hostname).vars
 
 echo boot $(date) >>/tmp/log/timestamps
 echo $(hostname) >/tmp/log/hostname.txt
+sleep $((5 * 60))
+echo done waiting $(date) >>/tmp/log/timestamps
 
 if [ -e $VARFILE ]; then
 	. $VARFILE
