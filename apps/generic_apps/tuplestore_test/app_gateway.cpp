@@ -36,7 +36,7 @@ class App {
 		Os::Radio::self_pointer_t radio_;
 		Os::Timer::self_pointer_t timer_;
 
-		node_id_t db_address;
+		Os::Radio::node_id_t db_address;
 
 		void init(Os::AppMainParameter& amp) {
       		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet(amp);
