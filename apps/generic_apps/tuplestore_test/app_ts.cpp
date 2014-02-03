@@ -1,5 +1,9 @@
 
 #include "defs.h"
+#if APP_DATABASE_DEBUG
+	#define APP_HEARTBEAT 1
+#endif
+
 
 #include "platform.h"
 
@@ -51,6 +55,9 @@ class App {
 		void initialize_db() {
 			dictionary_.init(debug_);
 			tuplestore_.init(&dictionary_, &container_, debug_);
+			#if APP_DATABASE_DEBUG
+				debug_->debug("ts initialized");
+			#endif
 		}
 
 		void insert_tuple(char* s, char* p, char* o) {

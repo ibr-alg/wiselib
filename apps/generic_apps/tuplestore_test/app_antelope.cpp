@@ -1,5 +1,9 @@
 
 #include "defs.h"
+#if APP_DATABASE_DEBUG
+	#define APP_HEARTBEAT 1
+#endif
+
 //#define APP_DATABASE_DEBUG 0
 //#define APP_DATABASE_FIND  1
 //#define APP_HEARTBEAT 0
@@ -27,6 +31,7 @@ extern "C" {
 	#include <contiki.h>
 	#include <netstack.h>
 	#include <antelope.h>
+	#include <cfs/cfs-coffee.h>
 }
 #endif
 
@@ -37,6 +42,9 @@ class App {
 
 
 		void initialize_db() {
+			//erase_sector(0);
+			cfs_coffee_format();
+
 			db_init();
 			db_result result;
 			result = db_query(NULL, "REMOVE RELATION rdf;");

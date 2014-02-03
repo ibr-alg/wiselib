@@ -3,10 +3,6 @@
 	//#define NTUPLES 76
 //#endif
 
-#if APP_DATABASE_DEBUG
-	#define APP_HEARTBEAT 1
-#endif
-
 		//node_id_t gateway_address;
 
 		void init(Os::AppMainParameter& amp) {
@@ -45,13 +41,13 @@
 
 		#if APP_HEARTBEAT
 			void heartbeat(void* v) {
-				debug_->debug("<3 %lu", (unsigned long)v);
+				debug_->debug("<3 %lu E%d " DATABASE " " MODE " " DATASET, (unsigned long)v, (int)EXP_NR);
 				timer_->set_timer<App, &App::heartbeat>(10000, this, (void*)((unsigned long)v + 10));
 			}
 		#endif
 
 		enum {
-			MAX_ELEMENT_LENGTH = 120
+			MAX_ELEMENT_LENGTH = 160
 		};
 
 		block_data_t rdf_buffer_[1024];
@@ -69,8 +65,11 @@
 
 			if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {
 				if(first_receive) {
-					initialize_db();
 					first_receive = false;
+					#if APP_DATABASE_DEBUG
+						debug_->debug("first rcv re-initing db");
+					#endif
+					initialize_db();
 				}
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
@@ -78,6 +77,9 @@
 					#if APP_DATABASE_DEBUG
 						debug_->debug("ignpos %d <= %d", (int)pos, (int)lastpos);
 					#endif
+					block_data_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
+					wiselib::write<Os, block_data_t, ::uint16_t>(ack + 2, pos);
+					radio_->send(from, 4, ack); 
 
 					// only accept "later" writes, especially important
 					// so we dont process the end marker twice (triggering
@@ -129,6 +131,9 @@
 
 
 		void disable_radio(void*) {
+			#if APP_DATABASE_DEBUG
+				debug_->debug("radio off");
+			#endif
 			radio_->disable_radio();
 			#if defined(CONTIKI)
 				NETSTACK_RDC.off(false);
@@ -136,6 +141,9 @@
 		}
 
 		void enable_radio(void*) {
+			#if APP_DATABASE_DEBUG
+				debug_->debug("radio on");
+			#endif
 			#if defined(CONTIKI)
 				NETSTACK_RDC.on();
 			#endif

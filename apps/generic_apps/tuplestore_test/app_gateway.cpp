@@ -8,21 +8,34 @@ typedef OSMODEL Os;
 typedef OSMODEL OsModel;
 typedef Os::block_data_t block_data_t;
 typedef Os::size_t size_type;
-	// Enable dynamic memory allocation using malloc() & free()
-	//#include "util/allocators/malloc_free_allocator.h"
-	//typedef MallocFreeAllocator<Os> Allocator;
-	//Allocator& get_allocator();
 
 typedef Os::Uart Uart;
 typedef Os::Radio Radio;
 #include <util/meta.h>
 #include <algorithms/hash/crc16.h>
 
+/**
+ * Receive tuples from uart and send them out to a database node.
+ * Format via uart is zero-terminated elements strings, terminated with a
+ * CRC16 followed by two 0-bytes.
+ * "<http://foo/bar>\0<http://bar/baz>\0....\xAB\xCD\x00\x00"
+ *
+ * max length per transfer is 1024 and between two transfers, sender should
+ * wait long enough to send & process the data including waiting times for
+ * readable energy profile, altogether 30-60s.
+ *
+ * Special instructions:
+ * "\x00\x00\x00\x00" -> clear buffer, i.e. start new set of strings
+ * "\xff\xff\x00\x00" -> send reset command to database node
+ *
+ * (note that if crc is 00 00 or FF FF you will likely have a problem ;))
+ */
 class App {
 	// {{{
 	public:
 
 		enum { BUFFER_SIZE = 1024 };
+		enum { RESEND_INTERVAL = 1000 };
 
 		enum State { RECV_UART, SEND_RADIO };
 		int state_;
@@ -39,16 +52,16 @@ class App {
 		Os::Radio::node_id_t db_address;
 
 		void init(Os::AppMainParameter& amp) {
-      		uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet(amp);
+			uart_ = &wiselib::FacetProvider<Os, Uart>::get_facet(amp);
 			uart_->enable_serial_comm();
 			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
 
-      		radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
+			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
 			radio_->enable_radio();
 			radio_->reg_recv_callback<App, &App::on_receive>(this);
 
-      		debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
-      		timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
+			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet(amp);
+			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
 			bytes_received_ = 0;
 			state_ = RECV_UART;
 
@@ -62,7 +75,7 @@ class App {
 
 		void on_receive_uart(Uart::size_t len, Uart::block_data_t *data) {
 			if(state_ != RECV_UART) {
-				//return;
+				return;
 			}
 
 			memcpy(rdf_buffer_ + bytes_received_, data, len);
@@ -137,7 +150,7 @@ class App {
 			radio_->send( Os::Radio::BROADCAST_ADDRESS, s + 4, sending_);
 
 			if(s) {
-				timer_->set_timer<App, &App::on_ack_timeout>(1000, this, (void*)ack_timeout_guard_);
+				timer_->set_timer<App, &App::on_ack_timeout>(RESEND_INTERVAL, this, (void*)ack_timeout_guard_);
 			}
 			else {
 				bytes_sent_ = 0;
@@ -150,7 +163,7 @@ class App {
 			block_data_t b[] = {0xBB, EXP_NR};
 
 			radio_->send(db_address, 2, b);
-			radio_->send(db_address, 2, b);
+			//radio_->send(db_address, 2, b);
 			//radio_->send(db_address, 2, b);
 		}
 
@@ -166,6 +179,8 @@ class App {
 					bytes_sent_ += s;
 					ack_timeout_guard_++;
 					timer_->set_timer<App, &App::send_rdf>(100, this, 0);
+
+					debug_->debug("acked: %d", (int)bytes_sent_);
 				}
 			}
 		}
