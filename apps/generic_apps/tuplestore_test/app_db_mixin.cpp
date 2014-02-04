@@ -12,6 +12,7 @@
 			//rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(amp);
 
 			radio_->enable_radio();
+			receiving = true;
 			radio_->reg_recv_callback<App, &App::on_receive>(this);
 
 			//initialize_db();
@@ -57,11 +58,13 @@
 		Os::Debug::self_pointer_t debug_;
 		//Os::Rand::self_pointer_t rand_;
 
+		bool receiving;
 		::uint16_t lastpos;
 		::uint16_t tuples;
 
 		bool first_receive;
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
+			if(!receiving) { return; }
 
 			if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {
 				if(first_receive) {
@@ -98,6 +101,7 @@
 					#if APP_DATABASE_DEBUG
 						debug_->debug("recv end");
 					#endif
+					receiving = false;
 					timer_->set_timer<App, &App::start_insert>(5000, this, 0);
 					timer_->set_timer<App, &App::disable_radio>(1000, this, 0);
 				}
@@ -148,6 +152,7 @@
 				NETSTACK_RDC.on();
 			#endif
 			radio_->enable_radio();
+			receiving = true;
 		}
 
 		void start_insert(void*) {
