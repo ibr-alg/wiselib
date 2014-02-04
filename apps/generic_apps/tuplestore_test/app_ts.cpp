@@ -87,6 +87,22 @@ class App {
 			v = *tuplestore_.begin(&t, mask);
 		}
 
+		void find_erase(block_data_t* s, block_data_t* p, block_data_t* o) {
+			Tuple t;
+			t.set(0, s);
+			t.set(1, p);
+			t.set(2, o);
+
+			CodecTupleStoreT::column_mask_t mask =
+				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
+
+			Tuple v;
+			ContainerTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
+			do {
+				iter = tuplestore_.erase(iter);
+			} while(iter != tuplestore_.end());
+		}
+
 };
 
 // <general wiselib boilerplate>

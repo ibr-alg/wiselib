@@ -33,6 +33,7 @@ gateway_to_db = {
 experiments = {}
 
 def median(l):
+    if len(l) == 0: return 0
     #print("{} -> {}".format(l, sorted(l)[int(len(l) / 2)]))
     sl = sorted(l)
     if len(l) % 2:
@@ -42,30 +43,92 @@ def median(l):
 def main():
     process_directories(sys.argv[1:])
     
-    fig_e = plt.figure()
-    ax_e = plt.subplot(111)
+    fig_i_e = plt.figure()
+    ax_i_e = plt.subplot(111)
 
-    fig_t = plt.figure()
-    ax_t = plt.subplot(111)
+    fig_i_t = plt.figure()
+    ax_i_t = plt.subplot(111)
 
-    shift = 1
+    fig_f_e = plt.figure()
+    ax_f_e = plt.subplot(111)
+
+    fig_f_t = plt.figure()
+    ax_f_t = plt.subplot(111)
+
+    shift_i = 1
+    shift_f = 1
     for k, exp in experiments.items():
         #plot_energies([v], k.reprname() + '.pdf')
         if k.mode == 'insert':
-            pos_e = [x + shift for x in exp.tuplecounts[:len(exp.energy)]]
-            pos_t = [x + shift for x in exp.tuplecounts[:len(exp.time)]]
+            pos_e = [x + shift_i for x in exp.tuplecounts[:len(exp.energy)]]
+            pos_t = [x + shift_i for x in exp.tuplecounts[:len(exp.time)]]
 
-            ax_e.boxplot(exp.energy, positions=pos_e)
-            ax_e.plot(pos_e, [median(x) for x in exp.energy], label=k.database)
+            # If for some weird reason we have more data points than
+            # sent out packets, put the rest at pos 100 so we notice something
+            # is up (but still can see most of the values)
+            pos_e += [100] * (len(exp.energy) - len(pos_e))
+            pos_t += [100] * (len(exp.time) - len(pos_t))
 
-            ax_t.boxplot(exp.time, positions=[x + shift for x in exp.tuplecounts[:len(exp.time)]])
-            ax_t.plot(pos_t, [median(x) for x in exp.time], label=k.database)
-            shift -= 1
+            ax_i_e.boxplot(exp.energy, positions=pos_e)
+            print('insert', k.database, [len(l) for l in exp.energy])
+            ax_i_e.plot(pos_e, [median(x) for x in exp.energy], label=k.database)
 
-    ax_e.legend()
+            ax_i_t.boxplot(exp.time, positions=[x + shift_i for x in exp.tuplecounts[:len(exp.time)]])
+            ax_i_t.plot(pos_t, [median(x) for x in exp.time], label=k.database)
+            shift_i -= 1
 
-    fig_e.savefig('energies.pdf')
-    fig_t.savefig('times.pdf')
+        elif k.mode == 'find':
+            if k.database == 'antelope': continue
+
+            pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
+            pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
+
+            # If for some weird reason we have more data points than
+            # sent out packets, put the rest at pos 100 so we notice something
+            # is up (but still can see most of the values)
+            pos_e += [100] * (len(exp.energy) - len(pos_e))
+            pos_t += [100] * (len(exp.time) - len(pos_t))
+
+            try:
+                ax_f_e.boxplot(exp.energy, positions=pos_e)
+                print('find', k.database, [len(l) for l in exp.energy])
+            except Exception as e:
+                print(e)
+                print('exp.energy', exp.energy)
+                print('pos_e', pos_e)
+
+            try:
+                ax_f_e.plot(pos_e, [median(x) for x in exp.energy], label=k.database)
+            except Exception as e:
+                print(e)
+                print('exp.energy', exp.energy)
+                print('pos_e', pos_e)
+
+            try:
+                ax_f_t.boxplot(exp.time, positions=pos_t)
+            except Exception as e:
+                print(e)
+                print('exp.time', exp.time)
+                print('pos_t', pos_t)
+
+            try:
+                ax_f_t.plot(pos_t, [median(x) for x in exp.time], label=k.database)
+            except Exception as e:
+                print(e)
+                print('exp.time', exp.time)
+                print('pos_t', pos_t)
+
+            shift_f -= 1
+
+    ax_i_e.legend()
+    ax_i_t.legend()
+    ax_f_e.legend()
+    ax_f_t.legend()
+
+    fig_i_e.savefig('pdf_out/energies_insert.pdf')
+    fig_i_t.savefig('pdf_out/times_insert.pdf')
+    fig_f_e.savefig('pdf_out/energies_find.pdf')
+    fig_f_t.savefig('pdf_out/times_find.pdf')
             
 
 
@@ -140,6 +203,7 @@ def process_directories(dirs):
 
 def process_directory(d):
     d = str(d).strip('/')
+    print(d)
     energy = read_energy(d + '.csv')
     for gw, db in gateway_to_db.items():
         fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
@@ -149,7 +213,7 @@ def process_directory(d):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
 
-        print("processing {}, {}".format(gw, db))
+        print(" processing {}, {}".format(gw, db))
 
         v = read_vars(fn_gwinfo)
         cls = ExperimentClass(v)
@@ -317,13 +381,19 @@ def process_energy(d, mode, lbl=''):
             else:
                 #print(v, t)
                 #assert v < HIGH
-                if mode == 'insert':
+                if v >= HIGH:
+                    print("  insert abort high t={}".format(t))
+                    sums_e.append(0)
+                    sums_t.append(0)
+                    state = idle_high
+                    thigh = t
+                elif mode == 'insert':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
                     tprev = t
 
         elif state is idle_between:
             if v > HIGH:
-                print("  find measurement skipped high at {}".format(t))
+                #print("  find measurement skipped high at {}".format(t))
                 if mode == 'find':
                     sums_e.append(0)
                     sums_t.append(0)
@@ -348,8 +418,7 @@ def process_energy(d, mode, lbl=''):
                     sums_t.append(t - t0)
                     sums_e.append(esum)
             elif v > HIGH:
-                print("  find measurement aborted high at {} t0={} esum={}".format(t, t0, esum
-- BASELINE_ENERGY))
+                #print("  find measurement aborted high at {} t0={} esum={}".format(t, t0, esum - BASELINE_ENERGY))
                 # what we thought was a find measurement was actually a
                 # rising edge for the high idle state,
                 # seems there was no (measurable) find process, record a
@@ -420,7 +489,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((263, 278))
+    #ax.set_xlim((380, 410))
     #ax.set_ylim((0, 3))
     ax.grid()
 

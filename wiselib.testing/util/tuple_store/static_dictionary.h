@@ -316,8 +316,19 @@ namespace wiselib {
 
 						found = false;
 						// find a free slot
-						for(key_type i = start_pos; i != end_pos; i = (i+1) % SLOTS) {
-							if(!slots_[i].refcount_) { return i; }
+						for(key_type i = (start_pos + 1) % SLOTS; i != end_pos; i = (i+1) % SLOTS) {
+							if(!slots_[i].refcount_) {
+								found = false;
+								return i;
+							}
+							// if we should happen to find a matching slot on
+							// the way, thats fine!
+							else if(slots[i].meta_ == meta && memcmp(data, slots_[i].data_, l) == 0) {
+								// a used slot that looks like s!
+								slots_[i].refcount_++;
+								found = true;
+								return i;
+							}
 						}
 					}
 					else {

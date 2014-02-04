@@ -236,22 +236,37 @@
 
 			char buf[MAX_ELEMENT_LENGTH];
 			void start_find(void*) {
-				int x = rand() % 3; // rand_->operator()() % 3;
-				switch(x) {
-					case 0:
-						find(0, find_p_, find_o_, buf);
-						break;
-					case 1:
-						find(find_s_, 0, find_o_, buf);
-						break;
-					default:
-						find(find_s_, find_p_, 0, buf);
-						break;
-				}
 
+				for(int i = 0; i < 10; i++) {
+					int x = 0; // rand_->operator()() % 3;
+					char *s = find_s_;
+					char *p = find_p_;
+					char *o = find_o_;
+		
+					// find a random value for x such that
+					// at least one of the lower 3 bits are set
+					while(x == 0) {
+						x = rand() & BIN(111);
+					}
+
+					if(x & BIN(001) == 0) { s = 0; }
+					if(x & BIN(010) == 0) { p = 0; }
+					if(x & BIN(100) == 0) { o = 0; }
+
+					find(s, p, o, buf);
+				}
+	
 				timer_->set_timer<App, &App::enable_radio>(1000, this, 0);
 			}
+
+			#if APP_DATABASE_ERASE
+				void start_find_erase(void*) {
+					find_erase(find_s_, find_p_, find_o_);
+				}
+			#endif
+
 		#endif // APP_DATABASE_FIND
+
 
 		struct RandomChoice {
 			//Os::Rand *rand;

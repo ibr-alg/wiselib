@@ -125,7 +125,7 @@ MODE=insert
 AREA=alpha
 generate_stuff
 
-DB=tuplestore
+DB=antelope
 MODE=find
 AREA=bravo
 generate_stuff
@@ -135,7 +135,8 @@ MODE=insert
 AREA=charlie
 generate_stuff
 
-DB=antelope
+# Delta seems to have a broken xmem or something?
+DB=tuplestore
 MODE=find
 AREA=delta
 generate_stuff
