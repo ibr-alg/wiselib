@@ -119,25 +119,22 @@ rm *.exe
 
 DEBUG=0
 RDF=incontextsensing.rdf
+MODE=find
 
-DB=tuplestore
-MODE=insert
+DB=antelope
 AREA=alpha
 generate_stuff
 
 DB=antelope
-MODE=find
 AREA=bravo
 generate_stuff
 
-DB=antelope
-MODE=insert
+DB=tuplestore
 AREA=charlie
 generate_stuff
 
 # Delta seems to have a broken xmem or something?
 DB=tuplestore
-MODE=find
 AREA=delta
 generate_stuff
 

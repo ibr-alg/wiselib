@@ -29,6 +29,12 @@ gateway_to_db = {
     'inode009': 'inode008'
 }
 
+blacklist = [
+    { 'job': '24817', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24815', 'mode': 'find', 'database': 'antelope' },
+]
+
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
 experiments = {}
 
@@ -41,7 +47,7 @@ def median(l):
     return (sl[int(len(l) / 2)] + sl[int(len(l) / 2 - 1)]) / 2.0
 
 def main():
-    process_directories(sys.argv[1:])
+    process_directories(sys.argv[1:]) #, lambda k: k.mode == 'find')
     
     fig_i_e = plt.figure()
     ax_i_e = plt.subplot(111)
@@ -57,6 +63,8 @@ def main():
 
     shift_i = 1
     shift_f = 1
+    l_f = 1
+    l_e = 1
     for k, exp in experiments.items():
         #plot_energies([v], k.reprname() + '.pdf')
         if k.mode == 'insert':
@@ -70,15 +78,14 @@ def main():
             pos_t += [100] * (len(exp.time) - len(pos_t))
 
             ax_i_e.boxplot(exp.energy, positions=pos_e)
-            print('insert', k.database, [len(l) for l in exp.energy])
             ax_i_e.plot(pos_e, [median(x) for x in exp.energy], label=k.database)
 
-            ax_i_t.boxplot(exp.time, positions=[x + shift_i for x in exp.tuplecounts[:len(exp.time)]])
+            ax_i_t.boxplot(exp.time, positions=pos_t)
             ax_i_t.plot(pos_t, [median(x) for x in exp.time], label=k.database)
             shift_i -= 1
 
         elif k.mode == 'find':
-            if k.database == 'antelope': continue
+            #if k.database == 'antelope': continue
 
             pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
             pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
@@ -89,34 +96,16 @@ def main():
             pos_e += [100] * (len(exp.energy) - len(pos_e))
             pos_t += [100] * (len(exp.time) - len(pos_t))
 
-            try:
-                ax_f_e.boxplot(exp.energy, positions=pos_e)
-                print('find', k.database, [len(l) for l in exp.energy])
-            except Exception as e:
-                print(e)
-                print('exp.energy', exp.energy)
-                print('pos_e', pos_e)
+            pos_e, es = cleanse(pos_e, exp.energy)
+            pos_t, ts = cleanse(pos_t, exp.time)
 
-            try:
-                ax_f_e.plot(pos_e, [median(x) for x in exp.energy], label=k.database)
-            except Exception as e:
-                print(e)
-                print('exp.energy', exp.energy)
-                print('pos_e', pos_e)
+            print(pos_e, es)
 
-            try:
-                ax_f_t.boxplot(exp.time, positions=pos_t)
-            except Exception as e:
-                print(e)
-                print('exp.time', exp.time)
-                print('pos_t', pos_t)
+            ax_f_e.boxplot(es, positions=pos_e)
+            ax_f_e.plot(pos_e, [median(x) for x in es], label=k.database)
 
-            try:
-                ax_f_t.plot(pos_t, [median(x) for x in exp.time], label=k.database)
-            except Exception as e:
-                print(e)
-                print('exp.time', exp.time)
-                print('pos_t', pos_t)
+            ax_f_t.boxplot(ts, positions=pos_t)
+            ax_f_t.plot(pos_t, [median(x) for x in ts], label=k.database)
 
             shift_f -= 1
 
@@ -131,6 +120,38 @@ def main():
     fig_f_t.savefig('pdf_out/times_find.pdf')
             
 
+def cleanse(l1, l2):
+    """
+    Given two lists l1 and l2 return two sublists l1' and l2' such that
+    whenever an element at position i in either l1 or l2 is None or the empty
+    list, data from that
+    position at l1 or l2 will not be present in the returned lists.
+
+    Note that specifically considers only None and [], not other values that
+    evaluate to false like 0, False or the empty string.
+
+    As a side effect it ensures the returned lists are cut to the same length
+
+    >>> cleanse([1, 2, None, 4, [], 6], [None, 200, 300, 400, 500, 600, 70, 88])
+    ([2, 4, 6], [200, 400, 600])
+
+    >>> cleanse([1, [None, None, 2, None, 3]], [[None, 100], [200, 300]])
+    ([1, [2, 3]], [[100], [200, 300]])
+
+    """
+
+    r1 = []
+    r2 = []
+    for x, y in zip(l1, l2):
+        if isinstance(x, list):
+            x = list(filter(lambda x: x is not None and x != [], x))
+        if isinstance(y, list):
+            y = list(filter(lambda z: z is not None and z != [], y))
+
+        if x is not None and x != [] and y is not None and y != []:
+            r1.append(x)
+            r2.append(y)
+    return r1, r2
 
 def plot_energies(experiments, fname='energies.pdf'):
     fig = plt.figure()
@@ -197,11 +218,11 @@ def add_experiment(cls):
 
 def inode_to_mote_id(s): return '10' + s[5:]
 
-def process_directories(dirs):
+def process_directories(dirs,f=lambda x: True):
     for d in dirs:
-        process_directory(d)
+        process_directory(d, f)
 
-def process_directory(d):
+def process_directory(d, f=lambda x: True):
     d = str(d).strip('/')
     print(d)
     energy = read_energy(d + '.csv')
@@ -217,7 +238,27 @@ def process_directory(d):
 
         v = read_vars(fn_gwinfo)
         cls = ExperimentClass(v)
-        print("  db:{} rdf:{} mode:{}".format(cls.database, cls.dataset, cls.mode))
+        cls.job = d
+        print("  {}: {} {}".format(cls.database, cls.dataset, cls.mode))
+
+        # Is this experiment blacklisted?
+        blacklisted = False
+        for b in blacklist:
+            for k, x in b.items():
+                if getattr(cls, k) != x:
+                    # does not match this blacklist entry
+                    break
+            else:
+                blacklisted = True
+                break
+
+        if blacklisted:
+            print("  (blacklisted)")
+            continue
+
+        if not f(cls):
+            print("  (ignored by filter)")
+            continue
 
         exp = add_experiment(cls)
         tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
@@ -231,6 +272,8 @@ def process_directory(d):
             print("  no energy values for {}. got values for {}".format(mid, str(energy.keys())))
             continue
 
+        print("energy", type(energy))
+        print("v", type(v))
         runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=v['mode'] + '_' + v['database'])
 
         runs_count = 0
@@ -383,8 +426,8 @@ def process_energy(d, mode, lbl=''):
                 #assert v < HIGH
                 if v >= HIGH:
                     print("  insert abort high t={}".format(t))
-                    sums_e.append(0)
-                    sums_t.append(0)
+                    sums_e.append(None)
+                    sums_t.append(None)
                     state = idle_high
                     thigh = t
                 elif mode == 'insert':
@@ -395,8 +438,8 @@ def process_energy(d, mode, lbl=''):
             if v > HIGH:
                 #print("  find measurement skipped high at {}".format(t))
                 if mode == 'find':
-                    sums_e.append(0)
-                    sums_t.append(0)
+                    sums_e.append(None)
+                    sums_t.append(None)
                 state = idle_high
                 thigh = t
             elif v > MEASUREMENT:
@@ -426,8 +469,8 @@ def process_energy(d, mode, lbl=''):
                 state = idle_high
                 thigh = t
                 if mode == 'find':
-                    sums_t.append(0)
-                    sums_e.append(0)
+                    sums_t.append(None)
+                    sums_e.append(None)
             else:
                 if mode == 'find':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
@@ -489,7 +532,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((380, 410))
+    ax.set_xlim((150, 250))
     #ax.set_ylim((0, 3))
     ax.grid()
 

@@ -323,7 +323,7 @@ namespace wiselib {
 							}
 							// if we should happen to find a matching slot on
 							// the way, thats fine!
-							else if(slots[i].meta_ == meta && memcmp(data, slots_[i].data_, l) == 0) {
+							else if(slots_[i].meta_ == meta && memcmp(data, slots_[i].data_, l) == 0) {
 								// a used slot that looks like s!
 								slots_[i].refcount_++;
 								found = true;

@@ -122,7 +122,7 @@ class App {
 						}
 
 						char *ss = spo[column];
-						if(ss && strcmp((char*)VALUE_STRING(&value), ss) != 0) {
+						if(ss && strncmp((char*)VALUE_STRING(&value), ss, 120) != 0) {
 							//debug_->debug("xxx [%d] %s != %s", column, (char*)VALUE_STRING(&value), ss);
 							match = false;
 							break;
@@ -130,15 +130,16 @@ class App {
 					}
 
 					if(match) {
-						#if APP_DATABASE_DEBUG
-							attribute_value_t vs, vp, vo;
-							db_get_value(&vs, &handle, 0);
-							db_get_value(&vp, &handle, 1);
-							db_get_value(&vo, &handle, 2);
+						attribute_value_t vs, vp, vo;
+						db_get_value(&vs, &handle, 0);
+						db_get_value(&vp, &handle, 1);
+						db_get_value(&vo, &handle, 2);
 
+						#if APP_DATABASE_DEBUG
 							debug_->debug("%d match (%s,%s,%s)", (int)jj, (char*)VALUE_STRING(&vs),
 								(char*)VALUE_STRING(&vp), (char*)VALUE_STRING(&vo));
 						#endif
+						break;
 					}
 				}
 				else if(result == DB_OK) {

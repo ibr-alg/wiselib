@@ -161,9 +161,9 @@
 				bool chosen = false;
 			#endif
 
-			char *s;
-			char *p;
-			char *o;
+			char *s = 0;
+			char *p = 0;
+			char *o = 0;
 			while(*e) {
 				if(*(e + 2) == 0 || *(e + 3) == 0) {
 					// e does not point at a tuple but at the two-byte
@@ -192,7 +192,7 @@
 			}
 
 			#if APP_DATABASE_FIND
-				if(!chosen) {
+				if(!chosen && s) {
 					strncpy((char*)find_s_, s, MAX_ELEMENT_LENGTH);
 					strncpy((char*)find_p_, p, MAX_ELEMENT_LENGTH);
 					strncpy((char*)find_o_, o, MAX_ELEMENT_LENGTH);
@@ -239,9 +239,9 @@
 
 				for(int i = 0; i < 10; i++) {
 					int x = 0; // rand_->operator()() % 3;
-					char *s = find_s_;
-					char *p = find_p_;
-					char *o = find_o_;
+					block_data_t *s = find_s_;
+					block_data_t *p = find_p_;
+					block_data_t *o = find_o_;
 		
 					// find a random value for x such that
 					// at least one of the lower 3 bits are set
@@ -249,9 +249,9 @@
 						x = rand() & BIN(111);
 					}
 
-					if(x & BIN(001) == 0) { s = 0; }
-					if(x & BIN(010) == 0) { p = 0; }
-					if(x & BIN(100) == 0) { o = 0; }
+					if((x & BIN(001)) == 0) { s = 0; }
+					if((x & BIN(010)) == 0) { p = 0; }
+					if((x & BIN(100)) == 0) { o = 0; }
 
 					find(s, p, o, buf);
 				}
