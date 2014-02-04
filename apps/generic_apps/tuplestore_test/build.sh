@@ -129,12 +129,12 @@ DB=antelope
 AREA=bravo
 generate_stuff
 
-DB=tuplestore
+DB=antelope
 AREA=charlie
 generate_stuff
 
 # Delta seems to have a broken xmem or something?
-DB=tuplestore
+DB=antelope
 AREA=delta
 generate_stuff
 

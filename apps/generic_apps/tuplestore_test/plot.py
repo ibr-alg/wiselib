@@ -30,6 +30,7 @@ gateway_to_db = {
 }
 
 blacklist = [
+    { 'job': '24818', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24817', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24815', 'mode': 'find', 'database': 'antelope' },
@@ -49,7 +50,7 @@ def median(l):
 def main():
     process_directories(
         sys.argv[1:],
-        lambda k: k.mode == 'find' and k.database == 'antelope'
+        #lambda k: k.mode == 'find' and k.database == 'antelope'
     )
     
     fig_i_e = plt.figure()
@@ -287,7 +288,8 @@ def process_directory(d, f=lambda x: True):
 
         print("energy", type(energy))
         print("v", type(v))
-        runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=v['mode'] + '_' + v['database'])
+        runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=v['mode'] + '_' + v['database']
++ '_' + db)
 
         runs_count = 0
         for ts, es in zip(runs_t, runs_e):
@@ -565,7 +567,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((600, 800))
+    ax.set_xlim((000, 800))
     #ax.set_ylim((0, 3))
     ax.grid()
 

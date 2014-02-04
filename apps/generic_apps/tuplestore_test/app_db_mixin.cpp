@@ -5,6 +5,15 @@
 
 		//node_id_t gateway_address;
 
+		enum {
+			HEARTBEAT_INTERVAL = 10000,
+			START_INSERT_INTERVAL = 1000,
+			DISABLE_RADIO_INTERVAL = 100,
+			START_FIND_INTERVAL = 5000,
+			ENABLE_RADIO_INTERVAL = 5000
+		};
+			
+
 		void init(Os::AppMainParameter& amp) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(amp);
@@ -27,7 +36,7 @@
 		#endif
 
 		#if APP_HEARTBEAT
-			timer_->set_timer<App, &App::heartbeat>(10000, this, 0);
+			timer_->set_timer<App, &App::heartbeat>(HEARTBEAT_INTERVAL, this, 0);
 		#endif
 		}
 
@@ -43,7 +52,7 @@
 		#if APP_HEARTBEAT
 			void heartbeat(void* v) {
 				debug_->debug("<3 %lu E%d " DATABASE " " MODE " " DATASET, (unsigned long)v, (int)EXP_NR);
-				timer_->set_timer<App, &App::heartbeat>(10000, this, (void*)((unsigned long)v + 10));
+				timer_->set_timer<App, &App::heartbeat>(HEARTBEAT_INTERVAL, this, (void*)((unsigned long)v + 10));
 			}
 		#endif
 
@@ -102,8 +111,8 @@
 						debug_->debug("recv end");
 					#endif
 					receiving = false;
-					timer_->set_timer<App, &App::start_insert>(5000, this, 0);
-					timer_->set_timer<App, &App::disable_radio>(1000, this, 0);
+					timer_->set_timer<App, &App::start_insert>(START_INSERT_INTERVAL, this, 0);
+					timer_->set_timer<App, &App::disable_radio>(DISABLE_RADIO_INTERVAL, this, 0);
 				}
 				else {
 					#if APP_DATABASE_DEBUG
@@ -206,9 +215,9 @@
 			#endif
 
 			#if APP_DATABASE_FIND
-				timer_->set_timer<App, &App::start_find>(1000, this, 0);
+				timer_->set_timer<App, &App::start_find>(START_FIND_INTERVAL, this, 0);
 			#else
-				timer_->set_timer<App, &App::enable_radio>(1000, this, 0);
+				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			#endif
 		}
 
@@ -261,7 +270,7 @@
 					find(s, p, o, buf);
 				}
 	
-				timer_->set_timer<App, &App::enable_radio>(1000, this, 0);
+				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			}
 
 			#if APP_DATABASE_ERASE

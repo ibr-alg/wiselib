@@ -48,18 +48,28 @@ class App {
 			db_init();
 			db_result result;
 			result = db_query(NULL, "REMOVE RELATION rdf;");
-			if(DB_ERROR(result)) { debug_->debug("eRR:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("eRR:%s", db_get_result_message(result)); }
+			#endif
 			result = db_query(NULL, "CREATE RELATION rdf;");
-			if(DB_ERROR(result)) { debug_->debug("eCR:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("eCR:%s", db_get_result_message(result)); }
+			#endif
 			//debug_->debug("xxx");
 			//relation_t *r = relation_create("rdf", DB_STORAGE);
 			//debug_->debug("--- r=%p ---", r);
 			result = db_query(NULL, "CREATE ATTRIBUTE s DOMAIN STRING(120) IN rdf;");
-			if(DB_ERROR(result)) { debug_->debug("eCRs:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("eCRs:%s", db_get_result_message(result)); }
+			#endif
 			result = db_query(NULL, "CREATE ATTRIBUTE p DOMAIN STRING(120) IN rdf;");
-			if(DB_ERROR(result)) { debug_->debug("eCRp:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("eCRp:%s", db_get_result_message(result)); }
+			#endif
 			result = db_query(NULL, "CREATE ATTRIBUTE o DOMAIN STRING(120) IN rdf;");
-			if(DB_ERROR(result)) { debug_->debug("eCRo:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("eCRo:%s", db_get_result_message(result)); }
+			#endif
 
 			#if APP_DATABASE_DEBUG
 				debug_->debug("db init");
@@ -75,7 +85,9 @@ class App {
 
 			if(DB_ERROR(result)) {
 				//debug_->debug("");
-				debug_->debug("eri:%s", db_get_result_message(result));
+				#if APP_DATABASE_DEBUG
+					debug_->debug("eri:%s", db_get_result_message(result));
+				#endif
 				//debug_->debug(db_get_result_message(result));
 			}
 		}
@@ -100,7 +112,9 @@ class App {
 			// ourselves!
 			result = db_query(&handle, "SELECT s,p,o FROM rdf;");
 			if(DB_ERROR(result)) {
-				debug_->debug("erF:%s", db_get_result_message(result));
+				#if APP_DATABASE_DEBUG
+					debug_->debug("erF:%s", db_get_result_message(result));
+				#endif
 				db_free(&handle);
 				return;
 			}
@@ -116,7 +130,9 @@ class App {
 					for(int column = 0; column < handle.ncolumns; column++) {
 						result = db_get_value(&value, &handle, column);
 						if(DB_ERROR(result)) {
-							debug_->debug("DBerc:%s", db_get_result_message(result));
+							#if APP_DATABASE_DEBUG
+								debug_->debug("DBerc:%s", db_get_result_message(result));
+							#endif
 							jj++;
 							continue;
 						}
@@ -151,7 +167,9 @@ class App {
 					break;
 				}
 				else if(DB_ERROR(result)) {
-					debug_->debug("DBer:%s", db_get_result_message(result));
+					#if APP_DATABASE_DEBUG
+						debug_->debug("DBer:%s", db_get_result_message(result));
+					#endif
 					db_free(&handle);
 					return;
 				}
@@ -169,7 +187,9 @@ class App {
 		void iter_rewind() {
 			iter_result_ = db_query(&iter_handle_, "SELECT s,p,o FROM rdf;");
 			if(DB_ERROR(iter_result_)) {
-				debug_->debug("erR:%s", db_get_result_message(iter_result_));
+				#if APP_DATABASE_DEBUG
+					debug_->debug("erR:%s", db_get_result_message(iter_result_));
+				#endif
 				db_free(&iter_handle_);
 				return;
 			}
@@ -184,15 +204,21 @@ class App {
 			db_result result;
 
 			result = db_get_value(&value, &iter_handle_, 0);
-			if(DB_ERROR(result)) { debug_->debug("DBerS:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("DBerS:%s", db_get_result_message(result)); }
+			#endif
 			strcpy((char*)s, (char*)VALUE_STRING(&value));
 
 			result = db_get_value(&value, &iter_handle_, 1);
-			if(DB_ERROR(result)) { debug_->debug("DBerP:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("DBerP:%s", db_get_result_message(result)); }
+			#endif
 			strcpy((char*)p, (char*)VALUE_STRING(&value));
 
 			result = db_get_value(&value, &iter_handle_, 2);
-			if(DB_ERROR(result)) { debug_->debug("DBerO:%s", db_get_result_message(result)); }
+			#if APP_DATABASE_DEBUG
+				if(DB_ERROR(result)) { debug_->debug("DBerO:%s", db_get_result_message(result)); }
+			#endif
 			strcpy((char*)o, (char*)VALUE_STRING(&value));
 		}
 
