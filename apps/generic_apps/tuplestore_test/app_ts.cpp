@@ -97,7 +97,7 @@ class App {
 				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
 
 			Tuple v;
-			ContainerTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
+			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
 			do {
 				iter = tuplestore_.erase(iter);
 			} while(iter != tuplestore_.end());
