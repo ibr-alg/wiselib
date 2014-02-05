@@ -27,6 +27,7 @@
 			//initialize_db();
 			first_receive = true;
 			lastpos = 0;
+			nextpos = 0;
 			tuples = 0;
 			
 			//gateway_address = Radio::BROADCAST_ADDRESS;
@@ -46,6 +47,7 @@
 		#endif
 			first_receive = true;
 			lastpos = 0;
+			nextpos = 0;
 			tuples = 0;
 		}
 
@@ -69,6 +71,7 @@
 
 		bool receiving;
 		::uint16_t lastpos;
+		::uint16_t nextpos;
 		::uint16_t tuples;
 
 		bool first_receive;
@@ -85,7 +88,8 @@
 				}
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
-				if(pos != 0 && pos <= lastpos) {
+				//if(pos != 0 && pos <= lastpos) {
+				if(pos != 0 && pos != nextpos) {
 					#if APP_DATABASE_DEBUG
 						debug_->debug("ignpos %d <= %d", (int)pos, (int)lastpos);
 					#endif
@@ -99,6 +103,7 @@
 					return;
 				}
 				lastpos = pos;
+				nextpos = pos + len - 4;
 
 				//gateway_address = from;
 
@@ -111,6 +116,8 @@
 						debug_->debug("recv end");
 					#endif
 					receiving = false;
+					lastpos = 0;
+					nextpos = 0;
 					timer_->set_timer<App, &App::start_insert>(START_INSERT_INTERVAL, this, 0);
 					timer_->set_timer<App, &App::disable_radio>(DISABLE_RADIO_INTERVAL, this, 0);
 				}

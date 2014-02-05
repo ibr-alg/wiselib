@@ -7,6 +7,7 @@ from matplotlib import rc
 import sys
 import os
 import os.path
+import gzip
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
@@ -30,14 +31,40 @@ gateway_to_db = {
 }
 
 blacklist = [
-    { 'job': '24818', 'mode': 'find', 'database': 'antelope' },
-    { 'job': '24817', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24815', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24815', 'inode_db': 'inode010' },
+    { 'job': '24817', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24818', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24819', 'inode_db': 'inode010' },
+    { 'job': '24819', 'inode_db': 'inode016' },
+    { 'job': '24821', 'inode_db': 'inode010' }, # empty
+    { 'job': '24821', 'inode_db': 'inode016' }, # some sub-runs are actually ok
+    { 'job': '24821', 'inode_db': 'inode008' }, # some sub-runs are actually ok
+    { 'job': '24822', 'inode_db': 'inode014' }, # empty
+    { 'job': '24822', 'inode_db': 'inode016' }, # empty
+    { 'job': '24822', 'inode_db': 'inode008', '_tmax': 1000, '_tmin': 50 }, # 1 run only
+    { 'job': '24822', 'inode_db': 'inode010', '_tmax': 1000 }, # 1 run only
+    { 'job': '24823' },
+    #{ 'job': '24824' },
+    { 'job': '24824', 'inode_db': 'inode010' },
+    { 'job': '24824', 'inode_db': 'inode016' },
 ]
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
 experiments = {}
+
+style = {
+    'tuplestore': {
+        'ls': 'k-',
+        'boxcolor': 'black',
+    },
+    'antelope': {
+        'ls': 'grey',
+        'boxcolor': 'grey',
+    }
+}
+
 
 def median(l):
     if len(l) == 0: return None
@@ -53,16 +80,18 @@ def main():
         #lambda k: k.mode == 'find' and k.database == 'antelope'
     )
     
-    fig_i_e = plt.figure()
+    fs = (10, 5)
+    
+    fig_i_e = plt.figure(figsize=fs)
     ax_i_e = plt.subplot(111)
 
-    fig_i_t = plt.figure()
+    fig_i_t = plt.figure(figsize=fs)
     ax_i_t = plt.subplot(111)
 
-    fig_f_e = plt.figure()
+    fig_f_e = plt.figure(figsize=fs)
     ax_f_e = plt.subplot(111)
 
-    fig_f_t = plt.figure()
+    fig_f_t = plt.figure(figsize=fs)
     ax_f_t = plt.subplot(111)
 
     #ax_i_e.set_yscale('log')
@@ -88,13 +117,20 @@ def main():
 
             print(k.mode, k.database, [len(x) for x in es])
 
-            for e in es:
-                print(e)
-            ax_i_e.boxplot(exp.energy, positions=pos_e)
-            ax_i_e.plot(pos_e, [median(x) for x in es], '^-', label=k.database)
+            bp = ax_i_e.boxplot(exp.energy, positions=pos_e)
+            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-            ax_i_t.boxplot(exp.time, positions=pos_t)
-            ax_i_t.plot(pos_t, [median(x) for x in es], label=k.database)
+            ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+
+            bp = ax_i_t.boxplot(exp.time, positions=pos_t)
+            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+
+            ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=k.database)
+
             shift_i -= 1
 
         elif k.mode == 'find':
@@ -113,13 +149,21 @@ def main():
             pos_t, ts = cleanse(pos_t, exp.time)
 
             print(k.mode, k.database, [len(x) for x in es])
-            print(pos_e, [median(x) for x in es])
+            #print(pos_e, [median(x) for x in es])
 
-            ax_f_e.boxplot(es, positions=pos_e)
-            ax_f_e.plot(pos_e, [median(x) for x in es], label=k.database)
+            bp = ax_f_e.boxplot(es, positions=pos_e)
+            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-            ax_f_t.boxplot(ts, positions=pos_t)
-            ax_f_t.plot(pos_t, [median(x) for x in ts], label=k.database)
+            ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+
+            bp = ax_f_t.boxplot(ts, positions=pos_t)
+            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+
+            ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
 
             shift_f -= 1
 
@@ -128,10 +172,10 @@ def main():
     ax_f_e.legend()
     ax_f_t.legend()
 
-    fig_i_e.savefig('pdf_out/energies_insert.pdf')
-    fig_i_t.savefig('pdf_out/times_insert.pdf')
-    fig_f_e.savefig('pdf_out/energies_find.pdf')
-    fig_f_t.savefig('pdf_out/times_find.pdf')
+    fig_i_e.savefig('pdf_out/energies_insert.pdf', bbox_inches='tight', pad_inches=0.1)
+    fig_i_t.savefig('pdf_out/times_insert.pdf', bbox_inches='tight',pad_inches=0.1)
+    fig_f_e.savefig('pdf_out/energies_find.pdf', bbox_inches='tight',pad_inches=0.1)
+    fig_f_t.savefig('pdf_out/times_find.pdf', bbox_inches='tight',pad_inches=0.1)
             
 
 def cleanse(l1, l2):
@@ -230,7 +274,19 @@ def add_experiment(cls):
         experiments[cls] = Experiment()
     return experiments[cls]
 
-def inode_to_mote_id(s): return '10' + s[5:]
+def inode_to_mote_id(s):
+    """
+    >>> inode_to_mote_id('inode123')
+    '10123'
+    """
+    return '10' + s[5:]
+
+def mote_id_to_inode_id(s):
+    """
+    >>> mote_id_to_inode_id('10123')
+    'inode123'
+    """
+    return 'inode' + s[2:]
 
 def process_directories(dirs,f=lambda x: True):
     for d in dirs:
@@ -238,8 +294,15 @@ def process_directories(dirs,f=lambda x: True):
 
 def process_directory(d, f=lambda x: True):
     d = str(d).strip('/')
-    print(d)
-    energy = read_energy(d + '.csv')
+
+    print()
+    print("*** iMinds exp #{} ***".format(d))
+
+
+    # 1st pass: Blacklisting & Filtering of experiments
+
+    # blacklist by db inode id
+    bl = {}
     for gw, db in gateway_to_db.items():
         fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
         #fn_dbout = d + '/' + db + '/output.txt'
@@ -248,52 +311,82 @@ def process_directory(d, f=lambda x: True):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
 
-        print(" processing {}, {}".format(gw, db))
-
         v = read_vars(fn_gwinfo)
         cls = ExperimentClass(v)
         cls.job = d
-        print("  {}: {} {}".format(cls.database, cls.dataset, cls.mode))
 
-        # Is this experiment blacklisted?
-        blacklisted = False
+        #blacklisted = False
+        #tmax = None
         for b in blacklist:
             for k, x in b.items():
+                if k.startswith('_'): continue
                 if getattr(cls, k) != x:
                     # does not match this blacklist entry
                     break
             else:
-                blacklisted = True
+                bl[db] = b
+                #if 'tmax' in b:
+                #tmax = b.get('tmax', 0)
+                #tmin = b.get('tmin', 0)
+                #else:
+                    #blacklisted = True
                 break
 
-        if blacklisted:
-            print("  (blacklisted)")
+        #if tmax is not None:
+            #if tmax == 0:
+                #print("({} blacklisted)".format(db))
+            #tmaxs[db] = tmax
+
+            #tmaxs[db] = 0
+
+
+    tmaxs = { db: bl[db].get('_tmax', 0) for db in bl.keys() }
+
+    energy = read_energy(d, tmaxs)
+    for gw, db in gateway_to_db.items():
+        if tmaxs.get(db, None) == 0: continue
+        tmax = tmaxs.get(db, None)
+
+        fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
+        #fn_dbout = d + '/' + db + '/output.txt'
+        fn_gwout = d + '/' + gw + '/output.txt'
+        if not os.path.exists(fn_gwinfo):
+            print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
 
+        print()
+        print("processing: {} -> {}".format(gw, db))
+
+        v = read_vars(fn_gwinfo)
+        cls = ExperimentClass(v)
+        cls.job = d
         if not f(cls):
-            print("  (ignored by filter)")
+            print("({} ignored by filter)".format(db))
             continue
+
+        print("  {}/{} {}".format(cls.database, cls.mode, cls.dataset))
 
         exp = add_experiment(cls)
         tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
         if not tc:
-            print("  no tuplecounts found in {}, using default".format(fn_gwout))
+            print("  (!) no tuplecounts found in {}, using default".format(fn_gwout))
             tc = [7, 6, 8, 11, 11, 10, 11, 9]
         exp.set_tuplecounts(tc)
         #print(energy[inode_to_mote_id(db)])
         mid = inode_to_mote_id(db)
         if mid not in energy:
-            print("  no energy values for {}. got values for {}".format(mid, str(energy.keys())))
+            print("  (!) no energy values for {}. got values for {}".format(mid, str(energy.keys())))
             continue
 
-        print("energy", type(energy))
-        print("v", type(v))
+        #print("energy", type(energy))
+        #print("v", type(v))
         runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=v['mode'] + '_' + v['database']
-+ '_' + db)
++ '_' + db, tmin=bl.get(db, {}).get('_tmin', 0))
 
         runs_count = 0
-        for ts, es in zip(runs_t, runs_e):
+        for j, (ts, es) in enumerate(zip(runs_t, runs_e)):
             runs_count += 1
+            print("  adding run {} of {} with {} entries".format(j, len(runs_e), len(es)))
             for i, (t, e) in enumerate(zip(ts, es)):
                 if t != 0 or e != 0:
                     exp.add_measurement(i, t, e)
@@ -315,17 +408,27 @@ def read_vars(fn):
 
     return r
 
-def read_energy(fn):
+def read_energy(fn, tmaxs):
     r = {}
 
+    f = None
+    if os.path.exists(fn + '.csv.gz'):
+        f = gzip.open(fn + '.csv.gz', 'rt', encoding='latin1')
+    else:
+        f = open(fn + '.csv', 'r')
+
     #reader = csv.DictReader(f, delimiter=';', quotechar='"')
-    reader = csv.DictReader(open(fn, 'r'), delimiter='\t', quotechar='"')
+    reader = csv.DictReader(f, delimiter='\t', quotechar='"')
     #t = {}
     for row in reader:
         mote_id = row['motelabMoteID']
         if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
 
         t = r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
+        tm = tmaxs.get(mote_id_to_inode_id(mote_id), None)
+        if tm is not None and t >= tm:
+            continue
+
         r[mote_id]['ts'].append(t)
         v = float(row['avg']) * CURRENT_FACTOR
         r[mote_id]['vs'].append(v)
@@ -346,7 +449,7 @@ def parse_tuple_counts(f, expid):
     return r
 
 #def find_tuple_spikes(ts, vs):
-def process_energy(d, mode, lbl=''):
+def process_energy(d, mode, lbl='', tmin=0):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
@@ -405,16 +508,18 @@ def process_energy(d, mode, lbl=''):
         nonlocal state
         nonlocal thigh
         if s is not state:
-            print("{}: {} -> {}".format(t, state, s))
+            #print("{}: {} -> {}".format(t, state, s))
             if s is idle_high:
                 thigh = t
             state = s
 
     for t, v in zip(ts, vs):
+        if t < tmin: continue
+
         if state is idle_high:
             if v < RADIO:
                 if t - thigh > 500:
-                    print("  reboot t={} thigh={}".format(t, thigh))
+                    #print("  reboot t={} thigh={}".format(t, thigh))
                     # reboot
                     runs_e.append(sums_e)
                     runs_t.append(sums_t)
@@ -429,8 +534,8 @@ def process_energy(d, mode, lbl=''):
                     #energy_sums_find = []
                     #time_sums_insert = []
                     #time_sums_find = []
-                else:
-                    print("  t-tigh={} t={}".format(t-thigh, t))
+                #else:
+                    #print("  t-tigh={} t={}".format(t-thigh, t))
                 change_state(idle_before)
 
         elif state is idle_before:
@@ -456,7 +561,7 @@ def process_energy(d, mode, lbl=''):
                 #print(v, t)
                 #assert v < HIGH
                 if v >= HIGH:
-                    print("  insert abort high t={}".format(t))
+                    print("    insert abort high t={}".format(t))
                     sums_e.append(None)
                     sums_t.append(None)
                     change_state(idle_high)
@@ -561,18 +666,18 @@ def frange(a, b, step):
 
 
 def fig_energy(ts, vs, n):
-    fig = plt.figure()
+    fig = plt.figure(figsize=(10,5))
     ax = plt.subplot(111)
     
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((000, 800))
+    ax.set_xlim((8000, 9000))
     #ax.set_ylim((0, 3))
     ax.grid()
 
     ax.plot(ts, vs)
-    fig.savefig('energy_{}.pdf'.format(n))
+    fig.savefig('energy_{}.pdf'.format(n), bbox_inches='tight', pad_inches=.1)
 
 def cum(l):
     s = 0
