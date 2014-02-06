@@ -32,23 +32,34 @@ gateway_to_db = {
 
 blacklist = [
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24814', 'inode_db': 'inode014', '_tmax': 3000 },
     { 'job': '24815', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24815', 'inode_db': 'inode010' },
+    { 'job': '24815', 'inode_db': 'inode016', '_tmax': 3000 },
+    { 'job': '24815', 'inode_db': 'inode014', '_valid': [(4000, 8000), (10000, 16000)] },
     { 'job': '24817', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24817', 'inode_db': 'inode008', '_valid': [(0, 3000)] },
+    { 'job': '24817', 'inode_db': 'inode014', '_valid': [(0, 1000), (4000, 8000)] },
+    { 'job': '24817', 'inode_db': 'inode016', '_valid': [(0, 3000), (6000, 8000)] },
     { 'job': '24818', 'mode': 'find', 'database': 'antelope' },
+    { 'job': '24818', 'inode_db': 'inode014', '_tmin': 2000 },
+    { 'job': '24818', 'inode_db': 'inode008', '_tmax': 5000 },
     { 'job': '24819', 'inode_db': 'inode010' },
     { 'job': '24819', 'inode_db': 'inode016' },
+    { 'job': '24819', 'inode_db': 'inode008', '_tmin': 2000 },
+    { 'job': '24819', 'inode_db': 'inode014', '_tmax': 3000 },
     { 'job': '24821', 'inode_db': 'inode010' }, # empty
     { 'job': '24821', 'inode_db': 'inode016' }, # some sub-runs are actually ok
     { 'job': '24821', 'inode_db': 'inode008' }, # some sub-runs are actually ok
     { 'job': '24822', 'inode_db': 'inode014' }, # empty
     { 'job': '24822', 'inode_db': 'inode016' }, # empty
-    { 'job': '24822', 'inode_db': 'inode008', '_tmax': 1000, '_tmin': 50 }, # 1 run only
-    { 'job': '24822', 'inode_db': 'inode010', '_tmax': 1000 }, # 1 run only
+    { 'job': '24822', 'inode_db': 'inode008' }, # 1 run only
+    { 'job': '24822', 'inode_db': 'inode010', '_tmax': 600 }, # 1 run only
     { 'job': '24823' },
-    #{ 'job': '24824' },
-    { 'job': '24824', 'inode_db': 'inode010' },
-    { 'job': '24824', 'inode_db': 'inode016' },
+    { 'job': '24824' },
+    { 'job': '24825', 'inode_db': 'inode016' },
+    #{ 'job': '24824', 'inode_db': 'inode008' },
+    { 'job': '24825', 'inode_db': 'inode010' },
 ]
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
@@ -64,6 +75,68 @@ style = {
         'boxcolor': 'grey',
     }
 }
+
+
+def has_valid(b):
+    """
+    >>> has_valid({ '_valid': [] })
+    False
+    >>> has_valid({ })
+    False
+    >>> has_valid({ '_tmax': 0 })
+    False
+
+    >>> has_valid({ '_valid': [(100, 200), (350, 400)] })
+    True
+    >>> has_valid({ '_tmax': 100 })
+    True
+    >>> has_valid({ '_tmin': 100 })
+    True
+    >>> has_valid({ '_tmax': 0, '_tmin': 50 })
+    True
+    """
+
+    if '_valid' in b:
+        return len(b['_valid']) > 0
+    elif '_tmin' in b: return True
+    elif '_tmax' in b: return b['_tmax'] != 0
+    return False
+
+def valid(b, t):
+    """
+    >>> valid({ '_valid': [] }, 123)
+    False
+    >>> valid({ }, 123)
+    False
+    >>> valid({ '_tmax': 0 }, 123)
+    False
+
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 100)
+    True
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 101)
+    True
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 357.2)
+    True
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 200.01)
+    False
+    >>> valid({ '_tmax': 100 }, 99)
+    True
+    >>> valid({ '_tmin': 100 }, 100.123)
+    True
+    >>> valid({ '_tmax': 0, '_tmin': 50 }, 55.678)
+    False
+    """
+    if '_valid' in b:
+        for a, b in b['_valid']:
+            if t >= a and t <= b: return True
+        return False
+    elif '_tmin' in b:
+        if '_tmax' in b and b['_tmax'] is not None:
+            return t >= b['_tmin'] and t <= b['_tmax']
+        return t >= b['_tmin']
+    elif '_tmax' in b:
+        return b['_tmax'] is None or b['_tmax'] >= t
+    return False
 
 
 def median(l):
@@ -117,19 +190,21 @@ def main():
 
             print(k.mode, k.database, [len(x) for x in es])
 
-            bp = ax_i_e.boxplot(exp.energy, positions=pos_e)
-            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+            if len(es):
+                bp = ax_i_e.boxplot(es, positions=pos_e)
+                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-            ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
-            bp = ax_i_t.boxplot(exp.time, positions=pos_t)
-            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+            if len(ts):
+                bp = ax_i_t.boxplot(ts, positions=pos_t)
+                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-            ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=k.database)
+                ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=k.database)
 
             shift_i -= 1
 
@@ -151,19 +226,21 @@ def main():
             print(k.mode, k.database, [len(x) for x in es])
             #print(pos_e, [median(x) for x in es])
 
-            bp = ax_f_e.boxplot(es, positions=pos_e)
-            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+            if len(es):
+                bp = ax_f_e.boxplot(es, positions=pos_e)
+                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-            ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
-            bp = ax_f_t.boxplot(ts, positions=pos_t)
-            plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-            plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+            if len(ts):
+                bp = ax_f_t.boxplot(ts, positions=pos_t)
+                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-            ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+                ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
 
             shift_f -= 1
 
@@ -257,13 +334,18 @@ class Experiment:
         self.time = []
         self.energy = []
         self.tuplecounts = []
+        self.key = None
 
     def add_measurement(self, i, t, e):
         while len(self.time) < i + 1:
             self.energy.append([])
             self.time.append([])
-        self.time[i].append(t)
-        self.energy[i].append(e)
+        if self.key.mode == 'find':
+            self.time[i].append(t)
+            self.energy[i].append(e)
+        else:
+            self.time[i].append(t / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
+            self.energy[i].append(e / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
 
     def set_tuplecounts(self, tcs):
         self.tuplecounts = cum(tcs)
@@ -272,12 +354,15 @@ def add_experiment(cls):
     global experiments
     if cls not in experiments:
         experiments[cls] = Experiment()
+        experiments[cls].key = cls
     return experiments[cls]
 
 def inode_to_mote_id(s):
     """
     >>> inode_to_mote_id('inode123')
     '10123'
+    >>> inode_to_mote_id('inode001')
+    '10001'
     """
     return '10' + s[5:]
 
@@ -285,6 +370,8 @@ def mote_id_to_inode_id(s):
     """
     >>> mote_id_to_inode_id('10123')
     'inode123'
+    >>> mote_id_to_inode_id('10001')
+    'inode001'
     """
     return 'inode' + s[2:]
 
@@ -305,7 +392,6 @@ def process_directory(d, f=lambda x: True):
     bl = {}
     for gw, db in gateway_to_db.items():
         fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
-        #fn_dbout = d + '/' + db + '/output.txt'
         fn_gwout = d + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
@@ -315,8 +401,6 @@ def process_directory(d, f=lambda x: True):
         cls = ExperimentClass(v)
         cls.job = d
 
-        #blacklisted = False
-        #tmax = None
         for b in blacklist:
             for k, x in b.items():
                 if k.startswith('_'): continue
@@ -325,27 +409,14 @@ def process_directory(d, f=lambda x: True):
                     break
             else:
                 bl[db] = b
-                #if 'tmax' in b:
-                #tmax = b.get('tmax', 0)
-                #tmin = b.get('tmin', 0)
-                #else:
-                    #blacklisted = True
                 break
 
-        #if tmax is not None:
-            #if tmax == 0:
-                #print("({} blacklisted)".format(db))
-            #tmaxs[db] = tmax
-
-            #tmaxs[db] = 0
-
-
-    tmaxs = { db: bl[db].get('_tmax', 0) for db in bl.keys() }
-
-    energy = read_energy(d, tmaxs)
+    #print(bl)
+    energy = read_energy(d, bl)
     for gw, db in gateway_to_db.items():
-        if tmaxs.get(db, None) == 0: continue
-        tmax = tmaxs.get(db, None)
+        if db in bl and not has_valid(bl[db]): continue
+        #if tmaxs.get(db, None) == 0: continue
+        #tmax = tmaxs.get(db, None)
 
         fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
         #fn_dbout = d + '/' + db + '/output.txt'
@@ -408,7 +479,7 @@ def read_vars(fn):
 
     return r
 
-def read_energy(fn, tmaxs):
+def read_energy(fn, bl):
     r = {}
 
     f = None
@@ -420,16 +491,18 @@ def read_energy(fn, tmaxs):
     #reader = csv.DictReader(f, delimiter=';', quotechar='"')
     reader = csv.DictReader(f, delimiter='\t', quotechar='"')
     #t = {}
+    t = {}
     for row in reader:
         mote_id = row['motelabMoteID']
         if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
 
-        t = r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
-        tm = tmaxs.get(mote_id_to_inode_id(mote_id), None)
-        if tm is not None and t >= tm:
+        t[mote_id] = t.get(mote_id, -MEASUREMENT_INTERVAL) + MEASUREMENT_INTERVAL
+#r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
+        b = bl.get(mote_id_to_inode_id(mote_id))
+        if b is not None and not valid(b, t[mote_id]):
             continue
 
-        r[mote_id]['ts'].append(t)
+        r[mote_id]['ts'].append(t[mote_id])
         v = float(row['avg']) * CURRENT_FACTOR
         r[mote_id]['vs'].append(v)
 
@@ -672,7 +745,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((8000, 9000))
+    #ax.set_xlim((8000, 9000))
     #ax.set_ylim((0, 3))
     ax.grid()
 
