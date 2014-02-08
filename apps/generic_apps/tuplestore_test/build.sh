@@ -97,8 +97,13 @@ function generate_stuff() {
 	cp out/contiki-sky/app_gateway.exe $FILENAME_GATEWAY || exit 1
 
 	make -f Makefile.$DB clean
-	make -f Makefile.$DB || exit 1
-	cp out/contiki-sky/app_database.exe $FILENAME_DB || exit 1
+	if [ "$DB" == "teeny" ]; then
+		make -f Makefile.teeny telosb || exit 1
+		cp build/telosb/main.exe $FILENAME_DB || exit 1
+	else
+		make -f Makefile.$DB || exit 1
+		cp out/contiki-sky/app_database.exe $FILENAME_DB || exit 1
+	fi
 
 	make -f Makefile.host clean
 	make -f Makefile.host || exit 1
@@ -120,7 +125,8 @@ rm *.exe
 DEBUG=0
 RDF=incontextsensing.rdf
 MODE=find
-DB=antelope
+#DB=antelope
+DB=teeny
 
 AREA=alpha
 generate_stuff

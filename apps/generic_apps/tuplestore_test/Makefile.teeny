@@ -1,0 +1,28 @@
+TL_COMPONENT=TeenyTest
+WORKING_DIR = .
+COMPONENT = $(WORKING_DIR)/TL_$(TL_COMPONENT)
+TL_OBJECT_FILE = tl_objs
+PFLAGS += -I./ -I./config 
+
+TL_DIR = /home/wiselib/teenylime/tl
+TLPFLAGS = -K
+include $(TL_DIR)/Makefile
+include $(TL_DIR)/system/tmote/Makefile
+
+#COMPONENT=TeenyLimeAppC
+#PFLAGS += -fnesc-separator=__
+
+
+include $(MAKERULES)
+
+#all: tinyos-telosb-teenylime
+
+#export APP_SRC=app_teeny.cpp
+#export BIN_OUT=app_database
+#export ADD_CXXFLAGS="-DTINYOS_USER_COMPONENT"
+#export ADD_CFLAGS="-DTINYOS_USER_COMPONENT"
+#export ADD_LDFLAGS=-Wl,-lc -Wl,-L/opt/mspgcc/lib
+
+#include ../Makefile
+
+
