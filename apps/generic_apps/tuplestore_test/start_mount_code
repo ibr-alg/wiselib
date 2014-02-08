@@ -23,9 +23,10 @@ if [ -e $VARFILE ]; then
 else
 	while :; do
 			echo serialdump $(date) >>/tmp/log/timestamps
-			sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
-					echo $(date +'T%s.%N|')$l
-			done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
+			sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
+			#sudo stdbuf -oL -eL /tmp/mnt/serialdump-linux -b115200 /dev/tmotesky1 | while read l; do
+					#echo $(date +'T%s.%N|')$l
+			#done >>/tmp/log/output.txt 2>>/tmp/log/error.txt 
 			sleep 5
 	done 2>>/tmp/log/error2.txt
 fi

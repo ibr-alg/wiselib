@@ -2,6 +2,7 @@
 #include <Timer.h>
 #include "defs.h"
 #include "tl_objs.h"
+#include <printf.h>
 #include "TupleSpace.h"
 
 module TeenyTestC {
@@ -11,11 +12,22 @@ module TeenyTestC {
 		interface AMSend;
 		interface Timer<TMilli> as Timer0;
 		interface Timer<TMilli> as Timer1;
+		interface Timer<TMilli> as Timer2;
 		interface Packet;
 		interface SplitControl as RadioControl;
 
 		interface TupleSpace as TS;
 		interface TeenyLIMESystem;
+
+		interface SplitControl as PrintfControl;
+		interface PrintfFlush;
+
+		interface McuSleep;
+		//interface SplitControl as PhysSleep;
+
+		interface LowPowerListening as LPL;
+
+		interface Tuning;
 	}
 }
 
@@ -35,6 +47,10 @@ implementation {
 	uint16_t tuples;
 	//NeighborTuple<uint16_t> neighborTuple;
 	
+		uint8_t buf_s[120];
+		uint8_t buf_p[120];
+		uint8_t buf_o[120];
+
 
 	void initialize_db() {
 	}
@@ -48,11 +64,28 @@ implementation {
 		return p[0] | ((uint16_t)p[1] << 8);
 	}
 
+	event void Tuning.setDone(uint8_t key, uint16_t value) {
+	}
 
 	event void Boot.booted() {
-		dbg("boot, i guess.");
+		//call PrintfControl.start();
+
+		//dbg("boot, i guess.");
+		//printf("boot\n");
+		//call PrintfFlush.flush();
 		// init
-		call RadioControl.start();
+		//call Timer2.startPeriodic(10000);
+		//call PhysSleep.stop();
+		
+
+		//call LPL.setLocalSleepInterval(1000);
+		//call LPL.setLocalDutyCycle();
+
+		call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
+		//call RadioControl.stop();
+		call McuSleep.sleep();
+
+		call Timer0.startPeriodic(7000);
 	}
 
 	void reboot() {
@@ -62,19 +95,83 @@ implementation {
 		nextpos = 0;
 	}
 
+	event void PrintfFlush.flushDone(error_t error) {
+	}
+
 	event void Timer0.fired() {
+		tuple<uint8_t[120], uint8_t[120], uint8_t[120]> t;
+		TLOpId_t inId;
+		int i;
+
+
+		//printf("ins xstart\n");
+		//call PrintfFlush.flush();
+
+		//strcpy((char*)buf_s, "foo");
+		//strcpy((char*)buf_p, "bar");
+		//strcpy((char*)buf_o, "nudelsuppe");
+
+		//printf("WAT\n"); //call PrintfFlush.flush();
+		
+	for(i=0; i<20; i++) {
+		t.expireIn = TIME_UNDEFINED;
+		t.type = 1;
+		t.flags = 0;
+		//printf("sss\n"); //call PrintfFlush.flush();
+
+		strcpy((char*)t.value0, "foo");
+		t.match_types[0] = MATCH_ACTUAL;
+
+		//printf("ppp\n"); //call PrintfFlush.flush();
+
+		strcpy((char*)t.value1, "bar");
+		t.match_types[1] = MATCH_ACTUAL;
+		
+		//printf("ooo\n"); //call PrintfFlush.flush();
+		
+		strcpy((char*)t.value2, "nudelsuppe");
+		t.match_types[2] = MATCH_ACTUAL;
+
+		//printf("out\n"); //call PrintfFlush.flush();
+		//t = newTuple(
+			//actualField(buf_s),
+			//actualField(buf_p),
+			//actualField(buf_o));
+
+		call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
+	}
+		//printf("ins end\n");
+		//call PrintfFlush.flush();
 	}
 
 	event void Timer1.fired() {
 	}
 
+	event void Timer2.fired() {
+		//dbg("<3");
+		//printf("heartbeat\n");
+		//call PrintfFlush.flush();
+	}
+
 	event void AMSend.sendDone(message_t* msg, error_t err) {
 	}
 
+	//event void PhysSleep.startDone(error_t err) {
+	//}
+
+	//event void PhysSleep.stopDone(error_t err) {
+	//}
 	event void RadioControl.startDone(error_t err) {
 	}
 
 	event void RadioControl.stopDone(error_t err) {
+	}
+	event void PrintfControl.startDone(error_t err) {
+		//printf("start is done btw.\n");
+		//call PrintfFlush.flush();
+	}
+
+	event void PrintfControl.stopDone(error_t err) {
 	}
 
 	message_t packet;
@@ -85,11 +182,12 @@ implementation {
 		uint8_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
 		//uint8_t p[100];
 		uint8_t *p;
+		return msg;
 
 		if(!receiving) { return msg; }
 		data = (uint8_t*)payload;
 		
-		dbg("l=%d %02x %02x %02x %02x", (int)len, (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
+		//printf("rcv l=%d %02x %02x %02x %02x", (int)len, (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
 		
 		if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {	
 			if(first_receive) {
@@ -141,9 +239,9 @@ implementation {
 	event void TS.tupleReady(TLOpId_t operationId, TupleIterator *iterator) {
 	}
 
+	tuple<uint16_t> neighborTuple;
 	event tuple* TeenyLIMESystem.reifyNeighborTuple() {
-		//return (tuple *)&neighborTuple
-		return 0;
+		return (tuple *)&neighborTuple;
 	}
  event void TS.reifyCapabilityTuple(tuple* ct) {
   }

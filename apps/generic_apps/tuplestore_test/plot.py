@@ -344,6 +344,7 @@ class Experiment:
             self.time[i].append(t)
             self.energy[i].append(e)
         else:
+            print(i, len(self.time), len(self.tuplecounts))
             self.time[i].append(t / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
             self.energy[i].append(e / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
 
@@ -459,8 +460,9 @@ def process_directory(d, f=lambda x: True):
             runs_count += 1
             print("  adding run {} of {} with {} entries".format(j, len(runs_e), len(es)))
             for i, (t, e) in enumerate(zip(ts, es)):
-                if t != 0 or e != 0:
-                    exp.add_measurement(i, t, e)
+                if t is not None and e is not None: #t != 0 or e != 0:
+                    #exp.add_measurement(i, t, e)
+                    pass
         print("  processed {} experiment runs.".format(runs_count))
 
 def read_vars(fn):
@@ -745,7 +747,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((8000, 9000))
+    #ax.set_xlim((50, 80))
     #ax.set_ylim((0, 3))
     ax.grid()
 

@@ -47,14 +47,16 @@
 
 // The duration of a epoch, which also determines the reaction refresh,
 // and node tuple refresh
-#define EPOCH 4000
+#define EPOCH 30000
+
+//tahusaotehu
 
 // The number of EPOCHs before removing remote information 
 // (reactions and neighbor tuples) 
 #define REMOTE_LOST_REFRESH 3
 
 // Timeout for remote query operations
-#define REMOTE_OP_TIMEOUT 500
+#define REMOTE_OP_TIMEOUT 30000
 
 // Max number of neighbor in the TeenyLIME system
 // (be careful: these are stored as tuples in the main tuple space)

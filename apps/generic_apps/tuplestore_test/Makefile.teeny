@@ -1,12 +1,17 @@
 TL_COMPONENT=TeenyTest
 WORKING_DIR = .
 COMPONENT = $(WORKING_DIR)/TL_$(TL_COMPONENT)
-TL_OBJECT_FILE = tl_objs
-PFLAGS += -I./ -I./config 
-
 TL_DIR = /home/wiselib/teenylime/tl
+TL_OBJECT_FILE = tl_objs
 TLPFLAGS = -K
 include $(TL_DIR)/Makefile
+
+PFLAGS += -I./ -I./config 
+CFLAGS += -I$(TOSDIR)/lib/printf/ 
+CFLAGS += -DNOACK_LOW_POWER_LISTENING
+CFLAGS += -DTL_LPL
+
+
 include $(TL_DIR)/system/tmote/Makefile
 
 #COMPONENT=TeenyLimeAppC

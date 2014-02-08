@@ -47,9 +47,9 @@
 #define MAX_MSG_RETRIES 4
 
 // The duty cycle of the local radio
-#define LOCAL_LPL_INTERVAL 100
+#define LOCAL_LPL_INTERVAL 30000
 
 // The duty cycle of radios the node needs to talk to
-#define REMOTE_LPL_INTERVAL 100
+#define REMOTE_LPL_INTERVAL 30000
 
 #endif
