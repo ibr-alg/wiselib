@@ -5,7 +5,18 @@
 #include <printf.h>
 #include "TupleSpace.h"
 
-#define DEBUG 0
+
+//#define DEBUG 1
+//#define MODE_INSERT 0
+//#define MODE_FIND 1
+//#define MODE_ERASE 0
+
+#define INSERTS_AT_ONCE 4
+#define FINDS_AT_ONCE 1
+
+#define INSERT_CALLS 3
+#define FIND_CALLS 100
+#define MAX_TUPLES (INSERTS_AT_ONCE * INSERT_CALLS)
 
 module TeenyTestC {
 	uses {
@@ -38,11 +49,9 @@ implementation {
 	#define true 1
 	#define false 0
 
-	#define START_INSERT_INTERVAL 1000
-	#define START_FIND_INTERVAL 5000
-	#define DISABLE_RADIO_INTERVAL 100
-
-	#define INSERTS_AT_ONCE 5
+	//#define START_INSERT_INTERVAL 1000
+	//#define START_FIND_INTERVAL 5000
+	//#define DISABLE_RADIO_INTERVAL 100
 
 	#ifdef FLASH_SYNC_TIME
 flahs sync time should not be defined for proper energy measurement!
@@ -54,6 +63,8 @@ flahs sync time should not be defined for proper energy measurement!
 	bool receiving;
 	uint16_t nextpos;
 	uint16_t tuples;
+	int calls;
+	//int erasepos;
 	//NeighborTuple<uint16_t> neighborTuple;
 	
 		//uint8_t buf_s[120];
@@ -65,6 +76,10 @@ flahs sync time should not be defined for proper energy measurement!
 	}
 
 	void waste_energy();
+	void insert_some();
+	void insert_fill();
+	void erase(int);
+	void find(int);
 
 	void write_uint16(uint8_t* p, uint16_t v) {
 		p[0] = v & 0xff;
@@ -85,20 +100,23 @@ flahs sync time should not be defined for proper energy measurement!
 			call PrintfFlush.flush();
 		#endif
 
-		//dbg("boot, i guess.");
-		// init
-		//call Timer2.startPeriodic(10000);
-		//call PhysSleep.stop();
-		
-
-		//call LPL.setLocalSleepInterval(1000);
-		//call LPL.setLocalDutyCycle();
 
 		call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
-		//call RadioControl.stop();
-		//call McuSleep.sleep();
+		calls = 0;
 
-		call Timer0.startPeriodic(1000);
+		#if MODE_FIND
+			insert_fill();
+			call Timer0.startPeriodic(1000);
+		
+		#elif MODE_INSERT
+			call Timer0.startPeriodic(1000);
+
+		#elif MODE_ERASE
+			insert_fill();
+			call Timer0.startPeriodic(1000);
+
+		#endif
+			
 	}
 
 	void reboot() {
@@ -111,19 +129,41 @@ flahs sync time should not be defined for proper energy measurement!
 	event void PrintfFlush.flushDone(error_t error) {
 	}
 
+	// "random" permutation chosen by fair dice roll (tm) ;)
+	int rnd[MAX_TUPLES] = { 10, 3, 4, 5, 11, 7, 0, 2, 6, 8, 9, 1 };
+
+
 	event void Timer0.fired() {
-		tuple<uint8_t[120], uint8_t[120], uint8_t[120]> t;
-		TLOpId_t inId;
-		int i;
+		calls++;
 
 		//call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
 		#if MODE_INSERT
 			insert_some();
+
+			if(calls >= INSERT_CALLS) { call Timer0.stop(); }
+
+		#elif MODE_FIND
+			find(rnd[(calls - 1) % MAX_TUPLES]);
+			if(calls >= FIND_CALLS) { call Timer0.stop(); }
+
+		#elif MODE_ERASE
+			erase(rnd[calls - 1]);
+			if(calls >= MAX_TUPLES) { call Timer0.stop(); }
 		#endif
+
 	}
 
 
 	void insert_some() {
+		tuple<uint8_t[120], uint8_t[120], uint8_t[120]> t;
+		TLOpId_t inId;
+		int i;
+
+		#if DEBUG
+			printf("ins\n");
+			call PrintfFlush.flush();
+		#endif
+
 		for(i=0; i<INSERTS_AT_ONCE; i++) {
 			t.expireIn = TIME_UNDEFINED;
 			t.type = 1;
@@ -140,25 +180,134 @@ flahs sync time should not be defined for proper energy measurement!
 
 			call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
 		}
+
 	}
 
 	void insert_fill() {
-		for(i=0; i<15; i++) {
+		tuple<uint8_t[120], uint8_t[120], uint8_t[120]> t;
+		TLOpId_t inId;
+		int i;
+
+		#if DEBUG
+			printf("fill\n");
+			call PrintfFlush.flush();
+		#endif
+
+		for(i=0; i<MAX_TUPLES; i++) {
 			t.expireIn = TIME_UNDEFINED;
 			t.type = 1;
 			t.flags = 0;
 
 			strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
+			t.value0[28] += i;
 			t.match_types[0] = MATCH_ACTUAL;
 
 			strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
+			t.value1[28] += i;
 			t.match_types[1] = MATCH_ACTUAL;
 			
 			strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
+			t.value2[28] += i;
 			t.match_types[2] = MATCH_ACTUAL;
 
 			call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
 		}
+	}
+
+	void find(int i) {
+		tuple<uint8_t[120], uint8_t[120], uint8_t[120]> t;
+		TLOpId_t inId;
+		int spo;
+		int j = 0;
+
+		strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
+		t.value0[28] += i;
+
+		strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
+		t.value1[28] += i;
+
+		strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
+		t.value2[28] += i;
+
+		t.expireIn = TIME_UNDEFINED;
+		t.type = 1;
+		t.flags = 0;
+
+
+		for(j = 0; j < FINDS_AT_ONCE; j++) {
+			spo = (unsigned)rand() % 3;
+
+			t.match_types[0] = MATCH_ACTUAL;
+			t.match_types[1] = MATCH_ACTUAL;
+			t.match_types[2] = MATCH_ACTUAL;
+			t.match_types[spo] = MATCH_DONT_CARE;
+		
+			#if DEBUG
+				printf("find j=%d i=%d spo=%d\n", (int)j, (int)i, (int)spo);
+			#endif
+
+			// Construct the matching tuple
+			// spo == 0 --> (* ssn:isProxyFor spit:Temperature)
+			// spo == 1 --> (ss:silver_exp * spit:Temperature)
+			// spo == 2 --> (ss:silver_exp ssn:isProxyFor *)
+
+			call TS.rd(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple *)&t);
+		}
+
+		#if DEBUG
+			call PrintfFlush.flush();
+		#endif
+	}
+
+
+	void erase(int i) {
+		tuple<uint8_t[120], uint8_t[120], uint8_t[120]> t;
+		TLOpId_t inId;
+		int spo = (unsigned)rand() % 3;
+	
+		#if DEBUG
+			printf("erase i=%d spo=%d\n", (int)i, (int)spo);
+			call PrintfFlush.flush();
+		#endif
+
+		// Construct the matching tuple
+		// spo == 0 --> (* ssn:isProxyFor spit:Temperature)
+		// spo == 1 --> (ss:silver_exp * spit:Temperature)
+		// spo == 2 --> (ss:silver_exp ssn:isProxyFor *)
+
+		t.expireIn = TIME_UNDEFINED;
+		t.type = 1;
+		t.flags = 0;
+
+		if(spo == 0) {
+			t.match_types[0] = MATCH_DONT_CARE;
+		}
+		else {
+			strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
+			t.value0[28] += i;
+			t.match_types[0] = MATCH_ACTUAL;
+		}
+
+		if(spo == 1) {
+			t.match_types[1] = MATCH_DONT_CARE;
+		}
+		else {
+			strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
+			t.value1[28] += i;
+			t.match_types[1] = MATCH_ACTUAL;
+		}
+		
+		if(spo == 2) {
+			t.match_types[2] = MATCH_DONT_CARE;
+		}
+		else {
+			strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
+			t.value2[28] += i;
+			t.match_types[2] = MATCH_ACTUAL;
+		}
+
+		call TS.in(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple *)&t);
+
 	}
 
 	void waste_energy() {
@@ -273,6 +422,8 @@ flahs sync time should not be defined for proper energy measurement!
 		printf("ready\n");
 		call PrintfFlush.flush();
 #endif // DEBUG
+		//call TS.nextTuple(operationId, iterator);
+		//call TS.nextTuple(operationId, iterator);
 	}
 
 	tuple<uint16_t> neighborTuple;

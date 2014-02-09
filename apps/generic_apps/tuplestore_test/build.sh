@@ -127,7 +127,7 @@ rm *.exe
 
 DEBUG=0
 RDF=incontextsensing.rdf
-MODE=insert
+MODE=find
 #DB=antelope
 DB=teeny
 

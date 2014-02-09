@@ -21,8 +21,9 @@ MEASUREMENT_INTERVAL = 64.0 / 3000.0
 
 # mA
 CURRENT_FACTOR = 70.0 / 4095.0
-BASELINE_ENERGY = 0.568206918430233
+BASELINE_ENERGY = 0 # will be auto-calculated # 0.568206918430233
 
+PLOT_ENERGY = True
 
 # Gateway hostname -> DB hostname
 gateway_to_db = {
@@ -63,10 +64,25 @@ blacklist = [
     #{ 'job': '24824', 'inode_db': 'inode008' },
     { 'job': '24825', 'inode_db': 'inode010' },
 
-    { 'job': '24857', '_tmax': 15.0 },
+    { 'job': '24857' }, # 1@once first teenylime experiments, different parameters
+    { 'job': '24858' }, # 5@once ...
+    { 'job': '24859' },
+    { 'job': '24860', '_tmax': 20.0 },
+    { 'job': '24861' }, # debug was on
+    { 'job': '24862', '_tmax': 10.0 },
+    # 24863: 4@once
+    { 'job': '24864', '_tmax': 20.0 }, # TL find, 1@once, 12 contained
 ]
 
-teenylime_runs = set(['24857'])
+teenylime_runs = set(
+    [str(x) for x in range(24857, 24870)]
+)
+
+TEENYLIME_INSERT_AT_ONCE = 4
+TEENYLIME_INSERT_CALLS = 3
+
+FINDS_AT_ONCE = 10
+TEENYLIME_FINDS_AT_ONCE = 1
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
 experiments = {}
@@ -77,7 +93,7 @@ style = {
         'boxcolor': 'black',
     },
     'antelope': {
-        'ls': 'b:',
+        'ls': 'b--',
         'boxcolor': 'blue',
     },
     'teeny': {
@@ -160,7 +176,7 @@ def median(l):
 def main():
     process_directories(
         sys.argv[1:],
-        lambda k: k.mode == 'insert' #and k.database != 'antelope'
+        lambda k: k.mode == 'find' #and k.database != 'antelope'
     )
     
     fs = (10, 5)
@@ -461,7 +477,10 @@ def process_directory(d, f=lambda x: True):
 
         exp = add_experiment(cls)
         if teenylime:
-            tc = [1] * 50 # range(20)
+            if v['mode'] == 'insert':
+                tc = [TEENYLIME_INSERT_AT_ONCE] * 50 # range(20)
+            elif v['mode'] == 'find':
+                tc = [TEENYLIME_FINDS_AT_ONCE] * 50 # range(20)
         else:
             tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
             if not tc:
@@ -478,6 +497,10 @@ def process_directory(d, f=lambda x: True):
         #print("v", type(v))
         if teenylime:
             runs_t, runs_e = process_energy_teenylime(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+
+            runs_t = [r[:TEENYLIME_INSERT_CALLS] for r in runs_t]
+            runs_e = [r[:TEENYLIME_INSERT_CALLS] for r in runs_e]
+
         else:
             runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
 
@@ -485,6 +508,7 @@ def process_directory(d, f=lambda x: True):
         for j, (ts, es) in enumerate(zip(runs_t, runs_e)):
             runs_count += 1
             print("  adding run {} of {} with {} entries".format(j, len(runs_e), len(es)))
+            print("  ts={} es={}".format(ts, es))
             for i, (t, e) in enumerate(zip(ts, es)):
                 if t is not None and e is not None: #t != 0 or e != 0:
                     exp.add_measurement(i, t, e)
@@ -533,7 +557,12 @@ def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
             t[mote_id] = t.get(mote_id, -delta) + delta
     #r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
             r[mote_id]['ts'].append(t[mote_id])
-            r[mote_id]['vs'].append(alpha * v + (1.0 - alpha) * (r[mote_id]['vs'][-1]
+
+            a = alpha
+            if b is not None and '_alpha' in b:
+                a = b['_alpha']
+
+            r[mote_id]['vs'].append(a * v + (1.0 - a) * (r[mote_id]['vs'][-1]
 if len(r[mote_id]['vs']) else 0.0))
 
         if use_subsamples:
@@ -559,13 +588,18 @@ def parse_tuple_counts(f, expid):
     return r
 
 
-def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
+def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
 
-    MEASUREMENT_UP = 0.6
-    MEASUREMENT_DOWN = 0.3
+    if mode == 'find':
+        MEASUREMENT_UP = 0.3
+        MEASUREMENT_DOWN = 0.3
+    else:
+        MEASUREMENT_UP = 1.0
+        MEASUREMENT_DOWN = 0.8
+
     delta_t = 0.8
 
     class State:
@@ -591,7 +625,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
     #tsums_i = []
     #tsums_f = []
 
-    BASELINE_ENERGY_TEENYLIME = 0.08
+    BASELINE_ENERGY_TEENYLIME = 0 # 0.08
     baseline_estimate = 0
     baseline_estimate_n = 0
 
@@ -606,7 +640,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
 
     for t, v in zip(ts, vs):
         if t < tmin: continue
-        if t > tmax:
+        if tmax is not None and t > tmax:
             print("{} > tmax".format(t))
             break
 
@@ -625,6 +659,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
 
         elif state is measurement:
             if v < MEASUREMENT_DOWN:
+                print("  t={}".format(t))
                 change_state(idle_low)
                 #if mode == 'insert':
                 esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
@@ -636,6 +671,11 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
 
 
     print("  baseline estimate (teenylime): {}".format(baseline_estimate))
+
+    for i in range(len(sums_t)):
+        if sums_e[i] is not None and sums_t[i] is not None:
+            sums_e[i] -= sums_t[i] * baseline_estimate
+
     runs_t.append(sums_t)
     runs_e.append(sums_e)
     return runs_t, runs_e
@@ -851,6 +891,12 @@ def process_energy(d, mode, lbl='', tmin=0):
     #tsums_f.append(time_sums_find)
     runs_t.append(sums_t)
     runs_e.append(sums_e)
+
+    for rt, re in zip(runs_t, runs_e):
+        for i in range(len(rt)):
+            if re[i] is not None and rt[i] is not None:
+                re[i] -= rt[i] * baseline_estimate
+
     return (runs_t, runs_e)
 
 def frange(a, b, step):
@@ -858,14 +904,15 @@ def frange(a, b, step):
 
 
 def fig_energy(ts, vs, n):
-    return
+    if not PLOT_ENERGY:
+        return
     fig = plt.figure(figsize=(10,5))
     ax = plt.subplot(111)
     
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((0, 50))
+    ax.set_xlim((0, 5))
     #ax.set_ylim((0, 2))
     ax.grid()
 

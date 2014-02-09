@@ -10,7 +10,9 @@
 			START_INSERT_INTERVAL = 1000,
 			DISABLE_RADIO_INTERVAL = 100,
 			START_FIND_INTERVAL = 5000,
-			ENABLE_RADIO_INTERVAL = 5000
+			ENABLE_RADIO_INTERVAL = 5000,
+
+			FINDS_AT_ONCE = 10
 		};
 			
 
@@ -258,7 +260,7 @@
 			char buf[MAX_ELEMENT_LENGTH];
 			void start_find(void*) {
 
-				for(int i = 0; i < 10; i++) {
+				for(int i = 0; i < FINDS_AT_ONCE; i++) {
 					int x = 0; // rand_->operator()() % 3;
 					block_data_t *s = find_s_;
 					block_data_t *p = find_p_;

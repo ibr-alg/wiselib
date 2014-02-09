@@ -47,7 +47,7 @@
 
 // The duration of a epoch, which also determines the reaction refresh,
 // and node tuple refresh
-#define EPOCH 4000
+#define EPOCH 40000
 
 //tahusaotehu
 
@@ -63,7 +63,7 @@
 #define MAX_NEIGHBORS 0
 
 // Number of slabs to be used by the memory allocator.
-#define SLABS_NUM (3 * 17)
+#define SLABS_NUM (3 * 16)
 #define PSLABS_NUM 0 //(14 * 4)
 
 // Size of a single slab. Must be an even number.
