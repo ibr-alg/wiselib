@@ -5,6 +5,8 @@
 #include <printf.h>
 #include "TupleSpace.h"
 
+#define DEBUG 0
+
 module TeenyTestC {
 	uses {
 		interface Boot;
@@ -40,20 +42,28 @@ implementation {
 	#define START_FIND_INTERVAL 5000
 	#define DISABLE_RADIO_INTERVAL 100
 
+
+	#ifdef FLASH_SYNC_TIME
+flahs sync time should not be defined for proper energy measurement!
+	#endif
+
+
 	bool first_receive;
-	uint8_t rdf_buffer_[1024];
+	//uint8_t rdf_buffer_[1024];
 	bool receiving;
 	uint16_t nextpos;
 	uint16_t tuples;
 	//NeighborTuple<uint16_t> neighborTuple;
 	
-		uint8_t buf_s[120];
-		uint8_t buf_p[120];
-		uint8_t buf_o[120];
+		//uint8_t buf_s[120];
+		//uint8_t buf_p[120];
+		//uint8_t buf_o[120];
 
 
 	void initialize_db() {
 	}
+
+	void waste_energy();
 
 	void write_uint16(uint8_t* p, uint16_t v) {
 		p[0] = v & 0xff;
@@ -68,11 +78,13 @@ implementation {
 	}
 
 	event void Boot.booted() {
-		//call PrintfControl.start();
+		#if DEBUG
+			call PrintfControl.start();
+			printf("boot\n");
+			call PrintfFlush.flush();
+		#endif
 
 		//dbg("boot, i guess.");
-		//printf("boot\n");
-		//call PrintfFlush.flush();
 		// init
 		//call Timer2.startPeriodic(10000);
 		//call PhysSleep.stop();
@@ -85,7 +97,7 @@ implementation {
 		//call RadioControl.stop();
 		//call McuSleep.sleep();
 
-		call Timer1.startPeriodic(7000);
+		call Timer0.startPeriodic(1000);
 	}
 
 	void reboot() {
@@ -103,33 +115,40 @@ implementation {
 		TLOpId_t inId;
 		int i;
 
+		call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
 
-		//printf("ins xstart\n");
+		#if DEBUG
+			printf("ins xstart\n");
+		#endif // DEBUG
 		//call PrintfFlush.flush();
 
-		//strcpy((char*)buf_s, "foo");
-		//strcpy((char*)buf_p, "bar");
-		//strcpy((char*)buf_o, "nudelsuppe");
+		//waste_energy();
 
 		//printf("WAT\n"); //call PrintfFlush.flush();
 		
+	/*
 	for(i=0; i<20; i++) {
+	*/
+		#if DEBUG
+			printf("i=%d\n", (int)i);
+		#endif
+
 		t.expireIn = TIME_UNDEFINED;
 		t.type = 1;
 		t.flags = 0;
 		//printf("sss\n"); //call PrintfFlush.flush();
 
-		strcpy((char*)t.value0, "foo");
+		strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
 		t.match_types[0] = MATCH_ACTUAL;
 
 		//printf("ppp\n"); //call PrintfFlush.flush();
 
-		strcpy((char*)t.value1, "bar");
+		strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
 		t.match_types[1] = MATCH_ACTUAL;
 		
 		//printf("ooo\n"); //call PrintfFlush.flush();
 		
-		strcpy((char*)t.value2, "nudelsuppe");
+		strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
 		t.match_types[2] = MATCH_ACTUAL;
 
 		//printf("out\n"); //call PrintfFlush.flush();
@@ -139,21 +158,28 @@ implementation {
 			//actualField(buf_o));
 
 		call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
+/*
 	}
-		//printf("ins end\n");
-		//call PrintfFlush.flush();
+*/
+#if DEBUG
+	printf("ins end\n");
+	call PrintfFlush.flush();
+#endif // DEBUG
+	}
+
+	void waste_energy() {
+		int blah = 5;
+		int i = 0;
+		int j = 7;
+		for(i = 0; i < 1000; i++) {
+			//for(j = 0; j < 1000; j++) {
+				blah = ((j*blah / (1 + i)) << 3) + 700;
+			//}
+		}
+		printf("%d", blah);
 	}
 
 	event void Timer1.fired() {
-		int blah = 5;
-		int i = 0;
-		int j = 0;
-		for(i = 0; i < 1000; i++) {
-			for(j = 0; j < 1000; j++) {
-				blah = (j*blah / (1 + i)) << 3 + 700;
-			}
-		}
-		printf("%d", blah);
 	}
 
 	event void Timer2.fired() {
@@ -183,7 +209,7 @@ implementation {
 	event void PrintfControl.stopDone(error_t err) {
 	}
 
-	message_t packet;
+	//message_t packet;
 
 	event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
 		uint8_t *data;
@@ -193,59 +219,63 @@ implementation {
 		uint8_t *p;
 		return msg;
 
-		if(!receiving) { return msg; }
-		data = (uint8_t*)payload;
+		//if(!receiving) { return msg; }
+		//data = (uint8_t*)payload;
 		
-		//printf("rcv l=%d %02x %02x %02x %02x", (int)len, (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
+		////printf("rcv l=%d %02x %02x %02x %02x", (int)len, (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
 		
-		if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {	
-			if(first_receive) {
-				first_receive = false;
-				initialize_db();
-			}
+		//if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {	
+			//if(first_receive) {
+				//first_receive = false;
+				//initialize_db();
+			//}
 
-			pos = read_uint16(data + 2);
-			if(pos != 0 && pos != nextpos) {
-				write_uint16(ack + 2, pos);
-				// TODO
-			p = (uint8_t*)(call Packet.getPayload(&packet, NULL)); //, 4));
-			//	/*p = (uint8_t*)(*/ call Packet.getPayload(&packet, p);
-				p[0] = ack[0]; p[1] = ack[1];
-				p[2] = ack[2]; p[3] = ack[3];
-				call AMSend.send(AM_BROADCAST_ADDR, &packet, 4);
-				return msg;
-			}
-			//lastpos = pos;
-			nextpos = pos + len - 4;
+			//pos = read_uint16(data + 2);
+			//if(pos != 0 && pos != nextpos) {
+				//write_uint16(ack + 2, pos);
+				//// TODO
+			//p = (uint8_t*)(call Packet.getPayload(&packet, NULL)); //, 4));
+			////	[>p = (uint8_t*)(<] call Packet.getPayload(&packet, p);
+				//p[0] = ack[0]; p[1] = ack[1];
+				//p[2] = ack[2]; p[3] = ack[3];
+				//call AMSend.send(AM_BROADCAST_ADDR, &packet, 4);
+				//return msg;
+			//}
+			////lastpos = pos;
+			//nextpos = pos + len - 4;
 
-			if(len == 4) {
-				receiving = false;
-				nextpos = 0;
-				call Timer0.startOneShot(START_INSERT_INTERVAL);
-				call Timer1.startOneShot(DISABLE_RADIO_INTERVAL);
-			}
-			else {
-				memcpy(rdf_buffer_ + pos, data + 4, len - 4);
-			}
+			//if(len == 4) {
+				//receiving = false;
+				//nextpos = 0;
+				//call Timer0.startOneShot(START_INSERT_INTERVAL);
+				//call Timer1.startOneShot(DISABLE_RADIO_INTERVAL);
+			//}
+			//else {
+				//memcpy(rdf_buffer_ + pos, data + 4, len - 4);
+			//}
 
-			//uint8_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
-			write_uint16(ack + 2, pos);
-			p = (uint8_t*)(call Packet.getPayload(&packet, NULL)); //, 4));
-				//p = (uint8_t*)( call Packet.getPayload(&packet, p);
-			p[0] = ack[0]; p[1] = ack[1];
-			p[2] = ack[2]; p[3] = ack[3];
-			call AMSend.send(AM_BROADCAST_ADDR, &packet, 4);
-		}
-		else if(data[0] == 0xbb && data[1] == (EXP_NR & 0xff)) {
-			reboot();
-		}
-		else {
-		}
+			////uint8_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
+			//write_uint16(ack + 2, pos);
+			//p = (uint8_t*)(call Packet.getPayload(&packet, NULL)); //, 4));
+				////p = (uint8_t*)( call Packet.getPayload(&packet, p);
+			//p[0] = ack[0]; p[1] = ack[1];
+			//p[2] = ack[2]; p[3] = ack[3];
+			//call AMSend.send(AM_BROADCAST_ADDR, &packet, 4);
+		//}
+		//else if(data[0] == 0xbb && data[1] == (EXP_NR & 0xff)) {
+			//reboot();
+		//}
+		//else {
+		//}
 
-		return msg;
+		//return msg;
 	}
 
 	event void TS.tupleReady(TLOpId_t operationId, TupleIterator *iterator) {
+#if DEBUG
+		printf("ready\n");
+		call PrintfFlush.flush();
+#endif // DEBUG
 	}
 
 	tuple<uint16_t> neighborTuple;
@@ -261,6 +291,11 @@ implementation {
                                    TLTarget_t target,
                    TLTupleSpace_t ts,
                                    tuple* returningTuple) {
+#if DEBUG
+	  printf("compl\n");
+	  call PrintfFlush.flush();
+#endif // DEBUG
+	
   }
 
 

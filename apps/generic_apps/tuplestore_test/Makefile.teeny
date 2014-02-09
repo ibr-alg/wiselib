@@ -4,6 +4,7 @@ COMPONENT = $(WORKING_DIR)/TL_$(TL_COMPONENT)
 TL_DIR = /home/wiselib/teenylime/tl
 TL_OBJECT_FILE = tl_objs
 TLPFLAGS = -K
+CFLAGS += -DPRINTF_SUPPORT
 include $(TL_DIR)/Makefile
 
 PFLAGS += -I./ -I./config 

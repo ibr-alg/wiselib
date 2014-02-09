@@ -747,7 +747,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((320, 350))
+    ax.set_xlim((0, 50))
     #ax.set_ylim((0, 3))
     ax.grid()
 

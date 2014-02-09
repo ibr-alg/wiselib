@@ -40,14 +40,14 @@
 
 // Max number of distributed operations pending... this must be
 // less than or equal to the number of outgoing messages in the queue
-#define MAX_PENDING_OPS 6  
+#define MAX_PENDING_OPS 0  
 
 // Max number of flash operation pending.
 #define PERSIST_QUEUE_SIZE 5 
 
 // The duration of a epoch, which also determines the reaction refresh,
 // and node tuple refresh
-#define EPOCH 30000
+#define EPOCH 4000
 
 //tahusaotehu
 
@@ -56,15 +56,15 @@
 #define REMOTE_LOST_REFRESH 3
 
 // Timeout for remote query operations
-#define REMOTE_OP_TIMEOUT 30000
+#define REMOTE_OP_TIMEOUT 3000
 
 // Max number of neighbor in the TeenyLIME system
 // (be careful: these are stored as tuples in the main tuple space)
 #define MAX_NEIGHBORS 9
 
 // Number of slabs to be used by the memory allocator.
-#define SLABS_NUM 10
-#define PSLABS_NUM 12
+#define SLABS_NUM (10 * 4)
+#define PSLABS_NUM (12 * 4)
 
 // Size of a single slab. Must be an even number.
 #define SLAB_SIZE 150
