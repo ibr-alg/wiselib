@@ -11,6 +11,8 @@ import gzip
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
+EXP_DIR='experiments/'
+
 # avg over 64 measurements,
 # 3000 measurements per sec.
 # measurement interval is in seconds
@@ -60,7 +62,11 @@ blacklist = [
     { 'job': '24825', 'inode_db': 'inode016' },
     #{ 'job': '24824', 'inode_db': 'inode008' },
     { 'job': '24825', 'inode_db': 'inode010' },
+
+    { 'job': '24857', '_tmax': 15.0 },
 ]
+
+teenylime_runs = set(['24857'])
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
 experiments = {}
@@ -73,6 +79,10 @@ style = {
     'antelope': {
         'ls': 'grey',
         'boxcolor': 'grey',
+    },
+    'teeny': {
+        'ls': 'g-',
+        'boxcolor': 'green',
     }
 }
 
@@ -150,7 +160,7 @@ def median(l):
 def main():
     process_directories(
         sys.argv[1:],
-        #lambda k: k.mode == 'find' and k.database == 'antelope'
+        lambda k: k.mode == 'insert' #and k.database != 'antelope'
     )
     
     fs = (10, 5)
@@ -244,6 +254,10 @@ def main():
 
             shift_f -= 1
 
+    ax_i_e.set_xlim((0, 80))
+    ax_i_e.set_ylim((0, .1))
+    ax_i_t.set_xlim((0, 80))
+
     ax_i_e.legend()
     ax_i_t.legend()
     ax_f_e.legend()
@@ -288,27 +302,27 @@ def cleanse(l1, l2):
             r2.append(y)
     return r1, r2
 
-def plot_energies(experiments, fname='energies.pdf'):
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
-    for exp in experiments:
-        if exp.energy:
-            #print(len(exp.energy), len(exp.tuplecounts))
-            ax.boxplot(exp.energy, positions=exp.tuplecounts[:len(exp.energy)])
-    print("writing {}.".format(fname))
-    fig.savefig(fname)
+#def plot_energies(experiments, fname='energies.pdf'):
+    #fig = plt.figure()
+    #ax = plt.subplot(111)
+    ##ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
+    #for exp in experiments:
+        #if exp.energy:
+            ##print(len(exp.energy), len(exp.tuplecounts))
+            #ax.boxplot(exp.energy, positions=exp.tuplecounts[:len(exp.energy)])
+    #print("writing {}.".format(fname))
+    #fig.savefig(fname)
 
-def plot_times(experiments, fname='times.pdf'):
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    #ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
-    for exp in experiments:
-        #print(exp.energy)
-        if exp.energy:
-            ax.boxplot(exp.energy, positions=exp.tuplecounts)
-    print("writing {}.".format(fname))
-    fig.savefig(fname)
+#def plot_times(experiments, fname='times.pdf'):
+    #fig = plt.figure()
+    #ax = plt.subplot(111)
+    ##ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
+    #for exp in experiments:
+        ##print(exp.energy)
+        #if exp.energy:
+            #ax.boxplot(exp.energy, positions=exp.tuplecounts)
+    #print("writing {}.".format(fname))
+    #fig.savefig(fname)
 
 class ExperimentClass:
     def __init__(self, d):
@@ -341,6 +355,7 @@ class Experiment:
             self.energy.append([])
             self.time.append([])
         if self.key.mode == 'find':
+            print("addm find");
             self.time[i].append(t)
             self.energy[i].append(e)
         else:
@@ -382,9 +397,10 @@ def process_directories(dirs,f=lambda x: True):
 
 def process_directory(d, f=lambda x: True):
     d = str(d).strip('/')
+    teenylime = (d in teenylime_runs)
 
     print()
-    print("*** iMinds exp #{} ***".format(d))
+    print("*** iMinds exp #{} {} ***".format(d, '(teenylime mode)' if teenylime else ''))
 
 
     # 1st pass: Blacklisting & Filtering of experiments
@@ -392,8 +408,8 @@ def process_directory(d, f=lambda x: True):
     # blacklist by db inode id
     bl = {}
     for gw, db in gateway_to_db.items():
-        fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
-        fn_gwout = d + '/' + gw + '/output.txt'
+        fn_gwinfo = EXP_DIR + d + '/' + gw + '/' + gw + '.vars'
+        fn_gwout = EXP_DIR + d + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
@@ -412,16 +428,19 @@ def process_directory(d, f=lambda x: True):
                 bl[db] = b
                 break
 
-    #print(bl)
-    energy = read_energy(d, bl)
+    # Now actually read energy values
+    # we only need subsamples for teenylime as they only insert one value at a
+    # time
+    energy = read_energy(EXP_DIR + d, bl, use_subsamples=teenylime, alpha=(.05 if teenylime else 1.0))
+
     for gw, db in gateway_to_db.items():
         if db in bl and not has_valid(bl[db]): continue
         #if tmaxs.get(db, None) == 0: continue
         #tmax = tmaxs.get(db, None)
 
-        fn_gwinfo = d + '/' + gw + '/' + gw + '.vars'
+        fn_gwinfo = EXP_DIR + d + '/' + gw + '/' + gw + '.vars'
         #fn_dbout = d + '/' + db + '/output.txt'
-        fn_gwout = d + '/' + gw + '/output.txt'
+        fn_gwout = EXP_DIR + d + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
@@ -439,10 +458,13 @@ def process_directory(d, f=lambda x: True):
         print("  {}/{} {}".format(cls.database, cls.mode, cls.dataset))
 
         exp = add_experiment(cls)
-        tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
-        if not tc:
-            print("  (!) no tuplecounts found in {}, using default".format(fn_gwout))
-            tc = [7, 6, 8, 11, 11, 10, 11, 9]
+        if teenylime:
+            tc = [1] * 50 # range(20)
+        else:
+            tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
+            if not tc:
+                print("  (!) no tuplecounts found in {}, using default".format(fn_gwout))
+                tc = [7, 6, 8, 11, 11, 10, 11, 9]
         exp.set_tuplecounts(tc)
         #print(energy[inode_to_mote_id(db)])
         mid = inode_to_mote_id(db)
@@ -452,8 +474,10 @@ def process_directory(d, f=lambda x: True):
 
         #print("energy", type(energy))
         #print("v", type(v))
-        runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=v['mode'] + '_' + v['database']
-+ '_' + db, tmin=bl.get(db, {}).get('_tmin', 0))
+        if teenylime:
+            runs_t, runs_e = process_energy_teenylime(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+        else:
+            runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
 
         runs_count = 0
         for j, (ts, es) in enumerate(zip(runs_t, runs_e)):
@@ -461,8 +485,10 @@ def process_directory(d, f=lambda x: True):
             print("  adding run {} of {} with {} entries".format(j, len(runs_e), len(es)))
             for i, (t, e) in enumerate(zip(ts, es)):
                 if t is not None and e is not None: #t != 0 or e != 0:
-                    #exp.add_measurement(i, t, e)
-                    pass
+                    exp.add_measurement(i, t, e)
+                else:
+                    print("  skipping i={} t={} e={}".format(i, t, e))
+                    #pass
         print("  processed {} experiment runs.".format(runs_count))
 
 def read_vars(fn):
@@ -481,7 +507,7 @@ def read_vars(fn):
 
     return r
 
-def read_energy(fn, bl):
+def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
     r = {}
 
     f = None
@@ -497,16 +523,23 @@ def read_energy(fn, bl):
     for row in reader:
         mote_id = row['motelabMoteID']
         if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
-
-        t[mote_id] = t.get(mote_id, -MEASUREMENT_INTERVAL) + MEASUREMENT_INTERVAL
-#r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
         b = bl.get(mote_id_to_inode_id(mote_id))
-        if b is not None and not valid(b, t[mote_id]):
+        if b is not None and not valid(b, t.get(mote_id, 0)):
             continue
 
-        r[mote_id]['ts'].append(t[mote_id])
-        v = float(row['avg']) * CURRENT_FACTOR
-        r[mote_id]['vs'].append(v)
+        def add_sample(v, delta):
+            t[mote_id] = t.get(mote_id, -delta) + delta
+    #r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
+            r[mote_id]['ts'].append(t[mote_id])
+            r[mote_id]['vs'].append(alpha * v + (1.0 - alpha) * (r[mote_id]['vs'][-1]
+if len(r[mote_id]['vs']) else 0.0))
+
+        if use_subsamples:
+            for i in range(64):
+                s = 'sample_{}'.format(i)
+                add_sample(float(row[s]) * CURRENT_FACTOR, MEASUREMENT_INTERVAL / 64.0)
+        else:
+            add_sample(float(row['avg']) * CURRENT_FACTOR, MEASUREMENT_INTERVAL)
 
     return r
 
@@ -523,7 +556,89 @@ def parse_tuple_counts(f, expid):
                 r.append(int(m.groups()[0]))
     return r
 
-#def find_tuple_spikes(ts, vs):
+
+def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
+    ts = d['ts']
+    vs = d['vs']
+    fig_energy(ts, vs, lbl)
+
+    MEASUREMENT_UP = 0.6
+    MEASUREMENT_DOWN = 0.3
+    delta_t = 0.8
+
+    class State:
+        def __init__(self, s): self.s = s
+        def __str__(self): return self.s
+    idle_low = State('low')
+    measurement = State('measurement')
+
+    sums_e = []
+    sums_t = []
+    runs_e = []
+    runs_t = []
+
+    thigh = 0
+    t0 = 0
+    tprev = 0
+    esum = 0
+    t = 0
+    v = 0
+
+    #esums_i = []
+    #esums_f = []
+    #tsums_i = []
+    #tsums_f = []
+
+    BASELINE_ENERGY_TEENYLIME = 0
+    baseline_estimate = 0
+    baseline_estimate_n = 0
+
+    state = idle_low
+
+    def change_state(s):
+        nonlocal state
+        nonlocal thigh
+        if s is not state:
+            print("{}: {} -> {} v={}".format(t, state, s, v))
+            state = s
+
+    for t, v in zip(ts, vs):
+        if t < tmin: continue
+        if t > tmax:
+            print("{} > tmax".format(t))
+            break
+
+        if state is idle_low:
+            if v > MEASUREMENT_UP:
+
+                change_state(measurement)
+                #if mode == 'insert':
+                t0 = t
+                esum = (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                #tprev = t
+            else:
+                baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
+                baseline_estimate_n += 1.0
+                baseline_estimate += v / baseline_estimate_n 
+
+        elif state is measurement:
+            if v < MEASUREMENT_DOWN:
+                change_state(idle_low)
+                #if mode == 'insert':
+                esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                sums_t.append(t - t0)
+                sums_e.append(esum)
+            else:
+                esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+        tprev = t
+
+
+    print("  baseline estimate (teenylime): {}".format(baseline_estimate))
+    runs_t.append(sums_t)
+    runs_e.append(sums_e)
+    return runs_t, runs_e
+
+
 def process_energy(d, mode, lbl='', tmin=0):
     ts = d['ts']
     vs = d['vs']
@@ -741,6 +856,7 @@ def frange(a, b, step):
 
 
 def fig_energy(ts, vs, n):
+    return
     fig = plt.figure(figsize=(10,5))
     ax = plt.subplot(111)
     
@@ -748,10 +864,10 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     ax.set_xlim((0, 50))
-    #ax.set_ylim((0, 3))
+    #ax.set_ylim((0, 2))
     ax.grid()
 
-    ax.plot(ts, vs)
+    ax.plot(ts, vs, 'k-')
     fig.savefig('energy_{}.pdf'.format(n), bbox_inches='tight', pad_inches=.1)
 
 def cum(l):

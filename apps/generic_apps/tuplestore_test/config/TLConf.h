@@ -36,14 +36,14 @@
 #ifndef TLCONF_H
 #define TLCONF_H
 
-#define MAX_REACTIONS 4
+#define MAX_REACTIONS 0
 
 // Max number of distributed operations pending... this must be
 // less than or equal to the number of outgoing messages in the queue
 #define MAX_PENDING_OPS 0  
 
 // Max number of flash operation pending.
-#define PERSIST_QUEUE_SIZE 5 
+#define PERSIST_QUEUE_SIZE 0
 
 // The duration of a epoch, which also determines the reaction refresh,
 // and node tuple refresh
@@ -60,14 +60,14 @@
 
 // Max number of neighbor in the TeenyLIME system
 // (be careful: these are stored as tuples in the main tuple space)
-#define MAX_NEIGHBORS 9
+#define MAX_NEIGHBORS 0
 
 // Number of slabs to be used by the memory allocator.
-#define SLABS_NUM (10 * 4)
-#define PSLABS_NUM (12 * 4)
+#define SLABS_NUM (3 * 17)
+#define PSLABS_NUM 0 //(14 * 4)
 
 // Size of a single slab. Must be an even number.
-#define SLAB_SIZE 150
+#define SLAB_SIZE 130
 
 // Size for the usage bitmap of a single slab. Must be an even number.
 // A maximum of 2^SLAB_BITMAP_SIZE tuples can be accomodated in the slab.

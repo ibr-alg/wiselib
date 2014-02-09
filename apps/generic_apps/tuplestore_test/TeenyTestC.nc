@@ -10,13 +10,13 @@
 module TeenyTestC {
 	uses {
 		interface Boot;
-		interface Receive;
-		interface AMSend;
+		//interface Receive;
+		//interface AMSend;
 		interface Timer<TMilli> as Timer0;
 		interface Timer<TMilli> as Timer1;
 		interface Timer<TMilli> as Timer2;
-		interface Packet;
-		interface SplitControl as RadioControl;
+		//interface Packet;
+		//interface SplitControl as RadioControl;
 
 		interface TupleSpace as TS;
 		interface TeenyLIMESystem;
@@ -27,7 +27,7 @@ module TeenyTestC {
 		interface McuSleep;
 		//interface SplitControl as PhysSleep;
 
-		interface LowPowerListening as LPL;
+		//interface LowPowerListening as LPL;
 
 		interface Tuning;
 	}
@@ -188,6 +188,16 @@ flahs sync time should not be defined for proper energy measurement!
 		//call PrintfFlush.flush();
 	}
 
+	event void PrintfControl.startDone(error_t err) {
+		//printf("start is done btw.\n");
+		//call PrintfFlush.flush();
+	}
+
+	event void PrintfControl.stopDone(error_t err) {
+	}
+
+
+#if 0
 	event void AMSend.sendDone(message_t* msg, error_t err) {
 	}
 
@@ -201,14 +211,6 @@ flahs sync time should not be defined for proper energy measurement!
 
 	event void RadioControl.stopDone(error_t err) {
 	}
-	event void PrintfControl.startDone(error_t err) {
-		//printf("start is done btw.\n");
-		//call PrintfFlush.flush();
-	}
-
-	event void PrintfControl.stopDone(error_t err) {
-	}
-
 	//message_t packet;
 
 	event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
@@ -270,6 +272,7 @@ flahs sync time should not be defined for proper energy measurement!
 
 		//return msg;
 	}
+#endif
 
 	event void TS.tupleReady(TLOpId_t operationId, TupleIterator *iterator) {
 #if DEBUG

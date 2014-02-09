@@ -37,7 +37,7 @@
 #define MSGQUEUE_H
 
 // The max number of TOS messages waiting to be transmitted
-#define TMOTE_QUEUE_SIZE 4
+#define TMOTE_QUEUE_SIZE 0
 
 // The min link quality to regard another node as a neighbor 
 // (a value of 0 implies no filtering)

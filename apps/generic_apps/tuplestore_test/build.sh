@@ -1,5 +1,7 @@
 #!/bin/bash
 
+EXP_DIR=experiments
+
 GIT_STATUS=$(git status -s |grep -v '^??'|grep -v build.sh|grep -v plot.py)
 if [ ! -z "$GIT_STATUS" ]; then
 	echo 'Git working dir not clean, you should commit if you want this to be repeatable'
@@ -48,14 +50,14 @@ function generate_stuff() {
 	GIT_MSG=$(git log --pretty=oneline -n 1|{ read A B; echo $B; } )
 	GIT_DATE=$(git log --pretty='format:%cd' -n 1)
 
-	if [ -e current_exp_nr ]; then
-		EXP_NR=$(< current_exp_nr)
+	if [ -e $EXP_DIR/current_exp_nr ]; then
+		EXP_NR=$(< $EXP_DIR/current_exp_nr)
 	fi
 	if [ -z "$EXP_NR" ]; then
 		EXP_NR=0
 	fi
 	EXP_NR=$(($EXP_NR + 1))
-	echo $EXP_NR > current_exp_nr
+	echo $EXP_NR > $EXP_DIR/current_exp_nr
 
 	#cp $RDF ${AREA}.rdf
 	NTUPLES=$(wc -l ${RDF}|awk '{print $1}')
@@ -74,22 +76,22 @@ function generate_stuff() {
 	echo "#define GIT_DATE \"$GIT_DATE\"" >> defs.h
 	echo "#define AREA \"$AREA\"" >> defs.h
 
-	echo EXP_NR=$EXP_NR > ${INODE_GATEWAY}.vars
-	echo NTUPLES=$NTUPLES >> ${INODE_GATEWAY}.vars
-	echo DEBUG=$DEBUG >> ${INODE_GATEWAY}.vars
-	echo MODE=\"$MODE\" >> ${INODE_GATEWAY}.vars
-	echo AREA=\"$AREA\" >> ${INODE_GATEWAY}.vars
-	echo GIT_COMMIT=\"$GIT_COMMIT\" >> ${INODE_GATEWAY}.vars
-	echo GIT_DATE=\"$GIT_DATE\" >> ${INODE_GATEWAY}.vars
-	echo GIT_MSG=\"$GIT_MSG\" >> ${INODE_GATEWAY}.vars
-	echo DATASET=\"$RDF\" >> ${INODE_GATEWAY}.vars
-	echo DATABASE=\"$DB\" >> ${INODE_GATEWAY}.vars
-	echo GENERATED=\"$(date)\" >> ${INODE_GATEWAY}.vars
-	echo INODE_GATEWAY=\"${INODE_GATEWAY}\" >> ${INODE_GATEWAY}.vars
-	echo INODE_DB=\"${INODE_DB}\" >> ${INODE_GATEWAY}.vars
+	echo EXP_NR=$EXP_NR > $EXP_DIR/${INODE_GATEWAY}.vars
+	echo NTUPLES=$NTUPLES >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo DEBUG=$DEBUG >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo MODE=\"$MODE\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo AREA=\"$AREA\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo GIT_COMMIT=\"$GIT_COMMIT\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo GIT_DATE=\"$GIT_DATE\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo GIT_MSG=\"$GIT_MSG\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo DATASET=\"$RDF\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo DATABASE=\"$DB\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo GENERATED=\"$(date)\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo INODE_GATEWAY=\"${INODE_GATEWAY}\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo INODE_DB=\"${INODE_DB}\" >> $EXP_DIR/${INODE_GATEWAY}.vars
 	#cat ${INODE_GATEWAY}.vars
 
-	cp ${INODE_GATEWAY}.vars exp${EXP_NR}.vars
+	cp $EXP_DIR/${INODE_GATEWAY}.vars $EXP_DIR/exp${EXP_NR}.vars
 
 
 	#make -f Makefile.gateway clean
@@ -99,10 +101,10 @@ function generate_stuff() {
 	make -f Makefile.$DB clean
 	if [ "$DB" == "teeny" ]; then
 		make -f Makefile.teeny telosb || exit 1
-		cp build/telosb/main.exe $FILENAME_DB || exit 1
+		cp build/telosb/main.exe $EXP_DIR/$FILENAME_DB || exit 1
 	else
 		make -f Makefile.$DB || exit 1
-		cp out/contiki-sky/app_database.exe $FILENAME_DB || exit 1
+		cp out/contiki-sky/app_database.exe $EXP_DIR/$FILENAME_DB || exit 1
 	fi
 
 	make -f Makefile.host clean
@@ -141,7 +143,7 @@ generate_stuff
 AREA=delta
 generate_stuff
 
-ls -lh *.exe
+ls -lh $EXP_DIR/*.exe
 echo EXP_NR $EXP_NR
 
 #./sync_ibbt.sh 
