@@ -77,8 +77,8 @@ style = {
         'boxcolor': 'black',
     },
     'antelope': {
-        'ls': 'grey',
-        'boxcolor': 'grey',
+        'ls': 'b:',
+        'boxcolor': 'blue',
     },
     'teeny': {
         'ls': 'g-',
@@ -179,10 +179,10 @@ def main():
 
     #ax_i_e.set_yscale('log')
 
-    shift_i = 1
-    shift_f = 1
-    l_f = 1
-    l_e = 1
+    shift_i = 2
+    shift_f = 2
+    #l_f = 1
+    #l_e = 1
     for k, exp in experiments.items():
         #plot_energies([v], k.reprname() + '.pdf')
         if k.mode == 'insert':
@@ -254,9 +254,11 @@ def main():
 
             shift_f -= 1
 
-    ax_i_e.set_xlim((0, 80))
-    ax_i_e.set_ylim((0, .1))
-    ax_i_t.set_xlim((0, 80))
+    ax_i_e.set_xlim((0, 75))
+    ax_i_e.grid()
+    #ax_i_e.set_ylim((0, .2))
+    ax_i_t.set_xlim((0, 75))
+    ax_i_t.grid()
 
     ax_i_e.legend()
     ax_i_t.legend()
@@ -589,7 +591,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
     #tsums_i = []
     #tsums_f = []
 
-    BASELINE_ENERGY_TEENYLIME = 0
+    BASELINE_ENERGY_TEENYLIME = 0.08
     baseline_estimate = 0
     baseline_estimate_n = 0
 
@@ -599,7 +601,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=11.0):
         nonlocal state
         nonlocal thigh
         if s is not state:
-            print("{}: {} -> {} v={}".format(t, state, s, v))
+            #print("{}: {} -> {} v={}".format(t, state, s, v))
             state = s
 
     for t, v in zip(ts, vs):

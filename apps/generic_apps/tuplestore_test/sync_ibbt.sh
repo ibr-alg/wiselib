@@ -1,5 +1,5 @@
 #!/bin/bash
-
+EXP_DIR=experiments/
 HOST=wilabfs.atlantis.ugent.be
 USER=hasemann
 PLATFORM_DIR=iPlatform/tuplestore_platform/

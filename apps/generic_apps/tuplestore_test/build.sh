@@ -66,6 +66,7 @@ function generate_stuff() {
 	echo "#define NTUPLES $NTUPLES" >> defs.h
 	echo "#define EXP_NR $EXP_NR" >> defs.h
 	echo "#define MODE \"$MODE\"" >> defs.h
+	echo "#define MODE_$(echo $MODE|tr [a-z] [A-Z]) 1" >> defs.h
 	if [ "$MODE" == "find" ]; then
 		echo "#define APP_DATABASE_FIND 1" >> defs.h
 	fi

@@ -42,6 +42,7 @@ implementation {
 	#define START_FIND_INTERVAL 5000
 	#define DISABLE_RADIO_INTERVAL 100
 
+	#define INSERTS_AT_ONCE 5
 
 	#ifdef FLASH_SYNC_TIME
 flahs sync time should not be defined for proper energy measurement!
@@ -115,56 +116,49 @@ flahs sync time should not be defined for proper energy measurement!
 		TLOpId_t inId;
 		int i;
 
-		call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
-
-		#if DEBUG
-			printf("ins xstart\n");
-		#endif // DEBUG
-		//call PrintfFlush.flush();
-
-		//waste_energy();
-
-		//printf("WAT\n"); //call PrintfFlush.flush();
-		
-	/*
-	for(i=0; i<20; i++) {
-	*/
-		#if DEBUG
-			printf("i=%d\n", (int)i);
+		//call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
+		#if MODE_INSERT
+			insert_some();
 		#endif
-
-		t.expireIn = TIME_UNDEFINED;
-		t.type = 1;
-		t.flags = 0;
-		//printf("sss\n"); //call PrintfFlush.flush();
-
-		strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
-		t.match_types[0] = MATCH_ACTUAL;
-
-		//printf("ppp\n"); //call PrintfFlush.flush();
-
-		strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
-		t.match_types[1] = MATCH_ACTUAL;
-		
-		//printf("ooo\n"); //call PrintfFlush.flush();
-		
-		strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
-		t.match_types[2] = MATCH_ACTUAL;
-
-		//printf("out\n"); //call PrintfFlush.flush();
-		//t = newTuple(
-			//actualField(buf_s),
-			//actualField(buf_p),
-			//actualField(buf_o));
-
-		call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
-/*
 	}
-*/
-#if DEBUG
-	printf("ins end\n");
-	call PrintfFlush.flush();
-#endif // DEBUG
+
+
+	void insert_some() {
+		for(i=0; i<INSERTS_AT_ONCE; i++) {
+			t.expireIn = TIME_UNDEFINED;
+			t.type = 1;
+			t.flags = 0;
+
+			strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
+			t.match_types[0] = MATCH_ACTUAL;
+
+			strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
+			t.match_types[1] = MATCH_ACTUAL;
+			
+			strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
+			t.match_types[2] = MATCH_ACTUAL;
+
+			call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
+		}
+	}
+
+	void insert_fill() {
+		for(i=0; i<15; i++) {
+			t.expireIn = TIME_UNDEFINED;
+			t.type = 1;
+			t.flags = 0;
+
+			strcpy((char*)t.value0, "<http://spitfire-project.eu/sensor_stimulus/silver_expansion>");
+			t.match_types[0] = MATCH_ACTUAL;
+
+			strcpy((char*)t.value1, "<http://purl.oclc.org/NET/ssnx/ssn#isProxyFor>");
+			t.match_types[1] = MATCH_ACTUAL;
+			
+			strcpy((char*)t.value2, "<http://spitfire-project.eu/property/Temperature>");
+			t.match_types[2] = MATCH_ACTUAL;
+
+			call TS.out(&inId, FALSE, TL_LOCAL, RAM_TS, (tuple*)&t);
+		}
 	}
 
 	void waste_energy() {
