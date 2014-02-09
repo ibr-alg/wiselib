@@ -83,9 +83,9 @@ implementation {
 
 		call Tuning.set(KEY_RADIO_CONTROL, RADIO_OFF);
 		//call RadioControl.stop();
-		call McuSleep.sleep();
+		//call McuSleep.sleep();
 
-		call Timer0.startPeriodic(7000);
+		call Timer1.startPeriodic(7000);
 	}
 
 	void reboot() {
@@ -145,6 +145,15 @@ implementation {
 	}
 
 	event void Timer1.fired() {
+		int blah = 5;
+		int i = 0;
+		int j = 0;
+		for(i = 0; i < 1000; i++) {
+			for(j = 0; j < 1000; j++) {
+				blah = (j*blah / (1 + i)) << 3 + 700;
+			}
+		}
+		printf("%d", blah);
 	}
 
 	event void Timer2.fired() {
