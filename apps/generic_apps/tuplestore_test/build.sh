@@ -127,7 +127,7 @@ rm *.exe
 
 DEBUG=0
 RDF=incontextsensing.rdf
-MODE=erase
+MODE=find
 #DB=antelope
 #DB=teeny
 DB=tuplestore

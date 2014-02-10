@@ -22,8 +22,15 @@ EXP_DIR='experiments/'
 
 MEASUREMENT_INTERVAL = 64.0 / 3000.0
 
-# mA
-CURRENT_FACTOR = 70.0 / 4095.0
+# mA = 
+CURRENT_FACTOR =  70.0 / 4095.0
+
+# mA * 3.3V = microJoule (uJ)
+CURRENT_DISPLAY_FACTOR = 3.3
+# s -> ms
+TIME_DISPLAY_FACTOR = 1000.0
+
+
 BASELINE_ENERGY = 0 # will be auto-calculated # 0.568206918430233
 
 PLOT_ENERGY = True
@@ -94,6 +101,10 @@ blacklist = [
     { 'job': '24877', 'inode_db': 'inode010'}, # ts erase
     { 'job': '24877', 'inode_db': 'inode016'}, # ts erase
     { 'job': '24879', '_tmin': 780, '_tmax': 900 }, # ts erase
+    { 'job': '24880', 'inode_db': 'inode010', '_tmin': 760, '_tmax': 1000, }, # ts erase
+    { 'job': '24880', 'inode_db': 'inode016'}, # ts erase
+    { 'job': '24880', 'inode_db': 'inode008', '_tmin': 786, '_tmax': 1000, }, # ts erase
+    { 'job': '24880', 'inode_db': 'inode014'}, # ts erase
 ]
 
 teenylime_runs = set(
@@ -103,6 +114,7 @@ teenylime_runs = set(
 subsample_runs = set([
     '24877', # ts erase
     '24879', # ts erase
+    '24880', # ts erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -116,8 +128,8 @@ FINDS_AT_ONCE = 10
 TEENYLIME_FINDS_AT_ONCE = 1
 TEENYLIME_ERASES_AT_ONCE = 1
 
-# Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
-experiments = {}
+# ( Experiment class , { 'ts': [...], 'vs': [...], 'cls': cls } )
+experiments = []
 
 style = {
     'tuplestore': {
@@ -141,7 +153,9 @@ def main():
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
     )
     
-    fs = (12, 5)
+    #fs = (12, 5)
+    fs = (4, 3)
+    #fs = None
     
     fig_i_e = plt.figure(figsize=fs)
     ax_i_e = plt.subplot(111)
@@ -165,7 +179,11 @@ def main():
     shift_e = 2
     #l_f = 1
     #l_e = 1
-    for k, exp in experiments.items():
+    for k, exp in experiments: #.items():
+
+        es = ([y * CURRENT_DISPLAY_FACTOR for y in x] for x in exp.energy)
+        ts = ([y * TIME_DISPLAY_FACTOR for y in x] for x in exp.time)
+
         #plot_energies([v], k.reprname() + '.pdf')
         if k.mode == 'insert':
             pos_e = [x + shift_i for x in exp.tuplecounts[:len(exp.energy)]]
@@ -177,8 +195,8 @@ def main():
             pos_e += [100] * (len(exp.energy) - len(pos_e))
             pos_t += [100] * (len(exp.time) - len(pos_t))
 
-            pos_e, es = cleanse(pos_e, exp.energy)
-            pos_t, ts = cleanse(pos_t, exp.time)
+            pos_e, es = cleanse(pos_e, es)
+            pos_t, ts = cleanse(pos_t, ts)
 
             print(k.mode, k.database, [len(x) for x in es])
 
@@ -206,8 +224,8 @@ def main():
             if k.database == 'teeny':
                 pos_e = [12] #* len(exp.energy)
                 pos_t = [12] #* len(exp.time)
-                es = [flatten(exp.energy)]
-                ts = [flatten(exp.time)]
+                es = [flatten(es)]
+                ts = [flatten(ts)]
             else:
                 es = exp.energy
                 ts = exp.time
@@ -247,8 +265,8 @@ def main():
         elif k.mode == 'erase':
             #if k.database == 'antelope': continue
 
-            pos_e = [x + shift_e for x in exp.tuplecounts[:len(exp.energy)]]
-            pos_t = [x + shift_e for x in exp.tuplecounts[:len(exp.time)]]
+            pos_e = [x for x in exp.tuplecounts[:len(exp.energy)]]
+            pos_t = [x for x in exp.tuplecounts[:len(exp.time)]]
 
             # If for some weird reason we have more data points than
             # sent out packets, put the rest at pos 100 so we notice something
@@ -256,8 +274,8 @@ def main():
             pos_e += [100] * (len(exp.energy) - len(pos_e))
             pos_t += [100] * (len(exp.time) - len(pos_t))
 
-            pos_e, es = cleanse(pos_e, exp.energy)
-            pos_t, ts = cleanse(pos_t, exp.time)
+            pos_e, es = cleanse(pos_e, es)
+            pos_t, ts = cleanse(pos_t, ts)
 
             print(k.mode, k.database, [len(x) for x in es])
             #print(pos_e, [median(x) for x in es])
@@ -281,17 +299,37 @@ def main():
             shift_e -= 1
 
     ax_i_e.set_xlim((0, 75))
-    ax_i_e.grid()
-    #ax_i_e.set_ylim((0, .2))
-    ax_i_t.set_xlim((0, 75))
-    ax_i_t.grid()
+    ax_i_e.set_xlabel(r"\#tuples inserted")
+    ax_i_e.set_ylabel(r"$\mu J$ / insert")
 
-    ax_i_e.legend()
-    ax_i_t.legend()
-    ax_f_e.legend()
-    ax_f_t.legend()
-    ax_e_e.legend()
-    ax_e_t.legend()
+    ax_i_t.set_xlim((0, 75))
+    ax_i_t.set_xlabel(r"\#tuples inserted")
+    ax_i_t.set_ylabel(r"ms / insert")
+
+    ax_f_e.set_xlim((0, 75))
+    ax_f_e.set_xlabel(r"\#tuples stored")
+    ax_f_e.set_ylabel(r"$\mu J$ / find")
+
+    ax_f_t.set_xlim((0, 75))
+    ax_f_t.set_xlabel(r"\#tuples stored")
+    ax_f_t.set_ylabel(r"ms / find")
+    
+    ax_e_e.set_xticks(range(0,100,5))
+    ax_e_e.set_xlim((0, 75))
+    ax_e_e.set_xlabel(r"\#tuples erased")
+    ax_e_e.set_ylabel(r"$\mu J$ / erase")
+
+    ax_e_t.set_xticks(range(0,100,5))
+    ax_e_t.set_xlim((0, 75))
+    ax_e_t.set_xlabel(r"\#tuples erased")
+    ax_e_t.set_ylabel(r"ms / erase")
+
+    #ax_i_e.legend()
+    #ax_i_t.legend()
+    #ax_f_e.legend()
+    #ax_f_t.legend()
+    #ax_e_e.legend()
+    #ax_e_t.legend()
 
     fig_i_e.savefig('pdf_out/energies_insert.pdf', bbox_inches='tight', pad_inches=0.1)
     fig_i_t.savefig('pdf_out/times_insert.pdf', bbox_inches='tight',pad_inches=0.1)
@@ -414,7 +452,7 @@ or subsample) else 1.0))
         else:
             if v['mode'] == 'erase':
                 runs_t, runs_e = process_energy_ts_erase(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0),
-maxvalues=v['ntuples'])
+maxvalues=v['ntuples'],bl=bl)
             else:
                 runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
 
@@ -513,13 +551,17 @@ def parse_tuple_counts(f, expid):
 # Processing data
 #
 
-def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200):
+def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=None):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
 
     MEASUREMENT_UP = 1.75
     MEASUREMENT_DOWN = 1.25
+
+    if bl and '_treshold' in bl:
+        MEASUREMENT_UP = bl['_threshold']
+        MEASUREMENT_DOWN = bl['_threshold']
 
     class State:
         def __init__(self, s): self.s = s
@@ -563,6 +605,8 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200):
             print("{} > tmax".format(t))
             break
 
+        print(t, v)
+
         if state is idle_low:
             if v > MEASUREMENT_UP:
 
@@ -602,6 +646,7 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200):
     runs_t.append(sums_t)
     runs_e.append(sums_e)
     return runs_t, runs_e
+
 def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
     ts = d['ts']
     vs = d['vs']
@@ -941,7 +986,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((260, 265))
+    ax.set_xlim((780, 790))
     #ax.set_ylim((0, 5))
     ax.grid()
 
@@ -1026,10 +1071,19 @@ class Experiment:
 
 def add_experiment(cls):
     global experiments
-    if cls not in experiments:
-        experiments[cls] = Experiment()
-        experiments[cls].key = cls
-    return experiments[cls]
+
+    for k, v in experiments:
+        if k == cls:
+            return v
+
+    v = Experiment()
+    v.key = cls
+    experiments.append((cls, v));
+    return v
+    #if cls not in experiments:
+        #experiments[cls] = Experiment()
+        #experiments[cls].key = cls
+    #return experiments[cls]
 
 #
 # Blacklisting etc..
