@@ -1,5 +1,12 @@
 
 #include "defs.h"
+
+////
+//#define APP_DATABASE_DEBUG 1
+//#define APP_DATABASE_ERASE 1
+//#define MODE_ERASE 1
+////
+
 #if APP_DATABASE_DEBUG
 	#define APP_HEARTBEAT 1
 #endif
@@ -87,6 +94,7 @@ class App {
 			v = *tuplestore_.begin(&t, mask);
 		}
 
+		/*
 		void find_erase(block_data_t* s, block_data_t* p, block_data_t* o) {
 			Tuple t;
 			t.set(0, s);
@@ -101,6 +109,60 @@ class App {
 			do {
 				iter = tuplestore_.erase(iter);
 			} while(iter != tuplestore_.end());
+		}
+		*/
+
+		void erase(block_data_t*s, block_data_t* p, block_data_t* o) {
+			Tuple t;
+			t.set(0, s);
+			t.set(1, p);
+			t.set(2, o);
+			CodecTupleStoreT::column_mask_t mask =
+				((*s != 0) << 0) | ((*p != 0) << 1) | ((*o != 0) << 2);
+
+			#if APP_DATABASE_DEBUG
+				debug_->debug("erase mask %d", (int)mask);
+				debug_->debug("erasing (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+			#endif
+			Tuple v;
+			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
+			//do {
+			tuplestore_.erase(iter);
+			//} while(iter != tuplestore_.end());
+		}
+
+		void prepare_erase(block_data_t*s, block_data_t* p, block_data_t* o) {
+
+			RandomChoice c(tuplestore_.size());
+			*s = '\0';
+			*p = '\0';
+			*o = '\0';
+			CodecTupleStoreT::iterator iter;
+			for(iter = tuplestore_.begin(); iter != tuplestore_.end(); ++iter, ++c) {
+				if(c.choose()) {
+					int spo = (unsigned)rand() % 3;
+					strcpy(reinterpret_cast<char*>(s), reinterpret_cast<char*>(iter->get(0)));
+					strcpy(reinterpret_cast<char*>(p), reinterpret_cast<char*>(iter->get(1)));
+					strcpy(reinterpret_cast<char*>(o), reinterpret_cast<char*>(iter->get(2)));
+					if(spo == 0) { *s = '\0'; }
+					else if(spo == 1) { *p = '\0'; }
+					else { *o = '\0'; }
+					break;
+				}
+			}
+			if(*s == '\0' && *p == '\0') {
+				iter = tuplestore_.begin();
+					int spo = (unsigned)rand() % 3;
+					strcpy(reinterpret_cast<char*>(s), reinterpret_cast<char*>(iter->get(0)));
+					strcpy(reinterpret_cast<char*>(p), reinterpret_cast<char*>(iter->get(1)));
+					strcpy(reinterpret_cast<char*>(o), reinterpret_cast<char*>(iter->get(2)));
+					if(spo == 0) { *s = '\0'; }
+					else if(spo == 1) { *p = '\0'; }
+					else { *o = '\0'; }
+			}
+			#if APP_DATABASE_DEBUG
+				debug_->debug("will erase (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+			#endif
 		}
 
 };

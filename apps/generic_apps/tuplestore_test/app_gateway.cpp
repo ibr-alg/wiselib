@@ -142,7 +142,7 @@ class App {
 			// sending_ = [ 0x99 | POS (2) | data.... ]
 
 			sending_[0] = 0x99;
-			sending_[1] = EXP_NR;
+			sending_[1] = (EXP_NR & 0xff);
 			wiselib::write<OsModel, block_data_t, ::uint16_t>(sending_ + 2, bytes_sent_);
 			memcpy(sending_ + 4, rdf_buffer_ + bytes_sent_, s);
 
@@ -160,7 +160,7 @@ class App {
 		}
 
 		void send_reboot(void*_=0) {
-			block_data_t b[] = {0xBB, EXP_NR};
+			block_data_t b[] = {0xBB, EXP_NR & 0xff};
 
 			radio_->send(db_address, 2, b);
 			//radio_->send(db_address, 2, b);
@@ -168,7 +168,7 @@ class App {
 		}
 
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
-			if(data[0] == 0xAA && data[1] == EXP_NR) {
+			if(data[0] == 0xAA && data[1] == (EXP_NR & 0xff)) {
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
 				if(pos == bytes_sent_) {
@@ -182,6 +182,12 @@ class App {
 
 					debug_->debug("acked: %d", (int)bytes_sent_);
 				}
+				else {
+					debug_->debug("!ack: bs=%d p=%d", (int)bytes_sent_, (int)pos);
+				}
+			}
+			else {
+				debug_->debug("!a %x %x %x %x", (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
 			}
 		}
 

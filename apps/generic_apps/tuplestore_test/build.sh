@@ -95,9 +95,9 @@ function generate_stuff() {
 	cp $EXP_DIR/${INODE_GATEWAY}.vars $EXP_DIR/exp${EXP_NR}.vars
 
 
-	#make -f Makefile.gateway clean
-	#make -f Makefile.gateway || exit 1
-	#cp out/contiki-sky/app_gateway.exe $FILENAME_GATEWAY || exit 1
+	make -f Makefile.gateway clean
+	make -f Makefile.gateway || exit 1
+	cp out/contiki-sky/app_gateway.exe $EXP_DIR/$FILENAME_GATEWAY || exit 1
 
 	make -f Makefile.$DB clean
 	if [ "$DB" == "teeny" ]; then
@@ -127,9 +127,10 @@ rm *.exe
 
 DEBUG=0
 RDF=incontextsensing.rdf
-MODE=find
+MODE=erase
 #DB=antelope
-DB=teeny
+#DB=teeny
+DB=tuplestore
 
 AREA=alpha
 generate_stuff

@@ -12,7 +12,10 @@
 			START_FIND_INTERVAL = 5000,
 			ENABLE_RADIO_INTERVAL = 5000,
 
-			FINDS_AT_ONCE = 10
+			FINDS_AT_ONCE = 10,
+			START_ERASE_INTERVAL = 10000,
+			ERASE_AFTER_PREPARE_INTERVAL = 100,
+			PREPARE_AFTER_ERASE_INTERVAL = 500,
 		};
 			
 
@@ -179,7 +182,7 @@
 			#endif
 			block_data_t *e = rdf_buffer_;
 			
-			#if APP_DATABASE_FIND
+			#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
 				RandomChoice choice(NTUPLES);
 				bool chosen = false;
 			#endif
@@ -203,7 +206,7 @@
 				insert_tuple(s, p, o);
 				tuples++;
 
-				#if APP_DATABASE_FIND
+				#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
 					if(choice.choose() && !chosen) {
 						strncpy((char*)find_s_, s, MAX_ELEMENT_LENGTH);
 						strncpy((char*)find_p_, p, MAX_ELEMENT_LENGTH);
@@ -214,7 +217,7 @@
 				#endif
 			}
 
-			#if APP_DATABASE_FIND
+			#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
 				if(!chosen && s) {
 					strncpy((char*)find_s_, s, MAX_ELEMENT_LENGTH);
 					strncpy((char*)find_p_, p, MAX_ELEMENT_LENGTH);
@@ -223,14 +226,25 @@
 				}
 			#endif
 
-			#if APP_DATABASE_FIND
+			#if APP_DATABASE_FIND || MODE_FIND
 				timer_->set_timer<App, &App::start_find>(START_FIND_INTERVAL, this, 0);
+			#elif MODE_ERASE
+				if(tuples >= NTUPLES) {
+					#if APP_DATABASE_DEBUG
+						debug_->debug("%d >= %d tuples received, going to erase mode",
+							(int)tuples, (int)NTUPLES);
+					#endif
+					timer_->set_timer<App, &App::start_prepare_erase>(START_ERASE_INTERVAL, this, 0);
+				}
+				else {
+					timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
+				}
 			#else
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			#endif
 		}
 
-		#if APP_DATABASE_FIND
+		#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
 			block_data_t find_s_[MAX_ELEMENT_LENGTH];
 			block_data_t find_p_[MAX_ELEMENT_LENGTH];
 			block_data_t find_o_[MAX_ELEMENT_LENGTH];
@@ -282,13 +296,26 @@
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			}
 
-			#if APP_DATABASE_ERASE
-				void start_find_erase(void*) {
-					find_erase(find_s_, find_p_, find_o_);
-				}
-			#endif
+			//#if APP_DATABASE_ERASE || MODE_ERASE
+				//void start_find_erase(void*) {
+					//find_erase(find_s_, find_p_, find_o_);
+				//}
+			//#endif
 
 		#endif // APP_DATABASE_FIND
+
+		#if MODE_ERASE || APP_DATABASE_ERASE
+			void start_prepare_erase(void*) {
+				prepare_erase(find_s_, find_p_, find_o_);
+				timer_->set_timer<App, &App::start_erase>(ERASE_AFTER_PREPARE_INTERVAL, this, 0);
+			}
+
+			void start_erase(void*) {
+				erase(find_s_, find_p_, find_o_);
+				timer_->set_timer<App, &App::start_erase>(PREPARE_AFTER_ERASE_INTERVAL, this, 0);
+			}
+
+		#endif
 
 
 		struct RandomChoice {

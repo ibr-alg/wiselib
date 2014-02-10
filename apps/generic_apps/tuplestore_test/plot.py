@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# vim: set ts=4 sw=4 expandtab foldenable fdm=indent:
 
 import re
 import matplotlib.pyplot as plt
@@ -70,19 +71,32 @@ blacklist = [
     { 'job': '24860', '_tmax': 20.0 },
     { 'job': '24861' }, # debug was on
     { 'job': '24862', '_tmax': 10.0 },
-    # 24863: 4@once
-    { 'job': '24864', '_tmax': 20.0 }, # TL find, 1@once, 12 contained
+    # 24863: teeny insert, 4@once -- 3rd insert seems off / non-existing
+    { 'job': '24864', '_tmax': 20.0 }, # teeny find, 1@once, 12 contained
+    # 24865: teeny insert, 4@once -- 3rd insert seems off /nonexisting
+    { 'job': '24867', 'inode_db': 'inode010' }, # teeny erase
+    { 'job': '24867', 'inode_db': 'inode014' }, # teeny erase
+    { 'job': '24867', 'inode_db': 'inode016' }, # teeny erase
+    { 'job': '24867', 'inode_db': 'inode008', '_tmax': 20.0 }, # teeny erase
+    { 'job': '24871' }, # 24871: ts erase, aborted
+    { 'job': '24872' }, # 24872: ts erase, failed
+    { 'job': '24873' }, # 24873: ts erase, failed
 ]
 
 teenylime_runs = set(
-    [str(x) for x in range(24857, 24870)]
+    [str(x) for x in range(24857, 24871)]
 )
 
 TEENYLIME_INSERT_AT_ONCE = 4
-TEENYLIME_INSERT_CALLS = 3
+
+# There should actually 3, but it seems the 3 doest cost any measurable energy
+# for some reason (although according to the one-at-a-time experiments 12
+# tuples should fit)
+TEENYLIME_INSERT_CALLS = 2
 
 FINDS_AT_ONCE = 10
 TEENYLIME_FINDS_AT_ONCE = 1
+TEENYLIME_ERASES_AT_ONCE = 1
 
 # Experiment class => { 'ts': [...], 'vs': [...], 'cls': cls }
 experiments = {}
@@ -102,101 +116,35 @@ style = {
     }
 }
 
-
-def has_valid(b):
-    """
-    >>> has_valid({ '_valid': [] })
-    False
-    >>> has_valid({ })
-    False
-    >>> has_valid({ '_tmax': 0 })
-    False
-
-    >>> has_valid({ '_valid': [(100, 200), (350, 400)] })
-    True
-    >>> has_valid({ '_tmax': 100 })
-    True
-    >>> has_valid({ '_tmin': 100 })
-    True
-    >>> has_valid({ '_tmax': 0, '_tmin': 50 })
-    True
-    """
-
-    if '_valid' in b:
-        return len(b['_valid']) > 0
-    elif '_tmin' in b: return True
-    elif '_tmax' in b: return b['_tmax'] != 0
-    return False
-
-def valid(b, t):
-    """
-    >>> valid({ '_valid': [] }, 123)
-    False
-    >>> valid({ }, 123)
-    False
-    >>> valid({ '_tmax': 0 }, 123)
-    False
-
-    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 100)
-    True
-    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 101)
-    True
-    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 357.2)
-    True
-    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 200.01)
-    False
-    >>> valid({ '_tmax': 100 }, 99)
-    True
-    >>> valid({ '_tmin': 100 }, 100.123)
-    True
-    >>> valid({ '_tmax': 0, '_tmin': 50 }, 55.678)
-    False
-    """
-    if '_valid' in b:
-        for a, b in b['_valid']:
-            if t >= a and t <= b: return True
-        return False
-    elif '_tmin' in b:
-        if '_tmax' in b and b['_tmax'] is not None:
-            return t >= b['_tmin'] and t <= b['_tmax']
-        return t >= b['_tmin']
-    elif '_tmax' in b:
-        return b['_tmax'] is None or b['_tmax'] >= t
-    return False
-
-
-def median(l):
-    if len(l) == 0: return None
-    #print("{} -> {}".format(l, sorted(l)[int(len(l) / 2)]))
-    sl = sorted(l)
-    if len(l) % 2:
-        return sorted(l)[int(len(l) / 2)]
-    return (sl[int(len(l) / 2)] + sl[int(len(l) / 2 - 1)]) / 2.0
-
 def main():
     process_directories(
         sys.argv[1:],
-        lambda k: k.mode == 'find' #and k.database != 'antelope'
+        lambda k: k.database != 'antelope'
+        #lambda k: k.mode == 'find' #and k.database != 'antelope'
     )
     
-    fs = (10, 5)
+    fs = (12, 5)
     
     fig_i_e = plt.figure(figsize=fs)
     ax_i_e = plt.subplot(111)
-
     fig_i_t = plt.figure(figsize=fs)
     ax_i_t = plt.subplot(111)
 
     fig_f_e = plt.figure(figsize=fs)
     ax_f_e = plt.subplot(111)
-
     fig_f_t = plt.figure(figsize=fs)
     ax_f_t = plt.subplot(111)
+
+    fig_e_e = plt.figure(figsize=fs)
+    ax_e_e = plt.subplot(111)
+    fig_e_t = plt.figure(figsize=fs)
+    ax_e_t = plt.subplot(111)
 
     #ax_i_e.set_yscale('log')
 
     shift_i = 2
     shift_f = 2
+    shift_e = 2
     #l_f = 1
     #l_e = 1
     for k, exp in experiments.items():
@@ -270,6 +218,42 @@ def main():
 
             shift_f -= 1
 
+        elif k.mode == 'erase':
+            #if k.database == 'antelope': continue
+
+            pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
+            pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
+
+            # If for some weird reason we have more data points than
+            # sent out packets, put the rest at pos 100 so we notice something
+            # is up (but still can see most of the values)
+            pos_e += [100] * (len(exp.energy) - len(pos_e))
+            pos_t += [100] * (len(exp.time) - len(pos_t))
+
+            pos_e, es = cleanse(pos_e, exp.energy)
+            pos_t, ts = cleanse(pos_t, exp.time)
+
+            print(k.mode, k.database, [len(x) for x in es])
+            #print(pos_e, [median(x) for x in es])
+
+            if len(es):
+                bp = ax_f_e.boxplot(es, positions=pos_e)
+                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+
+                ax_e_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+
+            if len(ts):
+                bp = ax_f_t.boxplot(ts, positions=pos_t)
+                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
+                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+
+                ax_e_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+
+            shift_e -= 1
+
     ax_i_e.set_xlim((0, 75))
     ax_i_e.grid()
     #ax_i_e.set_ylim((0, .2))
@@ -280,134 +264,15 @@ def main():
     ax_i_t.legend()
     ax_f_e.legend()
     ax_f_t.legend()
+    ax_e_e.legend()
+    ax_e_t.legend()
 
     fig_i_e.savefig('pdf_out/energies_insert.pdf', bbox_inches='tight', pad_inches=0.1)
     fig_i_t.savefig('pdf_out/times_insert.pdf', bbox_inches='tight',pad_inches=0.1)
     fig_f_e.savefig('pdf_out/energies_find.pdf', bbox_inches='tight',pad_inches=0.1)
     fig_f_t.savefig('pdf_out/times_find.pdf', bbox_inches='tight',pad_inches=0.1)
-            
-
-def cleanse(l1, l2):
-    """
-    Given two lists l1 and l2 return two sublists l1' and l2' such that
-    whenever an element at position i in either l1 or l2 is None or the empty
-    list, data from that
-    position at l1 or l2 will not be present in the returned lists.
-
-    Note that specifically considers only None and [], not other values that
-    evaluate to false like 0, False or the empty string.
-
-    As a side effect it ensures the returned lists are cut to the same length
-
-    >>> cleanse([1, 2, None, 4, [], 6], [None, 200, 300, 400, 500, 600, 70, 88])
-    ([2, 4, 6], [200, 400, 600])
-
-    >>> cleanse([1, [None, None, 2, None, 3]], [[None, 100], [200, 300]])
-    ([1, [2, 3]], [[100], [200, 300]])
-
-    """
-
-    r1 = []
-    r2 = []
-    for x, y in zip(l1, l2):
-        if isinstance(x, list):
-            x = list(filter(lambda x: x is not None and x != [], x))
-        if isinstance(y, list):
-            y = list(filter(lambda z: z is not None and z != [], y))
-
-        if x is not None and x != [] and y is not None and y != []:
-            r1.append(x)
-            r2.append(y)
-    return r1, r2
-
-#def plot_energies(experiments, fname='energies.pdf'):
-    #fig = plt.figure()
-    #ax = plt.subplot(111)
-    ##ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
-    #for exp in experiments:
-        #if exp.energy:
-            ##print(len(exp.energy), len(exp.tuplecounts))
-            #ax.boxplot(exp.energy, positions=exp.tuplecounts[:len(exp.energy)])
-    #print("writing {}.".format(fname))
-    #fig.savefig(fname)
-
-#def plot_times(experiments, fname='times.pdf'):
-    #fig = plt.figure()
-    #ax = plt.subplot(111)
-    ##ax.set_xticklabels([str(x) for x in experiments[0].tuplecounts])
-    #for exp in experiments:
-        ##print(exp.energy)
-        #if exp.energy:
-            #ax.boxplot(exp.energy, positions=exp.tuplecounts)
-    #print("writing {}.".format(fname))
-    #fig.savefig(fname)
-
-class ExperimentClass:
-    def __init__(self, d):
-        self.__dict__.update(d)
-
-    def __eq__(self, other):
-        return (
-            self.dataset == other.dataset and
-            self.mode == other.mode and
-            self.debug == other.debug and
-            self.database == other.database
-        )
-
-    def reprname(self):
-        return self.database + '_' + self.dataset.replace('.rdf', '') + '_' + self.mode + (' DBG' if
-self.debug else '')
-
-    def __hash__(self):
-        return hash(self.dataset) ^ hash(self.mode) ^ hash(self.debug) ^ hash(self.database)
-
-class Experiment:
-    def __init__(self):
-        self.time = []
-        self.energy = []
-        self.tuplecounts = []
-        self.key = None
-
-    def add_measurement(self, i, t, e):
-        while len(self.time) < i + 1:
-            self.energy.append([])
-            self.time.append([])
-        if self.key.mode == 'find':
-            print("addm find");
-            self.time[i].append(t)
-            self.energy[i].append(e)
-        else:
-            print(i, len(self.time), len(self.tuplecounts))
-            self.time[i].append(t / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
-            self.energy[i].append(e / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
-
-    def set_tuplecounts(self, tcs):
-        self.tuplecounts = cum(tcs)
-
-def add_experiment(cls):
-    global experiments
-    if cls not in experiments:
-        experiments[cls] = Experiment()
-        experiments[cls].key = cls
-    return experiments[cls]
-
-def inode_to_mote_id(s):
-    """
-    >>> inode_to_mote_id('inode123')
-    '10123'
-    >>> inode_to_mote_id('inode001')
-    '10001'
-    """
-    return '10' + s[5:]
-
-def mote_id_to_inode_id(s):
-    """
-    >>> mote_id_to_inode_id('10123')
-    'inode123'
-    >>> mote_id_to_inode_id('10001')
-    'inode001'
-    """
-    return 'inode' + s[2:]
+    fig_e_e.savefig('pdf_out/energies_erase.pdf', bbox_inches='tight',pad_inches=0.1)
+    fig_e_t.savefig('pdf_out/times_erase.pdf', bbox_inches='tight',pad_inches=0.1)
 
 def process_directories(dirs,f=lambda x: True):
     for d in dirs:
@@ -420,8 +285,9 @@ def process_directory(d, f=lambda x: True):
     print()
     print("*** iMinds exp #{} {} ***".format(d, '(teenylime mode)' if teenylime else ''))
 
-
-    # 1st pass: Blacklisting & Filtering of experiments
+    #
+    # Blacklisting & Filtering of experiments
+    #
 
     # blacklist by db inode id
     bl = {}
@@ -451,13 +317,16 @@ def process_directory(d, f=lambda x: True):
     # time
     energy = read_energy(EXP_DIR + d, bl, use_subsamples=teenylime, alpha=(.05 if teenylime else 1.0))
 
+    #
+    # Process the energy measurements of each node
+    #
     for gw, db in gateway_to_db.items():
+        
+        # Read in some metadata and decide whether we want to look at this at
+        # all
+        
         if db in bl and not has_valid(bl[db]): continue
-        #if tmaxs.get(db, None) == 0: continue
-        #tmax = tmaxs.get(db, None)
-
         fn_gwinfo = EXP_DIR + d + '/' + gw + '/' + gw + '.vars'
-        #fn_dbout = d + '/' + db + '/output.txt'
         fn_gwout = EXP_DIR + d + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
@@ -475,34 +344,47 @@ def process_directory(d, f=lambda x: True):
 
         print("  {}/{} {}".format(cls.database, cls.mode, cls.dataset))
 
+        #
+        # Add experiment object,
+        # find tuplecounts, i.e. values for the x-axis
+        #
+
         exp = add_experiment(cls)
         if teenylime:
             if v['mode'] == 'insert':
                 tc = [TEENYLIME_INSERT_AT_ONCE] * 50 # range(20)
             elif v['mode'] == 'find':
                 tc = [TEENYLIME_FINDS_AT_ONCE] * 50 # range(20)
+            else:
+                tc = [TEENYLIME_ERASES_AT_ONCE] * 50 # range(20)
         else:
             tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
             if not tc:
                 print("  (!) no tuplecounts found in {}, using default".format(fn_gwout))
                 tc = [7, 6, 8, 11, 11, 10, 11, 9]
         exp.set_tuplecounts(tc)
-        #print(energy[inode_to_mote_id(db)])
         mid = inode_to_mote_id(db)
         if mid not in energy:
             print("  (!) no energy values for {}. got values for {}".format(mid, str(energy.keys())))
             continue
 
-        #print("energy", type(energy))
-        #print("v", type(v))
+        #
+        # Process energy measurements into runs_t and runs_e
+        #
+
         if teenylime:
             runs_t, runs_e = process_energy_teenylime(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
 
-            runs_t = [r[:TEENYLIME_INSERT_CALLS] for r in runs_t]
-            runs_e = [r[:TEENYLIME_INSERT_CALLS] for r in runs_e]
+            if v['mode'] == 'insert':
+                runs_t = [r[:TEENYLIME_INSERT_CALLS] for r in runs_t]
+                runs_e = [r[:TEENYLIME_INSERT_CALLS] for r in runs_e]
 
         else:
             runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+
+        #
+        # Add the extracted measurements to the experiment object
+        #
 
         runs_count = 0
         for j, (ts, es) in enumerate(zip(runs_t, runs_e)):
@@ -516,6 +398,10 @@ def process_directory(d, f=lambda x: True):
                     print("  skipping i={} t={} e={}".format(i, t, e))
                     #pass
         print("  processed {} experiment runs.".format(runs_count))
+
+#
+# Reading data
+#
 
 def read_vars(fn):
     r = {}
@@ -562,8 +448,7 @@ def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
             if b is not None and '_alpha' in b:
                 a = b['_alpha']
 
-            r[mote_id]['vs'].append(a * v + (1.0 - a) * (r[mote_id]['vs'][-1]
-if len(r[mote_id]['vs']) else 0.0))
+            r[mote_id]['vs'].append(a * v + (1.0 - a) * (r[mote_id]['vs'][-1] if len(r[mote_id]['vs']) else 0.0))
 
         if use_subsamples:
             for i in range(64):
@@ -587,13 +472,16 @@ def parse_tuple_counts(f, expid):
                 r.append(int(m.groups()[0]))
     return r
 
+#
+# Processing data
+#
 
 def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
 
-    if mode == 'find':
+    if mode == 'find' or mode == 'erase':
         MEASUREMENT_UP = 0.3
         MEASUREMENT_DOWN = 0.3
     else:
@@ -664,6 +552,8 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
                 #if mode == 'insert':
                 esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
                 sums_t.append(t - t0)
+                if mode == 'find':
+                    esum /= TEENYLIME_FINDS_AT_ONCE
                 sums_e.append(esum)
             else:
                 esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
@@ -679,7 +569,6 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
     runs_t.append(sums_t)
     runs_e.append(sums_e)
     return runs_t, runs_e
-
 
 def process_energy(d, mode, lbl='', tmin=0):
     ts = d['ts']
@@ -829,7 +718,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                 if mode == 'find':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append(t - t0)
-                    sums_e.append(esum)
+                    sums_e.append(esum / FINDS_AT_ONCE)
             elif v > HIGH:
                 #print("  find measurement aborted high at {} t0={} esum={}".format(t, t0, esum - BASELINE_ENERGY))
                 # what we thought was a find measurement was actually a
@@ -899,33 +788,25 @@ def process_energy(d, mode, lbl='', tmin=0):
 
     return (runs_t, runs_e)
 
-def frange(a, b, step):
-    return [x * step for x in range(int(a / step), int(b / step))]
-
+#
+# Plotting
+#
 
 def fig_energy(ts, vs, n):
     if not PLOT_ENERGY:
         return
-    fig = plt.figure(figsize=(10,5))
+    fig = plt.figure(figsize=(12,5))
     ax = plt.subplot(111)
     
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((0, 5))
+    #ax.set_xlim((0, 5))
     #ax.set_ylim((0, 2))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')
     fig.savefig('energy_{}.pdf'.format(n), bbox_inches='tight', pad_inches=.1)
-
-def cum(l):
-    s = 0
-    r = []
-    for v in l:
-        s += v
-        r.append(s)
-    return r
 
 def plot_experiment(n, ax, **kwargs):
     global fig
@@ -947,7 +828,198 @@ def plot_experiment(n, ax, **kwargs):
         #ax.plot(cum(tc[:len(es)]), ([x/y for x, y in zip(es, tc)]), 'o-', **kwargs) 
         ax.plot(cum(tc[:len(fs)]), ([x/y for x, y in zip(fs, tc)]), 'x-', **kwargs) 
         ax.plot(cum(tc[:len(fs)]), ([x/y for x, y in zip(d['t_find'][e], tc)]), 'x-', **kwargs) 
-            
+
+#
+# Experiment registry
+#
+
+class ExperimentClass:
+    def __init__(self, d):
+        self.__dict__.update(d)
+
+    def __eq__(self, other):
+        return (
+            self.dataset == other.dataset and
+            self.mode == other.mode and
+            self.debug == other.debug and
+            self.database == other.database
+        )
+
+    def reprname(self):
+        return self.database + '_' + self.dataset.replace('.rdf', '') + '_' + self.mode + (' DBG' if self.debug else '')
+
+    def __hash__(self):
+        return hash(self.dataset) ^ hash(self.mode) ^ hash(self.debug) ^ hash(self.database)
+
+class Experiment:
+    def __init__(self):
+        self.time = []
+        self.energy = []
+        self.tuplecounts = []
+        self.key = None
+
+    def add_measurement(self, i, t, e):
+        while len(self.time) < i + 1:
+            self.energy.append([])
+            self.time.append([])
+        if self.key.mode == 'find':
+            self.time[i].append(t)
+            self.energy[i].append(e)
+        else:
+            print(i, len(self.time), len(self.tuplecounts))
+            self.time[i].append(t / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
+            self.energy[i].append(e / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
+
+    def set_tuplecounts(self, tcs):
+        self.tuplecounts = cum(tcs)
+
+def add_experiment(cls):
+    global experiments
+    if cls not in experiments:
+        experiments[cls] = Experiment()
+        experiments[cls].key = cls
+    return experiments[cls]
+
+#
+# Blacklisting etc..
+#
+     
+def has_valid(b):
+    """
+    >>> has_valid({ '_valid': [] })
+    False
+    >>> has_valid({ })
+    False
+    >>> has_valid({ '_tmax': 0 })
+    False
+
+    >>> has_valid({ '_valid': [(100, 200), (350, 400)] })
+    True
+    >>> has_valid({ '_tmax': 100 })
+    True
+    >>> has_valid({ '_tmin': 100 })
+    True
+    >>> has_valid({ '_tmax': 0, '_tmin': 50 })
+    True
+    """
+
+    if '_valid' in b:
+        return len(b['_valid']) > 0
+    elif '_tmin' in b: return True
+    elif '_tmax' in b: return b['_tmax'] != 0
+    return False
+
+def valid(b, t):
+    """
+    >>> valid({ '_valid': [] }, 123)
+    False
+    >>> valid({ }, 123)
+    False
+    >>> valid({ '_tmax': 0 }, 123)
+    False
+
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 100)
+    True
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 101)
+    True
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 357.2)
+    True
+    >>> valid({ '_valid': [(100, 200), (350, 400)] }, 200.01)
+    False
+    >>> valid({ '_tmax': 100 }, 99)
+    True
+    >>> valid({ '_tmin': 100 }, 100.123)
+    True
+    >>> valid({ '_tmax': 0, '_tmin': 50 }, 55.678)
+    False
+    """
+    if '_valid' in b:
+        for a, b in b['_valid']:
+            if t >= a and t <= b: return True
+        return False
+    elif '_tmin' in b:
+        if '_tmax' in b and b['_tmax'] is not None:
+            return t >= b['_tmin'] and t <= b['_tmax']
+        return t >= b['_tmin']
+    elif '_tmax' in b:
+        return b['_tmax'] is None or b['_tmax'] >= t
+    return False
+
+#
+# Utility functions
+#
+
+def cleanse(l1, l2):
+    """
+    Given two lists l1 and l2 return two sublists l1' and l2' such that
+    whenever an element at position i in either l1 or l2 is None or the empty
+    list, data from that
+    position at l1 or l2 will not be present in the returned lists.
+
+    Note that specifically considers only None and [], not other values that
+    evaluate to false like 0, False or the empty string.
+
+    As a side effect it ensures the returned lists are cut to the same length
+
+    >>> cleanse([1, 2, None, 4, [], 6], [None, 200, 300, 400, 500, 600, 70, 88])
+    ([2, 4, 6], [200, 400, 600])
+
+    >>> cleanse([1, [None, None, 2, None, 3]], [[None, 100], [200, 300]])
+    ([1, [2, 3]], [[100], [200, 300]])
+
+    """
+
+    r1 = []
+    r2 = []
+    for x, y in zip(l1, l2):
+        if isinstance(x, list):
+            x = list(filter(lambda x: x is not None and x != [], x))
+        if isinstance(y, list):
+            y = list(filter(lambda z: z is not None and z != [], y))
+
+        if x is not None and x != [] and y is not None and y != []:
+            r1.append(x)
+            r2.append(y)
+    return r1, r2
+
+def frange(a, b, step):
+    return [x * step for x in range(int(a / step), int(b / step))]
+
+def cum(l):
+    s = 0
+    r = []
+    for v in l:
+        s += v
+        r.append(s)
+    return r
+
+def median(l):
+    if len(l) == 0: return None
+    #print("{} -> {}".format(l, sorted(l)[int(len(l) / 2)]))
+    sl = sorted(l)
+    if len(l) % 2:
+        return sorted(l)[int(len(l) / 2)]
+    return (sl[int(len(l) / 2)] + sl[int(len(l) / 2 - 1)]) / 2.0
+
+def inode_to_mote_id(s):
+    """
+    >>> inode_to_mote_id('inode123')
+    '10123'
+    >>> inode_to_mote_id('inode001')
+    '10001'
+    """
+    return '10' + s[5:]
+
+def mote_id_to_inode_id(s):
+    """
+    >>> mote_id_to_inode_id('10123')
+    'inode123'
+    >>> mote_id_to_inode_id('10001')
+    'inode001'
+    """
+    return 'inode' + s[2:]
+
+
 
     ## incontextsensing
     ##tc = [7, 6, 8, 11, 11, 10, 11, 9]

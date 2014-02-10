@@ -5,11 +5,13 @@
 #include <printf.h>
 #include "TupleSpace.h"
 
-
+////
 //#define DEBUG 1
-//#define MODE_INSERT 0
-//#define MODE_FIND 1
+//#define MODE_INSERT 1
+//#define MODE_FIND 0
 //#define MODE_ERASE 0
+////
+
 
 #define INSERTS_AT_ONCE 4
 #define FINDS_AT_ONCE 1
