@@ -312,7 +312,7 @@
 
 			void start_erase(void*) {
 				erase(find_s_, find_p_, find_o_);
-				timer_->set_timer<App, &App::start_erase>(PREPARE_AFTER_ERASE_INTERVAL, this, 0);
+				timer_->set_timer<App, &App::start_prepare_erase>(PREPARE_AFTER_ERASE_INTERVAL, this, 0);
 			}
 
 		#endif

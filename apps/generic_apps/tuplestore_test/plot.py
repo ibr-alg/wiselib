@@ -9,6 +9,8 @@ import sys
 import os
 import os.path
 import gzip
+import itertools
+
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('text', usetex=True)
 
@@ -74,18 +76,34 @@ blacklist = [
     # 24863: teeny insert, 4@once -- 3rd insert seems off / non-existing
     { 'job': '24864', '_tmax': 20.0 }, # teeny find, 1@once, 12 contained
     # 24865: teeny insert, 4@once -- 3rd insert seems off /nonexisting
+    { 'job': '24865', '_tmax': 20.0 },
     { 'job': '24867', 'inode_db': 'inode010' }, # teeny erase
     { 'job': '24867', 'inode_db': 'inode014' }, # teeny erase
     { 'job': '24867', 'inode_db': 'inode016' }, # teeny erase
     { 'job': '24867', 'inode_db': 'inode008', '_tmax': 20.0 }, # teeny erase
+    { 'job': '24868', 'inode_db': 'inode016' }, # teeny erase
+    { 'job': '24868', 'inode_db': 'inode010' }, # teeny erase
+    { 'job': '24868', '_tmax': 20.0, '_alpha': .04 }, # teeny erase
     { 'job': '24871' }, # 24871: ts erase, aborted
     { 'job': '24872' }, # 24872: ts erase, failed
     { 'job': '24873' }, # 24873: ts erase, failed
+    { 'job': '24874' }, # 24873: ts erase, failed
+    { 'job': '24875' }, # 24873: ts erase, failed
+    { 'job': '24877', 'inode_db': 'inode014', '_tmin': 780, '_tmax': 900 }, # ts erase
+    { 'job': '24877', 'inode_db': 'inode008', '_tmin': 790, '_tmax': 900 }, # ts erase
+    { 'job': '24877', 'inode_db': 'inode010'}, # ts erase
+    { 'job': '24877', 'inode_db': 'inode016'}, # ts erase
+    { 'job': '24879', '_tmin': 780, '_tmax': 900 }, # ts erase
 ]
 
 teenylime_runs = set(
     [str(x) for x in range(24857, 24871)]
 )
+
+subsample_runs = set([
+    '24877', # ts erase
+    '24879', # ts erase
+])
 
 TEENYLIME_INSERT_AT_ONCE = 4
 
@@ -119,7 +137,7 @@ style = {
 def main():
     process_directories(
         sys.argv[1:],
-        lambda k: k.database != 'antelope'
+        #lambda k: k.database != 'antelope'
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
     )
     
@@ -185,20 +203,28 @@ def main():
         elif k.mode == 'find':
             #if k.database == 'antelope': continue
 
-            pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
-            pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
+            if k.database == 'teeny':
+                pos_e = [12] #* len(exp.energy)
+                pos_t = [12] #* len(exp.time)
+                es = [flatten(exp.energy)]
+                ts = [flatten(exp.time)]
+            else:
+                es = exp.energy
+                ts = exp.time
+                pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
+                pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
 
-            # If for some weird reason we have more data points than
-            # sent out packets, put the rest at pos 100 so we notice something
-            # is up (but still can see most of the values)
-            pos_e += [100] * (len(exp.energy) - len(pos_e))
-            pos_t += [100] * (len(exp.time) - len(pos_t))
+                # If for some weird reason we have more data points than
+                # sent out packets, put the rest at pos 100 so we notice something
+                # is up (but still can see most of the values)
+                pos_e += [100] * (len(exp.energy) - len(pos_e))
+                pos_t += [100] * (len(exp.time) - len(pos_t))
 
-            pos_e, es = cleanse(pos_e, exp.energy)
-            pos_t, ts = cleanse(pos_t, exp.time)
+            pos_e, es = cleanse(pos_e, es)
+            pos_t, ts = cleanse(pos_t, ts)
 
             print(k.mode, k.database, [len(x) for x in es])
-            #print(pos_e, [median(x) for x in es])
+            print(pos_e, [sum(x)/len(x) for x in es])
 
             if len(es):
                 bp = ax_f_e.boxplot(es, positions=pos_e)
@@ -221,8 +247,8 @@ def main():
         elif k.mode == 'erase':
             #if k.database == 'antelope': continue
 
-            pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
-            pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
+            pos_e = [x + shift_e for x in exp.tuplecounts[:len(exp.energy)]]
+            pos_t = [x + shift_e for x in exp.tuplecounts[:len(exp.time)]]
 
             # If for some weird reason we have more data points than
             # sent out packets, put the rest at pos 100 so we notice something
@@ -237,7 +263,7 @@ def main():
             #print(pos_e, [median(x) for x in es])
 
             if len(es):
-                bp = ax_f_e.boxplot(es, positions=pos_e)
+                bp = ax_e_e.boxplot(es, positions=pos_e)
                 plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
@@ -245,7 +271,7 @@ def main():
                 ax_e_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
             if len(ts):
-                bp = ax_f_t.boxplot(ts, positions=pos_t)
+                bp = ax_e_t.boxplot(ts, positions=pos_t)
                 plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
@@ -281,6 +307,7 @@ def process_directories(dirs,f=lambda x: True):
 def process_directory(d, f=lambda x: True):
     d = str(d).strip('/')
     teenylime = (d in teenylime_runs)
+    subsample = (d in subsample_runs)
 
     print()
     print("*** iMinds exp #{} {} ***".format(d, '(teenylime mode)' if teenylime else ''))
@@ -315,7 +342,8 @@ def process_directory(d, f=lambda x: True):
     # Now actually read energy values
     # we only need subsamples for teenylime as they only insert one value at a
     # time
-    energy = read_energy(EXP_DIR + d, bl, use_subsamples=teenylime, alpha=(.05 if teenylime else 1.0))
+    energy = read_energy(EXP_DIR + d, bl, use_subsamples=teenylime or subsample, alpha=(.05 if (teenylime
+or subsample) else 1.0))
 
     #
     # Process the energy measurements of each node
@@ -358,10 +386,14 @@ def process_directory(d, f=lambda x: True):
             else:
                 tc = [TEENYLIME_ERASES_AT_ONCE] * 50 # range(20)
         else:
-            tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
-            if not tc:
-                print("  (!) no tuplecounts found in {}, using default".format(fn_gwout))
-                tc = [7, 6, 8, 11, 11, 10, 11, 9]
+            if v['mode'] == 'erase' and v['database'] == 'tuplestore':
+                tc = [1] * 100
+            else:
+
+                tc = parse_tuple_counts(open(fn_gwout, 'r', encoding='latin1'), d)
+                if not tc:
+                    print("  (!) no tuplecounts found in {}, using default".format(fn_gwout))
+                    tc = [7, 6, 8, 11, 11, 10, 11, 9]
         exp.set_tuplecounts(tc)
         mid = inode_to_mote_id(db)
         if mid not in energy:
@@ -380,7 +412,11 @@ def process_directory(d, f=lambda x: True):
                 runs_e = [r[:TEENYLIME_INSERT_CALLS] for r in runs_e]
 
         else:
-            runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+            if v['mode'] == 'erase':
+                runs_t, runs_e = process_energy_ts_erase(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0),
+maxvalues=v['ntuples'])
+            else:
+                runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
 
         #
         # Add the extracted measurements to the experiment object
@@ -390,7 +426,7 @@ def process_directory(d, f=lambda x: True):
         for j, (ts, es) in enumerate(zip(runs_t, runs_e)):
             runs_count += 1
             print("  adding run {} of {} with {} entries".format(j, len(runs_e), len(es)))
-            print("  ts={} es={}".format(ts, es))
+            #print("  ts={} es={}".format(ts, es))
             for i, (t, e) in enumerate(zip(ts, es)):
                 if t is not None and e is not None: #t != 0 or e != 0:
                     exp.add_measurement(i, t, e)
@@ -436,17 +472,18 @@ def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
         mote_id = row['motelabMoteID']
         if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
         b = bl.get(mote_id_to_inode_id(mote_id))
-        if b is not None and not valid(b, t.get(mote_id, 0)):
-            continue
 
         def add_sample(v, delta):
             t[mote_id] = t.get(mote_id, -delta) + delta
     #r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
+            if b is not None and not valid(b, t.get(mote_id, 0)):
+                return
             r[mote_id]['ts'].append(t[mote_id])
 
             a = alpha
             if b is not None and '_alpha' in b:
                 a = b['_alpha']
+            assert 0.0 <= a <= 1.0
 
             r[mote_id]['vs'].append(a * v + (1.0 - a) * (r[mote_id]['vs'][-1] if len(r[mote_id]['vs']) else 0.0))
 
@@ -476,19 +513,13 @@ def parse_tuple_counts(f, expid):
 # Processing data
 #
 
-def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
+def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
 
-    if mode == 'find' or mode == 'erase':
-        MEASUREMENT_UP = 0.3
-        MEASUREMENT_DOWN = 0.3
-    else:
-        MEASUREMENT_UP = 1.0
-        MEASUREMENT_DOWN = 0.8
-
-    delta_t = 0.8
+    MEASUREMENT_UP = 1.75
+    MEASUREMENT_DOWN = 1.25
 
     class State:
         def __init__(self, s): self.s = s
@@ -550,7 +581,104 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
                 print("  t={}".format(t))
                 change_state(idle_low)
                 #if mode == 'insert':
+                #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                sums_t.append(t - t0)
+                if mode == 'find':
+                    esum /= TEENYLIME_FINDS_AT_ONCE
+                sums_e.append(esum)
+                if len(sums_e) >= maxvalues:
+                    break
+            else:
                 esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+        tprev = t
+
+
+    print("  baseline estimate (teenylime): {}".format(baseline_estimate))
+
+    for i in range(len(sums_t)):
+        if sums_e[i] is not None and sums_t[i] is not None:
+            sums_e[i] -= sums_t[i] * baseline_estimate
+
+    runs_t.append(sums_t)
+    runs_e.append(sums_e)
+    return runs_t, runs_e
+def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
+    ts = d['ts']
+    vs = d['vs']
+    fig_energy(ts, vs, lbl)
+
+    if mode == 'find' or mode == 'erase':
+        MEASUREMENT_UP = 0.4
+        MEASUREMENT_DOWN = 0.25
+    else:
+        MEASUREMENT_UP = 1.0
+        MEASUREMENT_DOWN = 0.8
+
+    delta_t = 0.8
+
+    class State:
+        def __init__(self, s): self.s = s
+        def __str__(self): return self.s
+    idle_low = State('low')
+    measurement = State('measurement')
+
+    sums_e = []
+    sums_t = []
+    runs_e = []
+    runs_t = []
+
+    thigh = 0
+    t0 = 0
+    tprev = 0
+    esum = 0
+    t = 0
+    v = 0
+
+    #esums_i = []
+    #esums_f = []
+    #tsums_i = []
+    #tsums_f = []
+
+    BASELINE_ENERGY_TEENYLIME = 0 # 0.08
+    baseline_estimate = 0
+    baseline_estimate_n = 0
+
+    state = idle_low
+
+    def change_state(s):
+        nonlocal state
+        nonlocal thigh
+        if s is not state:
+            #print("{}: {} -> {} v={}".format(t, state, s, v))
+            state = s
+
+    for t, v in zip(ts, vs):
+        if t < tmin: continue
+        if tmax is not None and t > tmax:
+            print("{} > tmax".format(t))
+            break
+
+        assert t >= tprev
+
+        if state is idle_low:
+            if v > MEASUREMENT_UP:
+
+                change_state(measurement)
+                #if mode == 'insert':
+                t0 = t
+                esum = (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                #tprev = t
+            else:
+                baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
+                baseline_estimate_n += 1.0
+                baseline_estimate += v / baseline_estimate_n 
+
+        elif state is measurement:
+            if v < MEASUREMENT_DOWN:
+                print("  t={}".format(t))
+                change_state(idle_low)
+                #if mode == 'insert':
+                #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
                 sums_t.append(t - t0)
                 if mode == 'find':
                     esum /= TEENYLIME_FINDS_AT_ONCE
@@ -564,6 +692,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
 
     for i in range(len(sums_t)):
         if sums_e[i] is not None and sums_t[i] is not None:
+            #assert sums_t[i] >= 0
             sums_e[i] -= sums_t[i] * baseline_estimate
 
     runs_t.append(sums_t)
@@ -636,6 +765,7 @@ def process_energy(d, mode, lbl='', tmin=0):
 
     for t, v in zip(ts, vs):
         if t < tmin: continue
+        assert t >= tprev
 
         if state is idle_high:
             if v < RADIO:
@@ -675,7 +805,7 @@ def process_energy(d, mode, lbl='', tmin=0):
             if v < MEASUREMENT:
                 change_state(idle_between)
                 if mode == 'insert':
-                    esum += (t - tprev) * (v - BASELINE_ENERGY)
+                    #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append(t - t0)
                     sums_e.append(esum)
             else:
@@ -706,6 +836,8 @@ def process_energy(d, mode, lbl='', tmin=0):
                     #tprev = t
                     #esum = 0
                     esum = (t - tprev) * (v - BASELINE_ENERGY)
+                    print(t,tprev,v, BASELINE_ENERGY)
+                    assert esum >= 0
             else:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
@@ -716,7 +848,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                 #print("find measurement at {} e {}".format(t, esum))
                 change_state(idle_after)
                 if mode == 'find':
-                    esum += (t - tprev) * (v - BASELINE_ENERGY)
+                    #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append(t - t0)
                     sums_e.append(esum / FINDS_AT_ONCE)
             elif v > HIGH:
@@ -733,6 +865,8 @@ def process_energy(d, mode, lbl='', tmin=0):
             else:
                 if mode == 'find':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
+                    print(t,tprev,v, BASELINE_ENERGY)
+                    assert esum >= 0
                     #tprev = t
 
         elif state is idle_after:
@@ -784,7 +918,13 @@ def process_energy(d, mode, lbl='', tmin=0):
     for rt, re in zip(runs_t, runs_e):
         for i in range(len(rt)):
             if re[i] is not None and rt[i] is not None:
-                re[i] -= rt[i] * baseline_estimate
+                print(re[i], rt[i], baseline_estimate)
+                if mode == 'find':
+                    re[i] -= rt[i] * baseline_estimate / FINDS_AT_ONCE
+                else:
+                    re[i] -= rt[i] * baseline_estimate
+                print(re[i], rt[i], baseline_estimate)
+                assert re[i] >= 0
 
     return (runs_t, runs_e)
 
@@ -801,12 +941,13 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((0, 5))
-    #ax.set_ylim((0, 2))
+    #ax.set_xlim((260, 265))
+    #ax.set_ylim((0, 5))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')
     fig.savefig('energy_{}.pdf'.format(n), bbox_inches='tight', pad_inches=.1)
+    plt.close(fig)
 
 def plot_experiment(n, ax, **kwargs):
     global fig
@@ -862,13 +1003,23 @@ class Experiment:
         while len(self.time) < i + 1:
             self.energy.append([])
             self.time.append([])
+
+
         if self.key.mode == 'find':
+            assert e >= 0
             self.time[i].append(t)
             self.energy[i].append(e)
         else:
-            print(i, len(self.time), len(self.tuplecounts))
-            self.time[i].append(t / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
-            self.energy[i].append(e / (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0)))
+            while len(self.tuplecounts) < i + 1:
+                self.tuplecounts.append(100)
+            #print(i, len(self.time), len(self.tuplecounts))
+            diff = (self.tuplecounts[i] - (self.tuplecounts[i - 1] if i > 0 else 0))
+            if diff <= 0:
+                print("  (!) warning: tc[{}]={} tc[{}]={} setting diff to 1".format(i, self.tuplecounts[i], (i-1), self.tuplecounts[i - 1] if i > 0 else 0))
+                diff = 1
+            self.time[i].append(t / diff)
+            assert e >= 0
+            self.energy[i].append(e / diff)
 
     def set_tuplecounts(self, tcs):
         self.tuplecounts = cum(tcs)
@@ -995,6 +1146,7 @@ def cum(l):
 
 def median(l):
     if len(l) == 0: return None
+    elif len(l) == 1: return l[0]
     #print("{} -> {}".format(l, sorted(l)[int(len(l) / 2)]))
     sl = sorted(l)
     if len(l) % 2:
@@ -1020,6 +1172,8 @@ def mote_id_to_inode_id(s):
     return 'inode' + s[2:]
 
 
+def flatten(l):
+    return list(itertools.chain.from_iterable(l))
 
     ## incontextsensing
     ##tc = [7, 6, 8, 11, 11, 10, 11, 9]
