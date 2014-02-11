@@ -122,13 +122,16 @@ class App {
 
 			#if APP_DATABASE_DEBUG
 				debug_->debug("erase mask %d", (int)mask);
-				debug_->debug("erasing (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+				debug_->debug("erasing (%s,%s,%s) sz=%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size());
 			#endif
-			Tuple v;
+			//Tuple v;
 			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
 			//do {
 			tuplestore_.erase(iter);
 			//} while(iter != tuplestore_.end());
+			#if APP_DATABASE_DEBUG
+				debug_->debug("post erase (%s,%s,%s) sz=%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size());
+			#endif
 		}
 
 		void prepare_erase(block_data_t*s, block_data_t* p, block_data_t* o) {

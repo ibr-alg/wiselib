@@ -11,7 +11,10 @@ import os.path
 import gzip
 import itertools
 
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
+PLOT_ENERGY = True
+
+#rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
+rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
 rc('text', usetex=True)
 
 EXP_DIR='experiments/'
@@ -25,15 +28,14 @@ MEASUREMENT_INTERVAL = 64.0 / 3000.0
 # mA = 
 CURRENT_FACTOR =  70.0 / 4095.0
 
-# mA * 3.3V = microJoule (uJ)
-CURRENT_DISPLAY_FACTOR = 3.3
+# mA * 3300mV = microJoule (uJ)
+CURRENT_DISPLAY_FACTOR = 3300.0
 # s -> ms
 TIME_DISPLAY_FACTOR = 1000.0
+TIME_DISPLAY_FACTOR_FIND = 1000.0
 
 
 BASELINE_ENERGY = 0 # will be auto-calculated # 0.568206918430233
-
-PLOT_ENERGY = True
 
 # Gateway hostname -> DB hostname
 gateway_to_db = {
@@ -46,6 +48,8 @@ gateway_to_db = {
 blacklist = [
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24814', 'inode_db': 'inode014', '_tmax': 3000 },
+    { 'job': '24814', 'inode_db': 'inode010'},
+
     { 'job': '24815', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24815', 'inode_db': 'inode010' },
     { 'job': '24815', 'inode_db': 'inode016', '_tmax': 3000 },
@@ -59,8 +63,8 @@ blacklist = [
     { 'job': '24818', 'inode_db': 'inode008', '_tmax': 5000 },
     { 'job': '24819', 'inode_db': 'inode010' },
     { 'job': '24819', 'inode_db': 'inode016' },
-    { 'job': '24819', 'inode_db': 'inode008', '_tmin': 2000 },
-    { 'job': '24819', 'inode_db': 'inode014', '_tmax': 3000 },
+    { 'job': '24819', 'inode_db': 'inode008', '_tmin': 2010 },
+    { 'job': '24819', 'inode_db': 'inode014', '_tmin': 240, '_tmax': 3000 },
     { 'job': '24821', 'inode_db': 'inode010' }, # empty
     { 'job': '24821', 'inode_db': 'inode016' }, # some sub-runs are actually ok
     { 'job': '24821', 'inode_db': 'inode008' }, # some sub-runs are actually ok
@@ -105,6 +109,10 @@ blacklist = [
     { 'job': '24880', 'inode_db': 'inode016'}, # ts erase
     { 'job': '24880', 'inode_db': 'inode008', '_tmin': 786, '_tmax': 1000, }, # ts erase
     { 'job': '24880', 'inode_db': 'inode014'}, # ts erase
+    { 'job': '24882', 'inode_db': 'inode014'}, # ts find
+    { 'job': '24882', 'inode_db': 'inode010'}, # ts find
+    { 'job': '24882' }, # only blacklisted because it has FINDS_AT_ONCE=1
+    # 24882: ts find FINDS_AT_ONCE=1
 ]
 
 teenylime_runs = set(
@@ -115,6 +123,11 @@ subsample_runs = set([
     '24877', # ts erase
     '24879', # ts erase
     '24880', # ts erase
+
+    '24882', # ts find (1)
+
+    #'24818', # ts find (10)
+    #'24819', # ts find (10)
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -151,10 +164,17 @@ def main():
         sys.argv[1:],
         #lambda k: k.database != 'antelope'
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
+
+        # filter
+        lambda k: (
+            (k.mode == 'find' and k.database != 'teeny') #or k.mode == 'insert'
+        )
     )
     
     #fs = (12, 5)
+    #fs = (4, 3)
     fs = (4, 3)
+    #fs = (4 * 0.8, 3 * 0.8)
     #fs = None
     
     fig_i_e = plt.figure(figsize=fs)
@@ -172,22 +192,34 @@ def main():
     fig_e_t = plt.figure(figsize=fs)
     ax_e_t = plt.subplot(111)
 
-    #ax_i_e.set_yscale('log')
+    ax_f_e.set_yscale('log')
+    ax_f_t.set_yscale('log')
 
-    shift_i = 2
-    shift_f = 2
-    shift_e = 2
+    shift_i = 0
+    shift_f = 0
+    shift_e = 0
     #l_f = 1
     #l_e = 1
     for k, exp in experiments: #.items():
 
-        es = ([y * CURRENT_DISPLAY_FACTOR for y in x] for x in exp.energy)
-        ts = ([y * TIME_DISPLAY_FACTOR for y in x] for x in exp.time)
+        es = [[y * CURRENT_DISPLAY_FACTOR for y in x] for x in exp.energy]
+
+        if k.mode == 'find':
+            ts = []
+            for v in exp.time:
+                t_ = []
+                for w in v: t_.append(w * TIME_DISPLAY_FACTOR_FIND)
+                ts.append(t_)
+            #ts = [[y * TIME_DISPLAY_FACTOR_FIND for y in x] for x in exp.time]
+        else:
+            ts = [[y * TIME_DISPLAY_FACTOR for y in x] for x in exp.time]
 
         #plot_energies([v], k.reprname() + '.pdf')
         if k.mode == 'insert':
-            pos_e = [x + shift_i for x in exp.tuplecounts[:len(exp.energy)]]
-            pos_t = [x + shift_i for x in exp.tuplecounts[:len(exp.time)]]
+            #pos_e = [x + shift_i for x in exp.tuplecounts[:len(exp.energy)]]
+            #pos_t = [x + shift_i for x in exp.tuplecounts[:len(exp.time)]]
+            pos_e = exp.tuplecounts[:len(exp.energy)]
+            pos_t = exp.tuplecounts[:len(exp.time)]
 
             # If for some weird reason we have more data points than
             # sent out packets, put the rest at pos 100 so we notice something
@@ -200,8 +232,9 @@ def main():
 
             print(k.mode, k.database, [len(x) for x in es])
 
+            w = 2.5 if k.database == 'antelope' else 3.5
             if len(es):
-                bp = ax_i_e.boxplot(es, positions=pos_e)
+                bp = ax_i_e.boxplot(es, positions=pos_e, widths=w)
                 plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
@@ -209,7 +242,7 @@ def main():
                 ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
             if len(ts):
-                bp = ax_i_t.boxplot(ts, positions=pos_t)
+                bp = ax_i_t.boxplot(ts, positions=pos_t, widths=w)
                 plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
@@ -227,10 +260,12 @@ def main():
                 es = [flatten(es)]
                 ts = [flatten(ts)]
             else:
-                es = exp.energy
-                ts = exp.time
-                pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
-                pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
+                #es = exp.energy
+                #ts = exp.time
+                #pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
+                #pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
+                pos_e = exp.tuplecounts[:len(exp.energy)]
+                pos_t = exp.tuplecounts[:len(exp.time)]
 
                 # If for some weird reason we have more data points than
                 # sent out packets, put the rest at pos 100 so we notice something
@@ -242,23 +277,23 @@ def main():
             pos_t, ts = cleanse(pos_t, ts)
 
             print(k.mode, k.database, [len(x) for x in es])
-            print(pos_e, [sum(x)/len(x) for x in es])
+            #print(pos_e, [sum(x)/len(x) for x in es])
 
             if len(es):
-                bp = ax_f_e.boxplot(es, positions=pos_e)
+                bp = ax_f_e.boxplot(es, positions=pos_e, widths=3)
                 plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                #ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
             if len(ts):
-                bp = ax_f_t.boxplot(ts, positions=pos_t)
+                bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
                 plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+                #ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
 
             shift_f -= 1
 
@@ -356,6 +391,7 @@ def process_directory(d, f=lambda x: True):
 
     # blacklist by db inode id
     bl = {}
+    all_invalid = True
     for gw, db in gateway_to_db.items():
         fn_gwinfo = EXP_DIR + d + '/' + gw + '/' + gw + '.vars'
         fn_gwout = EXP_DIR + d + '/' + gw + '/output.txt'
@@ -367,15 +403,29 @@ def process_directory(d, f=lambda x: True):
         cls = ExperimentClass(v)
         cls.job = d
 
+        if not f(cls):
+            print("  ({}: {}/{} {} ignored by filter)".format(db, cls.database, cls.mode, cls.dataset))
+            bl[db] = { 'inode_db': db }
+            continue
+
         for b in blacklist:
             for k, x in b.items():
                 if k.startswith('_'): continue
                 if getattr(cls, k) != x:
                     # does not match this blacklist entry
+                    all_invalid = False
                     break
             else:
                 bl[db] = b
+                if has_valid(b):
+                    all_invalid = False
+                else:
+                    print("  ({}: {}/{} {} ignored by blacklist)".format(db, cls.database, cls.mode, cls.dataset))
                 break
+
+    if all_invalid:
+        print("  (ignoring {} completely)".format(d))
+        return
 
     # Now actually read energy values
     # we only need subsamples for teenylime as they only insert one value at a
@@ -404,9 +454,9 @@ or subsample) else 1.0))
         v = read_vars(fn_gwinfo)
         cls = ExperimentClass(v)
         cls.job = d
-        if not f(cls):
-            print("({} ignored by filter)".format(db))
-            continue
+        #if not f(cls):
+            #print("({} ignored by filter)".format(db))
+            #continue
 
         print("  {}/{} {}".format(cls.database, cls.mode, cls.dataset))
 
@@ -523,7 +573,7 @@ def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
                 a = b['_alpha']
             assert 0.0 <= a <= 1.0
 
-            r[mote_id]['vs'].append(a * v + (1.0 - a) * (r[mote_id]['vs'][-1] if len(r[mote_id]['vs']) else 0.0))
+            r[mote_id]['vs'].append(a * v + (1.0 - a) * (r[mote_id]['vs'][-1] if len(r[mote_id]['vs']) else v))
 
         if use_subsamples:
             for i in range(64):
@@ -605,7 +655,7 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
             print("{} > tmax".format(t))
             break
 
-        print(t, v)
+        #print(t, v)
 
         if state is idle_low:
             if v > MEASUREMENT_UP:
@@ -724,7 +774,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
                 change_state(idle_low)
                 #if mode == 'insert':
                 #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
-                sums_t.append(t - t0)
+                sums_t.append((t - t0) / TEENYLIME_FINDS_AT_ONCE)
                 if mode == 'find':
                     esum /= TEENYLIME_FINDS_AT_ONCE
                 sums_e.append(esum)
@@ -760,6 +810,7 @@ def process_energy(d, mode, lbl='', tmin=0):
     HIGH = 7.0
     RADIO = 1.5
     MEASUREMENT = 1.5
+    MEASUREMENT_FIND = 1.2
 
     class State:
         def __init__(self, s): self.s = s
@@ -803,7 +854,7 @@ def process_energy(d, mode, lbl='', tmin=0):
         nonlocal state
         nonlocal thigh
         if s is not state:
-            #print("{}: {} -> {}".format(t, state, s))
+            print("    {}: {} -> {}".format(t, state, s))
             if s is idle_high:
                 thigh = t
             state = s
@@ -874,14 +925,14 @@ def process_energy(d, mode, lbl='', tmin=0):
                     sums_t.append(None)
                 change_state(idle_high)
                 #thigh = t
-            elif v > MEASUREMENT:
+            elif v > MEASUREMENT_FIND:
                 change_state(find)
                 if mode == 'find':
                     t0 = t
                     #tprev = t
                     #esum = 0
                     esum = (t - tprev) * (v - BASELINE_ENERGY)
-                    print(t,tprev,v, BASELINE_ENERGY)
+                    #print(t,tprev,v, BASELINE_ENERGY)
                     assert esum >= 0
             else:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
@@ -890,11 +941,11 @@ def process_energy(d, mode, lbl='', tmin=0):
 
         elif state is find:
             if v < MEASUREMENT:
-                #print("find measurement at {} e {}".format(t, esum))
                 change_state(idle_after)
                 if mode == 'find':
+                    print("    find measurement at {} - {} e {}".format(t0, t, esum))
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
-                    sums_t.append(t - t0)
+                    sums_t.append((t - t0) / FINDS_AT_ONCE)
                     sums_e.append(esum / FINDS_AT_ONCE)
             elif v > HIGH:
                 #print("  find measurement aborted high at {} t0={} esum={}".format(t, t0, esum - BASELINE_ENERGY))
@@ -905,12 +956,13 @@ def process_energy(d, mode, lbl='', tmin=0):
                 change_state(idle_high)
                 #thigh = t
                 if mode == 'find':
+                    print("    find abort high t0={} t={}".format(t0, t))
                     sums_t.append(None)
                     sums_e.append(None)
             else:
                 if mode == 'find':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
-                    print(t,tprev,v, BASELINE_ENERGY)
+                    #print(t,tprev,v, BASELINE_ENERGY)
                     assert esum >= 0
                     #tprev = t
 
@@ -965,7 +1017,7 @@ def process_energy(d, mode, lbl='', tmin=0):
             if re[i] is not None and rt[i] is not None:
                 print(re[i], rt[i], baseline_estimate)
                 if mode == 'find':
-                    re[i] -= rt[i] * baseline_estimate / FINDS_AT_ONCE
+                    re[i] -= rt[i] * baseline_estimate #/ FINDS_AT_ONCE
                 else:
                     re[i] -= rt[i] * baseline_estimate
                 print(re[i], rt[i], baseline_estimate)
@@ -986,7 +1038,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((780, 790))
+    ax.set_xlim((2005, 2020))
     #ax.set_ylim((0, 5))
     ax.grid()
 
@@ -1174,12 +1226,14 @@ def cleanse(l1, l2):
 
     """
 
+    generator = type((x for x in []))
+
     r1 = []
     r2 = []
     for x, y in zip(l1, l2):
-        if isinstance(x, list):
+        if isinstance(x, list) or isinstance(x, generator):
             x = list(filter(lambda x: x is not None and x != [], x))
-        if isinstance(y, list):
+        if isinstance(y, list) or isinstance(y, generator):
             y = list(filter(lambda z: z is not None and z != [], y))
 
         if x is not None and x != [] and y is not None and y != []:
