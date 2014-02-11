@@ -47,7 +47,7 @@ namespace wiselib {
 		 * This can reduce energy consumption but may also lead to duplicate
 		 * entries in the dictionary and thus waste space.
 		 */
-		bool P_LOW_ENERGY = false,
+		//bool P_LOW_ENERGY = false,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class StaticDictionary {
@@ -300,7 +300,7 @@ namespace wiselib {
 				key_type end_pos = start_pos ? (start_pos - 1) : (SLOTS - 1);
 				key_type free = NULL_KEY;
 
-				if(P_LOW_ENERGY) {
+				if(false /*P_LOW_ENERGY*/) {
 					key_type i = start_pos;
 					if(slots_[i].refcount_) {
 						if(slots_[i].meta_ == meta) {

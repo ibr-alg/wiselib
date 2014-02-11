@@ -189,7 +189,7 @@ class Tuple {
 
 	#include <util/tuple_store/static_dictionary.h>
 	//typedef StaticDictionary<Os, 200, 15> Dictionary;
-	typedef StaticDictionary<Os, 100, 15, true> Dictionary;
+	typedef StaticDictionary<Os, 100, 15> Dictionary;
 	
 #else
 	// ---- TupleStore instantiation on BLOCK MEMORY
