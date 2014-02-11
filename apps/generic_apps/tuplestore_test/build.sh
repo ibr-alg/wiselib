@@ -132,15 +132,15 @@ DB=tuplestore
 #DB=antelope
 #DB=teeny
 
-MODE=find
+MODE=erase
 AREA=alpha
 generate_stuff
 
-MODE=insert
+MODE=erase
 AREA=bravo
 generate_stuff
 
-MODE=insert
+MODE=erase
 AREA=charlie
 generate_stuff
 

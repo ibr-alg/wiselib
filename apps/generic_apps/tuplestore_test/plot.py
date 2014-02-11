@@ -45,7 +45,13 @@ gateway_to_db = {
     'inode009': 'inode008'
 }
 
-blacklist = [
+blacklist = []
+
+# blacklist TS experiments before 24883, as they
+# had the broken LE mode enabled
+blacklist += [ {'job': str(i), 'database': 'tuplestore'} for i in range(24814, 24833) ]
+
+blacklist += [
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24814', 'inode_db': 'inode014', '_tmax': 3000 },
     { 'job': '24814', 'inode_db': 'inode010'},
@@ -113,6 +119,8 @@ blacklist = [
     { 'job': '24882', 'inode_db': 'inode010'}, # ts find
     { 'job': '24882' }, # only blacklisted because it has FINDS_AT_ONCE=1
     # 24882: ts find FINDS_AT_ONCE=1
+    { 'job': '24883', 'inode_db': 'inode008'},
+    { 'job': '24883', 'inode_db': 'inode008'},
 ]
 
 teenylime_runs = set(
@@ -166,9 +174,9 @@ def main():
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
 
         # filter
-        lambda k: (
-            (k.mode == 'find' and k.database != 'teeny') #or k.mode == 'insert'
-        )
+        #lambda k: (
+            #(k.mode == 'find') # and k.database != 'teeny') #or k.mode == 'insert'
+        #)
     )
     
     #fs = (12, 5)
@@ -192,8 +200,8 @@ def main():
     fig_e_t = plt.figure(figsize=fs)
     ax_e_t = plt.subplot(111)
 
-    ax_f_e.set_yscale('log')
-    ax_f_t.set_yscale('log')
+    #ax_f_e.set_yscale('log')
+    #ax_f_t.set_yscale('log')
 
     shift_i = 0
     shift_f = 0
@@ -1038,7 +1046,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((2005, 2020))
+    #ax.set_xlim((2005, 2020))
     #ax.set_ylim((0, 5))
     ax.grid()
 
@@ -1066,6 +1074,21 @@ def plot_experiment(n, ax, **kwargs):
         #ax.plot(cum(tc[:len(es)]), ([x/y for x, y in zip(es, tc)]), 'o-', **kwargs) 
         ax.plot(cum(tc[:len(fs)]), ([x/y for x, y in zip(fs, tc)]), 'x-', **kwargs) 
         ax.plot(cum(tc[:len(fs)]), ([x/y for x, y in zip(d['t_find'][e], tc)]), 'x-', **kwargs) 
+
+
+#class plot_broken_y:
+    #def __init__(self, break_start, break_end):
+        #self.break_start = break_start
+        #self.break_end = break_end
+        #self.f, (self.ax, self.ax2) = plt.subplots(2, 1, sharex=True)
+        #self.ax
+
+    #def plot(self, *args, **kws):
+        #self.ax.plot(*args, **kws)
+        #self.ax2.plot(*args, **kws)
+        
+    
+
 
 #
 # Experiment registry
