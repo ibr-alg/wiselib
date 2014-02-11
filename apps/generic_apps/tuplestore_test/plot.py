@@ -120,7 +120,15 @@ blacklist += [
     { 'job': '24882' }, # only blacklisted because it has FINDS_AT_ONCE=1
     # 24882: ts find FINDS_AT_ONCE=1
     { 'job': '24883', 'inode_db': 'inode008'},
-    { 'job': '24883', 'inode_db': 'inode008'},
+    { 'job': '24884', 'inode_db': 'inode008'},
+    { 'job': '24885', 'inode_db': 'inode008'},
+    { 'job': '24885', 'inode_db': 'inode010'}, #, '_tmin': 530, '_threshold': 1.3},
+    { 'job': '24885', 'inode_db': 'inode014', '_tmin': 545, '_threshold': 2.0, '_alpha': .04},
+    { 'job': '24885', 'inode_db': 'inode016', '_tmin': 520, '_threshold': 1.5, '_alpha': .04},
+    { 'job': '24886', 'inode_db': 'inode010'},
+    { 'job': '24886', 'inode_db': 'inode014'},
+    { 'job': '24886', 'inode_db': 'inode016'},
+    { 'job': '24886', 'inode_db': 'inode008', '_tmin': 655, '_threshold': 2.0, '_alpha': .04},
 ]
 
 teenylime_runs = set(
@@ -133,6 +141,8 @@ subsample_runs = set([
     '24880', # ts erase
 
     '24882', # ts find (1)
+    '24885', # ts erase
+    '24886', # ts erase
 
     #'24818', # ts find (10)
     #'24819', # ts find (10)
@@ -293,7 +303,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                #ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
             if len(ts):
                 bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
@@ -301,7 +311,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                #ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+                ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
 
             shift_f -= 1
 
@@ -329,7 +339,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_e_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                #ax_e_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
 
             if len(ts):
                 bp = ax_e_t.boxplot(ts, positions=pos_t)
@@ -337,7 +347,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_e_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+                #ax_e_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
 
             shift_e -= 1
 
@@ -1046,7 +1056,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((2005, 2020))
+    ax.set_xlim((520, 550))
     #ax.set_ylim((0, 5))
     ax.grid()
 
