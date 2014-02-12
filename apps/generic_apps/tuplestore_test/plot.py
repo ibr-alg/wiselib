@@ -10,6 +10,7 @@ import os
 import os.path
 import gzip
 import itertools
+import math
 
 PLOT_ENERGY = True
 
@@ -129,6 +130,10 @@ blacklist += [
     { 'job': '24886', 'inode_db': 'inode014'},
     { 'job': '24886', 'inode_db': 'inode016'},
     { 'job': '24886', 'inode_db': 'inode008', '_tmin': 655, '_threshold': 2.0, '_alpha': .04},
+    { 'job': '24887', 'inode_db': 'inode016'},
+    { 'job': '24887', 'inode_db': 'inode008', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
+    { 'job': '24887', 'inode_db': 'inode014', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
+    { 'job': '24887', 'inode_db': 'inode010', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
 ]
 
 teenylime_runs = set(
@@ -143,6 +148,7 @@ subsample_runs = set([
     '24882', # ts find (1)
     '24885', # ts erase
     '24886', # ts erase
+    '24887', # ts erase
 
     #'24818', # ts find (10)
     #'24819', # ts find (10)
@@ -165,7 +171,7 @@ experiments = []
 style = {
     'tuplestore': {
         'ls': 'k-',
-        'boxcolor': 'black',
+        'boxcolor': 'grey',
     },
     'antelope': {
         'ls': 'b--',
@@ -183,10 +189,8 @@ def main():
         #lambda k: k.database != 'antelope'
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
 
-        # filter
-        #lambda k: (
-            #(k.mode == 'find') # and k.database != 'teeny') #or k.mode == 'insert'
-        #)
+         #filter
+        lambda k: k.mode == 'find' or k.mode == 'erase' # and k.database != 'teeny') #or k.mode == 'insert'
     )
     
     #fs = (12, 5)
@@ -509,9 +513,11 @@ or subsample) else 1.0))
         #
         # Process energy measurements into runs_t and runs_e
         #
-
+        
+        delta = None
         if teenylime:
-            runs_t, runs_e = process_energy_teenylime(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+            runs_t, runs_e, runs_ot = process_energy_teenylime(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+            delta = 1.0
 
             if v['mode'] == 'insert':
                 runs_t = [r[:TEENYLIME_INSERT_CALLS] for r in runs_t]
@@ -519,10 +525,25 @@ or subsample) else 1.0))
 
         else:
             if v['mode'] == 'erase':
-                runs_t, runs_e = process_energy_ts_erase(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0),
+                runs_t, runs_e, runs_ot = process_energy_ts_erase(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0),
 maxvalues=v['ntuples'],bl=bl)
+                delta = 0.6
             else:
-                runs_t, runs_e = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+                runs_t, runs_e, runs_ot = process_energy(energy[mid], v['mode'], lbl=db, tmin=bl.get(db, {}).get('_tmin', 0))
+                delta = 60.0
+
+        assert delta is not None
+
+        #
+        # Fix observation times for plausibility
+        #
+        #for rt, re, rot in zip(runs_t, runs_e, runs_ot):
+        for i in range(len(runs_ot)):
+            rt = runs_t[i]
+            re = runs_e[i]
+            rot = runs_ot[i]
+            runs_t[i], runs_e[i], _ = plausible_observation_times(rt, re, rot, delta)
+
 
         #
         # Add the extracted measurements to the experiment object
@@ -641,6 +662,8 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
     sums_t = []
     runs_e = []
     runs_t = []
+    runs_ot = []
+    ots = []
 
     thigh = 0
     t0 = 0
@@ -694,6 +717,7 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
                 change_state(idle_low)
                 #if mode == 'insert':
                 #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                ots.append(t)
                 sums_t.append(t - t0)
                 if mode == 'find':
                     esum /= TEENYLIME_FINDS_AT_ONCE
@@ -713,7 +737,8 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
 
     runs_t.append(sums_t)
     runs_e.append(sums_e)
-    return runs_t, runs_e
+    runs_ot.append(ots)
+    return runs_t, runs_e, runs_ot
 
 def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
     ts = d['ts']
@@ -737,8 +762,10 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
 
     sums_e = []
     sums_t = []
+    ots = []
     runs_e = []
     runs_t = []
+    runs_ot = []
 
     thigh = 0
     t0 = 0
@@ -792,6 +819,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
                 change_state(idle_low)
                 #if mode == 'insert':
                 #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                ots.append(t)
                 sums_t.append((t - t0) / TEENYLIME_FINDS_AT_ONCE)
                 if mode == 'find':
                     esum /= TEENYLIME_FINDS_AT_ONCE
@@ -810,7 +838,8 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
 
     runs_t.append(sums_t)
     runs_e.append(sums_e)
-    return runs_t, runs_e
+    runs_ot.append(ots)
+    return runs_t, runs_e, runs_ot
 
 def process_energy(d, mode, lbl='', tmin=0):
     ts = d['ts']
@@ -851,8 +880,10 @@ def process_energy(d, mode, lbl='', tmin=0):
     #time_sums_find = []
     sums_e = []
     sums_t = []
+    ots = []
     runs_e = []
     runs_t = []
+    runs_ot = []
 
     thigh = 0
     t0 = 0
@@ -888,8 +919,10 @@ def process_energy(d, mode, lbl='', tmin=0):
                     # reboot
                     runs_e.append(sums_e)
                     runs_t.append(sums_t)
+                    runs_ot.append(ots)
                     sums_e = []
                     sums_t = []
+                    ots = []
                     
                     #esums_i.append(energy_sums_insert)
                     #esums_f.append(energy_sums_find)
@@ -922,6 +955,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append(t - t0)
                     sums_e.append(esum)
+                    ots.append(t)
             else:
                 #print(v, t)
                 #assert v < HIGH
@@ -929,6 +963,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                     print("    insert abort high t={}".format(t))
                     sums_e.append(None)
                     sums_t.append(None)
+                    ots.append(t)
                     change_state(idle_high)
                     #thigh = t
                 elif mode == 'insert':
@@ -941,6 +976,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                 if mode == 'find':
                     sums_e.append(None)
                     sums_t.append(None)
+                    ots.append(t)
                 change_state(idle_high)
                 #thigh = t
             elif v > MEASUREMENT_FIND:
@@ -965,6 +1001,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append((t - t0) / FINDS_AT_ONCE)
                     sums_e.append(esum / FINDS_AT_ONCE)
+                    ots.append(t)
             elif v > HIGH:
                 #print("  find measurement aborted high at {} t0={} esum={}".format(t, t0, esum - BASELINE_ENERGY))
                 # what we thought was a find measurement was actually a
@@ -977,6 +1014,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                     print("    find abort high t0={} t={}".format(t0, t))
                     sums_t.append(None)
                     sums_e.append(None)
+                    ots.append(t)
             else:
                 if mode == 'find':
                     esum += (t - tprev) * (v - BASELINE_ENERGY)
@@ -1029,6 +1067,7 @@ def process_energy(d, mode, lbl='', tmin=0):
     #tsums_f.append(time_sums_find)
     runs_t.append(sums_t)
     runs_e.append(sums_e)
+    runs_ot.append(ots)
 
     for rt, re in zip(runs_t, runs_e):
         for i in range(len(rt)):
@@ -1038,10 +1077,10 @@ def process_energy(d, mode, lbl='', tmin=0):
                     re[i] -= rt[i] * baseline_estimate #/ FINDS_AT_ONCE
                 else:
                     re[i] -= rt[i] * baseline_estimate
-                print(re[i], rt[i], baseline_estimate)
+                #print(re[i], rt[i], baseline_estimate)
                 assert re[i] >= 0
 
-    return (runs_t, runs_e)
+    return (runs_t, runs_e, runs_ot)
 
 #
 # Plotting
@@ -1056,7 +1095,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((520, 550))
+    ax.set_xlim((700, 750))
     #ax.set_ylim((0, 5))
     ax.grid()
 
@@ -1274,8 +1313,67 @@ def cleanse(l1, l2):
             r2.append(y)
     return r1, r2
 
+def plausible_observation_times(es, ts, ots, d):
+    """
+    >>> es = range(10)
+    >>> ts = range(10)
+    >>> ots = [ 1.0, 2.01, 2.98, 4.7, 5.7, 6.77, 7.89, 9.6, 10.01, 10.99 ]
+    >>> e2, t2, ot2 = plausible_observation_times(es, ts, ots, 1.0)
+    >>> ot2
+    [1.0, 2.01, 2.98, 3.98, 4.7, 5.7, 6.77, 7.89, 8.89, 9.6, 10.99]
+    >>> e2
+    [0, 1, 2, None, 3, 4, 5, 6, None, 7, 9]
+    >>> t2 == e2
+    True
+
+    >>> es = ts = (0, 1)
+    >>> ots = [ 0.0, 5.0 ]
+    >>> es2, ts2, ots2 = plausible_observation_times(es, ts, ots, 1.0)
+    >>> es2
+    [0, None, None, None, None, 1]
+    >>> ts2 == es2
+    True
+    >>> ots2
+    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    """
+
+    dmin = d / 2.0
+    dmax = d * 1.5
+
+    es2 = []
+    ts2 = []
+    ots2 = []
+
+    tprev = None
+    for (e, t, ot) in zip(es, ts, ots):
+        if tprev is not None and (ot - tprev) < dmin:
+            # too close, skip this entry
+            pass
+        elif tprev is not None and (ot - tprev) > dmax:
+            for f in frange(tprev + d, ot - d/2, d):
+                # too far, insert a new entry
+                ots2.append(f)
+                ts2.append(None)
+                es2.append(None)
+            ots2.append(ot)
+            ts2.append(t)
+            es2.append(e)
+            tprev = ot
+        else:
+            ots2.append(ot)
+            ts2.append(t)
+            es2.append(e)
+            tprev = ot
+
+    return es2, ts2, ots2
+            
+
 def frange(a, b, step):
-    return [x * step for x in range(int(a / step), int(b / step))]
+    """
+    >>> frange(0.1, 4.7, 1.0)
+    [0.1, 1.1, 2.1, 3.1, 4.1]
+    """
+    return [a + x * step for x in range(int(math.ceil((b - a) / step)))]
 
 def cum(l):
     s = 0
@@ -1315,6 +1413,10 @@ def mote_id_to_inode_id(s):
 
 def flatten(l):
     return list(itertools.chain.from_iterable(l))
+
+
+
+
 
     ## incontextsensing
     ##tc = [7, 6, 8, 11, 11, 10, 11, 9]
