@@ -197,11 +197,14 @@ namespace wiselib {
 					void set_operators(::uint8_t oplen, block_data_t* opdata) {
 						assert(oplen <= OPERATOR_BUFFER_SIZE);
 						memcpy(operator_buffer_, opdata, oplen);
+						operator_buffer_[oplen] = 0;
 						operator_buffer_size_ = oplen;
 					}
 					::uint8_t push_operator(::uint8_t pos, ::uint8_t len, block_data_t *data) {
 						assert(pos + len <= OPERATOR_BUFFER_SIZE);
 						memcpy(operator_buffer_ + pos, data, len);
+						// add end marker: next op length is 0
+						operator_buffer_[pos + len] = 0;
 						operator_buffer_size_ += len;
 						return pos + len;
 					}
@@ -561,7 +564,7 @@ namespace wiselib {
 								debug_->debug("p=%d", (int)p);
 							
 							if(s.has_more_operators()) {
-								debug_->debug("has more ops");
+								debug_->debug("has more ops offs %d", (int)s.operator_size());
 								// last operator didnt fit
 								break;
 							}
@@ -874,6 +877,7 @@ namespace wiselib {
 				query_id_t qid = (unsigned long)qid_ & 0xff;
 				debug_->debug("qlt%d", (int)qid);
 				query_processor_->erase_query(qid);
+				queries_.erase(qid);
 			}
 			
 			void on_neighborhood_event(typename Neighborhood::EventType event, node_id_t id) {
