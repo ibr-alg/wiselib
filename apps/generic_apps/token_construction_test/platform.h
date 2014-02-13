@@ -8,6 +8,8 @@
 #define APP_EVAL  0
 #define APP_QUERY 1
 
+#define NAP_CONTROL_ALWAYS_ON 1
+
 #if APP_BLINK
 	#define INSE_ACTIVITY_PERIOD         1000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     128
@@ -35,7 +37,7 @@
 
 	#define USE_INQP                     1
 	#define USE_STRING_INQUIRY           0
-	#define INSE_USE_AGGREGATOR          1
+	#define INSE_USE_AGGREGATOR          0
 
 	#define INSE_ACTIVITY_PERIOD         10000 * WISELIB_TIME_FACTOR
 	#define INSE_FORWARDING_MAP_BITS     128
@@ -82,10 +84,10 @@
 
 // Restrictions
 
-#define INSE_MAX_NEIGHBORS             8
-#define INSE_MAX_SEMANTIC_ENTITIES     4
-#define INSE_MAX_QUERIES               4
-#define INSE_BLOOM_FILTER_BITS        64
+//#define INSE_MAX_NEIGHBORS             8
+//#define INSE_MAX_SEMANTIC_ENTITIES     4
+//#define INSE_MAX_QUERIES               4
+#define INSE_BLOOM_FILTER_BITS        8
 
 // Memory sizes, word sizes, tec..    
 
@@ -128,7 +130,7 @@
 
 	#define INSE_BCAST_INTERVAL            3000
 	#define INQP_AGGREGATE_CHECK_INTERVAL  1000
-	#define DISTRIBUTOR_DEBUG_STATE        0
+	#define DISTRIBUTOR_DEBUG_STATE        1
 	#define INSE_DEBUG_STATE               0
 	#define INSE_DEBUG_TOKEN               0
 	#define INSE_DEBUG_TOPOLOGY            0
@@ -138,16 +140,16 @@
 	#define NAP_CONTROL_DEBUG_STATE        0
 	#define NAP_CONTROL_DEBUG_ONOFF        0
 	#define NAP_CONTROL_ALWAYS_ON          1
-	#define RELIABLE_TRANSPORT_DEBUG_STATE 0
+	#define RELIABLE_TRANSPORT_DEBUG_STATE 1
 	#define WISELIB_DISABLE_DEBUG          1
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 1
 	#define INSE_DEBUG_WARNING             1
 	
 	#define WISELIB_TIME_FACTOR            1
-	#define INSE_MAX_NEIGHBORS             8
+	#define INSE_MAX_NEIGHBORS             2
 	#define WISELIB_MAX_NEIGHBORS          (INSE_MAX_NEIGHBORS)
-	#define INSE_MAX_SEMANTIC_ENTITIES     5
-	#define INSE_MAX_QUERIES               2
+	#define INSE_MAX_SEMANTIC_ENTITIES     2
+	#define INSE_MAX_QUERIES               3
 
 	#define INSE_CSMA_MODE                 0
 	

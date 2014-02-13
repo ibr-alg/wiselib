@@ -57,12 +57,9 @@ class App {
 		}
 		
 		void init3() {
-			//debug_->debug("\nboot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
-			
 			monitor_.report("bt0");
 			hardware_radio_->enable_radio();
 			radio_.init(*hardware_radio_, *debug_);
-			
 			
 			rand_->srand(radio_.id());
 			monitor_.init(debug_);
@@ -102,7 +99,7 @@ class App {
 					
 					
 					snprintf(pir_uri_, sizeof(pir_uri_), "<http://spitfire-project.eu/nodes/%08lx/pir>", (unsigned long)radio_.id());
-					data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
+					data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry()); //, &token_construction_.aggregator());
 				#endif
 				insert_tuples();
 			#endif
@@ -116,22 +113,10 @@ class App {
 				rule_processor_.execute_all();
 			#endif
 			
-			//#if USE_DICTIONARY
-				//aggr_key_temp_ = dictionary.insert((::uint8_t*)"<http://me.exmpl/Temperature>");
-				//aggr_key_centigrade_ = dictionary.insert((::uint8_t*)"<http://spitfire-project.eu/uom/Centigrade>");
-			//#endif
-				
-			//debug_->debug("hash(temp)=%lx", (long)STRHASH("<http://spitfire-project.eu/property/Temperature>"));
-			//debug_->debug("hash(centigrade)=%lx", (long)STRHASH("<http://spitfire-project.eu/uom/Centigrade>"));
-			
-			//debug_->debug("@%d /init t=%d", (int)radio_->id(), (int)now());
-			
 			monitor_.report("/init");
 			#if USE_INQP && !APP_QUERY
-				//timer_->set_timer<App, &App::distribute_query>(500L * 1000L * WISELIB_TIME_FACTOR, this, 0);
 				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);
 			#endif
-			//timer_->set_timer<App, &App::query_strings>(500000UL * WISELIB_TIME_FACTOR, this, 0);
 			
 			#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 				//light_sensor
@@ -156,7 +141,7 @@ class App {
 		#if APP_QUERY && defined(ISENSE)
 			char rdf_uri_[64];
 			char pir_uri_[64];
-			IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT, Aggregator> data_provider_;
+			IsensePirDataProvider<Os, TS, TC::SemanticEntityRegistryT> data_provider_;
 		#endif
 			
 			
@@ -190,9 +175,6 @@ class App {
 			#if USE_INQP
 				query_processor_.init(&ts, timer_);
 				rule_processor_.init(&query_processor_, &token_construction_);
-				
-				//query_communicator_.init(query_processor_,
-				
 				
 				// Distribute queries to nodes
 				
@@ -234,7 +216,6 @@ class App {
 				//);
 						
 				
-				debug_->debug("initing rowc");
 				row_collector_.init(&row_radio_, &query_processor_, &token_construction_.tree(), debug_);
 				row_collector_.reg_collect_callback(
 						RowCollectorT::collect_delegate_t::from_method<App, &App::on_result_row>(this)
@@ -291,17 +272,6 @@ class App {
 			q1.add_operator<GPS>(&gps1);
 			
 			rule_processor_.add_rule(qid, &q1);
-		}
-	#else
-		void create_rules() {
-			/*
-			 * Add rule 1: (* <...#featureOfInterest> X)
-			 */
-			::uint8_t qid = 1;
-			const char *p = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
-			TupleT t;
-			t.set(1, (block_data_t*)p);
-			rule_processor_.add_rule(qid, t, BIN(010), 2);
 		}
 	#endif
 		
@@ -391,8 +361,8 @@ class App {
 						SemanticEntityId::all(),
 						qid, 1 /* revision */,
 						Distributor::QUERY,
-						60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
-						60000 * WISELIB_TIME_FACTOR,
+						5000 * WISELIB_TIME_FACTOR, // waketime & lifetime
+						5000 * WISELIB_TIME_FACTOR,
 						opcount,
 						uart_query_pos, uart_query
 				);
@@ -494,7 +464,7 @@ class App {
 			monitor_.report("/act");
 			
 			#ifdef ISENSE
-			data_provider_.update_aggregate();
+			//data_provider_.update_aggregate();
 			#endif
 			
 			if(radio_.id() == token_construction_.tree().root()) {

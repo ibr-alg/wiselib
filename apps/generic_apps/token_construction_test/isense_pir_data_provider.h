@@ -40,8 +40,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename TupleStore_P,
-		typename Registry_P,
-		typename Aggregator_P
+		typename Registry_P
+		//typename Aggregator_P
 	>
 	class IsensePirDataProvider : isense::SensorHandler, public isense::TimeoutHandler, isense::Task {
 		
@@ -52,7 +52,7 @@ namespace wiselib {
 			typedef TupleStore_P TupleStore;
 			typedef typename TupleStore::Tuple Tuple;
 			typedef Registry_P Registry;
-			typedef Aggregator_P Aggregator;
+			//typedef Aggregator_P Aggregator;
 			
 			/*
 			
@@ -76,11 +76,11 @@ namespace wiselib {
 			/**
 			 * @me assumed to be long-lived.
 			 */
-			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg, Aggregator *agg) {
+			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg) {//, Aggregator *agg) {
 				sensor_ = sensor;
 				tuple_store_ = ts;
 				registry_ = reg;
-				aggregator_ = agg;
+				//aggregator_ = agg;
 				
 				// Some RDF URIs
 				
@@ -125,7 +125,7 @@ namespace wiselib {
 			void handle_sensor() {
 				if(timeout_id_ == 0xff) {
 					// we timed out before, now be on again!
-				GET_OS.debug("-- task1");
+				GET_OS.debug("-- task1 %u", mem->mem_free());
 					GET_OS.add_task(this, (void*)0x01); // on!
 				}
 				else {
@@ -135,7 +135,7 @@ namespace wiselib {
 					
 					// we are still in on-state, so nothing to do
 					// except, cancel the off-timeout, and start a new one
-				GET_OS.debug("-- cancel to5");
+				GET_OS.debug("-- cancel to5 %u", mem->mem_free());
 					GET_OS.remove_timeout(timeout_id_, this);
 				}
 				GET_OS.debug("-- add to5");
@@ -145,11 +145,11 @@ namespace wiselib {
 			///@}
 		
 			void update_aggregate() {
-				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
-					float f = (float)(int)value_;
-					Value v = *reinterpret_cast<Value*>(&f);
-					aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
-				}
+				//for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
+					//float f = (float)(int)value_;
+					//Value v = *reinterpret_cast<Value*>(&f);
+					//aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
+				//}
 			}
 			
 			void update(bool value) {
@@ -195,7 +195,7 @@ namespace wiselib {
 			::uint8_t timeout_id_;
 			isense::PirSensor *sensor_;
 			Registry *registry_;
-			Aggregator *aggregator_;
+			//Aggregator *aggregator_;
 		
 	}; // IsensePirDataProvider
 }
