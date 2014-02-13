@@ -12,7 +12,7 @@ import gzip
 import itertools
 import math
 
-PLOT_ENERGY = True
+PLOT_ENERGY = False
 
 #rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
@@ -190,7 +190,8 @@ def main():
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
 
          #filter
-        lambda k: k.mode == 'find' or k.mode == 'erase' # and k.database != 'teeny') #or k.mode == 'insert'
+        #lambda k: k.mode == 'find' or k.mode == 'erase' # and k.database != 'teeny') #or k.mode == 'insert'
+        lambda k: k.mode == 'insert'
     )
     
     #fs = (12, 5)

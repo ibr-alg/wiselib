@@ -53,7 +53,7 @@ def plot_cdf(x, y):
     ax.plot(x, y, 'k-')
     fig.savefig('rdf_elem_lengths.pdf', bbox_inches='tight', pad_inches=.1)
 
-fig = plt.figure(figsize=(4,3))
+fig = plt.figure(figsize=(4,2))
 ax = plt.subplot(111)
 
 styles = ['k--', 'k-', 'k:']
