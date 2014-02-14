@@ -400,7 +400,8 @@ namespace wiselib {
 				#endif
 				nap_control_->push_caffeine("bc");
 				radio_->send(BROADCAST_ADDRESS, msg.size(), msg.data());
-				timer_->template set_timer<self_type, &self_type::end_broadcast_state>(BCAST_KEEP_AWAKE, this, 0);
+				end_broadcast_state(0);
+				//timer_->template set_timer<self_type, &self_type::end_broadcast_state>(BCAST_KEEP_AWAKE, this, 0);
 			}
 			
 			void end_broadcast_state(void*) {
@@ -421,10 +422,10 @@ namespace wiselib {
 			}
 			
 			void erase_regular_broadcast(node_id_t n) {
-				if(regular_broadcasts_.contains(n)) {
-					regular_broadcasts_[n].cancel();
-					regular_broadcasts_.erase(n);
-				}
+				//if(regular_broadcasts_.contains(n)) {
+					//regular_broadcasts_[n].cancel();
+					//regular_broadcasts_.erase(n);
+				//}
 			}
 			
 			typename NeighborEntries::iterator assess_link_metric(node_id_t from, TreeStateMessageT& msg, abs_millis_t t, link_metric_t m) {
@@ -506,8 +507,8 @@ namespace wiselib {
 				nap_control_->push_caffeine("bcw");
 				
 				if(BCAST_TIMES_OUT) {
-					timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
-							BCAST_TIMEOUT, this, ev);
+					//timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
+							//BCAST_TIMEOUT, this, ev);
 				}
 			}
 			
@@ -518,6 +519,7 @@ namespace wiselib {
 				nap_control_->pop_caffeine("/bcw");
 			}
 			
+/*
 			node_id_t find_event(RegularEventT& ev) {
 				for(typename RegularEvents::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
 					if(&(it->second) == &ev) {
@@ -526,8 +528,10 @@ namespace wiselib {
 				}
 				return Radio::NULL_NODE_ID;
 			}
+*/
 			
 			void give_up_wait_for_regular_broadcast(void* v) {
+/*
 				RegularEventT& ev = *reinterpret_cast<RegularEventT*>(v);
 				DBG("@%lu give up bc waiting %d t%lu a %lu ev %p", (unsigned long)radio_->id(), (int)ev.waiting(),
 						(unsigned long)now(), (unsigned long)find_event(ev), v);
@@ -540,6 +544,7 @@ namespace wiselib {
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
 				}
 				//nap_control_->pop_caffeine("/bcw");
+*/
 			}
 			
 			size_type find_neighbor_position(node_id_t a, bool allow_parent = true) {
@@ -609,13 +614,14 @@ namespace wiselib {
 					new_neighbors_ = true;
 					
 					notify_event(NEW_NEIGHBOR, addr);
-				
+		/*		
 					RegularEventT &event = regular_broadcasts_[addr];
 					event.hit(t, clock_, radio_->id());
 					event.end_waiting();
 					event.template start_waiting_timer<
 						self_type, &self_type::begin_wait_for_regular_broadcast,
 						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+		*/
 				}
 				return r;
 			}
@@ -659,12 +665,12 @@ namespace wiselib {
 				ne->update(msg, t);
 				
 				if(stable_now) {
-					RegularEventT &event = regular_broadcasts_[addr];
-					event.hit(t, clock_, radio_->id());
-					event.end_waiting();
-					event.template start_waiting_timer<
-						self_type, &self_type::begin_wait_for_regular_broadcast,
-						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
+					//RegularEventT &event = regular_broadcasts_[addr];
+					//event.hit(t, clock_, radio_->id());
+					//event.end_waiting();
+					//event.template start_waiting_timer<
+						//self_type, &self_type::begin_wait_for_regular_broadcast,
+						//&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, &event);
 				}
 				return ne;
 			}
