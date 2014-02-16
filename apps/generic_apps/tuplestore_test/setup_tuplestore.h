@@ -106,6 +106,10 @@ class Tuple {
 		// comparison ops are only necessary for some tuple container types.
 	
 		bool operator<(const self_type& other) const { return cmp(other) < 0; }
+
+		bool operator==(const self_type& other) const {
+			return cmp(other) == 0;
+		}
 		
 	private:
 		// note that this comparasion function
@@ -153,8 +157,19 @@ class Tuple {
 
 	//#include <util/pstl/list_dynamic.h>
 	//typedef list_dynamic<Os, Tuple> TupleContainer;
-	#include <util/pstl/vector_static.h>
-	typedef wiselib::vector_static<Os, Tuple, 76, false> TupleContainer;
+	
+	#if TS_USE_VECTOR_STATIC_CONTAINER
+		#include <util/pstl/vector_static.h>
+		//typedef wiselib::vector_static<Os, Tuple, 76, false> TupleContainer;
+		typedef wiselib::vector_static<Os, Tuple, TS_CONTAINER_SIZE, false> TupleContainer;
+
+	#elif TS_USE_SET_STATIC_CONTAINER
+		#include <util/pstl/vector_static.h>
+		#include <util/pstl/set_vector.h>
+		typedef wiselib::vector_static<Os, Tuple, TS_CONTAINER_SIZE, false> TupleVector;
+		typedef wiselib::set_vector<Os, TupleVector> TupleContainer;
+
+	#endif
 
 	/* There are a number of dictionary implementations available currently
 	 * available:
@@ -187,9 +202,28 @@ class Tuple {
 	//#include <util/tuple_store/prescilla_dictionary.h>
 	//typedef PrescillaDictionary<Os> Dictionary;
 
-	#include <util/tuple_store/static_dictionary.h>
-	//typedef StaticDictionary<Os, 200, 15> Dictionary;
-	typedef StaticDictionary<Os, 100, 15> Dictionary;
+	#if TS_USE_CHOPPER_DICT
+		#warning "USING CHOPPER DICT"
+		#include <util/tuple_store/static_dictionary.h>
+		//typedef StaticDictionary<Os, 200, 15> Dictionary;
+		//typedef StaticDictionary<Os, 100, 15> Dictionary;
+		typedef StaticDictionary<Os, TS_DICT_SIZE, TS_DICT_SLOTSIZE> Dictionary;
+
+	#elif TS_USE_TREE_DICT
+		#warning "USING TREE DICT"
+		#include <util/pstl/unbalanced_tree_dictionary.h>
+		typedef UnbalancedTreeDictionary<Os> Dictionary;
+
+	#elif TS_USE_PRESCILLA_DICT
+		#warning "USING PRESCILLA DICT"
+		#include <util/tuple_store/prescilla_dictionary.h>
+		typedef PrescillaDictionary<Os> Dictionary;
+
+	#elif TS_USE_AVL_DICT
+		#warning "USING AVL DICT"
+		#include <util/tuple_store/avl_dictionary.h>
+		typedef AvlDictionary<Os> Dictionary;
+	#endif
 	
 #else
 	// ---- TupleStore instantiation on BLOCK MEMORY

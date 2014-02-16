@@ -12,7 +12,7 @@ import gzip
 import itertools
 import math
 
-PLOT_ENERGY = False
+PLOT_ENERGY = True
 
 #rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
@@ -134,6 +134,7 @@ blacklist += [
     { 'job': '24887', 'inode_db': 'inode008', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
     { 'job': '24887', 'inode_db': 'inode014', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
     { 'job': '24887', 'inode_db': 'inode010', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
+    { 'job': '24898' }, # ts ins with set_vector that checks for presence first
 ]
 
 teenylime_runs = set(
@@ -184,6 +185,12 @@ style = {
 }
 
 def main():
+
+    def mklabel(k):
+        if k.database == 'tuplestore':
+            return tex('ts-' + k.ts_container + '-' + k.ts_dict)
+        return tex(k.database)
+
     process_directories(
         sys.argv[1:],
         #lambda k: k.database != 'antelope'
@@ -196,7 +203,7 @@ def main():
     
     #fs = (12, 5)
     #fs = (4, 3)
-    fs = (4, 3)
+    fs = (8, 3)
     #fs = (4 * 0.8, 3 * 0.8)
     #fs = None
     
@@ -262,7 +269,8 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                #ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=mklabel(k))
+                ax_i_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_i_t.boxplot(ts, positions=pos_t, widths=w)
@@ -270,7 +278,8 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=k.database)
+                #ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=mklabel(k))
+                ax_i_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k))
 
             shift_i -= 1
 
@@ -308,7 +317,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=mklabel(k))
 
             if len(ts):
                 bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
@@ -316,7 +325,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+                ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=mklabel(k))
 
             shift_f -= 1
 
@@ -382,8 +391,8 @@ def main():
     ax_e_t.set_xlabel(r"\#tuples erased")
     ax_e_t.set_ylabel(r"ms / erase")
 
-    #ax_i_e.legend()
-    #ax_i_t.legend()
+    ax_i_e.legend()
+    ax_i_t.legend()
     #ax_f_e.legend()
     #ax_f_t.legend()
     #ax_e_e.legend()
@@ -1096,7 +1105,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((700, 750))
+    #ax.set_xlim((200, 210))
     #ax.set_ylim((0, 5))
     ax.grid()
 
@@ -1146,6 +1155,8 @@ def plot_experiment(n, ax, **kwargs):
 
 class ExperimentClass:
     def __init__(self, d):
+        self.ts_container = 'vector_static'
+        self.ts_dict = 'chopper'
         self.__dict__.update(d)
 
     def __eq__(self, other):
@@ -1153,7 +1164,12 @@ class ExperimentClass:
             self.dataset == other.dataset and
             self.mode == other.mode and
             self.debug == other.debug and
-            self.database == other.database
+            self.database == other.database and (
+                self.database != 'tuplestore' or (
+                    self.ts_dict == other.ts_dict and
+                    self.ts_container == other.ts_container
+                )
+            )
         )
 
     def reprname(self):
@@ -1415,6 +1431,11 @@ def mote_id_to_inode_id(s):
 def flatten(l):
     return list(itertools.chain.from_iterable(l))
 
+def tex(s):
+    escape = ('_', '/')
+    for e in escape:
+        s = s.replace(e, '\\' + e)
+    return s
 
 
 

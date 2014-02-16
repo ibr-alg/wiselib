@@ -3,6 +3,7 @@
 #define AVL_DICTIONARY_H
 
 #include <util/pstl/avl_tree.h>
+#include <util/types.h>
 #include <util/serialization/simple_types.h>
 
 namespace wiselib {
@@ -22,7 +23,9 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			
-			typedef typename AvlTree::node_ptr_t key_type;
+			//typedef typename AvlTree::node_ptr_t key_type;
+			typedef typename AvlTree::node_ptr_t node_ptr_t;
+			typedef ::uint32_t key_type;
 			typedef block_data_t* mapped_type;
 			
 			typedef size_type refcount_t;
@@ -55,13 +58,14 @@ namespace wiselib {
 			}
 			
 			key_type insert(mapped_type value) {
-				key_type k = find(value);
-				if(k != NULL_KEY) {
-					refcount_t refcount = wiselib::read<OsModel, block_data_t, refcount_t>(k->data() - sizeof(refcount_t));
+				//key_type k = find(value);
+				node_ptr_t n = avl_tree_.find_n(value);
+				if(node_to_key(n) != NULL_KEY) {
+					refcount_t refcount = wiselib::read<OsModel, block_data_t, refcount_t>(n->data() - sizeof(refcount_t));
 					refcount++;
-					wiselib::write<OsModel, block_data_t, refcount_t>(k->data() - sizeof(refcount_t), refcount);
+					wiselib::write<OsModel, block_data_t, refcount_t>(n->data() - sizeof(refcount_t), refcount);
 					
-					return k;
+					return node_to_key(n);
 				}
 				
 				size_type l = strlen((char*)value) + 1;
@@ -70,14 +74,15 @@ namespace wiselib {
 				wiselib::write<OsModel, block_data_t, refcount_t>(d, one);
 				memcpy((void*)(d + sizeof(refcount_t)), (void*)value, l);
 				
-				return avl_tree_.insert_n(d + sizeof(refcount_t));
+				return node_to_key(avl_tree_.insert_n(d + sizeof(refcount_t)));
 			}
 			
 			key_type find(mapped_type value) {
-				return avl_tree_.find_n(value);
+				return node_to_key(avl_tree_.find_n(value));
 			}
 			
-			void erase(key_type entry) {
+			void erase(key_type entry_) {
+				node_ptr_t entry = key_to_node(entry_);
 				if(entry != NULL_KEY) {
 					refcount_t refcount = wiselib::read<OsModel, block_data_t, refcount_t>(entry->data() - sizeof(refcount_t));
 					if(refcount <= 1) {
@@ -93,7 +98,7 @@ namespace wiselib {
 			}
 			
 			mapped_type get(key_type k) {
-				return k->data();
+				return key_to_node(k)->data();
 			}
 			
 			mapped_type get_value(key_type k) { return get(k); }
@@ -101,6 +106,14 @@ namespace wiselib {
 			}
 			
 		private:
+
+			node_ptr_t key_to_node(key_type k) {
+				return loose_precision_cast<node_ptr_t, key_type>(k);
+			}
+
+			key_type node_to_key(node_ptr_t n) {
+				return gain_precision_cast<key_type, node_ptr_t>(n);
+			}
 			
 			//static int refcounted_string_comparator(block_data_t* a, block_data_t* b) {
 				//return strcmp((char*)(a + sizeof(refcount_t)), (char*)(b + sizeof(refcount_t)));

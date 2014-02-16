@@ -46,7 +46,7 @@ namespace wiselib {
 	T gain_precision_cast(U& u) {
 		assert(sizeof(T) >= sizeof(U));
 		typedef typename Uint<sizeof(T)>::t R;
-		return reinterpret_cast<T>((R)u);
+		return (T)(R)u;
 	}
 }
 

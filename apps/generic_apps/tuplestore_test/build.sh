@@ -2,6 +2,8 @@
 
 EXP_DIR=experiments
 
+mkdir -p $EXP_DIR
+
 GIT_STATUS=$(git status -s |grep -v '^??'|grep -v build.sh|grep -v plot.py)
 if [ ! -z "$GIT_STATUS" ]; then
 	echo 'Git working dir not clean, you should commit if you want this to be repeatable'
@@ -77,6 +79,13 @@ function generate_stuff() {
 	echo "#define GIT_DATE \"$GIT_DATE\"" >> defs.h
 	echo "#define AREA \"$AREA\"" >> defs.h
 
+	echo "#define TS_USE_$(echo $TS_DICT|tr [a-z] [A-Z])_DICT 1" >> defs.h
+	echo "#define TS_CONTAINER_SIZE $TS_CONTAINER_SIZE" >> defs.h
+
+	echo "#define TS_USE_$(echo $TS_CONTAINER|tr [a-z] [A-Z])_CONTAINER 1" >> defs.h
+	echo "#define TS_DICT_SIZE $TS_DICT_SIZE" >> defs.h
+	echo "#define TS_DICT_SLOTSIZE $TS_DICT_SLOTSIZE" >> defs.h
+
 	echo EXP_NR=$EXP_NR > $EXP_DIR/${INODE_GATEWAY}.vars
 	echo NTUPLES=$NTUPLES >> $EXP_DIR/${INODE_GATEWAY}.vars
 	echo DEBUG=$DEBUG >> $EXP_DIR/${INODE_GATEWAY}.vars
@@ -90,6 +99,11 @@ function generate_stuff() {
 	echo GENERATED=\"$(date)\" >> $EXP_DIR/${INODE_GATEWAY}.vars
 	echo INODE_GATEWAY=\"${INODE_GATEWAY}\" >> $EXP_DIR/${INODE_GATEWAY}.vars
 	echo INODE_DB=\"${INODE_DB}\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo TS_CONTAINER=\"${TS_CONTAINER}\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo TS_CONTAINER_SIZE=${TS_CONTAINER_SIZE} >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo TS_DICT=\"${TS_DICT}\" >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo TS_DICT_SIZE=${TS_DICT_SIZE} >> $EXP_DIR/${INODE_GATEWAY}.vars
+	echo TS_DICT_SLOTSIZE=${TS_DICT_SLOTSIZE} >> $EXP_DIR/${INODE_GATEWAY}.vars
 	#cat ${INODE_GATEWAY}.vars
 
 	cp $EXP_DIR/${INODE_GATEWAY}.vars $EXP_DIR/exp${EXP_NR}.vars
@@ -128,7 +142,13 @@ rm *.exe
 DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=erase
+MODE=insert
+#TS_CONTAINER=vector_static
+TS_CONTAINER=set_static
+TS_CONTAINER_SIZE=76
+TS_DICT=avl
+TS_DICT_SIZE=200
+TS_DICT_SLOTSIZE=15
 
 #DB=antelope
 #DB=teeny

@@ -11,6 +11,12 @@
 	#define APP_HEARTBEAT 1
 #endif
 
+#if (TS_USE_TREE_DICT || TS_USE_PRESCILLA_DICT || TS_USE_AVL_DICT)
+	#define TS_USE_ALLOCATOR 1
+#endif
+#undef TS_USE_BLOCK_MEMORY
+#define TS_CODEC_NONE 1
+#define TS_CODEC_HUFFMAN 0
 
 #include "platform.h"
 
@@ -26,10 +32,19 @@ typedef OSMODEL OsModel;
 typedef Os::block_data_t block_data_t;
 typedef Os::size_t size_type;
 
+#if TS_USE_ALLOCATOR
+	#warning "Using BITMAP allocator"
 
-#undef TS_USE_BLOCK_MEMORY
-#define TS_CODEC_NONE 1
-#define TS_CODEC_HUFFMAN 0
+	#include <util/allocators/bitmap_allocator.h>
+
+	#if TS_USE_PRESCILLA_DICT
+		typedef wiselib::BitmapAllocator<Os, 3072, 4> Allocator;
+	#else
+		typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
+	#endif
+	Allocator allocator_;
+	Allocator& get_allocator() { return allocator_; }
+#endif
 
 #include "setup_tuplestore.h"
 
@@ -174,8 +189,6 @@ class App {
 // {{{
 	
 	// Application Entry Point & Definiton of allocator
-	//Allocator allocator_;
-	//Allocator& get_allocator() { return allocator_; }
 	wiselib::WiselibApplication<Os, App> app;
 	void application_main(Os::AppMainParameter& amp) { app.init(amp); }
 	
