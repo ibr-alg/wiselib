@@ -198,7 +198,7 @@ def main():
 
          #filter
         #lambda k: k.mode == 'find' or k.mode == 'erase' # and k.database != 'teeny') #or k.mode == 'insert'
-        lambda k: k.mode == 'insert'
+        #lambda k: k.mode == 'insert'
     )
     
     #fs = (12, 5)
@@ -317,7 +317,8 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=mklabel(k))
+                #ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=mklabel(k))
+                ax_f_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
@@ -325,7 +326,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                ax_f_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=mklabel(k))
+                ax_f_t.plot(pos_t, [median(x) for x in ts],  label=mklabel(k))
 
             shift_f -= 1
 
@@ -353,7 +354,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                #ax_e_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=k.database)
+                ax_e_e.plot(pos_e, [median(x) for x in es],  label=k.database)
 
             if len(ts):
                 bp = ax_e_t.boxplot(ts, positions=pos_t)
@@ -361,7 +362,7 @@ def main():
                 plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
                 plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
 
-                #ax_e_t.plot(pos_t, [median(x) for x in ts], style[k.database]['ls'], label=k.database)
+                ax_e_t.plot(pos_t, [median(x) for x in ts],  label=k.database)
 
             shift_e -= 1
 
@@ -393,10 +394,10 @@ def main():
 
     ax_i_e.legend()
     ax_i_t.legend()
-    #ax_f_e.legend()
-    #ax_f_t.legend()
-    #ax_e_e.legend()
-    #ax_e_t.legend()
+    ax_f_e.legend()
+    ax_f_t.legend()
+    ax_e_e.legend()
+    ax_e_t.legend()
 
     fig_i_e.savefig('pdf_out/energies_insert.pdf', bbox_inches='tight', pad_inches=0.1)
     fig_i_t.savefig('pdf_out/times_insert.pdf', bbox_inches='tight',pad_inches=0.1)
@@ -1088,7 +1089,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                 else:
                     re[i] -= rt[i] * baseline_estimate
                 #print(re[i], rt[i], baseline_estimate)
-                assert re[i] >= 0
+                #assert re[i] >= 0
 
     return (runs_t, runs_e, runs_ot)
 
@@ -1105,7 +1106,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((200, 210))
+    #ax.set_xlim((300, 350))
     #ax.set_ylim((0, 5))
     ax.grid()
 
@@ -1192,7 +1193,7 @@ class Experiment:
 
 
         if self.key.mode == 'find':
-            assert e >= 0
+            #assert e >= 0
             self.time[i].append(t)
             self.energy[i].append(e)
         else:

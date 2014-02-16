@@ -5,7 +5,7 @@
 #define AVL_TREE_H
 
 #include <util/standalone_math.h>
-#include <util/pstl/list_dynamic.h> // TODO: Implement & use vector_dynamic instead!
+//#include <util/pstl/list_dynamic.h> // TODO: Implement & use vector_dynamic instead!
 //#include <util/pstl/string_dynamic.h>
 #include <util/delegates/delegate.hpp>
 
@@ -45,6 +45,11 @@ namespace wiselib {
 		
 		struct Node;
 		typedef Node* node_ptr_t;
+
+		enum { MAX_DEPTH = 12 };
+		
+			//list_dynamic<OsModel, node_ptr_t> path_;
+		typedef vector_static<OsModel, node_ptr_t, MAX_DEPTH> Path;
 		
 		enum ErrorCodes {
 			SUCCESS = OsModel::SUCCESS
@@ -201,7 +206,7 @@ namespace wiselib {
 			
 			friend class AVLTree;
 		private:
-			list_dynamic<OsModel, node_ptr_t> path_;
+			Path path_;
 			// }}}
 		};
 		typedef inorder_iterator iterator;
@@ -590,8 +595,24 @@ namespace wiselib {
 		 * \return an iterator pointing to an element that equals data if found,
 		 *   (via \ref iter), an iterator pointing to the correct parent for
 		 *   insertion of data else.
+		 *
+		 * TODO: this takes up way too much stack space!
 		 */
 		template<typename T>
+		void find(const T& data, node_ptr_t r, inorder_iterator& iter, void* arg=0)  {
+			assert(data != 0);
+			
+			while(r) {
+				iter.path_.push_back(r);
+				int c = compare_(r->data(), data, arg);
+				if(c > 0 && r->left()) { r = r->left(); }
+				else if(c < 0 && r->right()) { r = r->right(); }
+				else { break; }
+			}
+		}
+		
+		/* Recursive implementation
+		 * 
 		void find(const T& data, node_ptr_t r, inorder_iterator& iter, void* arg=0)  {
 			assert(data != 0);
 			
@@ -602,6 +623,7 @@ namespace wiselib {
 				else if(c < 0 && r->right()) { find(data, r->right(), iter, arg); }
 			}
 		}
+		*/
 		
 		/*
 		 * Unlink node pointed to by iter. (i.e. remove it from the tree but

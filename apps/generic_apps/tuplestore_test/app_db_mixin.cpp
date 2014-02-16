@@ -242,6 +242,10 @@
 			#else
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			#endif
+
+			#if APP_DATABASE_DEBUG
+				debug_->debug("</SI>");
+			#endif
 		}
 
 		#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
@@ -279,20 +283,14 @@
 					block_data_t *s = find_s_;
 					block_data_t *p = find_p_;
 					block_data_t *o = find_o_;
-		
-					// find a random value for x such that
-					// at least one of the lower 3 bits are set
-					while(x == 0) {
-						x = rand() & BIN(111);
-					}
 
-					if((x & BIN(001)) == 0) { s = 0; }
-					if((x & BIN(010)) == 0) { p = 0; }
-					if((x & BIN(100)) == 0) { o = 0; }
+					x = rand() % 3;
 
+					if(x == 0) { s = 0; }
+					else if(x == 1) { p = 0; }
+					else { o = 0; }
 					find(s, p, o, buf);
 				}
-	
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			}
 
@@ -331,6 +329,7 @@
 			//}
 
 			bool choose() {
+				if(current >= elements) { return true; }
 				long p = RAND_MAX / (elements - current);
 				return rand() <= p;
 			}

@@ -39,6 +39,8 @@ typedef Os::size_t size_type;
 
 	#if TS_USE_PRESCILLA_DICT
 		typedef wiselib::BitmapAllocator<Os, 3072, 4> Allocator;
+	#elif TS_USE_AVL_DICT
+		typedef wiselib::BitmapAllocator<Os, 2600, 16> Allocator;
 	#else
 		typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
 	#endif
@@ -105,8 +107,9 @@ class App {
 			CodecTupleStoreT::column_mask_t mask =
 				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
 
+			//printf("tsf2 (%s,%s,%s) m=%x\n", reinterpret_cast<char*>(s), reinterpret_cast<char*>(o), reinterpret_cast<char*>(p), (int)mask);
 			Tuple v;
-			v = *tuplestore_.begin(&t, mask);
+			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
 		}
 
 		/*
@@ -133,7 +136,7 @@ class App {
 			t.set(1, p);
 			t.set(2, o);
 			CodecTupleStoreT::column_mask_t mask =
-				((*s != 0) << 0) | ((*p != 0) << 1) | ((*o != 0) << 2);
+				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
 
 			#if APP_DATABASE_DEBUG
 				debug_->debug("erase mask %d", (int)mask);

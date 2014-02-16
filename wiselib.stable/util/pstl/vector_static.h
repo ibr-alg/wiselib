@@ -30,6 +30,11 @@
 
 #include <util/meta.h>
 
+#if CONTIKI
+//#include <contiki.h>
+#include <stdio.h>
+#endif
+
 namespace wiselib
 {
 
@@ -200,6 +205,11 @@ namespace wiselib
             *finish_ = x;
             ++finish_;
          }
+         #if CONTIKI
+         else {
+            printf("vec ful");
+         }
+         #endif
       }
       // --------------------------------------------------------------------
       void pop_back()
