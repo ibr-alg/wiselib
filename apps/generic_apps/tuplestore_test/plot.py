@@ -135,6 +135,7 @@ blacklist += [
     { 'job': '24887', 'inode_db': 'inode014', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
     { 'job': '24887', 'inode_db': 'inode010', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
     { 'job': '24898' }, # ts ins with set_vector that checks for presence first
+    { 'job': '24899' }, # did several code changes / fixes in this period
 ]
 
 teenylime_runs = set(
