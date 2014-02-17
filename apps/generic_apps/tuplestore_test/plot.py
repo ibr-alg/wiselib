@@ -135,7 +135,21 @@ blacklist += [
     { 'job': '24887', 'inode_db': 'inode014', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
     { 'job': '24887', 'inode_db': 'inode010', '_tmin': 740, '_threshold': 2.0, '_alpha': .04},
     { 'job': '24898' }, # ts ins with set_vector that checks for presence first
+
     { 'job': '24899' }, # did several code changes / fixes in this period
+    { 'job': '24900' }, 
+    { 'job': '24901' }, 
+    { 'job': '24902' }, 
+    { 'job': '24903' }, 
+    { 'job': '24904' }, 
+    { 'job': '24905' }, 
+    { 'job': '24906' }, 
+    { 'job': '24907' }, 
+
+    { 'job': '24909', 'inode_db': 'inode016' }, 
+    { 'job': '24910', 'inode_db': 'inode008', '_tmax': 425 }, 
+    { 'job': '24910', 'inode_db': 'inode014', '_tmax': 500 }, 
+    { 'job': '24910', 'inode_db': 'inode016', '_tmax': 800 }, 
 ]
 
 teenylime_runs = set(
@@ -1206,7 +1220,7 @@ class Experiment:
                 print("  (!) warning: tc[{}]={} tc[{}]={} setting diff to 1".format(i, self.tuplecounts[i], (i-1), self.tuplecounts[i - 1] if i > 0 else 0))
                 diff = 1
             self.time[i].append(t / diff)
-            assert e >= 0
+            #assert e >= 0
             self.energy[i].append(e / diff)
 
     def set_tuplecounts(self, tcs):
