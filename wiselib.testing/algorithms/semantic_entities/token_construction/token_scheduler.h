@@ -278,9 +278,11 @@ namespace wiselib {
 							(unsigned long)se.id().value());
 				#endif
 				
+				#if !INSE_DISABLE
 				if(se.is_active(radio_->id())) {
 					begin_activity(se);
 				}
+				#endif
 			}
 			
 			void erase_entity(const SemanticEntityId& se_id) {
@@ -329,6 +331,10 @@ namespace wiselib {
 			
 			void on_receive(node_id_t from, typename Radio::size_t len, block_data_t* data) {
 				check();
+
+			#if INSE_DISABLE
+				return;
+			#endif
 				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
@@ -404,12 +410,15 @@ namespace wiselib {
 							);
 					#endif
 					
+				#if !INSE_DISABLE
 					if(se.is_active(radio_->id())) { begin_activity(se); }
 					else { end_activity(se); }
+				#endif
 					
 					transport_.set_remote_address(se.id(), true, neighborhood_.next_token_node(se.id()));
 					transport_.set_remote_address(se.id(), false, neighborhood_.prev_token_node(se.id()));
 					
+				#if !INSE_DISABLE
 					if(!se.in_activity_phase()) {
 						// will be popped by initiate_handover
 						nap_control_.push_caffeine("hotre");
@@ -418,6 +427,7 @@ namespace wiselib {
 					#endif
 						initiate_handover(se, false); // tree has changed, (re-)send token info
 					}
+				#endif // !INSE_DISABLE
 				} // for
 			} // global_tree_event()
 			

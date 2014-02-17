@@ -28,6 +28,7 @@ typedef Crc16<Os> ChecksumHash;
 
 typedef Tuple<Os> TupleT;
 typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
+//typedef Os::Radio Radio;
 
 
 //#define SINK_ID 57
@@ -52,7 +53,8 @@ typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
 	#include <util/pstl/vector_static.h>
 	#include <util/pstl/unique_container.h>
 	typedef wiselib::vector_static<Os, TupleT, TUPLE_CONTAINER_SIZE> TupleList;
-	typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+	//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+	typedef TupleList TupleContainer;
 	
 #elif USE_BLOCK_CONTAINER
 	#include <algorithms/block_memory/b_plus_hash_set.h>

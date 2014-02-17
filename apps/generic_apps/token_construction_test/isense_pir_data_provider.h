@@ -40,8 +40,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename TupleStore_P,
-		typename Registry_P,
-		typename Aggregator_P
+		typename Registry_P
+		//typename Aggregator_P
 	>
 	class IsensePirDataProvider : isense::SensorHandler, public isense::TimeoutHandler, isense::Task {
 		
@@ -52,7 +52,7 @@ namespace wiselib {
 			typedef TupleStore_P TupleStore;
 			typedef typename TupleStore::Tuple Tuple;
 			typedef Registry_P Registry;
-			typedef Aggregator_P Aggregator;
+			//typedef Aggregator_P Aggregator;
 			
 			/*
 			
@@ -76,11 +76,11 @@ namespace wiselib {
 			/**
 			 * @me assumed to be long-lived.
 			 */
-			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg, Aggregator *agg = 0) {
+			void init(isense::PirSensor *sensor, char *me, TupleStore *ts, Registry *reg) {//, Aggregator *agg) {
 				sensor_ = sensor;
 				tuple_store_ = ts;
 				registry_ = reg;
-				aggregator_ = agg;
+				//aggregator_ = agg;
 				
 				// Some RDF URIs
 				
@@ -144,16 +144,11 @@ namespace wiselib {
 			///@}
 		
 			void update_aggregate() {
-				#if INSE_USE_AGGREGATOR
-				for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
-					float f = (float)(int)value_;
-					Value v = *reinterpret_cast<Value*>(&f);
-					if(aggregator_->lock(rit->first, 1)) {
-						aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
-						aggregator_->release(rit->first, 1);
-					}
-				}
-				#endif
+				//for(typename Registry::iterator rit = registry_->begin(); rit != registry_->end(); ++rit) {
+					//float f = (float)(int)value_;
+					//Value v = *reinterpret_cast<Value*>(&f);
+					//aggregator_->aggregate(rit->first, sensor_type_, uom_, v, Aggregator::FLOAT);
+				//}
 			}
 			
 			void update(bool value) {
@@ -210,7 +205,7 @@ namespace wiselib {
 			::uint8_t timeout_id_;
 			isense::PirSensor *sensor_;
 			Registry *registry_;
-			Aggregator *aggregator_;
+			//Aggregator *aggregator_;
 		
 	}; // IsensePirDataProvider
 }
