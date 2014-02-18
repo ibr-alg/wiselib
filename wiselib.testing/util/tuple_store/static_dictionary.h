@@ -80,10 +80,26 @@ namespace wiselib {
 
 		private:
 			struct Slot {
-				::uint8_t refcount_ : 7;
-				::uint8_t meta_ : 1;
-				//key_type next_;
-				block_data_t data_[SLOT_WIDTH];
+				block_data_t data[SLOT_WIDTH];
+
+				::uint8_t refcount : 7;
+				::uint8_t meta : 1;
+				key_type childs[2];
+				key_type parent;
+
+
+				Slot() {
+					refcount = 0;
+					meta = false;
+					parent = NULL_KEY;
+					childs[0] = NULL_KEY;
+					childs[1] = NULL_KEY;
+				}
+
+				int find_child(key_type k) { return k == childs[1]; }
+				void substitute_child(key_type c_old, key_type c_new) {
+					childs[find_child(c_old)] = c_new;
+				}
 			};
 		
 		public:
@@ -102,7 +118,7 @@ namespace wiselib {
 
 				private:
 					void forward() {
-						for( ; key_ < SLOTS && (!slots_[key_].refcount_ || !slots_[key_].meta_); ++key_) {
+						for( ; key_ < SLOTS && (!slots_[key_].refcount || !slots_[key_].meta); ++key_) {
 						}
 					}
 
@@ -111,14 +127,17 @@ namespace wiselib {
 			}; // class iterator
 
 			void init() {
-				//strncpy(reinterpret_cast<char*>(slots_[0].data_), "<http://www.", SLOT_WIDTH);
-				//slots_[0].refcount_ = 1;
+				//strncpy(reinterpret_cast<char*>(slots_[0].data), "<http://www.", SLOT_WIDTH);
+				//slots_[0].refcount = 1;
 
 			#if !STATIC_DICTIONARY_OUTSOURCE
 				for(key_type k = 0; k < SLOTS; k++) {
-					slots_[k].refcount_ = 0;
+					slots_[k].refcount = 0;
 				}
 			#endif
+
+				root_ = NULL_KEY;
+				root_meta_ = NULL_KEY;
 			}
 
 		#if STATIC_DICTIONARY_OUTSOURCE
@@ -135,21 +154,18 @@ namespace wiselib {
 
 			key_type insert(mapped_type v) {
 				size_type l = strlen((char*)v) + 1;
-
 				assert(l <= SIMPLE_STRING_LENGTH);
-
 				block_data_t *p = v;
 				block_data_t *end = p + l;
 
 				// Insert parts and create meta slot in s
-
 				Slot s;
 				make_meta(s);
 
 				int i = 0;
 				for( ; p < end; p += SLOT_WIDTH, i++) {
 					bool found;
-					key_type x = find_slot(
+					key_type x = find_or_create_slot(
 							Math::template min<long>(end - p, SLOT_WIDTH), p, found,
 							false /* seek a non-meta-slot */
 					);
@@ -163,38 +179,50 @@ namespace wiselib {
 					}
 
 					if(found) {
-						slots_[x].refcount_++;
+						//debug_->debug("%s found at %d", (char*)p, (int)x);
+						slots_[x].refcount++;
 					}
 					else {
-						slots_[x].refcount_ = 1;
-						slots_[x].meta_ = false;
-						strncpy(reinterpret_cast<char*>(slots_[x].data_), reinterpret_cast<char*>(p), SLOT_WIDTH);
+						//debug_->debug("%s NOT found, creating at %d", (char*)p, (int)x);
+						slots_[x].refcount = 1;
+						slots_[x].meta = false;
+						strncpy(reinterpret_cast<char*>(slots_[x].data), reinterpret_cast<char*>(p), SLOT_WIDTH);
 					}
-					s.data_[i] = x;
+					s.data[i] = x;
 				}
 
 				// See if this exact meta slot is already there.
 				// If not, find a free slot and put it there.
 
-				bool found;
-				key_type x = find_slot(i, s.data_, found, true);
-
-				if(!found) {
-					slots_[x] = s;
+				if(i == 1) {
+					// this meta slot has only one entry,
+					// we can also just point to the string directly and save
+					// one slot :)
+					return s.data[0];
 				}
-				return x;
+				else {
+					bool found;
+					key_type x = find_or_create_slot(i, s.data, found, true);
+
+					if(!found) {
+						slots_[x] = s;
+					}
+					return x;
+				}
 			}
 
 			mapped_type get_value(key_type k) {
+				if(!slots_[k].meta) { return slots_[k].data; }
+
 				size_type len = 0;
 				for(len = 0; len < SLOT_WIDTH; len++) {
-					if(slots_[k].data_[len] == NULL_KEY) { break; }
+					if(slots_[k].data[len] == NULL_KEY) { break; }
 				}
 
 				//block_data_t *d = ::get_allocator().template allocate_array<block_data_t>(len * SLOT_WIDTH);
 				key_type i = 0;
-				for(; i<SLOT_WIDTH && slots_[k].data_[i] != NULL_KEY; i++) {
-					memcpy(buffer_ + i * SLOT_WIDTH, slots_[slots_[k].data_[i]].data_, SLOT_WIDTH);
+				for(; i<SLOT_WIDTH && slots_[k].data[i] != NULL_KEY; i++) {
+					memcpy(buffer_ + i * SLOT_WIDTH, slots_[slots_[k].data[i]].data, SLOT_WIDTH);
 				}
 				buffer_[i * SLOT_WIDTH] = 0;
 				return buffer_;
@@ -206,7 +234,7 @@ namespace wiselib {
 				buffer_[0] = 0;
 			}
 
-			size_type count(key_type k) { return slots_[k].refcount_; }
+			size_type count(key_type k) { return slots_[k].refcount; }
 
 			key_type find(mapped_type v) {
 				size_type l = strlen((char*)v) + 1;
@@ -223,38 +251,74 @@ namespace wiselib {
 
 				int i = 0;
 				for( ; p < end; p += SLOT_WIDTH, i++) {
-					bool found;
-					key_type x = find_slot(Math::template min<long>(end - p, SLOT_WIDTH), p, found, false);
-					if(!found) {
+					key_type x = find_slot(Math::template min<long>(end - p, SLOT_WIDTH), p, false);
+					if(x == NULL_KEY) {
 						// Well, if there is a part of the string we don't
 						// have, we can't have the whole string, can we?
 						return NULL_KEY;
 					}
-					s.data_[i] = x;
+					s.data[i] = x;
 				}
 
 				// See if this exact meta slot is already there.
 				// If not, find a free slot and put it there.
 
 				bool found;
-				key_type x = find_slot(i, s.data_, found, true);
+				key_type x = find_slot(i, s.data, true);
 
 				if(!found) { return NULL_KEY; }
 				return x;
 			}
 
 			size_type erase(key_type k) {
-				if(slots_[k].refcount_ == 0) { return 0; }
+				Slot &sk = slots_[k];
+				if(sk.refcount == 0) { return 0; }
 
-				if(slots_[k].meta_) {
+				if(sk.meta) {
 					// delete all referenced substrings, too (or decrease
 					// their refcount at least)
-					for(int i = 0; slots_[k].data_[i] != NULL_KEY && i < SLOT_WIDTH; i++) {
-						erase(slots_[k].data_[i]);
+					for(int i = 0; sk.data[i] != NULL_KEY && i < SLOT_WIDTH; i++) {
+						erase(sk.data[i]);
 					}
 				}
-				slots_[k].refcount_--;
+				sk.refcount--;
+				
+				if(sk.refcount == 0) {
+					if(sk.childs[0] != NULL_KEY && sk.childs[1] != NULL_KEY) {
+						// the node we want to delete has 2 childs,
+						// substitute with leftmost ("find_start") leaf of
+						// right subtree
+						key_type c = find_start(sk.childs[1]);
+						slots_[slots_[c].parent].substitute_child(c, NULL_KEY);
+						slots_[c].childs[0] = sk.childs[0];
+						slots_[c].childs[1] = sk.childs[1];
+						substitute_slot(k, c);
+						
+					}
+					else if(sk.childs[0] != NULL_KEY) { substitute_slot(k, sk.childs[1]); }
+					else if(sk.childs[1] != NULL_KEY) { substitute_slot(k, sk.childs[0]); }
+					else {
+						// no childs at all, just uppdate parent!
+						substitute_slot(k, NULL_KEY);
+					}
+				}
+
 				return 1;
+			}
+
+			/*
+			 * Substitute slot s_old with s_new, that is, update its parent
+			 * accordingly, or the according root pointer.
+			 */
+			void substitute_slot(key_type s_old, key_type s_new) {
+				slots_[s_new].parent = slots_[s_old].parent;
+				if(slots_[s_old].parent == NULL_KEY) {
+					if(slots_[s_old].meta) { root_meta_ = s_new; }
+					else { root_ = s_new; }
+				}
+				else {
+					slots_[slots_[s_old].parent].substitute_child(s_old, s_new);
+				}
 			}
 
 			iterator begin_keys() { return iterator(slots_, 0); }
@@ -262,12 +326,12 @@ namespace wiselib {
 
 			void debug() {
 				for(key_type k = 0; k<SLOTS; k++) {
-					if(slots_[k].refcount_) {
+					if(slots_[k].refcount) {
 						char str[100];
 						char dec[400];
 						int i = 0;
 						for(; i<SLOT_WIDTH; i++) {
-							char x = slots_[k].data_[i];
+							char x = slots_[k].data[i];
 							if(is_printable(x)) { str[i] = x; }
 							else { str[i] = '.'; }
 
@@ -276,8 +340,8 @@ namespace wiselib {
 						str[i] = '\0';
 						dec[4 * i] = '\0';
 
-						debug_->debug("[%3d] x%2d: %s %s", (int)k, (int)slots_[k].refcount_,
-								str, dec);
+						debug_->debug("[%3d] x%2d: %s %s (%3d %3d)", (int)k, (int)slots_[k].refcount,
+								str, dec, (int)slots_[k].childs[0], (int)slots_[k].childs[1]);
 					}
 				}
 			}
@@ -285,84 +349,93 @@ namespace wiselib {
 		private:
 
 			void make_meta(Slot& s) {
-				memset(s.data_, NULL_KEY, sizeof(s.data_));
+				memset(s.data, NULL_KEY, sizeof(s.data));
 				//s.next_ = NULL_KEY;
-				s.refcount_ = 1;
-				s.meta_ = true;
+				s.refcount = 1;
+				s.meta = true;
 			}
 
 			/**
 			 * Return key for a slot containing the given data, if not found,
 			 * return key for an unused slot.
 			 */
-			key_type find_slot(size_type l, block_data_t *data, bool &found, bool meta) {
-				key_type start_pos = Hash::hash(data, l) % SLOTS;
-				key_type end_pos = start_pos ? (start_pos - 1) : (SLOTS - 1);
-				key_type free = NULL_KEY;
+			key_type find_slot(size_type l, block_data_t *data, bool meta) {
+				key_type i = (meta ? root_meta_ : root_);
 
-				if(false /*P_LOW_ENERGY*/) {
-					key_type i = start_pos;
-					if(slots_[i].refcount_) {
-						if(slots_[i].meta_ == meta) {
-							if(memcmp(data, slots_[i].data_, l) == 0) {
-								// a used slot that looks like s!
-								slots_[i].refcount_++;
-								found = true;
-								return i;
-							}
-						}
-						// start_pos did not contain (exactly) what we looked
-						// for, go and find a free slot now.
+				while(i != NULL_KEY) {
+					int c = memcmp(data, slots_[i].data, l);
+					if(c < 0) { i = slots_[i].childs[0]; }
+					else if(c > 0) { i = slots_[i].childs[1]; }
+					else {
+						slots_[i].refcount++;
+						break;
+					}
+				}
+				return i;
+			}
 
-						found = false;
-						// find a free slot
-						for(key_type i = (start_pos + 1) % SLOTS; i != end_pos; i = (i+1) % SLOTS) {
-							if(!slots_[i].refcount_) {
-								found = false;
-								return i;
-							}
-							// if we should happen to find a matching slot on
-							// the way, thats fine!
-							else if(slots_[i].meta_ == meta && memcmp(data, slots_[i].data_, l) == 0) {
-								// a used slot that looks like s!
-								slots_[i].refcount_++;
-								found = true;
-								return i;
-							}
-						}
+			key_type find_or_create_slot(size_type l, block_data_t *data, bool& found, bool meta) {
+				key_type i = (meta ? root_meta_ : root_);
+				key_type p = NULL_KEY;
+				int c = 0;
+
+				while(i != NULL_KEY) {
+					p = i;
+					c = memcmp(data, slots_[i].data, l);
+					if(c == 0) {
+						slots_[i].refcount++;
+						found = true;
+						return i;
 					}
 					else {
-						// start_pos is empty, we found a free slot!
-						found = false;
+						i = slots_[i].childs[c > 0];
+					}
+				}
+
+				i = find_empty();
+
+				if(i == NULL_KEY) {
+					debug_->debug("dict full!");
+					return NULL_KEY;
+				}
+
+				slots_[i].meta = meta;
+				slots_[i].refcount = 1;
+				slots_[i].childs[0] = NULL_KEY;
+				slots_[i].childs[1] = NULL_KEY;
+				//memcpy(slots_[i].data, data, l);
+				if(p == NULL_KEY) {
+					slots_[i].parent = NULL_KEY;
+					if(meta) { root_meta_ = i; }
+					else { root_ = i; }
+				}
+				else {
+					slots_[i].parent = p;
+					slots_[p].childs[c > 0] = i;
+				}
+
+				found = false;
+				return i;
+			}
+
+			key_type find_empty() {
+				static key_type start = 0;
+				for(key_type i = (start + 1) % SLOTS; i != start; ++i, i %= SLOTS) {
+					if(i == SLOTS) { i = 0; }
+
+					if(slots_[i].refcount == 0) {
+						start = i;
 						return i;
 					}
 				}
-
-				else { // not P_LOW_ENERGY
-					for(key_type i = start_pos; i != end_pos; i = (i+1) % SLOTS) {
-						if(slots_[i].refcount_ && slots_[i].meta_ == meta) {
-							if(memcmp(data, slots_[i].data_, l) == 0) {
-								// a used slot that looks like s!
-								slots_[i].refcount_++;
-								found = true;
-								return i;
-							}
-						}
-						else if(free == NULL_KEY) { free = i; }
-					}
-				}
-				
-				found = false;
-				return free;
+				return NULL_KEY;
 			}
 
-
-			//key_type find_free() {
-				//for(key_type i = 0; i < SLOTS; i++) {
-					//if(slots_[i].refcount_ == 0) { return i; }
-				//}
-				//return NULL_KEY;
-			//}
+			key_type find_start(key_type k) {
+				if(k == NULL_KEY) { return NULL_KEY; }
+				while(slots_[k].childs[0] != NULL_KEY) { k = slots_[k].childs[0]; }
+				return k;
+			}
 
 		#if STATIC_DICTIONARY_OUTSOURCE
 			Slot *slots_;
@@ -370,6 +443,8 @@ namespace wiselib {
 			Slot slots_[SLOTS];
 		#endif
 			typename Debug::self_pointer_t debug_;
+			key_type root_meta_;
+			key_type root_;
 		
 	}; // StaticDictionary
 }

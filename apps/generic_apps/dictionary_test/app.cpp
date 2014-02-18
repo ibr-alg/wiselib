@@ -20,10 +20,22 @@ typedef Os::size_t size_type;
 //enum { SLOTS = 10 };
 //typedef StaticDictionary<Os, SLOTS, 15> Dictionary;
 
-#define STATIC_DICTIONARY_OUTSOURCE 1
+#define STATIC_DICTIONARY_OUTSOURCE 0
 #include "precompiled_ts.cpp"
 #include <util/tuple_store/static_dictionary.h>
-enum { SLOTS = 200, SLOT_WIDTH = 9 };
+
+// incontextsensing:
+//
+// for w in $(< ../tuplestore_test/incontextsensing.rdf); do echo $w; done|sort|uniq|wc
+//    67      67    2214
+// --> total (unique) element size: 2214
+// 67 * 6 = 402 bytes overhead with AVL
+// + allocator overhead
+//
+//  171 * (10 + 4) = 2394
+//  149 * (14 + 4) = 2682
+//
+enum { SLOTS = 149, SLOT_WIDTH = 14 };
 typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
 
 
@@ -43,10 +55,11 @@ class App {
 
 		#if STATIC_DICTIONARY_OUTSOURCE
 			dictionary_.set_data(dict_data_);
+		#else
+			read_n3(0);
 		#endif
 
 			//test_insert();
-	//		read_n3(0);
 
 	//		for(int i = 0; i < 10; i++) { erase_random(); }
 			dictionary_.debug();
@@ -76,7 +89,7 @@ class App {
 
 			} // while cin
 
-			dictionary_.debug();
+			//dictionary_.debug();
 		}
 
 		void erase_random() {
