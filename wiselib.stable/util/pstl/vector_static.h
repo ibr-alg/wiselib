@@ -205,9 +205,9 @@ namespace wiselib
             *finish_ = x;
             ++finish_;
          }
-         #if CONTIKI
+         #ifdef CONTIKI
          else {
-            printf("vec ful");
+            printf("!psh%d\n", size());
          }
          #endif
       }

@@ -87,6 +87,9 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate_raw() {
+			//#ifdef CONTIKI
+				//printf("araw %d<=%d*%d\n", (int)sizeof(T), (int)(sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE, (int)BLOCK_SIZE);
+			//#endif
 			block_data_t* r = best_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			new((void*)r, true) T;
 			return (T*)r;
@@ -99,6 +102,9 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate_array_raw(size_type n) {
+			//#ifdef CONTIKI
+				//printf("aarr %d*%d<=%d*%d\n", (int)n, (int)sizeof(T), (int)(n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE, (int)BLOCK_SIZE);
+			//#endif
 			block_data_t *r = best_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			for(size_type i=0; i<n; i++) {
 				new((T*)r + i, true) T;
@@ -143,7 +149,7 @@ class BitmapAllocator {
 			}
 			
 			#ifdef CONTIKI
-			printf("!allocf %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
+			printf("!allocf %dx%d\n", (int)required_blocks, (int)BLOCK_SIZE);
 			#endif
 			
 			return 0;
@@ -187,7 +193,7 @@ class BitmapAllocator {
 			
 			if(best_length == (size_type)(-1)) {
 				#ifdef CONTIKI
-				printf("!allocb %dx%d", (int)required_blocks, (int)BLOCK_SIZE);
+				printf("!allocb %dx%d\n", (int)required_blocks, (int)BLOCK_SIZE);
 				#endif
 				return 0;
 			}

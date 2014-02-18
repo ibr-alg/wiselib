@@ -64,7 +64,7 @@
 		#endif
 
 		enum {
-			MAX_ELEMENT_LENGTH = 160
+			MAX_ELEMENT_LENGTH = 120 //160
 		};
 
 		block_data_t rdf_buffer_[1024];
@@ -81,6 +81,11 @@
 
 		bool first_receive;
 		void on_receive(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *data) {
+			#if APP_DATABASE_DEBUG
+				debug_->debug("R %x %x l%d r%d", (int)data[0], (int)data[1], (int)len, (int)receiving);
+			#endif
+			
+
 			if(!receiving) { return; }
 
 			if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {
@@ -157,7 +162,7 @@
 
 		void disable_radio(void*) {
 			#if APP_DATABASE_DEBUG
-				debug_->debug("radio off");
+				debug_->debug("/R");
 			#endif
 			radio_->disable_radio();
 			#if defined(CONTIKI)
@@ -167,13 +172,22 @@
 
 		void enable_radio(void*) {
 			#if APP_DATABASE_DEBUG
-				debug_->debug("radio on");
+				debug_->debug("R");
 			#endif
 			#if defined(CONTIKI)
 				NETSTACK_RDC.on();
 			#endif
+			#if APP_DATABASE_DEBUG
+				debug_->debug("R0");
+			#endif
 			radio_->enable_radio();
+			#if APP_DATABASE_DEBUG
+				debug_->debug("R1");
+			#endif
 			receiving = true;
+			#if APP_DATABASE_DEBUG
+				debug_->debug("R.");
+			#endif
 		}
 
 		void start_insert(void*) {
@@ -231,12 +245,16 @@
 			#elif MODE_ERASE
 				if(tuples >= NTUPLES) {
 					#if APP_DATABASE_DEBUG
-						debug_->debug("%d >= %d tuples received, going to erase mode",
+						debug_->debug("ers %d>=%d",
 							(int)tuples, (int)NTUPLES);
 					#endif
 					timer_->set_timer<App, &App::start_prepare_erase>(START_ERASE_INTERVAL, this, 0);
 				}
 				else {
+					#if APP_DATABASE_DEBUG
+						debug_->debug("ers %d<%d",
+							(int)tuples, (int)NTUPLES);
+					#endif
 					timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 				}
 			#else
@@ -275,7 +293,7 @@
 			}
 			#endif
 
-			char buf[MAX_ELEMENT_LENGTH];
+			//char buf[MAX_ELEMENT_LENGTH];
 			void start_find(void*) {
 
 				for(int i = 0; i < FINDS_AT_ONCE; i++) {
@@ -289,7 +307,7 @@
 					if(x == 0) { s = 0; }
 					else if(x == 1) { p = 0; }
 					else { o = 0; }
-					find(s, p, o, buf);
+					find(s, p, o, 0);
 				}
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
 			}
@@ -304,11 +322,17 @@
 
 		#if MODE_ERASE || APP_DATABASE_ERASE
 			void start_prepare_erase(void*) {
+				#if APP_DATABASE_DEBUG
+					debug_->debug("prepare erase");
+				#endif
 				prepare_erase(find_s_, find_p_, find_o_);
 				timer_->set_timer<App, &App::start_erase>(ERASE_AFTER_PREPARE_INTERVAL, this, 0);
 			}
 
 			void start_erase(void*) {
+				#if APP_DATABASE_DEBUG
+					debug_->debug("start erase");
+				#endif
 				erase(find_s_, find_p_, find_o_);
 				timer_->set_timer<App, &App::start_prepare_erase>(PREPARE_AFTER_ERASE_INTERVAL, this, 0);
 			}

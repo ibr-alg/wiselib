@@ -150,6 +150,7 @@ blacklist += [
     { 'job': '24910', 'inode_db': 'inode008', '_tmax': 425 }, 
     { 'job': '24910', 'inode_db': 'inode014', '_tmax': 500 }, 
     { 'job': '24910', 'inode_db': 'inode016', '_tmax': 800 }, 
+    { 'job': '24911' },
 ]
 
 teenylime_runs = set(

@@ -16,7 +16,7 @@
 #endif
 #undef TS_USE_BLOCK_MEMORY
 #define TS_CODEC_NONE 1
-#define TS_CODEC_HUFFMAN 0
+#undef TS_CODEC_HUFFMAN
 
 #include "platform.h"
 
@@ -40,8 +40,8 @@ typedef Os::size_t size_type;
 	#if TS_USE_PRESCILLA_DICT
 		typedef wiselib::BitmapAllocator<Os, 2800, 4> Allocator;
 	#elif TS_USE_AVL_DICT
-		typedef wiselib::BitmapAllocator<Os, 2600, 16> Allocator;
-	#else
+		typedef wiselib::BitmapAllocator<Os, 2000, 10> Allocator;
+	#elif TS_USE_TREE_DICT
 		typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
 	#endif
 	Allocator allocator_;
@@ -98,7 +98,7 @@ class App {
 
 		size_type size() { return tuplestore_.size(); }
 
-		void find(block_data_t* s, block_data_t* p, block_data_t* o, char *out) {
+		void find(block_data_t* s, block_data_t* p, block_data_t* o, char *) {
 			Tuple t;
 			t.set(0, s);
 			t.set(1, p);
