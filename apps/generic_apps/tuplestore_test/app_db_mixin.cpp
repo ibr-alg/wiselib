@@ -31,14 +31,13 @@
 
 			//initialize_db();
 			first_receive = true;
-			lastpos = 0;
 			nextpos = 0;
 			tuples = 0;
 			
 			//gateway_address = Radio::BROADCAST_ADDRESS;
 
 		#if APP_DATABASE_DEBUG
-			debug_->debug("db boot %lu", (unsigned long)radio_->id());
+			debug_->debug("bt %lu", (unsigned long)radio_->id());
 		#endif
 
 		#if APP_HEARTBEAT
@@ -48,17 +47,17 @@
 
 		void reboot() {
 		#if APP_DATABASE_DEBUG
-			debug_->debug("db soft reboot %lu", (unsigned long)radio_->id());
+			debug_->debug("rb %lu", (unsigned long)radio_->id());
 		#endif
 			first_receive = true;
-			lastpos = 0;
 			nextpos = 0;
 			tuples = 0;
 		}
 
 		#if APP_HEARTBEAT
 			void heartbeat(void* v) {
-				debug_->debug("<3 %lu E%d " DATABASE " " MODE " " DATASET, (unsigned long)v, (int)EXP_NR);
+				debug_->debug("<3");
+				//debug_->debug("<3 %lu E%d " DATABASE " " MODE " " DATASET, (unsigned long)v, (int)EXP_NR);
 				timer_->set_timer<App, &App::heartbeat>(HEARTBEAT_INTERVAL, this, (void*)((unsigned long)v + 10));
 			}
 		#endif
@@ -75,7 +74,6 @@
 		//Os::Rand::self_pointer_t rand_;
 
 		bool receiving;
-		::uint16_t lastpos;
 		::uint16_t nextpos;
 		::uint16_t tuples;
 
@@ -91,60 +89,69 @@
 			if(data[0] == 0x99 && data[1] == (EXP_NR & 0xff)) {
 				if(first_receive) {
 					first_receive = false;
-					#if APP_DATABASE_DEBUG
-						debug_->debug("first rcv re-initing db");
-					#endif
 					initialize_db();
 				}
 
 				::uint16_t pos = wiselib::read<Os, block_data_t, ::uint16_t>(data + 2);
-				//if(pos != 0 && pos <= lastpos) {
 				if(pos != 0 && pos != nextpos) {
 					#if APP_DATABASE_DEBUG
-						debug_->debug("ignpos %d <= %d", (int)pos, (int)lastpos);
+						debug_->debug("ignP %d!=%d", (int)pos, (int)nextpos);
 					#endif
 					block_data_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
 					wiselib::write<Os, block_data_t, ::uint16_t>(ack + 2, pos);
 					radio_->send(from, 4, ack); 
+					//radio_->send(from, 4, ack); 
+					//radio_->send(from, 4, ack); 
+					//radio_->send(from, 4, ack); 
+					//radio_->send(from, 4, ack); 
 
 					// only accept "later" writes, especially important
 					// so we dont process the end marker twice (triggering
 					// timers at the double, ouch!)
 					return;
 				}
-				lastpos = pos;
 				nextpos = pos + len - 4;
 
 				//gateway_address = from;
 
 			#if APP_DATABASE_DEBUG
-				debug_->debug("(rcv %x %x %x p%d l%d)", (int)data[0], (int)data[1], (int)data[2], (int)pos, (int)len);
+				debug_->debug("rcv p%d l%d p'%d", (int)pos, (int)len, (int)nextpos);
 			#endif
 
 				if(len == 4) {
 					#if APP_DATABASE_DEBUG
-						debug_->debug("recv end");
+						debug_->debug("rcvE");
 					#endif
 					receiving = false;
-					lastpos = 0;
 					nextpos = 0;
 					timer_->set_timer<App, &App::start_insert>(START_INSERT_INTERVAL, this, 0);
 					timer_->set_timer<App, &App::disable_radio>(DISABLE_RADIO_INTERVAL, this, 0);
 				}
 				else {
-					#if APP_DATABASE_DEBUG
-						debug_->debug("recv l=%d", (int)len);
-					#endif
+					debug_->debug("X0");
+					//#if APP_DATABASE_DEBUG
+						//debug_->debug("rcvL%d", (int)len);
+					//#endif
 					memcpy(rdf_buffer_ + pos, data + 4, len - 4);
+					debug_->debug("X1");
 				}
 
 				block_data_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
+					debug_->debug("X2");
 				wiselib::write<Os, block_data_t, ::uint16_t>(ack + 2, pos);
+					debug_->debug("X3");
 				radio_->send(from, 4, ack); 
+				//radio_->send(from, 4, ack); 
+				//radio_->send(from, 4, ack); 
+				//radio_->send(from, 4, ack); 
+				//radio_->send(from, 4, ack); 
+				//radio_->send(from, 4, ack); 
+				//radio_->send(from, 4, ack); 
+					debug_->debug("X4 fr%lx", (unsigned long)from);
 			}
 			else if(data[0] == 0xbb && data[1] == (EXP_NR & 0xff)) {
 				#if APP_DATABASE_DEBUG
-					debug_->debug("reboot!");
+					debug_->debug("rb!");
 				#endif
 				//gateway_address = from;
 				// REBOOT command
@@ -152,11 +159,12 @@
 			}
 			else {
 				#if APP_DATABASE_DEBUG
-					debug_->debug("ign %02x %02x %02x %02x expnr %02x",
+					debug_->debug("ign %02x %02x %02x %02x E%02x",
 						(int)data[0], (int)data[1], (int)data[2], (int)data[3],
 						(int)EXP_NR);
 				#endif
 			}
+					debug_->debug("X5");
 		}
 
 
@@ -177,22 +185,13 @@
 			#if defined(CONTIKI)
 				NETSTACK_RDC.on();
 			#endif
-			#if APP_DATABASE_DEBUG
-				debug_->debug("R0");
-			#endif
 			radio_->enable_radio();
-			#if APP_DATABASE_DEBUG
-				debug_->debug("R1");
-			#endif
 			receiving = true;
-			#if APP_DATABASE_DEBUG
-				debug_->debug("R.");
-			#endif
 		}
 
 		void start_insert(void*) {
 			#if APP_DATABASE_DEBUG
-				debug_->debug("<SI>");
+				debug_->debug("SI");
 			#endif
 			block_data_t *e = rdf_buffer_;
 			
@@ -245,14 +244,14 @@
 			#elif MODE_ERASE
 				if(tuples >= NTUPLES) {
 					#if APP_DATABASE_DEBUG
-						debug_->debug("ers %d>=%d",
+						debug_->debug("?e %d>=%d",
 							(int)tuples, (int)NTUPLES);
 					#endif
 					timer_->set_timer<App, &App::start_prepare_erase>(START_ERASE_INTERVAL, this, 0);
 				}
 				else {
 					#if APP_DATABASE_DEBUG
-						debug_->debug("ers %d<%d",
+						debug_->debug("?e %d<%d",
 							(int)tuples, (int)NTUPLES);
 					#endif
 					timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
@@ -262,7 +261,7 @@
 			#endif
 
 			#if APP_DATABASE_DEBUG
-				debug_->debug("</SI>");
+				debug_->debug("/SI");
 			#endif
 		}
 
@@ -323,7 +322,7 @@
 		#if MODE_ERASE || APP_DATABASE_ERASE
 			void start_prepare_erase(void*) {
 				#if APP_DATABASE_DEBUG
-					debug_->debug("prepare erase");
+					debug_->debug("PE");
 				#endif
 				prepare_erase(find_s_, find_p_, find_o_);
 				timer_->set_timer<App, &App::start_erase>(ERASE_AFTER_PREPARE_INTERVAL, this, 0);
@@ -331,7 +330,7 @@
 
 			void start_erase(void*) {
 				#if APP_DATABASE_DEBUG
-					debug_->debug("start erase");
+					debug_->debug("SE");
 				#endif
 				erase(find_s_, find_p_, find_o_);
 				timer_->set_timer<App, &App::start_prepare_erase>(PREPARE_AFTER_ERASE_INTERVAL, this, 0);

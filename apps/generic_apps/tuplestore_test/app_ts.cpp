@@ -80,7 +80,7 @@ class App {
 			dictionary_.init(debug_);
 			tuplestore_.init(&dictionary_, &container_, debug_);
 			#if APP_DATABASE_DEBUG
-				debug_->debug("ts initialized");
+				debug_->debug("ini");
 			#endif
 		}
 
@@ -91,7 +91,7 @@ class App {
 			t.set(2, (block_data_t*)o);
 
 			#if APP_DATABASE_DEBUG
-				debug_->debug("ins (%s,%s,%s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
+				debug_->debug("i(%s,%s,%s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
 			#endif
 			tuplestore_.insert(t);
 		}
@@ -139,8 +139,7 @@ class App {
 				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
 
 			#if APP_DATABASE_DEBUG
-				debug_->debug("erase mask %d", (int)mask);
-				debug_->debug("erasing (%s,%s,%s) sz=%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size());
+				debug_->debug("e(%s,%s,%s) s%d m%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size(), (int)mask);
 			#endif
 			//Tuple v;
 			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
@@ -148,7 +147,7 @@ class App {
 			tuplestore_.erase(iter);
 			//} while(iter != tuplestore_.end());
 			#if APP_DATABASE_DEBUG
-				debug_->debug("post erase (%s,%s,%s) sz=%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size());
+				debug_->debug("pe(%s,%s,%s) s%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size());
 			#endif
 		}
 
@@ -182,7 +181,7 @@ class App {
 					else { *o = '\0'; }
 			}
 			#if APP_DATABASE_DEBUG
-				debug_->debug("will erase (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+				debug_->debug("wErs(%s,%s,%s)", (char*)s, (char*)p, (char*)o);
 			#endif
 		}
 
