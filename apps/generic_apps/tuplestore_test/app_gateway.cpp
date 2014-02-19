@@ -14,6 +14,17 @@ typedef Os::Radio Radio;
 #include <util/meta.h>
 #include <algorithms/hash/crc16.h>
 
+#if defined(CONTIKI)
+extern "C" {
+	#define delete why_on_earth_do_you_guys_name_a_variable_delete
+	#define DOMAIN DOMAIN_WHAT_IS_THIS_I_DONT_EVEN
+	#include <contiki.h>
+	#include <netstack.h>
+	#include <string.h>
+	#include <stdlib.h>
+}
+#endif
+
 /**
  * Receive tuples from uart and send them out to a database node.
  * Format via uart is zero-terminated elements strings, terminated with a
@@ -36,6 +47,7 @@ class App {
 
 		enum { BUFFER_SIZE = 1024 };
 		enum { RESEND_INTERVAL = 1000 };
+		enum { RESEND_RANDOM = 1000 };
 
 		enum State { RECV_UART, SEND_RADIO };
 		int state_;
@@ -66,7 +78,6 @@ class App {
 			state_ = RECV_UART;
 
 			db_address = Radio::BROADCAST_ADDRESS;
-
 			//debug_->debug("GWBT");
 		}
 
@@ -149,14 +160,17 @@ class App {
 
 			radio_->send( Os::Radio::BROADCAST_ADDRESS, s + 4, sending_);
 
-			if(s) {
-				timer_->set_timer<App, &App::on_ack_timeout>(RESEND_INTERVAL, this, (void*)ack_timeout_guard_);
-			}
-			else {
-				bytes_sent_ = 0;
-				bytes_received_ = 0;
-				state_ = RECV_UART;
-			}
+			//final_ = (s == 0);
+			//if(s) {
+				timer_->set_timer<App, &App::on_ack_timeout>(RESEND_INTERVAL + rand() % RESEND_RANDOM, this, (void*)ack_timeout_guard_);
+			//}
+			//else {
+				//final_ = true;
+				//timer_->set_timer<App, &App::on_ack_timeout>(RESEND_INTERVAL + rand() % RESEND_RANDOM, this, (void*)ack_timeout_guard_);
+				//bytes_sent_ = 0;
+				//bytes_received_ = 0;
+				//state_ = RECV_UART;
+			//}
 		}
 
 		void send_reboot(void*_=0) {
@@ -176,18 +190,25 @@ class App {
 
 					int s = sending_size();
 
-					bytes_sent_ += s;
+					if(s == 0) {
+						bytes_sent_ = 0;
+						bytes_received_ = 0;
+						state_ = RECV_UART;
+					}
+					else {
+						bytes_sent_ += s;
+						timer_->set_timer<App, &App::send_rdf>(100, this, 0);
+					}
 					ack_timeout_guard_++;
-					timer_->set_timer<App, &App::send_rdf>(100, this, 0);
 
-					debug_->debug("acked: %d", (int)bytes_sent_);
+					//debug_->debug("acked: %d", (int)bytes_sent_);
 				}
 				else {
-					debug_->debug("!ack: bs=%d p=%d", (int)bytes_sent_, (int)pos);
+					//debug_->debug("!ack: bs=%d p=%d", (int)bytes_sent_, (int)pos);
 				}
 			}
 			else {
-				debug_->debug("!a %x %x %x %x", (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
+				//debug_->debug("!a %x %x %x %x", (int)data[0], (int)data[1], (int)data[2], (int)data[3]);
 			}
 		}
 

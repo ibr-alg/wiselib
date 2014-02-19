@@ -298,6 +298,7 @@ class App {
 
 				if(FD_ISSET(serial_fd, &fds_serial)) {
 					int n = ::read(serial_fd, buf, sizeof(buf));
+					buf[n] = 0;
 					if(n < 0) {
 						perror("couldnt read");
 						exit(-1);

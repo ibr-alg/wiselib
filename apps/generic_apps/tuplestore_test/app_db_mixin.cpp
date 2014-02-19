@@ -174,7 +174,10 @@
 			#endif
 			radio_->disable_radio();
 			#if defined(CONTIKI)
-				NETSTACK_RDC.off(false);
+				int r = NETSTACK_RDC.off(false);
+			#endif
+			#if APP_DATABASE_DEBUG
+				debug_->debug("/R->%d", r);
 			#endif
 		}
 
@@ -183,7 +186,10 @@
 				debug_->debug("R");
 			#endif
 			#if defined(CONTIKI)
-				NETSTACK_RDC.on();
+				int r = NETSTACK_RDC.on();
+			#endif
+			#if APP_DATABASE_DEBUG
+				debug_->debug("R->%d", r);
 			#endif
 			radio_->enable_radio();
 			receiving = true;

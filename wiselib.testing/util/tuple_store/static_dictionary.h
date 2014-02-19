@@ -77,6 +77,7 @@ namespace wiselib {
 
 			/// Strings of this length can be represented with one metaslot
 			enum { SIMPLE_STRING_LENGTH = P_SLOT_WIDTH * P_SLOT_WIDTH };
+			enum { SMART_SPLIT_LOOKBACK = 0 }; // (int)(P_SLOT_WIDTH / 3 + 1) };
 
 		private:
 			struct Slot {
@@ -118,6 +119,9 @@ namespace wiselib {
 
 				private:
 					void forward() {
+						// TODO: This will skip oneslot keys!
+						// can we mark them somehow without spending
+						// additional space?
 						for( ; key_ < SLOTS && (!slots_[key_].refcount || !slots_[key_].meta); ++key_) {
 						}
 					}
@@ -163,10 +167,13 @@ namespace wiselib {
 				make_meta(s);
 
 				int i = 0;
-				for( ; p < end; p += SLOT_WIDTH, i++) {
+				//for( ; p < end; p += SLOT_WIDTH, i++) {
+				block_data_t *split;
+				while(p < end) {
+					split = next_split(p);
 					bool found;
 					key_type x = find_or_create_slot(
-							Math::template min<long>(end - p, SLOT_WIDTH), p, found,
+							Math::template min<long>(end - p, split - p), p, found,
 							false /* seek a non-meta-slot */
 					);
 					//assert(x != NULL_KEY);
@@ -186,9 +193,12 @@ namespace wiselib {
 						//debug_->debug("%s NOT found, creating at %d", (char*)p, (int)x);
 						slots_[x].refcount = 1;
 						slots_[x].meta = false;
-						strncpy(reinterpret_cast<char*>(slots_[x].data), reinterpret_cast<char*>(p), SLOT_WIDTH);
+						//strncpy(reinterpret_cast<char*>(slots_[x].data), reinterpret_cast<char*>(p), SLOT_WIDTH);
+						strncpy(reinterpret_cast<char*>(slots_[x].data), reinterpret_cast<char*>(p), split - p);
 					}
 					s.data[i] = x;
+					p = split;
+					i++;
 				}
 
 				// See if this exact meta slot is already there.
@@ -214,6 +224,8 @@ namespace wiselib {
 			mapped_type get_value(key_type k) {
 				if(!slots_[k].meta) { return slots_[k].data; }
 
+				// first, find out how much space we need to represent the
+				// result
 				size_type len = 0;
 				for(len = 0; len < SLOT_WIDTH; len++) {
 					if(slots_[k].data[len] == NULL_KEY) { break; }
@@ -221,10 +233,15 @@ namespace wiselib {
 
 				//block_data_t *d = ::get_allocator().template allocate_array<block_data_t>(len * SLOT_WIDTH);
 				key_type i = 0;
+				int j = 0;
 				for(; i<SLOT_WIDTH && slots_[k].data[i] != NULL_KEY; i++) {
-					memcpy(buffer_ + i * SLOT_WIDTH, slots_[slots_[k].data[i]].data, SLOT_WIDTH);
+					//memcpy(buffer_ + i * SLOT_WIDTH, slots_[slots_[k].data[i]].data, SLOT_WIDTH);
+					int l = strnlen((char*)slots_[slots_[k].data[i]].data, SLOT_WIDTH);
+					memcpy(buffer_ + j, slots_[slots_[k].data[i]].data, l);
+					j += l;
 				}
-				buffer_[i * SLOT_WIDTH] = 0;
+				//buffer_[i * SLOT_WIDTH] = 0;
+				buffer_[j] = 0;
 				return buffer_;
 			}
 			block_data_t buffer_[SLOT_WIDTH * SLOT_WIDTH + 1];
@@ -250,21 +267,34 @@ namespace wiselib {
 				make_meta(s);
 
 				int i = 0;
-				for( ; p < end; p += SLOT_WIDTH, i++) {
-					key_type x = find_slot(Math::template min<long>(end - p, SLOT_WIDTH), p, false);
+				//for( ; p < end; p += SLOT_WIDTH, i++) {
+
+				while(p < end) {
+					block_data_t *split = next_split(p);
+
+					key_type x = find_slot(Math::template min<long>(end - p, split - p), p, false);
 					if(x == NULL_KEY) {
 						// Well, if there is a part of the string we don't
 						// have, we can't have the whole string, can we?
 						return NULL_KEY;
 					}
 					s.data[i] = x;
+
+					p = split;
+					i++;
 				}
 
-				// See if this exact meta slot is already there.
-				// If not, find a free slot and put it there.
-
 				bool found;
-				key_type x = find_slot(i, s.data, true);
+				key_type x;
+				if(i == 1) {
+					x = find_slot(l, v, false);
+				}
+				else {
+					// See if this exact meta slot is already there.
+					// If not, find a free slot and put it there.
+
+					x = find_slot(i, s.data, true);
+				}
 
 				if(!found) { return NULL_KEY; }
 				return x;
@@ -349,6 +379,22 @@ namespace wiselib {
 			}
 
 		private:
+
+			int strnlen(char *s, int n) {
+				int i = 0;
+				for( ; s[i] && i < n; i++) ;
+				return i;
+			}
+
+			block_data_t* next_split(block_data_t* s) {
+				block_data_t *end = s + SLOT_WIDTH;
+				for(int i = 1; i < SMART_SPLIT_LOOKBACK; i++) {
+					if(end[-i] == '/' || end[-i] == '#' || end[-i] == '&' || end[-i] == '?') {
+						return end - i + 1;
+					}
+				}
+				return end;
+			}
 
 			void make_meta(Slot& s) {
 				memset(s.data, NULL_KEY, sizeof(s.data));
