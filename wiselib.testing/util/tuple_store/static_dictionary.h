@@ -211,6 +211,7 @@ namespace wiselib {
 
 				root_ = NULL_KEY;
 				root_meta_ = NULL_KEY;
+				check();
 			}
 
 		#if STATIC_DICTIONARY_OUTSOURCE
@@ -227,6 +228,8 @@ namespace wiselib {
 			}
 
 			key_type insert(mapped_type v) {
+				check();
+
 				size_type l = strlen((char*)v) + 1;
 				assert(l <= SIMPLE_STRING_LENGTH);
 				block_data_t *p = v;
@@ -239,7 +242,12 @@ namespace wiselib {
 					if(!found) {
 						size_++;
 						slots_[x].meta = false;
+						slots_[x].refcount = 1;
+
+						assert(l <= SLOT_WIDTH);
 						memcpy(slots_[x].data, p, l);
+					
+						assert(count(x) == 1);
 					}
 
 					assert(!found <= (slots_[x].refcount == 1));
@@ -308,6 +316,8 @@ namespace wiselib {
 			}
 
 			mapped_type get_value(key_type k) {
+				check();
+
 				if(!slots_[k].meta) { return slots_[k].data; }
 
 				// first, find out how much space we need to represent the
@@ -325,6 +335,8 @@ namespace wiselib {
 				}
 				//buffer_[i * SLOT_WIDTH] = 0;
 				buffer_[j] = 0;
+				
+				check();
 				return buffer_;
 			}
 			block_data_t buffer_[SLOT_WIDTH * SLOT_WIDTH + 1];
@@ -338,6 +350,8 @@ namespace wiselib {
 			size_type size() { return size_; }
 
 			key_type find(mapped_type v) {
+				check();
+
 				size_type l = strlen((char*)v) + 1;
 				assert(l <= SIMPLE_STRING_LENGTH);
 				block_data_t *p = v;
@@ -346,7 +360,8 @@ namespace wiselib {
 				if(l < SLOT_WIDTH) {
 					// insert directly into meta tree!
 					key_type x = find_slot(l, p, true);
-					assert(memcmp(slots_[x].data, p, l) == 0);
+					assert((x != NULL_KEY) <= (memcmp(slots_[x].data, p, l) == 0));
+					check();
 					return x;
 				}
 				else {
@@ -373,69 +388,29 @@ namespace wiselib {
 					// If not, find a free slot and put it there.
 
 					x = find_slot(i, s.data, true);
+					check();
 					return x;
 				}
 			}
 
-			size_type erase(key_type k) {
+			size_type erase(key_type k, bool sub = false) {
+				check();
 				Slot &sk = slots_[k];
 				if(sk.refcount == 0) { return 0; }
-
 				if(sk.meta) {
 					// delete all referenced substrings, too (or decrease
 					// their refcount at least)
 					for(int i = 0; sk.data[i] != NULL_KEY && i < SLOT_WIDTH; i++) {
-						erase(sk.data[i]);
+						erase(sk.data[i], true);
 					}
 				}
 				sk.refcount--;
-				
 				if(sk.refcount == 0) {
-					if(sk.childs[0] != NULL_KEY && sk.childs[1] != NULL_KEY) {
-						// the node we want to delete has 2 childs,
-						// substitute with leftmost ("find_start") leaf of
-						// right subtree
-						key_type c = find_start(sk.childs[1]);
-						slots_[slots_[c].parent].substitute_child(c, NULL_KEY);
-						slots_[c].childs[0] = sk.childs[0];
-						slots_[c].childs[1] = sk.childs[1];
-						substitute_slot(k, c);
-						
-					}
-					else if(sk.childs[0] != NULL_KEY) { substitute_slot(k, sk.childs[0]); }
-					else if(sk.childs[1] != NULL_KEY) { substitute_slot(k, sk.childs[1]); }
-					else {
-						// no childs at all, just uppdate parent!
-						substitute_slot(k, NULL_KEY);
-					}
-					// TODO: check whether this was a key-pointed slot,
-					// only in that case decrease size.
-					size_--;
+					unlink(k);
+					if(!sub) { size_--; }
 				}
-
+				check();
 				return 1;
-			}
-
-			/*
-			 * Substitute slot s_old with s_new, that is, update its parent
-			 * accordingly, or the according root pointer.
-			 */
-			void substitute_slot(key_type s_old, key_type s_new) {
-				if(s_new != NULL_KEY) {
-					slots_[s_new].parent = slots_[s_old].parent;
-				}
-				if(slots_[s_old].parent == NULL_KEY) {
-					if(s_old == root_) {
-						root_ = s_new;
-					}
-					else {
-						root_meta_ = s_new;
-					}
-					//find_root(s_old = s_new;
-				}
-				else {
-					slots_[slots_[s_old].parent].substitute_child(s_old, s_new);
-				}
 			}
 
 			iterator begin_keys() { return iterator(slots_, root_meta_); }
@@ -464,24 +439,63 @@ namespace wiselib {
 			}
 
 		private:
+			/*
+			 * Substitute slot s_old with s_new, that is, update its parent
+			 * accordingly, or the according root pointer.
+			 */
+			void substitute_slot(key_type s_old, key_type s_new, bool childs=false) {
+				if(childs && s_new != NULL_KEY && s_old != NULL_KEY) {
+					key_type c0, c1;
+					c0 = slots_[s_new].childs[0];
+					c1 = slots_[s_new].childs[1];
+					slots_[s_new].childs[0] = slots_[s_old].childs[0];
+					slots_[s_new].childs[1] = slots_[s_old].childs[1];
+					slots_[s_old].childs[0] = c0;
+					slots_[s_old].childs[1] = c1;
+				}
+
+				if(s_new != NULL_KEY) {
+					slots_[s_new].parent = slots_[s_old].parent;
+				}
+				if(slots_[s_old].parent == NULL_KEY) {
+					if(s_old == root_) {
+						root_ = s_new;
+					}
+					else {
+						root_meta_ = s_new;
+					}
+				}
+				else {
+					slots_[slots_[s_old].parent].substitute_child(s_old, s_new);
+				}
+			}
+
 
 			void check() {
-				check_tree(root_meta_);
+				check_meta_tree();
 				check_tree(root_);
 			}
 
-			void check_tree(key_type k) {
-				if(k == NULL_KEY) { return; }
+			void check_meta_tree() {
+				size_type c = check_tree(root_meta_);
+				assert(c == size());
+			}
+
+			size_type check_tree(key_type k) {
+				size_type c = 0;
+				if(k == NULL_KEY) { return c; }
+				c++;
 
 				assert(slots_[k].refcount > 0);
 				if(slots_[k].childs[0] != NULL_KEY) {
 					assert(slots_[slots_[k].childs[0]].parent == k);
-					check_tree(slots_[k].childs[0]);
+					c += check_tree(slots_[k].childs[0]);
 				}
 				if(slots_[k].childs[1] != NULL_KEY) {
 					assert(slots_[slots_[k].childs[1]].parent == k);
-					check_tree(slots_[k].childs[1]);
+					c += check_tree(slots_[k].childs[1]);
 				}
+				return c;
 			}
 
 			//key_type& find_root(key_type k) {
@@ -526,6 +540,31 @@ namespace wiselib {
 				}
 			}
 
+			void swap(key_type& k1, key_type& k2) {
+				key_type tmp = k1;
+				k1 = k2;
+				k2 = tmp;
+			}
+
+			void swap_parents(key_type k1, key_type k2) {
+				Slot &s1 = slots_[k1];
+				Slot &s2 = slots_[k2];
+
+				if(s1.parent == NULL_KEY) {
+					if(k1 == root_) { root_ = k1; }
+					else { root_meta_ = k1; }
+				}
+				else { slots_[s1.parent].substitute_child(k1, k2); }
+
+				if(s2.parent == NULL_KEY) {
+					if(k2 == root_) { root_ = k2; }
+					else { root_meta_ = k2; }
+				}
+				else { slots_[s2.parent].substitute_child(k2, k1); }
+
+				swap(s1.parent, s2.parent);
+			}
+
 			void unlink(key_type k) {
 				Slot &sk = slots_[k];
 				if(sk.childs[0] != NULL_KEY && sk.childs[1] != NULL_KEY) {
@@ -533,11 +572,19 @@ namespace wiselib {
 					// substitute with leftmost ("find_start") leaf of
 					// right subtree
 					key_type c = find_start(sk.childs[1]);
-					slots_[slots_[c].parent].substitute_child(c, NULL_KEY);
-					slots_[c].childs[0] = sk.childs[0];
-					slots_[c].childs[1] = sk.childs[1];
-					substitute_slot(k, c);
-					
+
+					// swap k & c
+					// first, swap parent pointers (and the pointers back)
+					swap_parents(k, c);
+
+					// now swap children
+					swap(slots_[k].childs[0], slots_[c].childs[0]);
+					swap(slots_[k].childs[1], slots_[c].childs[1]);
+					if(slots_[k].childs[0] != NULL_KEY) { slots_[slots_[k].childs[0]].parent = k; }
+					if(slots_[k].childs[1] != NULL_KEY) { slots_[slots_[k].childs[1]].parent = k; }
+					if(slots_[c].childs[0] != NULL_KEY) { slots_[slots_[c].childs[0]].parent = c; }
+					if(slots_[c].childs[1] != NULL_KEY) { slots_[slots_[c].childs[1]].parent = c; }
+					unlink(k);
 				}
 				else if(sk.childs[0] != NULL_KEY) { substitute_slot(k, sk.childs[0]); }
 				else if(sk.childs[1] != NULL_KEY) { substitute_slot(k, sk.childs[1]); }
@@ -584,7 +631,7 @@ namespace wiselib {
 					if(c < 0) { i = slots_[i].childs[0]; }
 					else if(c > 0) { i = slots_[i].childs[1]; }
 					else {
-						slots_[i].refcount++;
+						//slots_[i].refcount++;
 						break;
 					}
 				}

@@ -69,6 +69,11 @@ class App {
 			//dictionary_.debug();
 			//print_dictionary();
 			verify_inserts();
+
+			dictionary_.debug();
+			erase_some();
+
+			verify_inserts();
 		}
 
 		void read_n3(void*) {
@@ -179,6 +184,26 @@ class App {
 		}
 
 
+		void erase_some() {
+			debug_->debug("deleting some entries...");
+			for(int i = 0; i<40; i++) {
+				int p = rand_->operator()() % inserts.size();
+				char *v = inserts[p];
+				Dictionary::key_type k = dictionary_.find((block_data_t*)v);
+				assert(k != Dictionary::NULL_KEY);
+				int count = dictionary_.count(k);
+				debug_->debug("  deleting %s (key=%d,count=%d)", v, (int)k, (int)count);
+				int sz = dictionary_.size();
+				dictionary_.erase(k);
+				assert((count == 1) <= (dictionary_.size() == sz - 1));
+				assert((count != 1) <= (dictionary_.size() == sz));
+				if(dictionary_.size() == sz - 1) {
+					debug_->debug("  entry %s cleared completely", v);
+					inserts[p] = inserts.back();
+					inserts.pop_back();
+				}
+			}
+		}
 
 
 
