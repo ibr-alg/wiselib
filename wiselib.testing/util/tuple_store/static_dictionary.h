@@ -230,7 +230,7 @@ namespace wiselib {
 			key_type insert(mapped_type v) {
 				check();
 
-				size_type l = strlen((char*)v) + 1;
+				size_type l = strlen((char*)v);
 				assert(l <= SIMPLE_STRING_LENGTH);
 				block_data_t *p = v;
 				block_data_t *end = p + l;
