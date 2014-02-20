@@ -70,7 +70,7 @@ class App {
 			//print_dictionary();
 			verify_inserts();
 
-			dictionary_.debug();
+			dictionary_.debug_precompile();
 			erase_some();
 
 			verify_inserts();

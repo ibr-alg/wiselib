@@ -352,7 +352,7 @@ namespace wiselib {
 			key_type find(mapped_type v) {
 				check();
 
-				size_type l = strlen((char*)v) + 1;
+				size_type l = strlen((char*)v);
 				assert(l <= SIMPLE_STRING_LENGTH);
 				block_data_t *p = v;
 				block_data_t *end = p + l;
@@ -436,6 +436,32 @@ namespace wiselib {
 								str, dec, (int)slots_[k].childs[0], (int)slots_[k].childs[1]);
 					}
 				}
+			}
+
+			void debug_precompile() {
+				debug_->debug("#define STATIC_DICTIONARY_INIT_ROOT %d", root_);
+				debug_->debug("#define STATIC_DICTIONARY_INIT_ROOT_META %d", root_meta_);
+				debug_->debug("char static_dictionary_data_[] =");
+				for(key_type k = 0; k < SLOTS; k++) {
+					char str[100];
+					char dat[400];
+						char dec[400];
+					int i = 0;
+					for(; i<sizeof(Slot); i++) {
+						char x = (reinterpret_cast<char*>(&slots_[k]))[i];
+						if(is_printable(x)) { str[i] = x; }
+						else { str[i] = '.'; }
+
+						snprintf(dat + 4*i, 5, "\\x%02x", (int)x);
+						snprintf(dec + 4*i, 5, "%3d ", (int)x);
+					}
+					str[i] = '\0';
+					dat[4 * i] = '\0';
+					dec[4 * i] = '\0';
+
+					debug_->debug("\"%s\" // %s %s P %3d L %3d R %3d", dat, str, dec, (int)slots_[k].parent, (int)slots_[k].childs[0], (int)slots_[k].childs[1]);
+				}
+				debug_->debug(";");
 			}
 
 		private:
