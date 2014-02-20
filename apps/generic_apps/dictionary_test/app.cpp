@@ -1,4 +1,6 @@
 
+#include <cassert>
+
 #include "external_interface/external_interface.h"
 #include "external_interface/external_interface_testing.h"
 using namespace wiselib;
@@ -41,9 +43,12 @@ typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
 
 #include <util/split_n3.h>
 
+typedef wiselib::vector_static<Os, char*, 200> Inserts;
+
 class App {
 	public:
 		Dictionary dictionary_;
+		Inserts inserts;
 
 		void init(Os::AppMainParameter& amp) {
 			//radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
@@ -58,12 +63,12 @@ class App {
 		#else
 			read_n3(0);
 		#endif
-
 			//test_insert();
 
 	//		for(int i = 0; i < 10; i++) { erase_random(); }
-			dictionary_.debug();
-			print_dictionary();
+			//dictionary_.debug();
+			//print_dictionary();
+			verify_inserts();
 		}
 
 		void read_n3(void*) {
@@ -83,14 +88,100 @@ class App {
 
 				sp.parse_line(buf);
 
-				dictionary_.insert((block_data_t*)sp[0]);
-				dictionary_.insert((block_data_t*)sp[1]);
-				dictionary_.insert((block_data_t*)sp[2]);
+				insert(sp[0]);
+				insert(sp[1]);
+				insert(sp[2]);
 
 			} // while cin
 
 			//dictionary_.debug();
 		}
+
+		/**
+		 * Insert into dictionary, track in `inserts`.
+		 */
+		void insert(char* s) {
+			dictionary_.insert((block_data_t*)s);
+			int l = strlen(s) + 1;
+			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter) {
+				if(memcmp(*iter, s, l - 1) == 0) {
+					return;
+				}
+			}
+
+			char *s2 = new char[l];
+			memcpy(s2, s, l);
+			inserts.push_back(s2);
+		}
+
+		/**
+		 * Check that all inserts are present in the dictionary and nothing
+		 * else is.
+		 */
+		void verify_inserts() {
+			bool fail = false;
+			debug_->debug("Verifying inserts using find()...");
+			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter) {
+				Dictionary::key_type k = dictionary_.find((block_data_t*)*iter);
+				if(k == Dictionary::NULL_KEY) {
+					debug_->debug("  %s not findable.", *iter);
+					fail = true;
+				}
+				else {
+					block_data_t *ds = dictionary_.get_value(k);
+					int c = strcmp(*iter, (char*)ds);
+					if(c != 0) {
+						debug_->debug("  %s found with key %d which resolves to %s",
+								*iter, (int)k, (char*)ds);
+						fail = true;
+					}
+					dictionary_.free_value(ds);
+				}
+			}
+			if(!fail) {
+				debug_->debug("  all inserts are findable.");
+			}
+
+
+			debug_->debug("Verifying inserts using iteration...");
+			fail = false;
+			size_type dictionary_entries = 0;
+			for(Dictionary::iterator iter = dictionary_.begin_keys(); iter != dictionary_.end_keys(); ++iter) {
+				Dictionary::key_type k = *iter;
+				block_data_t *ds = dictionary_.get_value(k);
+				// Did we even insert this?
+				bool found = false;
+				for(Inserts::iterator jter = inserts.begin(); jter != inserts.end(); ++jter) {
+					if(strcmp(*jter, (char*)ds) == 0) { found = true; break; }
+				}
+				if(!found) {
+					debug_->debug("  key %d resolves to %s which has not been inserted",
+							(int)k, (char*)ds);
+					fail = true;
+				}
+				dictionary_.free_value(ds);
+				dictionary_entries++;
+			}
+			if(!fail) {
+				debug_->debug("  all dictionary keys were actually inserted.");
+			}
+
+
+			if(dictionary_entries != inserts.size()) {
+				debug_->debug("  number of dictionary entries %d doesnt match insertions %d",
+						(int)dictionary_entries, (int)inserts.size());
+			}
+
+			if(dictionary_entries != dictionary_.size()) {
+				debug_->debug("  number of dictionary entries %d doesnt match dictionary size %d",
+						(int)dictionary_entries, (int)dictionary_.size());
+			}
+		}
+
+
+
+
+
 
 		void erase_random() {
 			Dictionary::key_type k = rand_->operator()() % SLOTS;
