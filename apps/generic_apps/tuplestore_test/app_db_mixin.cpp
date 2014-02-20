@@ -128,33 +128,17 @@
 					timer_->set_timer<App, &App::disable_radio>(DISABLE_RADIO_INTERVAL, this, 0);
 				}
 				else {
-					debug_->debug("X0");
-					//#if APP_DATABASE_DEBUG
-						//debug_->debug("rcvL%d", (int)len);
-					//#endif
 					memcpy(rdf_buffer_ + pos, data + 4, len - 4);
-					debug_->debug("X1");
 				}
 
 				block_data_t ack[] = { 0xAA, EXP_NR & 0xff, 0, 0 };
-					debug_->debug("X2");
 				wiselib::write<Os, block_data_t, ::uint16_t>(ack + 2, pos);
-					debug_->debug("X3");
 				radio_->send(from, 4, ack); 
-				//radio_->send(from, 4, ack); 
-				//radio_->send(from, 4, ack); 
-				//radio_->send(from, 4, ack); 
-				//radio_->send(from, 4, ack); 
-				//radio_->send(from, 4, ack); 
-				//radio_->send(from, 4, ack); 
-					debug_->debug("X4 fr%lx", (unsigned long)from);
 			}
 			else if(data[0] == 0xbb && data[1] == (EXP_NR & 0xff)) {
 				#if APP_DATABASE_DEBUG
 					debug_->debug("rb!");
 				#endif
-				//gateway_address = from;
-				// REBOOT command
 				reboot();
 			}
 			else {
@@ -164,7 +148,6 @@
 						(int)EXP_NR);
 				#endif
 			}
-					debug_->debug("X5");
 		}
 
 
@@ -227,9 +210,11 @@
 
 				#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
 					if(choice.choose() && !chosen) {
+						//debug_->debug("chose: (%s,%s,%s)", s, p, o);
 						strncpy((char*)find_s_, s, MAX_ELEMENT_LENGTH);
 						strncpy((char*)find_p_, p, MAX_ELEMENT_LENGTH);
 						strncpy((char*)find_o_, o, MAX_ELEMENT_LENGTH);
+						//debug_->debug("after cp: (%s,%s,%s)", find_s_, find_p_, find_o_);
 						chosen = true;
 					}
 					++choice;
@@ -238,9 +223,11 @@
 
 			#if APP_DATABASE_FIND || MODE_FIND || MODE_ERASE
 				if(!chosen && s) {
+					//debug_->debug("Xchose: (%s,%s,%s)", s, p, o);
 					strncpy((char*)find_s_, s, MAX_ELEMENT_LENGTH);
 					strncpy((char*)find_p_, p, MAX_ELEMENT_LENGTH);
 					strncpy((char*)find_o_, o, MAX_ELEMENT_LENGTH);
+					//debug_->debug("Xafter cp: (%s,%s,%s)", find_s_, find_p_, find_o_);
 					chosen = true;
 				}
 			#endif
@@ -307,11 +294,14 @@
 					block_data_t *p = find_p_;
 					block_data_t *o = find_o_;
 
+					debug_->debug("start_find: (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+
 					x = rand() % 3;
 
 					if(x == 0) { s = 0; }
 					else if(x == 1) { p = 0; }
 					else { o = 0; }
+					debug_->debug("calling find(%s,%s,%s)", (char*)s, (char*)p, (char*)o);
 					find(s, p, o, 0);
 				}
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);
@@ -360,7 +350,9 @@
 			bool choose() {
 				if(current >= elements) { return true; }
 				long p = RAND_MAX / (elements - current);
-				return rand() <= p;
+				long r = rand();
+				//printf("e=%lu c=%lu p=%lu r=%lu\n", (unsigned long)elements, (unsigned long)current, (unsigned long)p, (unsigned long)r);
+				return r <= p;
 			}
 
 			void operator++() { current++; }

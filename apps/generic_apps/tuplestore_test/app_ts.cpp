@@ -11,9 +11,9 @@
 	#define APP_HEARTBEAT 1
 #endif
 
-#if (TS_USE_TREE_DICT || TS_USE_PRESCILLA_DICT || TS_USE_AVL_DICT)
+//#if (TS_USE_TREE_DICT || TS_USE_PRESCILLA_DICT || TS_USE_AVL_DICT)
 	#define TS_USE_ALLOCATOR 1
-#endif
+//#endif
 #undef TS_USE_BLOCK_MEMORY
 #define TS_CODEC_NONE 1
 #undef TS_CODEC_HUFFMAN
@@ -43,7 +43,13 @@ typedef Os::size_t size_type;
 		typedef wiselib::BitmapAllocator<Os, 2000, 10> Allocator;
 	#elif TS_USE_TREE_DICT
 		typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
+	#else
+		// actually, even for the static dict we need some
+		// allocation (namely during iteration)
+		typedef wiselib::BitmapAllocator<Os, 400, 16> Allocator;
 	#endif
+
+
 	Allocator allocator_;
 	Allocator& get_allocator() { return allocator_; }
 #endif
@@ -107,7 +113,6 @@ class App {
 			CodecTupleStoreT::column_mask_t mask =
 				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
 
-			//printf("tsf2 (%s,%s,%s) m=%x\n", reinterpret_cast<char*>(s), reinterpret_cast<char*>(o), reinterpret_cast<char*>(p), (int)mask);
 			Tuple v;
 			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
 		}
@@ -131,6 +136,10 @@ class App {
 		*/
 
 		void erase(block_data_t*s, block_data_t* p, block_data_t* o) {
+			if(tuplestore_.size() == 0) {
+				while(1) ;
+			}
+
 			Tuple t;
 			t.set(0, s);
 			t.set(1, p);
@@ -161,6 +170,10 @@ class App {
 			for(iter = tuplestore_.begin(); iter != tuplestore_.end(); ++iter, ++c) {
 				if(c.choose()) {
 					int spo = (unsigned)rand() % 3;
+					//debug_->debug("spo=%d *iter=(%s,%s,%s)",
+						//(int)spo,
+						//(char*)iter->get(0), (char*)iter->get(1),
+						//(char*)iter->get(2));
 					strcpy(reinterpret_cast<char*>(s), reinterpret_cast<char*>(iter->get(0)));
 					strcpy(reinterpret_cast<char*>(p), reinterpret_cast<char*>(iter->get(1)));
 					strcpy(reinterpret_cast<char*>(o), reinterpret_cast<char*>(iter->get(2)));
@@ -173,6 +186,10 @@ class App {
 			if(*s == '\0' && *p == '\0') {
 				iter = tuplestore_.begin();
 					int spo = (unsigned)rand() % 3;
+					//debug_->debug("Xspo=%d *iter=(%s,%s,%s)",
+						//(int)spo,
+						//(char*)iter->get(0), (char*)iter->get(1),
+						//(char*)iter->get(2));
 					strcpy(reinterpret_cast<char*>(s), reinterpret_cast<char*>(iter->get(0)));
 					strcpy(reinterpret_cast<char*>(p), reinterpret_cast<char*>(iter->get(1)));
 					strcpy(reinterpret_cast<char*>(o), reinterpret_cast<char*>(iter->get(2)));
@@ -181,7 +198,7 @@ class App {
 					else { *o = '\0'; }
 			}
 			#if APP_DATABASE_DEBUG
-				debug_->debug("wErs(%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+				debug_->debug("wErs(%s,%s,%s) %d%d%d", (char*)s, (char*)p, (char*)o, (int)(*s == 0), (int)(*p == 0), (int)(*o == 0));
 			#endif
 		}
 

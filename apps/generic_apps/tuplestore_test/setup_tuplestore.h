@@ -37,14 +37,14 @@ class Tuple {
 		}
 		
 		void free_deep(size_type i) {
-			//if(get(i)) {
-				//::get_allocator().free(get(i));
-				//set(i, 0);
-			//}
+			if(get(i)) {
+				::get_allocator().free(get(i));
+				set(i, 0);
+			}
 		}
 		
 		void destruct_deep() {
-			//for(size_type i = 0; i < SIZE; i++) { free_deep(i); }
+			for(size_type i = 0; i < SIZE; i++) { free_deep(i); }
 		}
 		
 		///@{
@@ -71,9 +71,9 @@ class Tuple {
 		}
 		
 		void set_deep(size_type i, block_data_t* data) {
-			//size_type l = strlen((char*)data) + 1;
-			//set(i, ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
-			//memcpy(get(i), data, l);
+			size_type l = strlen((char*)data) + 1;
+			set(i, ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
+			memcpy(get(i), data, l);
 		}
 		
 		///@}
