@@ -151,6 +151,10 @@ blacklist += [
     { 'job': '24910', 'inode_db': 'inode014', '_tmax': 500 }, 
     { 'job': '24910', 'inode_db': 'inode016', '_tmax': 800 }, 
     { 'job': '24911' },
+    { 'job': '24990', 'inode_db': 'inode008', '_tmin': 610, '_tmax': 665,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '24990', 'inode_db': 'inode010', '_tmin': 610, '_tmax': 658,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '24990', 'inode_db': 'inode014', '_tmin': 610, '_tmax': 662,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '24990', 'inode_db': 'inode016', '_tmin': 600, '_tmax': 652.4, '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
 ]
 
 teenylime_runs = set(
@@ -169,6 +173,8 @@ subsample_runs = set([
 
     #'24818', # ts find (10)
     #'24819', # ts find (10)
+    
+    '24990', # ts erase 
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -674,15 +680,21 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
 
     MEASUREMENT_UP = 1.75
     MEASUREMENT_DOWN = 1.25
+    MODE = 'value'
 
-    if bl and '_treshold' in bl:
+    if bl and '_threshold' in bl:
         MEASUREMENT_UP = bl['_threshold']
         MEASUREMENT_DOWN = bl['_threshold']
+
+    if bl and '_mode' in bl:
+        MODE = bl['_mode']
 
     class State:
         def __init__(self, s): self.s = s
         def __str__(self): return self.s
-    idle_low = State('low')
+    idle_low = State('idle_low')
+    idle_between = State('idle_between')
+    preparation = State('preparation')
     measurement = State('measurement')
 
     sums_e = []
@@ -727,12 +739,26 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
 
         if state is idle_low:
             if v > MEASUREMENT_UP:
+                if mode == 'value':
+                    change_state(measurement)
+                    t0 = t
+                    esum = (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                else:
+                    change_state(preparation)
+            else:
+                baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
+                baseline_estimate_n += 1.0
+                baseline_estimate += v / baseline_estimate_n 
 
+        elif state is preparation:
+            if v < MEASUREMENT_DOWN:
+                change_state(idle_between)
+
+        elif state is idle_between:
+            if v > MEASUREMENT_UP:
                 change_state(measurement)
-                #if mode == 'insert':
                 t0 = t
                 esum = (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
-                #tprev = t
             else:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
@@ -740,23 +766,18 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
 
         elif state is measurement:
             if v < MEASUREMENT_DOWN:
-                print("  t={}".format(t))
-                change_state(idle_low)
-                #if mode == 'insert':
-                #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
+                #print("adding ({}, {})".format(t-t0, esum))
+                print("    t={}".format(t))
                 ots.append(t)
                 sums_t.append(t - t0)
-                if mode == 'find':
-                    esum /= TEENYLIME_FINDS_AT_ONCE
                 sums_e.append(esum)
-                if len(sums_e) >= maxvalues:
-                    break
+                change_state(idle_low)
             else:
                 esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
         tprev = t
 
 
-    print("  baseline estimate (teenylime): {}".format(baseline_estimate))
+    print("  baseline estimate: {}".format(baseline_estimate))
 
     for i in range(len(sums_t)):
         if sums_e[i] is not None and sums_t[i] is not None:
@@ -1122,8 +1143,8 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((300, 350))
-    #ax.set_ylim((0, 5))
+    ax.set_xlim((650, 652))
+    ax.set_ylim((0, 3))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')
