@@ -14,7 +14,7 @@ typedef Os::size_t size_type;
 	//Allocator& get_allocator();
 
 	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, 3000> Allocator;
+	typedef wiselib::BitmapAllocator<Os, 400, 16> Allocator;
 	Allocator& get_allocator();
 
 
@@ -44,10 +44,12 @@ typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
 #include <util/split_n3.h>
 
 typedef wiselib::vector_static<Os, char*, 200> Inserts;
+typedef wiselib::vector_static<Os, Dictionary::key_type, 200> UsedKeys;
 
 class App {
 	public:
 		Dictionary dictionary_;
+		UsedKeys used_keys;
 		Inserts inserts;
 
 		void init(Os::AppMainParameter& amp) {
@@ -106,16 +108,19 @@ class App {
 		 * Insert into dictionary, track in `inserts`.
 		 */
 		void insert(char* s) {
-			dictionary_.insert((block_data_t*)s);
+			Dictionary::key_type k = dictionary_.insert((block_data_t*)s);
 			int l = strlen(s) + 1;
-			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter) {
+			int pos = 0;
+			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter, pos++) {
 				if(memcmp(*iter, s, l - 1) == 0) {
+					assert(used_keys[pos] == k);
 					return;
 				}
 			}
 
 			char *s2 = new char[l];
 			memcpy(s2, s, l);
+			used_keys.push_back(k);
 			inserts.push_back(s2);
 		}
 
@@ -154,6 +159,7 @@ class App {
 			for(Dictionary::iterator iter = dictionary_.begin_keys(); iter != dictionary_.end_keys(); ++iter) {
 				Dictionary::key_type k = *iter;
 				block_data_t *ds = dictionary_.get_value(k);
+				//debug_->debug("  %s", (char*)ds);
 				// Did we even insert this?
 				bool found = false;
 				for(Inserts::iterator jter = inserts.begin(); jter != inserts.end(); ++jter) {
@@ -169,6 +175,19 @@ class App {
 			}
 			if(!fail) {
 				debug_->debug("  all dictionary keys were actually inserted.");
+			}
+
+			debug_->debug("Verifying using keys returned by insert()...");
+			fail = false;
+			int pos = 0;
+			for(UsedKeys::iterator iter = used_keys.begin(); iter != used_keys.end(); ++iter, pos++) {
+				block_data_t *ds = dictionary_.get_value(*iter);
+				debug_->debug("[%d] -> '%s'", (int)*iter, (char*)ds);
+				if(memcmp(inserts[pos], ds, strlen((char*)ds)) != 0) {
+					debug_->debug("  key %d (%dth distinct insert) resolves to '%s' instead of '%s'",
+							(int)*iter, (int)pos, (char*)ds, (char*)inserts[pos]);
+					fail = true;
+				}
 			}
 
 
@@ -201,6 +220,9 @@ class App {
 					debug_->debug("  entry %s cleared completely", v);
 					inserts[p] = inserts.back();
 					inserts.pop_back();
+
+					used_keys[p] = used_keys.back();
+					used_keys.pop_back();
 				}
 			}
 		}

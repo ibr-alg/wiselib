@@ -322,10 +322,10 @@ namespace wiselib {
 
 				// first, find out how much space we need to represent the
 				// result
-				size_type len = 0;
-				for(len = 0; len < SLOT_WIDTH; len++) {
-					if(slots_[k].data[len] == NULL_KEY) { break; }
-				}
+				//size_type len = 0;
+				//for(len = 0; len < SLOT_WIDTH; len++) {
+					//if(slots_[k].data[len] == NULL_KEY) { break; }
+				//}
 				key_type i = 0;
 				int j = 0;
 				for(; i<SLOT_WIDTH && slots_[k].data[i] != NULL_KEY; i++) {
@@ -459,7 +459,7 @@ namespace wiselib {
 					dat[4 * i] = '\0';
 					dec[4 * i] = '\0';
 
-					debug_->debug("\"%s\" // %s %s P %3d L %3d R %3d", dat, str, dec, (int)slots_[k].parent, (int)slots_[k].childs[0], (int)slots_[k].childs[1]);
+					debug_->debug("\"%s\" // [%3d] %s %s P %3d L %3d R %3d", dat, (int)k, str, dec, (int)slots_[k].parent, (int)slots_[k].childs[0], (int)slots_[k].childs[1]);
 				}
 				debug_->debug(";");
 			}
@@ -623,6 +623,10 @@ namespace wiselib {
 			int strnlen(char *s, int n) {
 				int i = 0;
 				for( ; s[i] && i < n; i++) ;
+
+				assert(i <= n);
+				assert(s[i] == '\0' || i == n);
+				//debug_->debug("strnlen(%s)=%d", s, i);
 				return i;
 			}
 

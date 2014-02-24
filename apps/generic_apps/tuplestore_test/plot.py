@@ -52,6 +52,9 @@ blacklist = []
 # had the broken LE mode enabled
 blacklist += [ {'job': str(i), 'database': 'tuplestore'} for i in range(24814, 24833) ]
 
+# completely blacklisted jobs:
+# sed -n "s/^\\s*{ 'job': '\([0-9]\+\)' }.*$/\1/p" < plot.py
+#
 blacklist += [
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24814', 'inode_db': 'inode014', '_tmax': 3000 },
@@ -84,6 +87,8 @@ blacklist += [
     { 'job': '24825', 'inode_db': 'inode016' },
     #{ 'job': '24824', 'inode_db': 'inode008' },
     { 'job': '24825', 'inode_db': 'inode010' },
+    { 'job': '24841' },
+    { 'job': '24842' },
 
     { 'job': '24857' }, # 1@once first teenylime experiments, different parameters
     { 'job': '24858' }, # 5@once ...
@@ -151,11 +156,50 @@ blacklist += [
     { 'job': '24910', 'inode_db': 'inode014', '_tmax': 500 }, 
     { 'job': '24910', 'inode_db': 'inode016', '_tmax': 800 }, 
     { 'job': '24911' },
+
+    # debugged & improved ts static dict
+    # 24990 & 14991 ts erase
     { 'job': '24990', 'inode_db': 'inode008', '_tmin': 610, '_tmax': 665,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
     { 'job': '24990', 'inode_db': 'inode010', '_tmin': 610, '_tmax': 658,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
     { 'job': '24990', 'inode_db': 'inode014', '_tmin': 610, '_tmax': 662,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
     { 'job': '24990', 'inode_db': 'inode016', '_tmin': 600, '_tmax': 652.4, '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+
+    { 'job': '24991', 'inode_db': 'inode008', '_tmin': 590, '_tmax': 645,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '24991', 'inode_db': 'inode010', '_tmin': 590, '_tmax': 644.2,   '_mode': 'state', '_threshold': 1.6, '_alpha': .04 },
+    { 'job': '24991', 'inode_db': 'inode014', '_tmin': 595, '_tmax': 644,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '24991', 'inode_db': 'inode016', '_tmin': 585, '_tmax': 635.5, '_mode': 'state', '_threshold': 1.2, '_alpha': .04 },
+    # 24992 ts insert
+    # 24993 ts insert
+    { 'job': '24994' }, # 24994 ts find that still had debug msgs in start_find()
+    # 24995 ts find
+    
+    { 'job': '24768' },
+    { 'job': '24776' },
+    { 'job': '24775' },
+    { 'job': '24826' },
+    { 'job': '24827' },
+    { 'job': '24828' },
+    { 'job': '24829' },
+    { 'job': '24832' },
+    { 'job': '24833' },
+    { 'job': '24834' },
+    { 'job': '24835' },
+    { 'job': '24836' },
+    { 'job': '24838' },
+    { 'job': '24839' },
+    { 'job': '24840' },
+    { 'job': '24849' },
+    { 'job': '24850' },
+    { 'job': '24851' },
+    { 'job': '24851', 'inode_db': 'inode016' },
+    { 'job': '24851', 'inode_db': 'inode010' },
+    { 'job': '24854' },
+    { 'job': '24854' },
+    { 'job': '24860' },
+
+    { 'job': '25012' }, # ts erase, energy measurement not turned on
 ]
+
 
 teenylime_runs = set(
     [str(x) for x in range(24857, 24871)]
@@ -175,6 +219,7 @@ subsample_runs = set([
     #'24819', # ts find (10)
     
     '24990', # ts erase 
+    '24991', # ts erase 
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -203,9 +248,13 @@ style = {
     'teeny': {
         'ls': 'g-',
         'boxcolor': 'green',
-    }
+    },
 }
 
+default_style = {
+    'ls': 'r-',
+    'boxcolor': 'red',
+}
 def main():
 
     def mklabel(k):
@@ -213,8 +262,15 @@ def main():
             return tex('ts-' + k.ts_container + '-' + k.ts_dict)
         return tex(k.database)
 
+    def select_exp(k):
+        # Ignore experiments on old TS/static dict code
+        if k.database == 'tuplestore' and int(k.job) < 24990:
+            return False
+        return True
+
     process_directories(
-        sys.argv[1:],
+        [x.strip('/') for x in sys.argv[1:]],
+        select_exp
         #lambda k: k.database != 'antelope'
         #lambda k: k.mode == 'find' #and k.database != 'antelope'
 
@@ -287,21 +343,21 @@ def main():
             w = 2.5 if k.database == 'antelope' else 3.5
             if len(es):
                 bp = ax_i_e.boxplot(es, positions=pos_e, widths=w)
-                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
 
-                #ax_i_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=mklabel(k))
-                ax_i_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
+                ax_i_e.plot(pos_e, [median(x) for x in es], style.get(k.database,default_style)['ls'], label=mklabel(k))
+                #ax_i_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_i_t.boxplot(ts, positions=pos_t, widths=w)
-                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+                plt.setp(bp['boxes'], color=style.get(k.database, default_style)['boxcolor'])
+                plt.setp(bp['whiskers'], color=style.get(k.database, default_style)['boxcolor'])
+                plt.setp(bp['fliers'], color=style.get(k.database, default_style)['boxcolor'], marker='+')
 
                 #ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=mklabel(k))
-                ax_i_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k))
+                ax_i_t.plot(pos_t, [median(x) for x in ts], style.get(k.database,default_style)['ls'], label=mklabel(k))
 
             shift_i -= 1
 
@@ -335,20 +391,21 @@ def main():
 
             if len(es):
                 bp = ax_f_e.boxplot(es, positions=pos_e, widths=3)
-                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
 
-                #ax_f_e.plot(pos_e, [median(x) for x in es], style[k.database]['ls'], label=mklabel(k))
-                ax_f_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
+                ax_f_e.plot(pos_e, [median(x) for x in es], style.get(k.database,default_style)['ls'], label=mklabel(k))
+                #ax_f_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
-                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
 
-                ax_f_t.plot(pos_t, [median(x) for x in ts],  label=mklabel(k))
+                #ax_f_t.plot(pos_t, [median(x) for x in ts],  label=mklabel(k))
+                ax_f_t.plot(pos_t, [median(x) for x in ts], style.get(k.database,default_style)['ls'], label=mklabel(k))
 
             shift_f -= 1
 
@@ -372,19 +429,19 @@ def main():
 
             if len(es):
                 bp = ax_e_e.boxplot(es, positions=pos_e)
-                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
 
-                ax_e_e.plot(pos_e, [median(x) for x in es],  label=k.database)
+                ax_e_e.plot(pos_e, [median(x) for x in es],style.get(k.database,default_style)['ls'],  label=k.database)
 
             if len(ts):
                 bp = ax_e_t.boxplot(ts, positions=pos_t)
-                plt.setp(bp['boxes'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['whiskers'], color=style[k.database]['boxcolor'])
-                plt.setp(bp['fliers'], color=style[k.database]['boxcolor'], marker='+')
+                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
+                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
 
-                ax_e_t.plot(pos_t, [median(x) for x in ts],  label=k.database)
+                ax_e_t.plot(pos_t, [median(x) for x in ts], style.get(k.database,default_style)['ls'], label=k.database)
 
             shift_e -= 1
 
@@ -466,7 +523,7 @@ def process_directory(d, f=lambda x: True):
         for b in blacklist:
             for k, x in b.items():
                 if k.startswith('_'): continue
-                if getattr(cls, k) != x:
+                if hasattr(cls, k) and getattr(cls, k) != x:
                     # does not match this blacklist entry
                     all_invalid = False
                     break
@@ -767,7 +824,7 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
         elif state is measurement:
             if v < MEASUREMENT_DOWN:
                 #print("adding ({}, {})".format(t-t0, esum))
-                print("    t={}".format(t))
+                print("    t={} esum={}".format(t, esum))
                 ots.append(t)
                 sums_t.append(t - t0)
                 sums_e.append(esum)
@@ -863,7 +920,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
 
         elif state is measurement:
             if v < MEASUREMENT_DOWN:
-                print("  t={}".format(t))
+                print("    t={} esum={}".format(t, esum))
                 change_state(idle_low)
                 #if mode == 'insert':
                 #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
@@ -951,7 +1008,7 @@ def process_energy(d, mode, lbl='', tmin=0):
         nonlocal state
         nonlocal thigh
         if s is not state:
-            print("    {}: {} -> {}".format(t, state, s))
+            #print("    {}: {} -> {}".format(t, state, s))
             if s is idle_high:
                 thigh = t
             state = s
@@ -1000,6 +1057,7 @@ def process_energy(d, mode, lbl='', tmin=0):
             if v < MEASUREMENT:
                 change_state(idle_between)
                 if mode == 'insert':
+                    print("    t={} esum={}".format(t, esum))
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append(t - t0)
                     sums_e.append(esum)
@@ -1045,7 +1103,8 @@ def process_energy(d, mode, lbl='', tmin=0):
             if v < MEASUREMENT:
                 change_state(idle_after)
                 if mode == 'find':
-                    print("    find measurement at {} - {} e {}".format(t0, t, esum))
+                    #print("    find measurement at {} - {} e {}".format(t0, t, esum))
+                    print("    t={} esum={}".format(t, esum))
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append((t - t0) / FINDS_AT_ONCE)
                     sums_e.append(esum / FINDS_AT_ONCE)
@@ -1143,8 +1202,8 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((650, 652))
-    ax.set_ylim((0, 3))
+    ax.set_xlim((597.5, 600))
+    #ax.set_ylim((0, 3))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')

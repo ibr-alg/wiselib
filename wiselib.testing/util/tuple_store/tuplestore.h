@@ -23,7 +23,12 @@ namespace wiselib {
 			template<int COLUMNS_P, typename T1, typename T2>
 			void deep_copy(T1& t1, T2& t2) {
 				for(int i=0; i<COLUMNS_P; i++) {
-					t1.set_deep(i, t2.get(i));
+					if(t2.get(i)) {
+						t1.set_deep(i, t2.get(i));
+					}
+					else {
+						t1.free_deep(i);
+					}
 				}
 			}
 		
@@ -213,9 +218,11 @@ namespace wiselib {
 							// copy tuple container -> t
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS & (1 << i)) {
+									printf("UC: set_key(%d,%d)\n", (int)i, (int)t_.get_key(i));
 									t.set_key(i, t_.get_key(i));
 								}
 								else {
+									printf("UC: set_deep(%d,%s)\n", (int)i, (char*)t_.get(i));
 									t.set_deep(i, t_.get(i));
 								}
 							}
@@ -225,12 +232,14 @@ namespace wiselib {
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS & (1 << i)) {
 									block_data_t *b = dictionary_->get_value(t.get_key(i));
+									printf("UC: d.get(%d,%d)=%s\n", (int)i, (int)t.get_key(i), (char*)b);
 									assert(b != 0);
 									this->current_.free_deep(i);
 									this->current_.set_deep(i, b);
 									dictionary_->free_value(b);
 								}
 								else {
+									printf("UC: d.cp(%d,%s)\n", (int)i, (char*)t.get(i));
 									this->current_.free_deep(i);
 									this->current_.set_deep(i, t.get(i));
 								}
@@ -449,9 +458,11 @@ namespace wiselib {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						typename Dictionary::key_type k = dictionary_->insert(t.get(i));
 						//block_data_t *b = to_bdt(k);
+		debug_->debug("ins TS: set(%d,%d)", (int)i, (int)k);
 						tmp.set_key(i, k);
 					}
 					else {
+		debug_->debug("ins TS: set_deep(%d,%s)", (int)i, (char*)t.get(i));
 						tmp.set_deep(i, t.get(i));
 					}
 				}
@@ -464,9 +475,11 @@ namespace wiselib {
 					// to insert a new one.
 					for(size_type i=0; i<COLUMNS; i++) {
 						if(DICTIONARY_COLUMNS & (1 << i)) {
+		debug_->debug("ins TS: dict.erase(%d,%s)", (int)i, (char*)tmp.get(i));
 							dictionary_->erase(tmp.get_key(i));
 						}
 						else {
+		debug_->debug("ins TS: tmp.free_deep(%d)", (int)i);
 							tmp.free_deep(i);
 						}
 					}
@@ -791,14 +804,15 @@ namespace wiselib {
 			iterator begin(Tuple* query = 0, column_mask_t mask = 0) {
 				iterator r;
 				
-				for(size_type i=0; i<COLUMNS; i++) {
-					if(query->get(i)) {
-						r.query_.set_deep(i, query->get(i));
-					}
-					else {
-						r.query_.free_deep(i);
-					}
-				}
+				//for(size_type i=0; i<COLUMNS; i++) {
+					//if(query->get(i)) {
+						//r.query_.set_deep(i, query->get(i));
+					//}
+					//else {
+						//r.query_.free_deep(i);
+					//}
+				//}
+				TupleStore_detail::deep_copy<COLUMNS>(r.query_, query);
 				
 				r.container_iterator_ = container_->begin();
 				r.container_end_ = container_->end();

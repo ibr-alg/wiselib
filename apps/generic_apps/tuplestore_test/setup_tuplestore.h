@@ -37,6 +37,7 @@ class Tuple {
 		}
 		
 		void free_deep(size_type i) {
+			printf("t.free_deep(%d,v=%p)", (int)i, (void*)get(i));
 			if(get(i)) {
 				::get_allocator().free(get(i));
 				set(i, 0);
@@ -59,6 +60,7 @@ class Tuple {
 		}
 		
 		void set(size_type i, block_data_t* data) {
+			printf("set(%d,%s) p=%p\n", (int)i, (char*)data, (void*)reinterpret_cast<block_data_t**>(data_ + i));
 			data_[i] = 0;
 			*reinterpret_cast<block_data_t**>(data_ + i) = data;
 		}
@@ -72,8 +74,10 @@ class Tuple {
 		
 		void set_deep(size_type i, block_data_t* data) {
 			size_type l = strlen((char*)data) + 1;
-			set(i, ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw());
-			memcpy(get(i), data, l);
+			printf("set_deep(%d,%s,%d)\n", (int)i, (char*)data, (int)l);
+			block_data_t *p = ::get_allocator().allocate_array<block_data_t>(l * sizeof(block_data_t)) .raw();
+			memcpy(p, data, l);
+			set(i, p);
 		}
 		
 		///@}
@@ -86,6 +90,7 @@ class Tuple {
 		}
 		
 		void set_key(size_type i, ::uint32_t k) {
+			printf("set_key(%d,%d) p=%p\n", (int)i, (int)k, (void*)reinterpret_cast< ::uint32_t*>(data_ + i));
 			data_[i] = 0;
 			*reinterpret_cast< ::uint32_t*>(data_ + i) = k;
 		}

@@ -56,8 +56,8 @@
 
 		#if APP_HEARTBEAT
 			void heartbeat(void* v) {
-				debug_->debug("<3");
-				//debug_->debug("<3 %lu E%d " DATABASE " " MODE " " DATASET, (unsigned long)v, (int)EXP_NR);
+				//debug_->debug("<3");
+				debug_->debug("<3 %lu E%d " DATABASE " " MODE " " DATASET, (unsigned long)v, (int)EXP_NR);
 				timer_->set_timer<App, &App::heartbeat>(HEARTBEAT_INTERVAL, this, (void*)((unsigned long)v + 10));
 			}
 		#endif
@@ -294,14 +294,14 @@
 					block_data_t *p = find_p_;
 					block_data_t *o = find_o_;
 
-					debug_->debug("start_find: (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+					//debug_->debug("start_find: (%s,%s,%s)", (char*)s, (char*)p, (char*)o);
 
 					x = rand() % 3;
 
 					if(x == 0) { s = 0; }
 					else if(x == 1) { p = 0; }
 					else { o = 0; }
-					debug_->debug("calling find(%s,%s,%s)", (char*)s, (char*)p, (char*)o);
+					//debug_->debug("calling find(%s,%s,%s)", (char*)s, (char*)p, (char*)o);
 					find(s, p, o, 0);
 				}
 				timer_->set_timer<App, &App::enable_radio>(ENABLE_RADIO_INTERVAL, this, 0);

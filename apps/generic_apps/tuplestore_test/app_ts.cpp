@@ -46,7 +46,7 @@ typedef Os::size_t size_type;
 	#else
 		// actually, even for the static dict we need some
 		// allocation (namely during iteration)
-		typedef wiselib::BitmapAllocator<Os, 400, 16> Allocator;
+		typedef wiselib::BitmapAllocator<Os, 512, 16> Allocator;
 	#endif
 
 
@@ -100,6 +100,16 @@ class App {
 				debug_->debug("i(%s,%s,%s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
 			#endif
 			tuplestore_.insert(t);
+
+			#if APP_DATABASE_DEBUG
+					debug_->debug("Post-insert emergency iteration");
+
+					int j = 0;
+					for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
+						debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
+					}
+					debug_->debug("Emergency iteration concluded. Have a nice day.");
+			#endif
 		}
 
 		size_type size() { return tuplestore_.size(); }
@@ -140,18 +150,44 @@ class App {
 				while(1) ;
 			}
 
+			#if APP_DATABASE_DEBUG
+					debug_->debug("Pre-erase emergency iteration");
+
+					int j = 0;
+					for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
+						debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
+					}
+					debug_->debug("Emergency iteration concluded. Have a nice day.");
+			#endif
+
 			Tuple t;
 			t.set(0, s);
 			t.set(1, p);
 			t.set(2, o);
 			CodecTupleStoreT::column_mask_t mask =
-				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
+				((*s != 0) << 0) | ((*p != 0) << 1) | ((*o != 0) << 2);
 
 			#if APP_DATABASE_DEBUG
 				debug_->debug("e(%s,%s,%s) s%d m%d", (char*)s, (char*)p, (char*)o, (int)tuplestore_.size(), (int)mask);
 			#endif
 			//Tuple v;
 			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
+			#if APP_DATABASE_DEBUG
+				if(iter == tuplestore_.end()) {
+					debug_->debug("ALART erase tuple not found");
+					//debug_->debug("Commencing emergency iteration");
+
+					//int j = 0;
+					//for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
+						//debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
+					//}
+					//debug_->debug("Emergency iteration concluded. Have a nice day.");
+					
+				}
+				else {
+					debug_->debug("found (%s,%s,%s)", (char*)iter->get(0), (char*)iter->get(1), (char*)iter->get(2));
+				}
+			#endif
 			//do {
 			tuplestore_.erase(iter);
 			//} while(iter != tuplestore_.end());
