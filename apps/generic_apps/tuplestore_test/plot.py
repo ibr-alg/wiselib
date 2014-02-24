@@ -198,6 +198,15 @@ blacklist += [
     { 'job': '24860' },
 
     { 'job': '25012' }, # ts erase, energy measurement not turned on
+
+    # Here discovered bugs in bitmap allocator and static dict
+    # that make all former ts/erase measurements invalid!
+    # (see according filter below)
+
+    { 'job': '25064', 'inode_db': 'inode010', '_tmin': 735 },
+    { 'job': '25064', 'inode_db': 'inode014', '_tmin': 740 },
+    { 'job': '25064', 'inode_db': 'inode008', '_tmin': 725 },
+    { 'job': '25064', 'inode_db': 'inode016' },
 ]
 
 
@@ -220,6 +229,8 @@ subsample_runs = set([
     
     '24990', # ts erase 
     '24991', # ts erase 
+
+    '25064', # ts erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -265,6 +276,11 @@ def main():
     def select_exp(k):
         # Ignore experiments on old TS/static dict code
         if k.database == 'tuplestore' and int(k.job) < 24990:
+            return False
+
+        # Ignore ERASE experiments on buggy TS/static dict and bitmap
+        # allocator code
+        if k.database == 'tuplestore' and k.mode == 'erase' and int(k.job) < 25064:
             return False
         return True
 
@@ -1202,7 +1218,7 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((597.5, 600))
+    #ax.set_xlim((725, 800))
     #ax.set_ylim((0, 3))
     ax.grid()
 

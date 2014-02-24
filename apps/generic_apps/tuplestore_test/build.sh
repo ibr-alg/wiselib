@@ -139,10 +139,10 @@ function generate_stuff() {
 
 rm *.exe
 
-DEBUG=1
+DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=erase
+MODE=find
 TS_DICT=chopper
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static

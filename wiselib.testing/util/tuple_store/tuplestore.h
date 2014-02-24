@@ -526,7 +526,7 @@ namespace wiselib {
 			iterator erase(iterator iter) {
 				assert(iter != end());
 
-				// backup query and mask
+				// backup query and mask into $q and $mask
 				Tuple q = iter.query();
 				column_mask_t mask = iter.mask();
 				
@@ -535,17 +535,21 @@ namespace wiselib {
 				// else it might reference a cached memory block
 				// which might be re-used differently in the meantime
 				// due to calls to dict->erase!
+
+				// Make $t be a (shallow) copy of the tuple to iterate
 				Tuple t = *iter.container_iterator();
 
+				// Erase the contents referenced by $t.
+				// That is, erase dictionary entries and free deep-copies.
 				for(size_type i=0; i<COLUMNS; i++) {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						dictionary_->erase(t.get_key(i));
 						t.set_key(i, Dictionary::NULL_KEY);
 					}
+					else {
+						t.free_deep(i);
+					}
 				}
-				
-				// deeply destruct container tuple
-				t.destruct_deep();
 				
 				// now remove tuple from the container, yielding a new iterator
 				ContainerIterator nextc = container_->erase(iter.container_iterator());
@@ -555,7 +559,7 @@ namespace wiselib {
 						dictionary_, 0, 0
 					);
 				
-				// restore query and mask into new iterator
+				// restore query $q and $mask into new iterator
 				for(size_t i=0; i<COLUMNS; i++) {
 					if(mask & (1 << i)) {
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
