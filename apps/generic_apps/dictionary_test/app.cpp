@@ -45,12 +45,14 @@ typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
 
 typedef wiselib::vector_static<Os, char*, 200> Inserts;
 typedef wiselib::vector_static<Os, Dictionary::key_type, 200> UsedKeys;
+typedef wiselib::vector_static<Os, int, 200> Counts;
 
 class App {
 	public:
 		Dictionary dictionary_;
 		UsedKeys used_keys;
 		Inserts inserts;
+		Counts counts;
 
 		void init(Os::AppMainParameter& amp) {
 			//radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet(amp);
@@ -114,6 +116,7 @@ class App {
 			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter, pos++) {
 				if(memcmp(*iter, s, l - 1) == 0) {
 					assert(used_keys[pos] == k);
+					counts[pos]++;
 					return;
 				}
 			}
@@ -122,6 +125,7 @@ class App {
 			memcpy(s2, s, l);
 			used_keys.push_back(k);
 			inserts.push_back(s2);
+			counts.push_back(1);
 		}
 
 		/**
@@ -131,13 +135,15 @@ class App {
 		void verify_inserts() {
 			bool fail = false;
 			debug_->debug("Verifying inserts using find()...");
-			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter) {
+			int pos = 0;
+			for(Inserts::iterator iter = inserts.begin(); iter != inserts.end(); ++iter, pos++) {
 				Dictionary::key_type k = dictionary_.find((block_data_t*)*iter);
 				if(k == Dictionary::NULL_KEY) {
 					debug_->debug("  %s not findable.", *iter);
 					fail = true;
 				}
 				else {
+
 					block_data_t *ds = dictionary_.get_value(k);
 					int c = strcmp(*iter, (char*)ds);
 					if(c != 0) {
@@ -145,6 +151,13 @@ class App {
 								*iter, (int)k, (char*)ds);
 						fail = true;
 					}
+
+					int cnt = dictionary_.count(k);
+					if(cnt != counts[pos]) {
+						debug_->debug("  found key %d has count %d, expected %d", (int)k, (int)cnt, (int)counts[pos]);
+						fail = true;
+					}
+
 					dictionary_.free_value(ds);
 				}
 			}
@@ -162,14 +175,25 @@ class App {
 				//debug_->debug("  %s", (char*)ds);
 				// Did we even insert this?
 				bool found = false;
-				for(Inserts::iterator jter = inserts.begin(); jter != inserts.end(); ++jter) {
-					if(strcmp(*jter, (char*)ds) == 0) { found = true; break; }
+				pos = 0;
+				for(Inserts::iterator jter = inserts.begin(); jter != inserts.end(); ++jter, pos++) {
+					if(strcmp(*jter, (char*)ds) == 0) {
+						int cnt = dictionary_.count(k);
+						if(cnt != counts[pos]) {
+							debug_->debug("  key %d has count %d, expected %d", (int)k, (int)cnt, (int)counts[pos]);
+							fail = true;
+						}
+
+						found = true;
+						break;
+					}
 				}
 				if(!found) {
 					debug_->debug("  key %d resolves to %s which has not been inserted",
 							(int)k, (char*)ds);
 					fail = true;
 				}
+
 				dictionary_.free_value(ds);
 				dictionary_entries++;
 			}
@@ -179,13 +203,19 @@ class App {
 
 			debug_->debug("Verifying using keys returned by insert()...");
 			fail = false;
-			int pos = 0;
+			pos = 0;
 			for(UsedKeys::iterator iter = used_keys.begin(); iter != used_keys.end(); ++iter, pos++) {
 				block_data_t *ds = dictionary_.get_value(*iter);
 				debug_->debug("[%d] -> '%s'", (int)*iter, (char*)ds);
 				if(memcmp(inserts[pos], ds, strlen((char*)ds)) != 0) {
 					debug_->debug("  key %d (%dth distinct insert) resolves to '%s' instead of '%s'",
 							(int)*iter, (int)pos, (char*)ds, (char*)inserts[pos]);
+					fail = true;
+				}
+
+				int cnt = dictionary_.count(*iter);
+				if(cnt != counts[pos]) {
+					debug_->debug("  key %d (%dth distinct insert) has count %d, expected %d", (int)*iter, (int)pos, (int)cnt, (int)counts[pos]);
 					fail = true;
 				}
 			}
@@ -214,6 +244,7 @@ class App {
 				debug_->debug("  deleting %s (key=%d,count=%d)", v, (int)k, (int)count);
 				int sz = dictionary_.size();
 				dictionary_.erase(k);
+				counts[p]--;
 				assert((count == 1) <= (dictionary_.size() == sz - 1));
 				assert((count != 1) <= (dictionary_.size() == sz));
 				if(dictionary_.size() == sz - 1) {
@@ -223,6 +254,9 @@ class App {
 
 					used_keys[p] = used_keys.back();
 					used_keys.pop_back();
+
+					counts[p] = counts.back();
+					counts.pop_back();
 				}
 			}
 		}

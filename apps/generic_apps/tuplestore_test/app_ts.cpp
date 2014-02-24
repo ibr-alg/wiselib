@@ -102,13 +102,13 @@ class App {
 			tuplestore_.insert(t);
 
 			#if APP_DATABASE_DEBUG
-					debug_->debug("Post-insert emergency iteration");
+					//debug_->debug("Post-insert emergency iteration");
 
-					int j = 0;
-					for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
-						debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
-					}
-					debug_->debug("Emergency iteration concluded. Have a nice day.");
+					//int j = 0;
+					//for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
+						//debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
+					//}
+					//debug_->debug("Emergency iteration concluded. Have a nice day.");
 			#endif
 		}
 
@@ -127,37 +127,19 @@ class App {
 			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
 		}
 
-		/*
-		void find_erase(block_data_t* s, block_data_t* p, block_data_t* o) {
-			Tuple t;
-			t.set(0, s);
-			t.set(1, p);
-			t.set(2, o);
-
-			CodecTupleStoreT::column_mask_t mask =
-				((s != 0) << 0) | ((p != 0) << 1) | ((o != 0) << 2);
-
-			Tuple v;
-			CodecTupleStoreT::iterator iter = tuplestore_.begin(&t, mask);
-			do {
-				iter = tuplestore_.erase(iter);
-			} while(iter != tuplestore_.end());
-		}
-		*/
-
 		void erase(block_data_t*s, block_data_t* p, block_data_t* o) {
 			if(tuplestore_.size() == 0) {
 				while(1) ;
 			}
 
 			#if APP_DATABASE_DEBUG
-					debug_->debug("Pre-erase emergency iteration");
+					//debug_->debug("Pre-erase emergency iteration");
 
-					int j = 0;
-					for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
-						debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
-					}
-					debug_->debug("Emergency iteration concluded. Have a nice day.");
+					//int j = 0;
+					//for(CodecTupleStoreT::iterator jter = tuplestore_.begin(); jter != tuplestore_.end(); ++jter, j++) {
+						//debug_->debug("ALART [%d]=(%s,%s,%s)", (int)j, (char*)jter->get(0), (char*)jter->get(1), (char*)jter->get(2));
+					//}
+					//debug_->debug("Emergency iteration concluded. Have a nice day.");
 			#endif
 
 			Tuple t;

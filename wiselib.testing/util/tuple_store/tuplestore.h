@@ -218,11 +218,9 @@ namespace wiselib {
 							// copy tuple container -> t
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS & (1 << i)) {
-									printf("UC: set_key(%d,%d)\n", (int)i, (int)t_.get_key(i));
 									t.set_key(i, t_.get_key(i));
 								}
 								else {
-									printf("UC: set_deep(%d,%s)\n", (int)i, (char*)t_.get(i));
 									t.set_deep(i, t_.get(i));
 								}
 							}
@@ -232,14 +230,12 @@ namespace wiselib {
 							for(size_type i = 0; i<COLUMNS; i++) {
 								if(DICTIONARY_COLUMNS & (1 << i)) {
 									block_data_t *b = dictionary_->get_value(t.get_key(i));
-									printf("UC: d.get(%d,%d)=%s\n", (int)i, (int)t.get_key(i), (char*)b);
 									assert(b != 0);
 									this->current_.free_deep(i);
 									this->current_.set_deep(i, b);
 									dictionary_->free_value(b);
 								}
 								else {
-									printf("UC: d.cp(%d,%s)\n", (int)i, (char*)t.get(i));
 									this->current_.free_deep(i);
 									this->current_.set_deep(i, t.get(i));
 								}
@@ -458,11 +454,9 @@ namespace wiselib {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						typename Dictionary::key_type k = dictionary_->insert(t.get(i));
 						//block_data_t *b = to_bdt(k);
-		debug_->debug("ins TS: set(%d,%d)", (int)i, (int)k);
 						tmp.set_key(i, k);
 					}
 					else {
-		debug_->debug("ins TS: set_deep(%d,%s)", (int)i, (char*)t.get(i));
 						tmp.set_deep(i, t.get(i));
 					}
 				}
@@ -475,11 +469,9 @@ namespace wiselib {
 					// to insert a new one.
 					for(size_type i=0; i<COLUMNS; i++) {
 						if(DICTIONARY_COLUMNS & (1 << i)) {
-		debug_->debug("ins TS: dict.erase(%d,%s)", (int)i, (char*)tmp.get(i));
 							dictionary_->erase(tmp.get_key(i));
 						}
 						else {
-		debug_->debug("ins TS: tmp.free_deep(%d)", (int)i);
 							tmp.free_deep(i);
 						}
 					}
@@ -585,6 +577,7 @@ namespace wiselib {
 				
 				int result = key_copy(r.query_, *query, mask, r.dictionary_);
 				if(result == ERR_UNSPEC) {
+	debug_->debug("TS:beg !key_cp");
 					r.query_.destruct_deep();
 					return end();
 				}
@@ -670,7 +663,11 @@ namespace wiselib {
 						// is it a dict column?
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 							key_type k = dictionary_->find(from.get(i));
-							if(k == Dictionary::NULL_KEY) { return ERR_UNSPEC; }
+	printf("TS:key_cp [%d] '%s' -> %d\n", (int)i, (char*)from.get(i), (int)k);
+							if(k == Dictionary::NULL_KEY) {
+								dictionary_->debug_compact();
+								return ERR_UNSPEC;
+							}
 							
 							to.set_key(i, k); // to_bdt(k));
 						}

@@ -239,7 +239,10 @@ namespace wiselib {
 					// insert directly into meta tree!
 					bool found;
 					key_type x = find_or_create_slot(l, p, found, true);
-					if(!found) {
+					if(found) {
+						slots_[x].refcount++;
+					}
+					else {
 						size_++;
 						slots_[x].meta = false;
 						slots_[x].refcount = 1;
@@ -286,11 +289,13 @@ namespace wiselib {
 
 						if(found) {
 							slots_[x].refcount++;
+							debug_->debug("found %s at %d rc now %d", (char*)p, (int)x, (int)slots_[x].refcount);
 						}
 						else {
 							slots_[x].refcount = 1;
 							slots_[x].meta = false;
 							strncpy(reinterpret_cast<char*>(slots_[x].data), reinterpret_cast<char*>(p), split - p);
+							debug_->debug("created %s at %d rc now %d", (char*)p, (int)x, (int)slots_[x].refcount);
 						}
 						s.data[i] = x;
 						p = split;
@@ -301,7 +306,11 @@ namespace wiselib {
 					bool found;
 					key_type x = find_or_create_slot(i, s.data, found, true);
 
-					if(!found) {
+					if(found) {
+						slots_[x].refcount++;
+					}
+					else {
+						debug_->debug("meta slot not found");
 						memcpy(slots_[x].data, s.data, i+1);
 						slots_[x].refcount = 1;
 						slots_[x].meta = true;
@@ -318,7 +327,10 @@ namespace wiselib {
 			mapped_type get_value(key_type k) {
 				check();
 
-				if(!slots_[k].meta) { return slots_[k].data; }
+				if(!slots_[k].meta) {
+					assert(slots_[k].refcount > 0);
+					return slots_[k].data;
+				}
 
 				// first, find out how much space we need to represent the
 				// result
@@ -326,9 +338,13 @@ namespace wiselib {
 				//for(len = 0; len < SLOT_WIDTH; len++) {
 					//if(slots_[k].data[len] == NULL_KEY) { break; }
 				//}
+
+				int cnt = slots_[k].refcount;
+
 				key_type i = 0;
 				int j = 0;
 				for(; i<SLOT_WIDTH && slots_[k].data[i] != NULL_KEY; i++) {
+					assert(slots_[slots_[k].data[i]].refcount >= cnt);
 					int l = strnlen((char*)slots_[slots_[k].data[i]].data, SLOT_WIDTH);
 					memcpy(buffer_ + j, slots_[slots_[k].data[i]].data, l);
 					j += l;
@@ -394,7 +410,7 @@ namespace wiselib {
 			}
 
 			size_type erase(key_type k, bool sub = false) {
-				check();
+				if(!sub) { check(); }
 				Slot &sk = slots_[k];
 				if(sk.refcount == 0) { return 0; }
 				if(sk.meta) {
@@ -409,7 +425,7 @@ namespace wiselib {
 					unlink(k);
 					if(!sub) { size_--; }
 				}
-				check();
+				if(!sub) { check(); }
 				return 1;
 			}
 
@@ -437,6 +453,33 @@ namespace wiselib {
 					}
 				}
 			}
+
+			void debug_compact() {
+				debug_->debug("static_dict rt=%u meta=%u", (unsigned)root_, (unsigned)root_meta_);
+				for(key_type k = 0; k<SLOTS; k++) {
+					if(slots_[k].refcount) {
+						int i = 0;
+						//for(; i<SLOT_WIDTH; i++) {
+							//unsigned x = slots_[k].data[i] & 0xff;
+							//snprintf(dec + 4*i, 5, "%3u ", (unsigned)x);
+						//}
+						//dec[4 * i] = '\0';
+						debug_->debug(
+								"%03d %c x%2d: %c%c%c%c... %3u %3u %3u %3u... (%d %d %d)",
+								(unsigned)k,
+								slots_[k].meta ? 'M' : ' ',
+								(unsigned)slots_[k].refcount,
+								is_printable(slots_[k].data[0]) ? (char)slots_[k].data[0] : '?',
+								is_printable(slots_[k].data[1]) ? (char)slots_[k].data[1] : '?',
+								is_printable(slots_[k].data[2]) ? (char)slots_[k].data[2] : '?',
+								is_printable(slots_[k].data[3]) ? (char)slots_[k].data[3] : '?',
+								(unsigned)slots_[k].data[0], (unsigned)slots_[k].data[1], (unsigned)slots_[k].data[2], (unsigned)slots_[k].data[3],
+								(unsigned)slots_[k].childs[0], (unsigned)slots_[k].childs[1], (unsigned)slots_[k].parent
+						);
+					}
+				}
+			}
+
 
 			void debug_precompile() {
 				debug_->debug("#define STATIC_DICTIONARY_INIT_ROOT %d", root_);
@@ -498,13 +541,33 @@ namespace wiselib {
 
 
 			void check() {
+		#if !defined(NDEBUG)
 				check_meta_tree();
 				check_tree(root_);
+				check_meta_entries();
+		#endif
+			}
+
+			void check_meta_entries() {
+		#if !defined(NDEBUG)
+				// All meta-entries with a refcount $C > 0
+				// must only reference entries with a refcount >= $C.
+				for(key_type i = 0; i < SLOTS; i++) {
+					if(slots_[i].meta && slots_[i].refcount) {
+						block_data_t* dat = slots_[i].data;
+						for(int j = 0; j < SLOT_WIDTH && dat[j] != NULL_KEY; j++) {
+							assert(slots_[dat[j]].refcount >= slots_[i].refcount);
+						}
+					}
+				}
+		#endif
 			}
 
 			void check_meta_tree() {
+		#if !defined(NDEBUG)
 				size_type c = check_tree(root_meta_);
 				assert(c == size());
+		#endif
 			}
 
 			size_type check_tree(key_type k) {
@@ -626,7 +689,6 @@ namespace wiselib {
 
 				assert(i <= n);
 				assert(s[i] == '\0' || i == n);
-				//debug_->debug("strnlen(%s)=%d", s, i);
 				return i;
 			}
 
@@ -678,7 +740,6 @@ namespace wiselib {
 					p = i;
 					c = memcmp(data, slots_[i].data, l);
 					if(c == 0) {
-						slots_[i].refcount++;
 						found = true;
 						return i;
 					}
