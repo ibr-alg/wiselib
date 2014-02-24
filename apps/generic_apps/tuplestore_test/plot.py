@@ -188,6 +188,8 @@ blacklist += [
     { 'job': '24838' },
     { 'job': '24839' },
     { 'job': '24840' },
+    { 'job': '24843' },
+    { 'job': '24844' },
     { 'job': '24849' },
     { 'job': '24850' },
     { 'job': '24851' },
@@ -207,6 +209,11 @@ blacklist += [
     { 'job': '25064', 'inode_db': 'inode014', '_tmin': 740 },
     { 'job': '25064', 'inode_db': 'inode008', '_tmin': 725 },
     { 'job': '25064', 'inode_db': 'inode016' },
+    #{ 'job': '25065', '_tmin': 0, '_alpha': .02 },
+    { 'job': '25066', 'inode_db': 'inode010', '_tmin': 520 },
+    { 'job': '25066', 'inode_db': 'inode014', '_tmin': 520 },
+    { 'job': '25066', 'inode_db': 'inode008', '_tmin': 520 },
+    { 'job': '25066', 'inode_db': 'inode016' },
 ]
 
 
@@ -231,6 +238,7 @@ subsample_runs = set([
     '24991', # ts erase 
 
     '25064', # ts erase
+    '25066', # ts erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -275,13 +283,13 @@ def main():
 
     def select_exp(k):
         # Ignore experiments on old TS/static dict code
-        if k.database == 'tuplestore' and int(k.job) < 24990:
+        if k.database == 'tuplestore' and int(k.job) < 25064:
             return False
 
         # Ignore ERASE experiments on buggy TS/static dict and bitmap
         # allocator code
-        if k.database == 'tuplestore' and k.mode == 'erase' and int(k.job) < 25064:
-            return False
+        #if k.database == 'tuplestore' and k.mode == 'erase' and int(k.job) < 25064:
+            #return False
         return True
 
     process_directories(
@@ -936,7 +944,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
 
         elif state is measurement:
             if v < MEASUREMENT_DOWN:
-                print("    t={} esum={}".format(t, esum))
+                print("    --- t={} dt={} esum={}".format(t, t - t0, esum))
                 change_state(idle_low)
                 #if mode == 'insert':
                 #esum += (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
@@ -1024,7 +1032,7 @@ def process_energy(d, mode, lbl='', tmin=0):
         nonlocal state
         nonlocal thigh
         if s is not state:
-            #print("    {}: {} -> {}".format(t, state, s))
+            print("    {}: {} -> {}".format(t, state, s))
             if s is idle_high:
                 thigh = t
             state = s
@@ -1120,7 +1128,7 @@ def process_energy(d, mode, lbl='', tmin=0):
                 change_state(idle_after)
                 if mode == 'find':
                     #print("    find measurement at {} - {} e {}".format(t0, t, esum))
-                    print("    t={} esum={}".format(t, esum))
+                    print("    t={} dt={} esum={}".format(t, t - t0, esum))
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append((t - t0) / FINDS_AT_ONCE)
                     sums_e.append(esum / FINDS_AT_ONCE)
@@ -1218,8 +1226,8 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((725, 800))
-    #ax.set_ylim((0, 3))
+    ax.set_xlim((500, 600))
+    ax.set_ylim((0, 3))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')

@@ -9,6 +9,9 @@
 
 #if APP_DATABASE_DEBUG
 	#define APP_HEARTBEAT 1
+	#undef NDEBUG
+#else
+	#define NDEBUG
 #endif
 
 //#if (TS_USE_TREE_DICT || TS_USE_PRESCILLA_DICT || TS_USE_AVL_DICT)
@@ -114,7 +117,7 @@ class App {
 
 		size_type size() { return tuplestore_.size(); }
 
-		void find(block_data_t* s, block_data_t* p, block_data_t* o, char *) {
+		inline void find(block_data_t* s, block_data_t* p, block_data_t* o, char *) {
 			Tuple t;
 			t.set(0, s);
 			t.set(1, p);
