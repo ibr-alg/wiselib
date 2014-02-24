@@ -179,6 +179,9 @@ class App {
 		}
 
 		void prepare_erase(block_data_t*s, block_data_t* p, block_data_t* o) {
+			if(tuplestore_.size() == 0) {
+				while(1) ;
+			}
 
 			RandomChoice c(tuplestore_.size());
 			*s = '\0';

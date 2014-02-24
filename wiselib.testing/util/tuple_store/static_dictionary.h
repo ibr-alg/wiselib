@@ -289,13 +289,13 @@ namespace wiselib {
 
 						if(found) {
 							slots_[x].refcount++;
-							debug_->debug("found %s at %d rc now %d", (char*)p, (int)x, (int)slots_[x].refcount);
+							//debug_->debug("found %s at %d rc now %d", (char*)p, (int)x, (int)slots_[x].refcount);
 						}
 						else {
 							slots_[x].refcount = 1;
 							slots_[x].meta = false;
 							strncpy(reinterpret_cast<char*>(slots_[x].data), reinterpret_cast<char*>(p), split - p);
-							debug_->debug("created %s at %d rc now %d", (char*)p, (int)x, (int)slots_[x].refcount);
+							//debug_->debug("created %s at %d rc now %d", (char*)p, (int)x, (int)slots_[x].refcount);
 						}
 						s.data[i] = x;
 						p = split;
@@ -310,7 +310,7 @@ namespace wiselib {
 						slots_[x].refcount++;
 					}
 					else {
-						debug_->debug("meta slot not found");
+						//debug_->debug("meta slot not found");
 						memcpy(slots_[x].data, s.data, i+1);
 						slots_[x].refcount = 1;
 						slots_[x].meta = true;
@@ -432,6 +432,7 @@ namespace wiselib {
 			iterator begin_keys() { return iterator(slots_, root_meta_); }
 			iterator end_keys() { return iterator(slots_, NULL_KEY); }
 
+		#if !defined(NDEBUG)
 			void debug() {
 				for(key_type k = 0; k<SLOTS; k++) {
 					if(slots_[k].refcount) {
@@ -506,6 +507,7 @@ namespace wiselib {
 				}
 				debug_->debug(";");
 			}
+		#endif // defined(NDEBUG)
 
 		private:
 			/*

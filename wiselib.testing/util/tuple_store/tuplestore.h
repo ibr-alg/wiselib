@@ -577,7 +577,6 @@ namespace wiselib {
 				
 				int result = key_copy(r.query_, *query, mask, r.dictionary_);
 				if(result == ERR_UNSPEC) {
-	debug_->debug("TS:beg !key_cp");
 					r.query_.destruct_deep();
 					return end();
 				}
@@ -663,9 +662,7 @@ namespace wiselib {
 						// is it a dict column?
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 							key_type k = dictionary_->find(from.get(i));
-	printf("TS:key_cp [%d] '%s' -> %d\n", (int)i, (char*)from.get(i), (int)k);
 							if(k == Dictionary::NULL_KEY) {
-								dictionary_->debug_compact();
 								return ERR_UNSPEC;
 							}
 							
