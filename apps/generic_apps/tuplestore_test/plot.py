@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 # vim: set ts=4 sw=4 expandtab foldenable fdm=indent:
 
 import re
@@ -15,7 +16,7 @@ import math
 PLOT_ENERGY = True
 
 #rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
+rc('font', family='serif',serif=['Palatino'], size=8})
 rc('text', usetex=True)
 
 EXP_DIR='experiments/'
@@ -27,7 +28,7 @@ EXP_DIR='experiments/'
 MEASUREMENT_INTERVAL = 64.0 / 3000.0
 
 # mA = 
-CURRENT_FACTOR =  70.0 / 4095.0
+CURRENT_FACTOR = 70.0 / 4095.0
 
 # mA * 3300mV = microJoule (uJ)
 CURRENT_DISPLAY_FACTOR = 3300.0
@@ -244,9 +245,9 @@ subsample_runs = set([
 
     #'24818', # ts find (10)
     #'24819', # ts find (10)
-    
-    '24990', # ts erase 
-    '24991', # ts erase 
+
+    '24990', # ts erase
+    '24991', # ts erase
 
     '25064', # ts erase
     '25066', # ts erase
