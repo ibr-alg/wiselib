@@ -214,6 +214,17 @@ blacklist += [
     { 'job': '25066', 'inode_db': 'inode014', '_tmin': 520 },
     { 'job': '25066', 'inode_db': 'inode008', '_tmin': 520 },
     { 'job': '25066', 'inode_db': 'inode016' },
+    { 'job': '25085', 'inode_db': 'inode016' },
+
+    { 'job': '25103', 'inode_db': 'inode010', '_tmin': 590 },
+    { 'job': '25103', 'inode_db': 'inode008' },
+    { 'job': '25103', 'inode_db': 'inode014' },
+    { 'job': '25103', 'inode_db': 'inode016' },
+
+    { 'job': '25104', 'inode_db': 'inode010', '_tmin': 496, '_tmax': 541.5, '_mode': 'state', '_threshold': 1.25, '_alpha': .04 },
+    { 'job': '25104', 'inode_db': 'inode014', '_tmin': 495, '_tmax': 541, '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '25104', 'inode_db': 'inode008', '_tmin': 490, '_tmax': 540, '_mode': 'state', '_threshold': 1.4, '_alpha': .04 },
+    { 'job': '25104', 'inode_db': 'inode016' },
 ]
 
 
@@ -239,6 +250,9 @@ subsample_runs = set([
 
     '25064', # ts erase
     '25066', # ts erase
+
+    '25103', # ts erase
+    '25104', # ts erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -283,7 +297,8 @@ def main():
 
     def select_exp(k):
         # Ignore experiments on old TS/static dict code
-        if k.database == 'tuplestore' and int(k.job) < 25064:
+        #if k.database == 'tuplestore' and int(k.job) < 25064:
+        if k.database == 'tuplestore' and int(k.job) < 25085:
             return False
 
         # Ignore ERASE experiments on buggy TS/static dict and bitmap
@@ -411,7 +426,7 @@ def main():
             pos_t, ts = cleanse(pos_t, ts)
 
             print(k.mode, k.database, [len(x) for x in es])
-            #print(pos_e, [sum(x)/len(x) for x in es])
+            print(pos_e, [sum(x)/len(x) for x in es])
 
             if len(es):
                 bp = ax_f_e.boxplot(es, positions=pos_e, widths=3)
@@ -538,6 +553,11 @@ def process_directory(d, f=lambda x: True):
         v = read_vars(fn_gwinfo)
         cls = ExperimentClass(v)
         cls.job = d
+
+        if cls.database == 'teeny' and not teenylime:
+            print("  ({}: {}/{} {} ignored: not a teenylime run)".format(db, cls.database, cls.mode, cls.dataset))
+            bl[db] = { 'inode_db': db }
+            continue
 
         if not f(cls):
             print("  ({}: {}/{} {} ignored by filter)".format(db, cls.database, cls.mode, cls.dataset))
@@ -1032,7 +1052,7 @@ def process_energy(d, mode, lbl='', tmin=0):
         nonlocal state
         nonlocal thigh
         if s is not state:
-            print("    {}: {} -> {}".format(t, state, s))
+            #print("    {}: {} -> {}".format(t, state, s))
             if s is idle_high:
                 thigh = t
             state = s
@@ -1226,8 +1246,8 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((500, 600))
-    ax.set_ylim((0, 3))
+    ax.set_xlim((540, 542))
+    ax.set_ylim((0.75, 2.2))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')
@@ -1329,6 +1349,8 @@ class Experiment:
             self.energy[i].append(e / diff)
 
     def set_tuplecounts(self, tcs):
+        if len(self.tuplecounts) > len(tcs):
+            return
         self.tuplecounts = cum(tcs)
 
 def add_experiment(cls):

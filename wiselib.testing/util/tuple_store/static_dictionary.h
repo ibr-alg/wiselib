@@ -754,8 +754,10 @@ namespace wiselib {
 
 				if(i == NULL_KEY) {
 					debug_->debug("dict full!");
+				#if !defined(NDEBUG)
 					debug();
 					assert(false);
+				#endif
 					return NULL_KEY;
 				}
 
