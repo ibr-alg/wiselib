@@ -12,14 +12,15 @@ import os.path
 import gzip
 import itertools
 import math
+import matplotlib.ticker
 
 PLOT_ENERGY = True
 
 #rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
-rc('font', family='serif',serif=['Palatino'], size=8})
+rc('font', family='serif',serif=['Palatino'], size=8)
 rc('text', usetex=True)
 
-EXP_DIR='experiments/'
+EXP_DIR = 'experiments/'
 
 # avg over 64 measurements,
 # 3000 measurements per sec.
@@ -340,8 +341,9 @@ def main():
     fig_e_t = plt.figure(figsize=fs)
     ax_e_t = plt.subplot(111)
 
-    #ax_f_e.set_yscale('log')
-    #ax_f_t.set_yscale('log')
+    for ax in (ax_f_e, ax_f_t, ax_i_e, ax_i_t, ax_e_e, ax_e_t):
+        ax.set_yscale('log')
+        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
 
     shift_i = 0
     shift_f = 0

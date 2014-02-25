@@ -515,6 +515,7 @@ namespace wiselib {
 			 * accordingly, or the according root pointer.
 			 */
 			void substitute_slot(key_type s_old, key_type s_new, bool childs=false) {
+				//debug_->debug("subst(%d,%d)", (int)s_old, (int)s_new);
 				if(childs && s_new != NULL_KEY && s_old != NULL_KEY) {
 					key_type c0, c1;
 					c0 = slots_[s_new].childs[0];
@@ -680,7 +681,7 @@ namespace wiselib {
 				else if(sk.childs[0] != NULL_KEY) { substitute_slot(k, sk.childs[0]); }
 				else if(sk.childs[1] != NULL_KEY) { substitute_slot(k, sk.childs[1]); }
 				else {
-					// no childs at all, just uppdate parent!
+					// no childs at all, just update parent!
 					substitute_slot(k, NULL_KEY);
 				}
 			}
