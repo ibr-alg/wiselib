@@ -113,6 +113,20 @@ struct Log<x, base, true> {
 	static const unsigned long value = 0;
 };
 
+
+template<unsigned long long base, unsigned long exp>
+struct Pow {
+	//static const unsigned long value = ;base * Pow<base, exp - 1>::value
+	enum { value = base * Pow<base, exp - 1>::value };
+};
+
+template<unsigned long long base>
+struct Pow<base, 0> {
+	//static const unsigned long value = 1UL;
+	enum { value = 1UL };
+};
+
+
 template<unsigned long x, unsigned long base, bool layer0 = (x <= 1)>
 struct TreeNodes {
 	static const unsigned long value = x + TreeNodes< DivCeil<x, base>::value , base>::value;

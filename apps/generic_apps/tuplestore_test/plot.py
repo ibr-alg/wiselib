@@ -227,6 +227,13 @@ blacklist += [
     { 'job': '25104', 'inode_db': 'inode014', '_tmin': 495, '_tmax': 541, '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
     { 'job': '25104', 'inode_db': 'inode008', '_tmin': 490, '_tmax': 540, '_mode': 'state', '_threshold': 1.4, '_alpha': .04 },
     { 'job': '25104', 'inode_db': 'inode016' },
+
+    { 'job': '25123' },
+    { 'job': '25125' },
+    { 'job': '25126' },
+    { 'job': '25143', 'inode_db': 'inode008', '_tmin': 435, '_tmax': 445, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
+    { 'job': '25143', 'inode_db': 'inode014', '_tmin': 435, '_tmax': 444, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
+    { 'job': '25143', 'inode_db': 'inode010', '_tmin': 440, '_tmax': 452, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
 ]
 
 
@@ -255,6 +262,9 @@ subsample_runs = set([
 
     '25103', # ts erase
     '25104', # ts erase
+
+    #'25125', # ts/tree erase
+    '25143', # ts/tree erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -271,25 +281,57 @@ TEENYLIME_ERASES_AT_ONCE = 1
 # ( Experiment class , { 'ts': [...], 'vs': [...], 'cls': cls } )
 experiments = []
 
-style = {
-    'tuplestore': {
-        'ls': 'k-',
-        'boxcolor': 'grey',
-    },
-    'antelope': {
-        'ls': 'b--',
-        'boxcolor': 'blue',
-    },
-    'teeny': {
-        'ls': 'g-',
-        'boxcolor': 'green',
-    },
-}
+#style = {
+    #'tuplestore': {
+        #'ls': 'k-',
+        #'boxcolor': 'grey',
+    #},
+    #'antelope': {
+        #'ls': 'b--',
+        #'boxcolor': 'blue',
+    #},
+    #'teeny': {
+        #'ls': 'g-',
+        #'boxcolor': 'green',
+    #},
+#}
 
-default_style = {
-    'ls': 'r-',
-    'boxcolor': 'red',
-}
+
+
+def get_style(k):
+    c = 'black'
+    l = '-'
+
+    if k.database == 'tuplestore':
+        c = 'black'
+        if k.ts_dict == 'tree':
+            c = '#88bbbb'
+            #l = ':'
+    elif k.database == 'teeny':
+        c = '#dd7777'
+
+    return {
+        'plot': {
+            'linestyle': l,
+            'color': c,
+        },
+        'box': {
+            'linestyle': '-',
+            'color': c,
+        }
+    }
+
+def style_box(bp, k):
+    s = get_style(k)['box']
+    for key in ('boxes', 'whiskers', 'fliers', 'caps', 'medians'):
+        plt.setp(bp[key], **s)
+    plt.setp(bp['fliers'], marker='+')
+    #plt.setp(bp['boxes'], fillstyle='full')
+
+#default_style = {
+    #'ls': 'r-',
+    #'boxcolor': 'red',
+#}
 def main():
 
     def mklabel(k):
@@ -298,6 +340,8 @@ def main():
         return tex(k.database)
 
     def select_exp(k):
+        if k.database == 'antelope': return False
+
         # Ignore experiments on old TS/static dict code
         #if k.database == 'tuplestore' and int(k.job) < 25064:
         if k.database == 'tuplestore' and int(k.job) < 25085:
@@ -341,9 +385,9 @@ def main():
     fig_e_t = plt.figure(figsize=fs)
     ax_e_t = plt.subplot(111)
 
-    for ax in (ax_f_e, ax_f_t, ax_i_e, ax_i_t, ax_e_e, ax_e_t):
-        ax.set_yscale('log')
-        ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    #for ax in (ax_f_e, ax_f_t, ax_i_e, ax_i_t, ax_e_e, ax_e_t):
+        #ax.set_yscale('log')
+        #ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
 
     shift_i = 0
     shift_f = 0
@@ -380,26 +424,26 @@ def main():
             pos_e, es = cleanse(pos_e, es)
             pos_t, ts = cleanse(pos_t, ts)
 
+            pos_e = [x for x in pos_e if x <= k.ntuples]
+            pos_t = [x for x in pos_t if x <= k.ntuples]
+            es = es[:len(pos_e)]
+            ts = ts[:len(pos_t)]
+
             print(k.mode, k.database, [len(x) for x in es])
 
             w = 2.5 if k.database == 'antelope' else 3.5
             if len(es):
                 bp = ax_i_e.boxplot(es, positions=pos_e, widths=w)
-                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
-
-                ax_i_e.plot(pos_e, [median(x) for x in es], style.get(k.database,default_style)['ls'], label=mklabel(k))
+                style_box(bp, k)
+                ax_i_e.plot(pos_e, [median(x) for x in es], label=mklabel(k), **get_style(k)['plot'])
                 #ax_i_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_i_t.boxplot(ts, positions=pos_t, widths=w)
-                plt.setp(bp['boxes'], color=style.get(k.database, default_style)['boxcolor'])
-                plt.setp(bp['whiskers'], color=style.get(k.database, default_style)['boxcolor'])
-                plt.setp(bp['fliers'], color=style.get(k.database, default_style)['boxcolor'], marker='+')
+                style_box(bp, k)
 
                 #ax_i_t.plot(pos_t, [median(x) for x in ts],style[k.database]['ls'], label=mklabel(k))
-                ax_i_t.plot(pos_t, [median(x) for x in ts], style.get(k.database,default_style)['ls'], label=mklabel(k))
+                ax_i_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k), **get_style(k)['plot'])
 
             shift_i -= 1
 
@@ -428,31 +472,33 @@ def main():
             pos_e, es = cleanse(pos_e, es)
             pos_t, ts = cleanse(pos_t, ts)
 
+            pos_e = [x for x in pos_e if x <= k.ntuples]
+            pos_t = [x for x in pos_t if x <= k.ntuples]
+            es = es[:len(pos_e)]
+            ts = ts[:len(pos_t)]
+
             print(k.mode, k.database, [len(x) for x in es])
             print(pos_e, [sum(x)/len(x) for x in es])
 
             if len(es):
                 bp = ax_f_e.boxplot(es, positions=pos_e, widths=3)
-                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
-
-                ax_f_e.plot(pos_e, [median(x) for x in es], style.get(k.database,default_style)['ls'], label=mklabel(k))
+                style_box(bp, k)
+                ax_f_e.plot(pos_e, [median(x) for x in es], label=mklabel(k), **get_style(k)['plot'])
                 #ax_f_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
-                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
+                style_box(bp, k)
 
                 #ax_f_t.plot(pos_t, [median(x) for x in ts],  label=mklabel(k))
-                ax_f_t.plot(pos_t, [median(x) for x in ts], style.get(k.database,default_style)['ls'], label=mklabel(k))
+                ax_f_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k), **get_style(k)['plot'])
 
             shift_f -= 1
 
         elif k.mode == 'erase':
             #if k.database == 'antelope': continue
+            if k.database == 'teeny':
+                k.ntuples = 12
 
             pos_e = [x for x in exp.tuplecounts[:len(exp.energy)]]
             pos_t = [x for x in exp.tuplecounts[:len(exp.time)]]
@@ -466,56 +512,67 @@ def main():
             pos_e, es = cleanse(pos_e, es)
             pos_t, ts = cleanse(pos_t, ts)
 
+            # positions count from 0 upwards, actually what we want is count
+            # downwards from k.ntuples, fix that here
+            pos_e = [k.ntuples - x for x in pos_e]
+            pos_t = [k.ntuples - x for x in pos_t]
+
             print(k.mode, k.database, [len(x) for x in es])
             #print(pos_e, [median(x) for x in es])
 
             if len(es):
                 bp = ax_e_e.boxplot(es, positions=pos_e)
-                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
+                style_box(bp, k)
 
-                ax_e_e.plot(pos_e, [median(x) for x in es],style.get(k.database,default_style)['ls'],  label=k.database)
+                ax_e_e.plot(pos_e, [median(x) for x in es], label=mklabel(k), **get_style(k)['plot'])
 
             if len(ts):
                 bp = ax_e_t.boxplot(ts, positions=pos_t)
-                plt.setp(bp['boxes'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['whiskers'], color=style.get(k.database,default_style)['boxcolor'])
-                plt.setp(bp['fliers'], color=style.get(k.database,default_style)['boxcolor'], marker='+')
+                style_box(bp, k)
 
-                ax_e_t.plot(pos_t, [median(x) for x in ts], style.get(k.database,default_style)['ls'], label=k.database)
+                ax_e_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k), **get_style(k)['plot'])
 
             shift_e -= 1
 
+    ax_i_e.set_xticks(range(0,100,5))
     ax_i_e.set_xlim((0, 75))
+    ax_i_e.set_ylim((0, 55))
     ax_i_e.set_xlabel(r"\#tuples inserted")
     ax_i_e.set_ylabel(r"$\mu J$ / insert")
 
+    ax_i_t.set_xticks(range(0,100,5))
     ax_i_t.set_xlim((0, 75))
+    ax_i_t.set_ylim((0, 12))
     ax_i_t.set_xlabel(r"\#tuples inserted")
     ax_i_t.set_ylabel(r"ms / insert")
 
+    ax_f_e.set_xticks(range(0,100,5))
     ax_f_e.set_xlim((0, 75))
+    ax_f_e.set_ylim((0, 25))
     ax_f_e.set_xlabel(r"\#tuples stored")
     ax_f_e.set_ylabel(r"$\mu J$ / find")
 
+    ax_f_t.set_xticks(range(0,100,5))
     ax_f_t.set_xlim((0, 75))
+    ax_f_t.set_ylim((0, 18))
     ax_f_t.set_xlabel(r"\#tuples stored")
     ax_f_t.set_ylabel(r"ms / find")
     
     ax_e_e.set_xticks(range(0,100,5))
     ax_e_e.set_xlim((0, 75))
+    ax_e_e.set_ylim((0, 55))
     ax_e_e.set_xlabel(r"\#tuples erased")
     ax_e_e.set_ylabel(r"$\mu J$ / erase")
 
     ax_e_t.set_xticks(range(0,100,5))
     ax_e_t.set_xlim((0, 75))
+    ax_e_t.set_ylim((0, 20))
     ax_e_t.set_xlabel(r"\#tuples erased")
     ax_e_t.set_ylabel(r"ms / erase")
 
     ax_i_e.legend()
     ax_i_t.legend()
-    ax_f_e.legend()
+    ax_f_e.legend(loc='lower right')
     ax_f_t.legend()
     ax_e_e.legend()
     ax_e_t.legend()
@@ -617,7 +674,7 @@ or subsample) else 1.0))
             #print("({} ignored by filter)".format(db))
             #continue
 
-        print("  {}/{} {}".format(cls.database, cls.mode, cls.dataset))
+        print("  {}{}/{} {}".format(cls.database, '.' + cls.ts_dict if cls.database == 'tuplestore' else '', cls.mode, cls.dataset))
 
         #
         # Add experiment object,
@@ -849,7 +906,8 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
                     esum = (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
                 else:
                     change_state(preparation)
-            else:
+            #else:
+            elif v < MEASUREMENT_DOWN:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
                 baseline_estimate += v / baseline_estimate_n 
@@ -863,7 +921,8 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
                 change_state(measurement)
                 t0 = t
                 esum = (t - tprev) * (v - BASELINE_ENERGY_TEENYLIME)
-            else:
+            #else:
+            elif v < MEASUREMENT_DOWN:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
                 baseline_estimate += v / baseline_estimate_n 
@@ -1180,7 +1239,7 @@ def process_energy(d, mode, lbl='', tmin=0):
             if v > HIGH:
                 change_state(idle_high)
                 #thigh = t
-            else:
+            elif v < MEASUREMENT:
                 baseline_estimate *= baseline_estimate_n / (baseline_estimate_n + 1.0)
                 baseline_estimate_n += 1.0
                 baseline_estimate += v / baseline_estimate_n 
@@ -1249,8 +1308,8 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    ax.set_xlim((540, 542))
-    ax.set_ylim((0.75, 2.2))
+    #ax.set_xlim((430, 455))
+    #ax.set_ylim((1, 3))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')

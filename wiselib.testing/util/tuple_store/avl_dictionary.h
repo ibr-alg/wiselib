@@ -61,7 +61,7 @@ namespace wiselib {
 				//key_type k = find(value);
 				node_ptr_t n = avl_tree_.find_n(value);
 				if(node_to_key(n) != NULL_KEY) {
-					printf("-- %s found\n", (char*)value);
+					//printf("-- %s found\n", (char*)value);
 
 					refcount_t refcount = wiselib::read<OsModel, block_data_t, refcount_t>(n->data() - sizeof(refcount_t));
 					refcount++;

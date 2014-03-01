@@ -60,9 +60,17 @@ function generate_stuff() {
 	fi
 	EXP_NR=$(($EXP_NR + 1))
 	echo $EXP_NR > $EXP_DIR/current_exp_nr
+	if [ "$TS_DICT" == "tree" ]; then
+		# incontextsensing
+		#NTUPLES=53 
+		#NTUPLES=43 
+		NTUPLES=21
+	else
+		NTUPLES=$(wc -l ${RDF}|awk '{print $1}')
+	fi
+
 
 	#cp $RDF ${AREA}.rdf
-	NTUPLES=$(wc -l ${RDF}|awk '{print $1}')
 
 	echo "#define APP_DATABASE_DEBUG $DEBUG" > defs.h
 	echo "#define NTUPLES $NTUPLES" >> defs.h
@@ -143,7 +151,7 @@ DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
 MODE=erase
-TS_DICT=chopper
+TS_DICT=tree
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
 TS_CONTAINER_SIZE=76

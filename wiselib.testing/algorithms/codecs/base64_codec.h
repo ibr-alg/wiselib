@@ -63,7 +63,7 @@ namespace wiselib {
 		
 		private:
 
-			// Basue 64 table is
+			// Base 64 table is:
 			// A...Za...z0..9+-
 
 			static block_data_t to_base64_char(block_data_t i) {
