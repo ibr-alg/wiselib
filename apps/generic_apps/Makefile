@@ -39,7 +39,7 @@ contiki_msb:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=msb430 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
 contiki_sky:
-	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=sky ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki_msp TARGET=sky ADD_CXXFLAGS=$(ADD_CXXFLAGS) ADD_OBJECTS=$(ADD_OBJECTS)
 
 contiki_native:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.contiki contiki TARGET=native ADD_CXXFLAGS=$(ADD_CXXFLAGS)

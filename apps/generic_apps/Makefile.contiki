@@ -44,7 +44,10 @@ endif
 OUTPUT = out/contiki-$(TARGET)
 OUTHEX = out
 
-contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a
+%.o : %.c
+	msp430-gcc -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $@ $<
+
+contiki_msp: $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).a 
 	@mkdir -p $(OUTPUT)
 	@echo "compiling..."
 	msp430-g++ -DCONTIKI_TARGET_$(TARGET) $(CXXFLAGS) -o $(OUTPUT)/contiki_os.o \
