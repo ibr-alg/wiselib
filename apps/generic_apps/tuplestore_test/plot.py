@@ -171,7 +171,7 @@ blacklist += [
     { 'job': '24990', 'inode_db': 'inode016', '_tmin': 600, '_tmax': 652.4, '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
 
     { 'job': '24991', 'inode_db': 'inode008', '_tmin': 590, '_tmax': 645,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
-    { 'job': '24991', 'inode_db': 'inode010', '_tmin': 590, '_tmax': 644.2,   '_mode': 'state', '_threshold': 1.6, '_alpha': .04 },
+    { 'job': '24991', 'inode_db': 'inode010', '_tmin': 590, '_tmax': 644.2, '_mode': 'state', '_threshold': 1.6, '_alpha': .04 },
     { 'job': '24991', 'inode_db': 'inode014', '_tmin': 595, '_tmax': 644,   '_threshold': 1.75, '_alpha': .04 },
     { 'job': '24991', 'inode_db': 'inode016', '_tmin': 585, '_tmax': 635.5, '_mode': 'state', '_threshold': 1.2, '_alpha': .04 },
     # 24992 ts insert
@@ -227,23 +227,24 @@ blacklist += [
     { 'job': '25103', 'inode_db': 'inode014' },
     { 'job': '25103', 'inode_db': 'inode016' },
 
-    { 'job': '25104', 'inode_db': 'inode010', '_tmin': 496, '_tmax': 541.5, '_mode': 'state', '_threshold': 1.25, '_alpha': .04 },
-    { 'job': '25104', 'inode_db': 'inode014', '_tmin': 495, '_tmax': 541, '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
-    { 'job': '25104', 'inode_db': 'inode008', '_tmin': 490, '_tmax': 540, '_mode': 'state', '_threshold': 1.4, '_alpha': .04 },
-    { 'job': '25104', 'inode_db': 'inode016' },
+    { 'job': '25104'   , 'inode_db': 'inode010'   , '_tmin': 496 , '_tmax': 541.5 , '_mode': 'state' , '_threshold': 1.25 , '_alpha': 1.0 } , 
+    { 'job': '25104'   , 'inode_db': 'inode014'   , '_tmin': 495 , '_tmax': 541   , '_mode': 'state' , '_threshold': 1.5  , '_alpha': 1.0 } , 
+    { 'job': '25104'   , 'inode_db': 'inode008'   , '_tmin': 490 , '_tmax': 540   , '_mode': 'state' , '_threshold': 1.4  , '_alpha': 1.0 } , 
+    { 'job': '25104'   , 'inode_db': 'inode016' } , 
 
-    { 'job': '25123' },
-    { 'job': '25125' },
-    { 'job': '25126' },
-    { 'job': '25143', 'inode_db': 'inode008', '_tmin': 435, '_tmax': 445, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
-    { 'job': '25143', 'inode_db': 'inode014', '_tmin': 435, '_tmax': 444, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
-    { 'job': '25143', 'inode_db': 'inode010', '_tmin': 440, '_tmax': 452, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
+    { 'job': '25123' } , 
+    { 'job': '25125' } , 
+    { 'job': '25126' } , 
+    { 'job': '25143'   , 'inode_db': 'inode008'   , '_tmin': 435 , '_tmax': 445   , '_mode': 'state' , '_threshold': 1.1  , '_alpha': 1.0 } , 
+    { 'job': '25143'   , 'inode_db': 'inode014'   , '_tmin': 435 , '_tmax': 444   , '_mode': 'state' , '_threshold': 1.1  , '_alpha': 1.0 } , 
+    { 'job': '25143'   , 'inode_db': 'inode010'   , '_tmin': 440 , '_tmax': 452   , '_mode': 'state' , '_threshold': 1.1  , '_alpha': 1.0 } , 
 
-    { 'job': '25144', 'inode_db': 'inode008', '_tmin': 381, '_tmax': 391, '_mode': 'state', '_threshold': 1.1, '_alpha': 1.0 },
-    { 'job': '25144', 'inode_db': 'inode014', '_tmin': 385, '_tmax': 397.5, '_mode': 'state', '_threshold': 1.1, '_alpha': 1.0 },
+    { 'job': '25144'   , 'inode_db': 'inode008'   , '_tmin': 381 , '_tmax': 391   , '_mode': 'state' , '_threshold': 1.1  , '_alpha': 1.0 } , 
+    { 'job': '25144'   , 'inode_db': 'inode014'   , '_tmin': 385 , '_tmax': 397.5 , '_mode': 'state' , '_threshold': 1.1  , '_alpha': 1.0 } , 
     { 'job': '25144', 'inode_db': 'inode010' }, # '_tmin': 390, '_tmax': 403.5, '_mode': 'state', '_threshold': 1.3, '_alpha': .02 },
 
-    #{ 'job': '25144', 'inode_db': 'inode008' }
+    { 'job': '25145', '_tmin': 290, '_alpha': 1.0 },
+    { 'job': '25146' } , 
 ]
 
 
@@ -276,6 +277,7 @@ subsample_runs = set([
     #'25125', # ts/tree erase
     '25143', # ts/tree erase
     '25144', # ts/tree erase
+    '25145', # ts/tree erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -292,28 +294,13 @@ TEENYLIME_ERASES_AT_ONCE = 1
 # ( Experiment class , { 'ts': [...], 'vs': [...], 'cls': cls } )
 experiments = []
 
-#style = {
-    #'tuplestore': {
-        #'ls': 'k-',
-        #'boxcolor': 'grey',
-    #},
-    #'antelope': {
-        #'ls': 'b--',
-        #'boxcolor': 'blue',
-    #},
-    #'teeny': {
-        #'ls': 'g-',
-        #'boxcolor': 'green',
-    #},
-#}
-
-
 
 def get_style(k):
     c = 'black'
     l = '-'
 
     if k.database == 'tuplestore':
+        #c = '#ddccaa'
         c = 'black'
         if k.ts_dict == 'tree':
             c = '#88bbbb'
@@ -577,7 +564,7 @@ def main():
 
     ax_e_t.set_xticks(range(0,100,5))
     ax_e_t.set_xlim((0, 75))
-    ax_e_t.set_ylim((0, 20))
+    ax_e_t.set_ylim((0, 25))
     ax_e_t.set_xlabel(r"\#tuples erased")
     ax_e_t.set_ylabel(r"ms / erase")
 
@@ -586,7 +573,7 @@ def main():
     ax_f_e.legend(loc='lower right')
     ax_f_t.legend()
     ax_e_e.legend()
-    ax_e_t.legend()
+    ax_e_t.legend(loc='lower right')
 
     fig_i_e.savefig('pdf_out/energies_insert.pdf', bbox_inches='tight', pad_inches=0.1)
     fig_i_t.savefig('pdf_out/times_insert.pdf', bbox_inches='tight',pad_inches=0.1)
@@ -1359,7 +1346,7 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     #ax.set_xlim((388.06, 388.1))
-    ax.set_xlim((388, 388.2))
+    ax.set_xlim((290, 350))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 
