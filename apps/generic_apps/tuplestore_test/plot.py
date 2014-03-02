@@ -13,6 +13,10 @@ import gzip
 import itertools
 import math
 import matplotlib.ticker
+import sys
+
+sys.path.append('/home/henning/bin')
+from experiment_utils import Situation, Repeat, ExperimentModel, t_average, band_stop
 
 PLOT_ENERGY = True
 
@@ -168,7 +172,7 @@ blacklist += [
 
     { 'job': '24991', 'inode_db': 'inode008', '_tmin': 590, '_tmax': 645,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
     { 'job': '24991', 'inode_db': 'inode010', '_tmin': 590, '_tmax': 644.2,   '_mode': 'state', '_threshold': 1.6, '_alpha': .04 },
-    { 'job': '24991', 'inode_db': 'inode014', '_tmin': 595, '_tmax': 644,   '_mode': 'state', '_threshold': 1.5, '_alpha': .04 },
+    { 'job': '24991', 'inode_db': 'inode014', '_tmin': 595, '_tmax': 644,   '_threshold': 1.75, '_alpha': .04 },
     { 'job': '24991', 'inode_db': 'inode016', '_tmin': 585, '_tmax': 635.5, '_mode': 'state', '_threshold': 1.2, '_alpha': .04 },
     # 24992 ts insert
     # 24993 ts insert
@@ -234,6 +238,12 @@ blacklist += [
     { 'job': '25143', 'inode_db': 'inode008', '_tmin': 435, '_tmax': 445, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
     { 'job': '25143', 'inode_db': 'inode014', '_tmin': 435, '_tmax': 444, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
     { 'job': '25143', 'inode_db': 'inode010', '_tmin': 440, '_tmax': 452, '_mode': 'state', '_threshold': 1.1, '_alpha': .04 },
+
+    { 'job': '25144', 'inode_db': 'inode008', '_tmin': 381, '_tmax': 391, '_mode': 'state', '_threshold': 1.1, '_alpha': 1.0 },
+    { 'job': '25144', 'inode_db': 'inode014', '_tmin': 385, '_tmax': 397.5, '_mode': 'state', '_threshold': 1.1, '_alpha': 1.0 },
+    { 'job': '25144', 'inode_db': 'inode010' }, # '_tmin': 390, '_tmax': 403.5, '_mode': 'state', '_threshold': 1.3, '_alpha': .02 },
+
+    #{ 'job': '25144', 'inode_db': 'inode008' }
 ]
 
 
@@ -265,6 +275,7 @@ subsample_runs = set([
 
     #'25125', # ts/tree erase
     '25143', # ts/tree erase
+    '25144', # ts/tree erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -560,7 +571,7 @@ def main():
     
     ax_e_e.set_xticks(range(0,100,5))
     ax_e_e.set_xlim((0, 75))
-    ax_e_e.set_ylim((0, 55))
+    #ax_e_e.set_ylim((0, 55))
     ax_e_e.set_xlabel(r"\#tuples erased")
     ax_e_e.set_ylabel(r"$\mu J$ / erase")
 
@@ -834,7 +845,46 @@ def parse_tuple_counts(f, expid):
 # Processing data
 #
 
-def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=None):
+def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None, maxvalues=200, bl =None):
+    ts = d['ts']
+    vs = d['vs']
+    ts, vs = zip(*t_average(zip(ts, vs), delta_t = 0.0136))
+    #ts, vs = zip(*band_stop(zip(ts, vs), T = 0.0136))
+
+    fig_energy(ts, vs, lbl)
+
+    em = ExperimentModel(
+            Situation('start', max = 1.2),
+            Repeat(
+                Situation('prep', min=1.05, d_min=0.01, d_max=0.1),
+                Situation('between', max=1.1, d_min=0.05, d_max=0.2),
+                Situation('exp', min=1.05, d_min=0.01, d_max=0.1),
+                Situation('after', max=1.1, d_min=0.4, d_max=0.6),
+            )
+        )
+
+    #ts, vs = zip(*t_average(zip(ts, vs), delta_t = 0.1))
+
+    tsums = []
+    esums = []
+    ots = []
+
+    baseline = 0
+    for m in em.match(ts, vs):
+        if m.situation.name == 'exp':
+            print('-- {} {}-{} -> {} - {}'.format(m.situation.name, m.t0, m.t0+m.d, m.v_sum, baseline))
+            ots.append(m.t0)
+            tsums.append(m.d)
+            esums.append(m.v_sum - baseline * m.d)
+        elif m.situation.name in ('start', 'between', 'after'):
+            print("---- setting baseline: ", m.situation.name, m.v_sum)
+            baseline = m.v_average
+
+
+    return [tsums], [esums], [ots]
+
+
+def process_energy_ts_erase_(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=None):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
@@ -887,7 +937,7 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl=
         nonlocal state
         nonlocal thigh
         if s is not state:
-            #print("{}: {} -> {} v={}".format(t, state, s, v))
+            print("{}: {} -> {} v={}".format(t, state, s, v))
             state = s
 
     for t, v in zip(ts, vs):
@@ -1308,8 +1358,9 @@ def fig_energy(ts, vs, n):
     #ax.set_xticks(range(250, 311, 2))
     #ax.set_yticks(frange(0, 3, 0.2))
 
-    #ax.set_xlim((430, 455))
-    #ax.set_ylim((1, 3))
+    #ax.set_xlim((388.06, 388.1))
+    ax.set_xlim((388, 388.2))
+    #ax.set_ylim((.5, 2.5))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')

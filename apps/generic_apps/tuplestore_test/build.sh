@@ -150,7 +150,7 @@ rm *.exe
 DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=erase
+MODE=insert
 TS_DICT=tree
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
