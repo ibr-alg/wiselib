@@ -324,12 +324,7 @@ def style_box(bp, k):
     for key in ('boxes', 'whiskers', 'fliers', 'caps', 'medians'):
         plt.setp(bp[key], **s)
     plt.setp(bp['fliers'], marker='+')
-    #plt.setp(bp['boxes'], fillstyle='full')
 
-#default_style = {
-    #'ls': 'r-',
-    #'boxcolor': 'red',
-#}
 def main():
 
     def mklabel(k):
@@ -402,14 +397,10 @@ def main():
                 t_ = []
                 for w in v: t_.append(w * TIME_DISPLAY_FACTOR_FIND)
                 ts.append(t_)
-            #ts = [[y * TIME_DISPLAY_FACTOR_FIND for y in x] for x in exp.time]
         else:
             ts = [[y * TIME_DISPLAY_FACTOR for y in x] for x in exp.time]
 
-        #plot_energies([v], k.reprname() + '.pdf')
         if k.mode == 'insert':
-            #pos_e = [x + shift_i for x in exp.tuplecounts[:len(exp.energy)]]
-            #pos_t = [x + shift_i for x in exp.tuplecounts[:len(exp.time)]]
             pos_e = exp.tuplecounts[:len(exp.energy)]
             pos_t = exp.tuplecounts[:len(exp.time)]
 
@@ -446,18 +437,12 @@ def main():
             shift_i -= 1
 
         elif k.mode == 'find':
-            #if k.database == 'antelope': continue
-
             if k.database == 'teeny':
                 pos_e = [12] #* len(exp.energy)
                 pos_t = [12] #* len(exp.time)
                 es = [flatten(es)]
                 ts = [flatten(ts)]
             else:
-                #es = exp.energy
-                #ts = exp.time
-                #pos_e = [x + shift_f for x in exp.tuplecounts[:len(exp.energy)]]
-                #pos_t = [x + shift_f for x in exp.tuplecounts[:len(exp.time)]]
                 pos_e = exp.tuplecounts[:len(exp.energy)]
                 pos_t = exp.tuplecounts[:len(exp.time)]
 
@@ -482,13 +467,10 @@ def main():
                 bp = ax_f_e.boxplot(es, positions=pos_e, widths=3)
                 style_box(bp, k)
                 ax_f_e.plot(pos_e, [median(x) for x in es], label=mklabel(k), **get_style(k)['plot'])
-                #ax_f_e.plot(pos_e, [median(x) for x in es],  label=mklabel(k))
 
             if len(ts):
                 bp = ax_f_t.boxplot(ts, positions=pos_t, widths=3)
                 style_box(bp, k)
-
-                #ax_f_t.plot(pos_t, [median(x) for x in ts],  label=mklabel(k))
                 ax_f_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k), **get_style(k)['plot'])
 
             shift_f -= 1
@@ -515,7 +497,7 @@ def main():
             pos_e = [k.ntuples - x for x in pos_e]
             pos_t = [k.ntuples - x for x in pos_t]
 
-            print(k.mode, k.database, [len(x) for x in es])
+            print("runs {} {}".format(mklabel(k), [len(x) for x in es]))
             #print(pos_e, [median(x) for x in es])
 
             if len(es):
