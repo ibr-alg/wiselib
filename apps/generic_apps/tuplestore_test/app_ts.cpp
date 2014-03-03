@@ -43,7 +43,7 @@ typedef Os::size_t size_type;
 	#if TS_USE_PRESCILLA_DICT
 		typedef wiselib::BitmapAllocator<Os, 2800, 4> Allocator;
 	#elif TS_USE_AVL_DICT
-		typedef wiselib::BitmapAllocator<Os, 2000, 10> Allocator;
+		typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
 	#elif TS_USE_TREE_DICT
 		typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
 	#else
