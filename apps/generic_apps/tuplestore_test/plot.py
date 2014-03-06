@@ -245,6 +245,8 @@ blacklist += [
 
     { 'job': '25145', '_tmin': 290, '_alpha': 1.0 },
     { 'job': '25146' } , 
+    { 'job': '25164', 'inode_db': 'inode008', '_tmin': 465, '_tmax': 487.5, '_alpha': 1.0 },
+    { 'job': '25164', 'inode_db': 'inode014', '_tmin': 465, '_tmax': 486, '_alpha': 1.0 },
 ]
 
 
@@ -278,6 +280,7 @@ subsample_runs = set([
     '25143', # ts/tree erase
     '25144', # ts/tree erase
     '25145', # ts/tree erase
+    '25164', # ts/avl erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -302,11 +305,16 @@ def get_style(k):
     if k.database == 'tuplestore':
         #c = '#ddccaa'
         c = 'black'
+        l = '-'
         if k.ts_dict == 'tree':
             c = '#88bbbb'
-            #l = ':'
+            l = '-'
+        elif k.ts_dict == 'avl':
+            c = '#bbaa88'
+            l = '-'
     elif k.database == 'teeny':
         c = '#dd7777'
+        l = '-'
 
     return {
         'plot': {
@@ -314,7 +322,7 @@ def get_style(k):
             'color': c,
         },
         'box': {
-            'linestyle': '-',
+            'linestyle': l,
             'color': c,
         }
     }
@@ -497,7 +505,7 @@ def main():
             pos_e = [k.ntuples - x for x in pos_e]
             pos_t = [k.ntuples - x for x in pos_t]
 
-            print("runs {} {}".format(mklabel(k), [len(x) for x in es]))
+            print("runs {} {} {}".format(k.mode, mklabel(k), [len(x) for x in es]))
             #print(pos_e, [median(x) for x in es])
 
             if len(es):
@@ -541,7 +549,7 @@ def main():
     ax_e_e.set_xticks(range(0,100,5))
     ax_e_e.set_xlim((0, 75))
     #ax_e_e.set_ylim((0, 55))
-    ax_e_e.set_xlabel(r"\#tuples erased")
+    ax_e_e.set_xlabel(r"\#tuples in store")
     ax_e_e.set_ylabel(r"$\mu J$ / erase")
 
     ax_e_t.set_xticks(range(0,100,5))
@@ -1328,7 +1336,7 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     #ax.set_xlim((388.06, 388.1))
-    ax.set_xlim((290, 350))
+    ax.set_xlim((485, 490))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 

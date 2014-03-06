@@ -19,6 +19,7 @@ namespace wiselib {
 		public:
 			typedef OsModel_P OsModel;
 			typedef AvlTree_P AvlTree;
+			//typedef typename AvlTree::iterator iterator;
 			
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
@@ -39,6 +40,35 @@ namespace wiselib {
 			enum ErrorCodes {
 				SUCCESS = OsModel::SUCCESS
 			};
+
+			class iterator {
+				public:
+					iterator(typename AvlTree::iterator tree_iter) : tree_iterator_(tree_iter) {
+					}
+
+					iterator(const iterator& other) : tree_iterator_(other.tree_iterator_) {
+					}
+
+					iterator& operator++() {
+						++tree_iterator_;
+						return *this;
+					}
+
+					bool operator==(const iterator& other) {
+						return tree_iterator_ == other.tree_iterator_;
+					}
+
+					bool operator!=(const iterator& other) {
+						return tree_iterator_ != other.tree_iterator_;
+					}
+
+					key_type operator*() {
+						return node_to_key(tree_iterator_.node());
+					}
+
+				private:
+					typename AvlTree::iterator tree_iterator_;
+			};
 			
 			AvlDictionary() {
 				//avl_tree_.init(AvlTree::comparator_t::template from_function<AvlTree::string_comparator>());
@@ -55,6 +85,14 @@ namespace wiselib {
 				}
 				avl_tree_.destruct();
 				*/
+			}
+
+			iterator begin_keys() {
+				return avl_tree_.begin();
+			}
+
+			iterator end_keys() {
+				return avl_tree_.end();
 			}
 			
 			key_type insert(mapped_type value) {
@@ -99,21 +137,30 @@ namespace wiselib {
 				}
 			}
 			
+			refcount_t count(key_type k) {
+				node_ptr_t entry = key_to_node(k);
+				refcount_t refcount = wiselib::read<OsModel, block_data_t, refcount_t>(entry->data() - sizeof(refcount_t));
+				return refcount;
+			}
+
 			mapped_type get(key_type k) {
 				return key_to_node(k)->data();
 			}
 			
 			mapped_type get_value(key_type k) { return get(k); }
+
 			void free_value(mapped_type v) {
 			}
+
+			int size() { return avl_tree_.size(); }
 			
 		private:
 
-			node_ptr_t key_to_node(key_type k) {
+			static node_ptr_t key_to_node(key_type k) {
 				return loose_precision_cast<node_ptr_t, key_type>(k);
 			}
 
-			key_type node_to_key(node_ptr_t n) {
+			static key_type node_to_key(node_ptr_t n) {
 				return gain_precision_cast<key_type, node_ptr_t>(n);
 			}
 			

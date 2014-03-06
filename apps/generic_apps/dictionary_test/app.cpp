@@ -14,7 +14,8 @@ typedef Os::size_t size_type;
 	//Allocator& get_allocator();
 
 	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, 400, 16> Allocator;
+	//typedef wiselib::BitmapAllocator<Os, 400, 16> Allocator;
+	typedef wiselib::BitmapAllocator<Os, 3072, 16> Allocator;
 	Allocator& get_allocator();
 
 
@@ -38,8 +39,10 @@ typedef Os::size_t size_type;
 //  149 * (14 + 4) = 2682
 //
 enum { SLOTS = 149, SLOT_WIDTH = 14 };
-typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
+//typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
 
+#include <util/tuple_store/avl_dictionary.h>
+typedef AvlDictionary<Os> Dictionary;
 
 #include <util/split_n3.h>
 
@@ -74,7 +77,7 @@ class App {
 			//print_dictionary();
 			verify_inserts();
 
-			dictionary_.debug_precompile();
+			//dictionary_.debug_precompile();
 			erase_some();
 
 			verify_inserts();
@@ -93,7 +96,7 @@ class App {
 				//}
 
 				if(buf[0] == 0) { break; }
-				//debug_->debug("PARSE: [[[%s]]]", (char*)buf);
+				debug_->debug("PARSE: [[[%s]]]", (char*)buf);
 
 				sp.parse_line(buf);
 
@@ -280,7 +283,7 @@ class App {
 			debug_->debug("%d", (int)
 			dictionary_.find((block_data_t*)"<http://www.spitfire-project.eu/ontologies/blah.owl>"));
 
-			dictionary_.debug();
+			//dictionary_.debug();
 		}
 
 		void print_dictionary() {

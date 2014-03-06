@@ -65,6 +65,8 @@ function generate_stuff() {
 		#NTUPLES=53 
 		#NTUPLES=43 
 		NTUPLES=21
+	elif [ "$TS_DICT" == "avl" ]; then
+		NTUPLES=32
 	else
 		NTUPLES=$(wc -l ${RDF}|awk '{print $1}')
 	fi
@@ -147,10 +149,10 @@ function generate_stuff() {
 
 rm *.exe
 
-DEBUG=1
+DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=insert
+MODE=find
 TS_DICT=avl
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static

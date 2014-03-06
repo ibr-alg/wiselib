@@ -1,7 +1,9 @@
 #!/bin/bash
 
+PYTHON=python3
+
 cd experiments
 ALL=$(echo 2*/)
 cd -
-time python ./plot.py $ALL |tee plot.log
+time $PYTHON ./plot.py $ALL |tee plot.log
 

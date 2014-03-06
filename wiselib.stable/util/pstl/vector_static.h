@@ -86,10 +86,19 @@ namespace wiselib
       }
       // --------------------------------------------------------------------
       vector_static( const vector_static& vec )
-      { *this = vec; }
+      {
+         start_ = vec_; // &vec_[0];
+         finish_ = start_;
+         end_of_storage_ = start_ + VECTOR_SIZE;
+         *this = vec;
+      }
       // --------------------------------------------------------------------
       vector_static( size_type n, const value_type& value = value_type() )
       {
+         start_ = vec_; // &vec_[0];
+         finish_ = start_;
+         end_of_storage_ = start_ + VECTOR_SIZE;
+
          n = VECTOR_SIZE < n ? VECTOR_SIZE : n;
          for ( unsigned int i = 0; i < n; ++i )
             push_back( value );
@@ -97,6 +106,10 @@ namespace wiselib
       template <class InputIterator>
       vector_static( InputIterator first, InputIterator last )
       {
+         start_ = vec_; // &vec_[0];
+         finish_ = start_;
+         end_of_storage_ = start_ + VECTOR_SIZE;
+
          for ( unsigned int i = 0; i < VECTOR_SIZE && first != last; ++i, ++first )
             push_back( *first++ );
       }
@@ -205,7 +218,7 @@ namespace wiselib
             *finish_ = x;
             ++finish_;
          }
-         #ifdef CONTIKI
+         #if defined(CONTIKI) || defined(PC)
          else {
             printf("!psh%d\n", size());
          }
