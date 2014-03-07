@@ -350,6 +350,9 @@ def main():
         if k.database == 'tuplestore' and int(k.job) < 25085:
             return False
 
+        if k.database == 'tuplestore' and k.ts_dict == 'tree' and int(k.job) <= 25143:
+            return False
+
         # Ignore ERASE experiments on buggy TS/static dict and bitmap
         # allocator code
         #if k.database == 'tuplestore' and k.mode == 'erase' and int(k.job) < 25064:

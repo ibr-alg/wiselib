@@ -149,7 +149,7 @@ function generate_stuff() {
 
 rm *.exe
 
-DEBUG=1
+DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
 MODE=erase

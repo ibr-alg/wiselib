@@ -210,26 +210,20 @@ namespace wiselib {
 				}
 				
 				if(p->is_leaf()) {
-					printf("--- case 1\n");
 					if(p->parent) {
 						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
 						p->parent->childs[child_idx] = 0;
 					}
 				}
 				else if(p->childs[0] && p->childs[1]) {
-					printf("--- case 2\n");
 					bool successor_side = 1;
 					Node *s = find_successor(p, successor_side);
 					assert(s != 0);
-
-					//assert((s == p) || p->childs[1]);
-					printf("p=%p s=%p side=%d\n", p, s, (int)successor_side);
 					
 					// remove successor from subtree
 					//s->parent->childs[successor_side] = s->childs[1];
 					s->parent->substitute_child(s, s->childs[1]);
 					if(s->childs[1]) {
-						printf("X2 s=%d\n", (int)successor_side);
 						s->childs[1]->parent = s->parent;
 					}
 
@@ -239,7 +233,6 @@ namespace wiselib {
 
 					// substitute p with s
 					if(p->parent) {
-						printf("X3\n");
 						p->parent->substitute_child(p, s);
 					}
 					else {
@@ -259,7 +252,6 @@ namespace wiselib {
 					s->childs[1] = p->childs[1];
 				}
 				else {
-					printf("--- case 3\n");
 					assert(!!p->childs[0] != !!p->childs[1]);
 
 					int side = (p->childs[1] != 0);
