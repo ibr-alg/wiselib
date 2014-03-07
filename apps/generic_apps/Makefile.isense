@@ -5,48 +5,48 @@ LOCAL_COMMON_FLAGS =
 LIBFILE =
 
 ifeq ($(JENNIC_CHIP),JN5139R1)
-	 TOOLCHAIN = $(JENNIC_TOOLCHAIN_JN5139)
+	TOOLCHAIN = $(JENNIC_TOOLCHAIN_JN5139)
 
-    ISENSE_HARDWARE_TYPE=ISENSE_JENNIC_JN513xR1
-	 # ISENSE_PATH must be set outside (e.g., in Makefile.local)
-	 JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/1v4
-	 BASE_DIR=$(JENNIC_SDK_PATH)
-	 include $(ISENSE_PATH)/Makefile.properties
+	ISENSE_HARDWARE_TYPE=ISENSE_JENNIC_JN513xR1
+	# ISENSE_PATH must be set outside (e.g., in Makefile.local)
+	JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/1v4
+	BASE_DIR=$(JENNIC_SDK_PATH)
+	include $(ISENSE_PATH)/Makefile.properties
 
-	 JENNIC_PCB=DEVKIT2
-	 #This is used by config.mk
-	 BASE_DIR=$(JENNIC_SDK_PATH)
-	 include $(JENNIC_SDK_PATH)/Common/Build/config.mk
+	JENNIC_PCB=DEVKIT2
+	#This is used by config.mk
+	BASE_DIR=$(JENNIC_SDK_PATH)
+	include $(JENNIC_SDK_PATH)/Common/Build/config.mk
 
-	 JENNIC_COMMON_INCLUDE_PATH  = $(JENNIC_SDK_PATH)/Common/Include
-	 JENNIC_CHIP_INCLUDE_PATH    = $(CHIP_BASE)/Include
-	 JENNIC_CHIP_LIBRARY         = $(CHIP_BASE)/Library/ChipLib.a
-	 JENNIC_PLATFORM_INCLUDE_PATH= $(BOARDAPI_PLATFORM_PUB)
-	 JENNIC_PLATFORM_LIBRARY     = $(BOARDAPI_BASE)/Library/BoardLib_$(JENNIC_CHIP_FAMILY).a
+	JENNIC_COMMON_INCLUDE_PATH  = $(JENNIC_SDK_PATH)/Common/Include
+	JENNIC_CHIP_INCLUDE_PATH    = $(CHIP_BASE)/Include
+	JENNIC_CHIP_LIBRARY         = $(CHIP_BASE)/Library/ChipLib.a
+	JENNIC_PLATFORM_INCLUDE_PATH= $(BOARDAPI_PLATFORM_PUB)
+	JENNIC_PLATFORM_LIBRARY     = $(BOARDAPI_BASE)/Library/BoardLib_$(JENNIC_CHIP_FAMILY).a
 
-	 LOCAL_COMMON_FLAGS += -I$(JENNIC_COMMON_INCLUDE_PATH)
-	 LOCAL_COMMON_FLAGS += -I$(JENNIC_CHIP_INCLUDE_PATH)
-	 LOCAL_COMMON_FLAGS += -I$(JENNIC_PLATFORM_INCLUDE_PATH)
-	 LOCAL_COMMON_FLAGS += -I$(BOARDAPI_COMMON_PUB)
+	LOCAL_COMMON_FLAGS += -I$(JENNIC_COMMON_INCLUDE_PATH)
+	LOCAL_COMMON_FLAGS += -I$(JENNIC_CHIP_INCLUDE_PATH)
+	LOCAL_COMMON_FLAGS += -I$(JENNIC_PLATFORM_INCLUDE_PATH)
+	LOCAL_COMMON_FLAGS += -I$(BOARDAPI_COMMON_PUB)
 
-	 LIBFILE += $(ISENSE_PATH)/lib/jennic/ba-elf-float-double-moddiv.a
+	LIBFILE += $(ISENSE_PATH)/lib/jennic/ba-elf-float-double-moddiv.a
 else
 ifeq ($(JENNIC_CHIP),JN5148)
-	 TOOLCHAIN = $(JENNIC_TOOLCHAIN_JN5148)
+	TOOLCHAIN = $(JENNIC_TOOLCHAIN_JN5148)
 
-	 # ISENSE_PATH must be set outside (e.g., in Makefile.local)
-	 #JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v2
-	 JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v4
-	 BASE_DIR=$(JENNIC_SDK_PATH)
-    include $(JENNIC_SDK_PATH)/Makefile.properties.JN5148.mk
+	# ISENSE_PATH must be set outside (e.g., in Makefile.local)
+	#JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v2
+	JENNIC_SDK_PATH = $(ISENSE_PATH)/lib/jennic/5148_1v4
+	BASE_DIR=$(JENNIC_SDK_PATH)
+	include $(JENNIC_SDK_PATH)/Makefile.properties.JN5148.mk
 
-	 #This is used by config.mk
-	 BASE_DIR=$(JENNIC_SDK_PATH)
-	 include $(JENNIC_SDK_PATH)/Chip/Common/Build/config.mk
+	#This is used by config.mk
+	BASE_DIR=$(JENNIC_SDK_PATH)
+	include $(JENNIC_SDK_PATH)/Chip/Common/Build/config.mk
 
-	 LIBFILE += $(JENNIC_TOOLCHAIN_JN5148)/../lib/gcc/ba-elf/4.1.2/ba2/libgcc.a
+	LIBFILE += $(JENNIC_TOOLCHAIN_JN5148)/../lib/gcc/ba-elf/4.1.2/ba2/libgcc.a
 else
-    $(error Unknown Jennic chip variant specified)
+	$(error Unknown Jennic chip variant specified)
 endif
 endif
 
@@ -72,10 +72,10 @@ CFLAGS   += $(LOCAL_COMMON_FLAGS) $(LOCAL_CFLAGS)
 CPPFLAGS += $(LOCAL_COMMON_FLAGS) $(LOCAL_CPPFLAGS) $(ADD_CXXFLAGS)
 
 ifeq ($(JENNIC_CHIP),JN5139R1)
-	  LDFLAGS += -T$(CHIP_BASE)/Build/$(LINKER_FILE) -Map $(OUTPUT)/Map.txt --gc-sections -z muldefs -u _AppWarmStart -u _AppColdStart
+	LDFLAGS += -T$(CHIP_BASE)/Build/$(LINKER_FILE) -Map $(OUTPUT)/Map.txt --gc-sections -z muldefs -u _AppWarmStart -u _AppColdStart
 else
 ifeq ($(JENNIC_CHIP),JN5148)
-	  LDFLAGS += -T$(SDK_BASE_DIR)/Chip/$(JENNIC_CHIP)/Build/$(LINKCMD) -Map $(OUTPUT)/Map.txt --gc-sections -z muldefs -u _AppWarmStart -u _AppColdStart
+	LDFLAGS += -T$(SDK_BASE_DIR)/Chip/$(JENNIC_CHIP)/Build/$(LINKCMD) -Map $(OUTPUT)/Map.txt --gc-sections -z muldefs -u _AppWarmStart -u _AppColdStart
 endif
 endif
 
