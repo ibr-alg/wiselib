@@ -243,10 +243,12 @@ blacklist += [
     { 'job': '25144'   , 'inode_db': 'inode014'   , '_tmin': 385 , '_tmax': 397.5 , '_mode': 'state' , '_threshold': 1.1  , '_alpha': 1.0 } , 
     { 'job': '25144', 'inode_db': 'inode010' }, # '_tmin': 390, '_tmax': 403.5, '_mode': 'state', '_threshold': 1.3, '_alpha': .02 },
 
-    { 'job': '25145', '_tmin': 290, '_alpha': 1.0 },
+    { 'job': '25145', '_tmin': 290, '_tmax': 310, '_alpha': 1.0 }, # ts/tree erase
     { 'job': '25146' } , 
     { 'job': '25164', 'inode_db': 'inode008', '_tmin': 465, '_tmax': 487.5, '_alpha': 1.0 },
     { 'job': '25164', 'inode_db': 'inode014', '_tmin': 465, '_tmax': 486, '_alpha': 1.0 },
+
+    { 'job': '25186', '_tmax': 420 },
 ]
 
 
@@ -426,7 +428,7 @@ def main():
             es = es[:len(pos_e)]
             ts = ts[:len(pos_t)]
 
-            print(k.mode, k.database, [len(x) for x in es])
+            print(k.mode, k.database, [len(x) for x in es], 'at', pos_e)
 
             w = 2.5 if k.database == 'antelope' else 3.5
             if len(es):
@@ -524,7 +526,7 @@ def main():
 
     ax_i_e.set_xticks(range(0,100,5))
     ax_i_e.set_xlim((0, 75))
-    ax_i_e.set_ylim((0, 55))
+    #ax_i_e.set_ylim((0, 55))
     ax_i_e.set_xlabel(r"\#tuples inserted")
     ax_i_e.set_ylabel(r"$\mu J$ / insert")
 
@@ -1336,7 +1338,8 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     #ax.set_xlim((388.06, 388.1))
-    ax.set_xlim((485, 490))
+    #ax.set_xlim((460, 480))
+    #ax.set_xlim((290, 310))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 

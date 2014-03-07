@@ -41,8 +41,11 @@ typedef Os::size_t size_type;
 enum { SLOTS = 149, SLOT_WIDTH = 14 };
 //typedef StaticDictionary<Os, SLOTS, SLOT_WIDTH> Dictionary;
 
-#include <util/tuple_store/avl_dictionary.h>
-typedef AvlDictionary<Os> Dictionary;
+//#include <util/tuple_store/avl_dictionary.h>
+//typedef AvlDictionary<Os> Dictionary;
+
+#include <util/pstl/unbalanced_tree_dictionary.h>
+typedef UnbalancedTreeDictionary<Os> Dictionary;
 
 #include <util/split_n3.h>
 
@@ -68,7 +71,7 @@ class App {
 		#if STATIC_DICTIONARY_OUTSOURCE
 			dictionary_.set_data(dict_data_);
 		#else
-			read_n3(0);
+			read_n3(0, 21);
 		#endif
 			//test_insert();
 
@@ -83,11 +86,12 @@ class App {
 			verify_inserts();
 		}
 
-		void read_n3(void*) {
+		void read_n3(void*, int n = 999) {
 			typedef SplitN3<Os> Splitter;
 			Splitter sp;
 			char buf[1025];
 
+			int i = 0;
 			while(std::cin) {
 
 				//if(buf_empty) {
@@ -103,6 +107,8 @@ class App {
 				insert(sp[0]);
 				insert(sp[1]);
 				insert(sp[2]);
+				i++;
+				if(i > n) { break; }
 
 			} // while cin
 

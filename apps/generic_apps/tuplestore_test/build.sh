@@ -149,11 +149,11 @@ function generate_stuff() {
 
 rm *.exe
 
-DEBUG=0
+DEBUG=1
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=find
-TS_DICT=avl
+MODE=erase
+TS_DICT=tree
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
 TS_CONTAINER_SIZE=76
