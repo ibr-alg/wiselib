@@ -1,0 +1,6 @@
+
+total different elements:
+
+dbpedia:    160,706
+datahub4: 6,034,372
+

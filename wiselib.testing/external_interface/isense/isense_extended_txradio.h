@@ -24,7 +24,17 @@
 #include "config_testing.h"
 #include <isense/os.h>
 #include <isense/radio.h>
+
+#define class struct
+#define private public
+#define protected public
+
 #include <isense/hardware_radio.h>
+
+#undef private
+#undef protected
+#undef class
+
 #include <isense/dispatcher.h>
 #include <isense/time.h>
 
@@ -55,17 +65,17 @@ namespace wiselib {
             };
 
 
-	int16 get_lqi() const
-	{ return lqi_; };
+            int16 get_lqi() const
+            { return lqi_; };
 
-	void set_lqi( int16 lqi )
-	{ lqi_ = lqi; };
+            void set_lqi( int16 lqi )
+            { lqi_ = lqi; };
 
-	int16 get_rssi() const
-	{ return rssi_; };
+            int16 get_rssi() const
+            { return rssi_; };
 
-	void set_rssi( int16 rssi )
-	{ rssi_ = rssi; };
+            void set_rssi( int16 rssi )
+            { rssi_ = rssi; };
 
         private:
             uint16 link_metric_;
@@ -114,14 +124,14 @@ namespace wiselib {
             NULL_NODE_ID = 0 ///< Unknown/No node id
         };
         // --------------------------------------------------------------------
-	
+    
 #if( ISENSE_RADIO_ADDRESS_LENGTH == 16 )
         enum Restrictions {
             MAX_MESSAGE_LENGTH = 116 ///< Maximal number of bytes in payload
         };
 #else //ISENSE_RADIO_ADDRESS_LENGTH == 64
         enum Restrictions {
-            MAX_MESSAGE_LENGTH = 104 ///< Maximal number of bytes in payload
+            MAX_MESSAGE_LENGTH = 116 - 12 ///< Maximal number of bytes in payload
         };
 #endif
 
@@ -132,37 +142,57 @@ namespace wiselib {
         iSenseExtendedTxRadioModel(isense::Os& os)
         : os_(os) {
 #ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
-            	bool r = os_.dispatcher().add_receiver(this);
-		os.debug("register: %d\n", r);
+            bool r = os_.dispatcher().add_receiver(this);
+            os.debug("register: %d\n", r);
 #else
-            	os_.dispatcher().add_receiver(this);
+            os_.dispatcher().add_receiver(this);
 #endif
 
 #ifdef ISENSE_EXTENDED_TX_RADIO_RANDOM_DELAY
             os_.srand(os_.id());
 #endif
+            enabled_ = true;
+            //id_ = id();
         }
         // --------------------------------------------------------------------
 
         int
         send(node_id_t id, size_t len, block_data_t *data) {
+            if(!enabled_) {
+                //os().debug("=== not enabled!");
+                return ERR_UNSPEC;
+            }
+            
 #ifdef ISENSE_EXTENDED_TX_RADIO_RANDOM_DELAY
-         uint16 ms = os().rand(ISENSE_EXTENDED_TX_RADIO_RANDOM_DELAY_MAX);
-         isense::Time t2, t1 = os().time();
+            uint16 ms = os().rand(ISENSE_EXTENDED_TX_RADIO_RANDOM_DELAY_MAX);
+            isense::Time t2, t1 = os().time();
 //          os().debug( "Radio: delay is %d at %d", ms, t1.ms() );
-         do
-         {
-            t2 = os().time();
-         } while ( t2.ms() - t1.ms() < ms );
+            do
+            {
+                t2 = os().time();
+            } while ( t2.ms() - t1.ms() < ms );
 //          os().debug( "Radio: fin at %d", t2.ms() );
 #endif
 
-		 //os().debug("isense::send(%d, %d)\n", (uint32)(id & 0xffffffff), (uint32)(len & 0xffffffff));
+            //os().debug("isense::send(%d, %d)\n", (uint32)(id & 0xffffffff), (uint32)(len & 0xffffffff));
+            
+            
+            //node_id_t isense::HardwareRadio::*p = &isense::HardwareRadio::src_addr_;
+            //unsigned long long d = *reinterpret_cast<unsigned long long*>(p);
+    //        *(&os().radio().hardware_radio().src_addr_) = id_;
+            //unsigned long d = reinterpret_cast<unsigned long>(&isense::HardwareRadio::src_addr_);
+            //*(node_id_t*)((uint8_t*)os().radio() + d) = id_;
+            
+            
+            //os().debug("==== isense sending: l%d %d %d %d %d -> %8llx", (int)len, (int)data[0], (int)data[1], (int)data[2], (int)data[3], (unsigned long long)id);
+            
 #ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
-		 uint8 options = isense::Radio::ISENSE_RADIO_TX_OPTION_NONE;
-		 if ( id != BROADCAST_ADDRESS )
-			options |= isense::Radio::ISENSE_RADIO_TX_OPTION_ACK;
-		 os().radio().send( id, len, data, options, this );
+            uint8 options = isense::Radio::ISENSE_RADIO_TX_OPTION_NONE;
+            if ( id != BROADCAST_ADDRESS ) {
+                options |= isense::Radio::ISENSE_RADIO_TX_OPTION_ACK;
+            }
+            
+            os().radio().send( id, len, data, options, this );
 #else
             os().radio().send(id, len, data, 0, 0);
 #endif
@@ -187,6 +217,7 @@ namespace wiselib {
 
         int enable_radio() {
             os().radio().enable();
+            enabled_ = true;
             return SUCCESS;
         }
         
@@ -203,12 +234,16 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         int disable_radio() {
+            enabled_ = false;
+            os().radio().disable();
+            enabled_ = false;
             os().radio().disable();
             return SUCCESS;
         }
         // --------------------------------------------------------------------
 
         node_id_t id() {
+            //return id_;
             return os().id();
         }
         // --------------------------------------------------------------------
@@ -227,6 +262,7 @@ namespace wiselib {
                     return i;
                 }
             }
+            os().fatal("!rrecv");
             return -1;
         }
         // --------------------------------------------------------------------
@@ -240,14 +276,15 @@ namespace wiselib {
                     return i;
                 }
             }
+            os().fatal("!rerecv");
             return -1;
         }
         // --------------------------------------------------------------------
         //size_t reserved_bytes()
         //{
-        //	return sizeof(message_id_t) + sizeof(size_t) + sizeof(uint16_t); <-scum support check ../internal_interface/message/message.h
-	//	OR
-	//	return sizeof(message_id_t) + sizeof(size_t);
+        //  return sizeof(message_id_t) + sizeof(size_t) + sizeof(uint16_t); <-scum support check ../internal_interface/message/message.h
+    //  OR
+    //  return sizeof(message_id_t) + sizeof(size_t);
         //};
         // --------------------------------------------------------------------
         int unreg_recv_callback(int idx) {
@@ -268,8 +305,9 @@ namespace wiselib {
                 //uint16 lqi, uint8 seq_no, uint8 interface)
 //#endif
         {
-		  //os_.fatal("RECV %d from %x len=%d\n", buf[0], src_addr, len);
-		  //os_.debug("RECV!!!\n");
+          //os_.fatal("RECV %d from %x len=%d\n", buf[0], src_addr, len);
+          //os_.debug("RECV!!!\n");
+            //os().debug("==== @%8llx isense receiving: l%d %d %d %d %d %8llx->%8llx", (unsigned long long)id(), (int)len, (int)buf[0], (int)buf[1], (int)buf[2], (int)buf[3], (unsigned long long)src_addr, (unsigned long long)dest_addr);
             for (int i = 0; i < MAX_INTERNAL_RECEIVERS; i++) {
                 if (isense_radio_callbacks_[i])
                     isense_radio_callbacks_[i](src_addr, len, const_cast<uint8*> (buf));
@@ -294,6 +332,8 @@ namespace wiselib {
         isense::Os& os_;
         isense_radio_delegate_t isense_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
         extended_radio_delegate_t isense_ext_radio_callbacks_[MAX_EXTENDED_RECEIVERS];
+        bool enabled_;
+        node_id_t id_;
     };
     // --------------------------------------------------------------------
 
@@ -499,32 +539,32 @@ namespace wiselib {
         else
             value = 0;
         //Another way: value=-(((-db)/6)*6);
-	//and another way:
-	//
-	//if ( db > 6 )
-	//{
-	//	value = 6;
-	//}
-	//else if ( db < -30 )
-	//{
-	//	value = -30;
-	//}
-	//else
-	//{
-	//	int8_t i = 6;
-	//	while( i >= -30 )
-	//	{
-	//		if ( ( ( i - db ) <= 3 ) && ( ( i - db ) >= 0 ) )
-	//		{
-	//			value = i;
-	//		}
-	//		else if ( ( ( i - db ) > 3 ) && ( ( i - db ) <= 6 ) )
-	//		{
-	//			value = i - 6;
-	//		}
-	//		i = i - 6;
-	//	}
-	//}
+    //and another way:
+    //
+    //if ( db > 6 )
+    //{
+    //  value = 6;
+    //}
+    //else if ( db < -30 )
+    //{
+    //  value = -30;
+    //}
+    //else
+    //{
+    //  int8_t i = 6;
+    //  while( i >= -30 )
+    //  {
+    //      if ( ( ( i - db ) <= 3 ) && ( ( i - db ) >= 0 ) )
+    //      {
+    //          value = i;
+    //      }
+    //      else if ( ( ( i - db ) > 3 ) && ( ( i - db ) <= 6 ) )
+    //      {
+    //          value = i - 6;
+    //      }
+    //      i = i - 6;
+    //  }
+    //}
     }
 
     template<typename OsModel_P>
@@ -548,3 +588,4 @@ namespace wiselib {
 }
 
 #endif
+/* vim: set ts=4 sw=4 tw=78 expandtab :*/

@@ -1,0 +1,2 @@
+all :
+	sh ../ns3_apps/ns3.sh

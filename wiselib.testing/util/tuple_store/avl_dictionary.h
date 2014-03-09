@@ -27,6 +27,8 @@ namespace wiselib {
 			
 			typedef size_type refcount_t;
 			typedef AvlDictionary<OsModel, AvlTree> self_type;
+
+			typedef typename AvlTree::iterator iterator;
 			
 			enum {
 				ABSTRACT_KEYS = false
@@ -53,6 +55,9 @@ namespace wiselib {
 				avl_tree_.destruct();
 				*/
 			}
+
+			iterator begin() { return avl_tree_.begin(); }
+			iterator end() { return avl_tree_.end(); }
 			
 			key_type insert(mapped_type value) {
 				key_type k = find(value);
@@ -91,14 +96,25 @@ namespace wiselib {
 					}
 				}
 			}
+
+			refcount_t count(iterator iter) {
+				return wiselib::read<OsModel, block_data_t, refcount_t>(iter.node()->data() - sizeof(refcount_t));
+			}
 			
 			mapped_type get(key_type k) {
 				return k->data();
 			}
 			
 			mapped_type get_value(key_type k) { return get(k); }
+
+			mapped_type get_value(iterator iter) {
+				return *iter;
+			}
+
 			void free_value(mapped_type v) {
 			}
+
+			size_type size() { return avl_tree_.size(); }
 			
 		private:
 			

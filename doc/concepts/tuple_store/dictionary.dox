@@ -5,9 +5,18 @@ namespace concepts {
 	 */
 	class Dictionary_concept {
 		public:
+			/**
+			 * key_type should be an unsigned integral type such that
+			 * @code sizeof(key_type) <= 4 @endcode holds or implicitely
+          * convertible to ::uint32_t.
+			 */
 			typedef ... key_type;
-			typedef ... mapped_type;
+			typedef block_data_t* mapped_type;
 			typedef ... size_type;
+			
+			typedef ... iterator;
+			
+			enum { SUCCESS = ... };
 			
 			/**
 			 * Key that is used to represent an exception condition,
@@ -22,7 +31,7 @@ namespace concepts {
 			/**
 			 * Either true or false.
 			 * false => Internally the value is stored completely
-			 *   in one piec. E.g. assume mapped_type is char*,
+			 *   in one piece. E.g. assume mapped_type is char*,
 			 *   then internally the string is stored completely such that
 			 *   get() can return a reference to it without the need for
 			 *   copying.
@@ -33,12 +42,34 @@ namespace concepts {
 			enum { ABSTRACT_KEYS = ... };
 			
 			/**
+			 * (Re-)initialize the dictionary.
+			 * Usually a dictionary will also have a init(...) method
+			 * for first initialization. The signature of that is unspecified
+			 * though and thus may differ between implementations.
+			 * 
+			 * @return SUCCESS if successful.
+			 */
+			int init();
+			
+			/**
 			 * Insert given value into the dictionary.
 			 * The dictionary is expected to do a deep copy of v in some way
 			 * such that the caller can free v deeply without destroying
 			 * dictionary content.
 			 */
 			key_type insert(mapped_type v);
+			
+			/**
+			 * Iteration over dictionaries keys.
+			 * Note: Each key will be reported only once.
+			 */
+			iterator begin_keys();
+			
+			/**
+			 * Iteration over dictionaries keys.
+			 * Note: Each key will be reported only once.
+			 */
+			iterator end_keys();
 			
 			/**
 			 * OPTIONAL but recommended.
@@ -55,30 +86,17 @@ namespace concepts {
 			key_type find(mapped_type v);
 			
 			/**
-			 * Only required if ABSTRACT_KEYS == false
-			 * 
-			 * Return a shallow value. E.g. if mapped_type is
-			 * char*, the returned string resides in internal structure
-			 * and shall not be freeed by the caller.
+			 * Return dictionary value for given key.
+			 * Depending on implementation this might be a reference to data
+			 * contained in the dictionary or a copy.
+			 * The caller should call free_value(...) on the returned value
+			 * some time after this, which should take care of freeing (if
+			 * necessary).
 			 */
-			mapped_type get(key_type k);
+			mapped_type get_value(key_type k);
 			
 			/**
-			 * Only required if ABSTRACT_KEYS == true
-			 * 
-			 * Return a copy of the mapped_type associated with k.
-			 * This might involve an allocation (e.g. when the stored
-			 * values are strings).
-			 * Thus, the caller is responsible for calling free_value
-			 * on the returned value when he doesn't need it anymore.
-			 */
-			mapped_type get_copy(key_type k);
-			
-			/**
-			 * Only required if get_copy() is implemented (e.g. ABSTRACT_KEYS
-			 * is true)!
-			 * 
-			 * Free a value formerly returned by get_copy().
+			 * Free a value formerly returned by get_value().
 			 * Depending on the kind of values your dictionary stores,
 			 * this might be a no-op or a real freeing.
 			 */

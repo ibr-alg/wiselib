@@ -44,7 +44,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Processor_P
+		typename Processor_P,
+		int MAX_NEIGHBORS_P
 	>
 	class Aggregate : public Operator<OsModel_P, Processor_P> {
 		
@@ -55,7 +56,7 @@ namespace wiselib {
 			typedef Operator<OsModel_P, Processor_P> Base;
 			typedef typename Base::Query Query;
 			typedef Processor_P Processor;
-			typedef Aggregate<OsModel, Processor> self_type;
+			typedef Aggregate self_type;
 			typedef Row<OsModel> RowT;
 			typedef Table<OsModel, RowT> TableT;
 			typedef typename RowT::Value Value;
@@ -72,26 +73,33 @@ namespace wiselib {
 			typedef typename ProjectionInfoBase::TypeInfo TypeInfo;
 			
 			enum { npos = (size_type)(-1) };
-			enum { MAX_CHILDS = 60 };
+			enum { MAX_CHILDS = MAX_NEIGHBORS_P };
 			typedef MapStaticVector<OsModel, node_id_t, TableT, MAX_CHILDS> ChildStates;
 			
-			enum { WAIT_AFTER_LOCAL = 1000, CHECK_INTERVAL = 1000 };
+			enum { WAIT_AFTER_LOCAL = 1000 * WISELIB_TIME_FACTOR, CHECK_INTERVAL = INQP_AGGREGATE_CHECK_INTERVAL * WISELIB_TIME_FACTOR };
+			
+			struct TimerInfo { bool alive; };
 			
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
 			void init(AggregateDescription<OsModel, Processor> *ad, Query *query) {
 				Base::init(reinterpret_cast<AggregateDescription<OsModel, Processor>*>(ad), query);
-				
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
 				operations_ = 0;
+				post_inited_ = false;
 				
 				aggregation_columns_logical_ = ad->aggregation_columns();
 				aggregation_types_ = ::get_allocator().template allocate_array< ::uint8_t>(aggregation_columns_logical_).raw();
 				memcpy(aggregation_types_, ad->aggregation_types(), aggregation_columns_logical_);
+				timer_info_ = 0;
 			}
 			#pragma GCC diagnostic pop
+			
+			uint8_t *aggregation_types() { return aggregation_types_; }
+			size_type aggregation_columns_logical() { return aggregation_columns_logical_; }
 			
 			void post_init() {
 				if(!post_inited_) {
@@ -147,6 +155,7 @@ namespace wiselib {
 						i++;
 					}
 					aggregation_columns_physical_ = j;
+				//GET_OS.debug("aggr phycol %d", (int)aggregation_columns_physical_);
 					
 					local_aggregates_.init(aggregation_columns_physical_);
 					updated_aggregates_.init(aggregation_columns_physical_);
@@ -154,7 +163,15 @@ namespace wiselib {
 				}
 			}
 			
+			size_type columns_logical() { return aggregation_columns_logical_; }
+			size_type columns_physical() { return aggregation_columns_physical_; }
+			
 			void destruct() {
+				//GET_OS.debug("aggr destR!");
+				
+				if(timer_info_ != 0) {
+					timer_info_->alive = false;
+				}
 				if(operations_) {
 					::get_allocator().template free_array(operations_);
 					operations_ = 0;
@@ -168,12 +185,16 @@ namespace wiselib {
 			void push(size_type port, RowT& row) {
 				post_init();
 				
+				DBG("--- aggr in");
+				
 				if(&row) {
 					size_type idx = find_matching_group(local_aggregates_, row);
 					if(idx == npos) {
+				DBG("gr");
 						create_group(row);
 					}
 					else {
+				DBG("ad");
 						add_to_aggregate(local_aggregates_[idx], row);
 					}
 				}
@@ -181,14 +202,21 @@ namespace wiselib {
 					local_aggregates_.pack();
 					
 					for(typename TableT::iterator iter = local_aggregates_.begin(); iter != local_aggregates_.end(); ++iter) {
-						refresh_group(*iter);
+						DBG("cal refresh for local row");
+						refresh_group(*iter, true);
 					}
 					
 					// We're done with local aggreation.
 					// Lets wait a little for possible child reports and then
 					// send out a result
-					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, 0);
+					
+					timer_info_ = ::get_allocator().template allocate<TimerInfo>().raw();
+					assert(timer_info_ != 0);
+					timer_info_->alive = true;
+					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, (void*)timer_info_);
 				}
+				
+				DBG("agdon");
 			}
 			
 			/**
@@ -196,7 +224,7 @@ namespace wiselib {
 			 * information about the group given by r.
 			 * (r has no otherwise special role)
 			 */
-			void refresh_group(RowT& r) {
+			void refresh_group(RowT& r, bool r_is_output_form = false) {
 				size_type idx = npos;
 				size_type uidx = npos;
 				
@@ -212,7 +240,8 @@ namespace wiselib {
 				
 				// now see if the local table has to contribute something
 				
-				idx = find_matching_group(local_aggregates_, r);
+				idx = find_matching_group(local_aggregates_, r, r_is_output_form);
+				DBG("refreshing: %d",(int)idx);
 				if(idx != npos) {
 					uidx = merge_or_create_updated(local_aggregates_[idx], uidx);
 				}
@@ -220,7 +249,7 @@ namespace wiselib {
 				// and finally all children
 				
 				for(typename ChildStates::iterator iter = child_states_.begin(); iter != child_states_.end(); ++iter) {
-					idx = find_matching_group(iter->second, r);
+					idx = find_matching_group(iter->second, r, r_is_output_form);
 					if(idx != npos) {
 						uidx = merge_or_create_updated(iter->second[idx], uidx);
 					}
@@ -271,7 +300,7 @@ namespace wiselib {
 					child_states_[from].init(aggregation_columns_physical_);
 				}
 					
-				size_type idx = find_matching_group(child_states_[from], row);
+				size_type idx = find_matching_group(child_states_[from], row, true);
 				if(idx != npos) {
 					child_states_[from].set(idx, row);
 				}
@@ -282,28 +311,62 @@ namespace wiselib {
 				refresh_group(row);
 			}
 			
-			void on_sending_time(void*) {
+			void on_sending_time(void* ti_) {
+				//GET_OS.debug("aggr sending time");
+				
+				TimerInfo *ti = reinterpret_cast<TimerInfo*>(ti_);
+				if(!ti->alive) {
+					::get_allocator().free(ti);
+					return;
+				}
+				DBG("aggr sending time alive");
+				
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
+					//GET_OS.debug("aggr srow cols %d", (int)aggregation_columns_physical_);
 					this->processor().send_row(
 							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
 							aggregation_columns_physical_, *iter, this->query().id(), this->id()
 					);
 				}
 				updated_aggregates_.clear();
-				this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, 0);
+				this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, ti_);
 			}
 			
 			/*
 			 * @return Index of the group row $row belongs to
 			 * or npos if no match was found.
 			 */
-			size_type find_matching_group(TableT& table, RowT& row) {
+			size_type find_matching_group(TableT& table, RowT& row, bool row_is_output = false) {
 				for(size_type group = 0; group < table.size(); group++) {
 					RowT& aggregate = table[group];
 					bool match = true;
 					for(size_type i = 0; i < aggregation_columns_logical_; i++) {
+						
+						/*
+						 * i --> logical output column (i'th output
+						 * aggregation value, some might take up multiple
+						 * physical columns though)
+						 * 
+						 * data_column_ --> physical INPUT column
+						 * aggregate_column_ --> physical OUTPUT column
+						 * 
+						 * if this is a group column,
+						 * it hase to have the same value in row and an table,
+						 * else its not a match
+						 */
+						
 						if((aggregation_types_[i] & ~AD::AGAIN) == AD::GROUP
-								&& row[operations_[i].data_column_] != aggregate[operations_[i].aggregate_column_]) {
+								&& row[row_is_output ? operations_[i].aggregate_column_ : operations_[i].data_column_] != aggregate[operations_[i].aggregate_column_]) {
+							
+							
+							DBG("nomatch: i %d aggrtype %d datacol %d aggrcol %d row[aggrcol] %08lx aggr[aggrcol] %08lx",
+									(int)i,
+									(int)aggregation_types_[i],
+									(int)operations_[i].data_column_,
+									(int)operations_[i].aggregate_column_,
+									(unsigned long)row[operations_[i].aggregate_column_],
+									(unsigned long)aggregate[operations_[i].aggregate_column_]);
+							
 							match = false;
 							break;
 						}
@@ -312,6 +375,7 @@ namespace wiselib {
 						return group;
 					}
 				}
+							//assert(false);
 				return npos;
 			}
 			
@@ -339,9 +403,9 @@ namespace wiselib {
 						if(
 							a[operations_[i].aggregate_column_] != b[operations_[i].aggregate_column_]
 						) {
-							DBG("-------- GROUP MISMATCH WHILE MERGING i=%d aggrcol=%d ga=%08x gb=%08x",
-									i, operations_[i].aggregate_column_,
-									a[operations_[i].aggregate_column_], b[operations_[i].aggregate_column_]
+							DBG("grp mis i=%d acol=%d ga=%08lx gb=%08lx",
+									(int)i, (int)operations_[i].aggregate_column_,
+									(long)a[operations_[i].aggregate_column_], (long)b[operations_[i].aggregate_column_]
 							);
 						}
 					}
@@ -359,9 +423,12 @@ namespace wiselib {
 			void add_to_aggregate(RowT& aggregate, RowT& row) {
 				RowT *converted = RowT::create(aggregation_columns_physical_);
 				for(size_type i = 0; i < aggregation_columns_logical_; i++) {
+					//DBG("ad op %d %d", (int)i, (operations_[i].init_ != 0));
 					operations_[i].init(*converted, row);
 				}
+				//DBG("ad merge");
 				merge_aggregates(aggregate, *converted);
+				 //BG("ad free");
 				converted->destroy();
 			}
 			
@@ -421,7 +488,7 @@ namespace wiselib {
 					Value r = 0;
 					switch(type_) {
 						case ProjectionInfoBase::IGNORE:
-							DBG("cant aggregate on non-existing columns, something is fishy here");
+							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
 							long sum = *reinterpret_cast<long*>(&v1) + *reinterpret_cast<long*>(&v2);
@@ -434,7 +501,7 @@ namespace wiselib {
 							break;
 						}
 						case ProjectionInfoBase::STRING:
-							DBG("error: can't compute sum of strings");
+							DBG("!sum str");
 							break;
 					};
 					v1 = r;
@@ -450,24 +517,35 @@ namespace wiselib {
 					Value r = 0;
 					switch(type_) {
 						case ProjectionInfoBase::IGNORE:
-							DBG("cant aggregate on non-existing columns, something is fishy here");
+							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
-							long long avg = *reinterpret_cast<long*>(&v1) * (long long)n1 + *reinterpret_cast<long*>(&v2) * (long long)n2;
-							avg /= ((long long)n1 + (long long)n2);
-							long avg2 = avg;
-							r = *reinterpret_cast<Value*>(&avg2);
+							DBG("AVG INT");
+							//long long avg = *reinterpret_cast<long*>(&v1) * (long long)n1 + *reinterpret_cast<long*>(&v2) * (long long)n2;
+							//avg /= ((long long)n1 + (long long)n2);
+							//long avg2 = avg;
+							//r = *reinterpret_cast<Value*>(&avg2);
+							typedef unsigned long long ULL;
+							ULL avg = (ULL)v1 * (ULL)n1 + (ULL)v2 * (ULL)n2;
+							ULL avg2 = avg / ((ULL)n1 + (ULL)n2);
+							r = avg2;
 							
+							//DBG("avg int (%08lx %08lx, %08lx %08lx) -> %08lx -> %08lx -> %08lx",
+									//(unsigned long)v1, (unsigned long)n1,
+									//(unsigned long)v2, (unsigned long)n2,
+									//(unsigned long)avg, (unsigned long)avg2,
+									//(unsigned long)r);
 							break;
 						}
 						case ProjectionInfoBase::FLOAT: {
+							DBG("avg float");
 							float avg = *reinterpret_cast<float*>(&v1) * (float)n1/(float)(n1 + n2)
 								+ *reinterpret_cast<float*>(&v2) * (float)n2/(float)(n1 + n2);
 							r = *reinterpret_cast<Value*>(&avg);
 							break;
 						}
 						case ProjectionInfoBase::STRING:
-							DBG("error: can't compute avg of strings");
+							DBG("!avg str");
 							break;
 					};
 					
@@ -504,6 +582,7 @@ namespace wiselib {
 			uint8_t aggregation_columns_logical_;
 			uint8_t aggregation_columns_physical_;
 			uint8_t *aggregation_types_;
+			TimerInfo *timer_info_;
 		
 	}; // Aggregate
 }

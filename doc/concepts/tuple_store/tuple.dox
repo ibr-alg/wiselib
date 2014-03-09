@@ -2,8 +2,19 @@
 namespace concepts {
 
 /**
- * Base concept for all tuple types that can be managed by the tuple
+ * Concept for all tuple types that can be managed by the tuple
  * store.
+ * 
+ * A tuple is a container for a fixed (small) number of elements.
+ * Each of the elements will be either variable-length data represented by a
+ * block_data_t* and a length value or a dictionary key that fits into a
+ * ::uint32_t.
+ * It can be assumed that the user of the Tuple knows at which indices he
+ * currently stores keys and at which data, so the tuple implemntation does
+ * not need to hold type information.
+ * 
+ * Note: It is necessary to have distinct methods for key- vs. value access as
+ * sizeof(block_data_t*) may be unequal to sizeof(::uint32_t)
  */
 class Tuple_concept {
 	public:
@@ -14,9 +25,6 @@ class Tuple_concept {
 		enum {
 			SIZE = ...
 		};
-		
-		Tuple_concept(const Tuple_concept&);
-		self_type& operator=(const self_type& other);
 		
 		/**
 		 * Deeply free any data in the given column.
@@ -30,6 +38,9 @@ class Tuple_concept {
 		 * calling free_deep() for all possible columns.
 		 */
 		void destruct_deep();
+		
+		///@name Data Access
+		///@{
 		
 		/**
 		 * Return pointer to data at i'th column.
@@ -55,6 +66,23 @@ class Tuple_concept {
 		 * is responsible for calling free_deep(i) for freeing the deep copy.
 		 */
 		void set_deep(size_type i, block_data_t* data);
+		
+		///@}
+		
+		///@name Dictionary Key Access
+		///@{
+		
+		/**
+		 * Return i'th column as dictionary key.
+		 */
+		::uint32_t get_key(size_type i);
+		
+		/**
+		 * Set value in i'th column as dictionary key.
+		 */
+		void set_key(size_type i, ::uint32_t);
+		
+		///@}
 		
 		/**
 		 * For compatibility with STL containers

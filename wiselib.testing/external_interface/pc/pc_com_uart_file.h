@@ -208,7 +208,7 @@ namespace wiselib {
 		size_t written = 0;
 
 		do {
-                    std::cout << (uint16_t)buf[0] << std::endl;
+                    //std::cout << (uint16_t)buf[0] << std::endl;
 			r = ::write(port_fd_, reinterpret_cast<void*>(buf+written), len-written);
 //                        std::cout << "r = " << r <<" len = " << len << std::endl;
 			if(r < 0) {

@@ -41,7 +41,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Processor_P
+		typename Processor_P,
+		int COMMUNICATION_TYPE_P = Processor_P::COMMUNICATION_TYPE_SINK
 	>
 	class Collect : public Operator<OsModel_P, Processor_P> {
 		public:
@@ -51,7 +52,10 @@ namespace wiselib {
 			typedef Processor_P Processor;
 			typedef Operator<OsModel_P, Processor_P> Base;
 			typedef typename Base::Query Query;
-			typedef Collect<OsModel, Processor> self_type;
+			//typedef Collect<OsModel, Processor, COMMUNICATION_TYPE_P> self_type;
+			typedef Collect self_type;
+			
+			enum { COMMUNICATION_TYPE = COMMUNICATION_TYPE_P };
 			
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wpmf-conversions"
@@ -62,23 +66,43 @@ namespace wiselib {
 			
 				//this->push_ = reinterpret_cast<typename Base::my_push_t>(&self_type::push);
 				hardcore_cast(this->push_, &self_type::push);
+				count_ = 0;
 			}
 			#pragma GCC diagnostic pop
 			
+			void init(Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection) {
+				Base::init(
+						((int)COMMUNICATION_TYPE == (int)Processor::COMMUNICATION_TYPE_SINK) ?
+						Base::Description::COLLECT : Base::Description::CONSTRUCTION_RULE,
+						query, id, parent_id, parent_port, projection
+				);
+					//DBG("collect ctor %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
+				hardcore_cast(this->push_, &self_type::push);
+				count_ = 0;
+			}
+			
+			int count_;
+			
 			void push(size_type port, Row<OsModel>& row) {
 				if(&row) {
+					count_++;
 				
-					for(size_type i = 0; i < this->child(Base::CHILD_LEFT).columns(); i++) {
-						DBG("result row [%lu] = %08x", i, row[i]);
-					}
+					//for(size_type i = 0; i < this->child(Base::CHILD_LEFT).columns(); i++) {
+						//DBG("result row [%lu] = %08x F%d", i, row[i], (int)mem->mem_free());
+					//}
 					
 					this->processor().send_row(
-							Base::Processor::COMMUNICATION_TYPE_SINK,
+							COMMUNICATION_TYPE,
+							//Base::Processor::COMMUNICATION_TYPE_SINK,
 							this->child(Base::CHILD_LEFT).columns(),
 							row,
 							this->query().id(),
 							this->id()
 					);
+				}
+				else {
+					//DBG("collect %d com %d %c", (int)count_, (int)COMMUNICATION_TYPE, (char)this->type());
+					count_ = 0;
 				}
 				
 				

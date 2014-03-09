@@ -12,8 +12,9 @@ from parse_rdftemplate import parse_rdftemplate
 import threading
 
 javaprog_path = os.path.dirname(sys.argv[0])
+java_flags = ['-Djava.library.path=/usr/lib']
 #java_flags = ['-Djava.library.path=' + javaprog_path]
-java_flags = ['-Djava.library.path=/usr/lib:java.library.path=/Volumes/HDD/Users/ctemail/Desktop/flash_rdfprovider:' + javaprog_path]
+#java_flags = ['-Djava.library.path=/usr/lib/jni:java.library.path=/usr/lib:java.library.path=/Volumes/HDD/Users/ctemail/Desktop/flash_rdfprovider:' + javaprog_path]
 jar = javaprog_path + '/rsc.apps.flashloader-0.3-SNAPSHOT.one-jar.jar'
 javacall = ['java'] + java_flags + ['-jar', jar]
 
@@ -21,7 +22,7 @@ javacall = ['java'] + java_flags + ['-jar', jar]
 def parse_arguments():
 	parser = argparse.ArgumentParser(description='Flash RDF provider nodes.')
 	parser.add_argument('actions', nargs='+',
-			help='actions to execute, might be one or multiple of "flash", "send", "print-rdf"')
+			help='actions to execute, might be one or multiple of "flash", "send", "print-rdf" (see source code if this script for a full list)')
 	parser.add_argument('--firmware', help='flash firmware image')
 	parser.add_argument('--template', help='flash given rdf template. if "auto", infer template name from firmware name',
 			default='auto')
@@ -30,6 +31,10 @@ def parse_arguments():
 	parser.add_argument('--addr',
 			default='auto',
 			help='nodes ipv6 address, use \'auto\' for infering from mac addr',
+		)
+	parser.add_argument('--write-mac',
+			default='none',
+			help='MAC address to write to the device when using "write-mac"',
 		)
 	parser.add_argument('--addr-prefix',
 			default='fd00:db08:0000:c0a1:',
@@ -82,7 +87,17 @@ def flash_node(port, image):
 		sys.exit(1)
 	
 	print "Flashing: %s -> %s" % (image, port)
-	subprocess.Popen(javacall + ['flash', '-device', 'jennic', '-port', port, '-file', image]).communicate()
+	call = javacall + ['flash', '-device', 'jennic', '-port', port, '-file', image]
+	subprocess.Popen(call).communicate()
+	time.sleep(3)
+	
+def write_mac(port, mac):
+	if not mac or mac == 'none':
+		print >>sys.stderr, "Can't flash mac without --write-mac!"
+		sys.exit(1)
+	print "Writing mac: %s -> %s" % (mac, port)
+	call = javacall + ['writemac', '-device', 'jennic', '-port', port, '-macAddress', mac]
+	subprocess.Popen(call).communicate()
 	time.sleep(3)
 	
 def receive(port, nodetype, baud):
@@ -117,6 +132,7 @@ def main():
 	template = args.template
 	nodetype = args.type
 	baud = int(args.baud)
+	mac = args.write_mac
 	
 	if addr == 'auto' and ('send' in args.actions or 'send-receive' in args.actions):
 		addr = read_ipv6_addr(port, addr_prefix)
@@ -141,6 +157,8 @@ def main():
 	for action in args.actions:
 		if action == 'flash':
 			flash_node(port, firmware)
+		elif action == 'write-mac':
+			write_mac(port, mac)
 		elif action == 'send':
 			send(port, rdf, False, nodetype, baud)
 		elif action == 'send-receive':

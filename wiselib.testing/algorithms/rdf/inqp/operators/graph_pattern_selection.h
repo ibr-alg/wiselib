@@ -53,17 +53,30 @@ namespace wiselib {
 			typedef GraphPatternSelection<OsModel_P, Processor_P> self_type;
 			typedef typename RowT::Value Value;
 			
-			enum { MAX_STRING_LENGTH = 256 };
+			//enum { MAX_STRING_LENGTH = 256 };
+			enum { TS_SEMANTIC_COLUMNS = 3 };
 			
 			void init(GraphPatternSelectionDescription<OsModel, Processor> *gpsd, Query *query) {
 				Base::init(reinterpret_cast<OperatorDescription<OsModel, Processor>* >(gpsd), query);
-				
 				for(size_type i = 0; i < 3; i++) {
 					affected_[i] = gpsd->affects(i);
 					if(affected_[i]) {
 						values_[i] = gpsd->value(i);
 					}
 				}
+			}
+			
+			void init(Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection,
+					bool affected0, bool affected1, bool affected2, Value value0, Value value1, Value value2) {
+				Base::init(Base::Description::GRAPH_PATTERN_SELECTION, query, id, parent_id, parent_port, projection);
+				
+				affected_[0] = affected0;
+				affected_[1] = affected1;
+				affected_[2] = affected2;
+				values_[0] = value0;
+				values_[1] = value1;
+				values_[2] = value2;
+				
 			}
 			
 			void execute(TupleStoreT& ts) {
@@ -73,14 +86,21 @@ namespace wiselib {
 				
 				RowT *row = RowT::create(this->projection_info().columns()); //TupleStoreT::COLUMNS);
 				
+				//DBG("gps begin");
 				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
+					//DBG("gps (%lx %lx %lx)", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
+					
 					bool match = true;
 					size_type row_idx = 0;
-					for(size_type i = 0; i < TupleStoreT::COLUMNS; i++) {
-						typename Processor::Value v = this->translator().translate(TupleStoreT::to_key(iter->get(i)));
+					for(size_type i = 0; i < TS_SEMANTIC_COLUMNS; i++) {
+						typename Processor::Value v = this->translator().translate(iter->get_key(i));
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
+								//#ifdef ISENSE
+								//GET_OS.debug("gps %d nomatch [%d] = %08lx != %08lx", (int)this->id_,
+										//(int)i, (unsigned long)values_[i], (unsigned long)v);
+								//#endif
 								match = false;
 								break;
 							}
@@ -88,35 +108,37 @@ namespace wiselib {
 						
 						switch(this->projection_info().type(i)) {
 							case ProjectionInfoBase::IGNORE:
-								//DBG("col %d ignore", i);
+								DBG("gps %d col %d ignore", (int)this->id_, i);
 								break;
 							case ProjectionInfoBase::INTEGER: {
-								//DBG("col %d INT", i);
-								block_data_t *s = this->dictionary().get_value(TupleStoreT::to_key(iter->get(i)));
+								DBG("gps %d col %d INT", (int)this->id_, i);
+								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
 								this->dictionary().free_value(s);
 								break;
 							}
 							case ProjectionInfoBase::FLOAT: {
-								//DBG("col %d FLOAT", i);
-								block_data_t *s = this->dictionary().get_value(TupleStoreT::to_key(iter->get(i)));
+								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
+								DBG("gps %d col %d FLOAT \"%s\" %f", (int)this->id_, i, s, f);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
 								this->dictionary().free_value(s);
 								break;
 							}
 							case ProjectionInfoBase::STRING:
-								//DBG("col %d STRING", i);
+								DBG("gps %d col %d STRING", (int)this->id_, i);
 								(*row)[row_idx++] = v;
-								this->reverse_translator().offer(TupleStoreT::to_key(iter->get(i)), v);
+								this->reverse_translator().offer(iter->get_key(i), v);
 								break;
 						}
 					}
 					if(match) {
+						DBG("---------- gps %d push", (int)this->id_);
 						this->parent().push(*row);
 					}
 				}
+				//DBG("gps end");
 				
 				row->destroy();
 				this->parent().push(Base::END_OF_INPUT);

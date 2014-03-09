@@ -25,20 +25,15 @@
 #include "operator_descriptions/operator_description.h"
 
 #include "query_message.h"
+#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Runtime representation of a INQP Query.
 	 * 
-	 * TODO: Store received packets here, order them by sequence number
-	 * e.g. using a priority queue, construct incrementally as possible.
-	 * Use a special "# of packets" packet that signifies when final
-	 * construction/execution can take place.
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @tparam QueryProcessor_P The constructing an processing QueryProcessor
+	 * for this Query.
 	 */
 	template<
 		typename OsModel_P,
@@ -57,28 +52,77 @@ namespace wiselib {
 			typedef typename QueryProcessor::BasicOperatorDescription BasicOperatorDescription;
 			typedef BasicOperatorDescription BOD;
 			typedef typename QueryProcessor::BasicOperator BasicOperator;
+			
+			/// Operator id => Operator* map of operators.
 			typedef MapStaticVector<OsModel, size_type, BasicOperator*, 16> Operators;
 			
 			typedef ::uint8_t query_id_t;
 			typedef ::uint8_t sequence_number_t;
 			
+			/**
+			 */
 			void init(QueryProcessor* processor, query_id_t id) {
 				processor_ = processor;
 				query_id_ = id;
 				expected_operators_set_ = false;
+				entity_ = SemanticEntityId::invalid();
 			}
 			
+			/**
+			 */
+			void destruct() {
+				for(typename Operators::iterator it = operators_.begin(); it != operators_.end(); ++it) {
+					BasicOperator* op = it->second;
+					//DBG("op destr");
+					//DBG("o=%p", it->second);
+					op->destruct();
+					//DBG("op fre");
+					::get_allocator().free(op);
+				}
+				//DBG("op clr");
+				operators_.clear();
+			}
+			
+			/**
+			 * @return Map of operators belonging to this query.
+			 */
 			Operators& operators() { return operators_; }
 			
+			/**
+			 * Add an operator to this query.
+			 * @tparam OperatorT type of passed operator, should be subtype of
+			 * @a BasicOperator.
+			 * @param op Operator instance to add.
+			 */
+			template<typename OperatorT>
+			void add_operator(OperatorT* op) {
+				operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
+			}
 			
+			/**
+			 * Add an operator to this query by description.
+			 * @tparam DescriptionT acutal type of the data that @a bod points
+			 * to (should be derived from @a BOD).
+			 * @tparam OperatorT operator instance type belonging to @a
+			 * DescriptionT.
+			 * @param bod Operator description, casted to @a BOD.
+			 */
 			template<typename DescriptionT, typename OperatorT>
 			void add_operator(BOD *bod) {
+				//DBG("1adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				DescriptionT *description = reinterpret_cast<DescriptionT*>(bod);
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
 				op->init(description, this);
+				//DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
+				
+				//DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
 			}
 			
+			/**
+			 * Connect all contained operators by parent relationships into a
+			 * tree.
+			 */
 			void build_tree() {
 				for(typename Operators::iterator iter = operators_.begin(); iter != operators_.end(); ++iter) {
 					
@@ -89,25 +133,57 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 */
 			QueryProcessor& processor() { return *processor_; }
+			
+			/**
+			 */
 			query_id_t id() { return query_id_; }
+			
+			/**
+			 */
 			BasicOperator* get_operator(size_type i) { return operators_[i]; }
 			
+			/**
+			 * @return true iff all operators have been added and thus it is
+			 * safe to call @a build_tree().
+			 */
 			bool ready() {
+				DBG("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
+				#ifdef ISENSE
+					GET_OS.debug("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
+				#endif
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			
+			/**
+			 * Set the number of operators belonging to this query, will be
+			 * used to determine the outcome of @a ready().
+			 */
 			void set_expected_operators(size_type n) {
 				expected_operators_ = n;
 				expected_operators_set_ = true;
 			}
 		
+			/**
+			 * Associate this query with the given SemanticEntity.
+			 */
+			void set_entity(const SemanticEntityId& se) { entity_ = se; }
+			
+			/**
+			 * Return the ID of the SE this query is associated to.
+			 */
+			const SemanticEntityId& entity() { return entity_; }
+			
+			
 		private:
 			query_id_t query_id_;
 			Operators operators_;
 			QueryProcessor* processor_;
 			size_type expected_operators_;
 			bool expected_operators_set_;
+			SemanticEntityId entity_;
 			
 		
 	}; // INQPQuery

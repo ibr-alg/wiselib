@@ -64,15 +64,20 @@ struct enable_if : public enable_if_c<Cond::value, T> { };
 /*
  * STATIC PRINT
  */
-#define static_print(X) typedef StaticPrint<X> _print_ ## __LINE__
+#define static_print(X) StaticPrint<X> _print_var_ ## __LINE__;
+//typedef StaticPrint<X> _print_ ## __LINE__; _print_ ## __LINE__ var_print_ ## __LINE__;
 template<int x> struct StaticPrint;
 
 
 /*
  * STATIC ASSERTIONS
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 
 #define static_assert(X) typedef static_assert_test<sizeof(STATIC_ASSERT_FAILURE< X >)> _static_assert_ ## __LINE__
+
+#pragma GCC diagnostic pop
 
 /**
  * Not instantiable for B = false
@@ -129,9 +134,9 @@ template< unsigned long long N_>
 struct SmallUint {
 	typedef typename SmallUint<
 		#ifdef PC
-		(N_ >= 0x100000001) ? 0x100000001LL :
+		(N_ >= 0x100000001ULL) ? 0x100000001ULL :
 		#endif
-		(N_ >= 0x000010001) ? 0x000010001L :
+		(N_ >= 0x000010001UL) ? 0x000010001UL :
 		(N_ >= 0x000000101) ? 0x000000101 :
 			0x000000000
 		>::t t;
@@ -139,17 +144,17 @@ struct SmallUint {
 
 template<> struct SmallUint<0x000000000> { typedef ::uint8_t t; };
 template<> struct SmallUint<0x000000101> { typedef ::uint16_t t; };
-template<> struct SmallUint<0x000010001L> { typedef ::uint32_t t; };
+template<> struct SmallUint<0x000010001UL> { typedef ::uint32_t t; };
 
 //#if __WORDSIZE == 64
 #ifdef PC
-template<> struct SmallUint<0x100000001LL> { typedef ::uint64_t t; };
+template<> struct SmallUint<0x100000001ULL> { typedef ::uint64_t t; };
 #endif
 //#endif
 
 
 /**
- * Find the unisigned integer type that has exactly N_ bytes (if exists).
+ * Find the unsigned integer type that has exactly N_ bytes (if exists).
  */
 template<int N_> struct Uint { };
 template<> struct Uint<1> { typedef ::uint8_t t; };
@@ -157,15 +162,21 @@ template<> struct Uint<2> { typedef ::uint16_t t; };
 template<> struct Uint<4> { typedef ::uint32_t t; };
 template<> struct Uint<8> { typedef ::uint64_t t; };
 
+typedef Uint<sizeof(void*)>::t Uvoid ;
+
+template<int N_> struct Sint { };
+template<> struct Sint<1> { typedef ::int8_t t; };
+template<> struct Sint<2> { typedef ::int16_t t; };
+template<> struct Sint<4> { typedef ::int32_t t; };
+template<> struct Sint<8> { typedef ::int64_t t; };
+
 
 /**
  *
  */
 template<typename T>
-//struct AsUint {
-//	typedef typename Uint<sizeof(T)>::t t;
-	typename Uint<sizeof(T)>::t as_uint(T& src) { return *reinterpret_cast<typename Uint<sizeof(T)>::t*>(&src); }
-//};
+typename Uint<sizeof(T)>::t as_uint(const T& src) { return *reinterpret_cast<const typename Uint<sizeof(T)>::t*>(&src); }
+
 
 template<int N_ >
 struct UintWithAtLeastBits {
@@ -178,6 +189,21 @@ struct RemovePointer { typedef T t; };
 
 template<typename T>
 struct RemovePointer<T*> { typedef T t; };
+
+
+/**
+ * Incomplete type for printing eg sizeof info at compile time (as error).
+ * Use like:
+ * PrintInt<sizeof(block_data_t*)> blub;
+ * Source: http://stackoverflow.com/questions/2008398/is-it-possible-to-print-out-the-size-of-a-c-class-at-compile-time
+ */
+template<int s> struct PrintInt;
+
+/**
+ * Calculate length of a string constant at compile time.
+ */
+template<size_t N_>
+size_t strlen_compiletime(const char (&)[N_]) { return N_ - 1; }
 
 #endif // META_H
 

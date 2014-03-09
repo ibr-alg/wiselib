@@ -22,7 +22,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Arduino.h>
+#include "arduino.h"
 
 namespace wiselib
 {
@@ -68,11 +68,6 @@ namespace wiselib
    ArduinoDebug<OsModel_P>::
    debug( const char* msg, ... )
    {
-      if(!initialized_) {
-         Serial.begin(9600);
-         initialized_ = true;
-      }
-      
       va_list fmtargs;
       char buffer[MAXLINE];
       va_start( fmtargs, msg );
@@ -81,7 +76,9 @@ namespace wiselib
 
       ::Serial.println( buffer );
       
+      #if !defined(WISELIB_ARDUINO_DEBUG_NO_DELAY)
       delay(50);
+      #endif
       
       if(serialEventRun) { serialEventRun(); }
    }

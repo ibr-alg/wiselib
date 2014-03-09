@@ -25,8 +25,8 @@
 namespace wiselib {
 	
 	namespace PriorityQueueDynamic_detail {
-		template<typename V>
-		int compare_obvious(V& a, V& b) {
+		template<typename V_>
+		int compare_obvious(V_& a, V_& b) {
 			return a < b ? -1 : b < a;
 		}
 	}
@@ -51,7 +51,7 @@ namespace wiselib {
 			typedef Value_P value_type;
 			typedef vector_dynamic<OsModel, value_type> Vector;
 			
-      		void push(const value_type& v) {
+			void push(const value_type& v) {
 				vector_.push_back(v);
 				up_heap(vector_.size() - 1);
 				check_heap();

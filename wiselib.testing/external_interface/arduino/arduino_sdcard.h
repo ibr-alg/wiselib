@@ -1,20 +1,20 @@
 /***************************************************************************
- ** This file is part of the generic algorithm library Wiselib.           **
- ** Copyright (C) 2012 by the Wisebed (www.wisebed.eu) project.           **
- **                                                                       **
+ ** This file is part of the generic algorithm library Wiselib.			  **
+ ** Copyright (C) 2012 by the Wisebed (www.wisebed.eu) project.			  **
+ **																		  **
  ** The Wiselib is free software: you can redistribute it and/or modify   **
- ** it under the terms of the GNU Lesser General Public License as        **
- ** published by the Free Software Foundation, either version 3 of the    **
- ** License, or (at your option) any later version.                       **
- **                                                                       **
- ** The Wiselib is distributed in the hope that it will be useful,        **
- ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
- ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
- ** GNU Lesser General Public License for more details.                   **
- **                                                                       **
- ** You should have received a copy of the GNU Lesser General Public      **
- ** License along with the Wiselib.                                       **
- ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ** it under the terms of the GNU Lesser General Public License as		  **
+ ** published by the Free Software Foundation, either version 3 of the	  **
+ ** License, or (at your option) any later version.						  **
+ **																		  **
+ ** The Wiselib is distributed in the hope that it will be useful,		  **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of		  **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the		  **
+ ** GNU Lesser General Public License for more details.					  **
+ **																		  **
+ ** You should have received a copy of the GNU Lesser General Public	  **
+ ** License along with the Wiselib.										  **
+ ** If not, see <http://www.gnu.org/licenses/>.							  **
  ***************************************************************************/
 
 #ifndef __ARDUINO_SDCARD_H__
@@ -22,15 +22,13 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Arduino.h>
+#include "arduino.h"
 #include <Sd2Card.h>
 
-#include "arduino_debug.h"
 #include "arduino_os.h"
+#include "arduino_debug.h"
 
-namespace wiselib { class ArduinoOsModel; }
-
-#define DBG(...) ArduinoDebug<ArduinoOsModel>(true).debug(__VA_ARGS__)
+#define WISELIB_ARDUINO_SD_WAIT 1000
 
 namespace wiselib {
 
@@ -42,67 +40,72 @@ namespace wiselib {
 	class ArduinoSdCard {
 		public:
 			typedef OsModel_P OsModel;
-			typedef typename OsModel::block_data_t block_data_t;
-			typedef typename OsModel::size_t size_type;
-			typedef size_type address_t; /// always refers to a block number
 			typedef ArduinoSdCard<OsModel> self_type;
 			typedef self_type* self_pointer_t;
+			typedef typename OsModel::block_data_t block_data_t;
+			typedef typename OsModel::size_t size_type;
+			typedef typename OsModel::size_t address_t;
 			
 			enum {
 				BLOCK_SIZE = 512,
-				SIZE = (1024UL * 1024UL * 1024UL / 512UL), ///< #blocks for 1GB 
+			};
+			
+			enum { 
+				NO_ADDRESS = (address_t)(-1),
 			};
 			
 			enum {
 				SUCCESS = OsModel::SUCCESS,
+				ERR_IO = OsModel::ERR_IO,
+				ERR_NOMEM = OsModel::ERR_NOMEM,
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
-			//ArduinoSdCard() {
+			int init() {
+				size_known_ = false;
+//#if ARDUINO_USE_ETHERNET
 				//card_.init();
-			//}
-			
-			void init() {
-#if ARDUINO_USE_ETHERNET
-                card_.init();
-#else
-                card_.init(0,4);
-#endif
-			}
-			
-			int erase(address_t start_block, address_t blocks) {
-				bool r;
-				//delay(3);
-				r = card_.erase(start_block, start_block + blocks);
-				if(!r) return ERR_UNSPEC;
-				//delay(50);
+//#else
+				//Serial.println("initing SD");
+				card_.init(SPI_FULL_SPEED, 4 /* chip select pin */);
+//#endif
 				return SUCCESS;
 			}
 			
+			int init(typename OsModel::AppMainParameter& value) {
+				return init();
+			}
+
 			/**
 			 */
-			int read(block_data_t* buffer, address_t start_block, address_t blocks) {
+			int read(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
 				bool r;
-				for(size_type written = 0; written < blocks; written++) {
-					//delay(3);
+				for(address_t written = 0; written < blocks; written++) {
+					wait();
 					r = card_.readBlock(start_block + written, buffer + written * BLOCK_SIZE);
-					if(!r) return ERR_UNSPEC;
+					if(!r) {
+						DBG("!read st%d+%d n%d E%d:%d", (int)start_block, (int)written, (int)blocks, (int)card_.errorCode(), (int)card_.errorData());
+						return ERR_UNSPEC;
+					}
+					else {
+						DBG("read succ st%d+%d n%d E%d:%d", (int)start_block, (int)written, (int)blocks, (int)card_.errorCode(), (int)card_.errorData());
+					}
 				}
 				//delay(50);
 				return SUCCESS;
 			}
-			
+
 			/**
 			 */
-			int write(block_data_t* buffer, address_t start_block, address_t blocks) {
+			int write(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
 				//delay(50);
 				uint8_t r = card_.writeStart(start_block, blocks);
 				if(!r) {
 					DBG("write(%p, st=%d, count=%d) start fail", buffer, start_block, blocks);
 					return ERR_UNSPEC;
 				}
-				for(size_type written = 0; written < blocks; written++) {
-					//delay(3);
+				for(address_t written = 0; written < blocks; written++) {
+					wait();
 					r = card_.writeData(buffer + written * BLOCK_SIZE);
 					if(!r) {
 						DBG("write(%p, st=%d, count=%d) data %p fail", buffer, start_block, blocks, buffer + written * BLOCK_SIZE);
@@ -119,7 +122,39 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
+			int erase(address_t start_block, address_t blocks = 1) {
+				bool r;
+				wait();
+				r = card_.erase(start_block, start_block + blocks);
+				if(!r) return ERR_UNSPEC;
+				//delay(50);
+				return SUCCESS;
+			}
+			
+			int wipe() {
+				return erase(0, size());
+			}
+			
+			size_type size() { 
+				if(!size_known_) {
+					size_ = card_.cardSize();
+					size_known_ = true;
+				}
+				//Serial.println("size SD");
+				//assert(sizeof(address_t) >= sizeof(uint32_t));
+				return size_; //cardSize() returns a uint32_t
+			}
+			
 		private:
+			
+			void wait() {
+				#if defined(WISELIB_ARDUINO_SD_WAIT)
+				delay(WISELIB_ARDUINO_SD_WAIT);
+				#endif
+			}
+			::uint32_t size_;
+			bool size_known_;
+			
 			Sd2Card card_;
 	};
 

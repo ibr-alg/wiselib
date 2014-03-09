@@ -90,7 +90,8 @@ tinyos-tossim:
 tinyos-gnode:
 	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.tinyos.gnode gnode tinyos-gnode ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 
-
+ns3:
+	make -f $(WISELIB_BASE)/apps/generic_apps/Makefile.ns3 ADD_CXXFLAGS=$(ADD_CXXFLAGS)
 ###############################################################
 ##
 ## Flash hex file to node
@@ -118,6 +119,19 @@ flash-inga:
 	
 flash-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino flash ADD_CXXFLAGS=$(ADD_CXXFLAGS)
+
+###############################################################
+##
+## Observe node output
+#####
+
+monitor-tinyos-telosb:
+	# requires tinyos-tools
+	java net.tinyos.tools.Listen -comm serial@/dev/ttyUSB0:telosb
+	
+monitor-contiki-telosb:
+	$(CONTIKI_PATH)/tools/sky/serialdump-linux -b115200 $(PORT)
+	#/dev/ttyUSB0
 
 monitor-arduino:
 	$(MAKE) -f $(WISELIB_BASE)/apps/generic_apps/Makefile.arduino monitor ADD_CXXFLAGS=$(ADD_CXXFLAGS)
@@ -158,6 +172,6 @@ clean:
 		obj_* symbols.* contiki-* \
 		_TOSSIMmodule.so TOSSIM.* build/ simbuild/ app.xml
 	rm -f out/*
-	find . -executable -type f -delete
+	find . -executable -type f -and -not -iname '*.py' -and -not -iname '*.sh' -delete
 	rm *.d *.hex
 	rmdir out

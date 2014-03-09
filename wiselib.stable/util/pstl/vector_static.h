@@ -31,6 +31,7 @@ namespace wiselib
    class vector_static
    {
    public:
+      typedef OsModel_P OsModel;
       typedef Value_P value_type;
       typedef value_type* pointer;
       typedef const value_type* const_pointer;
@@ -108,6 +109,9 @@ namespace wiselib
       // --------------------------------------------------------------------
       bool empty() const
       { return size() == 0; }
+      // --------------------------------------------------------------------
+      bool full() const
+      { return size() == max_size(); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Element Access
@@ -223,7 +227,6 @@ namespace wiselib
             *cur = *(cur + 1);
 
          pop_back();
-
          return position;
       }
       // --------------------------------------------------------------------

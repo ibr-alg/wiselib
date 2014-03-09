@@ -26,18 +26,14 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief A table is a dynamic vector holding a set of rows with the same
+	 * number of columns.
 	 * 
 	 * Table t;
 	 * 
 	 * for(Table::iterator it = t.begin(); it != t.end(); ++it) {
 	 *    print(*it);
 	 * }
-	 * 
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
@@ -109,56 +105,110 @@ namespace wiselib {
 					size_type row_size_;
 			};
 			
+			Table() : row_size_(0), capacity_(0), size_(0), buffer_(0) {
+			}
+			
 			void init(size_type columns) {
 				row_size_ = columns * sizeof(typename RowT::Value);
 				capacity_ = 0;
 				size_ = 0;
 				buffer_ = 0;
+				check();
 			}
 			
+			/**
+			 * Can be called without prior call to init().
+			 */
+			void destruct() {
+				//DBG("table destr");
+				clear();
+				//DBG("table destr end");
+			}
+			
+			/**
+			 */
 			void insert(const RowT& row) {
+				check();
 				if(size_ >= capacity_) {
 					grow();
 				}
 				memcpy(buffer_ + size_ * row_size_, &row, row_size_);
 				size_++;
+				check();
 			}
 			
+			/**
+			 */
 			iterator begin() {
+				check();
 				return iterator(buffer_, row_size_);
 			}
 			
+			/**
+			 */
 			iterator end() {
+				check();
 				return iterator(buffer_ + size_ * row_size_, row_size_);
 			}
 			
+			/**
+			 * Compress in-memory rows. Useful if no insert() or pop_back()
+			 * operations are to be expected in the foreseeable future to
+			 * conserve some RAM.
+			 */
 			void pack() {
+				check();
 				change_capacity(size_);
+				check();
 			}
 			
+			/**
+			 * Access ith row.
+			 */
 			RowT& operator[](size_type n) {
+				check();
 				return *reinterpret_cast<RowT*>(
 						buffer_ + n * row_size_
 				);
 			}
 			
+			/**
+			 * Set ith row.
+			 */
 			void set(size_type i, const RowT& row) {
+				check();
 				memcpy(buffer_ + i * row_size_, &row, row_size_);
+				check();
 			}
 			
+			/**
+			 * # of rows.
+			 */
 			size_type size() { return size_; }
 			
+			/**
+			 */
 			void clear() {
 				size_ = 0;
 				change_capacity(0);
 			}
 			
+			/**
+			 * Sort rows in-place, according to the given comparator.
+			 */
 			template<typename Compare>
 			void sort(Compare& comp) {
+				check();
 				heap_sort(begin(), end(), comp);
+				check();
 			}
 			
+			/**
+			 * delete the last row from the table
+			 */
 			void pop_back() {
+				check();
+				
 				if(size_ > 0) {
 					size_--;
 				}
@@ -166,6 +216,12 @@ namespace wiselib {
 				if(size_ < (capacity_ / 4)) {
 					shrink();
 				}
+				
+				check();
+			}
+			
+			void check() {
+				assert(row_size_ > 0);
 			}
 			
 		private:
@@ -189,13 +245,17 @@ namespace wiselib {
 			}
 			
 			void change_capacity(size_type n) {
+				assert((row_size_ == 0) <= (n == 0));
+				
 				block_data_t *new_buffer = 0;
 				if(n > 0) {
 					new_buffer = get_allocator().template allocate_array<block_data_t>(n * row_size_).raw();
 				}
 				if(buffer_) {
-					memcpy(new_buffer, buffer_, size_ * row_size_);
-					get_allocator().free_array(buffer_);
+					if(new_buffer) {
+						memcpy(new_buffer, buffer_, size_ * row_size_);
+					}
+					::get_allocator().free_array(buffer_);
 					buffer_ = 0;
 				}
 				buffer_ = new_buffer;

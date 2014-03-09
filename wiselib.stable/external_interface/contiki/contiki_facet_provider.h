@@ -19,6 +19,8 @@
 #ifndef __EXTERNAL_INTERFACE_CONTIKI_FACET_PROVIDER_H__
 #define __EXTERNAL_INTERFACE_CONTIKI_FACET_PROVIDER_H__
 
+#include "project-conf.h"
+
 #include "external_interface/facet_provider.h"
 #include "external_interface/contiki/contiki_os.h"
 

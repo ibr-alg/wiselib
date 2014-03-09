@@ -134,8 +134,11 @@ namespace wiselib {
 				wiselib::write<OsModel>(message + sizeof(message_id_t), sequence_number_);
 				memcpy(message + sizeof(message_id_t) + sizeof(sequence_number_t), data, size);
 				
+				//Serial.println("fnd bcast");
 				//on_receive(radio_->id(), size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
 				radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				//radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				//radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
 				return SUCCESS;
 			}
 			
@@ -175,6 +178,7 @@ namespace wiselib {
 			
 		private:
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
+				//Serial.println("fnd recv1");
 				if(from == radio_->id()) { return; }
 				
 				message_id_t msg_id = wiselib::read<OsModel, block_data_t, message_id_t>(data);
@@ -182,9 +186,12 @@ namespace wiselib {
 				block_data_t *d_seq = data + sizeof(message_id_t);
 				block_data_t *d_payload = d_seq + sizeof(sequence_number_t);
 				
+				//Serial.println("fnd recv2");
 				if(msg_id == MESSAGE_ID_FLOODING) {
+				//Serial.println("fnd recv3");
 					sequence_number_t seq = wiselib::read<OsModel, block_data_t, sequence_number_t>(d_seq);
 					if(seq > sequence_number_) { // || (sequence_number_ == MAX_SEQUENCE_NUMBER && seq != sequence_number_)) {
+				//Serial.println("fnd recv4");
 						base_type::notify_receivers(from,
 								size - sizeof(sequence_number_t) - sizeof(message_id_t), d_payload);
 						radio_->send(Radio::BROADCAST_ADDRESS, size, data);

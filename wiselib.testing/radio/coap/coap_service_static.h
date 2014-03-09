@@ -25,7 +25,6 @@
 #include "util/delegates/delegate.hpp"
 #include "util/pstl/vector_static.h"
 #include "util/pstl/static_string.h"
-#include "util/pstl/string_dynamic.h"
 #include "util/pstl/list_static.h"
 
 #define COAP_SERVICE_TEMPLATE_PREFIX	template<typename OsModel_P, \
@@ -41,6 +40,12 @@
 		typename OsModel_P::size_t resources_list_size_>
 
 #define COAP_SERVICE_T	CoapServiceStatic<OsModel_P, Radio_P, Timer_P, Rand_P, String_T, preface_msg_id_, human_readable_errors_, coap_packet_t_, sent_list_size_, received_list_size_, resources_list_size_>
+
+#ifdef DEBUG
+#define DBG_COAP(...) debug_->debug(__VA_ARGS__)
+#else
+#define DBG_COAP(...)
+#endif
 
 namespace wiselib {
 
@@ -71,7 +76,7 @@ template<typename OsModel_P,
 	typename Rand_P = typename OsModel_P::Rand,
 	typename String_T = wiselib::StaticString,
 	bool preface_msg_id_ = false,
-	bool human_readable_errors_ = false,
+	bool human_readable_errors_ = true,
 	typename coap_packet_t_ = typename wiselib::CoapPacketStatic<OsModel_P, Radio_P, String_T>::coap_packet_t,
 	typename OsModel_P::size_t sent_list_size_ = COAPRADIO_SENT_LIST_SIZE,
 	typename OsModel_P::size_t received_list_size_ = COAPRADIO_RECEIVED_LIST_SIZE,
@@ -90,6 +95,8 @@ template<typename OsModel_P,
 		typedef String_T string_t;
 
 		typedef typename OsModel::size_t os_size_t;
+
+		typedef typename OsModel::Debug Debug;
 
 		typedef typename Radio::node_id_t node_id_t;
 		typedef typename Radio::size_t size_t;
@@ -202,15 +209,6 @@ template<typename OsModel_P,
 				return response_;
 			}
 
-		private:
-			friend class COAP_SERVICE_T;
-			coap_packet_t message_;
-			// in this case the sender
-			node_id_t correspondent_;
-			coap_packet_t *ack_;
-			coap_packet_t *response_;
-			// TODO: empfangszeit? (Freshness)
-
 			void set_message( const coap_packet_t &message)
 			{
 				message_ = message;
@@ -230,9 +228,70 @@ template<typename OsModel_P,
 			{
 				response_ = response;
 			}
+
+		private:
+			friend class COAP_SERVICE_T;
+			coap_packet_t message_;
+			// in this case the sender
+			node_id_t correspondent_;
+			coap_packet_t *ack_;
+			coap_packet_t *response_;
+			// TODO: empfangszeit? (Freshness)
+
 		};
 
 		typedef delegate1<void, ReceivedMessage&> coapreceiver_delegate_t;
+
+		class CoapResource
+		{
+		public:
+			bool operator==( const CoapResource &other ) const
+			{
+				return ( this->resource_path() == other.resource_path() && this->callback() == other.callback() );
+			}
+
+			bool operator!=( const CoapResource &other ) const
+			{
+				return !( *this == other );
+			}
+
+			CoapResource()
+			{
+				resource_path_ = string_t();
+				callback_ = coapreceiver_delegate_t();
+			}
+
+			CoapResource( string_t path, coapreceiver_delegate_t callback)
+			{
+				set_resource_path( path );
+				set_callback( callback );
+			}
+
+			void set_resource_path( string_t path)
+			{
+				resource_path_ = path;
+			}
+
+			string_t resource_path() const
+			{
+				return resource_path_;
+			}
+
+			void set_callback( coapreceiver_delegate_t callback )
+			{
+				callback_ = callback;
+			}
+
+			coapreceiver_delegate_t callback() const
+			{
+				return callback_;
+			}
+
+		private:
+			string_t resource_path_;
+
+			coapreceiver_delegate_t callback_;
+		};
 
 		CoapServiceStatic();
 		~CoapServiceStatic();
@@ -295,7 +354,7 @@ template<typename OsModel_P,
 		 * @return index for unregistering a resource
 		 */
 		template<class T, void (T::*TMethod)(ReceivedMessage&)>
-		int reg_resource_callback( string_t resource_path, T *callback );
+		int reg_resource_callback( string_t resource_path, T *callback, CoapResource *resource = NULL );
 
 		/**
 		 * Unregisters a resource
@@ -425,11 +484,14 @@ template<typename OsModel_P,
 		 * @param payload body of the reply
 		 * @param payload_length length of the body
 		 * @param code Code of the reply, COAP_CODE_CONTENT by default
+		 * @param reply Packet to set options on, empty packet by default
 		 */
 		coap_packet_t* reply( ReceivedMessage& req_msg,
 				uint8_t* payload,
 				size_t payload_length,
-				CoapCode code = COAP_CODE_CONTENT );
+				CoapCode code = COAP_CODE_CONTENT,
+				CoapContentType content_type = COAP_CONTENT_TYPE_NONE,
+				coap_packet_t reply = coap_packet_t());
 
 	private:
 #ifdef BOOST_TEST_DECL
@@ -444,6 +506,7 @@ template<typename OsModel_P,
 			SentMessage()
 			{
 				retransmit_count_ = 0;
+				retransmit_timeout_ = 0;
 				ack_received_ = false;
 				sender_callback_ = coapreceiver_delegate_t();
 				response_ = NULL;
@@ -542,62 +605,13 @@ template<typename OsModel_P,
 			coapreceiver_delegate_t sender_callback_;
 		};
 
-		class CoapResource
-		{
-		public:
-			bool operator==( const CoapResource &other ) const
-			{
-				return ( this->resource_path() == other.resource_path() && this->callback() == other.callback() );
-			}
-
-			bool operator!=( const CoapResource &other ) const
-			{
-				return !( *this == other );
-			}
-
-			CoapResource()
-			{
-				resource_path_ = string_t();
-				callback_ = coapreceiver_delegate_t();
-			}
-
-			CoapResource( string_t path, coapreceiver_delegate_t callback)
-			{
-				set_resource_path( path );
-				set_callback( callback );
-			}
-
-			void set_resource_path( string_t path)
-			{
-				resource_path_ = path;
-			}
-
-			string_t resource_path() const
-			{
-				return resource_path_;
-			}
-
-			void set_callback( coapreceiver_delegate_t callback )
-			{
-				callback_ = callback;
-			}
-
-			coapreceiver_delegate_t callback() const
-			{
-				return callback_;
-			}
-
-		private:
-			string_t resource_path_;
-			coapreceiver_delegate_t callback_;
-		};
-
 		typedef list_static<OsModel, ReceivedMessage, received_list_size_> received_list_t;
 		typedef list_static<OsModel, SentMessage, sent_list_size_> sent_list_t;
 
 		Radio *radio_;
 		Timer *timer_;
 		Rand *rand_;
+		Debug *debug_;
 		int recv_callback_id_; // callback for receive function
 		sent_list_t sent_;
 		received_list_t received_;
@@ -631,6 +645,8 @@ template<typename OsModel_P,
 		void error_response( int error, ReceivedMessage& message );
 
 		void receive_coap(ReceivedMessage& message);
+
+		void resource_discovery_callback(ReceivedMessage& message);
 
 		int path_cmp( const string_t &lhs, const string_t &rhs);
 
@@ -683,6 +699,7 @@ template<typename OsModel_P,
 		recv_callback_id_ = radio_->template reg_recv_callback<self_t,
 			&self_t::receive > ( this );
 
+		DBG_COAP("[CoAP] Radio enabled");
 		return SUCCESS;
 	}
 
@@ -690,6 +707,7 @@ template<typename OsModel_P,
 	int COAP_SERVICE_T::disable_radio()
 	{
 		radio_->unreg_recv_callback(recv_callback_id_);
+		DBG_COAP("[CoAP] Radio disabled");
 		return SUCCESS;
 	}
 
@@ -813,6 +831,12 @@ template<typename OsModel_P,
 								if( packet.is_response() )
 									handle_response( received_message, request );
 							}
+							else
+							{
+								DBG_COAP("[warning] Received ACK but didn't find belonging request");
+								//cout << "From: " << from << "\n";
+								//cout << "Msg-ID: " << packet.msg_id() << "\n";
+							}
 						}
 						else
 						{
@@ -828,13 +852,15 @@ template<typename OsModel_P,
 							{
 								char * error_description = NULL;
 								int len = 0;
+								CoapContentType ctype = COAP_CONTENT_TYPE_NONE;
 								if( human_readable_errors_ )
 								{
 									char error_description_str[COAP_ERROR_STRING_LEN];
-									len = sprintf( error_description, "Unknown Code %i", packet.code() );
+									len = sprintf( error_description_str, "Unknown Code %i", packet.code() );
 									error_description = error_description_str;
+									ctype = COAP_CONTENT_TYPE_TEXT_PLAIN;
 								}
-								reply( received_message, (block_data_t*) error_description, len, COAP_CODE_NOT_IMPLEMENTED );
+								reply( received_message, (block_data_t*) error_description, len, COAP_CODE_NOT_IMPLEMENTED, ctype );
 							}
 						}
 					}
@@ -881,7 +907,7 @@ template<typename OsModel_P,
 
 	COAP_SERVICE_TEMPLATE_PREFIX
 	template <class T, void (T::*TMethod)( typename COAP_SERVICE_T::ReceivedMessage& ) >
-	int COAP_SERVICE_T::reg_resource_callback( string_t resource_path, T *callback )
+	int COAP_SERVICE_T::reg_resource_callback( string_t resource_path, T *callback, CoapResource *resource )
 	{
 
 		if ( resources_.empty() )
@@ -889,15 +915,44 @@ template<typename OsModel_P,
 
 		for ( unsigned int i = 0; i < resources_.size(); ++i )
 		{
-			if ( resources_.at(i) == CoapResource() )
+			CoapResource &curr = resources_.at(i);
+			if ( curr == CoapResource() )
 			{
-				resources_.at(i).set_resource_path( resource_path );
-				resources_.at(i).set_callback( coapreceiver_delegate_t::template from_method<T, TMethod>( callback ) );
+				curr.set_resource_path( resource_path );
+				curr.set_callback( coapreceiver_delegate_t::template from_method<T, TMethod>( callback ) );
+				resource = &curr;
+				DBG_COAP("Registered new resource under \"%s\"", resource_path.c_str() );
 				return i;
 			}
 		}
 
+		DBG_COAP("Maximum number of %d resources reached. Dropping \"%s\"", resources_.size(), resource_path.c_str() );
 		return -1;
+	}
+
+	COAP_SERVICE_TEMPLATE_PREFIX
+	void COAP_SERVICE_T::resource_discovery_callback(ReceivedMessage& message)
+	{
+
+		string_t res = string_t();
+		bool first = true;
+		for ( unsigned int i = 0; i < resources_.size(); ++i )
+		{
+			CoapResource curr = resources_.at(i);
+			if ( curr != CoapResource() && curr.resource_path() != COAP_RESOURCE_DISCOVERY_PATH)
+			{
+				if (!first) {
+					res.append(",");
+				}
+				first = false;
+				string_t path = curr.resource_path();
+				// TODO resource links in RFC6690 format including meta info
+				res.append("</");
+				res.append(path);
+				res.append(">");
+			}
+		}
+		reply(message, (uint8_t*) res.c_str(), res.length(), COAP_CODE_CONTENT, COAP_CONTENT_TYPE_APPLICATION_LINK_FORMAT);
 	}
 
 	COAP_SERVICE_TEMPLATE_PREFIX
@@ -982,7 +1037,7 @@ template<typename OsModel_P,
 		pack.set_code( code );
 		if( !pack.is_request() )
 		{
-			// TODO ordentlichen Fehler schmeißen?
+			DBG_COAP("This shouldn't happen.");
 			return NULL;
 		}
 
@@ -1008,15 +1063,17 @@ template<typename OsModel_P,
 	coap_packet_t_ * COAP_SERVICE_T::reply(ReceivedMessage &req_msg,
 				uint8_t* payload,
 				size_t payload_length,
-				CoapCode code )
+				CoapCode code,
+				CoapContentType content_type,
+				coap_packet_t reply)
 	{
 		coap_packet_t *sendstatus = NULL;
 		coap_packet_t & request = req_msg.message();
-		coap_packet_t reply;
 		OpaqueData token;
 		request.token( token );
 
 		reply.set_token( token );
+		reply.set_content_type( content_type );
 
 		if( request.type() == COAP_MSG_TYPE_CON || request.type() == COAP_MSG_TYPE_NON )
 			reply.set_type( request.type() );
@@ -1165,36 +1222,52 @@ template<typename OsModel_P,
 		}
 
 		string_t available_res;
-		// TODO: we're looking at the first path segment only, subresources should be handled by their parents
 		string_t request_res = message.message().uri_path();
-		bool resource_found = false;
-		for(size_t i = 0; i < resources_.size(); ++i )
+
+		// handle resource discovery at "/.well-known/core" path
+		if ( request_res == COAP_RESOURCE_DISCOVERY_PATH)
 		{
-			if( resources_.at(i) != CoapResource() && resources_.at(i).callback() && resources_.at(i).callback().obj_ptr() != NULL )
-			{
-				available_res = resources_.at(i).resource_path();
-				// in order to match a resource, the requested uri must match a resource, or it must be a sub-element of a resource,
-				// which means the next symbol in the request must be a slash
-				if( path_cmp( request_res, available_res ) == EQUAL
-				    || path_cmp( request_res, available_res ) == LHS_IS_SUBRESOURCE )
-				{
-					resources_.at(i).callback()( message );
-					resource_found = true;
-				}
-			}
+			resource_discovery_callback(message);
 		}
-		if( !resource_found )
+		else
 		{
 
-			char * error_description = NULL;
-			int len = 0;
-			if( human_readable_errors_ )
+			bool resource_found = false;
+
+			for(size_t i = 0; i < resources_.size(); ++i )
 			{
-				char error_description_str[COAP_ERROR_STRING_LEN];
-				len = sprintf(error_description, "Resource %s not found.", request_res.c_str() );
-				error_description = error_description_str;
+				if( resources_.at(i) != CoapResource() && resources_.at(i).callback() && resources_.at(i).callback().obj_ptr() != NULL )
+				{
+					available_res = resources_.at(i).resource_path();
+					// in order to match a resource, the requested uri must match a resource, or it must be a sub-element of a resource,
+					// which means the next symbol in the request must be a slash
+					int path_compare = path_cmp( request_res, available_res );
+					if( path_compare == EQUAL || path_compare == LHS_IS_SUBRESOURCE )
+					{
+						resources_.at(i).callback()( message );
+						resource_found = true;
+
+						// TODO: subresources should be handled by their parents only. Currently parent and directly registered subresource get called
+						//break;
+					}
+				}
 			}
-			reply( message, (uint8_t*) error_description, len, COAP_CODE_NOT_FOUND );
+			if( !resource_found )
+			{
+
+				char * error_description = NULL;
+				int len = 0;
+				CoapContentType ctype = COAP_CONTENT_TYPE_NONE;
+				if( human_readable_errors_ )
+				{
+					char error_description_str[COAP_ERROR_STRING_LEN];
+					len = sprintf(error_description_str, "Resource \"%s\" not found.", request_res.c_str() );
+					error_description = error_description_str;
+					ctype = COAP_CONTENT_TYPE_TEXT_PLAIN;
+				}
+				reply( message, (uint8_t*) error_description, len, COAP_CODE_NOT_FOUND, ctype );
+			}
+
 		}
 	}
 
@@ -1264,6 +1337,7 @@ template<typename OsModel_P,
 		}
 		block_data_t * error_description = NULL;
 		int len = 0;
+		CoapContentType ctype = COAP_CONTENT_TYPE_NONE;
 		if( human_readable_errors_ )
 		{
 			char error_description_str[COAP_ERROR_STRING_LEN];
@@ -1291,6 +1365,7 @@ template<typename OsModel_P,
 				len = sprintf(error_description_str, "Error: Unknown error %i, last option before error: %i ", error, err_optnum );
 			}
 			error_description = (block_data_t *) error_description_str;
+			ctype = COAP_CONTENT_TYPE_TEXT_PLAIN;
 		}
 		else
 		{
@@ -1301,13 +1376,14 @@ template<typename OsModel_P,
 			len += write<OsModel , block_data_t , int16_t >( error_description_uint + len, transmit_optnum );
 			error_description = error_description_uint;
 		}
-		reply( message, error_description, len, err_coap_code );
+		reply( message, error_description, len, err_coap_code, ctype );
 	}
 
 	COAP_SERVICE_TEMPLATE_PREFIX
 	void COAP_SERVICE_T::receive_coap(ReceivedMessage& message)
 	{
-		//TODO
+		//TODO why is this never getting called
+		DBG_COAP("Receive CoAP");
 	}
 
 	COAP_SERVICE_TEMPLATE_PREFIX
@@ -1320,14 +1396,14 @@ template<typename OsModel_P,
 				if( i == rhs.length() )
 					return EQUAL;
 				else if( rhs[i] == '/' )
-					return LHS_IS_SUBRESOURCE;
+					return RHS_IS_SUBRESOURCE;
 				else
 					return NOT_EQUAL;
 			}
 			if( i == rhs.length() )
 			{
 				if( lhs[i] == '/' )
-					return RHS_IS_SUBRESOURCE;
+					return LHS_IS_SUBRESOURCE;
 				else
 					return NOT_EQUAL;
 			}

@@ -6,12 +6,14 @@ ifeq ($(PC_COMPILE_DEBUG), 1)
 	CXX_BASE_FLAGS = -I. \
 		-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) \
 		-Wall -Wno-unknown-pragmas -O0 -g \
-		-DOSMODEL=PCOsModel -DPC -lpthread -lrt
+		-DOSMODEL=PCOsModel -DPC
+	LD_BASE_FLAGS = -lpthread -lrt
 else
 	CXX_BASE_FLAGS = -I. \
 		-I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH) \
 		-Wall -Wno-unknown-pragmas -O3 -DNDEBUG \
-		-DOSMODEL=PCOsModel -DPC -lpthread -lrt
+		-DOSMODEL=PCOsModel -DPC
+	LD_BASE_FLAGS = -lpthread -lrt
 endif
 
 ifeq ($(WISELIB_EXIT_MAIN), 1)
@@ -20,7 +22,7 @@ else
 	CXXFLAGS = $(CXX_BASE_FLAGS) $(PC_CXX_FLAGS)
 endif
 
-LDFLAGS = $(PC_LDFLAGS)
+LDFLAGS = $(LD_BASE_FLAGS) $(PC_LDFLAGS)
 
 OUTPUT = out/pc
 OUTBIN = .

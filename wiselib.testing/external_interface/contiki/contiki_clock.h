@@ -53,6 +53,7 @@ namespace wiselib
       typedef self_type* self_pointer_t;
 
       typedef clock_time_t time_t;
+      typedef uint16_t millis_t;
 
       // --------------------------------------------------------------------
       enum ErrorCodes
@@ -70,11 +71,13 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum
       {
-         CLOCKS_PER_SEC = 1000
+         CLOCKS_PER_SEC = CLOCK_SECOND
       };
       // --------------------------------------------------------------------
       ContikiClockModel(  )
-      {}
+      {
+         clock_init();
+      }
       // --------------------------------------------------------------------
       void init()
       {}
@@ -89,11 +92,11 @@ namespace wiselib
          return clock_time();
       }
       // --------------------------------------------------------------------
-      int set_time( time_t time )
-      {
-         //  timer_set(timer, time);
-         return SUCCESS;
-      }
+      //int set_time( time_t time )
+      //{
+         ////  timer_set(timer, time);
+         //return SUCCESS;
+      //}
       // --------------------------------------------------------------------
       uint16_t microseconds( time_t time )
       {
@@ -102,21 +105,23 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return (uint16_t)(time - int(time)) * 1000;
+         return ((time % CLOCKS_PER_SEC) * 1000.0) / CLOCKS_PER_SEC;
+            //(uint16_t)(time - int(time)) * 1000;
       }
       // --------------------------------------------------------------------
       uint32_t seconds( time_t time )
       {
-         return CLOCK_SECOND;
+         return clock_seconds();
       }
 
    private:
-	  struct timer {
-	    time_t start;
-	    time_t interval;
-	  };
+	  //struct timer {
+		 //time_t start;
+		 //time_t interval;
+	  //};
 
    };
 }
 
 
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

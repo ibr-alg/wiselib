@@ -812,6 +812,7 @@ namespace wiselib
 					timer().template set_timer<self_type, &self_type::ATP_service_disable> ( ATP_sevice_throughput_period, this, 0 );
 				}
 #endif
+				prot_ref->print( debug(), radio() );
 			}
 		}
 #endif

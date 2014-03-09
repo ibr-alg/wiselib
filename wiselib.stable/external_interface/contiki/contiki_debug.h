@@ -19,6 +19,8 @@
 #ifndef CONNECTOR_CONTIKI_DEBUGOUTPUT_H
 #define CONNECTOR_CONTIKI_DEBUGOUTPUT_H
 
+#include "project-conf.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 extern "C" {
@@ -61,11 +63,16 @@ namespace wiselib
    debug( const char *msg, ... )
    {
       va_list fmtargs;
-      char buffer[1024];
+      char buffer[256];
       va_start( fmtargs, msg );
       vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
       va_end( fmtargs );
-      printf( "%s", buffer );
+      printf( "%s\n", buffer );
+      //va_list fmtargs;
+	  //va_start(fmtargs, msg);
+	  //vprintf(msg, fmtargs);
+      //va_end( fmtargs );
+	  //printf("\n");
    }
 }
 

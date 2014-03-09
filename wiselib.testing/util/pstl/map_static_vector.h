@@ -60,7 +60,7 @@ namespace wiselib
       ~MapStaticVector()
       {}
       // --------------------------------------------------------------------
-      MapStaticVector& operator=( MapStaticVector& map )
+      MapStaticVector& operator=( const MapStaticVector& map )
       {
          vector_type::clear();
          for ( iterator it = map.begin(); it != map.end(); ++it )
@@ -119,11 +119,16 @@ namespace wiselib
          }
          return count;
       }
+      // --------------------------------------------------------------------
+      iterator erase( const iterator& it )
+      {
+         return vector_type::erase( it );
+      }
       ///@}
       // --------------------------------------------------------------------
       ///@name Operations
       ///@{
-      iterator find( const key_type& k )
+      iterator find( const key_type& k ) const
       {
          for ( iterator it = this->begin(); it != this->end(); ++it )
          {
@@ -152,33 +157,34 @@ namespace wiselib
       mapped_type& operator[]( const key_type& k )
       {
          iterator it = find(k);
-         if ( it != this->end() )
+         if ( it != this->end() ) {
+            assert(it->first == k);
             return it->second;
+         }
 
          value_type val;
          val.first = k;
          this->push_back( val );
 
          it = find(k);
-         if ( it != this->end() )
+         if ( it != this->end() ) {
+            assert(it->first == k);
             return it->second;
+         }
 
          // return dummy value that can be written to; this dummy value is
          // *only* returned if the static vector is full and can not hold
          // new components
          // TODO: Print Error message since this case should not happen!
-		 //return dummy_;
-		 assert(false);
-		 return *(mapped_type*)0;
+         //return dummy_;
+         assert(false);
+         return *(mapped_type*)0;
       }
       ///@}
       
       
-      bool contains (const key_type& k ){
-      iterator it = find(k);
-         if ( it != this->end() )
-         return true;
-         else return false;
+      bool contains (const key_type& k ) const {
+         return find(k) != this->end();
       }
 
    private:
@@ -188,3 +194,4 @@ namespace wiselib
 }
 
 #endif
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

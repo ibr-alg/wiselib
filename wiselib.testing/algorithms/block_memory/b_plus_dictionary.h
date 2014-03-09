@@ -55,6 +55,8 @@ namespace wiselib {
 			typedef BPlusHashSet<OsModel, BlockMemory, Hash, mapped_type> HashSet;
 			typedef typename HashSet::Entry Entry;
 			typedef Payload<mapped_type> PL;
+			typedef BPlusDictionary self_type;
+			typedef self_type* self_pointer_t;
 			
 			enum { ABSTRACT_KEYS = true };
 			static const key_type NULL_KEY;
@@ -63,8 +65,30 @@ namespace wiselib {
 				SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
-		private:
-		
+			class key_iterator {
+				public:
+					key_iterator() {
+					}
+					
+					key_iterator(const typename HashSet::iterator& it) : set_iterator_(it) {
+					}
+					
+					bool operator==(const key_iterator& other) { return set_iterator_ == other.set_iterator_; }
+					bool operator!=(const key_iterator& other) { return set_iterator_ != other.set_iterator_; }
+					
+					const key_iterator& operator++() {
+						++set_iterator_;
+						return *this;
+					}
+					
+					key_type operator*() { return set_iterator_.chunk_address(); }
+					const key_type* operator->() const { return &(set_iterator_.chunk_address()); }
+					
+				private:
+					typename HashSet::iterator set_iterator_;
+			};
+			typedef key_iterator iterator;
+			
 		public:
 			
 			BPlusDictionary() {
@@ -73,17 +97,19 @@ namespace wiselib {
 			int init(typename BlockMemory::self_pointer_t block_memory, typename OsModel::Debug::self_pointer_t debug) {
 				debug_ = debug;
 				block_memory_ = block_memory;
-				//tree_.init(block_memory_, debug_);
 				hash_set_.init(block_memory_, debug_);
 				return SUCCESS;
 			}
 			
-			key_type insert(block_data_t* ptr) {
-				//debug_->debug("dict ins a0 sz=%d st=%d", sizeof(mapped_type), stacksize());
-				//debug_->debug("sz(hashset it)=%d sz(tree it)=%d sz(keytype)=%d", sizeof(typename HashSet::iterator),
-						//sizeof(typename HashSet::Tree::iterator), sizeof(key_type));
-				return insert(PL::from_data(ptr));
+			key_iterator begin_keys() {
+				return key_iterator(hash_set_.begin());
 			}
+			
+			key_iterator end_keys() {
+				return key_iterator(hash_set_.end());
+			}
+			
+			key_type insert(block_data_t* ptr) { return insert(PL::from_data(ptr)); }
 			
 			key_type insert(mapped_type value) {
 				typename HashSet::iterator it = hash_set_.insert(value);
@@ -91,15 +117,17 @@ namespace wiselib {
 				return it.chunk_address();
 			}
 			
-			key_type find(block_data_t* ptr) {
-				return find(PL::from_data(ptr));
-			}
+			key_type find(block_data_t* ptr) { return find(PL::from_data(ptr)); }
 			
 			key_type find(mapped_type value) {
-				DBG("bpd.find %s", (char*)value);
 				typename HashSet::iterator it = hash_set_.find(value);
-				DBG("bpd.find %s done", (char*)value);
 				return it.chunk_address();
+			}
+			
+			size_type count(key_type k) {
+				Entry& e = *reinterpret_cast<Entry*>(entry_buffer_);
+				read_entry(e, k);
+				return e.refcount();
 			}
 			
 			void erase(key_type k) {
@@ -110,22 +138,16 @@ namespace wiselib {
 			} // erase(k)
 			
 			mapped_type operator[](key_type k) {
-				//DBG("bpt: op[](%d)", k);
 				Entry& e = *reinterpret_cast<Entry*>(entry_buffer_);
 				read_entry(e, k);
 				e.check();
 				return e.payload();
 			}
 			
-			block_data_t* get_value(key_type k) {
-				return PL::data((*this)[k]);
-			}
+			block_data_t* get_value(key_type k) { return PL::data((*this)[k]); }
 			
-			void free_value(block_data_t* ptr) {
-			}
-			
-			void free_value(mapped_type v) {
-			}
+			void free_value(block_data_t* ptr) { }
+			void free_value(mapped_type v) { }
 			
 			Tree& tree() { return hash_set_.tree(); }
 			
@@ -140,7 +162,6 @@ namespace wiselib {
 				assert(addr != ChunkAddress::invalid());
 				block_memory_->read_chunks(reinterpret_cast<block_data_t*>(&e), addr, sizeof(Entry));
 				block_memory_->read_chunks(reinterpret_cast<block_data_t*>(&e), addr, e.total_length());
-				
 			}
 			
 			/// for returning values e.g. by get_value()

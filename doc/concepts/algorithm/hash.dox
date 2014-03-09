@@ -6,14 +6,24 @@ namespace concepts {
 	 * 
 	 * Hash Algorithms provide a static method that accepts a pointer to a
 	 * bunch of data to be hashed plus the number of bytes to process.
+     * 
+     * @ingroup Hash_concept
 	 */
 	concept Hash_concept {
 		typedef ... block_data_t;
 		typedef ... size_type;
+		
+		/// hash_t should be an unsigned integral type.
 		typedef ... hash_t;
 		
-		enum { MAX_VALUE = .... };
+		enum { MAX_VALUE = (hash_t)(-1) };
 		
+		/**
+		 * Compute the hash value for the data at @a s of length @a l.
+		 * A usable hash function should return the same hash value
+		 * for the same data input, but have a low probability of two
+		 * different inputs leading to the same hash value.
+		 */
 		static hash_t hash(const block_data_t* s, size_type l);
 	};
 	

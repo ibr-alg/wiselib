@@ -26,11 +26,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @brief Description of an AGGREGATE operator.
 	 */
 	template<
 		typename OsModel_P,

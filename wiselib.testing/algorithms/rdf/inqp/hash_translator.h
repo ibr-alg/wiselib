@@ -23,11 +23,11 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Translates hash values into dictionary keys.
+	 * This implementation features a limited cache (@a MAX_SIZE_P elements)
+	 * for lookup. If a hash value is not find, an exhaustive search over the
+	 * dictionary has to be conducted.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
@@ -47,12 +47,10 @@ namespace wiselib {
 			typedef typename Hash::hash_t hash_t;
 			
 			enum { MAX_SIZE = MAX_SIZE_P };
-			enum { NULL_KEY = Dictionary::NULL_KEY };
-			
 			
 			class HashKeyPair {
 				public:
-					HashKeyPair() : dict_key_(NULL_KEY) {
+					HashKeyPair() : dict_key_(Dictionary::NULL_KEY) {
 					}
 					dict_key_t& dict_key() { return dict_key_; }
 					hash_t& hash() { return hash_; }
@@ -65,10 +63,15 @@ namespace wiselib {
 				dictionary_ = dict;
 			}
 			
+			/**
+			 * Translate the given hash value into a dictionary key.
+			 * If no string with that hash value is in the dictionary, @a
+			 * NULL_KEY is returned.
+			 */
 			dict_key_t translate(hash_t hash) {
 				size_type idx = hash_to_index(hash);
 				HashKeyPair &p = lookup_table_[idx];
-				if(p.dict_key() != NULL_KEY && p.hash() == hash) {
+				if(p.dict_key() != Dictionary::NULL_KEY && p.hash() == hash) {
 					return p.dict_key();
 				}
 				
@@ -89,9 +92,12 @@ namespace wiselib {
 					}
 				}
 				
-				return NULL_KEY;
+				return Dictionary::NULL_KEY;
 			}
 			
+			/**
+			 * Fill the internal cache with some keys from the dictionary.
+			 */
 			void fill() {
 				for(typename Dictionary::iterator iter = dictionary_->begin_keys();
 						iter != dictionary_->end_keys(); ++iter) {
@@ -104,26 +110,33 @@ namespace wiselib {
 				}
 			}
 			
+			/**
+			 * Recognize that @a hash translates to @a key, this has the
+			 * semantics of a suggestions to cache this relationship,
+			 * depending on the fill state of the cache this may or may not
+			 * happen.
+			 */
 			void offer(dict_key_t key, hash_t hash) {
 				size_type idx = hash_to_index(hash);
 				HashKeyPair &p = lookup_table_[idx];
-				if(p.dict_key() == NULL_KEY) {
+				if(p.dict_key() == Dictionary::NULL_KEY) {
 					p.hash() = hash;
 					p.dict_key() = key;
 					
-					block_data_t *s = dictionary_->get_value(key);
-					dictionary_->free_value(s);
+					//block_data_t *s = dictionary_->get_value(key);
+					//dictionary_->free_value(s);
 				}
 				else {
-					block_data_t *s = dictionary_->get_value(key);
-					dictionary_->free_value(s);
+					//block_data_t *s = dictionary_->get_value(key);
+					//dictionary_->free_value(s);
 				}
 			}
 			
+		private:
 			size_type hash_to_index(hash_t hash) {
 				return hash % MAX_SIZE;
 			}
-		private:
+			
 			HashKeyPair lookup_table_[MAX_SIZE];
 			typename Dictionary::self_pointer_t dictionary_;
 		

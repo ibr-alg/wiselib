@@ -40,7 +40,7 @@
 
 #define CONF_COAP_RESPONSE_TIMEOUT          2
 #define CONF_COAP_RESPONSE_RANDOM_FACTOR    1.5
-#define CONF_COAP_MAX_RETRANSMIT_TRIES      4
+#define CONF_COAP_MAX_RETRANSMIT_TRIES      8
 // END OF CONFIGURATION
 // CURRENT COAP DEFINES
 #define COAP_VERSION                        1
@@ -109,10 +109,6 @@ typedef wiselib::OSMODEL Os;
 typedef Os::TxRadio Radio;
 typedef Radio::node_id_t node_id_t;
 typedef Radio::block_data_t block_data_t;
-#ifdef USE_FLOODING
-typedef wiselib::StaticArrayRoutingTable<Os, Os::Radio, 64 > FloodingStaticMap;
-typedef wiselib::FloodingAlgorithm<Os, FloodingStaticMap, Os::Radio, Os::Debug> flooding_algorithm_t;
-#endif
 typedef wiselib::ResourceController<wiselib::StaticString> resource_t;
 
 namespace wiselib {
@@ -127,7 +123,7 @@ namespace wiselib {
         typedef Clock_P Clock;
         typedef Rand_P Rand;
         typedef String_P String;
-        typedef typename OsModel_P::Uart Uart;
+        //        typedef typename OsModel_P::Uart Uart;
         typedef typename Radio::node_id_t node_id_t;
         typedef typename Radio::size_t size_t;
         typedef typename Radio::block_data_t block_data_t;
@@ -172,13 +168,12 @@ namespace wiselib {
         /**
         Init function
          */
-        void init(Radio& radio, Timer& timer, Debug& debug, Clock& clock, uint16_t rand, Uart& uart) {
+        void init(Radio& radio, Timer& timer, Debug& debug, Clock& clock, uint16_t rand) {
             radio_ = &radio;
             timer_ = &timer;
             debug_ = &debug;
             clock_ = &clock;
             mid_ = rand;
-            uart_ = &uart;
             observe_counter_ = 1;
             timer_->template set_timer<Coap, &Coap::coap_notify > (1000, this, 0);
             timer_->template set_timer<Coap, &Coap::retransmit_loop > (1000, this, 0);
@@ -232,34 +227,34 @@ namespace wiselib {
             return clock_->seconds(clock_->time());
         }
 
-        void debug_hex(const uint8_t * payload, size_t length) {
-            uart_->write(length, (block_data_t*) payload);
-            return;
-            /*uint8_t bytes_written = 0;
-            bytes_written += sprintf( (char*)output_data + bytes_written, "DATA:" );
-            for ( size_t i = 0; i < length; i++ )
-            {
-               if(payload[i]/ 16 < 10 )
-               {
-                  output_data[bytes_written++] = payload[i] / 16 + 0x30;
-               }
-               else
-               {
-                  output_data[bytes_written++] = payload[i] / 16 + 87;
-               }
-               if(payload[i] % 16 < 10)
-               {
-                  output_data[bytes_written++] = payload[i] % 16 + 0x30;
-               }
-               else
-               {
-                  output_data[bytes_written++] = payload[i] % 16 + 87;
-               }
-            }
-            output_data[bytes_written] = '\0';
-            debug_->debug( "%s", output_data );
-            return;*/
-        }
+        //        void debug_hex(const uint8_t * payload, size_t length) {
+        //            uart_->write(length, (block_data_t*) payload);
+        //            return;
+        //            /*uint8_t bytes_written = 0;
+        //            bytes_written += sprintf( (char*)output_data + bytes_written, "DATA:" );
+        //            for ( size_t i = 0; i < length; i++ )
+        //            {
+        //               if(payload[i]/ 16 < 10 )
+        //               {
+        //                  output_data[bytes_written++] = payload[i] / 16 + 0x30;
+        //               }
+        //               else
+        //               {
+        //                  output_data[bytes_written++] = payload[i] / 16 + 87;
+        //               }
+        //               if(payload[i] % 16 < 10)
+        //               {
+        //                  output_data[bytes_written++] = payload[i] % 16 + 0x30;
+        //               }
+        //               else
+        //               {
+        //                  output_data[bytes_written++] = payload[i] % 16 + 87;
+        //               }
+        //            }
+        //            output_data[bytes_written] = '\0';
+        //            debug_->debug( "%s", output_data );
+        //            return;*/
+        //        }
 
         /*!
          * @abstract Function to send messages, CON messages are registered here
@@ -285,19 +280,7 @@ namespace wiselib {
          */
         void radio_send(node_id_t dest, const uint8_t data_len, uint8_t *buf) {
             DBG_F((debug().debug("FUNCTION: radio_send")));
-            if (dest == radio().id()) {
-                debug_hex(buf, data_len);
-            } else {
-                radio().send(dest, data_len, buf);
-#ifdef XBEE_SEND
-                block_data_t buf_arduino[CONF_MAX_MSG_LEN];
-                buf_arduino[0] = 0x7f;
-                buf_arduino[1] = 0x69;
-                buf_arduino[2] = 112;
-                memcpy(&buf_arduino[3], buf, data_len);
-                radio().send(dest, data_len + 3, buf_arduino);
-#endif
-            }
+            radio().send(dest, data_len, buf);
         }
 
         /*!
@@ -307,7 +290,7 @@ namespace wiselib {
          * @param   buf   Buffer containing the incoming message
          * @param   from  Node ID of the client
          */
-        void receiver(const size_t *len, block_data_t *buf, node_id_t from) {
+        void receiver(const size_t len, block_data_t *buf, node_id_t from) {
             DBG_F((debug().debug("FUNCTION: receiver")));
             //debug_hex( buf, *len);
             coap_status_t coap_error_code;
@@ -323,7 +306,7 @@ namespace wiselib {
             response.init();
 #endif
             ///memset( buf_, 0, CONF_MAX_MSG_LEN );
-            coap_error_code = msg.buffer_to_packet(*len, buf);
+            coap_error_code = msg.buffer_to_packet(len, buf);
 
             if (msg.version_w() != COAP_VERSION) {
                 coap_error_code = BAD_REQUEST;
@@ -484,6 +467,7 @@ namespace wiselib {
                             return;
                             break;
                         case ACK:
+                            debug().debug("received ack message");
                             coap_unregister_con_msg(msg.mid_w());
                             return;
                             break;
@@ -705,6 +689,7 @@ namespace wiselib {
 
         void coap_remove_observer(uint16_t mid) {
             DBG_F(debug().debug("FUNCTION: coap_remove_observer"));
+            debug().debug("FUNCTION: coap_remove_observer %d", mid);
             for (observer_iterator_t it = observers_.begin(); it != observers_.end(); it++) {
                 if (it->last_mid == mid) {
                     observers_.erase(it);
@@ -819,7 +804,7 @@ namespace wiselib {
         Timer * timer_;
         Debug * debug_;
         Clock * clock_;
-        Uart * uart_;
+        //        Uart * uart_;
         uint16_t mid_; /// message id internal variable
 
         resource_vector_t resources_; /// resources vector

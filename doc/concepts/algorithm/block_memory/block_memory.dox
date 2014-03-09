@@ -1,0 +1,91 @@
+namespace concepts {
+
+  /**
+	 * @ingroup block_memory_concept
+	 * @ingroup extiface_concept
+	 * @ingroup concepts
+	 */
+	class BlockMemory_concept
+		: public BasicReturnValues_concept {
+			
+		public:
+			typedef ... OsModel;
+			typedef ... self_type;
+			typedef ... self_pointer_t;
+			typedef ... block_data_t;
+			typedef ... address_t;  /// always refers to a block number, or an amount of blocks
+			
+			enum {
+				BLOCK_SIZE = 512, ///< size of block in byte (usable payload), usually 512 bytes per block for an SD-Card
+			};
+			
+			enum { 
+				NO_ADDRESS = (address_t)(-1), ///< address_t value denoting an invalid address, essentially a NULL-Value
+			};
+			
+			enum {
+				SUCCESS = OsModel::SUCCESS, 
+				ERR_IO = OsModel::ERR_IO, ///< for IO errors with the block memory device
+				ERR_NOMEM = OsModel::ERR_NOMEM,
+				ERR_UNSPEC = OsModel::ERR_UNSPEC,
+			};
+			
+			/* 
+			 * Any setup / initialization needed to get the block memory device initialized. This 
+			 * method can also be used to reset the state of the block memory object to its original
+			 * state, but without erasing any of the data, whether on the block memroy device or
+			 * in volatile memory.
+			 * @return SUCCESS iff the block memory device was initialized successfully
+			 */
+			int init();
+			
+			/**
+			* Init method allowing initialization of block memory device using the FacetProvider
+			* @return SUCCESS iff the block memeory device was initialized successfully
+			*/
+			int init(typename OsModel::AppMainParameter& value);
+
+			/**
+			 * Reads data from multiple sucessive blocks at once and stores it into a buffer.
+			 * @param buffer The buffer to store the data into. It is assumed to be of lenth length*blocksize
+			 * @param addr The number of the block where to start reading from.
+			 * @param blocks the number of blocks to read. (blocks==0 allowed)
+			 * @return SUCCESS iff the block was read successfully
+			 */
+			int read(block_data_t* buffer, address_t addr, address_t blocks = 1);
+			
+			/**
+			 * Writes data from a big array into multiple successive blocks.
+			 * @param buffer The array of data to be written. The array is assumed to be of size blocks*blocksize.
+			 * @param addr The number of the block where to start writing the data.
+			 * @param blocks The number of blocks to write into. (blocks==0 allowed)
+			 * @return SUCCESS iff the block was written successfully
+			 */
+			int write(block_data_t* buffer, address_t addr, address_t blocks = 1);
+			
+			/**
+			 * @param addr The number of the first block to be erased.
+			 * @param blocks The number of blocks to erase. (blocks==0 allowed)
+			 * @return SUCCESS iff the block was erased successfully
+			 */
+			int erase(address_t addr, address_t blocks = 1);
+			
+			/**
+			 * Erase the whole disk, should behave equivalent to erase(0, size()),
+			 * but depending on the actual device might be implemented much
+			 * more efficiently.
+			 * 
+			 * @return SUCCESS iff the memory was wiped successfully
+			 */
+			int wipe() { return erase(0, size()); }
+
+			/**
+			 *@return size of the block memory device in blocks
+			 */
+			address_t size();
+	}
+
+
+} // namespace
+
+// vim: set ft=cpp:

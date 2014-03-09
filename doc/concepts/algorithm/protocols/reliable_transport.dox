@@ -1,0 +1,106 @@
+
+namespace concepts {
+
+	/**
+	 * @brief Concept for asynchronous reliable transport managers.
+	 * 
+	 * A communication partner is identified by an @a Endpoint .
+	 * Each Endpoint in tern is conceptually identified by a @a ChannelId and
+	 * a bool @a initiator flag that states whether we are the initiator of
+	 * communication for this channel.
+	 * Endpoints are associated with a remote address. Multiple endpoints can
+	 * share the same remote address and the remote address of an endpoint can
+	 * change over time.
+	 * 
+	 * @ingroup ReliableTransport_concept
+	 */
+	concept ReliableTransport_concept {
+		typedef ... OsModel;
+		typedef ... Radio;
+		typedef typename Radio::node_id_t node_id_t;
+		typedef ... Neighborhood;
+		
+		typedef ... ChannelId;
+		typedef ... Message;
+		typedef ... sequence_number_t;
+		typedef ... Endpoint;
+		
+		typedef delegate3<bool, int, Message*, Endpoint*> callback_t;
+		
+		enum SpecialNodeIds {
+			BROADCAST_ADDRESS = ...,
+			NULL_NODE_ID = ...,
+		};
+		
+		enum Restrictions {
+			MAX_MESSAGE_LENGTH = ...,
+			MAX_ENDPOINTS = ...,
+		};
+		
+		enum Events {
+			EVENT_ABORT = ..., EVENT_OPEN = ..., EVENT_CLOSE = ..., EVENT_PRODUCE = ..., EVENT_CONSUME = ...
+		};
+		
+		/**
+		 * Register a new @a Endpoint, specified by @a channel and @a
+		 * initiator with initial remote address @a addr.
+		 * 
+		 * @return SUCCESS or ERR_UNSPEC.
+		 */
+		int register_endpoint(node_id_t addr, ChannelId channel, bool initiator, callback_t cb);
+		
+		/**
+		 * Unregister endpoint.
+		 */
+		void unregister_endpoint(ChannelId channel, bool initiator);
+		
+		Endpoint& get_endpoint(ChannelId channel, bool initiator, bool& found);
+		
+		/**
+		 * Start communication on given channel.
+		 * @return SUCCESS or ERR_UNSPEC.
+		 */
+		int open(ChannelId channel, bool initiator = true, bool request_send = false);
+		
+		/// ditto.
+		int open(Endpoint& ep, bool request_send = false);
+		
+		/**
+		 * Stop communication on given channel.
+		 * @return SUCCESS or ERR_UNSPEC
+		 */
+		int close(ChannelId channel, bool initiator);
+		
+		/**
+		 * Get current remote address of an endpoint.
+		 */
+		node_id_t remote_address(ChannelId, initiator);
+		
+		/**
+		 * Set current remote address of an endpoint.
+		 */
+		void remote_address(ChannelId, bool, node_id_t);
+		
+		/**
+		 * Request sending for given endpoint. When the transport manager is
+		 * up to it, it will call the endpoints callback issuing a PRODUCE
+		 * event.
+		 * @return SUCCESS or ERR_UNSPEC.
+		 */
+		int request_send(ChannelId, bool);
+		
+		/**
+		 * Check whether there are any pending events and execute according
+		 * callbacks.
+		 */
+		void flush();
+		
+		/**
+		 * Return true if the transport is currently waiting for an
+		 * acknowledgement or otherwisely busy with transferring a message.
+		 */
+		bool is_sending();
+	}
+
+// vim: set ft=cpp:
+ 

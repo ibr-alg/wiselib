@@ -43,7 +43,7 @@ namespace wiselib {
 			enum {
 				BLOCK_SIZE = 512,
 				BUFFER_SIZE = 512,
-				SIZE = 1 * 1024UL * 1024UL * 1024UL / 512UL
+				//SIZE = 1 * 1024UL * 1024UL * 1024UL / 512UL
 //				SIZE = 100* 2048
 			};
 
@@ -56,19 +56,33 @@ namespace wiselib {
 				NO_ADDRESS = (address_t)(-1)
 			};
 
-			FileBlockMemory() {
-				std::cout << "You are using FileBlockMemory. Please make sure a 1GB file named block_memory.img exists in the current directory!"
-							 << std::endl;
+			FileBlockMemory() : filename_("block_memory.img") {
+			}
+			
+			size_type size() {
+				return filesize_ / BLOCK_SIZE;
+			}
+			
+			void set_size(size_type sz) {
+				filesize_ = sz;
 			}
 
 			int init() {
+				return SUCCESS;
+			}
+			
+			int init(const char *filename) {
+				filename_ = filename;
+				std::ifstream file(filename_, std::ios::binary | std::ios::ate);
+				filesize_ = file.tellg();
+				file.close();
 				return SUCCESS;
 			}
 
 			int wipe() {
 				open();
 				stream_.seekp(0, std::ios::beg);
-				for(size_type i = 0; i < SIZE * BLOCK_SIZE; i++) {
+				for(size_type i = 0; i < size() * BLOCK_SIZE; i++) {
 					stream_ << '\xff';
 				}
 				close();
@@ -93,14 +107,16 @@ namespace wiselib {
 
 		private:
 			void open() {
-				stream_.open("block_memory.img", std::ios::in | std::ios::out);
+				stream_.open(filename_, std::ios::in | std::ios::out);
 			}
 
 			void close() {
 				stream_.close();
 			}
 
+			const char *filename_;
 			std::fstream stream_;
+			size_type filesize_;
 	};
 }
 

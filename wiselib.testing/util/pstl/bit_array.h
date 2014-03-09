@@ -2,6 +2,8 @@
 #ifndef BITARRAY_H
 #define BITARRAY_H
 
+#include <util/meta.h>
+
 namespace wiselib {
 	
 	template<
@@ -11,51 +13,68 @@ namespace wiselib {
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;			
-//			typedef uint16_t size_type;
 			typedef char* char_ptr_t;
 			typedef BitArray<OsModel> self_type;
 			typedef self_type* self_pointer_t;
 			typedef typename OsModel::size_t size_type;
 			
+			enum { npos = (size_type)(-1) };
+			
+			template<typename Allocator>
+			static self_pointer_t make(Allocator& alloc, size_type bits) {
+				self_pointer_t r = reinterpret_cast<self_pointer_t>(
+					alloc.template allocate_array<block_data_t>(
+						 bytes_needed(bits)
+					) .raw()
+				);
+				memset(r, 0, bytes_needed(bits));
+				return r;
+			}
+			
+			/*
+			void destroy() {
+				::get_allocator().free_array(reinterpret_cast<block_data_t*>(this));
+			}
+			*/
+			
+			size_type first(bool v, size_type start, size_type end) {
+				/*
+				block_data_t empty = v ? 0 : 0xff;
+				
+				size_type pos = start;
+				for( ; pos < 8 * ((start + 7) / 8) && pos < end; pos++) {
+					if(get(pos) == v) { return pos; }
+				}
+				
+				for( ; pos < 8 * (end / 8); pos += 8) {
+					if(data_[pos / 8] != empty) {
+						for( ; pos < end; pos++) {
+							if(get(pos) == v) { return pos; }
+						}
+						assert(false);
+					}
+				}
+				
+				for( ; pos < end; pos++) {
+					if(get(pos) == v) { return pos; }
+				}
+				*/
+				for(size_type pos = start; pos < end; pos++) {
+					if(get(pos) == v) { return pos; }
+				}
+				return npos;
+			}
+			
 			bool operator[](size_type idx) { return get(idx); }
 			
 			bool get(size_type idx) {
-				return data_[byte(idx)] & (1 << bit(idx));
+				return (data_[byte(idx)] & (1 << bit(idx))) != 0;
 			}
 			
 			void set(size_type i, bool v) {
 				data_[byte(i)] &= ~(1 << bit(i));
 				data_[byte(i)] |= v << bit(i);
 			}
-			
-			/*
-			 * Set all bits in range [from, to] to v.
-			 * 
-			 * Broken!
-			 */
-			//void set_range(size_type from, size_type to, bool v) {
-				//size_type byte_from = byte(from), byte_to = byte(to);
-				//size_type bit_from = bit(from), bit_to = bit(to);
-				
-				//block_data_t range = ~(block_data_t)((1 << (bit_from + 1)) & 0xff);
-				////for(size_type i=bit_from; i<8; i++) { range |= 1 << i; }
-				
-				//if(v) { data_[byte_from] |= range; }
-				//else { data_[byte_from] &= ~range; }
-				
-				//if(byte_to > byte_from + 1) {
-					//memset((void*)(data_ + byte_from+1), v ? 0xff : 0x0,byte_to - byte_from - 1);
-				//}
-			
-				//if(byte_to > byte_from) {
-					////for(size_type i=0; i<bit_to; i++) { range |= 1 << i; }
-					//range = 1 << (bit_to + 1);
-					//if(v) { data_[byte_from] |= range; }
-					//else { data_[byte_from] &= ~range; }
-				//}
-					////if(v) {
-					////for(size_type i=byte_from+1; i<byte_to; i++) {
-			//}
 			
 			/**
 			 * fill up from the given position to the next byte-mark using
@@ -66,65 +85,43 @@ namespace wiselib {
 				data_[byte(pos)] |= filler << bit(pos);
 			}
 			
-//			void set_size(size_type s) { size_ = s; }
-//			size_type size() { return size_; }
-			
-			
 			void copy(BitArray* target, size_type target_pos, size_type source_pos, size_type len) {
-				
 				if(len == 0) { return; }
 				for(size_type s = source_pos, t = target_pos; s < source_pos + len; s++, t++) {
 					target->set(t, operator[](s));
 				}
-				
-				/*
-				int8_t lshift = bit(target_pos) - bit(source_pos);
-				
-				for(size_type source_byte = byte(source_pos); source_byte < 
-				
-				if(lshift < 0) {
-				*/
 			}
-	
+			
 			static size_type bytes_needed(size_type bits) {
 				return (bits + 7) / 8;
 			}
 			
 			const char* c_str() { return (const char*)data_; }
 			
-			static self_pointer_t make(size_type bits) {
-				self_pointer_t r = reinterpret_cast<self_pointer_t>(
-					::get_allocator().template allocate_array<block_data_t>(
-						 bytes_needed(bits)
-					) .raw()
-				);
-//				r->set_size(bits);
-				return r;
-			}
-
-                        size_type terminate(size_type idx){
-                            size_type zeros = 8;
-                            if(idx % 8 != 0)
-                                zeros += 8 - idx % 8;
-                            for (size_type i = 0; i < zeros; ++i){
-                                set(idx + i, false);                                
-                            }
-                            return zeros;
-                        }
-
-			
-			
-			static size_type byte(size_type pos) {
-				return pos / 8;
+			size_type terminate(size_type idx){
+				size_type zeros = 8;
+				if(idx % 8 != 0) {
+					zeros += 8 - idx % 8;
+				}
+				for (size_type i = 0; i < zeros; ++i){
+					set(idx + i, false);
+				}
+				return zeros;
 			}
 			
-			static int8_t bit(size_type pos) {
-				return /*7 -*/ pos % 8;
-			}
+			static size_type byte(size_type pos) { return pos / 8; }
+			static int8_t bit(size_type pos) { return pos % 8; }
 		private:
-			
-//			size_type size_;
 			block_data_t data_[0];
+	};
+	
+	template<
+		typename OsModel_P,
+		size_t BITS_P
+	>
+	class StaticBitArray : public BitArray<OsModel_P> {
+		private:
+			typename BitArray<OsModel_P>::block_data_t buffer_[DivCeil<BITS_P, 8>::value];
 	};
 	
 }

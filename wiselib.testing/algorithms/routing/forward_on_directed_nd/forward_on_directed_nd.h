@@ -93,6 +93,10 @@ namespace wiselib {
 			node_id_t id() { return radio_->id(); }
 			
 			int send(node_id_t receiver, size_t size, block_data_t* data) {
+				//Serial.print("fwd send ");
+				//Serial.print(receiver);
+				//Serial.println();
+					
 				if(receiver == id()) {
 					this->notify_receivers(id(), size, data);
 				}
@@ -106,14 +110,17 @@ namespace wiselib {
 					message->set_payload(size, data);
 					
 					if(nd_->neighbors_begin(Neighbor::OUT_EDGE) ==  nd_->neighbors_end()) {
-						DBG("ALART: node %d has no parent to send to!", radio_->id());
+						//DBG("fwd: %d nopar", radio_->id());
 					}
 					
 					for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 							iter != nd_->neighbors_end();
 							++iter
 					) {
+						//DBG("fwd to %d", (int)iter->id());
 						radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
+						//radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
+						//radio_->send(iter->id(), Message::HEADER_LENGTH + size, message->data());
 					}
 				}
 				return OsModel::SUCCESS;
@@ -123,23 +130,31 @@ namespace wiselib {
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
 				Message *message = reinterpret_cast<Message*>(data);
 				
+				//Serial.print("-- fwd receive ");
+				//Serial.print(from);
+				//Serial.println();
+				
 				if(message->message_id() == MESSAGE_ID_FODND) {
 					
 					//DBG("(%d ->) %d -> %d (-> %d)", message->source(), from, radio_->id(), message->target());
 					
 					if(message->target() == radio_->id()) {
 					//if(message->target() == 9999 && from == 0) { // <-- XXX TODO Debug version!
+						
+						//Serial.println("notify");
 						this->notify_receivers(message->source(), message->get_payload_size(size), message->payload());
 					}
 					else {
 						if(nd_->neighbors_begin(Neighbor::OUT_EDGE) ==  nd_->neighbors_end()) {
 							DBG("ALART: node %d has no parent to send to!", radio_->id());
+							//Serial.println("no parent");
 						}
 						
 						for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 								iter != nd_->neighbors_end();
 								++iter
 						) {
+							//Serial.println("fwd fsnd");
 							//DBG("fwd: %d -> %d (-> %d)", radio_->id(), iter->id(), message->target());
 							radio_->send(iter->id(), size, data);
 						}

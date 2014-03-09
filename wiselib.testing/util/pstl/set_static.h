@@ -17,6 +17,8 @@
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
 
+#ifndef SET_STATIC_H
+#define SET_STATIC_H
 
 #include "util/pstl/iterator.h"
 #include <string.h>
@@ -43,9 +45,8 @@ namespace wiselib
       // --------------------------------------------------------------------
       set_static()
       {
-         start_ = &set_[0];
-         finish_ = start_;
-         end_of_storage_ = start_ + SET_SIZE;
+         finish_ = set_;
+         end_of_storage_ = set_ + SET_SIZE;
       }
       // --------------------------------------------------------------------
       set_static( const set_static& set )
@@ -56,16 +57,15 @@ namespace wiselib
       set_static& operator=( const set_static& set )
       {
          memcpy( set_, set.set_, sizeof(set_) );
-         start_ = &set_[0];
-         finish_ = start_ + (set.finish_ - set.start_);
-         end_of_storage_ = start_ + SET_SIZE;
+         finish_ = set_ + (set.finish_ - set.set_);
+         end_of_storage_ = set_ + SET_SIZE;
          return *this;
       }
       // --------------------------------------------------------------------
       ///@name Iterators
       ///@{
       iterator begin()
-      { return iterator( start_ ); }
+      { return iterator( set_ ); }
       // --------------------------------------------------------------------
       iterator end()
       { return iterator( finish_ ); }
@@ -77,7 +77,7 @@ namespace wiselib
       ///@name Capacity
       ///@{
       size_type size() const
-      { return size_type(finish_ - start_); }
+      { return size_type(finish_ - set_); }
       // --------------------------------------------------------------------
       size_type max_size() const
       { return SET_SIZE; }
@@ -87,6 +87,8 @@ namespace wiselib
       // --------------------------------------------------------------------
       bool empty() const
       { return size() == 0; }
+	  bool full() const
+	  { return size() == max_size(); }
 
       /*/ --------------------------------------------------------------------
 
@@ -162,6 +164,7 @@ namespace wiselib
          }
          return this->end();
       }
+	  bool contains(const value_type& x) { return find(x) != end(); }
       // --------------------------------------------------------------------
       size_type count(const value_type& x)
       {
@@ -206,16 +209,14 @@ namespace wiselib
       // --------------------------------------------------------------------
       void clear()
       {
-         finish_ = start_;
+         finish_ = set_;
       }
       ///@}
 
    protected:
       value_type set_[SET_SIZE];
 
-      pointer start_, finish_, end_of_storage_;
-
-      uint16_t count_, size_;
+      pointer finish_, end_of_storage_;
 
 
    private:
@@ -227,14 +228,14 @@ namespace wiselib
       ///@{
       reference operator[](size_type n)
       {
-         return *(this->start_ + n);
+         return *(this->set_ + n);
       }
       // --------------------------------------------------------------------
       ///@name Element Access
       ///@{
       const_reference operator[](size_type n) const
       {
-         return *(this->start_ + n);
+         return *(this->set_ + n);
       }
       // --------------------------------------------------------------------
       reference at(size_type n)
@@ -269,7 +270,7 @@ namespace wiselib
       }
       // --------------------------------------------------------------------
       pointer data()
-      { return pointer(this->start_); }
+      { return pointer(this->set_); }
       ///@}
       // --------------------------------------------------------------------
       ///@name Modifiers
@@ -300,7 +301,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       void pop_back()
             {
-               if ( finish_ != start_ )
+               if ( finish_ != set_ )
                   --finish_;
             }
 
@@ -308,5 +309,5 @@ namespace wiselib
 
 }
 
-
+#endif // SET_STATIC_H
 

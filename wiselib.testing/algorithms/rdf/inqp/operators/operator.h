@@ -56,6 +56,9 @@ namespace wiselib {
 			typedef void (*my_push_t)(void*, size_type, Row<OsModel>&);
 			typedef delegate2<void, size_type, Row<OsModel>&> push_t;
 			
+			typedef void (*my_destruct_t)(void*);
+			typedef delegate0<void> destruct_t;
+			
 			enum { CHILD_LEFT = 0, CHILD_RIGHT = 1 };
 			
 			struct ParentInfo {
@@ -65,6 +68,9 @@ namespace wiselib {
 				
 				void push(Row<OsModel>& row) { push_(port_, row); }
 			};
+			
+			Operator() : destruct_(0) {
+			}
 		
 			void init(Description* od, Query *query) {
 				type_ = od->type();
@@ -73,6 +79,26 @@ namespace wiselib {
 				projection_info_ = od->projection_info();
 				parent_.id_ = od->parent_id();
 				parent_.port_ = od->parent_port();
+			}
+			
+			void init(uint8_t type, Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection) {
+				type_ = type;
+				query_ = query;
+				id_ = id;
+				parent_.id_ = parent_id;
+				parent_.port_ = parent_port;
+				projection_info_ = projection;
+			}
+			
+			void destruct() {
+				//DBG("destr o");
+				//DBG("d=%p", destruct_);
+				if(destruct_) {
+					//DBG("dstr cal");
+					destruct_t d = destruct_t::from_stub((void*)this, destruct_);
+					d();
+					//destruct_();
+				}
 			}
 			
 			void attach_to(self_type* parent) {
@@ -106,6 +132,7 @@ namespace wiselib {
 			ProjectionInfo<OsModel> projection_info_;
 			ParentInfo parent_;
 			my_push_t push_; // "my" push method, we need to save that for simulating virtual inheritance
+			my_destruct_t destruct_;
 			uint8_t type_;
 			operator_id_t id_;
 			Query *query_;

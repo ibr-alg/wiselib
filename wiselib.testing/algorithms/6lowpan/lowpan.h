@@ -394,6 +394,19 @@ namespace wiselib
 		//-----------------------------------------------------------------------------------
 		//-------------------------FRAGMENTATION HEADER--------------------------------------
 		//-----------------------------------------------------------------------------------
+		/*
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|1 1 0 0 0|    datagram_size    |         datagram_tag          |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|1 1 1 0 0|    datagram_size    |         datagram_tag          |
+		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		|datagram_offset|
+		+-+-+-+-+-+-+-+-+
+		*/
 		/**
 		* Fragmentation header positioning
 		*/
@@ -772,7 +785,7 @@ namespace wiselib
 	enable_radio( void )
 	{
 		#ifdef LoWPAN_LAYER_DEBUG
-		debug().debug( "LoWPAN layer: initialization at %llx", (long long unsigned)(radio().id()) );
+		debug().debug( "LoWPAN layer: initialization at %lx", (long long unsigned)(radio().id()) );
 		#endif
 	 
 		if ( radio().enable_radio() != SUCCESS )
@@ -989,9 +1002,9 @@ namespace wiselib
 	
 			#ifdef LoWPAN_LAYER_DEBUG
 			if( !frag_required )
-				debug().debug( "LoWPAN layer: Sent without fragmentation to %llx, full size: %i compressed size: %i", (long long unsigned)mac_destination, ip_packet->get_content_size(), ACTUAL_SHIFT );
+				debug().debug( "LoWPAN layer: Sent without fragmentation to %lx, full size: %i compressed size: %i", (long long unsigned)mac_destination, ip_packet->get_content_size(), ACTUAL_SHIFT );
 			else
-				debug().debug( "LoWPAN layer: Sent fragmented packet to %llx, next offset: %x full size: %i ", (long long unsigned)mac_destination, offset, ip_packet->get_content_size() );
+				debug().debug( "LoWPAN layer: Sent fragmented packet to %lx, next offset: %x full size: %i ", (long long unsigned)mac_destination, offset, ip_packet->get_content_size() );
 			#endif
 			
 			//If no more payload, sending finished
@@ -1112,7 +1125,7 @@ namespace wiselib
 				if( SUCCESS != determine_mesh_next_hop( mac_destination, mac_next_hop, 0xFF ) )
 				{
 					#ifdef LoWPAN_LAYER_DEBUG
-					debug().debug(" LoWPAN layer: Received packet can't be forwarded towards %llx!", (long long unsigned)mac_destination );
+					debug().debug(" LoWPAN layer: Received packet can't be forwarded towards %lx!", (long long unsigned)mac_destination );
 					#endif
 					return;
 				}
@@ -1120,14 +1133,14 @@ namespace wiselib
 				if( SUCCESS != decrement_hopsleft() )
 				{
 					#ifdef LoWPAN_LAYER_DEBUG
-					debug().debug(" LoWPAN layer: Received packet can't be forwarded towards %llx, because hops left is 0!", (long long unsigned)mac_destination );
+					debug().debug(" LoWPAN layer: Received packet can't be forwarded towards %lx, because hops left is 0!", (long long unsigned)mac_destination );
 					#endif
 					return;
 				}
 				
 				radio().send( mac_next_hop, len, buffer_ );
 				#ifdef LoWPAN_LAYER_DEBUG
-				debug().debug(" LoWPAN layer: Received packet is forwarded towards %llx, the next hop is %llx!", (long long unsigned)mac_destination, (long long unsigned)mac_next_hop );
+				debug().debug(" LoWPAN layer: Received packet is forwarded towards %lx, the next hop is %lx!", (long long unsigned)mac_destination, (long long unsigned)mac_next_hop );
 				#endif
 				return;
 			}
@@ -1335,7 +1348,7 @@ namespace wiselib
 		
 		#ifdef LoWPAN_LAYER_DEBUG
 		//It is here, because if there isn't a 6LoWPAN message we have do drop it, and don't send a debug message
-		debug().debug( "LoWPAN layer: Received data from %llx at %llx (len: %i)", (long long unsigned)from, (long long unsigned)id(), len );
+		debug().debug( "LoWPAN layer: Received data from %lx at %lx (len: %i)", (long long unsigned)from, (long long unsigned)id(), len );
 		#endif
 	//----------------------------------------------------------------------------------------
 	// Reassembling
@@ -2569,7 +2582,7 @@ namespace wiselib
 		if( routing_result == Routing_t::ROUTE_AVAILABLE )
 		{
 			#ifdef LoWPAN_LAYER_DEBUG
-			debug().debug( "LoWPAN layer: To %llx next hop is: %llx ", (long long unsigned)mac_destination, (long long unsigned)mac_next_hop );
+			debug().debug( "LoWPAN layer: To %lx next hop is: %lx ", (long long unsigned)mac_destination, (long long unsigned)mac_next_hop );
 			#endif
 			return SUCCESS;
 		}
@@ -2583,7 +2596,7 @@ namespace wiselib
 		
 		//The next hop is not in the forwarding table
 		#ifdef LoWPAN_LAYER_DEBUG
-		debug().debug( "LoWPAN layer: No route to %llx", (long long unsigned)mac_destination);
+		debug().debug( "LoWPAN layer: No route to %lx", (long long unsigned)mac_destination);
 		#endif
 		
 		
