@@ -13,10 +13,12 @@ fi
 
 function generate_stuff() {
 	# Area definitions
+	#
+	# when changing be sure to update gateway_to_db in plot.py
 	case $AREA in
 		alpha)
 			FILENAME_GATEWAY=app_20140107091518.exe
-			FILENAME_DB=app_ackto2000_r3_20131003082019.exe
+			FILENAME_DB=app_ackto2000_r3_20131003082019.exe # ?
 			#INODE_GATEWAY=inode001
 			#INODE_DB=inode004
 			INODE_GATEWAY=inode015
@@ -29,7 +31,7 @@ function generate_stuff() {
 			INODE_DB=inode010
 			;;
 		charlie)
-			FILENAME_GATEWAY=csma0_csmamode0_nullrdc_20131007122009.exe
+			FILENAME_GATEWAY=csma0_csmamode0_nullrdc_20131007122009.exe # ?
 			FILENAME_DB=csma0_csmamode0_nullrdc_T10k_20131013061532.exe
 			#INODE_GATEWAY=inode013
 			#INODE_DB=inode012
@@ -42,6 +44,65 @@ function generate_stuff() {
 			INODE_GATEWAY=inode009
 			INODE_DB=inode008
 			;;
+
+		echo)
+			FILENAME_GATEWAY=csma0_csmamode0_contikimac16_T10k_20131011062327.exe
+			FILENAME_DB=csma0_csmamode0_contikimac16_T10k_aon1_20131011173649.exe
+			INODE_GATEWAY=inode019
+			INODE_DB=inode018
+			;;
+
+		foxtrott)
+			FILENAME_GATEWAY=csma0_csmamode0_contikimac8_T10k_20131012003722.exe
+			FILENAME_DB=csma0_csmamode0_cxmac16_T10k_20131011062640.exe
+			INODE_GATEWAY=inode017
+			INODE_DB=inode020
+			;;
+
+		golf)
+			FILENAME_GATEWAY=csma0_csmamode0_nullrdc_T10k_aon1_20131011155220.exe
+			FILENAME_DB=csma0_csmamode0_nullrdc_T10k_aon1_comp1_20131029114826.exe
+			INODE_GATEWAY=inode023
+			INODE_DB=inode022
+			;;
+
+		hotel)
+			FILENAME_GATEWAY=csma0_csmamode0_xmac16_T10k_20131011061706.exe
+			FILENAME_DB=csma1_csmamode1_xmac8_T10k_20131008185822.exe
+			INODE_GATEWAY=inode025
+			INODE_DB=inode024
+			;;
+
+		india)
+			FILENAME_GATEWAY=csma1_csmamode1_nullrdc_T10k_comp1_20131020144914.exe
+			FILENAME_DB=csma1_csmamode1_contikimac16_T10k_aon1_20131011134329.exe
+			INODE_GATEWAY=inode027
+			INODE_DB=inode026
+			;;
+
+		julia)
+			FILENAME_GATEWAY=csma1_csmamode1_contikimac8_T10k_20131009081631.exe
+			FILENAME_DB=csma1_csmamode1_cxmac16_T10k_20131013063353.exe
+			INODE_GATEWAY=inode029
+			INODE_DB=inode028
+			;;
+
+		kilo)
+			FILENAME_GATEWAY=csma1_csmamode1_cxmac8_T10k_20131008155100.exe
+			FILENAME_DB=csma1_csmamode1_nullrdc_T10k_20131013133812.exe
+			INODE_GATEWAY=inode031
+			INODE_DB=inode030
+			;;
+
+			# unused:
+#csma1_csmamode1_xmac16_T10k_20131012214526.exe
+#csma1_csmamode1_xmac16_T10k_aon1_20131012212614.exe
+#csma1_csmamode1_nullrdc_T10k_aon1_20131013182131.exe
+#csma1_csmamode1_nullrdc_T10k_aon1_comp1_20131029092703.exe
+# 
+
+# 
+
 		*)
 			echo AREA unknown.
 			exit 1
@@ -152,7 +213,7 @@ rm *.exe
 DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=erase
+MODE=insert
 TS_DICT=tree
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
@@ -172,8 +233,22 @@ generate_stuff
 AREA=charlie
 generate_stuff
 
-# Delta seems to have a broken xmem or something?
 AREA=delta
+generate_stuff
+
+AREA=echo
+generate_stuff
+AREA=foxtrott
+generate_stuff
+AREA=golf
+generate_stuff
+AREA=hotel
+generate_stuff
+AREA=india
+generate_stuff
+AREA=julia
+generate_stuff
+AREA=kilo
 generate_stuff
 
 ls -lh $EXP_DIR/*.exe

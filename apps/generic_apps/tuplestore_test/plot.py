@@ -46,10 +46,18 @@ BASELINE_ENERGY = 0 # will be auto-calculated # 0.568206918430233
 
 # Gateway hostname -> DB hostname
 gateway_to_db = {
+    # Convention: gateway nodes are odd, db nodes are even
     'inode015': 'inode016',
     'inode007': 'inode010',
     'inode011': 'inode014',
-    'inode009': 'inode008'
+    'inode009': 'inode008',
+    'inode019': 'inode018',
+    'inode017': 'inode020',
+    'inode023': 'inode022',
+    'inode025': 'inode024',
+    'inode027': 'inode026',
+    'inode029': 'inode028',
+    'inode031': 'inode030',
 }
 
 blacklist = []
@@ -249,6 +257,14 @@ blacklist += [
     { 'job': '25164', 'inode_db': 'inode014', '_tmin': 465, '_tmax': 486, '_alpha': 1.0 },
 
     { 'job': '25186', '_tmax': 420 },
+
+    # ts tree erase
+    { 'job': '25193' }, # debug run
+    { 'job': '25196' }, # debug run
+    { 'job': '25197', 'inode_db': 'inode008', '_tmin': 330, '_tmax': 350, '_alpha': 1.0 },
+    { 'job': '25197', 'inode_db': 'inode010' }, # too noisy
+    { 'job': '25197', 'inode_db': 'inode014', '_tmin': 340, '_tmax': 360, '_alpha': 1.0 },
+    { 'job': '25197', 'inode_db': 'inode016', '_tmin': 320, '_tmax': 340, '_alpha': 1.0 },
 ]
 
 
@@ -283,6 +299,8 @@ subsample_runs = set([
     '25144', # ts/tree erase
     '25145', # ts/tree erase
     '25164', # ts/avl erase
+
+    '25197', # ts/tree erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -1342,11 +1360,12 @@ def fig_energy(ts, vs, n):
 
     #ax.set_xlim((388.06, 388.1))
     #ax.set_xlim((460, 480))
-    #ax.set_xlim((290, 310))
+    #ax.set_xlim((345, 348))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 
     ax.plot(ts, vs, 'k-')
+    #fig.show()
     fig.savefig('energy_{}.pdf'.format(n), bbox_inches='tight', pad_inches=.1)
     plt.close(fig)
 
