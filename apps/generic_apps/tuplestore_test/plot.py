@@ -265,6 +265,17 @@ blacklist += [
     { 'job': '25197', 'inode_db': 'inode010' }, # too noisy
     { 'job': '25197', 'inode_db': 'inode014', '_tmin': 340, '_tmax': 360, '_alpha': 1.0 },
     { 'job': '25197', 'inode_db': 'inode016', '_tmin': 320, '_tmax': 340, '_alpha': 1.0 },
+
+    # ts avl erase
+    { 'job': '25209', 'inode_db': 'inode010', }, #'_tmin': 500, '_alpha': .04 }, noisy
+    { 'job': '25209', 'inode_db': 'inode030', }, #'_tmin': 310, '_alpha': 1.0 }, # noisy?
+    { 'job': '25209', 'inode_db': 'inode008', '_tmin': 320, '_alpha': 1.0 },
+    { 'job': '25209', 'inode_db': 'inode020', }, #'_tmin': 320, '_alpha': 1.0 }, # seems noisy
+
+    { 'job': '25210', 'inode_db': 'inode010', '_tmin': 315, '_alpha': 1.0 },
+    { 'job': '25210', 'inode_db': 'inode008', '_tmin': 315, '_alpha': 1.0 },
+    { 'job': '25210', 'inode_db': 'inode020', }, # '_tmin': 305, '_alpha': 1.0 }, # noisy
+    { 'job': '25210', 'inode_db': 'inode030', }, # '_tmin': 310, '_alpha': 1.0 }, # noisy
 ]
 
 
@@ -301,6 +312,8 @@ subsample_runs = set([
     '25164', # ts/avl erase
 
     '25197', # ts/tree erase
+    '25209', # ts/avl erase
+    '25210', # ts/avl erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -449,8 +462,6 @@ def main():
             es = es[:len(pos_e)]
             ts = ts[:len(pos_t)]
 
-            print(k.mode, k.database, [len(x) for x in es], 'at', pos_e)
-
             w = 2.5 if k.database == 'antelope' else 3.5
             if len(es):
                 bp = ax_i_e.boxplot(es, positions=pos_e, widths=w)
@@ -491,8 +502,8 @@ def main():
             es = es[:len(pos_e)]
             ts = ts[:len(pos_t)]
 
-            print(k.mode, k.database, [len(x) for x in es])
-            print(pos_e, [sum(x)/len(x) for x in es])
+            #print(k.mode, k.database, [len(x) for x in es])
+            #print(pos_e, [sum(x)/len(x) for x in es])
 
             if len(es):
                 bp = ax_f_e.boxplot(es, positions=pos_e, widths=3)
@@ -528,7 +539,7 @@ def main():
             pos_e = [k.ntuples - x for x in pos_e]
             pos_t = [k.ntuples - x for x in pos_t]
 
-            print("runs {} {} {}".format(k.mode, mklabel(k), [len(x) for x in es]))
+            #print("runs {} {} {}".format(k.mode, mklabel(k), [len(x) for x in es]))
             #print(pos_e, [median(x) for x in es])
 
             if len(es):
@@ -544,6 +555,10 @@ def main():
                 ax_e_t.plot(pos_t, [median(x) for x in ts], label=mklabel(k), **get_style(k)['plot'])
 
             shift_e -= 1
+            
+        print("runs {} {} {}".format(k.mode, mklabel(k), [len(x) for x in es]))
+        #print(k.mode, k.database, k.ts_dict, [len(x) for x in es], 'at', pos_e)
+
 
     ax_i_e.set_xticks(range(0,100,5))
     ax_i_e.set_xlim((0, 75))
@@ -1360,7 +1375,7 @@ def fig_energy(ts, vs, n):
 
     #ax.set_xlim((388.06, 388.1))
     #ax.set_xlim((460, 480))
-    #ax.set_xlim((345, 348))
+    ax.set_xlim((300, 350))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 

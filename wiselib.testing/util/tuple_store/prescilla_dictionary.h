@@ -64,7 +64,9 @@ namespace wiselib
             }
             
             ~Node() {
-               get_allocator().free_array(data_);
+               if(data_) {
+                  get_allocator().free_array(data_);
+               }
             }
 
             void init()
@@ -428,6 +430,8 @@ namespace wiselib
                 return;
             }
 
+            size_--;
+
             if (!current_node->is_root() && !current_node->children_[0]
                     && !current_node->children_[1] && !current_node->count_)
             {
@@ -558,6 +562,8 @@ namespace wiselib
         value_type get_value(key_type k) { return get_copy(k); }
 
         void free_value(value_type v) { get_allocator().free_array(v); }
+
+        size_type size() { return size_; }
 
     private:
         size_type size_;

@@ -44,8 +44,11 @@ enum { SLOTS = 149, SLOT_WIDTH = 14 };
 //#include <util/tuple_store/avl_dictionary.h>
 //typedef AvlDictionary<Os> Dictionary;
 
-#include <util/pstl/unbalanced_tree_dictionary.h>
-typedef UnbalancedTreeDictionary<Os> Dictionary;
+//#include <util/pstl/unbalanced_tree_dictionary.h>
+//typedef UnbalancedTreeDictionary<Os> Dictionary;
+
+#include <util/tuple_store/prescilla_dictionary.h>
+typedef PrescillaDictionary<Os> Dictionary;
 
 #include <util/split_n3.h>
 
@@ -71,7 +74,8 @@ class App {
 		#if STATIC_DICTIONARY_OUTSOURCE
 			dictionary_.set_data(dict_data_);
 		#else
-			read_n3(0, 21);
+			//read_n3(0, 21); // treedict
+			read_n3(0, 17); // prescilla
 		#endif
 			//test_insert();
 
@@ -100,7 +104,7 @@ class App {
 				//}
 
 				if(buf[0] == 0) { break; }
-				debug_->debug("PARSE: [[[%s]]]", (char*)buf);
+				debug_->debug("%d PARSE: [[[%s]]]", (int)i, (char*)buf);
 
 				sp.parse_line(buf);
 
@@ -216,18 +220,23 @@ class App {
 			for(UsedKeys::iterator iter = used_keys.begin(); iter != used_keys.end(); ++iter, pos++) {
 				block_data_t *ds = dictionary_.get_value(*iter);
 				debug_->debug("[%d] -> '%s'", (int)*iter, (char*)ds);
+			debug_->debug("y1y");
 				if(memcmp(inserts[pos], ds, strlen((char*)ds)) != 0) {
 					debug_->debug("  key %d (%dth distinct insert) resolves to '%s' instead of '%s'",
 							(int)*iter, (int)pos, (char*)ds, (char*)inserts[pos]);
 					fail = true;
 				}
+				dictionary_.free_value(ds);
 
+			debug_->debug("y2y");
 				int cnt = dictionary_.count(*iter);
 				if(cnt != counts[pos]) {
 					debug_->debug("  key %d (%dth distinct insert) has count %d, expected %d", (int)*iter, (int)pos, (int)cnt, (int)counts[pos]);
 					fail = true;
 				}
+			debug_->debug("yy");
 			}
+			debug_->debug("xx");
 
 
 			if(dictionary_entries != inserts.size()) {
@@ -244,7 +253,7 @@ class App {
 
 		void erase_some() {
 			debug_->debug("deleting some entries...");
-			for(int i = 0; i<40; i++) {
+			for(int i = 0; i<40 && inserts.size() > 0; i++) {
 				int p = rand_->operator()() % inserts.size();
 				char *v = inserts[p];
 				Dictionary::key_type k = dictionary_.find((block_data_t*)v);
