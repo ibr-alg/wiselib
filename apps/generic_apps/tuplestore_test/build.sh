@@ -128,6 +128,8 @@ function generate_stuff() {
 		NTUPLES=21
 	elif [ "$TS_DICT" == "avl" ]; then
 		NTUPLES=32
+	elif [ "$TS_DICT" == "prescilla" ]; then
+		NTUPLES=17
 	else
 		NTUPLES=$(wc -l ${RDF}|awk '{print $1}')
 	fi
@@ -210,10 +212,10 @@ function generate_stuff() {
 
 rm *.exe
 
-DEBUG=1
+DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=erase
+MODE=insert
 TS_DICT=prescilla
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
@@ -226,16 +228,12 @@ TS_DICT_SLOTSIZE=14
 
 AREA=alpha
 generate_stuff
-
 AREA=bravo
 generate_stuff
-
 AREA=charlie
 generate_stuff
-
 AREA=delta
 generate_stuff
-
 AREA=echo
 generate_stuff
 AREA=foxtrott

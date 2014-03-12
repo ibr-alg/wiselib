@@ -276,6 +276,10 @@ blacklist += [
     { 'job': '25210', 'inode_db': 'inode008', '_tmin': 315, '_alpha': 1.0 },
     { 'job': '25210', 'inode_db': 'inode020', }, # '_tmin': 305, '_alpha': 1.0 }, # noisy
     { 'job': '25210', 'inode_db': 'inode030', }, # '_tmin': 310, '_alpha': 1.0 }, # noisy
+    { 'job': '25215', 'inode_db': 'inode008', '_tmin': 410 }, 
+    { 'job': '25215', 'inode_db': 'inode010', '_tmin': 410 }, 
+    { 'job': '25215', 'inode_db': 'inode020', '_tmin': 410 }, 
+    { 'job': '25215', 'inode_db': 'inode030', '_tmin': 410 }, 
 ]
 
 
@@ -314,6 +318,7 @@ subsample_runs = set([
     '25197', # ts/tree erase
     '25209', # ts/avl erase
     '25210', # ts/avl erase
+    '25215', # ts/prescilla erase
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -1375,7 +1380,7 @@ def fig_energy(ts, vs, n):
 
     #ax.set_xlim((388.06, 388.1))
     #ax.set_xlim((460, 480))
-    ax.set_xlim((300, 350))
+    ax.set_xlim((400, 440))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 

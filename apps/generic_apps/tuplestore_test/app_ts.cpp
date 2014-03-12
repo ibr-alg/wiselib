@@ -49,6 +49,9 @@ typedef Os::size_t size_type;
 	#else
 		// actually, even for the static dict we need some
 		// allocation (namely during iteration)
+		// edit: shouldnt be true anymore, TODO: check whether this is
+		// still needed at some place (e.g. in the tuple implementation) or if
+		// we can kick it out
 		typedef wiselib::BitmapAllocator<Os, 512, 16> Allocator;
 	#endif
 
