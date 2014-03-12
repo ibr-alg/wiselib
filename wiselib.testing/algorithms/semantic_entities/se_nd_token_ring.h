@@ -21,6 +21,7 @@
 #define SE_ND_TOKEN_RING_H
 
 #include <external_interface/external_interface.h>
+#include "token_message.h"
 
 namespace wiselib {
 	
@@ -46,11 +47,13 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 
+			typedef typename OsModel::Radio Radio;
+
 			typedef Neighborhood_P Neighborhood;
 			typedef typename Neighborhood::node_id_t node_id_t;
 			typedef Tree_P Tree;
 
-			typedef TokenMessage<Os> TokenMessageT;
+			typedef TokenMessage<OsModel, Radio> TokenMessageT;
 
 			enum {
 				MESSAGE_TYPE_TOKEN = 123,
