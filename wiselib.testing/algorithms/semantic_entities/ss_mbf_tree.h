@@ -22,6 +22,7 @@
 
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
+#include "tree_message.h"
 
 namespace wiselib {
 	
@@ -56,6 +57,8 @@ namespace wiselib {
 
 			typedef ::uint8_t distance_t;
 
+			typedef TreeMessage<OsModel> TreeMessageT;
+
 			enum {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
@@ -66,6 +69,7 @@ namespace wiselib {
 			enum { npos = (size_type)(-1) };
 			enum { CHILD, PARENT, UNRELATED };
 			enum { MAX_NEIGHBORS = 10 }; // TODO: Align with nhood
+			enum { PAYLOAD_ID = 2 };
 
 		private:
 			struct NeighborInfo {
@@ -73,6 +77,12 @@ namespace wiselib {
 				node_id_t parent;
 				distance_t distance;
 				bool child;
+
+				NeighborInfo() {
+				}
+
+				NeighborInfo(node_id_t i) : id(i) {
+				}
 
 				bool operator==(const NeighborInfo& other) {
 					return id == other.id;
@@ -85,9 +95,12 @@ namespace wiselib {
 			SsMbfTree() : debug_(0), root_(NULL_NODE_ID), id_(NULL_NODE_ID) {
 			}
 
-			int init(node_id_t id, typename Debug::self_pointer_t debug) {
-				debug_ = debug;
+			int init(node_id_t id, typename Neighborhood::self_pointer_t neighborhood, typename Debug::self_pointer_t debug) {
 				id_ = id;
+				neighborhood_ = neighborhood;
+				debug_ = debug;
+
+				neighborhood_->register_payload_space(PAYLOAD_ID);
 
 				check();
 				return SUCCESS;
@@ -104,12 +117,16 @@ namespace wiselib {
 				return neighbor_infos_[parent_index_].id;
 			}
 
+			distance_t distance() {
+				return distance_;
+			}
+
 			bool is_root() { return id() == ROOT_NODE_ID; }
 
 			int classify(node_id_t c) {
 				if(c == NULL_NODE_ID) { return UNRELATED; }
 				else {
-					typename NeighborInfos::iterator iter = neighbor_infos_.find(c);
+					typename NeighborInfos::iterator iter = neighbor_infos_.find(NeighborInfo(c));
 					if(at_parent(iter)) { return PARENT; }
 					if(iter != neighbor_infos_.end()) { return CHILD; }
 				}
@@ -127,12 +144,16 @@ namespace wiselib {
 			}
 
 			node_id_t next_child(node_id_t c) {
-				typename NeighborInfos::iterator it = neighbor_infos_.find(c);
+				typename NeighborInfos::iterator it = neighbor_infos_.find(NeighborInfo(c));
 				while(at_parent(it) || !it->child) {
 					++it;
 					if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
 				}
 				return it->id;
+			}
+
+			Neighborhood& neighborhood() {
+				return neighborhood_;
 			}
 
 		private:
@@ -151,13 +172,35 @@ namespace wiselib {
 						c = next_child(c);
 						s++;
 					}
+
+					assert((distance_ == 0) <= (is_root() || (parent() == NULL_NODE_ID)));
+					assert(is_root() == (parent() == id()));
+
 				#endif
+			}
+
+			/**
+			 * Insert neighbor n or update if already in the collection.
+			 */
+			void insert_neighbor(node_id_t n, node_id_t p, distance_t d) {
+				for(typename NeighborInfos::iterator it = neighbor_infos_.begin(); it != neighbor_infos_.end(); ++it) {
+					if(it->id == n) {
+						it->parent = p;
+						it->distance = d;
+						return;
+					}
+					else if(it->id > n) {
+						neighbor_infos_.insert(it, NeighborInfo(n, p, d));
+						return;
+					}
+				}
+				neighbor_infos_.push_back(NeighborInfo(n, p, d));
 			}
 
 			void erase_neighbor(node_id_t c) {
 				check();
 
-				typename NeighborInfos::iterator it = neighbor_infos_.find(c);
+				typename NeighborInfos::iterator it = neighbor_infos_.find(NeighborInfo(c));
 				if(it == neighbor_infos_.end()) { return; }
 
 				size_type pos = (it - neighbor_infos_.begin());
@@ -174,23 +217,15 @@ namespace wiselib {
 				check();
 			}
 
-			void insert_neighbor(node_id_t n, node_id_t p, distance_t d) {
-				for(typename NeighborInfos::iterator it = neighbor_infos_.begin(); it != neighbor_infos_.end(); ++it) {
-					if(it->id > n) {
-						neighbor_infos_.insert(it, NeighborInfo(n, p, d));
-						return;
-					}
-				}
-				neighbor_infos_.push_back(NeighborInfo(n, p, d));
-			}
-
-
 			bool at_parent(typename NeighborInfos::iterator it) {
 				return (it - neighbor_infos_.begin()) == parent_index_;
 			}
 
 			void update_state() {
 				check();
+
+				node_id_t parent_old = parent();
+				distance_t distance_old = distance();
 
 				// clear topology
 				parent_index_ = npos;
@@ -221,6 +256,14 @@ namespace wiselib {
 					parent_index_ = id();
 				}
 
+				if((parent() != parent_old) || (distance() != distance_old)) {
+					// state has actually changed
+					TreeMessageT msg;
+					msg.set_parent(parent());
+					msg.set_distance(distance());
+					neighborhood().set_payload(PAYLOAD_ID, msg.data(), msg.size());
+				}
+
 				check();
 			}
 
@@ -228,15 +271,21 @@ namespace wiselib {
 				switch(event) {
 					case Neighborhood::LOST_NB_BIDI:
 						erase_neighbor(from);
+						update_state();
 						break;
 
-					case Neighborhood::NEW_NB_BIDI:
-						// TODO
+					case Neighborhood::NEW_PAYLOAD_BIDI:
+					case Neighborhood::NEW_NB_BIDI: {
+						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
+						insert_neighbor(from, msg.parent(), msg.distance());
+						update_state();
 						break;
+					}
 				}
 			}
 
 			typename Debug::self_pointer_t debug_;
+			typename Neighborhood::self_pointer_t neighborhood_;
 			node_id_t root_;
 			node_id_t id_;
 			distance_t distance_;
