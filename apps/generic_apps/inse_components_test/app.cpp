@@ -12,7 +12,7 @@ typedef OSMODEL Os;
 typedef LocalRadio<Os> Radio;
 
 typedef MockNeighborhood<Os> Neighborhood;
-typedef SsMbfTree<Os, Neighborhood, Radio> Tree;
+typedef SsMbfTree<Os, Neighborhood> Tree;
 typedef SeNdTokenRing<Os, Neighborhood, Tree> TokenRing;
 typedef SeScheduler<Os, Neighborhood, Tree, TokenRing> Scheduler;
 
@@ -31,12 +31,59 @@ class ExampleApplication {
 
 			neighborhood_.init(debug_);
 			tree_.init(radio_->id(), &neighborhood_, debug_);
-			token_ring_.init(neighborhood_, tree_);
+			token_ring_.init(neighborhood_, tree_, *debug_);
 			scheduler_.init(neighborhood_, tree_, token_ring_, *clock_, *timer_, *debug_);
 
+
+			scenario_01();
+
 			//timer_->set_timer<ExampleApplication,
-									//&ExampleApplication::start>( 5000, this, 0 );
+									//&ExampleApplication::fake_beacon>(100, this, 0);
 		}
+
+		// fake a new neighbor event
+		void mock_new_neighbor(::uint16_t id, ::uint16_t distance, ::uint16_t parent) {
+			Tree::TreeMessageT tree_message;
+			tree_message.set_distance(distance);
+			tree_message.set_parent(parent);
+			neighborhood_.mock_insert_event(Neighborhood::NEW_NB_BIDI, Tree::PAYLOAD_ID, id, tree_message.size(), tree_message.data());
+			neighborhood_.mock_insert_event(Neighborhood::NEW_PAYLOAD_BIDI, Tree::PAYLOAD_ID, id, tree_message.size(), tree_message.data());
+		}
+
+		void mock_parent_beacon(void*) {
+			debug_->debug("AP:parent beacon");
+			Tree::TreeMessageT tree_message;
+			tree_message.set_distance(8);
+			tree_message.set_parent(101);
+			//neighborhood_.mock_insert_event(Neighborhood::NEW_NB_BIDI, Tree::PAYLOAD_ID, id, tree_message.size(), tree_message.data());
+			neighborhood_.mock_insert_event(Neighborhood::NEW_PAYLOAD_BIDI, Tree::PAYLOAD_ID, 101, tree_message.size(), tree_message.data());
+			//if(is_sync_beacon) {
+				neighborhood_.mock_insert_event(Neighborhood::NEW_SYNC_PAYLOAD, Tree::PAYLOAD_ID, 101, tree_message.size(), tree_message.data());
+			//}
+
+			timer_->set_timer<ExampleApplication, &ExampleApplication::mock_parent_beacon>(10000, this, 0);
+		}
+
+		void scenario_01() {
+			// Nodes:
+			// 1 = this
+			// 100, 101, 102,... = potential parents 
+			// 10, 11, 12,... = potential childs
+
+			mock_new_neighbor(100, 10, 2100);
+			mock_new_neighbor(101, 8, 2101); // should become selected parent
+			mock_new_neighbor(102, 22, 2102);
+
+			mock_new_neighbor(10, -1, Radio::NULL_NODE_ID); // no parent yet
+			mock_new_neighbor(11, -1, Radio::NULL_NODE_ID); // no parent yet
+			mock_new_neighbor(12, 10, 2199); // parent 2199, dist 10
+
+			mock_parent_beacon(0);
+		}
+
+		//void fake_beacon(void*) {
+			//neighborhood_.mock_insert_event
+
 		void receive_radio_message(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *buf) {
 		}
 

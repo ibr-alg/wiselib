@@ -35,7 +35,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Neighborhood_P,
-		typename Tree_P
+		typename Tree_P,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class SeNdTokenRing {
 		
@@ -53,11 +54,13 @@ namespace wiselib {
 			typedef typename Neighborhood::node_id_t node_id_t;
 			typedef Tree_P Tree;
 
+			typedef Debug_P Debug;
+
 			typedef TokenMessage<OsModel, 'k', Radio> TokenMessageT;
 
 			enum {
 				MESSAGE_TYPE_TOKEN = TokenMessageT::MESSAGE_TYPE,
-				PAYLOAD_ID = 2
+				PAYLOAD_ID = 3
 			};
 
 			enum {
@@ -71,14 +74,15 @@ namespace wiselib {
 			SeNdTokenRing() : neighborhood_(0), tree_(0) {
 			}
 
-			void init(Neighborhood& neighborhood, Tree& tree) {
+			void init(Neighborhood& neighborhood, Tree& tree, Debug& debug) {
 				neighborhood_ = &neighborhood;
 				tree_ = &tree;
+				debug_ = &debug;
 
 				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
 				>(
-					2,
+					PAYLOAD_ID,
 					Neighborhood::NEW_NB_BIDI | Neighborhood::DROPPED_NB | Neighborhood::NEW_PAYLOAD_BIDI,
 					this
 				);
@@ -87,17 +91,29 @@ namespace wiselib {
 			}
 
 			void enter_sync_phase() {
+				debug_->debug("TR:enter_sync_phase");
 				check();
 				in_token_phase_ = false;
+				check();
 			}
 
 			void leave_sync_phase() {
+				debug_->debug("TR:leave_sync_phase");
+				check();
 			}
 
 			bool enter_token_phase() {
+				debug_->debug("TR:enter_token_phase");
 				check();
 
 				in_token_phase_ = true;
+				check();
+				return has_token();
+			}
+
+			void leave_token_phase() {
+				debug_->debug("TR:leave_token_phase");
+				check();
 				bool r = has_token();
 				if(r) {
 					activity_rounds_--;
@@ -107,12 +123,8 @@ namespace wiselib {
 					}
 				}
 
-				check();
-				return r;
-			}
-
-			void leave_token_phase() {
 				in_token_phase_ = false;
+				check();
 			}
 
 		
@@ -127,7 +139,7 @@ namespace wiselib {
 			bool is_leaf() { return tree_->first_child() == NULL_NODE_ID; }
 
 			bool has_token() {
-				return is_root() == (token_count_ != prev_token_count_);
+				return is_root() == (token_count_ == prev_token_count_);
 			}
 
 			void process_token_count() {
@@ -248,6 +260,7 @@ namespace wiselib {
 
 			typename Neighborhood::self_pointer_t neighborhood_;
 			typename Tree::self_pointer_t tree_;
+			typename Debug::self_pointer_t debug_;
 		
 	}; // SeNdTokenRing
 }

@@ -46,6 +46,8 @@ namespace wiselib {
 			typedef typename Radio::node_id_t node_id_t;
 			typedef typename Radio::message_id_t message_id_t;
 
+			typedef ::uint16_t distance_t;
+
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum { npos = (size_type)(-1) };
 			enum { NULL_NODE_ID = Radio::NULL_NODE_ID, BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS };
@@ -53,7 +55,9 @@ namespace wiselib {
 
 			enum {
 				POS_MESSAGE_TYPE = 0,
-				POS_END = POS_MESSAGE_TYPE + sizeof(message_id_t)
+				POS_DISTANCE = POS_MESSAGE_TYPE + sizeof(message_id_t),
+				POS_PARENT = POS_DISTANCE + sizeof(distance_t),
+				POS_END = POS_PARENT + sizeof(node_id_t)
 			};
 
 			TreeMessage() {
@@ -66,6 +70,12 @@ namespace wiselib {
 
 			message_id_t message_type() { return rd<message_id_t>(POS_MESSAGE_TYPE); }
 			void set_message_type(message_id_t t) { wr(POS_MESSAGE_TYPE, t); }
+
+			distance_t distance() { return rd<distance_t>(POS_DISTANCE); }
+			void set_distance(distance_t d) { wr(POS_DISTANCE, d); }
+
+			node_id_t parent() { return rd<node_id_t>(POS_PARENT); }
+			void set_parent(node_id_t p) { wr(POS_PARENT, p); }
 
 			size_type size() {
 				return POS_END;

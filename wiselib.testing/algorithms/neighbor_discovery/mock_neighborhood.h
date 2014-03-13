@@ -1,20 +1,20 @@
 /***************************************************************************
- ** This file is part of the generic algorithm library Wiselib.           **
- ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
- **                                                                       **
+ ** This file is part of the generic algorithm library Wiselib.			  **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.		  **
+ **																							  **
  ** The Wiselib is free software: you can redistribute it and/or modify   **
- ** it under the terms of the GNU Lesser General Public License as        **
- ** published by the Free Software Foundation, either version 3 of the    **
- ** License, or (at your option) any later version.                       **
- **                                                                       **
- ** The Wiselib is distributed in the hope that it will be useful,        **
- ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
- ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
- ** GNU Lesser General Public License for more details.                   **
- **                                                                       **
- ** You should have received a copy of the GNU Lesser General Public      **
- ** License along with the Wiselib.                                       **
- ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ** it under the terms of the GNU Lesser General Public License as		  **
+ ** published by the Free Software Foundation, either version 3 of the	  **
+ ** License, or (at your option) any later version.							  **
+ **																							  **
+ ** The Wiselib is distributed in the hope that it will be useful,		  **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of		  **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the			  **
+ ** GNU Lesser General Public License for more details.						  **
+ **																							  **
+ ** You should have received a copy of the GNU Lesser General Public		  **
+ ** License along with the Wiselib.													  **
+ ** If not, see <http://www.gnu.org/licenses/>.									  **
  ***************************************************************************/
 
 #ifndef MOCK_NEIGHBORHOOD_H
@@ -23,6 +23,7 @@
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
 #include <util/pstl/vector_static.h>
+#include <util/delegates/delegate.hpp>
 
 namespace wiselib {
 	
@@ -90,13 +91,23 @@ namespace wiselib {
 									 * Useful for starting other modules that must wait until the nb has
 									 * produced a stable neighborhood */
 
-				NB_SYNC_PAYLOAD = 128, /*!< We received the syncing beacon of this sync phase */
+				NEW_SYNC_PAYLOAD = 128, /*!< We received the syncing beacon of this sync phase */
 
 				DEFAULT = 5
 				/*!< Event code for NEW_NB + DROPED_NB*/
 			};
 
 			typedef vector_static<OsModel, Neighbor, 10> Neighbors;
+
+			typedef delegate4<void, uint8_t, node_id_t, uint8_t, uint8_t*> event_callback_t;
+
+			struct EventCallback {
+				::uint8_t payload_id;
+				::uint8_t events;
+				event_callback_t callback;
+			};
+			typedef vector_static<OsModel, EventCallback, 4> EventCallbacks;
+
 
 			MockNeighborhood() : debug_(0) {
 			}
@@ -113,43 +124,56 @@ namespace wiselib {
 			Neighbors& topology() { return neighbors_; }
 
 			::uint8_t register_payload_space(::uint8_t payload_id) {
-				debug_->debug("register_payload_space(%d)", (int)payload_id);
+				debug_->debug("ND:register_payload_space(%d)", (int)payload_id);
 				return 0;
 			}
 
 			::uint8_t set_payload(::uint8_t payload_id, ::uint8_t *data, ::uint8_t len) {
-				debug_->debug("set_payload(id=%d, [0]=%d, len=%d", (int)payload_id, (int)data[0], (int)len);
+				debug_->debug("ND:set_payload(id=%d, [0]='%c', len=%d", (int)payload_id, data[0], (int)len);
 				return 0;
 			}
 
 			void force_beacon() {
-				debug_->debug("force_beacon");
+				debug_->debug("ND:force_beacon");
 			}
 
 			void enter_sync_phase() {
-				debug_->debug("enter_sync_phase");
+				debug_->debug("ND:enter_sync_phase");
 			}
 
 			void leave_sync_phase() {
-				debug_->debug("leave_sync_phase");
+				debug_->debug("ND:leave_sync_phase");
 			}
 
 			void enter_token_phase() {
-				debug_->debug("enter_token_phase");
+				debug_->debug("ND:enter_token_phase");
 			}
 
 			void leave_token_phase() {
-				debug_->debug("leave_token_phase");
+				debug_->debug("ND:leave_token_phase");
 			}
 
 			void set_force_sync_phases(bool f) {
-				debug_->debug("set_force_sync_phases(%d)", (int)f);
+				debug_->debug("ND:set_force_sync_phases(%d)", (int)f);
 			}
 
 			template<class T, void(T::*TMethod)(uint8_t, node_id_t, uint8_t, uint8_t*) >
 			uint8_t reg_event_callback(uint8_t alg_id, uint8_t events_flag, T *obj_pnt) {
-				debug_->debug("reg_event_callback(%d, %d)", (int)alg_id, (int)events_flag);
+				EventCallback ec;
+				ec.payload_id = alg_id;
+				ec.events = events_flag;
+				ec.callback = event_callback_t::template from_method<T, TMethod>(obj_pnt);
+				event_callbacks_.push_back(ec);
+				debug_->debug("ND:reg_event_callback(payload_id=%d, evts=%d)", (int)alg_id, (int)events_flag);
 				return 0;
+			}
+
+			void mock_insert_event(::uint8_t event, ::uint8_t payload_id, node_id_t from, ::uint8_t len, ::uint8_t *data) {
+				for(typename EventCallbacks::iterator it = event_callbacks_.begin(); it != event_callbacks_.end(); ++it) {
+					if(it->payload_id == payload_id && !!(event & it->events)) {
+						it->callback(event, from, len, data);
+					}
+				}
 			}
 		
 		private:
@@ -159,6 +183,7 @@ namespace wiselib {
 
 			typename Debug::self_pointer_t debug_;
 			Neighbors neighbors_;
+			EventCallbacks event_callbacks_;
 		
 	}; // MockNeighborhood
 }

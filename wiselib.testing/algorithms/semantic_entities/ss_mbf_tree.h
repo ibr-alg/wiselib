@@ -24,6 +24,8 @@
 #include <external_interface/external_interface_testing.h>
 #include "tree_message.h"
 
+#define SS_MBF_TREE_DEBUG 1
+
 namespace wiselib {
 	
 	/**
@@ -36,7 +38,7 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Neighborhood_P,
-		typename Radio_P = typename OsModel_P::Radio,
+		typename Radio_P = typename Neighborhood_P::Radio,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class SsMbfTree {
@@ -81,7 +83,10 @@ namespace wiselib {
 				NeighborInfo() {
 				}
 
-				NeighborInfo(node_id_t i) : id(i) {
+				NeighborInfo(node_id_t i) : id(i), parent(NULL_NODE_ID), distance(-1), child(0) {
+				}
+
+				NeighborInfo(node_id_t i, node_id_t p, distance_t d) : id(i), parent(p), distance(d), child(false) {
 				}
 
 				bool operator==(const NeighborInfo& other) {
@@ -92,15 +97,21 @@ namespace wiselib {
 		public:
 			typedef vector_static<OsModel, NeighborInfo, MAX_NEIGHBORS> NeighborInfos;
 
-			SsMbfTree() : debug_(0), root_(NULL_NODE_ID), id_(NULL_NODE_ID) {
+			SsMbfTree() : debug_(0), root_(NULL_NODE_ID), id_(NULL_NODE_ID), distance_(-1) {
 			}
 
 			int init(node_id_t id, typename Neighborhood::self_pointer_t neighborhood, typename Debug::self_pointer_t debug) {
 				id_ = id;
 				neighborhood_ = neighborhood;
 				debug_ = debug;
+				distance_ = -1;
+				parent_index_ = npos;
 
 				neighborhood_->register_payload_space(PAYLOAD_ID);
+				neighborhood_->template reg_event_callback<self_type, &self_type::on_nd_event>(
+						PAYLOAD_ID,
+						Neighborhood::NEW_NB_BIDI | Neighborhood::NEW_PAYLOAD_BIDI | Neighborhood::LOST_NB_BIDI | Neighborhood::DROPPED_NB,
+						this);
 
 				check();
 				return SUCCESS;
@@ -135,7 +146,7 @@ namespace wiselib {
 
 			node_id_t first_child() {
 				typename NeighborInfos::iterator it = neighbor_infos_.begin();
-
+				if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
 				while(at_parent(it) || !it->child) {
 					++it;
 					if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
@@ -145,6 +156,7 @@ namespace wiselib {
 
 			node_id_t next_child(node_id_t c) {
 				typename NeighborInfos::iterator it = neighbor_infos_.find(NeighborInfo(c));
+				if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
 				while(at_parent(it) || !it->child) {
 					++it;
 					if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
@@ -153,7 +165,7 @@ namespace wiselib {
 			}
 
 			Neighborhood& neighborhood() {
-				return neighborhood_;
+				return *neighborhood_;
 			}
 
 		private:
@@ -209,7 +221,7 @@ namespace wiselib {
 						parent_index_--;
 					}
 					else if(pos == parent_index_) {
-						parent_index_ == NULL_NODE_ID;
+						parent_index_ = npos;
 					}
 				}
 				neighbor_infos_.erase(it);
@@ -257,6 +269,10 @@ namespace wiselib {
 				}
 
 				if((parent() != parent_old) || (distance() != distance_old)) {
+					#if SS_MBF_TREE_DEBUG
+						debug_->debug("US p%d d%d", (int)parent(), (int)distance());
+					#endif
+
 					// state has actually changed
 					TreeMessageT msg;
 					msg.set_parent(parent());
@@ -269,6 +285,7 @@ namespace wiselib {
 
 			void on_nd_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
 				switch(event) {
+					case Neighborhood::DROPPED_NB:
 					case Neighborhood::LOST_NB_BIDI:
 						erase_neighbor(from);
 						update_state();
@@ -281,6 +298,10 @@ namespace wiselib {
 						update_state();
 						break;
 					}
+
+					default:
+						debug_->debug("!NDev%d", (int)event);
+						break;
 				}
 			}
 

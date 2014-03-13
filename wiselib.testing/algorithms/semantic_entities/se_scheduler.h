@@ -73,6 +73,9 @@ namespace wiselib {
 			enum {
 				npos = (size_type)(-1)
 			};
+			enum {
+				PAYLOAD_ID = 1
+			};
 
 			SeScheduler() : neighborhood_(0), tree_(0), token_ring_(0) {
 			}
@@ -88,7 +91,7 @@ namespace wiselib {
 
 				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
-				>(1, Neighborhood::NB_SYNC_PAYLOAD, this);
+				>(PAYLOAD_ID, Neighborhood::NEW_SYNC_PAYLOAD, this);
 
 				schedule_sync_phase_start();
 
@@ -116,7 +119,7 @@ namespace wiselib {
 			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
 				check();
 
-				if(event == Neighborhood::NB_SYNC_PAYLOAD) {
+				if(event == Neighborhood::NEW_SYNC_PAYLOAD) {
 					if(tree_->classify(from) == Tree::PARENT) {
 						abs_millis_t t_recv = now();
 						last_sync_beacon_ = t_recv - rtt_ / 2;
@@ -191,8 +194,8 @@ namespace wiselib {
 				check();
 			}
 			
-			abs_millis_t absolute_millis(const time_t& t) { check(); return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
-			abs_millis_t now() { check(); return absolute_millis(clock_->time()); }
+			abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+			abs_millis_t now() { return absolute_millis(clock_->time()); }
 
 			Neighborhood& neighborhood() { return *neighborhood_; }
 			TokenRing& token_ring() { return *token_ring_; }
