@@ -1,0 +1,16 @@
+
+@prefix gr: <http://www.heppnetz.de/ontologies/goodrelations/v1#> .
+@prefix pto: <http://www.productontology.org/id/> .
+@prefix teds: <http://example.org/teds/> .
+@prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#> .
+@prefix dul: <http://www.loa-cnr.it/ontologies/DUL.owl#> .
+@prefix spt: <http://spitfire-project.eu/ontology/ns#> .
+@prefix owl: <http://w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/ex/> .
+
+ex:Sensor a ex:ElectricityMeter ;
+	ssn:featureOfInterest ex:EffectivePowerDraw ;
+	ssn:detects ex:TimeIntegral ;
+	ex:chargeModel ex:Free .
+
+
