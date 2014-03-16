@@ -1,6 +1,6 @@
 
 #define SHDT_REUSE_PREFIXES 1
-#define USE_CODEC 0
+//#define USE_CODEC 0
 #define MAX_STRING_LENGTH 2048
 
 #include "platform.h"
@@ -13,7 +13,7 @@ typedef wiselib::OSMODEL Os;
 typedef Os::size_t size_type;
 typedef Os::block_data_t block_data_t;
 
-typedef wiselib::ShdtSerializer<Os, 128, 4> Shdt;
+typedef wiselib::ShdtSerializer<Os, 255, 4> Shdt;
 
 #include <algorithms/codecs/huffman_codec.h>
 #include <util/split_n3.h>
@@ -42,8 +42,17 @@ class ExampleApplication {
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
-			bufsize_ = 1024; // MTU
+			if(value.argc < 2) {
+				debug_->debug("syntax: %s [mtu] [tablesize]", value.argv[0]);
+				exit(1);
+			}
+
+			//bufsize_ = 1024; // MTU
+			bufsize_ = atoi(value.argv[1]);
+			table_size_ = atoi(value.argv[2]);
+			assert(table_size_ <= 255);
 			cat();
+
 			
 			//shdt_encode(100);
 			
@@ -68,7 +77,7 @@ class ExampleApplication {
 					&sender, buffer_, bufsize_,
 					Shdt::write_callback_t::from_method<ExampleApplication, &ExampleApplication::shdt_test_receive_tuples>(this)
 			);
-			w.write_header(128, 3);
+			w.write_header(table_size_, 3);
 
 			while(std::cin) {
 				std::cin.getline(line, 20480);
@@ -103,7 +112,7 @@ class ExampleApplication {
 		// Tuple encode/decode test
 		//
 		
-		//size_type table_size_;
+		size_type table_size_;
 		size_type bufsize_;
 		block_data_t **test_tuples_;
 		size_type cstr_size_;
