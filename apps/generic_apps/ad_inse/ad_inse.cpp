@@ -14,7 +14,7 @@
 //#define ECHO_BENCHMARK
 
 typedef wiselib::OSMODEL Os;
-typedef Os::TxRadio Radio;
+typedef Os::ExtendedRadio Radio;
 typedef Radio::block_data_t block_data_t;
 
 typedef wiselib::Echo<Os, Radio, Os::Timer, Os::Debug> nb_t;
@@ -37,7 +37,7 @@ public:
 
 	debug_->debug("Hello World from Neighbor Discovery Test Application!\n");
 
-	neighbor_discovery.init(*radio_, *clock_, *timer_, *debug_, 1000, 20000, 50000, 50000);
+	neighbor_discovery.init(*radio_, *clock_, *timer_, *debug_, 200, 20000, 50000, 50000);
 	enabled = false;
 	disable = false;
 	rand_->srand(radio_->id());
@@ -87,20 +87,35 @@ public:
 
     // --------------------------------------------------------------------
 
-    void start(void*) {
+    void start(void* ) {
 
 	if (disable) {
 	    neighbor_discovery.disable();
 	    return;
 	}
 
+/*
 	debug_->debug("EVENT=NB_PRINT_INFO;NODE=%x;Time=%d;NB_SIZE=%d;NB_BIDI_SIZE=%d",
 		radio_->id(),
 		clock_->seconds(clock_->time()) + delay,
 		neighbor_discovery.stable_nb_size(),
 		neighbor_discovery.bidi_nb_size()
 		);
-
+*/
+	if (interval%10==0){
+		neighbor_discovery.leave_token_phase();
+		neighbor_discovery.enter_sync_phase();
+	}
+	else if (interval%10==1){
+		neighbor_discovery.leave_sync_phase();
+		neighbor_discovery.enter_token_phase();
+	}
+	else{
+		//nothing to do here yet
+	}
+	//move to next interval
+	interval++;
+	
 	//        run this periodically
 	timer_->set_timer<ExampleApplication,
 		&ExampleApplication::start>(1000, this, 0);
@@ -109,6 +124,7 @@ public:
 
 private:
     bool enabled, disable;
+    int interval;
     uint8_t delay;
     nb_t neighbor_discovery;
     Os os_;

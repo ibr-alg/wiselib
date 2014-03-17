@@ -167,11 +167,11 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         enum phase_codes {
-            UNKNOWN = 0,
-            SYNC = 1,
-            LEFT_SYNC = 2,
-            TOKEN = 3,
-            LEFT_TOKEN = 4
+            PHASE_UNKNOWN = 0,
+            PHASE_SYNC = 1,
+            PHASE_LEFT_SYNC = 2,
+            PHASE_TOKEN = 3,
+            PHASE_LEFT_TOKEN = 4
         };
         // --------------------------------------------------------------------
 
@@ -432,7 +432,7 @@ namespace wiselib {
         void init(Radio& radio, Clock& clock, Timer& timer, Debug& debug,
                 uint16_t beacon_pd = 1000, uint16_t timeout_pd = 9000, uint16_t min_theshold = 100,
                 uint16_t max_threshold = 165) {
-            _phase = UNKNOWN;
+            _phase = PHASE_UNKNOWN;
             radio_ = &radio;
             clock_ = &clock;
             timer_ = &timer;
@@ -441,6 +441,7 @@ namespace wiselib {
             timeout_period = timeout_pd;
             min_lqi_threshold = min_theshold;
             max_lqi_threshold = max_threshold;
+            _neighborhood_changes=0;
         };
 
         void set_beacon_period(uint16_t beacon_pd) {
@@ -522,7 +523,7 @@ namespace wiselib {
          * this method and be distinguishable to receivers from other beacons
          */
         void enter_sync_phase() {
-            _phase = SYNC;
+            _phase = PHASE_SYNC;
             _beacons_in_sync_phase = 0;
         }
 
@@ -532,8 +533,9 @@ namespace wiselib {
          * or active token phase
          */
         void leave_sync_phase() {
-            _phase = LEFT_SYNC;
-            debug().debug("%d beacons sent in sync phase", _beacons_in_sync_phase);
+            _phase = PHASE_LEFT_SYNC;
+            debug().debug("%d beacons sent in sync phase, %d changes observed", _beacons_in_sync_phase, _neighborhood_changes);
+			_neighborhood_changes = 0;
         }
 
         /**
@@ -543,12 +545,12 @@ namespace wiselib {
          * beacons do not mean the start of a sync phase.
          */
         void enter_token_phase() {
-            _phase = TOKEN;
+            _phase = PHASE_TOKEN;
             _beacons_in_token_phase = 0;
         }
 
         void leave_token_phase() {
-            _phase = LEFT_TOKEN;
+            _phase = PHASE_LEFT_TOKEN;
             debug().debug("%d beacons sent in token phase", _beacons_in_token_phase);
         }
 
@@ -563,14 +565,19 @@ namespace wiselib {
 
     private:
 
+		void change_beacon_counters(){
+			if (_phase==PHASE_SYNC){
+				_beacons_in_sync_phase++;
+			}else if (_phase==PHASE_TOKEN){
+				_beacons_in_token_phase++;
+			}
+		}
         /**
          * Send a beacon to Neighborhood, also check for any nodes that have
          * long time without communication and remove them from Neighborhood.
          *
          */
         void say_hello(void * a) {
-            //	    debug().debug("say_hello()");
-
 
             // Check for Neighbors that do not exist and need to be dropped
             cleanup_nearby();
@@ -582,6 +589,18 @@ namespace wiselib {
 
             //this is set if all the beacons were forced
             should_send |= _force_sync_phases;
+            
+            if (_phase==PHASE_SYNC){
+				should_send = true;
+				if (stable_nb_size()>0 && _neighborhood_changes==0){
+					debug().debug("NB_STABLE");
+					if (rand()%4==0){//<--TODO : make this smart
+						should_send=false;
+					}
+				}
+			}
+            
+            debug().debug("should_send:%d",should_send);
 
             // if in searching mode send a new beacon
             if (status() == SEARCHING) {
@@ -603,10 +622,13 @@ namespace wiselib {
 
 
                 //send the Beacon
-
+                if (should_send){
+					debug().debug("NB_SEND Sending beacon from %d",radio().id());
                 //debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
                 radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) & echomsg);
                 //radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
+                change_beacon_counters();
+				}
 
                 msgs_stats.echo_msg_count++;
                 msgs_stats.echo_msg_size += echomsg.buffer_size();
@@ -1107,7 +1129,7 @@ namespace wiselib {
 
         void notify_listeners(uint8_t event, node_id_t from, uint8_t len,
                 uint8_t *data) {
-
+			_neighborhood_changes++;
             for (reg_alg_iterator_t ait = registered_apps.begin(); ait
                     != registered_apps.end(); ++ait) {
 
@@ -1225,6 +1247,7 @@ namespace wiselib {
         bool _force_sync_phases;
         uint16_t _beacons_in_sync_phase;
         uint16_t _beacons_in_token_phase;
+        uint16_t _neighborhood_changes;
 
         uint8_t _phase;
 
