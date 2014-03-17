@@ -21,6 +21,7 @@
 #define SE_ND_TOKEN_RING_H
 
 #include <external_interface/external_interface.h>
+#include "token_message.h"
 
 namespace wiselib {
 	
@@ -34,7 +35,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Neighborhood_P,
-		typename Tree_P
+		typename Tree_P,
+		typename Debug_P = typename OsModel_P::Debug
 	>
 	class SeNdTokenRing {
 		
@@ -46,15 +48,19 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 
+			typedef typename OsModel::Radio Radio;
+
 			typedef Neighborhood_P Neighborhood;
 			typedef typename Neighborhood::node_id_t node_id_t;
 			typedef Tree_P Tree;
 
-			typedef TokenMessage<Os> TokenMessageT;
+			typedef Debug_P Debug;
+
+			typedef TokenMessage<OsModel, 'k', Radio> TokenMessageT;
 
 			enum {
-				MESSAGE_TYPE_TOKEN = 123,
-				PAYLOAD_ID = 2
+				MESSAGE_TYPE_TOKEN = TokenMessageT::MESSAGE_TYPE,
+				PAYLOAD_ID = 3
 			};
 
 			enum {
@@ -68,14 +74,15 @@ namespace wiselib {
 			SeNdTokenRing() : neighborhood_(0), tree_(0) {
 			}
 
-			void init(Neighborhood& neighborhood, Tree& tree) {
+			void init(Neighborhood& neighborhood, Tree& tree, Debug& debug) {
 				neighborhood_ = &neighborhood;
 				tree_ = &tree;
+				debug_ = &debug;
 
-				::uint8_t event_id = neighborhood_->template reg_event_callback<
+				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
 				>(
-					2,
+					PAYLOAD_ID,
 					Neighborhood::NEW_NB_BIDI | Neighborhood::DROPPED_NB | Neighborhood::NEW_PAYLOAD_BIDI,
 					this
 				);
@@ -84,17 +91,29 @@ namespace wiselib {
 			}
 
 			void enter_sync_phase() {
+				debug_->debug("TR:enter_sync_phase");
 				check();
 				in_token_phase_ = false;
+				check();
 			}
 
 			void leave_sync_phase() {
+				debug_->debug("TR:leave_sync_phase");
+				check();
 			}
 
 			bool enter_token_phase() {
+				debug_->debug("TR:enter_token_phase");
 				check();
 
 				in_token_phase_ = true;
+				check();
+				return has_token();
+			}
+
+			void leave_token_phase() {
+				debug_->debug("TR:leave_token_phase");
+				check();
 				bool r = has_token();
 				if(r) {
 					activity_rounds_--;
@@ -104,11 +123,8 @@ namespace wiselib {
 					}
 				}
 
-				check();
-			}
-
-			void leave_token_phase() {
 				in_token_phase_ = false;
+				check();
 			}
 
 		
@@ -119,11 +135,11 @@ namespace wiselib {
 				assert(has_token() == (activity_rounds_ != 0));
 			}
 
-			bool is_root() { return tree_.is_root(); }
-			bool is_leaf() { return tree_.size() == 0; }
+			bool is_root() { return tree_->is_root(); }
+			bool is_leaf() { return tree_->first_child() == NULL_NODE_ID; }
 
 			bool has_token() {
-				return is_root() == (token_count_ != prev_token_count_);
+				return is_root() == (token_count_ == prev_token_count_);
 			}
 
 			void process_token_count() {
@@ -134,13 +150,14 @@ namespace wiselib {
 			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t* data) {
 				check();
 
-				if(event & Neighborhood::NB_PAYLOAD_BIDI) {
+				if(event & Neighborhood::NEW_PAYLOAD_BIDI) {
 					if(size == 0) { return; } // empty payload shouldnt happen actually
 					if(*data == MESSAGE_TYPE_TOKEN) {
 						TokenMessageT &msg = *reinterpret_cast<TokenMessageT*>(data);
 						
 						// Should we forward this token?
-						node_id_t target = forward_address(from);
+						node_id_t target;
+						forward_address(from, target, upwards_);
 
 						// The token is actually meant for us, process it,
 						// see if it activates us
@@ -149,7 +166,7 @@ namespace wiselib {
 
 							if(activity_rounds_ == 0 && has_token()) {
 								activity_rounds_ = is_leaf() ? 2 : 1;
-								downwards_ = (from == parent());
+								//upwards_ = (from != parent());
 							}
 						}
 
@@ -179,8 +196,8 @@ namespace wiselib {
 				check();
 
 				to = NULL_NODE_ID;
-				switch(tree_.classify(from)) {
-					case Tree::CHILD:
+				switch(tree_->classify(from)) {
+					case Tree::CHILD: {
 						node_id_t next_ch = next_child(from);
 						if(next_ch == NULL_NODE_ID) {
 							// no next child => msg came from last child
@@ -193,6 +210,7 @@ namespace wiselib {
 							upwards = false;
 						}
 						break;
+					}
 
 					case Tree::PARENT:
 						to = id();
@@ -219,29 +237,30 @@ namespace wiselib {
 			}
 
 			node_id_t id() {
-				return neighborhood_.id();
+				return neighborhood_->id();
 			}
 
 			node_id_t parent() {
-				return tree_.parent();
+				return tree_->parent();
 			}
 
 			node_id_t next_child(node_id_t c) {
-				return tree_.next_child(c);
+				return tree_->next_child(c);
 			}
 
 			node_id_t first_child() {
-				return tree_.first_child();
+				return tree_->first_child();
 			}
 
 			bool in_token_phase_;
 			::uint8_t activity_rounds_;
-			bool downwards_;
+			bool upwards_;
 			::uint16_t token_count_;
 			::uint16_t prev_token_count_;
 
 			typename Neighborhood::self_pointer_t neighborhood_;
 			typename Tree::self_pointer_t tree_;
+			typename Debug::self_pointer_t debug_;
 		
 	}; // SeNdTokenRing
 }

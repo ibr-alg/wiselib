@@ -20,6 +20,8 @@
 #ifndef SE_SCHEDULER
 #define SE_SCHEDULER
 
+#include <util/meta.h>
+
 namespace wiselib {
 	
 	/**
@@ -35,6 +37,7 @@ namespace wiselib {
 		typename Tree_P,
 		typename TokenRing_P,
 		typename Clock_P = typename OsModel_P::Clock,
+		typename Timer_P = typename OsModel_P::Timer,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class SeScheduler {
@@ -49,13 +52,19 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 
 			typedef Neighborhood_P Neighborhood;
-			typedef typename Negihborhood::node_id_t node_id_t;
+			typedef typename Neighborhood::node_id_t node_id_t;
 			typedef TokenRing_P TokenRing;
+
+			typedef typename Neighborhood::Radio Radio;
+			typedef typename Clock::time_t time_t;
+			typedef Tree_P Tree;
+			typedef Timer_P Timer;
 
 			typedef ::uint32_t abs_millis_t;
 
 			enum {
-				PERIOD = 10000
+				PERIOD = 10000,
+				MIN_SYNC_INTERVAL_LENGTH = 1000
 			};
 			enum {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
@@ -64,23 +73,27 @@ namespace wiselib {
 			enum {
 				npos = (size_type)(-1)
 			};
+			enum {
+				PAYLOAD_ID = 1
+			};
 
 			SeScheduler() : neighborhood_(0), tree_(0), token_ring_(0) {
 			}
 
-			void init(Neighborhood& nd, Tree_P& tree, TokenRing& ring, Clock& clock, Debug& debug) {
+			void init(Neighborhood& nd, Tree_P& tree, TokenRing& ring, Clock& clock, Timer& timer, Debug& debug) {
 				clock_ = &clock;
+				timer_ = &timer;
 				debug_ = &debug;
 				neighborhood_ = &nd;
 				tree_ = &tree;
 				token_ring_ = &ring;
 				rtt_ = 30;
 
-				::uint8_t event_id = neighborhood_.template reg_event_callback<
-					self_type, &on_neighborhood_event
-				>(1, Neigborhood::NB_SYNC_PAYLOAD, this);
+				neighborhood_->template reg_event_callback<
+					self_type, &self_type::on_neighborhood_event
+				>(PAYLOAD_ID, Neighborhood::NEW_SYNC_PAYLOAD, this);
 
-				schedule_sync_interval_start();
+				schedule_sync_phase_start();
 
 				check();
 			}
@@ -92,6 +105,7 @@ namespace wiselib {
 				assert(tree_ != 0);
 				assert(token_ring_ != 0);
 				assert(debug_ != 0);
+				assert(timer_ != 0);
 				assert(clock_ != 0);
 
 				assert(sync_phase_shift_ < PERIOD);
@@ -99,14 +113,14 @@ namespace wiselib {
 			}
 
 			bool is_root() {
-				return tree_.is_root(); //parent() == NULL_NODE_ID;
+				return tree_->is_root(); //parent() == NULL_NODE_ID;
 			}
 
-			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t data) {
+			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
 				check();
 
-				if(event == Neighborhood::NB_SYNC_PAYLOAD) {
-					if(tree_.classify(from) == Tree::PARENT) {
+				if(event == Neighborhood::NEW_SYNC_PAYLOAD) {
+					if(tree_->classify(from) == Tree::PARENT) {
 						abs_millis_t t_recv = now();
 						last_sync_beacon_ = t_recv - rtt_ / 2;
 					}
@@ -151,7 +165,7 @@ namespace wiselib {
 				check();
 				
 				if(!is_root()) {
-					sync_phase_shift = last_sync_beacon_ % PERIOD;
+					sync_phase_shift_ = last_sync_beacon_ % PERIOD;
 				}
 				
 				// Note that the division here is rounding down which is
@@ -164,7 +178,7 @@ namespace wiselib {
 				// index_of_current_period := (now() - phase) / PERIOD
 
 				abs_millis_t tnow = now();
-				abs_millis_t next = ((tnow - sync_phase_shift) / PERIOD + 1) * PERIOD + sync_interval_start_phase_;
+				abs_millis_t next = ((tnow - sync_phase_shift_) / PERIOD + 1) * PERIOD + sync_phase_shift_;
 				abs_millis_t interval = next - tnow;
 				assert(interval <= PERIOD);
 				
@@ -180,20 +194,23 @@ namespace wiselib {
 				check();
 			}
 			
-			abs_millis_t absolute_millis(const time_t& t) { check(); return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
-			abs_millis_t now() { check(); return absolute_millis(clock_->time()); }
+			abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+			abs_millis_t now() { return absolute_millis(clock_->time()); }
 
+			Neighborhood& neighborhood() { return *neighborhood_; }
+			TokenRing& token_ring() { return *token_ring_; }
 
 			typename Neighborhood::self_pointer_t neighborhood_;
 			typename Tree::self_pointer_t tree_;
 			typename TokenRing::self_pointer_t token_ring_;
 			typename Clock::self_pointer_t clock_;
 			typename Debug::self_pointer_t debug_;
+			typename Timer::self_pointer_t timer_;
 
 			abs_millis_t last_sync_beacon_;
-			abs_millis_t sync_phase_shift;
+			abs_millis_t sync_phase_shift_;
 			abs_millis_t rtt_;
-			Uvoid sync_interval_start_guard_;
+			Uvoid sync_phase_start_guard_;
 
 		
 	}; // SeScheduler
