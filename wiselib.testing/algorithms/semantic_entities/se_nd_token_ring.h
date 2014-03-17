@@ -48,10 +48,12 @@ namespace wiselib {
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 
-			typedef typename OsModel::Radio Radio;
+			//typedef typename OsModel::Radio Radio;
 
 			typedef Neighborhood_P Neighborhood;
 			typedef typename Neighborhood::node_id_t node_id_t;
+			typedef typename Neighborhood::Radio Radio;
+
 			typedef Tree_P Tree;
 
 			typedef Debug_P Debug;
@@ -64,7 +66,7 @@ namespace wiselib {
 			};
 
 			enum {
-				NULL_NODE_ID = Neighborhood::NULL_NODE_ID
+				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 
 			enum {
@@ -153,6 +155,7 @@ namespace wiselib {
 				if(event & Neighborhood::NEW_PAYLOAD_BIDI) {
 					if(size == 0) { return; } // empty payload shouldnt happen actually
 					if(*data == MESSAGE_TYPE_TOKEN) {
+						debug_->debug("TR:recv_payload %lu from %lu", (unsigned long)id(), (unsigned long)from);
 						TokenMessageT &msg = *reinterpret_cast<TokenMessageT*>(data);
 						
 						// Should we forward this token?
@@ -237,7 +240,7 @@ namespace wiselib {
 			}
 
 			node_id_t id() {
-				return neighborhood_->id();
+				return neighborhood_->radio().id();
 			}
 
 			node_id_t parent() {

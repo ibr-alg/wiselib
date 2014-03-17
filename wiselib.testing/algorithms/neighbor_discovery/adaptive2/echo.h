@@ -41,7 +41,7 @@
  */
 
 //#define DEBUG_ECHO
-//#define DEBUG_ECHO_EXTRA
+#define DEBUG_ECHO_EXTRA
 //#define DEBUG_PIGGYBACKING
 #define MAX_PG_PAYLOAD 48
 #define ECHO_MAX_NODES 20
@@ -185,6 +185,7 @@ namespace wiselib {
             NB_READY = 64, /*!< Event code generated after the nb module has generated a stable nhd
 		 * Useful for starting other modules that must wait until the nb has
 		 * produced a stable neighborhood */
+			NEW_SYNC_PAYLOAD = 128,
             DEFAULT = 5
             /*!< Event code for NEW_NB + DROPED_NB*/
         };

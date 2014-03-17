@@ -1,7 +1,6 @@
 
 #include <external_interface/external_interface.h>
 #include <algorithms/semantic_entities/ss_mbf_tree.h>
-#include <algorithms/neighbor_discovery/mock_neighborhood.h>
 #include <external_interface/local_radio.h>
 #include <algorithms/semantic_entities/se_scheduler.h>
 #include <algorithms/semantic_entities/se_nd_token_ring.h>
@@ -9,37 +8,63 @@
 using namespace wiselib;
 typedef OSMODEL Os;
 
-typedef LocalRadio<Os> Radio;
+#if defined(PC)
+	typedef LocalRadio<Os> Radio;
+#else
+	typedef Os::Radio Radio;
+#endif
 
-typedef MockNeighborhood<Os> Neighborhood;
+#if defined(PC)
+	#include <algorithms/neighbor_discovery/mock_neighborhood.h>
+	typedef MockNeighborhood<Os> Neighborhood;
+#else
+	#include <algorithms/neighbor_discovery/adaptive2/echo.h>
+	typedef Echo<Os, Radio, Os::Timer, Os::Debug> Neighborhood;
+#endif
+
 typedef SsMbfTree<Os, Neighborhood> Tree;
 typedef SeNdTokenRing<Os, Neighborhood, Tree> TokenRing;
 typedef SeScheduler<Os, Neighborhood, Tree, TokenRing> Scheduler;
 
 class ExampleApplication {
 	public:
-		Radio r;
-
 		void init(Os::AppMainParameter& value) {
-			//radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
-			radio_ = &r;
+			#if defined(PC)
+				radio_ = &r;
+			#else
+				radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			#endif
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
 			radio_->enable_radio();
 
-			neighborhood_.init(debug_);
+			#if defined(PC)
+				neighborhood_.init(debug_);
+			#else
+				neighborhood_.init(*radio_, *clock_, *timer_, *debug_);
+				neighborhood_.enable();
+			#endif
+
 			tree_.init(radio_->id(), &neighborhood_, debug_);
 			token_ring_.init(neighborhood_, tree_, *debug_);
 			scheduler_.init(neighborhood_, tree_, token_ring_, *clock_, *timer_, *debug_);
 
 
-			scenario_01();
+			#if defined(PC)
+				scenario_01();
+			#endif
 
 			//timer_->set_timer<ExampleApplication,
 									//&ExampleApplication::fake_beacon>(100, this, 0);
 		}
+
+	/*
+	 * Functions for faking events with mock ND, fake (local) radio, etc...
+	 */
+	#if defined(PC)
+		Radio r;
 
 		// fake a new neighbor event
 		void mock_new_neighbor(::uint16_t id, ::uint16_t distance, ::uint16_t parent) {
@@ -80,9 +105,7 @@ class ExampleApplication {
 
 			mock_parent_beacon(0);
 		}
-
-		//void fake_beacon(void*) {
-			//neighborhood_.mock_insert_event
+	#endif // defined(PC)
 
 		void receive_radio_message(Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *buf) {
 		}

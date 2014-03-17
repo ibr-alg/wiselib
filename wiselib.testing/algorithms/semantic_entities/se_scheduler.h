@@ -89,6 +89,7 @@ namespace wiselib {
 				token_ring_ = &ring;
 				rtt_ = 30;
 
+				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
 				>(PAYLOAD_ID, Neighborhood::NEW_SYNC_PAYLOAD, this);
@@ -121,6 +122,7 @@ namespace wiselib {
 
 				if(event == Neighborhood::NEW_SYNC_PAYLOAD) {
 					if(tree_->classify(from) == Tree::PARENT) {
+						debug_->debug("Sc:recv_payload %lu from parent %lu", (unsigned long)id(), (unsigned long)from);
 						abs_millis_t t_recv = now();
 						last_sync_beacon_ = t_recv - rtt_ / 2;
 					}
@@ -193,11 +195,13 @@ namespace wiselib {
 				timer_->template set_timer<self_type, &self_type::on_enter_token_phase>(interval, this, 0);
 				check();
 			}
-			
+
 			abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
 			abs_millis_t now() { return absolute_millis(clock_->time()); }
 
 			Neighborhood& neighborhood() { return *neighborhood_; }
+			node_id_t id() { return neighborhood().radio().id(); }
+			
 			TokenRing& token_ring() { return *token_ring_; }
 
 			typename Neighborhood::self_pointer_t neighborhood_;

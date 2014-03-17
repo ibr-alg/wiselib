@@ -107,11 +107,15 @@ namespace wiselib {
 				distance_ = -1;
 				parent_index_ = npos;
 
+				debug_->debug("TREE INIT @%lu", (unsigned long)this->id());
+
 				neighborhood_->register_payload_space(PAYLOAD_ID);
-				neighborhood_->template reg_event_callback<self_type, &self_type::on_nd_event>(
+				neighborhood_->template reg_event_callback<self_type, &self_type::on_neighborhood_event>(
 						PAYLOAD_ID,
 						Neighborhood::NEW_NB_BIDI | Neighborhood::NEW_PAYLOAD_BIDI | Neighborhood::LOST_NB_BIDI | Neighborhood::DROPPED_NB,
 						this);
+
+				update_state(true);
 
 				check();
 				return SUCCESS;
@@ -233,7 +237,7 @@ namespace wiselib {
 				return (it - neighbor_infos_.begin()) == parent_index_;
 			}
 
-			void update_state() {
+			void update_state(bool force=false) {
 				check();
 
 				node_id_t parent_old = parent();
@@ -268,7 +272,7 @@ namespace wiselib {
 					parent_index_ = id();
 				}
 
-				if((parent() != parent_old) || (distance() != distance_old)) {
+				if((parent() != parent_old) || (distance() != distance_old) || force) {
 					#if SS_MBF_TREE_DEBUG
 						debug_->debug("US p%d d%d", (int)parent(), (int)distance());
 					#endif
@@ -278,12 +282,15 @@ namespace wiselib {
 					msg.set_parent(parent());
 					msg.set_distance(distance());
 					neighborhood().set_payload(PAYLOAD_ID, msg.data(), msg.size());
+					neighborhood().force_beacon();
 				}
 
 				check();
 			}
 
-			void on_nd_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
+			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
+				debug_->debug("@%lu NDev %d %lu", (unsigned long)id(),
+						(int)event, (unsigned long)from);
 				switch(event) {
 					case Neighborhood::DROPPED_NB:
 					case Neighborhood::LOST_NB_BIDI:
@@ -293,6 +300,7 @@ namespace wiselib {
 
 					case Neighborhood::NEW_PAYLOAD_BIDI:
 					case Neighborhood::NEW_NB_BIDI: {
+						debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
 						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
 						insert_neighbor(from, msg.parent(), msg.distance());
 						update_state();
