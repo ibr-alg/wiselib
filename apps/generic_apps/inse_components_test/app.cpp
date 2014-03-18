@@ -43,7 +43,7 @@ class ExampleApplication {
 			#if defined(PC)
 				neighborhood_.init(debug_);
 			#else
-				neighborhood_.init(*radio_, *clock_, *timer_, *debug_);
+				neighborhood_.init(*radio_, *clock_, *timer_, *debug_, 200, 20000, 50000, 50000);
 				neighborhood_.enable();
 			#endif
 

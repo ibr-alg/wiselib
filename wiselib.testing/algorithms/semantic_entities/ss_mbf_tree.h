@@ -298,8 +298,8 @@ namespace wiselib {
 						update_state();
 						break;
 
-					case Neighborhood::NEW_PAYLOAD_BIDI:
-					case Neighborhood::NEW_NB_BIDI: {
+					//case Neighborhood::NEW_NB_BIDI:
+					case Neighborhood::NEW_PAYLOAD_BIDI: {
 						debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
 						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
 						insert_neighbor(from, msg.parent(), msg.distance());

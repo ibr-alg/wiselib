@@ -50,7 +50,9 @@
  *	If enabled, beacons that are below certain LQI thresholds
  *	will be ignored.
  */
-#define ENABLE_LQI_THRESHOLDS
+#if !defined(SHAWN)
+	#define ENABLE_LQI_THRESHOLDS
+#endif
 
 /**
  * How many consecutive beacons must be received from a node
@@ -663,7 +665,7 @@ namespace wiselib {
                 , typename Radio::ExtendedData const &ex) {
 
             //        void receive(node_id_t from, size_t len, block_data_t * msg) {
-            //debug().debug("recv\n");
+			//debug().debug("recv\n");
             if (status_ != SEARCHING) {
                 return;
             }
@@ -681,6 +683,7 @@ namespace wiselib {
             }
 #endif
 
+			debug_->debug("from=%lu self=%lu status=%lu", (unsigned long)from, (unsigned long)radio().id(), (unsigned long)status());
             // if in waiting status do not process messages
             if (status() == WAITING)
                 return;
@@ -697,9 +700,9 @@ namespace wiselib {
                 recvmsg = (EchoMsg_t *) msg;
                 //			memcpy(&recvmsg, msg, len);
 
-#ifdef DEBUG_ECHO_EXTRA
+//#ifdef DEBUG_ECHO_EXTRA
                 debug().debug("Debug::echo::receive node %d got beacon from %d length %d \n", radio().id(), from, len);
-#endif
+//#endif
 
                 // check the beacons sender status
                 received_beacon(from, ex);
