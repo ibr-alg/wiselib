@@ -172,6 +172,12 @@ namespace wiselib {
 				if(is_root()) {
 					token_count()++;
 				}
+				else if(is_leaf()) {
+					token_count_[0] =
+					token_count_[1] =
+					prev_token_count_[1] =
+					prev_token_count_[0];
+				}
 				else {
 					token_count_[0] = prev_token_count_[0];
 					token_count_[1] = prev_token_count_[1];

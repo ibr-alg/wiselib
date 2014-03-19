@@ -5,6 +5,10 @@
 #include <algorithms/semantic_entities/se_scheduler.h>
 #include <algorithms/semantic_entities/se_nd_token_ring.h>
 
+#if defined(SHAWN)
+	#include <external_interface/shawn/shawn_stringtag_debug.h>
+#endif
+
 using namespace wiselib;
 typedef OSMODEL Os;
 
@@ -44,6 +48,13 @@ class ExampleApplication {
 			}
 
 			radio_->enable_radio();
+
+			#if defined(SHAWN)
+			{
+				ShawnStringTagDebugModel<Os> stringtag(value);
+				stringtag.debug("%lu", (unsigned long)radio_->id());
+			}
+			#endif
 
 			#if defined(PC)
 				neighborhood_.init(debug_);

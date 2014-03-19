@@ -249,6 +249,10 @@ namespace wiselib {
 						#endif
 						if(neighbor_infos_.full()) {
 							debug_->debug("!NF");
+							// this does not necessarily lead to a stable
+							// neighborhood, for now, all we can do here is
+							// abort
+							assert(false);
 							neighbor_infos_.pop_back();
 						}
 						neighbor_infos_.insert(it, NeighborInfo(n, p, d));
