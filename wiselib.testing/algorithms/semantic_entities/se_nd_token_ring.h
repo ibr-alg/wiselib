@@ -160,7 +160,12 @@ namespace wiselib {
 			bool is_leaf() { return tree_->first_child() == NULL_NODE_ID; }
 
 			bool has_token() {
-				return is_root() == (token_count() == prev_token_count());
+				return (
+						(is_root() && (token_count() == prev_token_count())) ||
+						(!is_root() && (
+										token_count_[0] != prev_token_count_[0] ||
+										token_count_[1] != prev_token_count_[1]))
+				);
 			}
 
 			void process_token_count() {
@@ -203,8 +208,9 @@ namespace wiselib {
 				if(event & Neighborhood::NEW_PAYLOAD_BIDI) {
 					if(size == 0) { return; } // empty payload shouldnt happen actually
 					if(*data == MESSAGE_TYPE_TOKEN) {
-						debug_->debug("TR:recv_payload %lu from %lu", (unsigned long)id(), (unsigned long)from);
 						TokenMessageT &msg = *reinterpret_cast<TokenMessageT*>(data);
+						if(msg.target() != id()) { return; }
+						debug_->debug("TR:recv_payload %lu from %lu isp=%d tc=%d", (unsigned long)id(), (unsigned long)from, (int)(from == parent()), (int)msg.token_count());
 						
 						// Should we forward this token?
 						node_id_t target = forward_address(from);
