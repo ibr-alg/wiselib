@@ -81,6 +81,7 @@ namespace wiselib {
 				tree_ = &tree;
 				debug_ = &debug;
 
+				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
 				>(
@@ -89,7 +90,16 @@ namespace wiselib {
 					this
 				);
 
+				tree_->template register_update_callback<
+					self_type, &self_type::on_topology_update
+				>(this);
+
 				in_token_phase_ = true;
+				if(has_token()) {
+					activity_rounds_ = 1;
+				}
+
+				update_beacon();
 			}
 
 			void enter_sync_phase() {
@@ -105,8 +115,17 @@ namespace wiselib {
 			}
 
 			bool enter_token_phase() {
-				debug_->debug("TR:enter_token_phase");
+				debug_->debug("TR:enter_token_phase c=%d,%d|%d,%d u=%d a=%d",
+						(int)prev_token_count_[0], (int)token_count_[0],
+						(int)prev_token_count_[1], (int)token_count_[1],
+						(int)sending_upwards(),
+						(int)activity_rounds_
+						);
 				check();
+
+				if(has_token()) {
+					debug_->debug("TR:HAS_TOKEN a=%d c[%d]=%d", (int)activity_rounds_, (int)sending_upwards(), (int)token_count());
+				}
 
 				in_token_phase_ = true;
 				check();
@@ -114,7 +133,7 @@ namespace wiselib {
 			}
 
 			void leave_token_phase() {
-				debug_->debug("TR:leave_token_phase");
+				debug_->debug("TR:leave_token_phase h=%d a=%d", (int)has_token(), (int)activity_rounds_);
 				check();
 				bool r = has_token();
 				if(r) {
@@ -141,13 +160,42 @@ namespace wiselib {
 			bool is_leaf() { return tree_->first_child() == NULL_NODE_ID; }
 
 			bool has_token() {
-				return is_root() == (token_count_ == prev_token_count_);
+				return is_root() == (token_count() == prev_token_count());
 			}
 
 			void process_token_count() {
-				if(is_root()) { token_count_++; }
-				else { token_count_ = prev_token_count_; }
+				if(is_root()) {
+					token_count()++;
+				}
+				else {
+					token_count_[0] = prev_token_count_[0];
+					token_count_[1] = prev_token_count_[1];
+				}
+
+				update_beacon();
 			}
+
+			void update_beacon() {
+				node_id_t target = send_to_address();
+				
+				debug_->debug("TR:set_payload tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
+				TokenMessageT msg;
+				msg.set_target(target);
+				msg.set_token_count(token_count());
+
+				neighborhood_->set_payload(PAYLOAD_ID, msg.data(), msg.size());
+				neighborhood_->force_beacon();
+			}
+
+			/**
+			 * True iff we are currently adressing our parent with our beacon.
+			 */
+			bool sending_upwards() {
+				return !is_root() && (token_count_[0] == token_count_[1]);
+			}
+
+			::uint16_t& token_count() { return token_count_[sending_upwards()]; }
+			::uint16_t& prev_token_count() { return prev_token_count_[sending_upwards()]; }
 			
 			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t* data) {
 				check();
@@ -159,17 +207,21 @@ namespace wiselib {
 						TokenMessageT &msg = *reinterpret_cast<TokenMessageT*>(data);
 						
 						// Should we forward this token?
-						node_id_t target;
-						forward_address(from, target, upwards_);
+						node_id_t target = forward_address(from);
 
 						// The token is actually meant for us, process it,
 						// see if it activates us
 						if(target == id()) {
-							prev_token_count_ = msg.token_count();
+							prev_token_count_[from != parent()] = msg.token_count();
 
-							if(activity_rounds_ == 0 && has_token()) {
+							debug_->debug("TR:a%d t%d", (int)activity_rounds_, (int)has_token());
+							if((activity_rounds_ == 0) && has_token()) {
 								activity_rounds_ = is_leaf() ? 2 : 1;
-								//upwards_ = (from != parent());
+							}
+							else if(!has_token()) {
+								// Token count from predecessor actually
+								// deactives us
+								activity_rounds_ = 0;
 							}
 						}
 
@@ -177,6 +229,7 @@ namespace wiselib {
 						else {
 							// reuse the message we received
 							msg.set_target(target);
+							debug_->debug("TR:set_payload f tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
 							neighborhood_->set_payload(PAYLOAD_ID, data, size);
 							neighborhood_->force_beacon();
 						}
@@ -186,19 +239,19 @@ namespace wiselib {
 				check();
 			} // on_neighborhood_event()
 
-
+			void on_topology_update() {
+				check();
+				debug_->debug("TR:topology update");
+				update_beacon();
+				check();
+			}
 
 			/**
-			 * @param[in,out] upwards if from == id(), sent token upwards or
-			 *  downwards according to truth value of this variable.
-			 *  Communicate whether it has been sent upwards using
-			 *  this as output, regardless of whether from == id().
-			 *
 			 */
-			void forward_address(node_id_t from, node_id_t& to, bool& upwards) {
+			node_id_t forward_address(node_id_t from) {
 				check();
 
-				to = NULL_NODE_ID;
+				node_id_t to = NULL_NODE_ID;
 				switch(tree_->classify(from)) {
 					case Tree::CHILD: {
 						node_id_t next_ch = next_child(from);
@@ -206,37 +259,37 @@ namespace wiselib {
 							// no next child => msg came from last child
 							// => token is for us (upwards)
 							to = id();
-							upwards = true;
+							//upwards = true;
 						}
 						else {
 							to = next_ch;
-							upwards = false;
+							//upwards = false;
 						}
 						break;
 					}
 
 					case Tree::PARENT:
 						to = id();
-						upwards = false;
+						//upwards = false;
 						break;
 
 					default:
-						if(from == id()) {
-							if(is_root()) {
-								upwards = false;
-								to = first_child();
-							}
-							else {
-								to = upwards ? parent(): first_child();
-							}
-						}
-						else {
-							to = NULL_NODE_ID;
-						}
 						break;
 				}
 
 				check();
+				return to;
+			}
+
+			node_id_t send_to_address() {
+				node_id_t to = NULL_NODE_ID;
+				if(is_root()) {
+					to = first_child();
+				}
+				else {
+					to = sending_upwards() ? parent(): first_child();
+				}
+				return to;
 			}
 
 			node_id_t id() {
@@ -255,11 +308,11 @@ namespace wiselib {
 				return tree_->first_child();
 			}
 
-			bool in_token_phase_;
+			::uint16_t token_count_[2];
+			::uint16_t prev_token_count_[2];
+			
 			::uint8_t activity_rounds_;
-			bool upwards_;
-			::uint16_t token_count_;
-			::uint16_t prev_token_count_;
+			bool in_token_phase_;
 
 			typename Neighborhood::self_pointer_t neighborhood_;
 			typename Tree::self_pointer_t tree_;

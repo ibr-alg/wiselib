@@ -138,6 +138,9 @@ namespace wiselib {
 					return;
 				}
 
+				neighborhood().leave_token_phase();
+				token_ring().leave_token_phase();
+
 				debug_->debug("Sc:enter_sync_phase %lu", (unsigned long)now());
 
 				neighborhood().enter_sync_phase();

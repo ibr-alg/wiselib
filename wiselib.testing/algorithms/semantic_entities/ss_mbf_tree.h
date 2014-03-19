@@ -23,8 +23,10 @@
 #include <external_interface/external_interface.h>
 #include <external_interface/external_interface_testing.h>
 #include "tree_message.h"
+#include <util/pstl/vector_static.h>
 
 #define SS_MBF_TREE_DEBUG 1
+#define SS_MBF_TREE_DEBUG_VERBOSE 1
 
 namespace wiselib {
 	
@@ -61,10 +63,13 @@ namespace wiselib {
 
 			typedef TreeMessage<OsModel> TreeMessageT;
 
+			typedef delegate0<void> callback_t;
+			typedef vector_static<OsModel, callback_t, 4> Callbacks;
+
 			enum {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
-				ROOT_NODE_ID = 1234,
+				ROOT_NODE_ID = 1,
 			};
 
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
@@ -121,6 +126,11 @@ namespace wiselib {
 				return SUCCESS;
 			}
 
+			template<class T, void (T::*TMethod)()>
+			void register_update_callback(T *obj_pnt) {
+				callbacks_.push_back(callback_t::template from_method<T, TMethod>(obj_pnt));
+			}
+
 			node_id_t root() { return root_; }
 			void set_root(node_id_t n) { root_ = n; }
 
@@ -161,6 +171,8 @@ namespace wiselib {
 			node_id_t next_child(node_id_t c) {
 				typename NeighborInfos::iterator it = neighbor_infos_.find(NeighborInfo(c));
 				if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
+				++it;
+				if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
 				while(at_parent(it) || !it->child) {
 					++it;
 					if(it == neighbor_infos_.end()) { return NULL_NODE_ID; }
@@ -189,28 +201,71 @@ namespace wiselib {
 						s++;
 					}
 
-					assert((distance_ == 0) <= (is_root() || (parent() == NULL_NODE_ID)));
-					assert(is_root() == (parent() == id()));
+					// If we are connected to the tree and not root,
+					// our root-distance is the root distance of our parent + 1
+					assert(
+							parent() == NULL_NODE_ID ||
+							neighbor_infos_[parent_index_].distance + 1 == distance()
+					);
+
+					assert(
+							(distance() == 0) ==
+							is_root()
+					);
+
+					// Parent can be NULL_NODE_ID if either we are not connected
+					// to the tree yet (distance == npos), or we are the root.
+					assert(
+							(parent() == NULL_NODE_ID) ==
+							(distance() == (distance_t)(-1) || is_root())
+					);
+
 
 				#endif
+			}
+
+			void notify_receivers() {
+				for(typename Callbacks::iterator iter = callbacks_.begin(); iter != callbacks_.end(); ++iter) {
+					(*iter)();
+				}
 			}
 
 			/**
 			 * Insert neighbor n or update if already in the collection.
 			 */
 			void insert_neighbor(node_id_t n, node_id_t p, distance_t d) {
+				check();
+
 				for(typename NeighborInfos::iterator it = neighbor_infos_.begin(); it != neighbor_infos_.end(); ++it) {
+					size_type pos = (it - neighbor_infos_.begin());
 					if(it->id == n) {
 						it->parent = p;
 						it->distance = d;
 						return;
 					}
 					else if(it->id > n) {
+						#if !defined(NDEBUG)
+							node_id_t parent_before = parent();
+						#endif
+						if(neighbor_infos_.full()) {
+							debug_->debug("!NF");
+							neighbor_infos_.pop_back();
+						}
 						neighbor_infos_.insert(it, NeighborInfo(n, p, d));
+						if(parent_index_ != npos && pos <= parent_index_) {
+							parent_index_++;
+						}
+						#if !defined(NDEBUG)
+							assert(parent() == parent_before);
+						#endif
+						
+						check();
 						return;
 					}
 				}
 				neighbor_infos_.push_back(NeighborInfo(n, p, d));
+
+				check();
 			}
 
 			void erase_neighbor(node_id_t c) {
@@ -226,11 +281,16 @@ namespace wiselib {
 					}
 					else if(pos == parent_index_) {
 						parent_index_ = npos;
+						distance_ = (distance_t)(-1);
 					}
 				}
 				neighbor_infos_.erase(it);
 
 				check();
+
+				//update_state();
+
+				//check();
 			}
 
 			bool at_parent(typename NeighborInfos::iterator it) {
@@ -238,43 +298,67 @@ namespace wiselib {
 			}
 
 			void update_state(bool force=false) {
-				check();
+				if(!force) {
+					// we force the update on initialization,
+					// during that phase actually some class invariants
+					// might not yet hold
+					//check();
+				}
+
+				#if SS_MBF_TREE_DEBUG_VERBOSE
+					debug_->debug("mbf st");
+				#endif
 
 				node_id_t parent_old = parent();
 				distance_t distance_old = distance();
 
 				// clear topology
 				parent_index_ = npos;
+				distance_ = (distance_t)(-1);
 				for(typename NeighborInfos::iterator it = neighbor_infos_.begin(); it != neighbor_infos_.end(); ++it) {
 					it->child = false;
 				}
 
 				for(typename NeighborInfos::iterator it = neighbor_infos_.begin(); it != neighbor_infos_.end(); ++it) {
+					#if SS_MBF_TREE_DEBUG_VERBOSE
+						debug_->debug("mbf neigh%lu d%d p%lu", (unsigned long)it->id, (int)it->distance, (unsigned long)it->parent);
+					#endif
+
 					// Ignore nodes that didnt agree on a parent yet
 					if(it->distance == (distance_t)(-1)) { continue; }
 
 					// Node chose us as parent
 					if(it->parent == id()) {
+						#if SS_MBF_TREE_DEBUG_VERBOSE
+							debug_->debug(" mbf c");
+						#endif
 						it->child = true;
 						continue;
 					}
 
 					if((it->distance + 1 < distance_) ||
 							((it->distance + 1 == distance_) && ((it->id < parent()) || parent() == id() || parent() == NULL_NODE_ID))) {
+						#if SS_MBF_TREE_DEBUG_VERBOSE
+							debug_->debug(" mbf p");
+						#endif
+
 						parent_index_ = (it - neighbor_infos_.begin());
+						assert(&neighbor_infos_[parent_index_] == &*it);
 						distance_ = it->distance + 1;
 					}
-
 				} // for
 
 				if(is_root()) {
+					#if SS_MBF_TREE_DEBUG_VERBOSE
+						debug_->debug("mbf r");
+					#endif
 					distance_ = 0;
-					parent_index_ = id();
+					parent_index_ = npos;
 				}
 
 				if((parent() != parent_old) || (distance() != distance_old) || force) {
 					#if SS_MBF_TREE_DEBUG
-						debug_->debug("US p%d d%d", (int)parent(), (int)distance());
+						debug_->debug("mbf st p%d d%d po%d do%d", (int)parent(), (int)distance(), (int)parent_old, (int)distance_old);
 					#endif
 
 					// state has actually changed
@@ -283,6 +367,8 @@ namespace wiselib {
 					msg.set_distance(distance());
 					neighborhood().set_payload(PAYLOAD_ID, msg.data(), msg.size());
 					neighborhood().force_beacon();
+
+					notify_receivers();
 				}
 
 				check();
@@ -295,6 +381,7 @@ namespace wiselib {
 					case Neighborhood::DROPPED_NB:
 					case Neighborhood::LOST_NB_BIDI:
 						erase_neighbor(from);
+						notify_receivers();
 						update_state();
 						break;
 
@@ -303,6 +390,7 @@ namespace wiselib {
 						debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
 						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
 						insert_neighbor(from, msg.parent(), msg.distance());
+						notify_receivers();
 						update_state();
 						break;
 					}
@@ -320,6 +408,7 @@ namespace wiselib {
 			distance_t distance_;
 			size_type parent_index_;
 			NeighborInfos neighbor_infos_;
+			Callbacks callbacks_;
 		
 	}; // SsMbfTree
 }

@@ -661,8 +661,13 @@ namespace wiselib {
          * sender's status update local vectors
          * change Neighboorhood's status.
          */
+#if defined(SHAWN)
+        void receive(node_id_t from, size_t len, block_data_t * msg) {
+                typename Radio::ExtendedData ex;
+#else
         void receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t * msg
                 , typename Radio::ExtendedData const &ex) {
+#endif
 
             //        void receive(node_id_t from, size_t len, block_data_t * msg) {
 			//debug().debug("recv\n");

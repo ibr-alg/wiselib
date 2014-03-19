@@ -85,6 +85,8 @@ namespace wiselib {
 			size_type size() {
 				return POS_END;
 			}
+
+			block_data_t* data() { return data_; }
 		
 		private:
 			template<typename T>
