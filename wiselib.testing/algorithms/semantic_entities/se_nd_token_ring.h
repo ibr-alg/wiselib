@@ -104,6 +104,7 @@ namespace wiselib {
 
 			void enter_sync_phase() {
 				debug_->debug("TR:enter_sync_phase");
+				debug_state();
 				check();
 				in_token_phase_ = false;
 				check();
@@ -111,16 +112,13 @@ namespace wiselib {
 
 			void leave_sync_phase() {
 				debug_->debug("TR:leave_sync_phase");
+				debug_state();
 				check();
 			}
 
 			bool enter_token_phase() {
-				debug_->debug("TR:enter_token_phase c=%d,%d|%d,%d u=%d a=%d",
-						(int)prev_token_count_[0], (int)token_count_[0],
-						(int)prev_token_count_[1], (int)token_count_[1],
-						(int)sending_upwards(),
-						(int)activity_rounds_
-						);
+				debug_->debug("TR:enter_token_phase");
+				debug_state();
 				check();
 
 				if(has_token()) {
@@ -134,6 +132,7 @@ namespace wiselib {
 
 			void leave_token_phase() {
 				debug_->debug("TR:leave_token_phase h=%d a=%d", (int)has_token(), (int)activity_rounds_);
+				debug_state();
 				check();
 				bool r = has_token();
 				if(r) {
@@ -189,6 +188,7 @@ namespace wiselib {
 			void update_beacon() {
 				node_id_t target = send_to_address();
 				
+				debug_state();
 				debug_->debug("TR:set_payload tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
 				TokenMessageT msg;
 				msg.set_target(target);
@@ -224,11 +224,26 @@ namespace wiselib {
 						// The token is actually meant for us, process it,
 						// see if it activates us
 						if(target == id()) {
+							if(msg.token_count() == prev_token_count_[from != parent()]) {
+								return;
+							}
+
 							prev_token_count_[from != parent()] = msg.token_count();
 
-							debug_->debug("TR:a%d t%d", (int)activity_rounds_, (int)has_token());
+							debug_->debug("TR:f%lu c%d a%d t%d", (unsigned long)from, (int)msg.token_count(), (int)activity_rounds_, (int)has_token());
 							if((activity_rounds_ == 0) && has_token()) {
-								activity_rounds_ = is_leaf() ? 2 : 1;
+								/*
+								 * Be active this many rounds. That is, one
+								 * for inner nodes, two for leafs.
+								 * If we receive this within a token phase,
+								 * this does not count (e.g. we want the full next
+								 * phase), so just add another round.
+								 *
+								 * This is especially important in shawn where
+								 * a two-hop message send can already take
+								 * longer than 1s.
+								 */
+								activity_rounds_ = (is_leaf() ? 2 : 1) + in_token_phase_;
 							}
 							else if(!has_token()) {
 								// Token count from predecessor actually
@@ -246,6 +261,7 @@ namespace wiselib {
 							neighborhood_->force_beacon();
 						}
 					} // MESSAGE_TYPE_TOKEN
+					debug_state();
 				} // NB_PAYLOAD_BIDI
 
 				check();
@@ -256,6 +272,17 @@ namespace wiselib {
 				debug_->debug("TR:topology update");
 				update_beacon();
 				check();
+			}
+
+			void debug_state() {
+				debug_->debug("TR: c%d,%d|%d,%d u%d a%d T%d p%d",
+						(int)prev_token_count_[0], (int)token_count_[0],
+						(int)prev_token_count_[1], (int)token_count_[1],
+						(int)sending_upwards(),
+						(int)activity_rounds_,
+						(int)has_token(),
+						(int)in_token_phase_
+						);
 			}
 
 			/**
@@ -334,4 +361,5 @@ namespace wiselib {
 }
 
 #endif // SE_ND_TOKEN_RING_H
+
 
