@@ -1,4 +1,8 @@
 
+#if defined(NDEBUG) && !defined(assert)
+	#define assert(X) 
+#endif
+
 #include <external_interface/external_interface.h>
 #include <algorithms/semantic_entities/ss_mbf_tree.h>
 #include <external_interface/local_radio.h>

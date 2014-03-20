@@ -35,13 +35,24 @@
 
 #include "algorithms/neighbor_discovery/echomsg.h"
 
+#if CONTIKI
+	extern "C" {
+		#include <contiki.h>
+		#include <netstack.h>
+		#if CONTIKI_TARGET_sky
+			#include <dev/leds.h>
+		#endif
+	}
+#endif
+
+
 /*
  * DEBUG MESSAGES TEMPLATE
  * Echo::<task> [ type= ...]
  */
 
 //#define DEBUG_ECHO
-#define DEBUG_ECHO_EXTRA
+//#define DEBUG_ECHO_EXTRA
 //#define DEBUG_PIGGYBACKING
 #define MAX_PG_PAYLOAD 48
 #define ECHO_MAX_NODES 20
@@ -223,7 +234,16 @@ namespace wiselib {
             /**
              * Enable normal radio and register the receive callback.
              */
+			#if defined(CONTIKI)
+				NETSTACK_RDC.on();
+			#endif
             radio().enable_radio();
+
+			#if CONTIKI_TARGET_sky && USE_LEDS
+				leds_on(LEDS_RED);
+			#endif
+					
+
             recv_callback_id_ = radio().template reg_recv_callback<self_t,
                     &self_t::receive> (this);
 
@@ -268,7 +288,16 @@ namespace wiselib {
          * */
         void disable() {
             set_status(WAITING);
+
+			#if defined(CONTIKI)
+				NETSTACK_RDC.off(false);
+			#endif
+
             radio().template unreg_recv_callback(recv_callback_id_);
+
+			#if CONTIKI_TARGET_sky && USE_LEDS
+				leds_off(LEDS_RED);
+			#endif
         };
 
         /**
@@ -597,13 +626,17 @@ namespace wiselib {
 				should_send = true;
 				if (stable_nb_size()>0 && _neighborhood_changes==0){
 					debug().debug("NB_STABLE");
+		#ifdef SHAWN
 					if (rand()%4==0){//<--TODO : make this smart
+		#else
+					if(0) {
+		#endif
 						should_send=false;
 					}
 				}
 			}
             
-            debug().debug("should_send:%d",should_send);
+            //debug().debug("should_send:%d",should_send);
 
             // if in searching mode send a new beacon
             if (status() == SEARCHING) {

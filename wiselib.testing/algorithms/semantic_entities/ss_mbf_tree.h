@@ -26,7 +26,7 @@
 #include <util/pstl/vector_static.h>
 
 #define SS_MBF_TREE_DEBUG 1
-#define SS_MBF_TREE_DEBUG_VERBOSE 1
+#define SS_MBF_TREE_DEBUG_VERBOSE 0
 
 namespace wiselib {
 	
@@ -69,7 +69,12 @@ namespace wiselib {
 			enum {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
-				ROOT_NODE_ID = 1,
+
+				#if SHAWN
+					ROOT_NODE_ID = 1,
+				#else
+					ROOT_NODE_ID = 26668, // GREEN TUBS/ALG TelosB node
+				#endif
 			};
 
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };

@@ -23,6 +23,8 @@
 #include <external_interface/external_interface.h>
 #include "token_message.h"
 
+#define SE_ND_TOKEN_RING_DEBUG_WARN 1
+
 namespace wiselib {
 	
 	/**
@@ -149,27 +151,42 @@ namespace wiselib {
 
 		
 		private:
+
+			/**
+			 * Some class invariants, usually checked at end of methods.
+			 */
 			void check() {
 				assert(neighborhood_ != 0);
 				assert(tree_ != 0);
+
+				// When we get the token, we plan at least one activity
+				// round, as soon as we have used up our activity rounds, the
+				// token count will be processed such that we do not have the
+				// token anymore.
 				assert(has_token() == (activity_rounds_ != 0));
+
+				// Root does not use token_count_[1] and prev_token_count_[1]
+				// AT ALL.
+				assert(is_root() <= (
+							token_count_[1] == 0 &&
+							prev_token_count_[1] == 0
+				));
+
 			}
 
 			bool is_root() { return tree_->is_root(); }
 			bool is_leaf() { return tree_->first_child() == NULL_NODE_ID; }
 
 			bool has_token() {
-				return (
-						(is_root() && (token_count() == prev_token_count())) ||
-						(!is_root() && (
-										token_count_[0] != prev_token_count_[0] ||
-										token_count_[1] != prev_token_count_[1]))
-				);
+				return is_root() == (
+						token_count_[0] == prev_token_count_[0] &&
+						token_count_[1] == prev_token_count_[1]
+					);
 			}
 
 			void process_token_count() {
 				if(is_root()) {
-					token_count()++;
+					token_count_[0]++;
 				}
 				else if(is_leaf()) {
 					token_count_[0] =
@@ -224,13 +241,21 @@ namespace wiselib {
 						// The token is actually meant for us, process it,
 						// see if it activates us
 						if(target == id()) {
-							if(msg.token_count() == prev_token_count_[from != parent()]) {
+							// use upwards token slot (token_count_[1])
+							// exactly when we are not root and the token came
+							// from a child (root always uses slot 0 only)
+							bool use_upwards_token = !is_root() && (from != parent());
+
+							if(msg.token_count() == prev_token_count_[use_upwards_token]) {
+								// We already saw this token, nothing to do
+								// here
 								return;
 							}
 
-							prev_token_count_[from != parent()] = msg.token_count();
+							prev_token_count_[use_upwards_token] = msg.token_count();
 
 							debug_->debug("TR:f%lu c%d a%d t%d", (unsigned long)from, (int)msg.token_count(), (int)activity_rounds_, (int)has_token());
+
 							if((activity_rounds_ == 0) && has_token()) {
 								/*
 								 * Be active this many rounds. That is, one
@@ -244,6 +269,13 @@ namespace wiselib {
 								 * longer than 1s.
 								 */
 								activity_rounds_ = (is_leaf() ? 2 : 1) + in_token_phase_;
+
+								#if SE_ND_TOKEN_RING_DEBUG_WARN
+									if(in_token_phase_) {
+										debug_->debug("!TL");
+									}
+								#endif
+
 							}
 							else if(!has_token()) {
 								// Token count from predecessor actually
