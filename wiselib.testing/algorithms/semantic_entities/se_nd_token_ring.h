@@ -124,7 +124,7 @@ namespace wiselib {
 				check();
 
 				if(has_token()) {
-					debug_->debug("TR:HAS_TOKEN a=%d c[%d]=%d", (int)activity_rounds_, (int)sending_upwards(), (int)token_count());
+					debug_->debug("@%lu TR:HAS_TOKEN a=%d c[%d]=%d", (unsigned long)id(), (int)activity_rounds_, (int)sending_upwards(), (int)token_count());
 				}
 
 				in_token_phase_ = true;
@@ -156,22 +156,23 @@ namespace wiselib {
 			 * Some class invariants, usually checked at end of methods.
 			 */
 			void check() {
-				assert(neighborhood_ != 0);
-				assert(tree_ != 0);
+				#if !NDEBUG
+					assert(neighborhood_ != 0);
+					assert(tree_ != 0);
 
-				// When we get the token, we plan at least one activity
-				// round, as soon as we have used up our activity rounds, the
-				// token count will be processed such that we do not have the
-				// token anymore.
-				assert(has_token() == (activity_rounds_ != 0));
+					// When we get the token, we plan at least one activity
+					// round, as soon as we have used up our activity rounds, the
+					// token count will be processed such that we do not have the
+					// token anymore.
+					assert(has_token() == (activity_rounds_ != 0));
 
-				// Root does not use token_count_[1] and prev_token_count_[1]
-				// AT ALL.
-				assert(is_root() <= (
-							token_count_[1] == 0 &&
-							prev_token_count_[1] == 0
-				));
-
+					// Root does not use token_count_[1] and prev_token_count_[1]
+					// AT ALL.
+					assert(is_root() <= (
+								token_count_[1] == 0 &&
+								prev_token_count_[1] == 0
+					));
+				#endif
 			}
 
 			bool is_root() { return tree_->is_root(); }

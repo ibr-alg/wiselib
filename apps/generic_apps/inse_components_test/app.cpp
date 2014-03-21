@@ -46,12 +46,13 @@ class ExampleApplication {
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
+			radio_->enable_radio();
+
+			debug_->debug("AD_INSE node %lu", (unsigned long)radio_->id());
 			if(radio_->id() == 0) {
 				debug_->debug("My id is 0. Thats too weird, ill just sit here and do nothing. And freak everybody out.");
 				return;
 			}
-
-			radio_->enable_radio();
 
 			#if defined(SHAWN)
 			{

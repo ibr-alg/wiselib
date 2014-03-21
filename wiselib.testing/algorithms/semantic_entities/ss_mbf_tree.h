@@ -73,14 +73,16 @@ namespace wiselib {
 				#if SHAWN
 					ROOT_NODE_ID = 1,
 				#else
-					ROOT_NODE_ID = 26668, // GREEN TUBS/ALG TelosB node
+					//ROOT_NODE_ID = 26668, // GREEN TUBS/ALG TelosB node
+					//ROOT_NODE_ID = 2, // w.ilab.t inode008
+					ROOT_NODE_ID = 50053, // w.ilab.t inode019
 				#endif
 			};
 
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum { npos = (size_type)(-1) };
 			enum { CHILD, PARENT, UNRELATED };
-			enum { MAX_NEIGHBORS = 10 }; // TODO: Align with nhood
+			enum { MAX_NEIGHBORS = Neighborhood::MAX_NEIGHBORS }; // TODO: Align with nhood
 			enum { PAYLOAD_ID = 2 };
 
 		private:
@@ -244,21 +246,29 @@ namespace wiselib {
 				for(typename NeighborInfos::iterator it = neighbor_infos_.begin(); it != neighbor_infos_.end(); ++it) {
 					size_type pos = (it - neighbor_infos_.begin());
 					if(it->id == n) {
+						// Neighbor with that node id is already known,
+						// just update
 						it->parent = p;
 						it->distance = d;
 						return;
 					}
 					else if(it->id > n) {
+						// We found the place to insert.
 						#if !defined(NDEBUG)
 							node_id_t parent_before = parent();
 						#endif
 						if(neighbor_infos_.full()) {
-							debug_->debug("!NF");
-							// this does not necessarily lead to a stable
-							// neighborhood, for now, all we can do here is
-							// abort
+							// Neighborhood is full
+							// The reasonable choice
+							// for a neighbor to remove is non-trivial:
+							// The view has to be consistent in the network,
+							// dont remove a good parent or childs that have
+							// no other way of connecting, etc...
+							//
+							// For now, just complain forever
 							assert(false);
-							neighbor_infos_.pop_back();
+							while(true) { debug_->debug("!NF"); }
+							//neighbor_infos_.pop_back();
 						}
 						neighbor_infos_.insert(it, NeighborInfo(n, p, d));
 						if(parent_index_ != npos && pos <= parent_index_) {
@@ -271,6 +281,11 @@ namespace wiselib {
 						check();
 						return;
 					}
+				}
+
+				if(neighbor_infos_.full()) {
+					assert(false);
+					while(true) { debug_->debug("!NF"); }
 				}
 				neighbor_infos_.push_back(NeighborInfo(n, p, d));
 

@@ -55,7 +55,7 @@
 //#define DEBUG_ECHO_EXTRA
 //#define DEBUG_PIGGYBACKING
 #define MAX_PG_PAYLOAD 48
-#define ECHO_MAX_NODES 20
+#define ECHO_MAX_NODES 40
 
 /**
  *	If enabled, beacons that are below certain LQI thresholds
@@ -133,6 +133,8 @@ namespace wiselib {
             uint8_t size;
             uint8_t events_flag;
         };
+
+		enum { MAX_NEIGHBORS = ECHO_MAX_NODES };
 
         // --------------------------------------------------------------------
         typedef struct reg_alg_entry reg_alg_entry_t;

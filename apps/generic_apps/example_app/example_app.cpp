@@ -26,7 +26,7 @@ class ExampleApplication
       // --------------------------------------------------------------------
       void start( void* )
       {
-         debug_->debug( "broadcast message at %d \n", radio_->id() );
+         debug_->debug( "broadcast message at %lu \n", (unsigned long)radio_->id() );
          Os::Radio::block_data_t message[] = "hello!\0";
          radio_->send( Os::Radio::BROADCAST_ADDRESS, sizeof(message), message );
 
@@ -37,7 +37,7 @@ class ExampleApplication
       // --------------------------------------------------------------------
       void receive_radio_message( Os::Radio::node_id_t from, Os::Radio::size_t len, Os::Radio::block_data_t *buf )
       {
-         debug_->debug( "received msg at %x from %x", radio_->id(), from );
+         debug_->debug( "received msg at %lu from %lu", (unsigned long)radio_->id(), (unsigned long)from );
          debug_->debug( "  message is %s\n", buf );
       }
    private:
