@@ -17,7 +17,7 @@ typedef wiselib::OSMODEL Os;
 typedef Os::ExtendedRadio Radio;
 typedef Radio::block_data_t block_data_t;
 
-typedef wiselib::Echo<Os, Radio, Os::Timer, Os::Debug> nb_t;
+typedef wiselib::Echo<Os, Radio, Os::Timer,Os::Rand, Os::Debug> nb_t;
 typedef Os::Radio::node_id_t node_id_t;
 typedef Os::Uart::size_t uart_size_t;
 
@@ -37,7 +37,7 @@ public:
 
 	debug_->debug("Hello World from Neighbor Discovery Test Application!\n");
 
-	neighbor_discovery.init(*radio_, *clock_, *timer_, *debug_, 200, 20000, 50000, 50000);
+	neighbor_discovery.init(*radio_, *clock_, *timer_,*rand_, *debug_, 200, 20000, 50000, 50000);
 	enabled = false;
 	disable = false;
 	rand_->srand(radio_->id());

@@ -61,9 +61,9 @@
  *	If enabled, beacons that are below certain LQI thresholds
  *	will be ignored.
  */
-#if !defined(SHAWN)
+//#if !defined(SHAWN)
 	#define ENABLE_LQI_THRESHOLDS
-#endif
+//#endif
 
 /**
  * How many consecutive beacons must be received from a node
@@ -82,11 +82,10 @@ namespace wiselib {
      *  \ingroup neighbourhood_discovery_algorithm
      *
      */
-    template<typename OsModel_P, typename Radio_P, typename Timer_P,
-    typename Debug_P>
+    template<typename OsModel_P, typename Radio_P, typename Timer_P,typename Rand_P,typename Debug_P>
     class Echo {
     public:
-        typedef Echo<OsModel_P, Radio_P, Timer_P, Debug_P> self_type;
+        typedef Echo<OsModel_P, Radio_P, Timer_P, Rand_P, Debug_P> self_type;
         typedef self_type* self_pointer_t;
 
         // Type definitions
@@ -94,6 +93,7 @@ namespace wiselib {
 
         typedef Radio_P Radio;
         typedef Timer_P Timer;
+        typedef Rand_P Rand;
         typedef Debug_P Debug;
         typedef typename OsModel_P::Clock Clock;
 
@@ -106,7 +106,7 @@ namespace wiselib {
         typedef typename Radio::ExtendedData ExData;
 
         typedef EchoMsg<OsModel, Radio> EchoMsg_t;
-        typedef Echo<OsModel_P, Radio_P, Timer_P, Debug_P> self_t;
+        typedef Echo<OsModel_P, Radio_P, Timer_P,Rand_P, Debug_P> self_t;
 
         typedef delegate4<void, uint8_t, node_id_t, uint8_t, uint8_t*>
         event_notifier_delegate_t;
@@ -463,7 +463,7 @@ namespace wiselib {
         /**
          * \brief Initialize the module.
          */
-        void init(Radio& radio, Clock& clock, Timer& timer, Debug& debug,
+        void init(Radio& radio, Clock& clock, Timer& timer,Rand& rand, Debug& debug,
                 uint16_t beacon_pd = 1000, uint16_t timeout_pd = 9000, uint16_t min_theshold = 100,
                 uint16_t max_threshold = 165) {
             _phase = PHASE_UNKNOWN;
@@ -612,6 +612,9 @@ namespace wiselib {
          *
          */
         void say_hello(void * a) {
+            //Reset the timoout for the next beacon
+            timer().template set_timer<self_t, &self_t::say_hello> (beacon_period,
+                    this, (void*) 0);
 
             // Check for Neighbors that do not exist and need to be dropped
             cleanup_nearby();
@@ -627,16 +630,16 @@ namespace wiselib {
             if (_phase==PHASE_SYNC){
 				should_send = true;
 				if (stable_nb_size()>0 && _neighborhood_changes==0){
-					debug().debug("NB_STABLE");
-		#ifdef SHAWN
-					if (rand()%4==0){//<--TODO : make this smart
-		#else
-					if(0) {
-		#endif
+					debug().debug("NB_STABLE %d",_beacons_in_sync_phase);
+					if (_beacons_in_sync_phase<2){//send the first two beacons
+						should_send=true;
+					}else{
 						should_send=false;
 					}
 				}
-			}
+		}else{
+			return;
+		}
             
             //debug().debug("should_send:%d",should_send);
 
@@ -658,6 +661,7 @@ namespace wiselib {
 
                 add_pg_payload(&echomsg);
 
+		echomsg.set_special(_beacons_in_sync_phase);
 
                 //send the Beacon
                 if (should_send){
@@ -684,9 +688,6 @@ namespace wiselib {
 #endif
             }
 
-            //Reset the timoout for the next beacon
-            timer().template set_timer<self_t, &self_t::say_hello> (beacon_period,
-                    this, (void*) 0);
         }
         ;
 
@@ -741,7 +742,7 @@ namespace wiselib {
                 //			memcpy(&recvmsg, msg, len);
 
 //#ifdef DEBUG_ECHO_EXTRA
-                debug().debug("Debug::echo::receive node %d got beacon from %d length %d \n", radio().id(), from, len);
+                debug().debug("Debug::echo::receive node %d got beacon from %d length %d sync: %d\n", radio().id(), from, len,recvmsg->special());
 //#endif
 
                 // check the beacons sender status
@@ -1299,6 +1300,7 @@ namespace wiselib {
         Radio * radio_;
         Clock * clock_;
         Timer * timer_;
+        Rand * rand_;
         Debug * debug_;
     public:
 
@@ -1312,6 +1314,10 @@ namespace wiselib {
 
         Timer& timer() {
             return *timer_;
+        }
+
+        Rand& rand() {
+            return *rand_;
         }
 
         Debug& debug() {
