@@ -17,7 +17,7 @@ typedef wiselib::OSMODEL Os;
 typedef Os::ExtendedRadio Radio;
 typedef Radio::block_data_t block_data_t;
 
-typedef wiselib::Echo<Os, Radio, Os::Timer,Os::Rand, Os::Debug> nb_t;
+typedef wiselib::Echo<Os, Radio, Os::Timer, Os::Rand, Os::Clock, Os::Debug> nb_t;
 typedef Os::Radio::node_id_t node_id_t;
 typedef Os::Uart::size_t uart_size_t;
 
@@ -37,7 +37,7 @@ public:
 
 	debug_->debug("Hello World from Neighbor Discovery Test Application!\n");
 
-	neighbor_discovery.init(*radio_, *clock_, *timer_,*rand_, *debug_, 200, 20000, 50000, 50000);
+	neighbor_discovery.init(*radio_, *clock_, *timer_, *rand_, *debug_, 200, 20000, 50000, 50000);
 	enabled = false;
 	disable = false;
 	rand_->srand(radio_->id());
@@ -48,12 +48,14 @@ public:
 	neighbor_discovery.reg_event_callback<ExampleApplication, &ExampleApplication::callback>(6, flags, this);
 
 	neighbor_discovery.enable();
+	interval = 0;
+	neighbor_discovery.leave_token_phase();
+	neighbor_discovery.enter_sync_phase();
 
-	
 #ifdef SHAWN
 	//        start(0);
 #endif
-	
+
 	start(0);
     }
 
@@ -65,7 +67,7 @@ public:
      * the node ID that generated the event, the len of the payload ( 0 if
      * this is not a NEW_PAYLOAD event ), the piggybacked payload data.
      */
-    void callback(uint8_t event, node_id_t from, uint8_t len, uint8_t* data) {
+    void callback(uint8_t event, node_id_t from, uint8_t len, uint8_t* data,uint32_t time_diff) {
 	if (nb_t::NEW_NB == event) {
 	    //new single direction neighbor
 	    debug_->debug("NB;%x;%x", from, radio_->id());
@@ -87,35 +89,35 @@ public:
 
     // --------------------------------------------------------------------
 
-    void start(void* ) {
+    void start(void*) {
 
 	if (disable) {
 	    neighbor_discovery.disable();
 	    return;
 	}
 
-/*
-	debug_->debug("EVENT=NB_PRINT_INFO;NODE=%x;Time=%d;NB_SIZE=%d;NB_BIDI_SIZE=%d",
-		radio_->id(),
-		clock_->seconds(clock_->time()) + delay,
-		neighbor_discovery.stable_nb_size(),
-		neighbor_discovery.bidi_nb_size()
-		);
-*/
-	if (interval%10==0){
+	/*
+		debug_->debug("EVENT=NB_PRINT_INFO;NODE=%x;Time=%d;NB_SIZE=%d;NB_BIDI_SIZE=%d",
+			radio_->id(),
+			clock_->seconds(clock_->time()) + delay,
+			neighbor_discovery.stable_nb_size(),
+			neighbor_discovery.bidi_nb_size()
+			);
+	 */
+	if (interval != 0) {
+	    if (interval % 10 == 0) {
 		neighbor_discovery.leave_token_phase();
 		neighbor_discovery.enter_sync_phase();
-	}
-	else if (interval%10==1){
+	    } else if (interval % 10 == 1) {
 		neighbor_discovery.leave_sync_phase();
 		neighbor_discovery.enter_token_phase();
-	}
-	else{
+	    } else {
 		//nothing to do here yet
+	    }
 	}
 	//move to next interval
 	interval++;
-	
+
 	//        run this periodically
 	timer_->set_timer<ExampleApplication,
 		&ExampleApplication::start>(1000, this, 0);
