@@ -148,7 +148,7 @@ namespace wiselib
 	id_ = mode;
 	Bluetooth_t Bluetooth_(rxd_,txd_);
 	Bluetooth_.begin(baud_rate_); //Set BluetoothBee BaudRate to default baud rate 38400
-	if(mode = 1)
+	if(mode == 1)
 	{
 		Bluetooth_.print("\r\n+STWMOD=1\r\n");//set the bluetooth work in master mode
 	  	Bluetooth_.print("\r\n+STNA=BTMaster\r\n");//set the bluetooth name as "SeeedBTMaster"
@@ -220,7 +220,7 @@ namespace wiselib
 	  	
 		return SUCCESS;
 	}
-	else if(mode = 0)
+	else if(mode == 0)
 	{
  	 	Bluetooth_.print("\r\n+STWMOD=0\r\n"); //set the bluetooth work in slave mode
   		Bluetooth_.print("\r\n+STNA=BTSlave\r\n"); //set the bluetooth name as "SeeedBTSlave"
