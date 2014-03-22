@@ -226,7 +226,7 @@ namespace wiselib {
 			::uint16_t& token_count() { return token_count_[sending_upwards()]; }
 			::uint16_t& prev_token_count() { return prev_token_count_[sending_upwards()]; }
 			
-			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t* data) {
+			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t* data, ::uint32_t _) {
 				check();
 
 				if(event & Neighborhood::NEW_PAYLOAD_BIDI) {
@@ -273,7 +273,7 @@ namespace wiselib {
 
 								#if SE_ND_TOKEN_RING_DEBUG_WARN
 									if(in_token_phase_) {
-										debug_->debug("!TL");
+										debug_->debug("!TL t%lu f%lu", (unsigned long)_, (unsigned long)from);
 									}
 								#endif
 

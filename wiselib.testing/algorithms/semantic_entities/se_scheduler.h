@@ -92,7 +92,7 @@ namespace wiselib {
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
-				>(PAYLOAD_ID, Neighborhood::NEW_SYNC_PAYLOAD, this);
+				>(PAYLOAD_ID, Neighborhood::NEW_PAYLOAD_BIDI, this);
 
 				schedule_sync_phase_start();
 
@@ -117,14 +117,14 @@ namespace wiselib {
 				return tree_->is_root(); //parent() == NULL_NODE_ID;
 			}
 
-			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
+			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data, ::uint32_t time_offset) {
 				check();
 
-				if(event == Neighborhood::NEW_SYNC_PAYLOAD) {
+				if(event == Neighborhood::NEW_PAYLOAD_BIDI) {
 					if(tree_->classify(from) == Tree::PARENT) {
 						debug_->debug("Sc:recv_payload %lu from parent %lu", (unsigned long)id(), (unsigned long)from);
 						abs_millis_t t_recv = now();
-						last_sync_beacon_ = t_recv - rtt_ / 2;
+						last_sync_beacon_ = t_recv - rtt_ / 2 - time_offset;
 					}
 				}
 
@@ -157,7 +157,7 @@ namespace wiselib {
 				neighborhood().leave_sync_phase();
 
 				bool active = token_ring().enter_token_phase();
-				if(active) {
+				if(active || tree_->is_root()) {
 					neighborhood().enter_token_phase();
 				}
 

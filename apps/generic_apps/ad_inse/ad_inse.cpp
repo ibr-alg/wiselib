@@ -37,7 +37,14 @@ public:
 
 	debug_->debug("Hello World from Neighbor Discovery Test Application!\n");
 
-	neighbor_discovery.init(*radio_, *clock_, *timer_, *rand_, *debug_, 200, 20000, 50000, 50000);
+	// 180 240
+	neighbor_discovery.init(
+			*radio_, *clock_, *timer_, *rand_, *debug_,
+			200,   // beacon period
+			20000, // timeout interval
+			180,   // LQI threshold low
+			240    // LQI threshold high
+			);
 	enabled = false;
 	disable = false;
 	rand_->srand(radio_->id());

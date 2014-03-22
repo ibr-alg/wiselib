@@ -398,7 +398,7 @@ namespace wiselib {
 				check();
 			}
 
-			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data) {
+			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data, ::uint32_t _) {
 				debug_->debug("@%lu NDev %d %lu", (unsigned long)id(),
 						(int)event, (unsigned long)from);
 				switch(event) {

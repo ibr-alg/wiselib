@@ -27,7 +27,7 @@ typedef OSMODEL Os;
 	typedef MockNeighborhood<Os> Neighborhood;
 #else
 	#include <algorithms/neighbor_discovery/adaptive2/echo.h>
-	typedef Echo<Os, Radio, Os::Timer, Os::Debug> Neighborhood;
+	typedef Echo<Os, Radio, Os::Timer, Os::Rand, Os::Clock, Os::Debug> Neighborhood;
 #endif
 
 typedef SsMbfTree<Os, Neighborhood> Tree;
@@ -45,6 +45,7 @@ class ExampleApplication {
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 
 			radio_->enable_radio();
 
@@ -64,7 +65,13 @@ class ExampleApplication {
 			#if defined(PC)
 				neighborhood_.init(debug_);
 			#else
-				neighborhood_.init(*radio_, *clock_, *timer_, *debug_, 200, 20000, 50000, 50000);
+				neighborhood_.init(
+						*radio_, *clock_, *timer_, *rand_, *debug_,
+						200,   // beacon period
+						20000, // timeout interval
+						500 - 240,   // LQIs below this are good
+						500 - 180    // LQIs above this are bad
+						);
 				neighborhood_.enable();
 			#endif
 
@@ -141,6 +148,7 @@ class ExampleApplication {
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
+		Os::Rand::self_pointer_t rand_;
 };
 // --------------------------------------------------------------------------
 wiselib::WiselibApplication<Os, ExampleApplication> example_app;

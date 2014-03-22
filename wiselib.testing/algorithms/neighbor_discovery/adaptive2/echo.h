@@ -74,7 +74,7 @@ extern "C" {
  * How many consecutive beacons must be received from a node
  * in order to mark it as stable.
  */
-#define ECHO_TIMES_ACC_NEARBY 2
+#define ECHO_TIMES_ACC_NEARBY 1
 
 
 namespace wiselib {
@@ -205,7 +205,7 @@ namespace wiselib {
 	    NB_READY = 64, /*!< Event code generated after the nb module has generated a stable nhd
 		 * Useful for starting other modules that must wait until the nb has
 		 * produced a stable neighborhood */
-	    NEW_SYNC_PAYLOAD = 128,
+		//NEW_SYNC_PAYLOAD = 128,
 	    DEFAULT = 5
 	    /*!< Event code for NEW_NB + DROPED_NB*/
 	};
@@ -287,6 +287,8 @@ namespace wiselib {
 	 * */
 	void enable_radio() {
 
+		debug().debug("ON");
+		radio().enable_radio();
 #if defined(CONTIKI)
 	    NETSTACK_RDC.on();
 #endif
@@ -312,6 +314,7 @@ namespace wiselib {
 	void disable() {
 	    set_status(WAITING);
 
+		debug().debug("OFF");
 #if defined(CONTIKI)
 	    NETSTACK_RDC.off(false);
 #endif
@@ -325,6 +328,7 @@ namespace wiselib {
 
 	void disable_radio() {
 
+		//radio().disable_radio();
 #if defined(CONTIKI)
 	    NETSTACK_RDC.off(false);
 #endif
@@ -658,26 +662,43 @@ namespace wiselib {
 	    bool should_send = false;
 	    if (_force_beacon) {
 		debug().debug("NB_FORCED_%d", radio().id());
+		}
 		//this is set if the beacon was forced
-		should_send |= _force_beacon;
-		_force_beacon = false;
-	    } else {
+		//should_send |= _force_beacon;
+		//_force_beacon = false;
+		//} else {
 		//this is set if all the beacons were forced
 		//should_send |= _force_sync_phases;
 
-		if (_phase == PHASE_SYNC) {
-		    should_send = true;
-		    if (stable_nb_size() > 0 && _neighborhood_changes == 0) {
-			debug().debug("NB_STABLE %d", _beacons_in_sync_phase);
-			if (_beacons_in_sync_phase < 2) {//send the first two beacons
-			    should_send = true;
-			} else {
-			    should_send = false;
-			}
-		    }
-		} else {
-		}
-	    }
+		//if (_phase == PHASE_SYNC) {
+				// when in sync phase, send first two beacons
+				// and whenever neighborhood is unstable or nonexistent
+		should_send = (_phase == PHASE_SYNC) && (
+				_beacons_in_sync_phase < 2 ||
+				stable_nb_size() == 0 ||
+				_neighborhood_changes != 0 ||
+				_force_beacon
+			);
+
+		//if(should_send) {
+			//debug().debug("beac %lu", (unsigned long)time_diff);
+		//}
+
+		_force_beacon = false;
+
+
+			//should_send = true;
+			//if (stable_nb_size() > 0 && _neighborhood_changes == 0) {
+			//debug().debug("NB_STABLE %d", _beacons_in_sync_phase);
+			//if (_beacons_in_sync_phase < 2) {//send the first two beacons
+				//should_send = true;
+			//} else {
+				//should_send = false;
+			//}
+			//}
+		//} else {
+		//}
+		//}
 
 	    if (should_send) {
 		enable_radio();
@@ -747,8 +768,21 @@ namespace wiselib {
 #else
 
 	void receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t * msg
-		, typename Radio::ExtendedData const &ex) {
+		, typename Radio::ExtendedData const &ex_) {
 #endif
+
+
+#if defined(CONTIKI)
+		// Am I evil? Yes I am!
+		//    -- Metallica
+		typename Radio::ExtendedData &ex = const_cast<typename Radio::ExtendedData&>(ex_);
+
+		// Contiki will give us a low value for bad LQI and a high one for
+		// good, the rest of the code uses the convention the other way around
+		// though
+		ex.set_link_metric(500 - ex.link_metric());
+#endif
+
 
 	    //        void receive(node_id_t from, size_t len, block_data_t * msg) {
 	    //debug().debug("recv\n");
@@ -763,7 +797,7 @@ namespace wiselib {
 #endif
 
 #ifdef ENABLE_LQI_THRESHOLDS
-	    debug().debug("metric:%d>threashold:%d", ex.link_metric(), max_lqi_threshold);
+	    debug().debug("f%lu metric:%d>threashold:%d", (unsigned long)from, ex.link_metric(), max_lqi_threshold);
 	    if (ex.link_metric() > max_lqi_threshold) {
 		return;
 	    }
@@ -787,7 +821,7 @@ namespace wiselib {
 		//			memcpy(&recvmsg, msg, len);
 
 		//#ifdef DEBUG_ECHO_EXTRA
-		debug().debug("Debug::echo::receive node %d got beacon from %d length %d sync: %u\n", radio().id(), from, len, recvmsg->special());
+		debug().debug("Debug::echo::receive node %lu got beacon from %lu length %d sync: %u\n", (unsigned long)radio().id(), (unsigned long)from, len, recvmsg->special());
 		//#endif
 
 		// check the beacons sender status
@@ -974,7 +1008,7 @@ namespace wiselib {
 		    }
 #else
 		    //if heard ECHO_TIMES_ACC_NEARBY or more beacons in a row add to listen_only
-		    if ((it->beacons_in_row == ECHO_TIMES_ACC_NEARBY)
+		    if ((it->beacons_in_row >= ECHO_TIMES_ACC_NEARBY)
 			    && (!it->stable)) {
 			debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 			// add to the listen only vector
