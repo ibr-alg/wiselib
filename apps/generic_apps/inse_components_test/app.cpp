@@ -33,6 +33,11 @@ typedef OSMODEL Os;
 typedef SsMbfTree<Os, Neighborhood> Tree;
 typedef SeNdTokenRing<Os, Neighborhood, Tree> TokenRing;
 typedef SeScheduler<Os, Neighborhood, Tree, TokenRing> Scheduler;
+typedef ::uint32_t abs_millis_t;
+
+#if !SHAWN
+	typedef Os::Clock::time_t time_t;
+#endif
 
 class ExampleApplication {
 	public:
@@ -62,6 +67,15 @@ class ExampleApplication {
 			}
 			#endif
 
+			// Wait a random delay before actually starting,
+			// this way also in shawn we have initial asynchronicity
+			timer_->set_timer<ExampleApplication, &ExampleApplication::init2>(
+					rand_->operator()() % 10000, this, 0
+			);
+		}
+
+		void init2(void*) {
+
 			#if defined(PC)
 				neighborhood_.init(debug_);
 			#else
@@ -86,7 +100,19 @@ class ExampleApplication {
 
 			//timer_->set_timer<ExampleApplication,
 									//&ExampleApplication::fake_beacon>(100, this, 0);
+									
+			//asses_clock();
 		}
+
+		void asses_clock(void *_ = 0) {
+			static unsigned long clock_idx = 0;
+			timer_->set_timer<ExampleApplication, &ExampleApplication::asses_clock>(1000, this, 0);
+			debug_->debug("clk %lu %lu", clock_idx++, now());
+		}
+
+		abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+		abs_millis_t now() { return absolute_millis(clock_->time()); }
+
 
 	/*
 	 * Functions for faking events with mock ND, fake (local) radio, etc...

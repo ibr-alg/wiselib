@@ -205,7 +205,7 @@ namespace wiselib {
 	    NB_READY = 64, /*!< Event code generated after the nb module has generated a stable nhd
 		 * Useful for starting other modules that must wait until the nb has
 		 * produced a stable neighborhood */
-		//NEW_SYNC_PAYLOAD = 128,
+		NEW_TIMESTAMP = 128,
 	    DEFAULT = 5
 	    /*!< Event code for NEW_NB + DROPED_NB*/
 	};
@@ -245,6 +245,7 @@ namespace wiselib {
 	    NETSTACK_RDC.on();
 #endif
 	    radio().enable_radio();
+		radio_enabled = true;
 
 #if CONTIKI_TARGET_sky && USE_LEDS
 	    leds_on(LEDS_RED);
@@ -286,9 +287,11 @@ namespace wiselib {
 	 * messages
 	 * */
 	void enable_radio() {
+		if(radio_enabled) { return; }
 
 		debug().debug("ON");
 		radio().enable_radio();
+		radio_enabled = true;
 #if defined(CONTIKI)
 	    NETSTACK_RDC.on();
 #endif
@@ -327,8 +330,12 @@ namespace wiselib {
 	};
 
 	void disable_radio() {
+		if(!radio_enabled) { return; }
 
-		//radio().disable_radio();
+		debug().debug("OFF");
+		radio_enabled = false;
+		//[>
+		radio().disable_radio();
 #if defined(CONTIKI)
 	    NETSTACK_RDC.off(false);
 #endif
@@ -336,6 +343,7 @@ namespace wiselib {
 #if CONTIKI_TARGET_sky && USE_LEDS
 	    leds_off(LEDS_RED);
 #endif
+		//*/
 	};
 
 	/**
@@ -512,6 +520,7 @@ namespace wiselib {
 	    min_lqi_threshold = min_theshold;
 	    max_lqi_threshold = max_threshold;
 	    _neighborhood_changes = 0;
+		radio_enabled = false;
 	};
 
 	void set_beacon_period(uint16_t beacon_pd) {
@@ -535,6 +544,12 @@ namespace wiselib {
 			    = event_notifier_delegate_t::template from_method<T,
 			    TMethod>(obj_pnt);
 		    it->events_flag = events_flag;
+
+			//debug_->debug("XXX");
+		//for (reg_alg_iterator_t it = registered_apps.begin(); it
+			// != registered_apps.end(); it++) {
+			//debug_->debug("REG ALG %d: %d", (int)it->alg_id, (int)it->events_flag);
+		//}
 		    return 0;
 		}
 	    }
@@ -547,6 +562,12 @@ namespace wiselib {
 		    obj_pnt);
 	    entry.events_flag = events_flag;
 	    registered_apps.push_back(entry);
+
+			//debug_->debug("XXX");
+		//for (reg_alg_iterator_t it = registered_apps.begin(); it
+			// != registered_apps.end(); it++) {
+			//debug_->debug("REG ALG %d: %d", (int)it->alg_id, (int)it->events_flag);
+		//}
 
 	    return 0;
 	    //         return INV_ALG_ID;
@@ -605,10 +626,11 @@ namespace wiselib {
 	 * or active token phase
 	 */
 	void leave_sync_phase() {
-	    enable_radio();
 	    _phase = PHASE_LEFT_SYNC;
-	    debug().debug("%d beacons sent in sync phase, %d changes observed", _beacons_in_sync_phase, _neighborhood_changes);
+		//debug().debug("%d beacons sent in sync phase, %d changes observed", _beacons_in_sync_phase, _neighborhood_changes);
+	    debug().debug("ND:lsp %d %d", _beacons_in_sync_phase, _neighborhood_changes);
 	    _neighborhood_changes = 0;
+	    disable_radio();
 	}
 
 	/**
@@ -625,7 +647,8 @@ namespace wiselib {
 
 	void leave_token_phase() {
 	    _phase = PHASE_LEFT_TOKEN;
-	    debug().debug("%d beacons sent in token phase", _beacons_in_token_phase);
+	    debug().debug("ND:ltp %d", _beacons_in_token_phase);
+	    //disable_radio(); // will be turned on in sync phase anyway
 	}
 
     private:
@@ -657,7 +680,8 @@ namespace wiselib {
 
 	    uint32_t time_diff = current_millisec - before_millisec;
 	    if (current_millisec < before_millisec) {
-		time_diff = 0;
+			debug_->debug("ND:first %lu<%lu", (unsigned long)current_millisec, (unsigned long)before_millisec);
+			time_diff = 0;
 	    }
 	    bool should_send = false;
 	    if (_force_beacon) {
@@ -729,8 +753,9 @@ namespace wiselib {
 
 		//send the Beacon
 		if (should_send) {
-		    debug().debug("NB_SEND Sending beacon from %d,%u", radio().id(), time_diff);
+			//debug().debug("NB_SEND Sending beacon from %lu,%u", (unsigned long)radio().id(), time_diff);
 		    //debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
+			debug().debug("SND %lu", (unsigned long)time_diff);
 		    radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) & echomsg);
 		    //radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
 		    change_beacon_counters();
@@ -797,13 +822,13 @@ namespace wiselib {
 #endif
 
 #ifdef ENABLE_LQI_THRESHOLDS
-	    debug().debug("f%lu metric:%d>threashold:%d", (unsigned long)from, ex.link_metric(), max_lqi_threshold);
+		//debug().debug("f%lu metric:%d>threashold:%d", (unsigned long)from, ex.link_metric(), max_lqi_threshold);
 	    if (ex.link_metric() > max_lqi_threshold) {
 		return;
 	    }
 #endif
 
-	    debug_->debug("from=%lu self=%lu status=%lu", (unsigned long) from, (unsigned long) radio().id(), (unsigned long) status());
+		//debug_->debug("from=%lu self=%lu status=%lu", (unsigned long) from, (unsigned long) radio().id(), (unsigned long) status());
 	    // if in waiting status do not process messages
 	    if (status() == WAITING)
 		return;
@@ -821,7 +846,7 @@ namespace wiselib {
 		//			memcpy(&recvmsg, msg, len);
 
 		//#ifdef DEBUG_ECHO_EXTRA
-		debug().debug("Debug::echo::receive node %lu got beacon from %lu length %d sync: %u\n", (unsigned long)radio().id(), (unsigned long)from, len, recvmsg->special());
+		//debug().debug("Debug::echo::receive node %lu got beacon from %lu length %d sync: %u\n", (unsigned long)radio().id(), (unsigned long)from, len, recvmsg->special());
 		//#endif
 
 		// check the beacons sender status
@@ -856,9 +881,9 @@ namespace wiselib {
 			if (!it->stable) {
 			    continue;
 			}
-			debug().debug("Debug::echo NODE %x has bidirectional communication with %x %d", radio().id(), from, contains_my_id);
+			//debug().debug("Debug::echo NODE %x has bidirectional communication with %x %d", radio().id(), from, contains_my_id);
 #ifdef DEBUG_ECHO
-			debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
+			//debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
 #endif
 
 			if (contains_my_id) {
@@ -891,14 +916,17 @@ namespace wiselib {
 
 			    for (reg_alg_iterator_t it = registered_apps.begin(); it
 				    != registered_apps.end(); it++) {
+					if(it->event_notifier_callback != 0 && ((it->events_flag & (uint8_t)NEW_TIMESTAMP) == (uint8_t)NEW_TIMESTAMP)) {
+						it->event_notifier_callback(NEW_TIMESTAMP, from, 0, 0, recvmsg->special());
+					}
 
 				if ((it->alg_id == *alg_pl)
 					&& (it->event_notifier_callback != 0)) {
-				    if ((it->events_flag & (uint8_t) NEW_PAYLOAD)
+					if ((it->events_flag & (uint8_t) NEW_PAYLOAD)
 					    == (uint8_t) NEW_PAYLOAD) {
 					it->event_notifier_callback(NEW_PAYLOAD,
 						from, *(alg_pl + 1), alg_pl + 2, recvmsg->special());
-				    } else if (((it->events_flag
+					} else if (((it->events_flag
 					    & (uint8_t) NEW_PAYLOAD_BIDI)
 					    == (uint8_t) NEW_PAYLOAD_BIDI)
 					    && is_neighbor_bidi(from)) {
@@ -912,7 +940,7 @@ namespace wiselib {
 			    alg_pl += *(alg_pl + 1) + 2;
 
 #ifdef DEBUG_ECHO
-			    debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
+				//debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
 #endif
 			}
 			break;
@@ -964,8 +992,8 @@ namespace wiselib {
 		// if known
 		if (it->id == from) {
 
-		    debug().debug("Debug::echo::received_beacon::%x new neighbor %x  iLinkAssoc %d linkAssoc %d row %d",
-			    radio().id(), from, get_ilink_assoc(from), get_link_assoc(from), it->beacons_in_row);
+			//debug().debug("Debug::echo::received_beacon::%x new neighbor %lu  iLinkAssoc %d linkAssoc %d row %d",
+				//radio().id(), (unsigned long)from, get_ilink_assoc(from), get_link_assoc(from), it->beacons_in_row);
 
 		    it->total_beacons++;
 
@@ -1010,12 +1038,12 @@ namespace wiselib {
 		    //if heard ECHO_TIMES_ACC_NEARBY or more beacons in a row add to listen_only
 		    if ((it->beacons_in_row >= ECHO_TIMES_ACC_NEARBY)
 			    && (!it->stable)) {
-			debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
+			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 			// add to the listen only vector
 			it->stable = true;
 			notify_listeners(NEW_NB, from, 0, 0, 0);
 #ifdef DEBUG_ECHO
-			debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
+			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 #endif
 		    }
 #endif
@@ -1190,7 +1218,7 @@ namespace wiselib {
 		    it->beacons_in_row = 0;
 
 #ifdef DEBUG_ECHO
-		    debug().debug("Debug::echo NODE %x dropped from neighbors %x", radio().id(), it->id);
+			//debug().debug("Debug::echo NODE %x dropped from neighbors %x", radio().id(), it->id);
 #endif
 		    cleanup_nearby();
 		    break;
@@ -1374,6 +1402,8 @@ namespace wiselib {
 	uint16_t _neighborhood_changes;
 	time_t _start_sync_phase_clock;
 	uint8_t _phase;
+
+	bool radio_enabled;
 
 
 	Radio * radio_;

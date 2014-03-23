@@ -9,7 +9,7 @@ def merge(filenames):
 
     def add_name(line, name):
         t, l = line.split('|', 1)
-        return t + '|' + name+ '|' + l
+        return t + '|@' + name+ ' ' + l
 
     l = []
     for fn in filenames:

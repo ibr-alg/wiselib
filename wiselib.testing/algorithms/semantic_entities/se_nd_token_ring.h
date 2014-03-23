@@ -105,7 +105,7 @@ namespace wiselib {
 			}
 
 			void enter_sync_phase() {
-				debug_->debug("TR:enter_sync_phase");
+				debug_->debug("TR:esp");
 				debug_state();
 				check();
 				in_token_phase_ = false;
@@ -113,18 +113,18 @@ namespace wiselib {
 			}
 
 			void leave_sync_phase() {
-				debug_->debug("TR:leave_sync_phase");
+				debug_->debug("TR:lsp");
 				debug_state();
 				check();
 			}
 
 			bool enter_token_phase() {
-				debug_->debug("TR:enter_token_phase");
+				debug_->debug("TR:etp");
 				debug_state();
 				check();
 
 				if(has_token()) {
-					debug_->debug("@%lu TR:HAS_TOKEN a=%d c[%d]=%d", (unsigned long)id(), (int)activity_rounds_, (int)sending_upwards(), (int)token_count());
+					debug_->debug("TOKEN a%d u%d c%d", (int)activity_rounds_, (int)sending_upwards(), (int)token_count());
 				}
 
 				in_token_phase_ = true;
@@ -133,7 +133,7 @@ namespace wiselib {
 			}
 
 			void leave_token_phase() {
-				debug_->debug("TR:leave_token_phase h=%d a=%d", (int)has_token(), (int)activity_rounds_);
+				debug_->debug("TR:ltp T%d a%d", (int)has_token(), (int)activity_rounds_);
 				debug_state();
 				check();
 				bool r = has_token();
@@ -207,7 +207,7 @@ namespace wiselib {
 				node_id_t target = send_to_address();
 				
 				debug_state();
-				debug_->debug("TR:set_payload tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
+				//debug_->debug("TR:set_payload tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
 				TokenMessageT msg;
 				msg.set_target(target);
 				msg.set_token_count(token_count());
@@ -234,7 +234,7 @@ namespace wiselib {
 					if(*data == MESSAGE_TYPE_TOKEN) {
 						TokenMessageT &msg = *reinterpret_cast<TokenMessageT*>(data);
 						if(msg.target() != id()) { return; }
-						debug_->debug("TR:recv_payload %lu from %lu isp=%d tc=%d", (unsigned long)id(), (unsigned long)from, (int)(from == parent()), (int)msg.token_count());
+						//debug_->debug("TR:recv_payload %lu from %lu isp=%d tc=%d", (unsigned long)id(), (unsigned long)from, (int)(from == parent()), (int)msg.token_count());
 						
 						// Should we forward this token?
 						node_id_t target = forward_address(from);
@@ -242,6 +242,11 @@ namespace wiselib {
 						// The token is actually meant for us, process it,
 						// see if it activates us
 						if(target == id()) {
+
+							// This should halt at least in an ideal
+							// simulation (without packet loss and thelike)
+							assert(is_leaf() <= (from == parent()));
+
 							// use upwards token slot (token_count_[1])
 							// exactly when we are not root and the token came
 							// from a child (root always uses slot 0 only)
@@ -288,9 +293,10 @@ namespace wiselib {
 						// We just forward the token for one of our childs
 						else {
 							// reuse the message we received
-							msg.set_target(target);
-							debug_->debug("TR:set_payload f tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
-							neighborhood_->set_payload(PAYLOAD_ID, data, size);
+							TokenMessageT m(msg);
+							m.set_target(target);
+							//debug_->debug("TR:set_payload f tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
+							neighborhood_->set_payload(PAYLOAD_ID, m.data(), m.size());
 							neighborhood_->force_beacon();
 						}
 					} // MESSAGE_TYPE_TOKEN
@@ -302,13 +308,13 @@ namespace wiselib {
 
 			void on_topology_update() {
 				check();
-				debug_->debug("TR:topology update");
+				//debug_->debug("TR:topology update");
 				update_beacon();
 				check();
 			}
 
 			void debug_state() {
-				debug_->debug("TR: c%d,%d|%d,%d u%d a%d T%d p%d",
+				debug_->debug("TR:c%d,%d|%d,%d u%d a%d T%d p%d",
 						(int)prev_token_count_[0], (int)token_count_[0],
 						(int)prev_token_count_[1], (int)token_count_[1],
 						(int)sending_upwards(),

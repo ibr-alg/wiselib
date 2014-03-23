@@ -92,7 +92,7 @@ namespace wiselib {
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<
 					self_type, &self_type::on_neighborhood_event
-				>(PAYLOAD_ID, Neighborhood::NEW_PAYLOAD_BIDI, this);
+				>(PAYLOAD_ID, Neighborhood::NEW_TIMESTAMP, this);
 
 				schedule_sync_phase_start();
 
@@ -114,18 +114,30 @@ namespace wiselib {
 			}
 
 			bool is_root() {
-				return tree_->is_root(); //parent() == NULL_NODE_ID;
+				return tree_->is_root();
 			}
 
-			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data, ::uint32_t time_offset) {
+			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t, ::uint8_t *, ::uint32_t time_offset) {
 				check();
 
-				if(event == Neighborhood::NEW_PAYLOAD_BIDI) {
-					if(tree_->classify(from) == Tree::PARENT) {
-						debug_->debug("Sc:recv_payload %lu from parent %lu", (unsigned long)id(), (unsigned long)from);
-						abs_millis_t t_recv = now();
-						last_sync_beacon_ = t_recv - rtt_ / 2 - time_offset;
-					}
+				if(event != Neighborhood::NEW_TIMESTAMP) { return; }
+
+				if(tree_->classify(from) == Tree::PARENT) {
+					abs_millis_t t_recv = now();
+					last_sync_beacon_ = t_recv - rtt_ / 2 - time_offset;
+
+					debug_->debug("Sc:b%lu", (unsigned long)time_offset);
+					/*
+					debug_->debug("Sc:recv_payload %lu from parent %lu %lu,%lu,%lu,%lu",
+							(unsigned long)id(), (unsigned long)from,
+							(unsigned long)t_recv,
+							(unsigned long)(rtt_ / 2),
+							(unsigned long)time_offset,
+							(unsigned long)last_sync_beacon_);
+					*/
+				}
+				else {
+					//debug_->debug("Sc:recv_payload_nope from %lu par %lu", (unsigned long)from, (unsigned long)tree_->parent());
 				}
 
 				check();
@@ -141,7 +153,7 @@ namespace wiselib {
 				neighborhood().leave_token_phase();
 				token_ring().leave_token_phase();
 
-				debug_->debug("Sc:enter_sync_phase %lu", (unsigned long)now());
+				debug_->debug("Sc:esp %lu", (unsigned long)now());
 
 				neighborhood().enter_sync_phase();
 				token_ring().enter_sync_phase();
@@ -152,12 +164,12 @@ namespace wiselib {
 
 			void on_enter_token_phase(void *_ = 0) {
 				check();
-				debug_->debug("Sc:enter_token_phase %lu", (unsigned long)now());
+				debug_->debug("Sc:etp %lu", (unsigned long)now());
 				token_ring().leave_sync_phase();
 				neighborhood().leave_sync_phase();
 
 				bool active = token_ring().enter_token_phase();
-				if(active || tree_->is_root()) {
+				if(active || tree_->is_root() || tree_->parent() == NULL_NODE_ID) {
 					neighborhood().enter_token_phase();
 				}
 
@@ -174,6 +186,7 @@ namespace wiselib {
 				
 				if(!is_root()) {
 					sync_phase_shift_ = last_sync_beacon_ % PERIOD;
+					debug_->debug("sps%lu", (unsigned long)sync_phase_shift_);
 				}
 				
 				// Note that the division here is rounding down which is

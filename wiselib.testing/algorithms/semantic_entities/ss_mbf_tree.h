@@ -25,7 +25,7 @@
 #include "tree_message.h"
 #include <util/pstl/vector_static.h>
 
-#define SS_MBF_TREE_DEBUG 1
+#define SS_MBF_TREE_DEBUG 0
 #define SS_MBF_TREE_DEBUG_VERBOSE 0
 
 namespace wiselib {
@@ -197,6 +197,9 @@ namespace wiselib {
 					assert(debug_ != 0);
 					assert(id_ != NULL_NODE_ID);
 
+					assert(parent_index_ == npos ||
+							(parent_index_ >= 0 && parent_index_ < neighbor_infos_.size()));
+
 					// childs are always sorted
 					node_id_t c, cprev = NULL_NODE_ID;
 					c = first_child();
@@ -300,7 +303,7 @@ namespace wiselib {
 
 				size_type pos = (it - neighbor_infos_.begin());
 				if(parent() != NULL_NODE_ID) {
-					if(pos < parent_index_) {
+					if(parent_index_ != npos && pos < parent_index_) {
 						parent_index_--;
 					}
 					else if(pos == parent_index_) {
@@ -318,7 +321,7 @@ namespace wiselib {
 			}
 
 			bool at_parent(typename NeighborInfos::iterator it) {
-				return (it - neighbor_infos_.begin()) == parent_index_;
+				return (it - neighbor_infos_.begin()) == (int)parent_index_;
 			}
 
 			void update_state(bool force=false) {
@@ -381,9 +384,11 @@ namespace wiselib {
 				}
 
 				if((parent() != parent_old) || (distance() != distance_old) || force) {
-					#if SS_MBF_TREE_DEBUG
-						debug_->debug("mbf st p%d d%d po%d do%d", (int)parent(), (int)distance(), (int)parent_old, (int)distance_old);
-					#endif
+					//#if SS_MBF_TREE_DEBUG
+					if(!force) {
+						debug_->debug("MBF p%lu,%lu d%d,%d", (unsigned long)parent_old, (unsigned long)parent(), (int)distance_old,  (int)distance());
+					}
+					//#endif
 
 					// state has actually changed
 					TreeMessageT msg;
@@ -399,8 +404,8 @@ namespace wiselib {
 			}
 
 			void on_neighborhood_event(::uint8_t event, node_id_t from, ::uint8_t size, ::uint8_t *data, ::uint32_t _) {
-				debug_->debug("@%lu NDev %d %lu", (unsigned long)id(),
-						(int)event, (unsigned long)from);
+				//debug_->debug("@%lu NDev %d %lu", (unsigned long)id(),
+						//(int)event, (unsigned long)from);
 				switch(event) {
 					case Neighborhood::DROPPED_NB:
 					case Neighborhood::LOST_NB_BIDI:
@@ -411,7 +416,7 @@ namespace wiselib {
 
 					//case Neighborhood::NEW_NB_BIDI:
 					case Neighborhood::NEW_PAYLOAD_BIDI: {
-						debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
+						//debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
 						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
 						insert_neighbor(from, msg.parent(), msg.distance());
 						notify_receivers();
