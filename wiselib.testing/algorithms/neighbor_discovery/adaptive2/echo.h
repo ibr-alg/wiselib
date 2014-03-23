@@ -318,11 +318,11 @@ namespace wiselib {
 	    set_status(WAITING);
 
 		debug().debug("OFF");
-#if defined(CONTIKI)
-	    NETSTACK_RDC.off(false);
-#endif
+//#if defined(CONTIKI)
+		//NETSTACK_RDC.off(false);
+//#endif
 
-	    radio().template unreg_recv_callback(recv_callback_id_);
+		//radio().template unreg_recv_callback(recv_callback_id_);
 
 #if CONTIKI_TARGET_sky && USE_LEDS
 	    leds_off(LEDS_RED);
@@ -685,7 +685,7 @@ namespace wiselib {
 	    }
 	    bool should_send = false;
 	    if (_force_beacon) {
-		debug().debug("NB_FORCED_%d", radio().id());
+		debug().debug("NB_FORCED_%lu", radio().id());
 		}
 		//this is set if the beacon was forced
 		//should_send |= _force_beacon;
@@ -755,7 +755,7 @@ namespace wiselib {
 		if (should_send) {
 			//debug().debug("NB_SEND Sending beacon from %lu,%u", (unsigned long)radio().id(), time_diff);
 		    //debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
-			debug().debug("SND %lu", (unsigned long)time_diff);
+			debug().debug("SND %lu %lu", (unsigned long)time_diff, (unsigned long)radio().id());
 		    radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) & echomsg);
 		    //radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
 		    change_beacon_counters();
@@ -822,7 +822,7 @@ namespace wiselib {
 #endif
 
 #ifdef ENABLE_LQI_THRESHOLDS
-		//debug().debug("f%lu metric:%d>threashold:%d", (unsigned long)from, ex.link_metric(), max_lqi_threshold);
+		debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
 	    if (ex.link_metric() > max_lqi_threshold) {
 		return;
 	    }
@@ -889,12 +889,14 @@ namespace wiselib {
 			if (contains_my_id) {
 			    if (!it->bidi) {
 				it->bidi = true;
+				debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
 				notify_listeners(NEW_NB_BIDI, from, 0, 0, 0);
 			    }
 
 			} else {
 			    if (it->bidi) {
 				it->bidi = false;
+				debug().debug("ND- %lu l%d", (unsigned long)from, (int)ex.link_metric());
 				notify_listeners(LOST_NB_BIDI, from, 0, 0, 0);
 			    }
 			}
@@ -1032,6 +1034,7 @@ namespace wiselib {
 			//                                        && (it->stability * ((255 + it->inverse_link_assoc)/510) > max_stability_threshold))
 		    {
 			it->stable = true;
+				debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
 			notify_listeners(NEW_NB, from, 0, 0);
 		    }
 #else
@@ -1041,6 +1044,7 @@ namespace wiselib {
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 			// add to the listen only vector
 			it->stable = true;
+				debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
 			notify_listeners(NEW_NB, from, 0, 0, 0);
 #ifdef DEBUG_ECHO
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
@@ -1209,6 +1213,7 @@ namespace wiselib {
 		    //                    remove_from_neighborhood(it);
 		    //                    neighborhood.erase(it);
 		    if (it->stable) {
+				debug().debug("ND- %lu t%lu", (unsigned long)it->id, (unsigned long)last_echo_millisec);
 			//					debug().debug( "::timout NODE %x dropped from neighbors %x", it->id, radio().id(),it->stability);
 			notify_listeners(DROPPED_NB, it->id, 0, 0, 0);
 		    }

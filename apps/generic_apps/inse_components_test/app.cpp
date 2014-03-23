@@ -82,7 +82,7 @@ class ExampleApplication {
 				neighborhood_.init(
 						*radio_, *clock_, *timer_, *rand_, *debug_,
 						200,   // beacon period
-						20000, // timeout interval
+						40000, // timeout interval
 						500 - 240,   // LQIs below this are good
 						500 - 180    // LQIs above this are bad
 						);
