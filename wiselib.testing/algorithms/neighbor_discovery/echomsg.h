@@ -56,8 +56,9 @@ namespace wiselib {
          NBS_NUM = 1,
          SPECIAL_POS = 2,
          PG_NUM = 6,
-         PAYLOAD_POS = 7   // position of the payload length
+         PAYLOAD_POS = 7,   // position of the payload length
                            // (the payload starts at +1)
+			MIN_SIZE = 8
         };
 
         // --------------------------------------------------------------------

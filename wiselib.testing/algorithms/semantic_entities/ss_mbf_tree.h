@@ -69,6 +69,7 @@ namespace wiselib {
 			enum {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
 				NULL_NODE_ID = Radio::NULL_NODE_ID,
+				MAX_ROOT_DISTANCE = 10,
 
 				#if SHAWN
 					ROOT_NODE_ID = 1,
@@ -82,7 +83,7 @@ namespace wiselib {
 			enum { SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC };
 			enum { npos = (size_type)(-1) };
 			enum { CHILD, PARENT, UNRELATED };
-			enum { MAX_NEIGHBORS = Neighborhood::MAX_NEIGHBORS }; // TODO: Align with nhood
+			enum { MAX_NEIGHBORS = Neighborhood::MAX_NEIGHBORS };
 			enum { PAYLOAD_ID = 2 };
 
 		private:
@@ -95,7 +96,7 @@ namespace wiselib {
 				NeighborInfo() {
 				}
 
-				NeighborInfo(node_id_t i) : id(i), parent(NULL_NODE_ID), distance(-1), child(0) {
+				NeighborInfo(node_id_t i) : id(i), parent(NULL_NODE_ID), distance(-1), child(false) {
 				}
 
 				NeighborInfo(node_id_t i, node_id_t p, distance_t d) : id(i), parent(p), distance(d), child(false) {
@@ -253,6 +254,8 @@ namespace wiselib {
 						// just update
 						it->parent = p;
 						it->distance = d;
+
+						check();
 						return;
 					}
 					else if(it->id > n) {
@@ -351,9 +354,6 @@ namespace wiselib {
 						debug_->debug("mbf neigh%lu d%d p%lu", (unsigned long)it->id, (int)it->distance, (unsigned long)it->parent);
 					#endif
 
-					// Ignore nodes that didnt agree on a parent yet
-					if(it->distance == (distance_t)(-1)) { continue; }
-
 					// Node chose us as parent
 					if(it->parent == id()) {
 						#if SS_MBF_TREE_DEBUG_VERBOSE
@@ -363,8 +363,19 @@ namespace wiselib {
 						continue;
 					}
 
+					// Ignore nodes that didnt agree on a parent yet
+					if(it->distance == (distance_t)(-1)) { continue; }
+
+
+					if((int)it->distance + 1 > (int)MAX_ROOT_DISTANCE) {
+						continue;
+					}
+
 					if((it->distance + 1 < distance_) ||
-							((it->distance + 1 == distance_) && ((it->id < parent()) || parent() == id() || parent() == NULL_NODE_ID))) {
+							((it->distance + 1 == distance_) && (
+								it->id < parent() //|| parent() == NULL_NODE_ID)
+							))
+					) {
 						#if SS_MBF_TREE_DEBUG_VERBOSE
 							debug_->debug(" mbf p");
 						#endif
@@ -385,9 +396,9 @@ namespace wiselib {
 
 				if((parent() != parent_old) || (distance() != distance_old) || force) {
 					//#if SS_MBF_TREE_DEBUG
-					if(!force) {
+					//if(!force) {
 						debug_->debug("MBF %lu p%lu,%lu d%d,%d", (unsigned long)id(), (unsigned long)parent_old, (unsigned long)parent(), (int)distance_old,  (int)distance());
-					}
+					//}
 					//#endif
 
 					// state has actually changed
@@ -409,18 +420,22 @@ namespace wiselib {
 				switch(event) {
 					case Neighborhood::DROPPED_NB:
 					case Neighborhood::LOST_NB_BIDI:
+						debug_->debug("MBF--");
 						erase_neighbor(from);
-						notify_receivers();
 						update_state();
+						notify_receivers();
 						break;
 
-					//case Neighborhood::NEW_NB_BIDI:
+					case Neighborhood::NEW_NB_BIDI:
+						break;
+
 					case Neighborhood::NEW_PAYLOAD_BIDI: {
+						debug_->debug("MBFpp");
 						//debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
 						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
 						insert_neighbor(from, msg.parent(), msg.distance());
-						notify_receivers();
 						update_state();
+						notify_receivers();
 						break;
 					}
 
@@ -428,6 +443,8 @@ namespace wiselib {
 						debug_->debug("!NDev%d", (int)event);
 						break;
 				}
+
+				check();
 			}
 
 			typename Debug::self_pointer_t debug_;

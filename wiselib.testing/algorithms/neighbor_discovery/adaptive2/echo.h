@@ -74,7 +74,7 @@ extern "C" {
  * How many consecutive beacons must be received from a node
  * in order to mark it as stable.
  */
-#define ECHO_TIMES_ACC_NEARBY 1
+#define ECHO_TIMES_ACC_NEARBY 1 // 2 does not work in the iminds testbed apparently (exp 25341)
 
 
 namespace wiselib {
@@ -628,7 +628,7 @@ namespace wiselib {
 	void leave_sync_phase() {
 	    _phase = PHASE_LEFT_SYNC;
 		//debug().debug("%d beacons sent in sync phase, %d changes observed", _beacons_in_sync_phase, _neighborhood_changes);
-	    debug().debug("ND:lsp %d %d", _beacons_in_sync_phase, _neighborhood_changes);
+	    debug().debug("ND:lsp %d %d", (int)_beacons_in_sync_phase, (int)_neighborhood_changes);
 	    _neighborhood_changes = 0;
 	    disable_radio();
 	}
@@ -667,25 +667,24 @@ namespace wiselib {
 	 *
 	 */
 	void say_hello(void * a) {
-	    //Reset the timoout for the next beacon
-	    timer().template set_timer<self_t, &self_t::say_hello> (beacon_period,
-		    this, (void*) 0);
+		//Reset the timoout for the next beacon
+		timer().template set_timer<self_t, &self_t::say_hello> (beacon_period, this, (void*) 0);
 
-	    // Check for Neighbors that do not exist and need to be dropped
-	    cleanup_nearby();
+		// Check for Neighbors that do not exist and need to be dropped
+		cleanup_nearby();
 
-	    uint32_t before_millisec = (uint32_t) clock().milliseconds(_start_sync_phase_clock) + clock().seconds(_start_sync_phase_clock) * 1000;
-	    time_t now_clock = clock().time();
-	    uint32_t current_millisec = (uint32_t) clock().milliseconds(now_clock) + clock().seconds(now_clock) * 1000;
+		uint32_t before_millisec = (uint32_t) clock().milliseconds(_start_sync_phase_clock) + clock().seconds(_start_sync_phase_clock) * 1000;
+		time_t now_clock = clock().time();
+		uint32_t current_millisec = (uint32_t) clock().milliseconds(now_clock) + clock().seconds(now_clock) * 1000;
 
-	    uint32_t time_diff = current_millisec - before_millisec;
-	    if (current_millisec < before_millisec) {
-			debug_->debug("ND:first %lu<%lu", (unsigned long)current_millisec, (unsigned long)before_millisec);
+		uint32_t time_diff = current_millisec - before_millisec;
+		if (current_millisec < before_millisec) {
+			debug_->debug("NDfst %lu<%lu", (unsigned long)current_millisec, (unsigned long)before_millisec);
 			time_diff = 0;
-	    }
-	    bool should_send = false;
-	    if (_force_beacon) {
-		debug().debug("NB_FORCED_%lu", radio().id());
+		}
+		bool should_send = false;
+		if (_force_beacon) {
+			debug().debug("NBF %lu", (unsigned long)radio().id());
 		}
 		//this is set if the beacon was forced
 		//should_send |= _force_beacon;
@@ -724,41 +723,44 @@ namespace wiselib {
 		//}
 		//}
 
-	    if (should_send) {
-		enable_radio();
-	    } else {
-		disable_radio();
-	    }
+		if (should_send) {
+			enable_radio();
+		} else {
+			disable_radio();
+		}
 
-	    // if in searching mode send a new beacon
-	    if (status() == SEARCHING) {
+		// if in searching mode send a new beacon
+		if (status() == SEARCHING) {
 
-		// prepare the echo message
-		EchoMsg_t echomsg;
+			// prepare the echo message
+			EchoMsg_t echomsg;
 
-		//			neighbor_entry_t new_nb_entry;
-		//			new_nb_entry.id=66;
-		//			new_nb_entry.beacons_in_row=1;
+			//			neighbor_entry_t new_nb_entry;
+			//			new_nb_entry.id=66;
+			//			new_nb_entry.beacons_in_row=1;
 
-		//			if (radio().id()==9)
-		//				neighborhood.push_back(new_nb_entry);
+			//			if (radio().id()==9)
+			//				neighborhood.push_back(new_nb_entry);
 
-		// create the list based on local stable neighbors
-		add_list_to_beacon(&echomsg);
+			// create the list based on local stable neighbors
+			add_list_to_beacon(&echomsg);
 
-		add_pg_payload(&echomsg);
+			add_pg_payload(&echomsg);
 
-		echomsg.set_special(time_diff);
+			echomsg.set_special(time_diff);
 
 
 		//send the Beacon
 		if (should_send) {
 			//debug().debug("NB_SEND Sending beacon from %lu,%u", (unsigned long)radio().id(), time_diff);
-		    //debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
+			//debug().debug("sending msg of len %d to: %d sz(node_id_t)=%d\n", echomsg.buffer_size(), Radio::BROADCAST_ADDRESS, sizeof(node_id_t));
+			//
+		#if SHAWN
 			debug().debug("SND %lu %lu", (unsigned long)time_diff, (unsigned long)radio().id());
-		    radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) & echomsg);
-		    //radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
-		    change_beacon_counters();
+		#endif
+			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) & echomsg);
+			//radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
+			change_beacon_counters();
 		}
 
 		msgs_stats.echo_msg_count++;
@@ -790,6 +792,7 @@ namespace wiselib {
 
 	void receive(node_id_t from, size_t len, block_data_t * msg) {
 	    typename Radio::ExtendedData ex;
+		ex.set_link_metric(100);
 #else
 
 	void receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t * msg
@@ -800,7 +803,10 @@ namespace wiselib {
 #if defined(CONTIKI)
 		// Am I evil? Yes I am!
 		//    -- Metallica
-		typename Radio::ExtendedData &ex = const_cast<typename Radio::ExtendedData&>(ex_);
+		//typename Radio::ExtendedData &ex = const_cast<typename Radio::ExtendedData&>(ex_);
+
+		// No I aint.
+		typename Radio::ExtendedData ex = ex_;
 
 		// Contiki will give us a low value for bad LQI and a high one for
 		// good, the rest of the code uses the convention the other way around
@@ -808,11 +814,8 @@ namespace wiselib {
 		ex.set_link_metric(500 - ex.link_metric());
 #endif
 
-
-	    //        void receive(node_id_t from, size_t len, block_data_t * msg) {
-	    //debug().debug("recv\n");
 	    if (status_ != SEARCHING) {
-		return;
+			return;
 	    }
 
 
@@ -822,134 +825,124 @@ namespace wiselib {
 #endif
 
 #ifdef ENABLE_LQI_THRESHOLDS
-		debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
+//		debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
 	    if (ex.link_metric() > max_lqi_threshold) {
 		return;
 	    }
 #endif
 
-		//debug_->debug("from=%lu self=%lu status=%lu", (unsigned long) from, (unsigned long) radio().id(), (unsigned long) status());
 	    // if in waiting status do not process messages
-	    if (status() == WAITING)
-		return;
+		//if (status() == WAITING)
+		//return;
 
 	    // if own return
 	    if (from == radio().id())
 		return;
 
-
+//debug().debug("x1");
 	    // if it is a beacon
-	    if (*msg == EchoMsg_t::HELLO_MESSAGE) {
+	    if (len >= EchoMsg_t::MIN_SIZE && *msg == EchoMsg_t::HELLO_MESSAGE) {
 		//debug().debug("EVENT=Receive;NODE=%x;FROM=%x,METRIC=%d", radio().id(), from, ex.link_metric());
 		EchoMsg_t *recvmsg;
 		recvmsg = (EchoMsg_t *) msg;
 		//			memcpy(&recvmsg, msg, len);
 
-		//#ifdef DEBUG_ECHO_EXTRA
-		//debug().debug("Debug::echo::receive node %lu got beacon from %lu length %d sync: %u\n", (unsigned long)radio().id(), (unsigned long)from, len, recvmsg->special());
-		//#endif
-
+//debug().debug("x2");
 		// check the beacons sender status
 		received_beacon(from, ex);
 
 		for (iterator_t it = neighborhood.begin(); it != neighborhood.end(); ++it) {
+			bool contains_my_id = false;
+			if (!it->active) { continue; }
+			if (!it->stable) { continue; }
 
-		    bool contains_my_id = false;
-		    if (!it->active) {
-			continue;
-		    }
+			//debug().debug("x3");
+			if (it->id == from) {
+				// The sending neighbor is already known to us,
+				// its data is at *it.
 
-		    if (it->id == from) {
+				uint8_t nb_size_bytes = recvmsg->nb_list_size();
+				uint8_t bytes_read = 0;
 
-			uint8_t nb_size_bytes = recvmsg->nb_list_size();
-			uint8_t bytes_read = 0;
+//				debug().debug("x4 sz=%d..", (int)nb_size_bytes);
 
+				// Did he send information about us? (for bidi link check)?
+				while (nb_size_bytes != bytes_read) {
+					node_id_t neighbor_id = read<OsModel, block_data_t, node_id_t> (recvmsg->payload() + bytes_read);
+					bytes_read += sizeof (node_id_t);
+					if (neighbor_id == radio().id()) {
+						contains_my_id = true;
+						break;
+					}
+				}
 
-			while (nb_size_bytes != bytes_read) {
+//				debug().debug("x6");
 
-			    node_id_t neighbor_id = read<OsModel, block_data_t, node_id_t> (
-				    recvmsg->payload() + bytes_read);
-			    bytes_read += sizeof (node_id_t);
-			    //debug().debug("Debug::echo::receive %d got beacon from %d bytes_read= %d \n", radio().id(), from, bytes_read);
-			    if (neighbor_id == radio().id()) {
-				//							debug().debug( "Debug::echo::NO %d got beacon from %d size= %d \n", radio().id(), bytes_read, nb_size_bytes);
-				contains_my_id = true;
-				break;
-			    }
-			}
-
-			if (!it->stable) {
-			    continue;
-			}
-			//debug().debug("Debug::echo NODE %x has bidirectional communication with %x %d", radio().id(), from, contains_my_id);
-#ifdef DEBUG_ECHO
-			//debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
-#endif
-
-			if (contains_my_id) {
-			    if (!it->bidi) {
-				it->bidi = true;
-				debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
-				notify_listeners(NEW_NB_BIDI, from, 0, 0, 0);
-			    }
-
-			} else {
-			    if (it->bidi) {
-				it->bidi = false;
-				debug().debug("ND- %lu l%d", (unsigned long)from, (int)ex.link_metric());
-				notify_listeners(LOST_NB_BIDI, from, 0, 0, 0);
-			    }
-			}
-
-			uint8_t * alg_pl = recvmsg->payload()
-				+ recvmsg->nb_list_size();
-			for (int i = 0; i < recvmsg->get_pg_payloads_num(); i++) {
-
-#ifdef DEBUG_PIGGYBACKING
-			    debug().debug("Debug::echo NODE %d: new payload from %d with alg_id %d and size %d ",
-				    radio().id(), from, *alg_pl, *(alg_pl + 1));
-
-			    debug().debug(" [");
-			    for (uint8_t j = 1; j <= *(alg_pl + 1); j++) {
-				debug().debug("%d ", *(alg_pl + j + 1));
-			    }
-			    debug().debug("]\n");
-#endif
-
-			    for (reg_alg_iterator_t it = registered_apps.begin(); it
-				    != registered_apps.end(); it++) {
-					if(it->event_notifier_callback != 0 && ((it->events_flag & (uint8_t)NEW_TIMESTAMP) == (uint8_t)NEW_TIMESTAMP)) {
-						it->event_notifier_callback(NEW_TIMESTAMP, from, 0, 0, recvmsg->special());
+				//debug().debug("x7");
+				if (contains_my_id) {
+					if (!it->bidi) {
+						// He knows us, since now we also know him -> bidi link
+						it->bidi = true;
+						debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
+						notify_listeners(NEW_NB_BIDI, from, 0, 0, 0);
 					}
 
-				if ((it->alg_id == *alg_pl)
-					&& (it->event_notifier_callback != 0)) {
-					if ((it->events_flag & (uint8_t) NEW_PAYLOAD)
-					    == (uint8_t) NEW_PAYLOAD) {
-					it->event_notifier_callback(NEW_PAYLOAD,
-						from, *(alg_pl + 1), alg_pl + 2, recvmsg->special());
-					} else if (((it->events_flag
-					    & (uint8_t) NEW_PAYLOAD_BIDI)
-					    == (uint8_t) NEW_PAYLOAD_BIDI)
-					    && is_neighbor_bidi(from)) {
-					it->event_notifier_callback(
-						NEW_PAYLOAD_BIDI, from, *(alg_pl
-						+ 1), alg_pl + 2, recvmsg->special());
-				    }
 				}
-			    }
+				else {
+					if (it->bidi) {
+						// We know him, but he forgot about us
+						it->bidi = false;
+						debug().debug("ND- %lu l%d", (unsigned long)from, (int)ex.link_metric());
+						notify_listeners(LOST_NB_BIDI, from, 0, 0, 0);
+					}
+				}
 
-			    alg_pl += *(alg_pl + 1) + 2;
+				// Notify everybody about new payload/timestamp
+
+				//debug().debug("x8");
+				uint8_t * alg_pl = recvmsg->payload() + recvmsg->nb_list_size();
+				for (int i = 0; i < recvmsg->get_pg_payloads_num(); i++) {
+
+#ifdef DEBUG_PIGGYBACKING
+					debug().debug("Debug::echo NODE %d: new payload from %d with alg_id %d and size %d ",
+							radio().id(), from, *alg_pl, *(alg_pl + 1));
+
+					debug().debug(" [");
+					for (uint8_t j = 1; j <= *(alg_pl + 1); j++) {
+						debug().debug("%d ", *(alg_pl + j + 1));
+					}
+					debug().debug("]\n");
+#endif
+
+					//debug().debug("x9");
+					for (reg_alg_iterator_t jt = registered_apps.begin(); jt != registered_apps.end(); jt++) {
+						if(jt->event_notifier_callback != 0 && ((jt->events_flag & (uint8_t)NEW_TIMESTAMP) == (uint8_t)NEW_TIMESTAMP)) {
+							jt->event_notifier_callback(NEW_TIMESTAMP, from, 0, 0, recvmsg->special());
+						}
+
+						//debug().debug("x10");
+						if ((jt->alg_id == *alg_pl) && (jt->event_notifier_callback != 0)) {
+							if ((jt->events_flag & (uint8_t) NEW_PAYLOAD) == (uint8_t) NEW_PAYLOAD) {
+								jt->event_notifier_callback(NEW_PAYLOAD, from, *(alg_pl + 1), alg_pl + 2, recvmsg->special());
+							}
+							else if (((jt->events_flag & (uint8_t) NEW_PAYLOAD_BIDI) == (uint8_t) NEW_PAYLOAD_BIDI) && it->bidi) {
+								jt->event_notifier_callback( NEW_PAYLOAD_BIDI, from, *(alg_pl + 1), alg_pl + 2, recvmsg->special());
+							}
+						}
+					}
+
+					alg_pl += *(alg_pl + 1) + 2;
 
 #ifdef DEBUG_ECHO
-				//debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
+					//debug().debug("Debug::echo NODE %x has bidirectional communication with %x", radio().id(), from);
 #endif
-			}
-			break;
-		    }
+				}
+				break;
+			} // if id == from
 
 		}
-	    }
+		}
+//		debug().debug("x11");
 
 	}
 	;
@@ -993,6 +986,7 @@ namespace wiselib {
 	    for (; it != neighborhood.end(); ++it) {
 		// if known
 		if (it->id == from) {
+			debug().debug("known");
 
 			//debug().debug("Debug::echo::received_beacon::%x new neighbor %lu  iLinkAssoc %d linkAssoc %d row %d",
 				//radio().id(), (unsigned long)from, get_ilink_assoc(from), get_link_assoc(from), it->beacons_in_row);
@@ -1034,7 +1028,7 @@ namespace wiselib {
 			//                                        && (it->stability * ((255 + it->inverse_link_assoc)/510) > max_stability_threshold))
 		    {
 			it->stable = true;
-				debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
+				//debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
 			notify_listeners(NEW_NB, from, 0, 0);
 		    }
 #else
@@ -1044,7 +1038,7 @@ namespace wiselib {
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 			// add to the listen only vector
 			it->stable = true;
-				debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
+				//debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
 			notify_listeners(NEW_NB, from, 0, 0, 0);
 #ifdef DEBUG_ECHO
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
@@ -1057,42 +1051,48 @@ namespace wiselib {
 
 	    // if not known so far add to the vector if space available
 	    if (!known) {
-
 #ifdef ENABLE_LQI_THRESHOLDS
-		if (ex.link_metric() > min_lqi_threshold) {
-		    return;
-		}
+			if (ex.link_metric() > min_lqi_threshold) {
+				return;
+			}
 #endif
-		if (neighborhood.size() < neighborhood.max_size()) {
 
-		    if (it == neighborhood.end()) {
-			// create a new struct entry for the vector
-			neighbor_entry_t new_nb_entry;
-			new_nb_entry.id = from;
-			new_nb_entry.first_beacon = clock().time();
-			new_nb_entry.last_echo = clock().time();
-			//                    new_nb_entry.timeout = new_nb_entry.last_echo + timeout_period;
-			new_nb_entry.beacons_in_row = 1;
-			new_nb_entry.total_beacons = 1;
-			new_nb_entry.active = true;
-			new_nb_entry.stable = false;
-			new_nb_entry.bidi = false;
+			debug().debug("yy");
 
-			//                    a.uptime = ((double)a.time_known-(double)a.beacons_missed)/(double)a.time_known;
-			//add the struct to the vector
-			neighborhood.push_back(new_nb_entry);
-		    } else {
-			it->active = true;
-			it->last_echo = clock().time();
-			it->beacons_in_row = 1;
-			it->stable = false;
-			it->bidi = false;
-			it->total_beacons++;
-		    }
+			if (neighborhood.size() < neighborhood.max_size()) {
 
-		    //debug().debug("Added new neighbor %d %d\n",radio().id(),from);
+				if (it == neighborhood.end()) {
+				// create a new struct entry for the vector
+				neighbor_entry_t new_nb_entry;
+				new_nb_entry.id = from;
+				new_nb_entry.first_beacon = clock().time();
+				new_nb_entry.last_echo = clock().time();
+				//                    new_nb_entry.timeout = new_nb_entry.last_echo + timeout_period;
+				new_nb_entry.beacons_in_row = 1;
+				new_nb_entry.total_beacons = 1;
+				new_nb_entry.active = true;
+				new_nb_entry.stable = false;
+				new_nb_entry.bidi = false;
 
-		}
+				//                    a.uptime = ((double)a.time_known-(double)a.beacons_missed)/(double)a.time_known;
+				//add the struct to the vector
+				neighborhood.push_back(new_nb_entry);
+				} else {
+				it->active = true;
+				it->last_echo = clock().time();
+				it->beacons_in_row = 1;
+				it->stable = false;
+				it->bidi = false;
+				it->total_beacons++;
+				}
+
+				//debug().debug("Added new neighbor %d %d\n",radio().id(),from);
+
+			}
+			else {
+				debug().debug("nhood full");
+			}
+
 	    }
 
 	};
@@ -1306,11 +1306,10 @@ namespace wiselib {
 	 */
 	void add_pg_payload(EchoMsg_t * msg) {
 
-	    for (reg_alg_iterator_t ait = registered_apps.begin(); ait
-		    != registered_apps.end(); ++ait) {
-		if (ait->size != 0) {
-		    msg->append_payload(ait->alg_id, ait->data, ait->size);
-		}
+	    for (reg_alg_iterator_t ait = registered_apps.begin(); ait != registered_apps.end(); ++ait) {
+			if (ait->size != 0) {
+				msg->append_payload(ait->alg_id, ait->data, ait->size);
+			}
 	    }
 	}
 
@@ -1321,14 +1320,11 @@ namespace wiselib {
 	void add_list_to_beacon(EchoMsg_t * msg) {
 
 	    // add only the stable neighbor nodes to the array
-	    for (iterator_t
-		it = neighborhood.begin();
-		    it != neighborhood.end();
-		    ++it) {
-		if (it->stable) {
-		    msg->add_nb_entry(it->id);
-		    //		    debug().debug("%x - stable - %x", radio().id(), it->id);
-		}
+	    for (iterator_t it = neighborhood.begin(); it != neighborhood.end(); ++it) {
+			if (it->stable) {
+				msg->add_nb_entry(it->id);
+				//		    debug().debug("%x - stable - %x", radio().id(), it->id);
+			}
 	    }
 
 	    //            uint8_t nb_size_bytes = msg->nb_list_size();

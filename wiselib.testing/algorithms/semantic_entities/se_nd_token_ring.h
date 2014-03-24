@@ -113,8 +113,8 @@ namespace wiselib {
 			}
 
 			void leave_sync_phase() {
-				debug_->debug("TR:lsp");
-				debug_state();
+				//debug_->debug("TR:lsp");
+				//debug_state();
 				check();
 			}
 

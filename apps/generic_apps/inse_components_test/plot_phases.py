@@ -22,7 +22,7 @@ tmax = None
 re_enter_sync = re.compile(r'@([a-zA-Z0-9]+) Sc:esp.*')
 re_time_sN = re.compile(r'^T([0-9]+)\.([0-9]+)\|(.*)$')
 
-fs = (6, 6)
+fs = (8, 3)
 PERIOD = 10.0
 t0 = None
 
@@ -86,6 +86,8 @@ def parse(f):
             nodes[name]['phase']['t'].append(t)
             nodes[name]['phase']['v'].append(float(t) % PERIOD)
 
+def avg(l):
+    return sum(l) / len(l)
 
 def fig_phases():
     global fs
@@ -96,16 +98,40 @@ def fig_phases():
     ax = fig.add_subplot(111)#, polar=True)
     #PERIOD = 20000.0
     F = 2.0 * math.pi / PERIOD
+
     #ax.set_xticklabels([x * PERIOD/8 for x in range(8)])
+    ax.set_ylim((-.5,.5))
     
     #for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
+
+    roots = ('inode019', '1')
+
+    phase_shift = 0
+    for name in roots:
+        if name in nodes:
+            phase_shift = avg(nodes[name]['phase']['v'])
+            break
+
+    print("phase shift:", phase_shift)
+
+    for name, node in nodes.items():
+        for i in range(len(node['phase']['v'])):
+            node['phase']['v'][i] -= phase_shift
+            if node['phase']['v'][i] < -5:
+                node['phase']['v'][i] = 10 + node['phase']['v'][i] 
+
 
     for name, node in sorted(nodes.items()):
         if 'phase' in node : #and name in ('inode019','inode015', 'inode018'):
         #if 'phase' in node and name in ('1','10', '38', '23'):
             #print(len(node['phase']['v']), len(node['phase']['t']))
-            #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], '-', label=name)
-            r, = ax.plot(node['phase']['t'], node['phase']['v'], '-', label=name)
+            #if name in roots:
+                #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], 'k-', label=name, alpha=1,
+                        #linewidth=2)
+
+            #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], color='#ff9999', linestyle='-', label=name, alpha=.5)
+            r, = ax.plot(node['phase']['t'], [1 * x for x in node['phase']['v']] , marker='+', linestyle='', color='#cc7777', alpha=.5, label=name,
+                    )
 
         else:
             #print(dir(node))
@@ -118,8 +144,17 @@ def fig_phases():
             print(type(node.index[0]))
             print([x.timestamp() for x in node.index])
             r, = ax.plot(v, [x.timestamp() for x in node.index], '-', label=name)
+
+    for name in roots:
+        if name in nodes:
+            node = nodes[name]
+            #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], 'k-', label=name, alpha=1,
+                    #linewidth=2)
+            r, = ax.plot(node['phase']['t'], [1 * x for x in node['phase']['v']] , linestyle='-',
+                    linewidth=2, color='black', alpha=1, label=name)
         
     #ax.legend(bbox_to_anchor=(1.2, 1.2), loc='upper right')
+    ax.grid()
     fig.savefig('phases.pdf', bbox_inches='tight', pad_inches=.1)
     fig.savefig('phases.png')
 

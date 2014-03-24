@@ -87,7 +87,7 @@ namespace wiselib {
 				neighborhood_ = &nd;
 				tree_ = &tree;
 				token_ring_ = &ring;
-				rtt_ = 30;
+				rtt_ = 100;
 
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<
@@ -102,15 +102,17 @@ namespace wiselib {
 		private:
 
 			void check() {
-				assert(neighborhood_ != 0);
-				assert(tree_ != 0);
-				assert(token_ring_ != 0);
-				assert(debug_ != 0);
-				assert(timer_ != 0);
-				assert(clock_ != 0);
+				#if !NDEBUG
+					assert(neighborhood_ != 0);
+					assert(tree_ != 0);
+					assert(token_ring_ != 0);
+					assert(debug_ != 0);
+					assert(timer_ != 0);
+					assert(clock_ != 0);
 
-				assert(sync_phase_shift_ < PERIOD);
-				assert(last_sync_beacon_ <= now());
+					assert(sync_phase_shift_ < PERIOD);
+					assert(last_sync_beacon_ <= now());
+				#endif
 			}
 
 			bool is_root() {
