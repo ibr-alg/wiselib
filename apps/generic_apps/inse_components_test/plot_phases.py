@@ -100,7 +100,7 @@ def fig_phases():
     F = 2.0 * math.pi / PERIOD
 
     #ax.set_xticklabels([x * PERIOD/8 for x in range(8)])
-    ax.set_ylim((-.5,.5))
+    ax.set_ylim((-.3,.3))
     
     #for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
 

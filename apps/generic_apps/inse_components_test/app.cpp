@@ -16,10 +16,24 @@
 using namespace wiselib;
 typedef OSMODEL Os;
 
+// Select radio.
+// For PC just use a local radio (only useful for testing indiv. components),
+// for contiki/telosb we need checksums, else corrupted msgs might crash our
+// nodes.
+
 #if defined(PC)
 	typedef LocalRadio<Os> Radio;
+	#define SPECIAL_RADIO
+
+#elif defined(CONTIKI)
+	#include <algorithms/hash/checksum_radio.h>
+	#include <algorithms/hash/crc16.h>
+	typedef ChecksumRadio<Os, Os::Radio, Crc16<Os> > Radio;
+	#define SPECIAL_RADIO
+
 #else
 	typedef Os::Radio Radio;
+
 #endif
 
 #if defined(PC)
@@ -42,14 +56,16 @@ typedef ::uint32_t abs_millis_t;
 class ExampleApplication {
 	public:
 		void init(Os::AppMainParameter& value) {
-			#if defined(PC)
+			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+			#if defined(SPECIAL_RADIO)
+				Os::Radio *osr = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+				r.init(*osr, *debug_);
 				radio_ = &r;
 			#else
 				radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			#endif
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
-			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 
 			radio_->enable_radio();
@@ -118,8 +134,6 @@ class ExampleApplication {
 	 * Functions for faking events with mock ND, fake (local) radio, etc...
 	 */
 	#if defined(PC)
-		Radio r;
-
 		// fake a new neighbor event
 		void mock_new_neighbor(::uint16_t id, ::uint16_t distance, ::uint16_t parent) {
 			Tree::TreeMessageT tree_message;
@@ -169,6 +183,10 @@ class ExampleApplication {
 		Tree tree_;
 		TokenRing token_ring_;
 		Scheduler scheduler_;
+
+		#if defined(SPECIAL_RADIO)
+			Radio r;
+		#endif
 
 		Radio::self_pointer_t radio_;
 		Os::Timer::self_pointer_t timer_;

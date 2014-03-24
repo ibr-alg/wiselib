@@ -864,7 +864,7 @@ namespace wiselib {
 				uint8_t nb_size_bytes = recvmsg->nb_list_size();
 				uint8_t bytes_read = 0;
 
-//				debug().debug("x4 sz=%d..", (int)nb_size_bytes);
+				debug().debug("x4 sz=%d..", (int)nb_size_bytes);
 
 				// Did he send information about us? (for bidi link check)?
 				while (nb_size_bytes != bytes_read) {
@@ -876,14 +876,14 @@ namespace wiselib {
 					}
 				}
 
-//				debug().debug("x6");
+				debug().debug("x6");
 
 				//debug().debug("x7");
 				if (contains_my_id) {
 					if (!it->bidi) {
 						// He knows us, since now we also know him -> bidi link
 						it->bidi = true;
-						debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
+						debug().debug("ND+2 %lu l%d", (unsigned long)from, (int)ex.link_metric());
 						notify_listeners(NEW_NB_BIDI, from, 0, 0, 0);
 					}
 
@@ -892,7 +892,7 @@ namespace wiselib {
 					if (it->bidi) {
 						// We know him, but he forgot about us
 						it->bidi = false;
-						debug().debug("ND- %lu l%d", (unsigned long)from, (int)ex.link_metric());
+						debug().debug("ND-2 %lu l%d", (unsigned long)from, (int)ex.link_metric());
 						notify_listeners(LOST_NB_BIDI, from, 0, 0, 0);
 					}
 				}
@@ -1000,6 +1000,7 @@ namespace wiselib {
 #ifdef ENABLE_LQI_THRESHOLDS
 		    if (!it->stable) {
 			if (ex.link_metric() > min_lqi_threshold) {
+				debug().debug("NDxs");
 			    return;
 			}
 		    }
@@ -1028,7 +1029,7 @@ namespace wiselib {
 			//                                        && (it->stability * ((255 + it->inverse_link_assoc)/510) > max_stability_threshold))
 		    {
 			it->stable = true;
-				//debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
+				debug().debug("ND+s %lu l%d", (unsigned long)from, (int)ex.link_metric());
 			notify_listeners(NEW_NB, from, 0, 0);
 		    }
 #else
@@ -1038,7 +1039,7 @@ namespace wiselib {
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 			// add to the listen only vector
 			it->stable = true;
-				//debug().debug("ND+ %lu l%d", (unsigned long)from, (int)ex.link_metric());
+				debug().debug("ND+1 %lu l%d", (unsigned long)from, (int)ex.link_metric());
 			notify_listeners(NEW_NB, from, 0, 0, 0);
 #ifdef DEBUG_ECHO
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
@@ -1056,8 +1057,6 @@ namespace wiselib {
 				return;
 			}
 #endif
-
-			debug().debug("yy");
 
 			if (neighborhood.size() < neighborhood.max_size()) {
 
@@ -1225,7 +1224,7 @@ namespace wiselib {
 #ifdef DEBUG_ECHO
 			//debug().debug("Debug::echo NODE %x dropped from neighbors %x", radio().id(), it->id);
 #endif
-		    cleanup_nearby();
+//		    cleanup_nearby();
 		    break;
 		}
 

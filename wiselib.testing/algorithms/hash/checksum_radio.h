@@ -34,6 +34,7 @@ namespace wiselib {
 	/**
      * @brief Radio wrapper that uses a given hash implementation as checksum
      * to verify message integrity, discarding messages with wrong checksums.
+	 * This goes nice with e.g. a CRC16 hash and a nice glass of irish whiskey.
 	 * 
 	 * @ingroup Radio_concept
 	 * 
