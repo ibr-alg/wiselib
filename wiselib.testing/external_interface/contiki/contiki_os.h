@@ -31,7 +31,7 @@
 #include "external_interface/contiki/contiki_byte_com_uart.h"
 #include "external_interface/contiki/contiki_com_uart.h"
 #include "util/serialization/endian.h"
-#include <algorithms/rand/kiss.h>
+#include "external_interface/contiki/contiki_rand.h"
 
 namespace wiselib
 {
@@ -53,7 +53,7 @@ namespace wiselib
       typedef ContikiDistanceModel<ContikiOsModel> Distance;
       typedef ContikiPositionModel<ContikiOsModel, ExtendedRadio::block_data_t> Position;
       typedef ContikiByteUartModel<ContikiOsModel> Uart;
-      typedef Kiss<ContikiOsModel> Rand;
+      typedef ContikiRandModel<ContikiOsModel> Rand;
 
       static const Endianness endianness = WISELIB_ENDIANNESS;
 

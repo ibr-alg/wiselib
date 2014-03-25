@@ -70,6 +70,8 @@ class ExampleApplication {
 
 			radio_->enable_radio();
 
+			rand_->srand(radio_->id());
+
 			debug_->debug("AD_INSE node %lu", (unsigned long)radio_->id());
 			if(radio_->id() == 0) {
 				debug_->debug("My id is 0. Thats too weird, ill just sit here and do nothing. And freak everybody out.");
@@ -98,6 +100,7 @@ class ExampleApplication {
 				neighborhood_.init(
 						*radio_, *clock_, *timer_, *rand_, *debug_,
 						200,   // beacon period
+						100,   // add at most this many ms to period randomly
 						40000, // timeout interval
 						500 - 240,   // LQIs below this are good
 						500 - 180    // LQIs above this are bad

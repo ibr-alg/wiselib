@@ -508,7 +508,7 @@ namespace wiselib {
 	 * \brief Initialize the module.
 	 */
 	void init(Radio& radio, Clock& clock, Timer& timer, Rand& rand, Debug& debug,
-		uint16_t beacon_pd = 1000, uint16_t timeout_pd = 9000, uint16_t min_theshold = 100,
+		uint16_t beacon_pd = 1000, uint16_t beacon_pd_rnd_add = 100, uint16_t timeout_pd = 9000, uint16_t min_theshold = 100,
 		uint16_t max_threshold = 165) {
 	    _phase = PHASE_UNKNOWN;
 	    radio_ = &radio;
@@ -516,6 +516,7 @@ namespace wiselib {
 	    timer_ = &timer;
 	    debug_ = &debug;
 	    beacon_period = beacon_pd;
+		beacon_period_rnd_add = beacon_pd_rnd_add;
 	    timeout_period = timeout_pd;
 	    min_lqi_threshold = min_theshold;
 	    max_lqi_threshold = max_threshold;
@@ -667,8 +668,6 @@ namespace wiselib {
 	 *
 	 */
 	void say_hello(void * a) {
-		//Reset the timoout for the next beacon
-		timer().template set_timer<self_t, &self_t::say_hello> (beacon_period, this, (void*) 0);
 
 		// Check for Neighbors that do not exist and need to be dropped
 		cleanup_nearby();
@@ -779,6 +778,12 @@ namespace wiselib {
 #endif
 	    }
 
+		//Reset the timoout for the next beacon
+		// putting this last makes the effective beacon period larger than the
+		// nominal one but also gives us the nominal beacon period free of
+		// sending so we can receive something.
+		timer().template set_timer<self_t, &self_t::say_hello> (beacon_period + rand()() % beacon_period_rnd_add, this, (void*) 0);
+
 	}
 	;
 
@@ -825,9 +830,10 @@ namespace wiselib {
 #endif
 
 #ifdef ENABLE_LQI_THRESHOLDS
-//		debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
+		debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
 	    if (ex.link_metric() > max_lqi_threshold) {
-		return;
+			debug().debug("NDlqi");
+			return;
 	    }
 #endif
 
@@ -839,7 +845,6 @@ namespace wiselib {
 	    if (from == radio().id())
 		return;
 
-//debug().debug("x1");
 	    // if it is a beacon
 	    if (len >= EchoMsg_t::MIN_SIZE && *msg == EchoMsg_t::HELLO_MESSAGE) {
 		//debug().debug("EVENT=Receive;NODE=%x;FROM=%x,METRIC=%d", radio().id(), from, ex.link_metric());
@@ -847,7 +852,6 @@ namespace wiselib {
 		recvmsg = (EchoMsg_t *) msg;
 		//			memcpy(&recvmsg, msg, len);
 
-//debug().debug("x2");
 		// check the beacons sender status
 		received_beacon(from, ex);
 
@@ -856,15 +860,13 @@ namespace wiselib {
 			if (!it->active) { continue; }
 			if (!it->stable) { continue; }
 
-			//debug().debug("x3");
 			if (it->id == from) {
+				debug().debug("ND found");
 				// The sending neighbor is already known to us,
 				// its data is at *it.
 
 				uint8_t nb_size_bytes = recvmsg->nb_list_size();
 				uint8_t bytes_read = 0;
-
-				debug().debug("x4 sz=%d..", (int)nb_size_bytes);
 
 				// Did he send information about us? (for bidi link check)?
 				while (nb_size_bytes != bytes_read) {
@@ -876,9 +878,6 @@ namespace wiselib {
 					}
 				}
 
-				debug().debug("x6");
-
-				//debug().debug("x7");
 				if (contains_my_id) {
 					if (!it->bidi) {
 						// He knows us, since now we also know him -> bidi link
@@ -899,7 +898,6 @@ namespace wiselib {
 
 				// Notify everybody about new payload/timestamp
 
-				//debug().debug("x8");
 				uint8_t * alg_pl = recvmsg->payload() + recvmsg->nb_list_size();
 				for (int i = 0; i < recvmsg->get_pg_payloads_num(); i++) {
 
@@ -1377,6 +1375,7 @@ namespace wiselib {
 	 * discovery protocol.
 	 */
 	uint16_t beacon_period;
+	uint16_t beacon_period_rnd_add;
 	/**
 	 * The threshold used to reject received packets from a specific stable
 	 * neighbor that have lqi below the 255-min_lqi_threshold or inverse
