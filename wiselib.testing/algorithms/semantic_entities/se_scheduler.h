@@ -87,7 +87,7 @@ namespace wiselib {
 				neighborhood_ = &nd;
 				tree_ = &tree;
 				token_ring_ = &ring;
-				rtt_ = 100;
+				rtt_ = 50;
 
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<

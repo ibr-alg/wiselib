@@ -318,11 +318,11 @@ namespace wiselib {
 	    set_status(WAITING);
 
 		debug().debug("OFF");
-//#if defined(CONTIKI)
-		//NETSTACK_RDC.off(false);
-//#endif
+#if defined(CONTIKI)
+		NETSTACK_RDC.off(false);
+#endif
 
-		//radio().template unreg_recv_callback(recv_callback_id_);
+		radio().template unreg_recv_callback(recv_callback_id_);
 
 #if CONTIKI_TARGET_sky && USE_LEDS
 	    leds_off(LEDS_RED);
@@ -722,11 +722,26 @@ namespace wiselib {
 		//}
 		//}
 
+		/*
+		 * This switches on the radio the first time we we have a beacon to
+		 * send (if it isnt already on), and switches it off when we are at a
+		 * beacon slot and decide not to send (which usually means we wont be
+		 * sending any more beacons in this sync phase).
+		 *
+		 * While this saves energy pretty well it makes it much more unlikely
+		 * to see all neighbor tokens when we have only few beacons to send
+		 * und thus leads to a much less stable neighborhood.
+		 *
+
 		if (should_send) {
 			enable_radio();
 		} else {
 			disable_radio();
 		}
+
+		 *
+		 *
+		 */
 
 		// if in searching mode send a new beacon
 		if (status() == SEARCHING) {
@@ -830,7 +845,7 @@ namespace wiselib {
 #endif
 
 #ifdef ENABLE_LQI_THRESHOLDS
-		debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
+		//debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
 	    if (ex.link_metric() > max_lqi_threshold) {
 			debug().debug("NDlqi");
 			return;
@@ -861,7 +876,7 @@ namespace wiselib {
 			if (!it->stable) { continue; }
 
 			if (it->id == from) {
-				debug().debug("ND found");
+				//debug().debug("ND found");
 				// The sending neighbor is already known to us,
 				// its data is at *it.
 
@@ -984,7 +999,7 @@ namespace wiselib {
 	    for (; it != neighborhood.end(); ++it) {
 		// if known
 		if (it->id == from) {
-			debug().debug("known");
+			//debug().debug("known");
 
 			//debug().debug("Debug::echo::received_beacon::%x new neighbor %lu  iLinkAssoc %d linkAssoc %d row %d",
 				//radio().id(), (unsigned long)from, get_ilink_assoc(from), get_link_assoc(from), it->beacons_in_row);
@@ -1068,7 +1083,7 @@ namespace wiselib {
 				new_nb_entry.beacons_in_row = 1;
 				new_nb_entry.total_beacons = 1;
 				new_nb_entry.active = true;
-				new_nb_entry.stable = false;
+				new_nb_entry.stable = (1 >= ECHO_TIMES_ACC_NEARBY);
 				new_nb_entry.bidi = false;
 
 				//                    a.uptime = ((double)a.time_known-(double)a.beacons_missed)/(double)a.time_known;
@@ -1078,7 +1093,7 @@ namespace wiselib {
 				it->active = true;
 				it->last_echo = clock().time();
 				it->beacons_in_row = 1;
-				it->stable = false;
+				it->stable = (1 >= ECHO_TIMES_ACC_NEARBY);
 				it->bidi = false;
 				it->total_beacons++;
 				}

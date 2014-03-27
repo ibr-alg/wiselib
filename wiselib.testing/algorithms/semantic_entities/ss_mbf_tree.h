@@ -420,7 +420,7 @@ namespace wiselib {
 				switch(event) {
 					case Neighborhood::DROPPED_NB:
 					case Neighborhood::LOST_NB_BIDI:
-						debug_->debug("MBF--");
+						//debug_->debug("MBF--");
 						erase_neighbor(from);
 						update_state();
 						notify_receivers();
@@ -430,7 +430,7 @@ namespace wiselib {
 						break;
 
 					case Neighborhood::NEW_PAYLOAD_BIDI: {
-						debug_->debug("MBFpp");
+						//debug_->debug("MBFpp");
 						//debug_->debug("MBF:recv_payload %lu from %lu", (unsigned long)neighborhood_->radio().id(), (unsigned long)from);
 						TreeMessageT &msg = *reinterpret_cast<TreeMessageT*>(data);
 						insert_neighbor(from, msg.parent(), msg.distance());

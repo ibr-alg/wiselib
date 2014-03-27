@@ -206,7 +206,7 @@ namespace wiselib {
 			void update_beacon() {
 				node_id_t target = send_to_address();
 				
-				debug_state();
+				//debug_state();
 				//debug_->debug("TR:set_payload tgt=%lu c[%d]=%lu", (unsigned long)target, (int)sending_upwards(), (unsigned long)token_count());
 				TokenMessageT msg;
 				msg.set_target(target);
@@ -300,7 +300,7 @@ namespace wiselib {
 							neighborhood_->force_beacon();
 						}
 					} // MESSAGE_TYPE_TOKEN
-					debug_state();
+					//debug_state();
 				} // NB_PAYLOAD_BIDI
 
 				check();

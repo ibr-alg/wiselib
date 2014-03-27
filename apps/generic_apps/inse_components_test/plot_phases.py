@@ -9,6 +9,7 @@ from matplotlib import rc
 import sys
 
 from pandas import DataFrame, Series, to_datetime
+from collections import defaultdict
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
 rc('text', usetex=True)
@@ -101,6 +102,7 @@ def fig_phases():
 
     #ax.set_xticklabels([x * PERIOD/8 for x in range(8)])
     ax.set_ylim((-.2,.2))
+    #ax.set_xlim((0, 10000))
     
     #for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
 
@@ -179,7 +181,28 @@ def shift(d):
         if k == 't': d[k] = [float(x) - t0 for x in d[k]]
         elif type(d[k]) == dict: shift(d[k])
 
+def make_relative(node = 'inode019'):
+    global gnodes
+    indices = defaultdict(lambda: 0)
+    done = set()
+    #t = 0
+    #det = 0
+    for t, delta in zip(gnodes[node]['phase']['t'], gnodes[node]['phase']['v']):
+        # advance to t0
+        for k, v in gnodes.items():
+            #if k == node: continue
+            if k in done: continue
+            i = indices[k]
+            while i < len(v['phase']['v']) and v['phase']['t'][i] <= t:
+                v['phase']['v'][i] -= delta
+                i += 1
+            indices[k] = i
+            if i == len(v['phase']['v']):
+                done.add(k)
+
+
 shift(gnodes)
+#make_relative()
 #to_timeseries()
 
 fig_phases()
