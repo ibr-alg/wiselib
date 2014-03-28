@@ -23,7 +23,8 @@
 #include <external_interface/external_interface.h>
 #include "token_message.h"
 
-#define SE_ND_TOKEN_RING_DEBUG_WARN 1
+#define SE_ND_TOKEN_RING_DEBUG_WARN 0
+#define SE_ND_TOKEN_RING_DEBUG 0
 
 namespace wiselib {
 	
@@ -105,7 +106,9 @@ namespace wiselib {
 			}
 
 			void enter_sync_phase() {
-				debug_->debug("TR:esp");
+				#if SE_ND_TOKEN_RING_DEBUG
+					debug_->debug("TR:esp");
+				#endif
 				debug_state();
 				check();
 				in_token_phase_ = false;
@@ -119,7 +122,9 @@ namespace wiselib {
 			}
 
 			bool enter_token_phase() {
+				#if SE_ND_TOKEN_RING_DEBUG
 				debug_->debug("TR:etp");
+				#endif
 				debug_state();
 				check();
 
@@ -133,7 +138,9 @@ namespace wiselib {
 			}
 
 			void leave_token_phase() {
+				#if SE_ND_TOKEN_RING_DEBUG
 				debug_->debug("TR:ltp T%d a%d", (int)has_token(), (int)activity_rounds_);
+				#endif
 				debug_state();
 				check();
 				bool r = has_token();
@@ -260,7 +267,9 @@ namespace wiselib {
 
 							prev_token_count_[use_upwards_token] = msg.token_count();
 
-							debug_->debug("TR:f%lu c%d a%d t%d", (unsigned long)from, (int)msg.token_count(), (int)activity_rounds_, (int)has_token());
+							#if SE_ND_TOKEN_RING_DEBUG
+								debug_->debug("TR:f%lu c%d a%d t%d", (unsigned long)from, (int)msg.token_count(), (int)activity_rounds_, (int)has_token());
+							#endif
 
 							if((activity_rounds_ == 0) && has_token()) {
 								/*
@@ -314,7 +323,8 @@ namespace wiselib {
 			}
 
 			void debug_state() {
-				debug_->debug("TR:c%d,%d|%d,%d u%d a%d T%d p%d",
+				#if SE_ND_TOKEN_RING_DEBUG
+					debug_->debug("TR:c%d,%d|%d,%d u%d a%d T%d p%d",
 						(int)prev_token_count_[0], (int)token_count_[0],
 						(int)prev_token_count_[1], (int)token_count_[1],
 						(int)sending_upwards(),
@@ -322,6 +332,7 @@ namespace wiselib {
 						(int)has_token(),
 						(int)in_token_phase_
 						);
+				#endif
 			}
 
 			/**

@@ -8,7 +8,7 @@ import io
 from matplotlib import rc
 import sys
 
-from pandas import DataFrame, Series, to_datetime
+#from pandas import DataFrame, Series, to_datetime
 from collections import defaultdict
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
@@ -153,7 +153,8 @@ def fig_phases():
             #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], 'k-', label=name, alpha=1,
                     #linewidth=2)
             r, = ax.plot(node['phase']['t'], [1 * x for x in node['phase']['v']] , linestyle='-',
-                    linewidth=2, color='black', alpha=1, label=name)
+                    marker='+',
+                    linewidth=1, color='black', alpha=1, label=name)
         
     #ax.legend(bbox_to_anchor=(1.2, 1.2), loc='upper right')
     ax.grid()

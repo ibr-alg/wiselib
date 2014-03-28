@@ -119,8 +119,10 @@ namespace wiselib {
 				debug_ = debug;
 				distance_ = -1;
 				parent_index_ = npos;
-
-				debug_->debug("TREE INIT @%lu", (unsigned long)this->id());
+				
+				#if SS_MBF_TREE_DEBUG 
+					debug_->debug("TREE INIT @%lu", (unsigned long)this->id());
+				#endif
 
 				neighborhood_->register_payload_space(PAYLOAD_ID);
 				neighborhood_->template reg_event_callback<self_type, &self_type::on_neighborhood_event>(
@@ -395,11 +397,11 @@ namespace wiselib {
 				}
 
 				if((parent() != parent_old) || (distance() != distance_old) || force) {
-					//#if SS_MBF_TREE_DEBUG
+					#if SS_MBF_TREE_DEBUG
 					//if(!force) {
 						debug_->debug("MBF %lu p%lu,%lu d%d,%d", (unsigned long)id(), (unsigned long)parent_old, (unsigned long)parent(), (int)distance_old,  (int)distance());
 					//}
-					//#endif
+					#endif
 
 					// state has actually changed
 					TreeMessageT msg;

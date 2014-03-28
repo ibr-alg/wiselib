@@ -20,6 +20,8 @@
 #ifndef SE_SCHEDULER
 #define SE_SCHEDULER
 
+#define SE_SCHEDULER_DEBUG 0
+
 #include <util/meta.h>
 
 namespace wiselib {
@@ -128,7 +130,9 @@ namespace wiselib {
 					abs_millis_t t_recv = now();
 					last_sync_beacon_ = t_recv - rtt_ / 2 - time_offset;
 
-					debug_->debug("Sc:b%lu", (unsigned long)time_offset);
+					#if SE_SCHEDULER_DEBUG
+						debug_->debug("Sc:b%lu", (unsigned long)time_offset);
+					#endif
 					/*
 					debug_->debug("Sc:recv_payload %lu from parent %lu %lu,%lu,%lu,%lu",
 							(unsigned long)id(), (unsigned long)from,
@@ -155,7 +159,9 @@ namespace wiselib {
 				neighborhood().leave_token_phase();
 				token_ring().leave_token_phase();
 
-				debug_->debug("Sc:esp %lu", (unsigned long)now());
+				#if SE_SCHEDULER_DEBUG
+					debug_->debug("Sc:esp %lu", (unsigned long)now());
+				#endif
 
 				neighborhood().enter_sync_phase();
 				token_ring().enter_sync_phase();
@@ -166,7 +172,9 @@ namespace wiselib {
 
 			void on_enter_token_phase(void *_ = 0) {
 				check();
-				debug_->debug("Sc:etp %lu", (unsigned long)now());
+				#if SE_SCHEDULER_DEBUG
+					debug_->debug("Sc:etp %lu", (unsigned long)now());
+				#endif
 				token_ring().leave_sync_phase();
 				neighborhood().leave_sync_phase();
 
@@ -188,7 +196,9 @@ namespace wiselib {
 				
 				if(!is_root()) {
 					sync_phase_shift_ = last_sync_beacon_ % PERIOD;
-					debug_->debug("sps%lu", (unsigned long)sync_phase_shift_);
+				#if SE_SCHEDULER_DEBUG
+						debug_->debug("sps%lu", (unsigned long)sync_phase_shift_);
+					#endif
 				}
 				
 				// Note that the division here is rounding down which is

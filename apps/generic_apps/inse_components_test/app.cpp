@@ -101,8 +101,8 @@ class ExampleApplication {
 						*radio_, *clock_, *timer_, *rand_, *debug_,
 						130,   // minimal beacon period
 						100,   // add at most this many ms to period randomly
-						20000, // timeout interval
-						500 - 240,   // LQIs below this are good
+						35000, // timeout interval
+						500 - 245,   // LQIs below this are good
 						500 - 180    // LQIs above this are bad
 						);
 				neighborhood_.enable();

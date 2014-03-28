@@ -289,7 +289,9 @@ namespace wiselib {
 	void enable_radio() {
 		if(radio_enabled) { return; }
 
+#ifdef DEBUG_ECHO
 		debug().debug("ON");
+#endif
 		radio().enable_radio();
 		radio_enabled = true;
 #if defined(CONTIKI)
@@ -317,7 +319,9 @@ namespace wiselib {
 	void disable() {
 	    set_status(WAITING);
 
+#ifdef DEBUG_ECHO
 		debug().debug("OFF");
+#endif
 #if defined(CONTIKI)
 		NETSTACK_RDC.off(false);
 #endif
@@ -332,7 +336,9 @@ namespace wiselib {
 	void disable_radio() {
 		if(!radio_enabled) { return; }
 
+#ifdef DEBUG_ECHO
 		debug().debug("OFF");
+#endif
 		radio_enabled = false;
 		//[>
 		radio().disable_radio();
@@ -629,7 +635,9 @@ namespace wiselib {
 	void leave_sync_phase() {
 	    _phase = PHASE_LEFT_SYNC;
 		//debug().debug("%d beacons sent in sync phase, %d changes observed", _beacons_in_sync_phase, _neighborhood_changes);
+#ifdef DEBUG_ECHO
 	    debug().debug("ND:lsp %d %d", (int)_beacons_in_sync_phase, (int)_neighborhood_changes);
+#endif
 	    _neighborhood_changes = 0;
 	    disable_radio();
 	}
@@ -648,7 +656,9 @@ namespace wiselib {
 
 	void leave_token_phase() {
 	    _phase = PHASE_LEFT_TOKEN;
+#ifdef DEBUG_ECHO
 	    debug().debug("ND:ltp %d", _beacons_in_token_phase);
+#endif
 	    //disable_radio(); // will be turned on in sync phase anyway
 	}
 
@@ -678,12 +688,16 @@ namespace wiselib {
 
 		uint32_t time_diff = current_millisec - before_millisec;
 		if (current_millisec < before_millisec) {
+#ifdef DEBUG_ECHO
 			debug_->debug("NDfst %lu<%lu", (unsigned long)current_millisec, (unsigned long)before_millisec);
+#endif
 			time_diff = 0;
 		}
 		bool should_send = false;
 		if (_force_beacon) {
+#ifdef DEBUG_ECHO
 			debug().debug("NBF %lu", (unsigned long)radio().id());
+#endif
 		}
 		//this is set if the beacon was forced
 		//should_send |= _force_beacon;
@@ -847,7 +861,9 @@ namespace wiselib {
 #ifdef ENABLE_LQI_THRESHOLDS
 		//debug().debug("NDB %lu l%d", (unsigned long)from, (int)ex.link_metric());
 	    if (ex.link_metric() > max_lqi_threshold) {
+	#ifdef DEBUG_ECHO
 			debug().debug("NDlqi");
+	#endif
 			return;
 	    }
 #endif
@@ -897,7 +913,9 @@ namespace wiselib {
 					if (!it->bidi) {
 						// He knows us, since now we also know him -> bidi link
 						it->bidi = true;
+					#ifdef DEBUG_ECHO
 						debug().debug("ND+2 %lu l%d", (unsigned long)from, (int)ex.link_metric());
+					#endif
 						notify_listeners(NEW_NB_BIDI, from, 0, 0, 0);
 					}
 
@@ -906,7 +924,9 @@ namespace wiselib {
 					if (it->bidi) {
 						// We know him, but he forgot about us
 						it->bidi = false;
+					#ifdef DEBUG_ECHO
 						debug().debug("ND-2 %lu l%d", (unsigned long)from, (int)ex.link_metric());
+					#endif
 						notify_listeners(LOST_NB_BIDI, from, 0, 0, 0);
 					}
 				}
@@ -1013,7 +1033,9 @@ namespace wiselib {
 #ifdef ENABLE_LQI_THRESHOLDS
 		    if (!it->stable) {
 			if (ex.link_metric() > min_lqi_threshold) {
+			#ifdef DEBUG_ECHO
 				debug().debug("NDxs");
+			#endif
 			    return;
 			}
 		    }
@@ -1042,7 +1064,9 @@ namespace wiselib {
 			//                                        && (it->stability * ((255 + it->inverse_link_assoc)/510) > max_stability_threshold))
 		    {
 			it->stable = true;
+			#ifdef DEBUG_ECHO
 				debug().debug("ND+s %lu l%d", (unsigned long)from, (int)ex.link_metric());
+			#endif
 			notify_listeners(NEW_NB, from, 0, 0);
 		    }
 #else
@@ -1052,7 +1076,9 @@ namespace wiselib {
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
 			// add to the listen only vector
 			it->stable = true;
+			#ifdef DEBUG_ECHO
 				debug().debug("ND+1 %lu l%d", (unsigned long)from, (int)ex.link_metric());
+			#endif
 			notify_listeners(NEW_NB, from, 0, 0, 0);
 #ifdef DEBUG_ECHO
 			//debug().debug("Debug::echo NODE %x can listen messages of %x", radio().id(), from);
@@ -1102,7 +1128,9 @@ namespace wiselib {
 
 			}
 			else {
+			#ifdef DEBUG_ECHO
 				debug().debug("nhood full");
+			#endif
 			}
 
 	    }
@@ -1225,7 +1253,9 @@ namespace wiselib {
 		    //                    remove_from_neighborhood(it);
 		    //                    neighborhood.erase(it);
 		    if (it->stable) {
+			#ifdef DEBUG_ECHO
 				debug().debug("ND- %lu t%lu", (unsigned long)it->id, (unsigned long)last_echo_millisec);
+			#endif
 			//					debug().debug( "::timout NODE %x dropped from neighbors %x", it->id, radio().id(),it->stability);
 			notify_listeners(DROPPED_NB, it->id, 0, 0, 0);
 		    }

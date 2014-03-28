@@ -172,9 +172,9 @@ namespace wiselib {
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data + 1);
 				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
 				if(h_msg != h_check) {
-					//#if defined(SHAWN) || defined(ISENSE)
-					debug_->debug("!C %lu l%d h%x,%x", (unsigned long)from, (int)len, (unsigned)h_msg, (unsigned)h_check);
-					//#endif
+					#if CHECKSUM_RADIO_DEBUG
+						debug_->debug("!C %lu l%d h%x,%x", (unsigned long)from, (int)len, (unsigned)h_msg, (unsigned)h_check);
+					#endif
 					return;
 				}
 				
@@ -182,7 +182,9 @@ namespace wiselib {
 			#if CHECKSUM_RADIO_USE_REVISION
 				revision_t rev = wiselib::read<OsModel, block_data_t, revision_t>(data + 1 + sizeof(hash_t));
 				if(rev != REVISION) {
-					debug_->debug("@%lu %lu !R %lx,%lx", (unsigned long)id(), (unsigned long)from, (unsigned long)REVISION, (unsigned long)rev);
+					#if CHECKSUM_RADIO_DEBUG
+						debug_->debug("@%lu %lu !R %lx,%lx", (unsigned long)id(), (unsigned long)from, (unsigned long)REVISION, (unsigned long)rev);
+					#endif
 					return;
 				}
 			#endif
