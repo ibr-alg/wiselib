@@ -76,6 +76,8 @@ extern "C" {
  */
 #define ECHO_TIMES_ACC_NEARBY 1 // 2 does not work in the iminds testbed apparently (exp 25341)
 
+#define ECHO_CONTROL_RADIO 1
+#define ECHO_ENABLE_SENDING 1
 
 namespace wiselib {
 
@@ -241,7 +243,7 @@ namespace wiselib {
 	    /**
 	     * Enable normal radio and register the receive callback.
 	     */
-#if defined(CONTIKI)
+#if defined(CONTIKI) && ECHO_CONTROL_RADIO
 	    NETSTACK_RDC.on();
 #endif
 	    radio().enable_radio();
@@ -294,7 +296,7 @@ namespace wiselib {
 #endif
 		radio().enable_radio();
 		radio_enabled = true;
-#if defined(CONTIKI)
+#if defined(CONTIKI) && ECHO_CONTROL_RADIO
 	    NETSTACK_RDC.on();
 #endif
 #if CONTIKI_TARGET_sky && USE_LEDS
@@ -322,7 +324,7 @@ namespace wiselib {
 #ifdef DEBUG_ECHO
 		debug().debug("OFF");
 #endif
-#if defined(CONTIKI)
+#if defined(CONTIKI) && ECHO_CONTROL_RADIO
 		NETSTACK_RDC.off(false);
 #endif
 
@@ -342,7 +344,8 @@ namespace wiselib {
 		radio_enabled = false;
 		//[>
 		radio().disable_radio();
-#if defined(CONTIKI)
+#if defined(CONTIKI) && ECHO_CONTROL_RADIO
+		// Turn MAC protocol off (.off) and radio off (false)
 	    NETSTACK_RDC.off(false);
 #endif
 
@@ -786,7 +789,9 @@ namespace wiselib {
 		#if SHAWN
 			debug().debug("SND %lu %lu", (unsigned long)time_diff, (unsigned long)radio().id());
 		#endif
+		#if ECHO_ENABLE_SENDING
 			radio().send(Radio::BROADCAST_ADDRESS, echomsg.buffer_size(), (uint8_t *) & echomsg);
+		#endif
 			//radio().send(0x00158d0000148ed8ULL, echomsg.buffer_size(), (uint8_t *) &echomsg);
 			change_beacon_counters();
 		}

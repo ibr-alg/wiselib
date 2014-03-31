@@ -18,12 +18,17 @@ fi
 #rsync -CHaPx $USER@$HOST:$LOGS_DIR/$EXP_ID $EXP_DIR
 #rsync -CHaPx $USER@$HOST:$LOGS_DIR/ ./
 
+
+echo "SHOW TABLES;" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann"|grep $EXP_ID
+
+echo entries for $EXP_ID:
+echo "SELECT count(*) FROM AD_INSE_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann"
+echo press enter
+read
+
 echo Dumping SQL databases for experiment $EXP_ID ....
 
-
-#echo "SHOW TABLES;" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann"
-
-echo "SELECT min,max,avg,motelabMoteID FROM AD_INSE_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann" > ./${EXP_ID}.csv.tmp
+echo "SELECT min,max,avg,motelabMoteID FROM AD_INSE_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann" > ./${EXP_ID}.csv
 
 #echo "SELECT * FROM AD_INSE_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann > /tmp/${EXP_ID}.csv"
 

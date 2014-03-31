@@ -68,6 +68,9 @@ class ExampleApplication {
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet(value);
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet(value);
 
+			#if defined(CONTIKI)
+				NETSTACK_RDC.on();
+			#endif
 			radio_->enable_radio();
 
 			rand_->srand(radio_->id());

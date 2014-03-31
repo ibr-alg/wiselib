@@ -1,0 +1,38 @@
+
+		energy	3	contikimac8		nullmac
+		energy	3	xmac8			nullmac
+		energy	3	cxmac16			nullmac
+		energy	3	cxmac8			nullmac
+
+
+25474	energy	3	contikimac16	nullmac		NOOFF,NOSEND,NOLEDS		somewhat short
+25475	energy	3	contikimac16	nullmac		NOLEDS	
+25476	energy	3	contikimac16	CSMA		NOLEDS	
+25479	energy	3	nullrdc			nullmac		NOLEDS					worked, but not really good
+25480	energy	3	nullrdc			nullmac		NOLEDS		
+
+25481	energy	3	contikimac16	nullmac		NOOFF,NOSEND,NOLEDS		same as with INSE
+25482	energy	3	xmac16			nullmac		NOOFF,NOSEND,NOLEDS		
+25487	energy	3	xmac16			nullmac		NOLEDS					worse than quiet xmac
+25488	energy	3	xmac16			CSMA		NOLEDS					WIP
+
+
+
+# crap pile
+
+25478	energy	3	nullrdc			nullmac		NOLEDS		failed. didnt really duty cycle?!
+25458	energy	3A	nullrdc			nullmac
+25464	energy	3A	contikimac16	nullmac
+25465	energy	3	nullrdc			nullmac		failed. db problem in gent?
+25466	energy	3	nullrdc			nullmac
+25467	energy	3	contikimac16	nullmac		failed. db problem again?
+25468	energy	3	contikimac16	nullmac		failed (db full)
+25469	energy	3	contikimac16	nullmac		
+25470	energy	3	xmac16			nullmac
+25471	energy	3	nullrdc			nullmac		NOOFF
+25472	energy	3	contikimac16	nullmac		NOOFF
+25473	energy	3	contikimac16	nullmac		NOOFF,NOSEND
+25477	energy	3	nullrdc			CSMA		NOLEDS
+
+# vim: set ts=4 sw=4 noexpandtab:
+
