@@ -56,6 +56,7 @@ extern "C" {
  * Echo::<task> [ type= ...]
  */
 
+
 //#define DEBUG_ECHO
 //#define DEBUG_ECHO_EXTRA
 //#define DEBUG_PIGGYBACKING
@@ -76,7 +77,7 @@ extern "C" {
  */
 #define ECHO_TIMES_ACC_NEARBY 1 // 2 does not work in the iminds testbed apparently (exp 25341)
 
-#define ECHO_CONTROL_RADIO 1
+#define ECHO_CONTROL_RADIO 0
 #define ECHO_ENABLE_SENDING 1
 
 namespace wiselib {
