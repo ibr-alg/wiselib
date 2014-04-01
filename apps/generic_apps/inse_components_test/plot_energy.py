@@ -10,6 +10,7 @@ import io
 from matplotlib import rc
 import sys
 import time
+from matplotlib import ticker
 
 # seconds
 MEASUREMENT_INTERVAL = 64.0 / 3000.0
@@ -21,8 +22,8 @@ CURRENT_FACTOR = 70.0 / 4095.0
 CURRENT_DISPLAY_FACTOR = 3300.0
 
 # mA
-#IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
-    #+ 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) #/ 20.0
+IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
+        + 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) / 20.0
 #print(IDLE_CONSUMPTION)
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
@@ -57,7 +58,7 @@ def parse(fn):
             '25470.csv': set([10033, 10030]),
             '25473.csv': set([10039]),
             '25474.csv': set([10027, 10041]),
-            '25475.csv': set([10031]),
+            '25475.csv': set([10031, 10027, 10037, 10044]),
             '25476.csv': set([]),
             '25477.csv': set([10007,10010,10023,10046,10047]),
             '25478.csv': set([10042,10018,10008,10025]),
@@ -66,7 +67,8 @@ def parse(fn):
             '25487.csv': set([10037, 10031, 10009, 10038]),
             '25488.csv': set([10009, 10199]),
             '25489.csv': set([]),
-            '25516.csv': set([10027]),
+            '25493.csv': set([10037, 10044]),
+            '25516.csv': set([10027, 10050, 10042, 10037, 10044]),
             '25515.csv': set([10010]),
     }.get(fn, set())
 
@@ -106,7 +108,7 @@ def plot(ax, vs, name, style):
     #ax.plot(ts, vs, color='#aadddd')
 
     vs = moving_average(vs, int(60.0 / MEASUREMENT_INTERVAL)) # avg over 10s
-    ax.plot(ts, vs, label=name) #, **style)
+    ax.plot(ts, vs, label=name, **style)
 
     #ax.plot([0, ts[-1]], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], color='#ff9999', linewidth=3)
 
@@ -124,14 +126,14 @@ def plotone(vs, name):
     ax.set_xlabel('$t$ / s')
     #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
     #ax.set_xlim((600, 1000))
-    ax.set_xlim((760, 850))
+    #ax.set_xlim((760, 850))
     #ax.set_ylim((0, 2))
     #for k, vs in d.items():
     ts = np.arange(len(vs)) * MEASUREMENT_INTERVAL
     vs = vs * CURRENT_FACTOR
     #ax.plot(ts, vs, color='#aadddd')
 
-    vs = moving_average(vs, int(0.1 / MEASUREMENT_INTERVAL)) # avg over 10s
+    vs = moving_average(vs, int(1.0 / MEASUREMENT_INTERVAL)) # avg over 10s
     #ax.set_xlim((500, 510))
     ax.plot(ts, vs, 'k-')
     ax.grid()
@@ -154,22 +156,24 @@ data = [
 
         #('ContikiMAC Quiet NOLED @40', parse('25481.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
         #('ContikiMAC Quiet NOLED @40', parse('25474.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        ('ContikiMAC Loud NOLED @40', parse('25493.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
-        ('AINSE \& ContikiMAC NOLED @40', parse('25475.csv'), {'color': 'black', 'linestyle': '-.', 'linewidth': 1}),
 
-        ('NullRDC Loud @40', parse('25515.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
+        # XXX
+        ('No Scheduling', parse('25515.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 2}),
+        ('AINSE', parse('25516.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
+        ('ContikiMAC', parse('25493.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
+        ('AINSE \& ContikiMAC', parse('25475.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+
+        #('LPP', parse('25520.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
         #('NullRDC Loud 2 @40', parse('25518.csv'), {}),
         #('AINSE NOLED @40', parse('25480.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
-        ('AINSE NOLED 2 @40', parse('25516.csv'), {'color': 'black',
-            'linestyle': '-'}),
 
         # XMAC
         # Problem: XMAC seems to sometimes leave the radio *completely* on for
         # a whole token phase --> BUG?
         #('XMAC Quiet NOLED @40', parse('25482.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('AINSE \& XMAC NOLED @40', parse('25487.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+        #('AINSE \& XMAC', parse('25487.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
         #('AINSE \& XMAC CSMA NOLED @40', parse('25488.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('XMAC Loud NOLED @40', parse('25489.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+        #('XMAC', parse('25489.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
 ]
 
 fig = plt.figure(figsize=fs)
@@ -177,6 +181,12 @@ ax = fig.add_subplot(111)
 #ax.set_ylim((0, 10))
 ax.set_ylabel('$I$ / mA')
 ax.set_xlabel('$t$ / s')
+
+ax.set_xlim((0, 3600))
+ax.set_yscale('log')
+ax.set_ylim((.7, 21))
+ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+ax.yaxis.set_minor_formatter(ticker.FormatStrFormatter('%.1f'))
 
 for label, d, style in data:
     l = min((len(x) for x in d.values() if len(x)))
@@ -189,8 +199,13 @@ for label, d, style in data:
 
     plot(ax, sums / len(d), label, style)
 
-ax.grid()
-ax.legend() #bbox_to_anchor=(1.2, 1.2), loc='upper right')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 2')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 3')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 4')
+
+ax.grid(True, which='both')
+ax.legend(bbox_to_anchor=(1.0, 0.9), loc='upper right')
 #ax.legend(loc='upper right')
 
 fig.savefig('energy_sum.png')
