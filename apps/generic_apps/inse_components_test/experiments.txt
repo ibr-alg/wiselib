@@ -18,6 +18,10 @@
 25489	energy	3	xmac16			nullmac		NOOFF,NOLEDS			
 25493	energy	3	contikimac16	nullmac		NOOFF,NOLEDS			
 
+25520	energy	3	lpp16			nullmac		NOOFF,NOLEDS			didnt work (on most of the time)
+25577	energy	3	cxmac16			nullmac		NOLEDS			
+25578	energy	3	cxmac16			nullmac		NOOFF,NOLEDS			
+
 
 25515	energy	3	nullrdc			nullmac		NOOFF,NOLEDS		
 25518	energy	3	nullrdc			nullmac		NOOFF,NOLEDS		
