@@ -49,7 +49,26 @@ def parse(fn):
         data = np.genfromtxt(fn, delimiter = '\t', skip_header=0, names=True, usecols=('avg','motelabMoteID'),
                 dtype=[('avg', 'i4'), ('motelabMoteID', 'i4')])
 
-    blacklist = set([10019]) | {
+    energy_measurements_broken = set([
+        10004, 10037, 10044
+    ])
+
+    # Nodes that did not connect (permanently) in 3600s
+    always_active = set([
+        10008, 10009, 10013, 10050
+    ])
+
+    # Nodes that consume energy as if the radio was permanently on when
+    # a MAC layer should have been active
+    high_energy =  set([
+        10042
+    ])
+
+    root = set([
+        10019
+    ])
+
+    blacklist = root | energy_measurements_broken | always_active | {
             '25458.csv': set([10029]),
             '25464.csv': set([10005, 10010]),
             '25465.csv': set([10005, 10017]),
@@ -70,6 +89,7 @@ def parse(fn):
             '25493.csv': set([10037, 10044]),
             '25516.csv': set([10027, 10050, 10042, 10037, 10044]),
             '25515.csv': set([10010]),
+            '25577.csv': set([10014, 10007, 10004, 10037, 10044]),
     }.get(fn, set())
 
     with Timer('refudelling'):
@@ -78,6 +98,8 @@ def parse(fn):
         for avg, mote_id in data:
             if mote_id not in blacklist:
                 d[mote_id].append(avg)
+
+    print("  considered {} motes".format(len(d)))
 
     with Timer('converting'):
         for k in d.keys():
@@ -93,6 +115,7 @@ def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     #ret[n:] = ret[n:] - ret[:-n]
     ret[n:] = ret[n:] - ret[:-n]
+    ret[:n] *= n
     #ret[n:] = ret[n:] / n
     #return ret[n - 1:] / n
     return ret / n
@@ -125,7 +148,7 @@ def plotone(vs, name):
     ax.set_ylabel('$I$ / mA')
     ax.set_xlabel('$t$ / s')
     #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
-    #ax.set_xlim((600, 1000))
+    ax.set_xlim((600, 1000))
     #ax.set_xlim((760, 850))
     #ax.set_ylim((0, 2))
     #for k, vs in d.items():
@@ -133,12 +156,12 @@ def plotone(vs, name):
     vs = vs * CURRENT_FACTOR
     #ax.plot(ts, vs, color='#aadddd')
 
-    vs = moving_average(vs, int(1.0 / MEASUREMENT_INTERVAL)) # avg over 10s
+    vs = moving_average(vs, int(0.1 / MEASUREMENT_INTERVAL)) # avg over 10s
     #ax.set_xlim((500, 510))
     ax.plot(ts, vs, 'k-')
     ax.grid()
-    #fig.savefig('energy_{}.pdf'.format(name), bbox_inches='tight', pad_inches=.1)
-    fig.savefig('energy_{}.png'.format(name))
+    fig.savefig('energy_{}.pdf'.format(name), bbox_inches='tight', pad_inches=.1)
+    fig.savefig('energy_{}.png'.format(name), bbox_inches='tight', pad_inches=.1)
     plt.close(fig)
 
 data = [
@@ -162,6 +185,8 @@ data = [
         ('AINSE', parse('25516.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
         ('ContikiMAC', parse('25493.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
         ('AINSE \& ContikiMAC', parse('25475.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+        ('AINSE \& CXMAC', parse('25577.csv'), {'color': '#808080', 'linestyle': '-', 'linewidth': 2}),
+        ('CXMAC', parse('25578.csv'), {'color': '#808080', 'linestyle': '--', 'linewidth': 2}),
 
         #('LPP', parse('25520.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
         #('NullRDC Loud 2 @40', parse('25518.csv'), {}),
@@ -205,7 +230,7 @@ for label, d, style in data:
 #ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 4')
 
 ax.grid(True, which='both')
-ax.legend(bbox_to_anchor=(1.0, 0.9), loc='upper right')
+ax.legend(bbox_to_anchor=(1.0, .95), loc='upper right')
 #ax.legend(loc='upper right')
 
 fig.savefig('energy_sum.png')
