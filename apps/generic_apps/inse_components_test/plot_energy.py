@@ -113,12 +113,9 @@ def moving_average(a, n=3) :
     sauce: http://stackoverflow.com/questions/14313510/moving-average-function-on-numpy-scipy
     """
     ret = np.cumsum(a, dtype=float)
-    #ret[n:] = ret[n:] - ret[:-n]
-    ret[n:] = ret[n:] - ret[:-n]
-    ret[:n] *= n
-    #ret[n:] = ret[n:] / n
-    #return ret[n - 1:] / n
-    return ret / n
+    ret[n:] = (ret[n:] - ret[:-n]) / n
+    ret[:n] = ret[:n] / (np.arange(n) + 1)
+    return ret
 
 def plot(ax, vs, name, style):
     print("plotting {}...".format(name))
