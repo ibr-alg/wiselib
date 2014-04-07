@@ -27,6 +27,10 @@ fs = (8, 3)
 PERIOD = 10.0
 t0 = None
 
+aggregate_values = 3
+
+blacklist = set(['inode042', 'inode051', 'inode050'])
+
 def parse(f):
     global gnodes, parents
     global t0
@@ -80,12 +84,23 @@ def parse(f):
         if m is not None:
             nodename, = m.groups()
             name = nodename
+            if name in blacklist: continue
+
             if name not in nodes: nodes[name] = {}
             if 'phase' not in nodes[name]:
                 nodes[name]['phase'] = {'t':[], 'v': []}
+                nodes[name]['phasetmp'] = {'t':[], 'v': []}
             #print(t, float(t) % PERIOD)
-            nodes[name]['phase']['t'].append(t)
-            nodes[name]['phase']['v'].append(float(t) % PERIOD)
+            nodes[name]['phasetmp']['t'].append(t)
+            nodes[name]['phasetmp']['v'].append(float(t) % PERIOD)
+            #nodes[name]['phase']['t'].append(t)
+            #nodes[name]['phase']['v'].append(float(t) % PERIOD)
+
+            #delta = nodes[name]['phasetmp']['t'][-1] - nodes[name]['phasetmp']['t'][0]
+            if len(nodes[name]['phasetmp']['t']) > aggregate_values:
+                nodes[name]['phase']['t'].append(nodes[name]['phasetmp']['t'][0])
+                nodes[name]['phase']['v'].append(avg(nodes[name]['phasetmp']['v']) % PERIOD)
+                nodes[name]['phasetmp'] = {'t':[], 'v': []}
 
 def avg(l):
     return sum(l) / len(l)
@@ -101,7 +116,7 @@ def fig_phases():
     F = 2.0 * math.pi / PERIOD
 
     #ax.set_xticklabels([x * PERIOD/8 for x in range(8)])
-    ax.set_ylim((-.2,.2))
+    #ax.set_ylim((-.2,.2))
     #ax.set_xlim((0, 10000))
     
     #for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
@@ -124,7 +139,8 @@ def fig_phases():
 
 
     for name, node in sorted(nodes.items()):
-        if 'phase' in node : #and name in ('inode019','inode015', 'inode018'):
+        if 'phase' in node and (name not in roots): #and name in ('inode019','inode015', 'inode018'):
+            print(name, min(node['phase']['v']), max(node['phase']['v']))
         #if 'phase' in node and name in ('1','10', '38', '23'):
             #print(len(node['phase']['v']), len(node['phase']['t']))
             #if name in roots:
@@ -132,20 +148,20 @@ def fig_phases():
                         #linewidth=2)
 
             #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], color='#ff9999', linestyle='-', label=name, alpha=.5)
-            r, = ax.plot(node['phase']['t'], [1 * x for x in node['phase']['v']] , marker='+', linestyle='', color='#cc7777', alpha=.5, label=name,
+            r, = ax.plot(node['phase']['t'], [1 * x for x in node['phase']['v']] , marker='+', linestyle=' ', color='#cc7777', alpha=1, label=name,
                     )
 
-        else:
-            #print(dir(node))
-            #print(node.index[:5])
-            print(dir(node.index[0]))
-            v = node.values * F
-            #print(v)
-            #print([x.toordinal() for x in node.index])
-            print(node.index)
-            print(type(node.index[0]))
-            print([x.timestamp() for x in node.index])
-            r, = ax.plot(v, [x.timestamp() for x in node.index], '-', label=name)
+        #else:
+            ##print(dir(node))
+            ##print(node.index[:5])
+            #print(dir(node.index[0]))
+            #v = node.values * F
+            ##print(v)
+            ##print([x.toordinal() for x in node.index])
+            #print(node.index)
+            #print(type(node.index[0]))
+            #print([x.timestamp() for x in node.index])
+            #r, = ax.plot(v, [x.timestamp() for x in node.index], '-', label=name)
 
     for name in roots:
         if name in nodes:
@@ -153,7 +169,7 @@ def fig_phases():
             #r, = ax.plot([F*x for x in node['phase']['v']], node['phase']['t'], 'k-', label=name, alpha=1,
                     #linewidth=2)
             r, = ax.plot(node['phase']['t'], [1 * x for x in node['phase']['v']] , linestyle='-',
-                    marker='+',
+                    marker=' ',
                     linewidth=1, color='black', alpha=1, label=name)
         
     #ax.legend(bbox_to_anchor=(1.2, 1.2), loc='upper right')
