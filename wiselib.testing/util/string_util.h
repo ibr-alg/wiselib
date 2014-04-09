@@ -41,6 +41,7 @@ namespace wiselib {
 		return (n < 10) ? ('0' + n) : ('a' + n - 10);
 	}
 	
+#if STRING_UTIL_USE_ALLOC
 	/**
 	 * Allocate memory large enough for the concatenation
 	 * of s1 and s2 and copy that concatenation to it.
@@ -51,12 +52,13 @@ namespace wiselib {
 	char *alloc_strcat(char* s1, char* s2) {
 		size_t l1 = strlen(s1), l2 = strlen(s2);
 			
-		char *r = get_allocator().allocate_array<char>(l1 + l2 + 1) .raw();
+		char *r = ::get_allocator().allocate_array<char>(l1 + l2 + 1) .raw();
 		memcpy((void*)r, (void*)s1, l1);
 		memcpy((void*)(r + l1), (void*)s2, l2);
 		r[l1 + l2] = '\0';
 		return r;
 	}
+#endif
 	
 	long atol(char *s) {
 		long r = 0;
@@ -73,7 +75,7 @@ namespace wiselib {
 		Value v2 = v;
 		//int base = 10;
 		for( ; v2; digits++) { v2 /= base; }
-		if(digits >= buflen) { return 0; }
+		if((unsigned long)digits >= buflen) { return 0; }
 		
 		buffer[digits + 1] = '\0';
 		for( ; digits; digits--) {

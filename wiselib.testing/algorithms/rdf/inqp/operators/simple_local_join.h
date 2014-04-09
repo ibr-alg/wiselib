@@ -100,13 +100,17 @@ namespace wiselib {
 				
 				if(&row) {
 					if(port == Base::CHILD_LEFT) {
-						GET_OS.debug("SLJl %d", (int)this->id_);
+						//#if defined(ISENSE)
+							printf("SLJl %d\n", (int)this->id_);
+						//#endif
 						left_++;
 						table_.insert(row);
 					}
 					else {
 						right_++;
-						GET_OS.debug("SLJr %d", (int)this->id_);
+						//#if defined(ISENSE)
+							printf("SLJr %d\n", (int)this->id_);
+						//#endif
 						ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);
 						ProjectionInfo<OsModel>& r = this->child(Base::CHILD_RIGHT);
 						
@@ -164,7 +168,9 @@ namespace wiselib {
 					} // else port = left
 				} // if row
 				else if(port == Base::CHILD_RIGHT) {
-					GET_OS.debug("slj %d push l %d r %d", (int)this->id_, (int)left_, (int)right_);
+					//#if defined(ISENSE)
+						printf("slj %d push l %d r %d\n", (int)this->id_, (int)left_, (int)right_);
+					//#endif
 					left_ = 0;
 					right_ = 0;
 					table_.clear();

@@ -53,13 +53,14 @@ class Tuple {
 		void set_key(size_type i, ::uint32_t k) {
 			data_[i] = 0;
 			// TODO
-			*reinterpret_cast< ::uint32_t*>(data_ + i) = k;
-			//data_[i] = k;
+			//*reinterpret_cast< ::uint32_t*>(data_ + i) = k;
+			data_[i] = (typename ::Uint<sizeof(block_data_t*)>::t)k;
 		}
 		
 		::uint32_t get_key(size_type i) const {
 			// TODO
-			return *reinterpret_cast<const ::uint32_t*>(data_ + i);
+			//return *reinterpret_cast<const ::uint32_t*>(data_ + i);
+			return (typename ::Uint<sizeof(block_data_t*)>::t)( data_[i]);
 		}
 		
 		void set(size_type i, block_data_t* data) {

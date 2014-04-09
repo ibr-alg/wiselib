@@ -1,0 +1,34 @@
+TL_COMPONENT=TeenyTest
+WORKING_DIR = .
+COMPONENT = $(WORKING_DIR)/TL_$(TL_COMPONENT)
+TL_DIR = /home/wiselib/teenylime/tl
+TL_OBJECT_FILE = tl_objs
+TLPFLAGS = -K
+CFLAGS += -DPRINTF_SUPPORT
+include $(TL_DIR)/Makefile
+
+PFLAGS += -I./ -I./config 
+CFLAGS += -I$(TOSDIR)/lib/printf/ 
+CFLAGS += -DNOACK_LOW_POWER_LISTENING
+CFLAGS += -DTL_LPL
+
+
+include $(TL_DIR)/system/tmote/Makefile
+
+#COMPONENT=TeenyLimeAppC
+#PFLAGS += -fnesc-separator=__
+
+
+include $(MAKERULES)
+
+#all: tinyos-telosb-teenylime
+
+#export APP_SRC=app_teeny.cpp
+#export BIN_OUT=app_database
+#export ADD_CXXFLAGS="-DTINYOS_USER_COMPONENT"
+#export ADD_CFLAGS="-DTINYOS_USER_COMPONENT"
+#export ADD_LDFLAGS=-Wl,-lc -Wl,-L/opt/mspgcc/lib
+
+#include ../Makefile
+
+

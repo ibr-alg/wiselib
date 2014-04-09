@@ -52,7 +52,7 @@
 namespace wiselib {
 	
 	namespace {
-		enum { BUFFER_SIZE = 256 }; // should be enough for 19200 Baud (technically 20 should suffice)
+		enum { BUFFER_SIZE = 256 * 4 * 4 }; // should be enough for 19200 Baud (technically 20 should suffice)
 	}
 	
 	/** \brief Uart model for PC
@@ -229,9 +229,9 @@ namespace wiselib {
 			}
 		} while(written < len);
 		
-		#if PC_COM_UART_DEBUG >= 100
+		//#if PC_COM_UART_DEBUG >= 100
 		std::cout << "[pc_com_uart] wrote: " << len << " bytes." << std::endl;
-		#endif
+		//#endif
 		
 		// Unblock SIGALRM.
 		if( sigismember( &old_signal_set, SIGALRM ) == 0 )
@@ -281,9 +281,9 @@ namespace wiselib {
 		
 			self_type::notify_receivers(bytes, buffer);
 			
-			#if PC_COM_UART_DEBUG >= 100
+			//#if PC_COM_UART_DEBUG >= 100
 			std::cout << "[pc_com_uart] try_read read " << bytes << " bytes.\n";
-			#endif
+			//#endif
 		
 		}
 
@@ -298,7 +298,8 @@ namespace wiselib {
 			}
 		}
 
-		timer_.template set_timer<self_type, &self_type::try_read>(10, this, 0);
+		//timer_.template set_timer<self_type, &self_type::try_read>(10, this, 0);
+		timer_.template set_timer<self_type, &self_type::try_read>(1, this, 0);
 	} // try_read
 	
 } // ns wiselib

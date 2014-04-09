@@ -1,8 +1,8 @@
 # ----------------------------------------
 # Environment variable WISELIB_PATH needed
 # ----------------------------------------
-
-all: pc
+all: contiki_sky
+#all: pc
 # all: scw_msb
 # all: contiki_msb
 # all: contiki_micaz

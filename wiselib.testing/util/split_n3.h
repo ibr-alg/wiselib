@@ -80,7 +80,7 @@ namespace wiselib {
 			
 			char* parse_literal(char*& p) {
 				bool escaped = false;
-				size_type loss = 0; // how many chars did we cut out due to escaping?
+				//size_type loss = 0; // how many chars did we cut out due to escaping?
 				char *r = p;
 				p++;
 				for( ; *p; p++) {

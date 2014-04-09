@@ -45,8 +45,8 @@
 	#define UIP_CONF_BROADCAST 0
 
 	#undef NETSTACK_CONF_MAC
-	#define NETSTACK_CONF_MAC nullmac_driver
-	//#define NETSTACK_CONF_MAC csma_driver
+	//#define NETSTACK_CONF_MAC nullmac_driver
+	#define NETSTACK_CONF_MAC csma_driver
 
 	#undef NETSTACK_CONF_RDC
 	#define NETSTACK_CONF_RDC nullrdc_driver
@@ -60,6 +60,10 @@
 	#define NETSTACK_RDC_CHANNEL_CHECK_RATE 16
 	
 
+//#define DB_FEATURE_COFFEE 0
+//#define DB_MAX_ELEMENT_SIZE 120
+//#define DB_MAX_CHAR_SIZE_PER_ROW 360
+//#define AQL_MAX_QUERY_LENGTH 360
 	
 #endif // PROJECT_CONF_H
 

@@ -106,6 +106,8 @@ namespace wiselib
       int idx = 0;
       unsigned char cbytes[40];
 
+	  //printf("UART%dL\n", (int)len);
+
       for ( int i = 0; i < len; i += 2  )
       {
          cbytes[idx] = decodeBase64( &data[i] );

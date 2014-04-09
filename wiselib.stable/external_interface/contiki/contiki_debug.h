@@ -25,6 +25,7 @@
 #include <stdio.h>
 extern "C" {
 #include "contiki.h"
+#include <clock.h>
 }
 
 namespace wiselib
@@ -68,6 +69,7 @@ namespace wiselib
       vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
       va_end( fmtargs );
       printf( "%s\n", buffer );
+clock_wait(10);
    }
 }
 

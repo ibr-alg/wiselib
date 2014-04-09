@@ -5,9 +5,9 @@
 namespace wiselib {
 	
 	/**
-	 * insert: O(1)
-	 * find: O(n)
-	 * erase: O(1)
+	 * insert: 1 push_back() (usually O(1))
+	 * find: vector.find() (usually O(n))
+	 * erase: item set & pop_back (usualy both O(1))
 	 */
 	template<
 		typename OsModel_P,
@@ -31,8 +31,8 @@ namespace wiselib {
 			bool empty() { return size() == 0; }
 			
 			iterator insert(value_type& v) {
-				iterator it = find(v);
-				if(it != end()) { return it; }
+			//	iterator it = find(v);
+			//	if(it != end()) { return it; }
 				
 				vector_.push_back(v);
 				return end() - (typename OsModel::size_t)1;

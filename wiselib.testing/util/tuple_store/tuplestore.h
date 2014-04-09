@@ -23,7 +23,12 @@ namespace wiselib {
 			template<int COLUMNS_P, typename T1, typename T2>
 			void deep_copy(T1& t1, T2& t2) {
 				for(int i=0; i<COLUMNS_P; i++) {
-					t1.set_deep(i, t2.get(i));
+					if(t2.get(i)) {
+						t1.set_deep(i, t2.get(i));
+					}
+					else {
+						t1.free_deep(i);
+					}
 				}
 			}
 		
@@ -517,10 +522,11 @@ namespace wiselib {
 				return iterator(ci, container_->end(), dictionary_, 0, 0);
 			} // insert()
 			
+
 			iterator erase(iterator iter) {
 				assert(iter != end());
 
-				// backup query and mask
+				// backup query and mask into $q and $mask
 				Tuple q = iter.query();
 				column_mask_t mask = iter.mask();
 				
@@ -529,17 +535,21 @@ namespace wiselib {
 				// else it might reference a cached memory block
 				// which might be re-used differently in the meantime
 				// due to calls to dict->erase!
+
+				// Make $t be a (shallow) copy of the tuple to iterate
 				Tuple t = *iter.container_iterator();
 
+				// Erase the contents referenced by $t.
+				// That is, erase dictionary entries and free deep-copies.
 				for(size_type i=0; i<COLUMNS; i++) {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						dictionary_->erase(t.get_key(i));
 						t.set_key(i, Dictionary::NULL_KEY);
 					}
+					else {
+						t.free_deep(i);
+					}
 				}
-				
-				// deeply destruct container tuple
-				t.destruct_deep();
 				
 				// now remove tuple from the container, yielding a new iterator
 				ContainerIterator nextc = container_->erase(iter.container_iterator());
@@ -549,7 +559,7 @@ namespace wiselib {
 						dictionary_, 0, 0
 					);
 				
-				// restore query and mask into new iterator
+				// restore query $q and $mask into new iterator
 				for(size_t i=0; i<COLUMNS; i++) {
 					if(mask & (1 << i)) {
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
@@ -656,7 +666,9 @@ namespace wiselib {
 						// is it a dict column?
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 							key_type k = dictionary_->find(from.get(i));
-							if(k == Dictionary::NULL_KEY) { return ERR_UNSPEC; }
+							if(k == Dictionary::NULL_KEY) {
+								return ERR_UNSPEC;
+							}
 							
 							to.set_key(i, k); // to_bdt(k));
 						}
@@ -740,8 +752,13 @@ namespace wiselib {
 				
 				typename TupleContainer::size_type sz = container_->size();
 				ContainerIterator ci = container_->insert(t);
+
 				if(container_->size() == sz) {
-					tmp.destruct_deep();
+					// Container size didnt change, i.e.
+					// this tuple was either already in there or
+					// it was full. In any case the deep contents of $tmp are not
+					// needed anymore!
+					//tmp.destruct_deep();
 				}
 				
 				return iterator(ci, container_->end(), 0, 0);
@@ -785,14 +802,15 @@ namespace wiselib {
 			iterator begin(Tuple* query = 0, column_mask_t mask = 0) {
 				iterator r;
 				
-				for(size_type i=0; i<COLUMNS; i++) {
-					if(query->get(i)) {
-						r.query_.set_deep(i, query->get(i));
-					}
-					else {
-						r.query_.free_deep(i);
-					}
-				}
+				//for(size_type i=0; i<COLUMNS; i++) {
+					//if(query->get(i)) {
+						//r.query_.set_deep(i, query->get(i));
+					//}
+					//else {
+						//r.query_.free_deep(i);
+					//}
+				//}
+				TupleStore_detail::deep_copy<COLUMNS>(r.query_, query);
 				
 				r.container_iterator_ = container_->begin();
 				r.container_end_ = container_->end();

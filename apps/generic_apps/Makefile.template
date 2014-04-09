@@ -3,7 +3,7 @@
 #####                        Wiselib                                    #####
 #############################################################################
 
-export WISELIB_BASE=/home/henning/wiselib
+export WISELIB_BASE=/home/wiselib/wiselib
 export WISELIB_PATH=$(WISELIB_BASE)/wiselib.stable
 export WISELIB_PATH_TESTING=$(WISELIB_BASE)/wiselib.testing
 
@@ -50,7 +50,7 @@ export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -llegacyapps -lapps_exampleslib \
 #####                        iSense                                     #####
 #############################################################################
 
-export ISENSE_PATH=/home/username/isense_sdk/iSense
+export ISENSE_PATH=/home/sensor-os/isense/isense_sdk/iSense
 export JENNIC_TOOLCHAIN_JN5139=/opt/ba-elf/bin/
 export JENNIC_TOOLCHAIN_JN5148=/opt/ba-elf2/bin/
 
@@ -59,7 +59,7 @@ export JENNIC_TOOLCHAIN_JN5148=/opt/ba-elf2/bin/
 #####                        Contiki                                    #####
 #############################################################################
 
-export CONTIKI_PATH=/home/username/contiki-2.4
+export CONTIKI_PATH=/home/wiselib/sensor-os/contiki-2.6
 export MSP430_JTAG=/home/username/mspgcc/python/msp430-jtag.py
 
 
@@ -75,17 +75,17 @@ export PC_LDFLAGS = -lpthread
 #####                        LorienOS                                   #####
 #############################################################################
 
-export LORIEN=/home/username/lorienos
+export LORIEN=/home/wiselib/sensor-os/lorienos
 
 #############################################################################
 #####                            NS-3                                   #####
 #############################################################################
 
-export NS3_INCLUDE_DIR=/home/username/ns-3-dev-git/
+export NS3_INCLUDE_DIR=/home/wiselib/sensor-os/ns-3-dev-git/
 
 #############################################################################
 #####                        Other platforms                            #####
 #############################################################################
 
-export SCATTERWEB_PATH=/home/username/msb-scatterweb2/1.1/Libraries
-export FEUERWARE_PATH=/home/username/FeuerWare/tags/2009-04-14
+export SCATTERWEB_PATH=/home/wiselib/sensor-os/msb-scatterweb2/1.1/Libraries
+export FEUERWARE_PATH=/home/wiselib/sensor-os/FeuerWare/tags/2009-04-14

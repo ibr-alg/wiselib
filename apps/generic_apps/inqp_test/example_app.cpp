@@ -1,4 +1,11 @@
 
+#if defined(CONTIKI)
+	extern "C" {
+		#include <string.h>
+	#include <contiki.h>
+	#include <netstack.h>
+	}
+#endif
 
 
 /// ----- Config
@@ -7,19 +14,33 @@
 #if defined(SHAWN)
 	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
+	#define SINK 0
 
 #elif defined(PC)
+	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
 	#define WISELIB_DISABLE_DEBUG 0
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
+	#define SINK 0
 
 #else
 	#define WISELIB_MAX_NEIGHBORS 4
+	#define WISELIB_TIME_FACTOR 1
+
+	//#define BITMAP_ALLOCATOR_RAM_SIZE 1000
+	#define BITMAP_ALLOCATOR_RAM_SIZE (1024 + 512)
+	#define SINK 47430UL
+	//#define TS_MAX_TUPLES 76
+
+	#define USE_UART 0
+	#define INQP_TEST_USE_BLOCK 0
 
 #endif
-#define INQP_TEST_USE_BLOCK 0
+
 #define INQP_AGGREGATE_CHECK_INTERVAL 1000
-#define WISELIB_MAX_NEIGHBORS 100
+//#define WISELIB_MAX_NEIGHBORS 100
+
+#define ENABLE_DEBUG 1
 
 
 /// ------ /Config
@@ -57,9 +78,19 @@ typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
 using namespace wiselib;
 
-#include <util/allocators/malloc_free_allocator.h>
-typedef MallocFreeAllocator<Os> Allocator;
-Allocator& get_allocator();
+#if defined(CONTIKI)
+	#warning "Using BITMAP allocator"
+
+	#include <util/allocators/bitmap_allocator.h>
+	typedef wiselib::BitmapAllocator<Os, BITMAP_ALLOCATOR_RAM_SIZE> Allocator;
+	Allocator allocator_;
+	Allocator& get_allocator() { return allocator_; }
+#else
+	#include <util/allocators/malloc_free_allocator.h>
+	typedef wiselib::MallocFreeAllocator<Os> Allocator;
+	Allocator allocator_;
+	Allocator& get_allocator() { return allocator_; }
+#endif
 
 #include <util//string_util.h>
 //#include <algorithms/rdf/inqp/query.h>
@@ -69,8 +100,8 @@ Allocator& get_allocator();
 #include <algorithms/rdf/inqp/communicator.h>
 #include <util/meta.h>
 #include <util/debugging.h>
-#include <util/pstl/map_static_vector.h>
-#include <util/pstl/priority_queue_dynamic.h>
+//#include <util/pstl/map_static_vector.h>
+//#include <util/pstl/priority_queue_dynamic.h>
 #include <util/tuple_store/tuplestore.h>
 #include "tuple.h"
 
@@ -95,33 +126,42 @@ typedef Tuple<Os> TupleT;
 
 // RAM
 #if !INQP_TEST_USE_BLOCK
-//#include <util/pstl/list_dynamic.h>
-#include <util/pstl/unique_container.h>
-#include <util/tuple_store/prescilla_dictionary.h>
-#include <util/pstl/vector_static.h>
-//#include <util/pstl/unbalanced_tree_dictionary.h>
-//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
-//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
-typedef wiselib::vector_static<Os, TupleT, 100> TupleContainer;
-typedef wiselib::PrescillaDictionary<Os> Dictionary;
-//typedef UnbalancedTreeDictionary<Os> Dictionary;
+	//#include <util/pstl/list_dynamic.h>
+	#include <util/pstl/unique_container.h>
+	//#include <util/tuple_store/prescilla_dictionary.h>
+	//#include <util/tuple_store/static_dictionary.h>
+	//#include <util/pstl/vector_static.h>
+	//#include <util/pstl/unbalanced_tree_dictionary.h>
+	//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
+	//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
+	
+	//typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
+	//typedef wiselib::PrescillaDictionary<Os> Dictionary;
+	//typedef wiselib::StaticDictionary<Os, 50, 15> Dictionary;
+	//typedef UnbalancedTreeDictionary<Os> Dictionary;
+	
+	#include "precompiled_ts.cpp"
+	typedef PrecompiledDictionary Dictionary;
+	typedef PrecompiledTupleContainer TupleContainer;
+
+
 #else
 
-// BLOCK
-#define BLOCK_CACHE_SIZE 2
-#define BLOCK_CACHE_SPECIAL 1
-#define BLOCK_CACHE_WRITE_THROUGH 1
-#define BLOCK_CHUNK_SIZE 8
-#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
-
-#include <algorithms/block_memory/bitmap_chunk_allocator.h>
-#include <algorithms/block_memory/cached_block_memory.h>
-typedef CachedBlockMemory<Os, Os::BlockMemory, BLOCK_CACHE_SIZE, BLOCK_CACHE_SPECIAL, BLOCK_CACHE_WRITE_THROUGH> BlockMemory;
-typedef BitmapChunkAllocator<Os, BlockMemory, BLOCK_CHUNK_SIZE, BLOCK_CHUNK_ADDRESS_TYPE> BlockAllocator;
-#include <algorithms/block_memory/b_plus_hash_set.h>
-typedef BPlusHashSet<Os, BlockAllocator, Hash, TupleT, true> TupleContainer;
-#include <algorithms/block_memory/b_plus_dictionary.h>
-typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
+	// BLOCK
+	#define BLOCK_CACHE_SIZE 2
+	#define BLOCK_CACHE_SPECIAL 1
+	#define BLOCK_CACHE_WRITE_THROUGH 1
+	#define BLOCK_CHUNK_SIZE 8
+	#define BLOCK_CHUNK_ADDRESS_TYPE ::uint32_t
+	
+	#include <algorithms/block_memory/bitmap_chunk_allocator.h>
+	#include <algorithms/block_memory/cached_block_memory.h>
+	typedef CachedBlockMemory<Os, Os::BlockMemory, BLOCK_CACHE_SIZE, BLOCK_CACHE_SPECIAL, BLOCK_CACHE_WRITE_THROUGH> BlockMemory;
+	typedef BitmapChunkAllocator<Os, BlockMemory, BLOCK_CHUNK_SIZE, BLOCK_CHUNK_ADDRESS_TYPE> BlockAllocator;
+	#include <algorithms/block_memory/b_plus_hash_set.h>
+	typedef BPlusHashSet<Os, BlockAllocator, Hash, TupleT, true> TupleContainer;
+	#include <algorithms/block_memory/b_plus_dictionary.h>
+	typedef BPlusDictionary<Os, BlockAllocator, Hash> Dictionary;
 #endif
 
 typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
@@ -131,6 +171,9 @@ typedef wiselib::TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111),
 
 typedef INQPQueryProcessor<Os, TS, Hash> Processor;
 typedef INQPCommunicator<Os, Processor> Communicator;
+typedef Processor::Query Query;
+typedef Processor::Value Value;
+typedef Processor::AggregateT AggregateT;
 
 #define LEFT 0
 #define RIGHT 0x80
@@ -142,8 +185,6 @@ typedef INQPCommunicator<Os, Processor> Communicator;
 #ifdef ISENSE
 #include <isense/util/get_os.h>
 #endif
-
-#define SINK 1
 
 
 
@@ -159,20 +200,39 @@ class NullMonitor {
 		typename OsModel_P::Debug* debug_;
 };
 
-static const char* tuples[][3] = {
-	
-#if defined(SHAWN)
-	#include "ssp.cpp"
-#elif defined(PC)
-	#include "nqxe_test.cpp"
-#else
-	#include "incontextsensing.cpp"
-#endif
-	{ 0, 0, 0 }
-};
+//const char* tuples[][3] = {
+		////#include "incontextsensing_very_short.cpp"
+	////{ "<foo>", "<bar>", "<baz>" },
+		//{ 0, 0, 0 },
+		//{ 0, 0, 0 }
+//};
 
-class ExampleApplication
-{
+
+/*
+ * MIN(?v) MEAN(?v) MAX(?v) {
+ *    ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
+ *    ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
+ * }
+ * 
+
+<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
+<http://spitfire-project.eu/property/Temperature>            b23860b3
+<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
+
+ */
+enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+enum { ROOT = 0 };
+enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+enum { QID = 1 };
+block_data_t op100[] = { OP, QID, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+block_data_t op90[]  = { OP, QID,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
+block_data_t op80[]  = { OP, QID,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
+block_data_t op70[]  = { OP, QID,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
+block_data_t cmd[]   = { Q, QID, 4 };
+
+
+
+class App {
 	public:
 		
 		template<typename TS>
@@ -183,6 +243,35 @@ class ExampleApplication
 			t.set(2, (block_data_t*)const_cast<char*>(o));
 			ts.insert(t);
 		}
+
+		int heart;
+		void heartbeat(void*_ =0) {
+			//debug_->debug("<3 %d0", heart++);
+			if(heart == 0) {
+				//enable_radio();
+#if ENABLE_DEBUG
+				print_memstat();
+#endif
+				init2();
+			}
+			else {
+			timer_->set_timer<App, &App::heartbeat>(10000, this ,0);
+			}
+		}
+
+		void disable_radio(void* =0) {
+			radio_->disable_radio();
+			#if defined(CONTIKI)
+				NETSTACK_RDC.off(false);
+			#endif
+		}
+
+		void enable_radio(void* =0) {
+			#if defined(CONTIKI)
+				NETSTACK_RDC.on();
+			#endif
+			radio_->enable_radio();
+		}
 		
 		void init( Os::AppMainParameter& value )
 		{
@@ -190,18 +279,30 @@ class ExampleApplication
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+
+#if ENABLE_DEBUG
+			debug_->debug("bwait %lu", (unsigned long)radio_->id());
+#endif
+
+			//disable_radio();
+			heart = -30;
+			heartbeat();
+		}
 			
-			//block_memory_ = &wiselib::FacetProvider<Os, Os::BlockMemory>::get_facet( value );
-			//
+		void init2() {
+			//debug_->debug("init2");
+		//#if USE_UART
+			//uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
+			//uart_->enable_serial_comm();
+			//uart_->reg_read_callback<App, &App::uart_receive>(this);
+			//uart_query_pos = 0;
+		//#endif // USE_UART
 			
+#if ENABLE_DEBUG
 			monitor_.init(debug_);
+#endif
 			
-			//test_heap();
-			//test_atol();
-			//hashes();
-			//return;
-			
-		#if !defined(PC)
+		//#if !defined(PC)
 			radio_->enable_radio();
 			
 			// query direction: packing radio over flooding
@@ -217,18 +318,24 @@ class ExampleApplication
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			
-			debug_->debug("boot %d", (int)radio_->id());
+#if ENABLE_DEBUG
+			debug_->debug("boot %lu", (unsigned long)radio_->id());
+#endif
 			
-		#endif
-			
-			//debug_->debug( "Hello World from Example Application! my id=%d app=%p\n", radio_->id(), this );
-			
-			//print_memstat();
-			
+		//#endif
 			
 			init_ts();
-			
-			//monitor_.report();
+			if(radio_->id() == SINK) {
+				debug_->debug("sink\n");
+				//be_sink();
+				timer_->set_timer<App, &App::be_sink>(100, this, 0);
+			}
+			else {
+				be();
+			}
+
+			/*
+			init_ts();
 			
 		#if defined(ISENSE) || defined(PC)
 			be_standalone();
@@ -237,67 +344,36 @@ class ExampleApplication
 			if(radio_->id() == SINK) {
 				debug_->debug("sink\n");
 				//be_sink();
-				timer_->set_timer<ExampleApplication, &ExampleApplication::be_sink>(100, this, 0);
-				
-				//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_ask_hash_resolve>(1000, this, 0);
+				timer_->set_timer<App, &App::be_sink>(100, this, 0);
 			}
 			else {
 				be();
 			}
 		#endif
+			*/
 		}
 		
 		Dictionary dictionary;
 		TupleContainer container;
 		TS ts;
 		
-		void test_atol() {
-			DBG("%ld", wiselib::atol((char*)"12345"));
-			DBG("%f", wiselib::atof((char*)"12345.67"));
-		}
-		
-		void test_heap() {
-			typedef wiselib::PriorityQueueDynamic<Os, int> Heap;
-			Heap h;
-			
-			/*
-			h.push(77);
-			h.push(2);
-			h.push(-4);
-			h.push(312);
-			h.push(234);
-			h.push(456);
-			h.push(1);
-			h.push(77);
-			h.push(3);
-			*/
-			
-			h.push(6);
-			h.push(5);
-			h.push(4);
-			h.push(3);
-			h.push(2);
-			h.push(1);
-			h.push(0);
-			
-			while(h.size()) {
-				debug_->debug("%d", h.pop());
-			}
-		}
-		
-		void hashes() {
-			const char *strings[] = {
-				"A", "measures", "m1", "m2", "has_value", "12", "14"
-			};
-			for(const char **s = strings; *s; s++) {
-				DBG("%-60s %08lx", *s, (unsigned long)Hash::hash((block_data_t*)*s, strlen(*s)));
-			}
-		}
-			
-		
 		void init_ts() {
 		#if !INQP_TEST_USE_BLOCK
+			debug_->debug("its0");
+
+			#if VECTOR_STATIC_OUTSOURCE
+				container.set_data(tuple_data_);
+			debug_->debug("its1");
+				container.set_size(VECTOR_STATIC_SIZE);
+			#endif
+			debug_->debug("its2");
+			#if STATIC_DICTIONARY_OUTSOURCE
+				dictionary.set_data(dict_data_);
+			#endif
+
+			debug_->debug("its3");
 			dictionary.init(debug_);
+			debug_->debug("its4");
 			ts.init(&dictionary, &container, debug_);
 		#else
 			block_memory_.physical().init();
@@ -307,32 +383,131 @@ class ExampleApplication
 			container.init(&block_allocator_, debug_);
 			dictionary.init(&block_allocator_, debug_);
 		#endif
-			
-			//debug_->debug("tsi don");
+			debug_->debug("its5");
 		}
 		
-		void insert_tuples() {
-			int i = 0;
-			for( ; tuples[i][0]; i++) {
-				//monitor_.report("ins");
-				
-				//for(int j = 0; j < 3; j++) {
-					//debug_->debug("%-60s %08lx", tuples[i][j], (unsigned long)Hash::hash((block_data_t*)tuples[i][j], strlen(tuples[i][j])));
-				//}
-				
-				ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
-			}
-			debug_->debug("ins done: %d tuples", (int)i);
+		//void insert_tuples() {
+			//int i = 0;
+			//for( ; tuples[i][0]; i++) {
+				//ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
+			//}
+			//debug_->debug("ins done: %d tuples", (int)i);
 			
+		//}
+
+		
+	#if USE_UART
+		block_data_t uart_query[512];
+		size_t uart_query_pos;
+		
+		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
+			//size_t l = buf[0];
+			//block_data_t msgtype = buf[1];
+			//block_data_t qid = buf[2];
+
+			process_nqxe_message((block_data_t*)buf);
+			
+			//if(buf[1] == 'O') {
+				//// length of field, including length field itself
+				//uart_query[uart_query_pos++] = l - 1;
+				//memcpy(uart_query + uart_query_pos, buf + 3, l - 2);
+				//uart_query_pos += (l - 2);
+			//}
+			//else if(buf[1] == 'Q') {
+				//block_data_t opcount = buf[3];
+				
+				//distributor_.distribute(
+						//SemanticEntityId::all(),
+						//qid, 1 [> revision <],
+						//Distributor::QUERY,
+						//60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
+						//60000 * WISELIB_TIME_FACTOR,
+						//opcount,
+						//uart_query_pos, uart_query
+				//);
+				//uart_query_pos = 0;
+			//}
 		}
+
+		void send_result_row_to_nqxe(
+				Processor::query_id_t query_id,
+				Processor::operator_id_t operator_id,
+				Processor::RowT& row
+		) {
+			block_data_t msg[100];
+
+			/*
+		void on_result_row(int type, QueryProcessor::size_type cols, QueryProcessor::RowT& row,
+				QueryProcessor::query_id_t qid, QueryProcessor::operator_id_t oid) {
+			*/
+			
+			typedef Processor::BasicOperator BasicOperator;
+			
+			Query *q = ian_.get_query(query_id);
+			if(!q) {
+				debug_->debug("!q %d", (int)query_id);
+				return;
+			}
+			BasicOperator *op = q->get_operator(operator_id);
+			if(!op) {
+				debug_->debug("!op %d", (int)operator_id);
+				return;
+			}
+			
+			int cols = op->projection_info().columns();
+			if(op->type() == Processor::BOD::AGGREGATE) {
+				Processor::AggregateT *aggr = (Processor::AggregateT*)op;
+				//int cols = op-> projection_info().columns();
+				//cols = aggr->columns_physical();
+				cols = aggr->columns_logical();
+			}
+			
+			int msglen =  1 + 1 + 1 + 1 + 4*cols;
+			block_data_t chk = 0;
+			msg[0] = 'R';
+			msg[1] = 2 + 4 * cols; // # bytes to follow after this one
+			msg[2] = query_id;
+			msg[3] = operator_id;
+			
+			if(op->type() == Processor::BOD::AGGREGATE) {
+				Processor::AggregateT *aggr = (Processor::AggregateT*)op;
+				int j = 0; // physical column
+				for(int i = 0; i< cols; i++, j++) { // logical column
+					//printf("tach %d", Processor::AggregateT::AD::AGAIN);
+					if((aggr->aggregation_types()[i] & ~AGAIN) == AggregateT::AD::AVG) {
+						j++;
+					}
+					
+					Value v;
+					memcpy(&v, &row[j], sizeof(Value));
+					wiselib::write<Os, block_data_t, Processor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			else {
+				for(int i = 0; i< cols; i++) {
+					Value v;
+					memcpy(&v, &row[i], sizeof(Value));
+					wiselib::write<Os, block_data_t, Processor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			
+			for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
+			msg[msglen] = chk;
+			uart_->write(msglen + 1, (Os::Uart::block_data_t*)msg);
+
+		} // send_result_row_to_nqxe()
+
+
+	#endif // USE_UART
+
 		
 		/**
 		 * @param q { len, 'O' or 'Q', ... }
 		 */
-		void process_nqxe_message(char* q) {
+		void process_nqxe_message(block_data_t* q) {
 			assert(q[1] == 'O' || q[1] == 'Q');
 			size_t l = q[0];
-			process(l, (block_data_t*)(q + 1));
+			process(l, q + 1);
 		}
 		
 		/**
@@ -349,225 +524,10 @@ class ExampleApplication
 			}
 		}
 		
-		void be_standalone() {
-			insert_tuples();
-			
-			ian_.init(&ts, timer_);
-			
-	#if defined(PC)
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_nqxe_test>(1000, this, 0);
-			
-	#else
-			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
-			communicator_.set_sink(radio_->id());
-			// we play in-network node
-			fndradio_.set_parent(SINK);
-			
-			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
-			
-			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross_p>(1000, this, 0);
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_p>(1000, this, 0);
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all_p>(1000, this, 0);
-	#endif
-		}
-		
-		
-		void query_temp_gps1(void*) {
-			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-			enum { ROOT = 0 };
-			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-			block_data_t qid = 1;
-			
-			//monitor_.report("bef");
-			
-			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
-			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(01), BIN(0), BIN(0), BIN(0) };
-			
-			process(sizeof(op100), op100);
-			
-			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 100, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
-			process(sizeof(op70), op70);
-			
-			block_data_t cmd[]   = { Q, qid, 2 };
-			process(sizeof(cmd), cmd);
-			
-			//monitor_.report("er");
-			ian_.erase_query(qid);
-			
-			//monitor_.report("aft");
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp_gps1>(1000, this, 0);
-		}
-		
-		void query_temp_p1() { query_temp_p(0); }
-		void query_temp_p(void*) {
-			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_temp_p1>(this));
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
-		}
-		void query_temp(void*) {
-			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-			enum { ROOT = 0 };
-			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-			block_data_t qid = 1;
-			
-			monitor_.report("bef");
-			
-			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
-			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(01), BIN(0), BIN(0), BIN(0) };
-			
-			process(sizeof(op100), op100);
-			
-			block_data_t op90[]  = { OP, qid,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
-			process(sizeof(op90), op90);
-			
-			block_data_t op80[]  = { OP, qid,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
-			process(sizeof(op80), op80);
-			
-			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
-			process(sizeof(op70), op70);
-			
-			block_data_t cmd[]   = { Q, qid, 4 };
-			process(sizeof(cmd), cmd);
-			
-			monitor_.report("er");
-			ian_.erase_query(qid);
-			
-			monitor_.report("aft");
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_temp>(1000, this, 0);
-		}
-		
-		void query_nqxe_test(void*) {
-			// 1,1,'g',LEFT | 3,BIN(00000011),0,0,0,BIN(110),"<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>","<http://me.exmpl/Temperature>",
-			char op0[] = {18, 79, 1, 1, 103, 3, 3, 0, 0, 0, 6, -65, 38, -72, 46, 87, -12, 33, 99};
-			process_nqxe_message(op0);
-			// 1,2,'g',RIGHT | 3,BIN(00100011),0,0,0,BIN(010),"<http://www.ontologydesignpatterns.org/ont/dul/hasValue>",
-			char op1[] = {14, 79, 1, 2, 103, -125, 35, 0, 0, 0, 2, 122, -98, 87, -99};
-			process_nqxe_message(op1);
-			// 1,3,'j',LEFT | 5,BIN(00100011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
-			char op2[] = {10, 79, 1, 3, 106, 5, 35, 0, 0, 0, 0};
-			process_nqxe_message(op2);
-			// 1,4,'g',RIGHT | 5,BIN(00110011),0,0,0,BIN(010),"<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>",
-			char op3[] = {14, 79, 1, 4, 103, -123, 51, 0, 0, 0, 2, -56, -77, -12, 58};
-			process_nqxe_message(op3);
-			// 1,5,'j',LEFT | 7,BIN(11001011),0,0,0,LEFT_COL(0) | RIGHT_COL(0),
-			char op4[] = {10, 79, 1, 5, 106, 7, -53, 0, 0, 0, 0};
-			process_nqxe_message(op4);
-			// 1,6,'g',RIGHT | 7,BIN(00000011),0,0,0,BIN(110),"<http://www.ontologydesignpatterns.org/ont/dul/hasLocation>","<http://me.exmpl/DERI>",
-			char op5[] = {18, 79, 1, 6, 103, -121, 3, 0, 0, 0, 6, -95, 18, -76, 121, -24, 60, -50, -19};
-			process_nqxe_message(op5);
-			// 1,7,'j',LEFT | 8,BIN(00111000),0,0,0,LEFT_COL(2) | RIGHT_COL(0),
-			char op6[] = {10, 79, 1, 7, 106, 8, 56, 0, 0, 0, 32};
-			process_nqxe_message(op6);
-			// 1,8,'a',LEFT | 0,BIN(11010110),0,0,0,4,AGAIN | 2,AGAIN | 4,5,0,
-			char op7[] = {14, 79, 1, 8, 97, 0, -42, 0, 0, 0, 4, -126, -124, 5, 0};
-			process_nqxe_message(op7);
-			char q[] = { 3, 'Q', 1, 8};
-			process_nqxe_message(q);
-			
-			ian_.reg_row_callback<ExampleApplication, &ExampleApplication::print_result_row>(this);
-		}
-		
-		void print_result_row(int type, Processor::size_type cols, Processor::RowT& row, Processor::query_id_t qid, Processor::operator_id_t oid) {
-			debug_->debug("ROW type %d qid %d oid %d", (int)type, (int)qid, (int)oid);
-			for(size_t i = 0; i < cols; i++) {
-				debug_->debug("  %08lx %f", (unsigned long)row[i], *reinterpret_cast<float*>(&row[i]));
-			}
-		}
-		
-		
-		
-		
-		void query_all_p1() { query_all_p(0); }
-		void query_all_p(void*) {
-			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_all_p1>(this));
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
-		}
-		void query_all(void*) {
-			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-			enum { ROOT = 0 };
-			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-			block_data_t qid = 1;
-			
-			
-			//block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
-			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(111111), BIN(0), BIN(0), BIN(0) };
-			
-			process(sizeof(op100), op100);
-			
-			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 100, BIN(111111), BIN(0), BIN(0), BIN(0), BIN(000) };
-			process(sizeof(op70), op70);
-			
-			block_data_t cmd[]   = { Q, qid, 2 };
-			process(sizeof(cmd), cmd);
-			
-			ian_.erase_query(qid);
-			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_all>(1000, this, 0);
-		}
-		
-		void query_cross_p1() { query_cross_p(0); }
-		void query_cross_p(void*) {
-			ian_.set_exec_done_callback(Processor::exec_done_callback_t::from_method<ExampleApplication, &ExampleApplication::query_cross_p1>(this));
-			timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross>(1000, this, 0);
-		}
-		
-		void query_cross(void*) {
-			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-			enum { ROOT = 0 };
-			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-			enum {
-				LEFT_COLUMN_INVALID = 0x0f,
-				RIGHT_COLUMN_INVALID = 0x0f
-			};
-			
-			#if defined(ISENSE)
-			GET_OS.clock().watchdog_stop();
-			#endif
-			
-			
-			//debug_->debug("qry");
-			monitor_.report("qry");
-			
-			block_data_t qid = 1;
-			block_data_t op100[] = { OP, qid, 100, 'c', ROOT, BIN(111111), BIN(1111), BIN(0), BIN(0) };
-			
-			process(sizeof(op100), op100);
-			
-			block_data_t op90[]  = { OP, qid,  90, 'j', LEFT | 100, BIN(11111111), BIN(1111), BIN(0), BIN(0), 0xff};
-			process(sizeof(op90), op90);
-			
-			block_data_t op80[]  = { OP, qid,  80, 'g', RIGHT | 90, BIN(111111), BIN(0), BIN(0), BIN(0), BIN(000) };
-			
-			process(sizeof(op80), op80);
-			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 90, BIN(111111), BIN(0), BIN(0), BIN(0), BIN(000) };
-			process(sizeof(op70), op70);
-			
-			block_data_t cmd[]   = { Q, qid, 4 };
-			process(sizeof(cmd), cmd);
-			
-			ian_.erase_query(qid);
-			
-			debug_->debug("/qry");
-			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::query_cross>(1000, this, 0);
-		}
-		
 		#pragma GCC diagnostic push
 		#pragma GCC diagnostic ignored "-Wwrite-strings"
 		void be() {
-			//init_ts();
-			
-			/*
-			ins(ts, "A", "measures", "m1");
-			ins(ts, "A", "measures", "m2");
-			ins(ts, "m1", "has_value", "12");
-			ins(ts, "m2", "has_value", "14");
-			ins(ts, "B", "measures", "mb1");
-			ins(ts, "B", "measures", "mb2");
-			ins(ts, "mb1", "has_value", "20");
-			ins(ts, "mb2", "has_value", "24");
-			*/
-			insert_tuples();
+			//insert_tuples();
 			
 			ian_.init(&ts, timer_);
 			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
@@ -575,13 +535,13 @@ class ExampleApplication
 			
 			//ian_.reverse_translator().fill();
 			
-			//pradio_.reg_recv_callback<ExampleApplication, &ExampleApplication::node_receive_query>( this );
+			//pradio_.reg_recv_callback<App, &App::node_receive_query>( this );
 			debug_->debug("rtr");
 		}
 		#pragma GCC diagnostic pop
 		
 		void sink_ask_hash_resolve(void*) {
-			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
+			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
 			block_data_t msg[] = {
 				Communicator::MESSAGE_ID_RESOLVE_HASHVALUE,
@@ -595,43 +555,38 @@ class ExampleApplication
 			//init_ts();
 			//dictionary.init(debug_);
 			//ts.init(&dictionary, &container, debug_);
+		debug_->debug("bs0");
 			ian_.init(&ts, timer_);
+		debug_->debug("bs1");
 			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
+		debug_->debug("bs2");
 			communicator_.set_sink(SINK);
+		debug_->debug("bs3");
 			
 			// set self as parent.
 			// when we receive packets from ourself, we play sink, otherwise
 			// we play in-network node
 			fndradio_.set_parent(SINK);
 			
-			result_radio_.reg_recv_callback<ExampleApplication, &ExampleApplication::sink_receive_answer>( this );
+		debug_->debug("bs4");
+			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
-#ifdef SHAWN
-			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_ssp_query>(10000, this, 0);
-#else
-			timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
-#endif
-		}
-		
-		void sink_send_ssp_query(void*) {
-			block_data_t qid = 1;
-			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-			enum { ROOT = 0 };
-			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-			
-			block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(101010), 0, 0, 0, 3, MIN | AGAIN, AVG | AGAIN, MAX };
-			send(sizeof(op100), op100);
-			
-			block_data_t op80[]  = { OP, qid,  80, 'g', LEFT | 100, BIN(100000), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
-			send(sizeof(op80), op80);
-			
-			block_data_t cmd[] = { Q, qid, 2 };
-			send(sizeof(cmd), cmd);
-			
-			query_radio_.flush();
+		debug_->debug("bs5");
+//#ifdef SHAWN
+			//timer_->set_timer<App, &App::sink_send_ssp_query>(10000, this, 0);
+//#else
+
+		//#if !USE_UART
+			// If we dont use the UART, send out a predefined query after 10s
+			timer_->set_timer<App, &App::sink_send_query>(30000, this, 0);
+		//#endif
+//#endif
+		debug_->debug("bs6");
 		}
 		
 		void sink_send_query(void*) {
+
+			debug_->debug("sink_send_query");
 			
 			/*
 			 * MIN(?v) MEAN(?v) MAX(?v) {
@@ -645,30 +600,23 @@ class ExampleApplication
 			<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
 
 			 */
-			
-			enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-			enum { ROOT = 0 };
-			enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-			block_data_t qid = 1;
-			
-			
-			block_data_t op100[] = { OP, qid, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+
 			send(sizeof(op100), op100);
-			
-			block_data_t op90[]  = { OP, qid,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
+			debug_->debug("sq0");
 			send(sizeof(op90), op90);
-			
-			block_data_t op80[]  = { OP, qid,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
+			debug_->debug("sq1");
 			send(sizeof(op80), op80);
-			
-			block_data_t op70[]  = { OP, qid,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
+			debug_->debug("sq2");
 			send(sizeof(op70), op70);
-			
-			block_data_t cmd[]   = { Q, qid, 4 };
+			debug_->debug("sq3");
 			send(sizeof(cmd), cmd);
+			debug_->debug("sq4");
 			
+			debug_->debug("flushing");
+
 			query_radio_.flush();
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_send_query>(10000, this, 0);
+			//timer_->set_timer<App, &App::sink_send_query>(10000, this, 0);
+			debug_->debug("query sent!");
 			
 			/*
 			 * Some hash values:
@@ -716,88 +664,6 @@ class ExampleApplication
 			* 
 			*/
 			
-		#if 0
-			// {{{
-			block_data_t op0[] = {
-				Communicator::MESSAGE_ID_QUERY,
-				1, // query id
-				4, // number of operators
-			};
-			send(sizeof(op0), op0);
-			
-			/*
-			block_data_t op1[] = {
-				Communicator::MESSAGE_ID_OPERATOR,
-				1, // query id
-				100,  // op id
-				'c',  // collect
-				0,    // no parent
-				BIN(01), 0, 0, 0, // projection info
-			};
-			send(sizeof(op1), op1);
-			*/
-			
-			block_data_t op1[] = {
-				Communicator::MESSAGE_ID_OPERATOR,
-				1, // qid
-				100, // op id
-				'a', // aggregate
-				0, // no parent
-				BIN(0111), 0, 0, 0, // proj info
-				5, // number of bytes following
-				//enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-				0, AGAIN | 4, AGAIN | 5, AGAIN | 1, 2
-			};
-			send(sizeof(op1), op1);
-			
-			block_data_t op2[] = {
-				Communicator::MESSAGE_ID_OPERATOR,
-				1, // query id
-				90,  // id
-				'j', // simple local join
-				LEFT | 100, // parent id & port
-				BIN(01000011), 0, 0, 0, // projection info
-				LEFT_COL(1) | RIGHT_COL(0), // left col & right col
-			};
-			send(sizeof(op2), op2);
-			
-			block_data_t op3[] = {
-				Communicator::MESSAGE_ID_OPERATOR,
-				1, // query id
-				80, // id
-				'g', // graph pattern selection
-				RIGHT | 90,   // parent offset & port
-				BIN(00010011), 0, 0, 0, // projection info
-				BIN(010), // affects predicate
-				0xd6, 0x88, 0x14, 0xad, // "has_value"
-			};
-			send(sizeof(op3), op3);
-			
-			block_data_t op4[] = {
-				Communicator::MESSAGE_ID_OPERATOR,
-				1, // query id
-				70, // id
-				'g', // graph pattern selection
-				LEFT | 90,   // parent offset & port
-				BIN(00110011), 0x00, 0x00, 0x00, // projection info
-				BIN(010), // affects predicate
-				0x08, 0xff, 0xea, 0xc4, // "measures"
-			};
-			send(sizeof(op4), op4);
-			
-			
-			
-			//block_data_t exec[] = {
-				//Communicator::MESSAGE_ID_EXECUTE,
-				//1, // query id
-			//};
-			//send(sizeof(exec), exec);
-			query_radio_.flush();
-			
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::sink_ask_hash_resolve>(10000, this, 0);
-			// }}}
-		#endif
-			
 		}
 		
 		void send(size_t len, block_data_t *data) {
@@ -805,16 +671,14 @@ class ExampleApplication
 		}
 		
 		void sink_receive_answer( PAnsRadio::node_id_t from, PAnsRadio::size_t len, PAnsRadio::block_data_t *buf ) {
-			/*
 			PAnsRadio::message_id_t msgid = wiselib::read<Os, block_data_t, PRadio::message_id_t>(buf);
 			
-			debug_->debug("sink recv %d -> %d", from, result_radio_.id());
+			debug_->debug("@%lu sink recv %lu -> %lu s=%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)result_radio_.id(), (unsigned long)SINK);
 			
 			if(from == SINK) {
 				debug_->debug("sink recv from %d", from);
 				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, buf, len);
 			}
-			*/
 		}
 		
 		void print_memstat() {
@@ -833,6 +697,7 @@ class ExampleApplication
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
+		Os::Uart::self_pointer_t uart_;
 		
 		PRadio query_radio_;
 		FNDRadio fndradio_;
@@ -858,10 +723,10 @@ class ExampleApplication
 		#endif
 };
 
-Allocator allocator_;
-Allocator& get_allocator() { return allocator_; }
+//Allocator allocator_;
+//Allocator& get_allocator() { return allocator_; }
 // --------------------------------------------------------------------------
-wiselib::WiselibApplication<Os, ExampleApplication> example_app;
+wiselib::WiselibApplication<Os, App> example_app;
 // --------------------------------------------------------------------------
 void application_main( Os::AppMainParameter& value )
 {
