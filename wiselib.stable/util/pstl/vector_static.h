@@ -22,11 +22,14 @@
 #include "util/pstl/iterator.h"
 #include <string.h>
 
+namespace wiselib
+{
    template<typename OsModel_P,
             typename Value_P,
             int VECTOR_SIZE,
-            bool Outsource_P = false>
+            bool Outsource_P>
    class vector_static;
+}
 
 #include <util/meta.h>
 

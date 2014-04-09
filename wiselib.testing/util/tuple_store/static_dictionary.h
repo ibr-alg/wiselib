@@ -260,6 +260,7 @@ namespace wiselib {
 					assert(size_ > 0);
 
 					check();
+					//debug_->debug("|%s| direct -> %d", (char*)v, (int)x);
 					return x;
 				}
 				else {
@@ -284,6 +285,7 @@ namespace wiselib {
 							// we assume, shit is hitting the fan anyways so we
 							// dont care
 							check();
+							//debug_->debug("|%s| FULL!", (char*)v);
 							return NULL_KEY;
 						}
 
@@ -320,6 +322,8 @@ namespace wiselib {
 					assert(root_meta_ != NULL_KEY);
 					assert(size_ > 0);
 					check();
+
+					//debug_->debug("|%s| indirect -> %d", (char*)v, (int)x);
 					return x;
 				}
 			}

@@ -63,6 +63,7 @@ namespace wiselib {
 			
 			//typedef uint32_t size_t;
 			typedef unsigned long size_t;
+			typedef unsigned long size_type;
 			typedef uint8_t block_data_t;
 			
 			typedef PCClockModel<PCOsModel> Clock;
