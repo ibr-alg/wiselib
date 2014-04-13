@@ -29,7 +29,7 @@ namespace wiselib
 {
    namespace
    {
-      enum { MAX_INTERNAL_TIMERS = 40 };
+      enum { MAX_INTERNAL_TIMERS = 30 };
       // --------------------------------------------------------------------
       typedef delegate1<void, void*> isense_timer_delegate_t;
       // --------------------------------------------------------------------
@@ -125,7 +125,7 @@ namespace wiselib
          return ERR_UNSPEC;
       }
 	  
-	  GET_OS.debug("T %lu", (unsigned long)millis);
+	  //GET_OS.debug("T %lu", (unsigned long)millis);
 
       isense_timer_callbacks[idx] = iSenseTimerCallback( isense_timer_delegate_t::from_method<T, TMethod>( obj_pnt ) );
       // only return success if task has been added

@@ -185,16 +185,12 @@ namespace wiselib {
 			void push(size_type port, RowT& row) {
 				post_init();
 				
-				printf("--- aggr in\n");
-				
 				if(&row) {
 					size_type idx = find_matching_group(local_aggregates_, row);
 					if(idx == npos) {
-				printf("gr");
 						create_group(row);
 					}
 					else {
-				printf("ad");
 						add_to_aggregate(local_aggregates_[idx], row);
 					}
 				}
@@ -215,8 +211,6 @@ namespace wiselib {
 					timer_info_->alive = true;
 					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, (void*)timer_info_);
 				}
-				
-				printf("agdon\n");
 			}
 			
 			/**
@@ -241,7 +235,6 @@ namespace wiselib {
 				// now see if the local table has to contribute something
 				
 				idx = find_matching_group(local_aggregates_, r, r_is_output_form);
-				printf("refreshing: %d\n",(int)idx);
 				if(idx != npos) {
 					uidx = merge_or_create_updated(local_aggregates_[idx], uidx);
 				}
@@ -319,10 +312,7 @@ namespace wiselib {
 					::get_allocator().free(ti);
 					return;
 				}
-				printf("aggr sending time alive\n");
-				
 				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
-					printf("aggr srow cols %d\n", (int)aggregation_columns_physical_);
 					this->processor().send_row(
 							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
 							aggregation_columns_physical_, *iter, this->query().id(), this->id()

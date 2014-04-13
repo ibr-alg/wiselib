@@ -80,16 +80,13 @@ namespace wiselib {
 			}
 			
 			void execute(TupleStoreT& ts) {
-				//DBG("GPS execute");
+				GET_OS.debug("gps x cols %d", (int)this->projection_info().columns());
 				typedef typename TupleStoreT::TupleContainer Container;
 				typedef typename Container::iterator Citer;
 				
 				RowT *row = RowT::create(this->projection_info().columns()); //TupleStoreT::COLUMNS);
 				
-				printf("gps begin\n");
 				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
-					printf("gps (%lx %lx %lx)\n", (long)iter->get_key(0), (long)iter->get_key(1), (long)iter->get_key(2));
-					
 					bool match = true;
 					size_type row_idx = 0;
 					for(size_type i = 0; i < TS_SEMANTIC_COLUMNS; i++) {
@@ -97,10 +94,6 @@ namespace wiselib {
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
-								//#ifdef ISENSE
-								printf("gps %d nomatch [%d] = %08lx != %08lx\n", (int)this->id_,
-										(int)i, (unsigned long)values_[i], (unsigned long)v);
-								//#endif
 								match = false;
 								break;
 							}
@@ -108,10 +101,8 @@ namespace wiselib {
 						
 						switch(this->projection_info().type(i)) {
 							case ProjectionInfoBase::IGNORE:
-								printf("gps %d col %d ignore\n", (int)this->id_, i);
 								break;
 							case ProjectionInfoBase::INTEGER: {
-								printf("gps %d col %d INT\n", (int)this->id_, i);
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
@@ -121,24 +112,20 @@ namespace wiselib {
 							case ProjectionInfoBase::FLOAT: {
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
-								printf("gps %d col %d FLOAT \"%s\" %f\n", (int)this->id_, i, s, f);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
 								this->dictionary().free_value(s);
 								break;
 							}
 							case ProjectionInfoBase::STRING:
-								printf("gps %d col %d STRING\n", (int)this->id_, i);
 								(*row)[row_idx++] = v;
 								this->reverse_translator().offer(iter->get_key(i), v);
 								break;
 						}
 					}
 					if(match) {
-						printf("---------- gps %d push", (int)this->id_);
 						this->parent().push(*row);
 					}
 				}
-				printf("gps end\n");
 				
 				row->destroy();
 				this->parent().push(Base::END_OF_INPUT);

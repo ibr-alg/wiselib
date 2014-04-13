@@ -156,8 +156,6 @@ namespace wiselib {
 				
 				//debug_->debug("@%d fwd slot %d
 				
-				//debug_->debug("@%d fwd slot %d
-				
 				//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				check();
 			}

@@ -39,7 +39,7 @@ namespace wiselib {
 			case ProjectionInfoBase::FLOAT: {
 				float val1 = *reinterpret_cast<float*>(&v1);
 				float val2 = *reinterpret_cast<float*>(&v2);
-				//DBG("compare flota %f vs %f", (float)val1, (float)val2);
+				GET_OS.debug("compare flota %f vs %f", (float)val1, (float)val2);
 				return (val1 < val2) ? -1 : (val2 < val1);
 			}
 			case ProjectionInfoBase::STRING: {

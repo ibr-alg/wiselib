@@ -91,6 +91,8 @@ namespace wiselib {
 				if(!post_inited_) {
 					table_.init(this->child(Base::CHILD_LEFT).columns());
 					post_inited_ = true;
+					
+					GET_OS.debug("p(%d)=%d", (int)this->id_, (int)this->parent().id_);
 				}
 			}
 			
@@ -100,17 +102,16 @@ namespace wiselib {
 				
 				if(&row) {
 					if(port == Base::CHILD_LEFT) {
-						//#if defined(ISENSE)
-							printf("SLJl %d\n", (int)this->id_);
-						//#endif
+						/*ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);*/
+						/*GET_OS.debug("SLJl %d %lx %lx", (int)this->id_, (unsigned long)row[0], (unsigned long)row[1]);*/
+						
 						left_++;
 						table_.insert(row);
 					}
 					else {
 						right_++;
-						//#if defined(ISENSE)
-							printf("SLJr %d\n", (int)this->id_);
-						//#endif
+						//GET_OS.debug("SLJr %d", (int)this->id_);
+						/*GET_OS.debug("SLJr %d %lx %lx", (int)this->id_, (unsigned long)row[0], (unsigned long)row[1]);*/
 						ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);
 						ProjectionInfo<OsModel>& r = this->child(Base::CHILD_RIGHT);
 						
@@ -151,6 +152,9 @@ namespace wiselib {
 								assert(l.result_type(left_column_) == r.result_type(right_column_));
 								
 								c = compare_values(l.result_type(left_column_), (*iter)[left_column_], row[right_column_]);
+								//GET_OS.debug("coll %d colr %d %lx ?= %lx -> %d",
+										//(int)left_column_, (int)right_column_, (unsigned long)(*iter)[left_column_],
+										//(unsigned long)row[right_column_], (int)c);
 							}
 							if(c == 0) {
 								j = 0;
@@ -160,6 +164,11 @@ namespace wiselib {
 									} // if ! IGN
 								} // for i
 								
+								GET_OS.debug("SLJ p");
+								if(!this->parent().push_) {
+									GET_OS.fatal("op %d !push", (int)this->id_);
+								}
+								
 								this->parent().push(result);
 							} // if c == 0
 						} // for iter
@@ -168,12 +177,13 @@ namespace wiselib {
 					} // else port = left
 				} // if row
 				else if(port == Base::CHILD_RIGHT) {
-					//#if defined(ISENSE)
-						printf("slj %d push l %d r %d\n", (int)this->id_, (int)left_, (int)right_);
-					//#endif
 					left_ = 0;
 					right_ = 0;
 					table_.clear();
+					
+					if(!this->parent().push_) {
+						GET_OS.fatal("op %d !push", (int)this->id_);
+					}
 					this->parent().push(row);
 				}
 			}

@@ -136,10 +136,10 @@ namespace wiselib {
 			
 			void flush() {
 				if(!buffer_virgin()) {
-					//#if INSE_DEBUG_STATE
-					debug_->debug("@%d prad flsh l %d", (int)radio_->id(),
+					#if INSE_DEBUG_STATE
+					debug_->debug("@%d prad flsh l %d", (int)radio_->radio().id(),
 							(int)(sizeof(message_id_t) + packer_.size()));
-					//#endif
+					#endif
 					
 					radio_->send(current_receiver_, sizeof(message_id_t) + packer_.size(), buffer_);
 

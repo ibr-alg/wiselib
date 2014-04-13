@@ -465,15 +465,18 @@ namespace wiselib {
 			 */
 			void add_query(query_id_t qid, Query* query) {
 				if(queries_.size() >= queries_.capacity()) {
-					assert(false && "queries full, clean them up from time to time!");
+					//assert(false && "queries full, clean them up from time to time!");
+					GET_OS.fatal("Qs FULL");
 				}
-				queries_[qid] = query;
+				else {
+					queries_[qid] = query;
+				}
 			}
 			
 			/**
 			 */
 			void erase_query(query_id_t qid) {
-				//DBG("del qry %d", (int)qid);
+				GET_OS.fatal("del qry %d", (int)qid);
 				if(queries_.contains(qid)) {
 					queries_[qid]->destruct();
 					::get_allocator().free(queries_[qid]);
