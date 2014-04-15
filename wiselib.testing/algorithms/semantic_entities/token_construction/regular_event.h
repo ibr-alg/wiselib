@@ -64,16 +64,6 @@ namespace wiselib {
 				/// If found interval is shorter than this, assume its a dupe
 				DUPE_INTERVAL = 100 * WISELIB_TIME_FACTOR,
 				MIN_INTERVAL = 100 * WISELIB_TIME_FACTOR,
-				
-				/*
-				/// How much a close hit influences expected timing.
-				ALPHA_CLOSE = 25,
-				/// How much a stable hit influences expected timing
-				ALPHA_STABLE = 50,
-				/// How much a far hit influences expected timing
-				ALPHA_FAR = 50,
-				alpha = 20
-				*/
 			};
 			
 			enum HitType { HIT_CLOSE, HIT_STABLE, HIT_FAR };
@@ -238,15 +228,6 @@ namespace wiselib {
 						delta = ne - now - window_;
 					}
 					
-					//printf("EV %lu %lu %lu\n", (unsigned long)now, (unsigned long)ne,
-							//(unsigned long)delta);
-					
-					//DBG("t=%d // begin_waiting in %dms ne=%d now=%d window=%d", (int)absolute_millis(clock, clock->time()), (int)delta, (int)ne, (int)now, (int)window_);
-					
-					//#ifdef ISENSE
-						//GET_OS.debug("setting timer: %d", (int)delta);
-					//#endif
-					
 					timer->template set_timer<RegularEvent, &RegularEvent::begin_waiting>( delta, this, userdata_);
 				}
 				return true;
@@ -282,10 +263,6 @@ namespace wiselib {
 			 * timer installed by start_waiting_timer!
 			 */
 			void begin_waiting(void*) {
-				/*printf("bw\n"); //, (unsigned long)now());*/
-				
-				//DBG("// begin_waiting timer_set=%d waiting=%d cancel=%d userdata=%lx", (int)waiting_timer_set_, (int)waiting_, (int)cancel_, (long int)userdata_);
-						
 				waiting_timer_set_ = false;
 				if(!waiting_) {
 					if(cancel_) {
@@ -307,25 +284,18 @@ namespace wiselib {
 	
 			HitType hit_type(abs_millis_t t, typename Clock::self_pointer_t clock_) {
 				abs_millis_t diff_t = (t > expected()) ? (t - expected()) : (expected() - t);
-				//ArduinoDebug<ArduinoOsModel>(true).debug(
-					//"---- diff_t %lu win %lu", (unsigned long)diff_t, (unsigned long)window_);
-				
 				if(diff_t < (abs_millis_t)window_ * (abs_millis_t)CLOSE_HIT_WINDOW / (abs_millis_t)100) {
-					//Serial.println("->close");
 					return HIT_CLOSE;
 				}
 				else if(diff_t < (abs_millis_t)window_ * (abs_millis_t)STABLE_HIT_WINDOW / (abs_millis_t)100) {
-					//Serial.println("->stable");
 					return HIT_STABLE;
 				}
 				else {
-					//Serial.println("->far");
 					return HIT_FAR;
 				}
 			}
 			
 			void update_interval(abs_millis_t new_interval) {
-				//ArduinoDebug<ArduinoOsModel>(true).debug("window int %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
 				if(early()) {
 					interval_ = new_interval;
 				}
@@ -333,10 +303,7 @@ namespace wiselib {
 					// mean value without overflow
 					// source: http://www.ragestorm.net/blogs/?p=29
 					interval_ = (interval_ & new_interval) + ((interval_ ^ new_interval) >> 1);
-					//interval_ = (interval_ * (100 - alpha) + new_interval * alpha) / 100;
 				}
-				//ArduinoDebug<ArduinoOsModel>(true).debug("window corrected %lu new %lu", (unsigned long)interval_, (unsigned long)new_interval);
-				//check_invariant();
 			}
 			
 			void check_invariant() {
@@ -350,8 +317,6 @@ namespace wiselib {
 			end_waiting_callback_t end_waiting_callback_; // 4
 			void *userdata_; // 2
 			abs_millis_t last_encounter_; // 4
-			//abs_millis_t interval_;
-			//abs_millis_t window_;
 			::uint32_t interval_; // 2
 			::uint32_t window_; // 2
 			::uint8_t tolerate_misses_;

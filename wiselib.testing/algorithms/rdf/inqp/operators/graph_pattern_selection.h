@@ -80,7 +80,6 @@ namespace wiselib {
 			}
 			
 			void execute(TupleStoreT& ts) {
-				GET_OS.debug("gps x cols %d", (int)this->projection_info().columns());
 				typedef typename TupleStoreT::TupleContainer Container;
 				typedef typename Container::iterator Citer;
 				

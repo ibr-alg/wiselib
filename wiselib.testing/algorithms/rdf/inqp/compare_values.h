@@ -33,13 +33,11 @@ namespace wiselib {
 				typedef typename Sint<sizeof(Value_P)>::t S;
 				S val1 = v1;
 				S val2 = v2;
-				//DBG("compare int %08lx vs %08lx ==> %ld vs %ld", (long)v1, (long)v2, (long)val1, (long)val2);
 				return (val1 < val2) ? -1 : (val2 < val1);
 			}
 			case ProjectionInfoBase::FLOAT: {
 				float val1 = *reinterpret_cast<float*>(&v1);
 				float val2 = *reinterpret_cast<float*>(&v2);
-				GET_OS.debug("compare flota %f vs %f", (float)val1, (float)val2);
 				return (val1 < val2) ? -1 : (val2 < val1);
 			}
 			case ProjectionInfoBase::STRING: {

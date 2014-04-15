@@ -105,7 +105,6 @@ namespace wiselib {
 			///@{
 			
 			void execute(void* userdata) {
-				//GET_OS.debug("-- task ex");
 				if(userdata == (void*)0x01) { // on
 					update(true);
 				}
@@ -117,27 +116,22 @@ namespace wiselib {
 			void timeout(void* userdata) {
 				// after timeout auto-off
 				timeout_id_  = 0xff;
-				//GET_OS.debug("-- task2");
 				GET_OS.add_task(this, (void*)0x02);
 			}
 			
 			void handle_sensor() {
 				if(timeout_id_ == 0xff) {
 					// we timed out before, now be on again!
-				//GET_OS.debug("-- task1");
 					GET_OS.add_task(this, (void*)0x01); // on!
 				}
 				else {
 					// the value didnt change, but make sure to update the
 					// aggregate
-					//GET_OS.add_task(this, (void*)0x01); // on!
 					
 					// we are still in on-state, so nothing to do
 					// except, cancel the off-timeout, and start a new one
-				//GET_OS.debug("-- cancel to5");
 					GET_OS.remove_timeout(timeout_id_, this);
 				}
-				//GET_OS.debug("-- add to5");
 				timeout_id_ = GET_OS.add_timeout_in(5000, this, NULL);
 			}
 			
@@ -153,32 +147,20 @@ namespace wiselib {
 			
 			void update(bool value) {
 				value_ = value;
-				//GET_OS.debug("PIR %d me=%lx hv=%lx 0=%lx", (int)value, (unsigned long)(void*)uri_me_, (unsigned long)(void*)(uri_has_value_), (unsigned long)(const void*)"0");
 				Tuple t;
 				
 				// DELETE (:me :hasValue *)
 				
-				//GET_OS.debug("-a");
 				t.set(uri_me_, uri_has_value_, "0");
-				//GET_OS.debug("-b");
 				typename TupleStore::iterator it = tuple_store_->begin(&t, BIN(111));
-				//GET_OS.debug("-c");
 				if(it != tuple_store_->end()) { tuple_store_->erase(it); }
-				//GET_OS.debug("-d");
 				
-				//GET_OS.debug("-e");
 				t.set(uri_me_, uri_has_value_, "1");
-				//GET_OS.debug("-f");
 				it = tuple_store_->begin(&t, BIN(111));
-				//GET_OS.debug("-g");
 				if(it != tuple_store_->end()) { tuple_store_->erase(it); }
-				//GET_OS.debug("pr");
 					
 				t.set(uri_me_, uri_has_value_, value ? "1" : "0");
-				GET_OS.debug("PIR +(%s %s %s)", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2));
-				//GET_OS.debug("pri %lx %lx %lx", (unsigned long)(void*)t.get(0), (unsigned long)(void*)t.get(1), (unsigned long)(void*)t.get(2));
 				tuple_store_->insert(t);
-				//GET_OS.debug("/sens");
 			}
 			
 		private:

@@ -155,7 +155,6 @@ namespace wiselib {
 						i++;
 					}
 					aggregation_columns_physical_ = j;
-				//GET_OS.debug("aggr phycol %d", (int)aggregation_columns_physical_);
 					
 					local_aggregates_.init(aggregation_columns_physical_);
 					updated_aggregates_.init(aggregation_columns_physical_);
@@ -167,8 +166,6 @@ namespace wiselib {
 			size_type columns_physical() { return aggregation_columns_physical_; }
 			
 			void destruct() {
-				//GET_OS.debug("aggr destR!");
-				
 				if(timer_info_ != 0) {
 					timer_info_->alive = false;
 				}
@@ -305,8 +302,6 @@ namespace wiselib {
 			}
 			
 			void on_sending_time(void* ti_) {
-				//GET_OS.debug("aggr sending time");
-				
 				TimerInfo *ti = reinterpret_cast<TimerInfo*>(ti_);
 				if(!ti->alive) {
 					::get_allocator().free(ti);

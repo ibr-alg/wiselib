@@ -450,8 +450,6 @@ namespace wiselib {
 			iterator insert(UserTuple& t) {
 				Tuple tmp;
 				
-				GET_OS.debug("TS ins (%s %s %s) %d/%d", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2), (int)container_->size(), (int)container_->capacity());
-				
 				for(size_type i=0; i<COLUMNS; i++) {
 					if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
 						typename Dictionary::key_type k = dictionary_->insert(t.get(i));
@@ -471,11 +469,9 @@ namespace wiselib {
 					// to insert a new one.
 					for(size_type i=0; i<COLUMNS; i++) {
 						if(DICTIONARY_COLUMNS & (1 << i)) {
-							GET_OS.debug("erase tmp %d", (int)i);
 							dictionary_->erase(tmp.get_key(i));
 						}
 						else {
-							GET_OS.debug("free deep tmp %d", (int)i);
 							tmp.free_deep(i);
 						}
 					}
@@ -583,24 +579,17 @@ namespace wiselib {
 				iterator r;
 				r.set_dictionary(dictionary_);
 				
-				GET_OS.debug("-1");
 				int result = key_copy(r.query_, *query, mask, r.dictionary_);
-				GET_OS.debug("-2");
 				if(result == ERR_UNSPEC) {
-				GET_OS.debug("-3");
 					r.query_.destruct_deep();
-				GET_OS.debug("-4");
 					return end();
 				}
 				else {
-				GET_OS.debug("-5");
 					r.container_iterator_ = container_->begin();
 					r.container_end_ = container_->end();
 					r.set_dictionary(dictionary_);
 					r.column_mask_ = mask;
-				GET_OS.debug("-6");
 					r.forward();
-				GET_OS.debug("-7");
 					return r;
 				}
 			}
@@ -670,28 +659,21 @@ namespace wiselib {
 			 * some might not be!
 			 */
 			static int key_copy(Tuple& to, Tuple& from, column_mask_t mask, Dictionary* dictionary_) {
-				GET_OS.debug("f:%d", (int)mem->mem_free());
-				
 				for(size_type i = 0; i<COLUMNS; i++) {
 					
 					// are we caring for this column at all?
 					if(mask & (1 << i)) {
 						// is it a dict column?
 						if(DICTIONARY_COLUMNS && (DICTIONARY_COLUMNS & (1 << i))) {
-							GET_OS.debug("i=%d get(i)=%lx", (int)i, (unsigned long)(void*)from.get(i));
-							GET_OS.debug("s=%s", (char*)from.get(i));
 							key_type k = dictionary_->find(from.get(i));
 							if(k == Dictionary::NULL_KEY) {
 								return ERR_UNSPEC;
 							}
 							
 							to.set_key(i, k); // to_bdt(k));
-							GET_OS.debug("sat");
 						}
 						else {
-							GET_OS.debug("set deep i=%d get(i)=%lx", (int)i, (unsigned long)(void*)from.get(i));
 							to.set_deep(i, from.get(i));
-							GET_OS.debug("satd");
 						}
 					}
 				}
@@ -765,16 +747,9 @@ namespace wiselib {
 			template<typename UserTuple>
 			iterator insert(UserTuple& t) {
 				Tuple tmp;
-				
 				TupleStore_detail::deep_copy<COLUMNS>(tmp, t);
-				
 				typename TupleContainer::size_type sz = container_->size();
-				
-				GET_OS.debug("TS ins %d/%d", (int)container_->size(), (int)container_->capacity());
-				
-				
 				ContainerIterator ci = container_->insert(t);
-
 				if(container_->size() == sz) {
 					// Container size didnt change, i.e.
 					// this tuple was either already in there or

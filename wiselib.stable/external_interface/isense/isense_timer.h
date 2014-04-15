@@ -125,8 +125,6 @@ namespace wiselib
          return ERR_UNSPEC;
       }
 	  
-	  //GET_OS.debug("T %lu", (unsigned long)millis);
-
       isense_timer_callbacks[idx] = iSenseTimerCallback( isense_timer_delegate_t::from_method<T, TMethod>( obj_pnt ) );
       // only return success if task has been added
       if ( os_.add_task_in( isense::Time(millis), &isense_timer_callbacks[idx], userdata ) )

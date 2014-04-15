@@ -73,13 +73,9 @@ namespace wiselib {
 			void destruct() {
 				for(typename Operators::iterator it = operators_.begin(); it != operators_.end(); ++it) {
 					BasicOperator* op = it->second;
-					//DBG("op destr");
-					//DBG("o=%p", it->second);
 					op->destruct();
-					//DBG("op fre");
 					::get_allocator().free(op);
 				}
-				//DBG("op clr");
 				operators_.clear();
 			}
 			
@@ -97,7 +93,7 @@ namespace wiselib {
 			template<typename OperatorT>
 			void add_operator(OperatorT* op) {
 				if(!operators_.contains(op->id()) && operators_.full()) {
-					GET_OS.fatal("OPS FULL");
+					assert(false);
 				}
 				else {
 					operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
@@ -114,19 +110,15 @@ namespace wiselib {
 			 */
 			template<typename DescriptionT, typename OperatorT>
 			void add_operator(BOD *bod) {
-				//DBG("1adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				DescriptionT *description = reinterpret_cast<DescriptionT*>(bod);
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
 				op->init(description, this);
-				//DBG("2adop %d F%d", (int)bod->id(), (int)ArduinoMonitor<OsModel>::free());
 				if(!operators_.contains(bod->id()) && operators_.full()) {
-					GET_OS.fatal("OPS FULL");
+					assert(false);
 				}
 				else {
 					operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
 				}
-				
-				//DBG("F%d", (int)ArduinoMonitor<OsModel>::free());
 			}
 			
 			/**

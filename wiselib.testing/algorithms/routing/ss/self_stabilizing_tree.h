@@ -477,7 +477,6 @@ namespace wiselib {
 				
 				message_id_t message_type = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				if(message_type != TreeStateMessageT::MESSAGE_TYPE) {
-					//GET_OS.debug("not treestate msg");
 					return;
 				}
 
@@ -491,8 +490,6 @@ namespace wiselib {
 				msg.check();
 				
 				if(msg.reason() == TreeStateMessageT::REASON_REGULAR_BCAST) {
-					//GET_OS.debug("@%llx bc from %llx t %lu", (unsigned long long)radio_->id(),
-							//(unsigned long long)from, (unsigned long)now());
 					typename NeighborEntries::iterator ne = assess_link_metric(from, msg, t, ex.link_metric());
 					if(ne != neighbor_entries_.end() && ne->stable()) {
 						notify_event(SEEN_NEIGHBOR, from);
@@ -510,11 +507,6 @@ namespace wiselib {
 					debug_->debug("bcwait");
 				#endif
 				nap_control_->push_caffeine("bcw");
-				
-				if(BCAST_TIMES_OUT) {
-					//timer_->template set_timer<self_type, &self_type::give_up_wait_for_regular_broadcast>(
-							//BCAST_TIMEOUT, this, ev);
-				}
 			}
 			
 			void end_wait_for_regular_broadcast(void* ev) {
@@ -522,35 +514,6 @@ namespace wiselib {
 					debug_->debug("/bcwait");
 				#endif
 				nap_control_->pop_caffeine("/bcw");
-			}
-			
-/*
-			node_id_t find_event(RegularEventT& ev) {
-				for(typename RegularEvents::iterator it = regular_broadcasts_.begin(); it != regular_broadcasts_.end(); ++it) {
-					if(&(it->second) == &ev) {
-						return it->first;
-					}
-				}
-				return Radio::NULL_NODE_ID;
-			}
-*/
-			
-			void give_up_wait_for_regular_broadcast(void* v) {
-/*
-				RegularEventT& ev = *reinterpret_cast<RegularEventT*>(v);
-				DBG("@%lu give up bc waiting %d t%lu a %lu ev %p", (unsigned long)radio_->id(), (int)ev.waiting(),
-						(unsigned long)now(), (unsigned long)find_event(ev), v);
-				
-				// will call end_wait_for_regular_broadcast implicetely
-				if(ev.waiting()) {
-					ev.end_waiting();
-					//debug_->debug("T GUWFRB");
-					ev.template start_waiting_timer<
-						self_type, &self_type::begin_wait_for_regular_broadcast,
-						&self_type::end_wait_for_regular_broadcast>(clock_, timer_, this, v);
-				}
-				//nap_control_->pop_caffeine("/bcw");
-*/
 			}
 			
 			size_type find_neighbor_position(node_id_t a, bool allow_parent = true) {
@@ -581,8 +544,6 @@ namespace wiselib {
 					assert(l < 1 + childs());
 					return l;
 				}
-				//if(neighbors_[r].address_ == a) { return r; }
-				//return npos;
 				assert(r > 0);
 				assert(r < 2 + childs());
 				return r;
@@ -620,7 +581,7 @@ namespace wiselib {
 					new_neighbors_ = true;
 					
 					notify_event(NEW_NEIGHBOR, addr);
-		/*		
+				
 					RegularEventT &event = regular_broadcasts_[addr];
 					event.hit(t, clock_, radio_->id());
 					event.end_waiting();
@@ -742,10 +703,6 @@ namespace wiselib {
 				node_id_t parent = radio_->id(); assert(parent != NULL_NODE_ID);
 				node_id_t root = radio_->id(); assert(root != NULL_NODE_ID);
 				NeighborEntry *parent_ptr = 0;
-				
-				//#ifdef ISENSE
-				//GET_OS.debug("update state");
-				//#endif
 				
 				for(typename NeighborEntries::iterator iter = neighbor_entries_.begin(); iter != neighbor_entries_.end(); ++iter) {
 						

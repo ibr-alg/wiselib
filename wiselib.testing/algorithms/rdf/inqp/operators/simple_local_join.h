@@ -91,8 +91,6 @@ namespace wiselib {
 				if(!post_inited_) {
 					table_.init(this->child(Base::CHILD_LEFT).columns());
 					post_inited_ = true;
-					
-					GET_OS.debug("p(%d)=%d", (int)this->id_, (int)this->parent().id_);
 				}
 			}
 			
@@ -102,16 +100,11 @@ namespace wiselib {
 				
 				if(&row) {
 					if(port == Base::CHILD_LEFT) {
-						/*ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);*/
-						/*GET_OS.debug("SLJl %d %lx %lx", (int)this->id_, (unsigned long)row[0], (unsigned long)row[1]);*/
-						
 						left_++;
 						table_.insert(row);
 					}
 					else {
 						right_++;
-						//GET_OS.debug("SLJr %d", (int)this->id_);
-						/*GET_OS.debug("SLJr %d %lx %lx", (int)this->id_, (unsigned long)row[0], (unsigned long)row[1]);*/
 						ProjectionInfo<OsModel>& l = this->child(Base::CHILD_LEFT);
 						ProjectionInfo<OsModel>& r = this->child(Base::CHILD_RIGHT);
 						
@@ -152,9 +145,6 @@ namespace wiselib {
 								assert(l.result_type(left_column_) == r.result_type(right_column_));
 								
 								c = compare_values(l.result_type(left_column_), (*iter)[left_column_], row[right_column_]);
-								//GET_OS.debug("coll %d colr %d %lx ?= %lx -> %d",
-										//(int)left_column_, (int)right_column_, (unsigned long)(*iter)[left_column_],
-										//(unsigned long)row[right_column_], (int)c);
 							}
 							if(c == 0) {
 								j = 0;
@@ -164,9 +154,11 @@ namespace wiselib {
 									} // if ! IGN
 								} // for i
 								
-								GET_OS.debug("SLJ p");
 								if(!this->parent().push_) {
-									GET_OS.fatal("op %d !push", (int)this->id_);
+									#if ISENSE
+										GET_OS.fatal("op %d !push", (int)this->id_);
+									#endif
+									assert(false);
 								}
 								
 								this->parent().push(result);
@@ -182,7 +174,10 @@ namespace wiselib {
 					table_.clear();
 					
 					if(!this->parent().push_) {
-						GET_OS.fatal("op %d !push", (int)this->id_);
+						#if ISENSE
+							GET_OS.fatal("op %d !push", (int)this->id_);
+						#endif
+						assert(false);
 					}
 					this->parent().push(row);
 				}

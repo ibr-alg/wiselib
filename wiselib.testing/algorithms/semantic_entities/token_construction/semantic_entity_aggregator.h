@@ -93,15 +93,6 @@ namespace wiselib {
 							(datatype_ == other.datatype_) &&
 							(uom_key_ == other.uom_key_) &&
 							(type_key_ == other.type_key_);
-						if(!r) {
-							/*
-							GET_OS.debug("Aggr != %lx.%lx %d %lx %lx vs %lx.%lx %d %lx %lx",
-									(unsigned long)se_id_.rule(), (unsigned long)se_id_.value(), (int)datatype_, (unsigned long)uom_key_,
-									(unsigned long)type_key_,
-									(unsigned long)other.se_id_.rule(), (unsigned long)other.se_id_.value(), (int)other.datatype_, (unsigned long)other.uom_key_,
-									(unsigned long)other.type_key_);
-							*/
-						}
 						return r;
 					}
 					
@@ -181,11 +172,6 @@ namespace wiselib {
 								mean() = *reinterpret_cast<Value*>(&fmean2);
 								min() = *reinterpret_cast<Value*>(&fmin);
 								max() = *reinterpret_cast<Value*>(&fmax);
-								
-							#ifdef ISENSE
-								//GET_OS.debug("faggr %f -> %f/%f/%f", fv, fmin, fmean2, fmax);
-							#endif
-								
 							}
 							else {
 								assert(false && "datatype not supported for aggregation!");
@@ -385,10 +371,6 @@ namespace wiselib {
 			 */
 			void read_buffer(const SemanticEntityId& id, block_data_t* buffer, size_type buffer_size) {
 				//{{{
-				
-				
-				//GET_OS.debug("readbuffer this 0x%lx", (unsigned long)(void*)this);
-				
 				check();
 				
 				typename Shdt::Reader reader(&shdt_, buffer, buffer_size);
@@ -397,36 +379,23 @@ namespace wiselib {
 				size_type data_size;
 				typename Shdt::field_id_t field_id = 0;
 				
-				//DBG("------------ read_buffer %02x %02x %02x %02x...", buffer[0], buffer[1], buffer[2], buffer[3]);
-				
 				while(!reader.done()) {
-					//GET_OS.debug("- field_id %d @%d %02x %02x %02x %02x bufsiz %d", (int)field_id, (int)reader.position(), buffer[reader.position()], buffer[reader.position() + 1], buffer[reader.position() + 2], buffer[reader.position() + 3], (int)buffer_size);
-					
 					done = reader.read_field(field_id, data, data_size);
-					//GET_OS.debug("-- fild_id %d done %d data %d", (int)field_id, (int)done, (int)data_size);
 					
 					if(!done) { break; }
 					
 					Value v; // = reinterpret_cast<Value&>(*data);
-					//GET_OS.fatal("cp 0x%lx 0x%lx %d f%d", (void*)&v, (void*)data, (int)sizeof(Value), (int)mem->mem_free());
 					memcpy(&v, data, sizeof(Value));
-					//GET_OS.fatal("post cp");
 					
 					switch(field_id) {
 						case FIELD_UOM: {
-							//GET_OS.debug("ins: %s", (char*)data);
-							//typename DictionaryT::key_type k = dictionary().insert(data);
 							typename DictionaryT::key_type k = dictionary().find(data);
-							//GET_OS.debug("ins done");
 							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_uom_key(k);
 							break;
 						}
 						case FIELD_TYPE: {
-							//GET_OS.debug("ins2: %s", (char*)data);
-							//typename DictionaryT::key_type k = dictionary().insert(data);
 							typename DictionaryT::key_type k = dictionary().find(data);
-							//GET_OS.debug("ins2 done");
 							assert(k != DictionaryT::NULL_KEY);
 							read_buffer_key_.set_type_key(k);
 							break;
@@ -464,7 +433,6 @@ namespace wiselib {
 							assert(read_buffer_key_.type_key() != DictionaryT::NULL_KEY);
 							
 							if(aggregation_entries_.contains(read_buffer_key_)) {
-								//GET_OS.debug("found");
 								// we are going to insert that key again, that
 								// would increase the number of references to
 								// type/uom strings without increasing the
@@ -486,52 +454,30 @@ namespace wiselib {
 								}
 							}
 							
-							//GET_OS.debug("[]=");
 							aggregation_entries_[read_buffer_key_] = read_buffer_value_;
-							//GET_OS.debug("[]= don");
-							//DBG("aggr read_buffer SE %2d.%08lx typedct %8lx uomdct %8lx datatype %d => current n %2d %2d/%2d/%2d total n %2d %2d/%2d/%2d",
-									//(int)read_buffer_key_.se_id().rule(), (long)read_buffer_key_.se_id().value(),
-									//(long)read_buffer_key_.type_key(), (long)read_buffer_key_.uom_key(), (int)read_buffer_key_.datatype(),
-									//(int)read_buffer_value_.count(), (int)read_buffer_value_.min(), (int)read_buffer_value_.max(), (int)read_buffer_value_.mean(),
-									//(int)read_buffer_value_.total_count(), (int)read_buffer_value_.total_min(), (int)read_buffer_value_.total_max(), (int)read_buffer_value_.total_mean());
 							read_buffer_key_.init();
 							break;
 						}
 					} // switch
 				} // while
-				//GET_OS.debug("read_buffer done");
 				//}}}
 			}
 			
 			DictionaryT& dictionary() { return tuple_store_->dictionary(); }
 			
 			bool lock(const SemanticEntityId& id, bool in) {
-				//DBG("AGGREGATOR %p lock(%x.%x) lock_ = %x.%x",
-						//this, (int)id.rule(), (int)id.value(),
-						//(int)lock_.rule(), (int)lock_.value());
-				
-				
 				if(lock_ == SemanticEntityId::invalid() || (lock_ == id && lock_in_ == in)) {
 					//DBG("AGGREGATOR %p locking.", this);
 					lock_ = id;
 					lock_in_ = in;
 					return true;
 				}
-				
-				//DBG("AGGREGATOR %p NOT locking.", this);
 				return false;
 			}
 			
 			void release(const SemanticEntityId& id, bool in) {
-				//DBG("AGGREGATOR %p release(%x.%x) lock_ = %x.%x",
-						//this, (int)id.rule(), (int)id.value(),
-						//(int)lock_.rule(), (int)lock_.value());
 				if(lock_ == id && lock_in_ == in) {
-					//DBG("AGGREGATOR %p releasing.", this);
 					lock_ = SemanticEntityId::invalid();
-				}
-				else {
-					//DBG("AGGREGATOR %p NOT releasing.", this);
 				}
 			}
 			
@@ -542,7 +488,6 @@ namespace wiselib {
 		private:
 			
 			int fill_buffer_state_;
-			//const char* entity_format_;
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			AggregationEntries aggregation_entries_;
 			typename AggregationEntries::iterator fill_buffer_iterator_;

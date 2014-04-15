@@ -203,11 +203,6 @@ namespace wiselib {
 			 * Execute the given query.
 			 */
 			void execute(Query *query) {
-				printf("exec query %d\n", (int)query->id());
-				//#if INQP_DEBUG_STATE
-					//debug_->debug("xq%d", (int)query->id());
-				//#endif
-				//Serial.println("exec");
 				#ifdef ISENSE
 					GET_OS.debug("xq%d", (int)query->id());
 				#endif
@@ -216,10 +211,8 @@ namespace wiselib {
 				
 				for(operator_id_t id = 0; id < MAX_OPERATOR_ID; id++) {
 					if(!query->operators().contains(id)) { continue; }
-				printf("exec op%d\n", (int)id);
 					
 					BasicOperator *op = query->operators()[id];
-					//DBG("e %d %c F%d", (int)id, (char)op->type(), (int)ArduinoMonitor<Os>::free());
 					
 					switch(op->type()) {
 						case BOD::GRAPH_PATTERN_SELECTION:
@@ -251,12 +244,9 @@ namespace wiselib {
 					}
 				}
 				
-				printf("//exec query %d\n", (int)query->id());
 				if(exec_done_callback_) {
 					exec_done_callback_();
 				}
-				
-				//Serial.println("exec don");
 			}
 			
 			
@@ -276,39 +266,29 @@ namespace wiselib {
 			 * query, that is, add an according operator to the query.
 			 */
 			void handle_operator(Query* query, BOD *bod) {
-				printf("[hop]");
-				//DBG("hop %c %d", (char)bod->type(), (int)bod->id());
 				switch(bod->type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
-						//DBG("gps");
 						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
 						break;
 					case BOD::SELECTION:
-						//DBG("sel");
 						query->template add_operator<SelectionDescriptionT, SelectionT>(bod);
 						break;
 					case BOD::SIMPLE_LOCAL_JOIN:
-						//DBG("slj");
 						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
 						break;
 					case BOD::COLLECT:
-						//DBG("c");
 						query->template add_operator<CollectDescriptionT, CollectT>(bod);
 						break;
 					case BOD::CONSTRUCTION_RULE:
-						//DBG("c");
 						query->template add_operator<ConstructionRuleDescriptionT, ConstructionRuleT>(bod);
 						break;
 					case BOD::CONSTRUCT:
-						//DBG("cons");
 						query->template add_operator<ConstructDescriptionT, ConstructT>(bod);
 						break;
 					case BOD::DELETE:
-						//DBG("del");
 						query->template add_operator<DeleteDescriptionT, DeleteT>(bod);
 						break;
 					case BOD::AGGREGATE:
-						//DBG("agr");
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
 					default:
@@ -318,7 +298,6 @@ namespace wiselib {
 				if(query->ready()) {
 					execute(query);
 				}
-				//DBG("/hop");
 			}
 			
 			/**
@@ -446,17 +425,11 @@ namespace wiselib {
 			/**
 			 */
 			Query* create_query(query_id_t qid) {
-				//GET_OS.fatal("f:%d", (int)mem->mem_free());
-				
 				Query *q = ::get_allocator().template allocate<Query>().raw();
-				//GET_OS.fatal("-1 f:%d", (int)mem->mem_free());
 				q->init(this, qid);
-				//GET_OS.fatal("-2 f:%d", (int)mem->mem_free());
 				if(queries_.size() >= queries_.capacity()) {
-				//GET_OS.fatal("-3 f:%d", (int)mem->mem_free());
 					assert(false && "queries full, clean them up from time to time!");
 				}
-				//GET_OS.fatal("-4 f:%d", (int)mem->mem_free());
 				queries_[qid] = q;
 				return q;
 			}
@@ -465,8 +438,7 @@ namespace wiselib {
 			 */
 			void add_query(query_id_t qid, Query* query) {
 				if(queries_.size() >= queries_.capacity()) {
-					//assert(false && "queries full, clean them up from time to time!");
-					GET_OS.fatal("Qs FULL");
+					assert(false && "queries full, clean them up from time to time!");
 				}
 				else {
 					queries_[qid] = query;
@@ -476,7 +448,6 @@ namespace wiselib {
 			/**
 			 */
 			void erase_query(query_id_t qid) {
-				GET_OS.fatal("del qry %d", (int)qid);
 				if(queries_.contains(qid)) {
 					queries_[qid]->destruct();
 					::get_allocator().free(queries_[qid]);

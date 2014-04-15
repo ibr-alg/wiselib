@@ -197,7 +197,6 @@ namespace wiselib {
 					void set_operators(::uint8_t oplen, block_data_t* opdata) {
 						assert(oplen <= OPERATOR_BUFFER_SIZE);
 						if(oplen > OPERATOR_BUFFER_SIZE) {
-							GET_OS.fatal("ops too long!");
 							return;
 						}
 						memcpy(operator_buffer_, opdata, oplen);
@@ -207,7 +206,6 @@ namespace wiselib {
 					::uint8_t push_operator(::uint8_t pos, ::uint8_t len, block_data_t *data) {
 						assert(pos + len <= OPERATOR_BUFFER_SIZE);
 						if(pos + len > OPERATOR_BUFFER_SIZE) {
-							GET_OS.fatal("ops too long!");
 							return -1;
 						}
 						memcpy(operator_buffer_ + pos, data, len);
@@ -389,7 +387,6 @@ namespace wiselib {
 				// with an OID) plus the length of L. the length of L is 1.
 				
 				if(!queries_.contains(qid) && queries_.full()) {
-					GET_OS.fatal("QLIST FULL");
 					return;
 				}
 				
@@ -845,7 +842,6 @@ namespace wiselib {
 								}
 								
 								nap_control_->push_caffeine("odwake");
-								//debug_->debug("T odwake ltwake");
 								timer_->template set_timer<self_type, &self_type::on_waketime_over>(waketime, this, 0);
 								timer_->template set_timer<self_type, &self_type::on_lifetime_over>(lifetime, this, gain_precision_cast<void*>(id));
 							}
@@ -870,7 +866,6 @@ namespace wiselib {
 									#endif
 									int n = end - p;
 									if(n > 255) {
-										GET_OS.fatal("CUT OP");
 										n = 255;
 									}
 									memcpy(buf, p, n);
@@ -879,7 +874,6 @@ namespace wiselib {
 									query_processor_->handle_operator(q, (BOD*)(buf));
 								}
 								
-								//GET_OS.fatal("t=%lx", (unsigned long)(void*)this);
 								s.query_iterator()->second.push_operator(s.operator_position(), l, p - 1);
 								s.next_operator();
 								p += l - 1; // the length field itself was already added!
