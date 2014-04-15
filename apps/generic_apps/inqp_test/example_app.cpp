@@ -23,17 +23,33 @@
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
 	#define SINK 0
 
-#else
-	#define WISELIB_MAX_NEIGHBORS 4
+#elif defined(CONTIKI_TARGET_SKY)
+	#define WISELIB_MAX_NEIGHBORS 40
 	#define WISELIB_TIME_FACTOR 1
+	#define WISELIB_DISABLE_DEBUG 1
 
-	//#define BITMAP_ALLOCATOR_RAM_SIZE 1000
-	#define BITMAP_ALLOCATOR_RAM_SIZE (1024 + 512)
-	#define SINK 47430UL
-	//#define TS_MAX_TUPLES 76
+	//#define SINK 47430UL
+	#define SINK 18045UL // Blue node without battery holder
 
 	#define USE_UART 0
-	#define INQP_TEST_USE_BLOCK 0
+	#define USE_PREDEFINED_QUERY 1
+	#define BITMAP_ALLOCATOR_RAM_SIZE (1024 + 512)
+	//#define BITMAP_ALLOCATOR_RAM_SIZE (100)
+
+	#define TS_MAX_TUPLES 10
+
+//#else
+	//#define WISELIB_MAX_NEIGHBORS 4
+	//#define WISELIB_TIME_FACTOR 1
+
+	////#define BITMAP_ALLOCATOR_RAM_SIZE 1000
+	//#define BITMAP_ALLOCATOR_RAM_SIZE (1024 + 512)
+	//#define SINK 47430UL
+	////#define TS_MAX_TUPLES 76
+
+	//#define USE_UART 0
+	//#define USE_PREDEFINED_QUERY 1
+	//#define INQP_TEST_USE_BLOCK 0
 
 #endif
 
@@ -129,20 +145,20 @@ typedef Tuple<Os> TupleT;
 	//#include <util/pstl/list_dynamic.h>
 	#include <util/pstl/unique_container.h>
 	//#include <util/tuple_store/prescilla_dictionary.h>
-	//#include <util/tuple_store/static_dictionary.h>
-	//#include <util/pstl/vector_static.h>
+	#include <util/tuple_store/static_dictionary.h>
+	#include <util/pstl/vector_static.h>
 	//#include <util/pstl/unbalanced_tree_dictionary.h>
 	//typedef wiselib::list_dynamic<Os, TupleT> TupleList;
 	//typedef wiselib::UniqueContainer<TupleList> TupleContainer;
 	
-	//typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
+	typedef wiselib::vector_static<Os, TupleT, TS_MAX_TUPLES> TupleContainer;
 	//typedef wiselib::PrescillaDictionary<Os> Dictionary;
-	//typedef wiselib::StaticDictionary<Os, 50, 15> Dictionary;
+	typedef wiselib::StaticDictionary<Os, 50, 15> Dictionary;
 	//typedef UnbalancedTreeDictionary<Os> Dictionary;
 	
-	#include "precompiled_ts.cpp"
-	typedef PrecompiledDictionary Dictionary;
-	typedef PrecompiledTupleContainer TupleContainer;
+	//#include "precompiled_ts.cpp"
+	//typedef PrecompiledDictionary Dictionary;
+	//typedef PrecompiledTupleContainer TupleContainer;
 
 
 #else
@@ -186,7 +202,10 @@ typedef Processor::AggregateT AggregateT;
 #include <isense/util/get_os.h>
 #endif
 
-
+const char* rdf[][3] = {
+	#include "incontextsensing_short.cpp",
+	{ 0, 0, 0 }
+};
 
 template<typename OsModel_P>
 class NullMonitor {
@@ -200,35 +219,33 @@ class NullMonitor {
 		typename OsModel_P::Debug* debug_;
 };
 
-//const char* tuples[][3] = {
-		////#include "incontextsensing_very_short.cpp"
-	////{ "<foo>", "<bar>", "<baz>" },
-		//{ 0, 0, 0 },
-		//{ 0, 0, 0 }
+	/*
+	 * MIN(?v) MEAN(?v) MAX(?v) {
+	 *    ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
+	 *    ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
+	 * }
+	 * 
+
+	<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
+	<http://spitfire-project.eu/property/Temperature>            b23860b3
+	<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
+
+	 */
+	enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
+	enum { ROOT = 0 };
+	enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
+	enum { QID = 1 };
+	block_data_t op100[] = { OP, QID, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+	block_data_t op90[]  = { OP, QID,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
+	block_data_t op80[]  = { OP, QID,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
+	block_data_t op70[]  = { OP, QID,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
+	block_data_t cmd[]   = { Q, QID, 4 };
+
+
+//char *preinstalled_rdf[] = {
+	//#include "incontextsensing.cpp",
+	//{ 0, 0, 0 }
 //};
-
-
-/*
- * MIN(?v) MEAN(?v) MAX(?v) {
- *    ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
- *    ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
- * }
- * 
-
-<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
-<http://spitfire-project.eu/property/Temperature>            b23860b3
-<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
-
- */
-enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-enum { ROOT = 0 };
-enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-enum { QID = 1 };
-block_data_t op100[] = { OP, QID, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
-block_data_t op90[]  = { OP, QID,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
-block_data_t op80[]  = { OP, QID,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
-block_data_t op70[]  = { OP, QID,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
-block_data_t cmd[]   = { Q, QID, 4 };
 
 
 
@@ -244,18 +261,19 @@ class App {
 			ts.insert(t);
 		}
 
+		// Not exploitable ;)
 		int heart;
 		void heartbeat(void*_ =0) {
-			//debug_->debug("<3 %d0", heart++);
+			++heart;
 			if(heart == 0) {
-				//enable_radio();
-#if ENABLE_DEBUG
-				print_memstat();
-#endif
+				#if ENABLE_DEBUG
+					print_memstat();
+				#endif
 				init2();
 			}
 			else {
-			timer_->set_timer<App, &App::heartbeat>(10000, this ,0);
+				debug_->debug("<3 %d", heart);
+				timer_->set_timer<App, &App::heartbeat>(10000, this ,0);
 			}
 		}
 
@@ -272,37 +290,32 @@ class App {
 			#endif
 			radio_->enable_radio();
 		}
+
+
+		///@name Initialization methods.
+		///@{
 		
-		void init( Os::AppMainParameter& value )
-		{
+		void init( Os::AppMainParameter& value ) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 
-#if ENABLE_DEBUG
-			debug_->debug("bwait %lu", (unsigned long)radio_->id());
-#endif
+			#if ENABLE_DEBUG
+				debug_->debug("bwait %lu", (unsigned long)radio_->id());
+			#endif
 
 			//disable_radio();
-			heart = -30;
+			//heart = -30; // active in that many beats
+			heart = -1; // active in that many beats
 			heartbeat();
 		}
-			
+		
 		void init2() {
-			//debug_->debug("init2");
-		//#if USE_UART
-			//uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet( value );
-			//uart_->enable_serial_comm();
-			//uart_->reg_read_callback<App, &App::uart_receive>(this);
-			//uart_query_pos = 0;
-		//#endif // USE_UART
+			#if ENABLE_DEBUG
+				monitor_.init(debug_);
+			#endif
 			
-#if ENABLE_DEBUG
-			monitor_.init(debug_);
-#endif
-			
-		//#if !defined(PC)
 			radio_->enable_radio();
 			
 			// query direction: packing radio over flooding
@@ -313,44 +326,28 @@ class App {
 			
 			// answer direction: packing radio over treerouting
 			
-			//tradio_.init(*radio_, *clock_, *timer_, fndradio_, *debug_);
 			tradio_.init(radio_, &fndradio_);
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			
-#if ENABLE_DEBUG
-			debug_->debug("boot %lu", (unsigned long)radio_->id());
-#endif
-			
-		//#endif
+			#if ENABLE_DEBUG
+				debug_->debug("boot %lu", (unsigned long)radio_->id());
+			#endif
 			
 			init_ts();
+			fill_ts();
+			debug_ts();
 			if(radio_->id() == SINK) {
 				debug_->debug("sink\n");
-				//be_sink();
 				timer_->set_timer<App, &App::be_sink>(100, this, 0);
 			}
 			else {
 				be();
 			}
 
-			/*
-			init_ts();
-			
-		#if defined(ISENSE) || defined(PC)
-			be_standalone();
-			
-		#elif defined(SHAWN)
-			if(radio_->id() == SINK) {
-				debug_->debug("sink\n");
-				//be_sink();
-				timer_->set_timer<App, &App::be_sink>(100, this, 0);
-			}
-			else {
-				be();
-			}
-		#endif
-			*/
+			#if USE_PREDEFINED_QUERY
+				timer_->set_timer<App, &App::load_predefined_query>(10000, this, 0);
+			#endif
 		}
 		
 		Dictionary dictionary;
@@ -385,48 +382,74 @@ class App {
 		#endif
 			debug_->debug("its5");
 		}
-		
-		//void insert_tuples() {
-			//int i = 0;
-			//for( ; tuples[i][0]; i++) {
-				//ins(ts, tuples[i][0], tuples[i][1], tuples[i][2]);
-			//}
-			//debug_->debug("ins done: %d tuples", (int)i);
-			
-		//}
 
+		void fill_ts() {
+			// thanks cdecl.org, without you I wouldnt have made it.
+			//const char * (*p)[3] = rdf;
+			const char **p = reinterpret_cast<const char **>(rdf);
+			while(*p) {
+				ins(ts, p[0], p[1], p[2]);
+				p += 3;
+			}
+		}
+
+		void debug_ts() {
+			for(TS::iterator iter = ts.begin(); iter != ts.end(); ++iter) {
+				debug_->debug("(%s %s %s)", (char*)iter->get(0), (char*)iter->get(1), (char*)iter->get(2));
+				for(int i = 0; i < 1000; i++) ;
+			}
+		}
+
+		/**
+		 * Initialization for the sink node.
+		 */
+		void be_sink(void*) {
+			debug_->debug("bs0");
+			ian_.init(&ts, timer_);
+			debug_->debug("bs1");
+			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
+			debug_->debug("bs2");
+			communicator_.set_sink(SINK);
+			debug_->debug("bs3");
+			
+			// set self as parent.
+			// when we receive packets from ourself, we play sink, otherwise
+			// we play in-network node
+			fndradio_.set_parent(SINK);
+			
+			debug_->debug("bs4");
+			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
+			
+			debug_->debug("bs5");
+			timer_->set_timer<App, &App::sink_send_query>(30000, this, 0);
+			debug_->debug("bs6");
+		}
+
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Wwrite-strings"
+		/**
+		 * Initialization for a non-sink node.
+		 */
+		void be() {
+			ian_.init(&ts, timer_);
+			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
+			communicator_.set_sink(SINK);
+			debug_->debug("rtr");
+		}
+		#pragma GCC diagnostic pop
+
+		///@}
+		//
 		
 	#if USE_UART
+
+		///@name Methods for UART communication with SELDA (aka NQXE).
+
 		block_data_t uart_query[512];
 		size_t uart_query_pos;
 		
 		void uart_receive(Os::Uart::size_t len, Os::Uart::block_data_t *buf) {
-			//size_t l = buf[0];
-			//block_data_t msgtype = buf[1];
-			//block_data_t qid = buf[2];
-
 			process_nqxe_message((block_data_t*)buf);
-			
-			//if(buf[1] == 'O') {
-				//// length of field, including length field itself
-				//uart_query[uart_query_pos++] = l - 1;
-				//memcpy(uart_query + uart_query_pos, buf + 3, l - 2);
-				//uart_query_pos += (l - 2);
-			//}
-			//else if(buf[1] == 'Q') {
-				//block_data_t opcount = buf[3];
-				
-				//distributor_.distribute(
-						//SemanticEntityId::all(),
-						//qid, 1 [> revision <],
-						//Distributor::QUERY,
-						//60000 * WISELIB_TIME_FACTOR, // waketime & lifetime
-						//60000 * WISELIB_TIME_FACTOR,
-						//opcount,
-						//uart_query_pos, uart_query
-				//);
-				//uart_query_pos = 0;
-			//}
 		}
 
 		void send_result_row_to_nqxe(
@@ -497,9 +520,21 @@ class App {
 
 		} // send_result_row_to_nqxe()
 
+		///@}
 
 	#endif // USE_UART
+	
+	#if USE_PREDEFINED_QUERY
+		void load_predefined_query(void*) {
+			debug_->debug("loading pre-installed query...");
 
+			process(sizeof(op100), op100);
+			process(sizeof(op90), op90);
+			process(sizeof(op80), op80);
+			process(sizeof(op70), op70);
+			process(sizeof(cmd), cmd);
+		}
+	#endif
 		
 		/**
 		 * @param q { len, 'O' or 'Q', ... }
@@ -524,22 +559,6 @@ class App {
 			}
 		}
 		
-		#pragma GCC diagnostic push
-		#pragma GCC diagnostic ignored "-Wwrite-strings"
-		void be() {
-			//insert_tuples();
-			
-			ian_.init(&ts, timer_);
-			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
-			communicator_.set_sink(SINK);
-			
-			//ian_.reverse_translator().fill();
-			
-			//pradio_.reg_recv_callback<App, &App::node_receive_query>( this );
-			debug_->debug("rtr");
-		}
-		#pragma GCC diagnostic pop
-		
 		void sink_ask_hash_resolve(void*) {
 			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
 			
@@ -549,39 +568,6 @@ class App {
 			};
 			send(sizeof(msg), msg);
 			query_radio_.flush();
-		}
-		
-		void be_sink(void*) {
-			//init_ts();
-			//dictionary.init(debug_);
-			//ts.init(&dictionary, &container, debug_);
-		debug_->debug("bs0");
-			ian_.init(&ts, timer_);
-		debug_->debug("bs1");
-			communicator_.init(ian_, query_radio_, result_radio_, fndradio_, *timer_);
-		debug_->debug("bs2");
-			communicator_.set_sink(SINK);
-		debug_->debug("bs3");
-			
-			// set self as parent.
-			// when we receive packets from ourself, we play sink, otherwise
-			// we play in-network node
-			fndradio_.set_parent(SINK);
-			
-		debug_->debug("bs4");
-			result_radio_.reg_recv_callback<App, &App::sink_receive_answer>( this );
-			
-		debug_->debug("bs5");
-//#ifdef SHAWN
-			//timer_->set_timer<App, &App::sink_send_ssp_query>(10000, this, 0);
-//#else
-
-		//#if !USE_UART
-			// If we dont use the UART, send out a predefined query after 10s
-			timer_->set_timer<App, &App::sink_send_query>(30000, this, 0);
-		//#endif
-//#endif
-		debug_->debug("bs6");
 		}
 		
 		void sink_send_query(void*) {

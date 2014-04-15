@@ -3,6 +3,8 @@
 import rdflib
 import sys
 import string
+import datetime
+import os.path
 
 # incontextsensing
 
@@ -28,6 +30,7 @@ tuples = []
 
 def insert_tuple(s, p, o):
 	#print(s, p, o)
+	print("// ({} {} {})".format(s, p, o))
 	ks = insert_dictionary(s)
 	kp = insert_dictionary(p)
 	ko = insert_dictionary(o)
@@ -190,71 +193,58 @@ const char dict_data_[{} + 1 /* for 0-byte at end of string */] =
     '''.format(DICT_SLOTS, DICT_SLOT_WIDTH, DICT_SLOTS * (DICT_SLOT_WIDTH + 1), ss)
 
 
-g = rdflib.Graph()
-#g.parse('test.rdf', format='n3')
-g.parse('incontextsensing_short.rdf', format='n3')
-for s, p, o in g:
-	insert_tuple(to_string(s), to_string(p), to_string(o))
 
-#print_dictionary()
 
-# Generate dict string
-b = bytes()
-for i in range(DICT_SLOTS):
-	if not dictionary[i]:
-		b += (b'\x00' * (DICT_SLOT_WIDTH + 1))
-	else:
-		v = dictionary[i]
-		assert v['refcount'] <= 127
-		b += bytes(chr(v['refcount'] + (v['meta'] * 128)), 'latin1')
-		#print("{} l={}".format(v['s'], len(v['s'])))
-		assert len(v['s']) == DICT_SLOT_WIDTH
-		b += v['s']
-	#sys.stderr.write(str(len(b)) + '\n')
+def parse(filename):
+	print("// Generated {}\n//  by: {}\n//  source: {}\n".format(datetime.datetime.now(), os.path.abspath(sys.argv[0]), os.path.abspath(filename)))
 
-#print(b)
 
-W = (DICT_SLOT_WIDTH + 1)
+	g = rdflib.Graph()
+	#g.parse('test.rdf', format='n3')
+	g.parse(filename, format='n3')
+	for s, p, o in g:
+		insert_tuple(to_string(s), to_string(p), to_string(o))
 
-ss = '"';
-i = 0
-for bt in b:
-	ss += '\\x{:02x}'.format(int(bt))
-	i += 1
-	if i >= W:
-		ss += '"\n"'
-		i = 0
-ss += '"'
+	#print_dictionary()
 
-print(dict_to_cpp_string())
+	# Generate dict string
+	b = bytes()
+	for i in range(DICT_SLOTS):
+		if not dictionary[i]:
+			b += (b'\x00' * (DICT_SLOT_WIDTH + 1))
+		else:
+			v = dictionary[i]
+			assert v['refcount'] <= 127
+			b += bytes(chr(v['refcount'] + (v['meta'] * 128)), 'latin1')
+			#print("{} l={}".format(v['s'], len(v['s'])))
+			assert len(v['s']) == DICT_SLOT_WIDTH
+			b += v['s']
+		#sys.stderr.write(str(len(b)) + '\n')
 
-#print(s_dict)
-#print('''
-##define STATIC_DICTIONARY_OUTSOURCE 1
-##define STATIC_DICTIONARY_SLOTS {}
-##define STATIC_DICTIONARY_SLOT_WIDTH {}
-##include <util/tuple_store/static_dictionary.h>
+	#print(b)
 
-#typedef wiselib::StaticDictionary<Os, STATIC_DICTIONARY_SLOTS, STATIC_DICTIONARY_SLOT_WIDTH> PrecompiledDictionary;
+	W = (DICT_SLOT_WIDTH + 1)
 
-#/*
-	##if STATIC_DICTIONARY_OUTSOURCE
-		#dictionary_->set_data(dict_data_);
-	##endif
-#*/
+	ss = '"';
+	i = 0
+	for bt in b:
+		ss += '\\x{:02x}'.format(int(bt))
+		i += 1
+		if i >= W:
+			ss += '"\n"'
+			i = 0
+	ss += '"'
 
-#const char dict_data_[{} + 1 /* for 0-byte at end of string */] =
-#{};
-#'''.format(DICT_SLOTS, DICT_SLOT_WIDTH, len(b), ss))
+	print(dict_to_cpp_string())
 
-ss = '{ '
-ks, kp, ko = tuples[0]
-ss += '{}, {}, {}'.format(ks, kp, ko)
-for ks, kp, ko in tuples[1:]:
-	ss += ', {}, {}, {} // (%s %s %s)\n'.format(ks, kp, ko)
-ss += '}'
+	ss = '{\n'
+	ks, kp, ko = tuples[0]
+	ss += '	  {}, {}, {}\n'.format(ks, kp, ko)
+	for ks, kp, ko in tuples[1:]:
+		ss += '	, {}, {}, {}\n'.format(ks, kp, ko)
+	ss += '}'
 
-print('''
+	print('''
 #define VECTOR_STATIC_OUTSOURCE 1
 #define VECTOR_STATIC_SIZE {}
 #include <util/pstl/vector_static.h>
@@ -270,7 +260,11 @@ typedef wiselib::vector_static<Os, TupleT, VECTOR_STATIC_SIZE> PrecompiledTupleC
 //Uint<sizeof(block_data_t*)>::t
 TupleT::value_t tuple_data_[VECTOR_STATIC_SIZE * 3] = {};
 
-'''.format(len(tuples), ss))
+	'''.format(len(tuples), ss))
+
+
+parse('incontextsensing_short.rdf')
+
 
 
 
