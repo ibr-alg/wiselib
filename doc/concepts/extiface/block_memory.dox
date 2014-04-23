@@ -12,21 +12,44 @@ namespace concepts {
 		: public BasicReturnValues_concept {
 			
 		public:
-			typedef ... block_data_t;
-			typedef ... size_type;
 			typedef ... self_type;
 			typedef ... self_pointer_t;
+
+			typedef ... block_data_t;
+
 			typedef ... address_t;
-			
+
 			enum {
-				SIZE = ..., ///< in blocks
 				BLOCK_SIZE = 512, ///< size of block in byte (usable payload)
 				BUFFER_SIZE = 512, ///< size of buffers to pass to methods. Might be larger than BLOCK_SIZE for some implementations
 			};
 			
 			enum {
-				NO_ADDRSESS = ..., ///< address_t value denoting an invalid address
+				NO_ADDRESS = (address_t)(-1) ///< address_t value denoting an invalid address
 			};
+
+			/**
+			 * Re-initialize/reset the memory interface.
+			 * This should not influence the data stored on the memory but
+			 * rather only reset the interface (e.g. clear caches etc...)
+			 *
+			 * @return SUCCESS or ERR_UNSPEC
+			 */
+			int init();
+
+			/**
+			 * @return The number of blocks this block device allows access
+			 * to.
+			 * That is, addresses in the range [0, ..., size() - 1] should be
+			 * considered valid.
+			 */
+			address_t size();
+
+			/**
+			 * Wipe the block memory, that is erase all data.
+			 * @return SUCCESS or ERR_UNSPEC
+			 */
+			int wipe();
 			
 			/**
 			 * @return SUCCESS iff the block was read successfully
