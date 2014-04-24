@@ -90,6 +90,7 @@ namespace wiselib {
 			 * @a BasicOperator.
 			 * @param op Operator instance to add.
 			 */
+			/*
 			template<typename OperatorT>
 			void add_operator(OperatorT* op) {
 				if(!operators_.contains(op->id()) && operators_.full()) {
@@ -99,6 +100,7 @@ namespace wiselib {
 					operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
 				}
 			}
+			*/
 			
 			/**
 			 * Add an operator to this query by description.

@@ -46,7 +46,7 @@ namespace wiselib {
 			typedef typename Query::query_id_t query_id_t;
 			typedef typename Query::BOD BOD;
 			typedef typename Query::BOD::operator_id_t operator_id_t;
-			typedef typename Radio::Radio::Radio::node_id_t physical_node_id_t;
+			typedef typename Radio::node_id_t physical_node_id_t;
 			
 			enum {
 				POS_MESSAGE_ID = 0,

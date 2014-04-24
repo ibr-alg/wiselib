@@ -59,11 +59,11 @@ namespace wiselib {
 				OsModel_P,
 				ForwardOnDirectedNd<
 					OsModel_P,
-					typename OsModel_P::Radio,
 					FloodingNd<
 						OsModel_P,
 						typename OsModel_P::Radio
-					>
+					>,
+					typename OsModel_P::Radio
 				>
 			>,
 		typename Neighborhood_P =
@@ -81,7 +81,7 @@ namespace wiselib {
 			typedef QueryRadio_P QueryRadio;
 			typedef ResultRadio_P ResultRadio;
 			
-			typedef INQPCommunicator<OsModel_P, QueryProcessor_P, Timer_P, QueryRadio_P, ResultRadio_P> self_type;
+			typedef INQPCommunicator self_type;
 			
 			typedef typename QueryProcessor::RowT RowT;
 			typedef ::uint8_t operator_id_t;
@@ -148,21 +148,16 @@ namespace wiselib {
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
-						//DBG("srow sink");
-						//Serial.println("inqp send result");
 						result_radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						break;
 					}
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
-						//Serial.println("inqp send aggre");
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 						if(ni == nd_->neighbors_end()) {
 						//Serial.println("inqp send aggr no parent");
 							DBG("com aggr no nd par me%d", (int)result_radio_->id());
 						}
 						else {
-						//DBG("srow aggr %d", (int)ni->id());
-						//Serial.println("inqp send aggr send");
 							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
 						}
 						break;
@@ -182,25 +177,14 @@ namespace wiselib {
 			}
 			
 			Packet query_packet_;
-			//block_data_t query
 
 			void on_receive_query(
 					typename QueryRadio::node_id_t from,
 					typename QueryRadio::size_t len,
 					typename QueryRadio::block_data_t* buf) {
-				//Packet* packet = ::get_allocator().template allocate<Packet>().raw();
-				//block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
-				
 				Packet *packet = &query_packet_;
-
-				DBG("recv query");
-				
-				//Serial.println("recv query");
-				
 				packet->from = from;
 				packet->len = len;
-				//memcpy(data, buf, len);
-				//packet->data = data;
 				memcpy(packet->data, buf, len);
 				timer_->template set_timer<self_type, &self_type::on_receive_query_task>(0, this, packet);
 			}
@@ -212,16 +196,8 @@ namespace wiselib {
 				if(from == result_radio_->id()) { return; }
 				
 				Packet *packet = &query_packet_;
-				//Packet* packet = ::get_allocator().template allocate<Packet>().raw();
-				//block_data_t* data = ::get_allocator().template allocate_array<block_data_t>(len).raw();
-				
-				//Serial.println("recv result");
-				DBG("recv result");
-				
 				packet->from = from;
 				packet->len = len;
-				//memcpy(data, buf, len);
-				//packet->data = data;
 				memcpy(packet->data, buf, len);
 				timer_->template set_timer<self_type, &self_type::on_receive_result_task>(0, this, packet);
 			}
@@ -238,18 +214,12 @@ namespace wiselib {
 				ResultMessage* result_message() { return reinterpret_cast<ResultMessage*>(data); }
 			};
 			
-			
-			// TODO: Once we have a more complete overview over the
-			// radios and packets we are actually using, clean this up a bit
-			
 			/**
 			 * Handle something that comes the sink.
 			 */
 			void on_receive_query_task(void *q) {
 				typedef typename QueryRadio::message_id_t qmsgid_t;
 				Packet *packet = reinterpret_cast<Packet*>(q);
-				
-				printf("<recv query task>\n");
 				
 				switch(packet->query_message()->message_id()) {
 					case MESSAGE_ID_OPERATOR:
@@ -265,10 +235,6 @@ namespace wiselib {
 						DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
 						break;
 				}
-				printf("</recv query task>\n");
-				//::get_allocator().free(packet->data);
-				//::get_allocator().free(packet);
-				//printf("[/RECV QUERY TASK]\n");
 			} // on_receive_query
 			
 			

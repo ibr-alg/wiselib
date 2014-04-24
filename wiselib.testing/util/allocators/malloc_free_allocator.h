@@ -118,7 +118,9 @@ class MallocFreeAllocator {
 			#endif
 				
 			if(p == 0) {
-				GET_OS.fatal("!alloc %d", (int)sizeof(T));
+				#ifdef ISENSE
+					GET_OS.fatal("!alloc %d", (int)sizeof(T));
+				#endif
 			}
 				
 			//new(r) T;
@@ -138,7 +140,9 @@ class MallocFreeAllocator {
 				void *p = malloc(sizeof(T) * n);
 			#endif
 			if(p == 0) {
-				GET_OS.fatal("!Aalloc %d", (int)(sizeof(T) * n));
+				#ifdef ISENSE
+					GET_OS.fatal("!Aalloc %d", (int)(sizeof(T) * n));
+				#endif
 			}
 			
 			array_pointer_t<T> r(reinterpret_cast<T*>(p), n);

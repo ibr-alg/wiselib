@@ -14,13 +14,16 @@
 #if defined(SHAWN)
 	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
-	#define SINK 0
+	#define SINK 1
+	#define TS_MAX_TUPLES 10
+	#define WISELIB_MAX_NEIGHBORS 40
 
 #elif defined(PC)
 	#define WISELIB_MAX_NEIGHBORS 10000
 	#define WISELIB_TIME_FACTOR 1
 	#define WISELIB_DISABLE_DEBUG 0
 	#define WISELIB_DISABLE_DEBUG_MESSAGES 0
+	#define TS_MAX_TUPLES 10
 	#define SINK 0
 
 #elif defined(CONTIKI_TARGET_SKY)
@@ -92,6 +95,7 @@
 	
 typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
+typedef Os::Radio Radio;
 using namespace wiselib;
 
 #if defined(CONTIKI)
@@ -128,12 +132,22 @@ using namespace wiselib;
 #include <algorithms/hash/sdbm.h>
 typedef wiselib::Sdbm<Os> Hash;
 
+#include <algorithms/neighbor_discovery/static_neighborhood.h>
+typedef StaticNeighborhood<Os> NHood;
+
 typedef wiselib::FloodingNd<Os, Os::Radio> FNDRadio;
 typedef wiselib::PackingRadio<Os, FNDRadio> PRadio;
 
 //typedef wiselib::TreeRoutingNdis<Os, Os::Radio, Os::Clock, Os::Timer, FNDRadio, Os::Debug> TRadio;
-typedef wiselib::ForwardOnDirectedNd<Os, Os::Radio, FNDRadio> TRadio;
+typedef wiselib::ForwardOnDirectedNd<Os, FNDRadio> TRadio;
 typedef wiselib::PackingRadio<Os, TRadio> PAnsRadio;
+
+
+//#include <algorithms/routing/static_tree_collect_radio.h>
+//#include "static_tree_shawn.h"
+//typedef StaticTreeCollectRadio<Os, false> AggregationRadio;
+//typedef StaticTreeCollectRadio<Os, true> CollectRadio;
+//typedef PackingRadio<Os, CollectRadio> PAnsRadio;
 
 // -------- BEGIN TS SETUP
 
@@ -202,11 +216,6 @@ typedef Processor::AggregateT AggregateT;
 #include <isense/util/get_os.h>
 #endif
 
-const char* rdf[][3] = {
-	#include "incontextsensing_short.cpp",
-	{ 0, 0, 0 }
-};
-
 template<typename OsModel_P>
 class NullMonitor {
 	public:
@@ -219,35 +228,7 @@ class NullMonitor {
 		typename OsModel_P::Debug* debug_;
 };
 
-	/*
-	 * MIN(?v) MEAN(?v) MAX(?v) {
-	 *    ?sens <http://purl.oclc.org/NET/ssnx/ssn#observedProperty> <http://spitfire-project.eu/property/Temperature> .
-	 *    ?sens <http://www.loa-cnr.it/ontologies/DUL.owl#hasValue> ?v .
-	 * }
-	 * 
-
-	<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>          4d0f60b4
-	<http://spitfire-project.eu/property/Temperature>            b23860b3
-	<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
-
-	 */
-	enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-	enum { ROOT = 0 };
-	enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-	enum { QID = 1 };
-	block_data_t op100[] = { OP, QID, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
-	block_data_t op90[]  = { OP, QID,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
-	block_data_t op80[]  = { OP, QID,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
-	block_data_t op70[]  = { OP, QID,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
-	block_data_t cmd[]   = { Q, QID, 4 };
-
-
-//char *preinstalled_rdf[] = {
-	//#include "incontextsensing.cpp",
-	//{ 0, 0, 0 }
-//};
-
-
+#include "static_data.h"
 
 class App {
 	public:
@@ -305,6 +286,11 @@ class App {
 				debug_->debug("bwait %lu", (unsigned long)radio_->id());
 			#endif
 
+			//CollectRadio r;
+			//r.init(*radio_, *timer_, *debug_);
+			//r.set_tree(tree_);
+			//debug_->debug("collectradio at %lu parent %lu", (unsigned long)r.id(), (unsigned long)r.parent());
+
 			//disable_radio();
 			//heart = -30; // active in that many beats
 			heart = -1; // active in that many beats
@@ -326,7 +312,7 @@ class App {
 			
 			// answer direction: packing radio over treerouting
 			
-			tradio_.init(radio_, &fndradio_);
+			tradio_.init(fndradio_, *radio_, *timer_, *debug_);
 			result_radio_.init(tradio_, *debug_, *timer_);
 			result_radio_.enable_radio();
 			

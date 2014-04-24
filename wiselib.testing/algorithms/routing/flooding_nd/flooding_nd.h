@@ -165,7 +165,7 @@ namespace wiselib {
 				return iterator(0);
 			}
 			
-			iterator neighbors_count(typename Neighbor::State state) {
+			size_type neighbors_count(typename Neighbor::State state) {
 				return (state & Neighbor::OUT_EDGE) && parent_set_;
 			}
 			

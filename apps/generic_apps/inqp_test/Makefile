@@ -10,7 +10,7 @@ all: contiki_sky
 # all: tinyos-tossim
 # all: tinyos-micaz
 
-export APP_SRC=example_app.cpp
+export APP_SRC=app.cpp
 export BIN_OUT=example_app
 export PC_COMPILE_DEBUG=1
 #export WISELIB_DISABLE_DEBUG_MESSAGES=1
