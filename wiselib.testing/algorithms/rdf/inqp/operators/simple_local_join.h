@@ -70,12 +70,12 @@ namespace wiselib {
 				hardcore_cast(this->push_, &self_type::push);
 				post_inited_ = false;
 				
-				if(left_column_ == SLJD::LEFT_COLUMN_INVALID && right_column_ == SLJD::RIGHT_COLUMN_INVALID) {
-					DBG("cross join");
-				}
-				else {
-					DBG("slj %d %d", (int)left_column_, (int)right_column_);
-				}
+				//if(left_column_ == SLJD::LEFT_COLUMN_INVALID && right_column_ == SLJD::RIGHT_COLUMN_INVALID) {
+					//DBG("cross join");
+				//}
+				//else {
+					//DBG("slj %d %d", (int)left_column_, (int)right_column_);
+				//}
 				
 				left_ = 0;
 				right_ = 0;
@@ -83,7 +83,6 @@ namespace wiselib {
 			#pragma GCC diagnostic pop
 			
 			void destruct() {
-				//DBG("sle destr");
 				table_.destruct();
 			}
 			

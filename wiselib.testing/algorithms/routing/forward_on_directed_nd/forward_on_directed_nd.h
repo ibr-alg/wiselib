@@ -104,12 +104,6 @@ namespace wiselib {
 				ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
 			};
 
-			//void init(typename Radio::self_pointer_t radio, typename Neighborhood::self_pointer_t nd) {
-				//radio_ = radio;
-				//nd_ = nd;
-				//radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
-			//}
-
 			int init(Neighborhood& nd, Radio& radio, Timer& timer, Debug& debug) {
 				radio_ = &radio;
 				timer_ = &timer;
@@ -206,7 +200,8 @@ namespace wiselib {
 					}
 					else {
 						if(nd_->neighbors_begin(Neighbor::OUT_EDGE) ==  nd_->neighbors_end()) {
-							DBG("ALART: node %d has no parent to send to!", radio_->id());
+							//DBG("ALART: node %d has no parent to send to!", radio_->id());
+							return;
 						}
 						
 						for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);

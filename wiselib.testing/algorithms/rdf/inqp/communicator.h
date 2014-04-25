@@ -120,13 +120,9 @@ namespace wiselib {
 				ian_->template reg_row_callback<self_type, &self_type::on_send_row>(this);
 				ian_->template reg_resolve_callback<self_type, &self_type::on_send_resolve>(this);
 				
-            // TODO: Receive messages from parent that
-            // are for a SE we know reliably
 				query_radio_->enable_radio();
 				query_radio_->template reg_recv_callback<self_type, &self_type::on_receive_query>(this);
 				
-            // TODO: Wait for parent to wake up if necessary, do a reliable
-            // transport upwards
 				result_radio_->enable_radio();
 				result_radio_->template reg_recv_callback<self_type, &self_type::on_receive_intermediate_result>(this);
 			}
@@ -154,8 +150,6 @@ namespace wiselib {
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
 						if(ni == nd_->neighbors_end()) {
-						//Serial.println("inqp send aggr no parent");
-							DBG("com aggr no nd par me%d", (int)result_radio_->id());
 						}
 						else {
 							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
@@ -232,7 +226,8 @@ namespace wiselib {
 						ian_->handle_resolve(packet->resolve_message(), packet->from, packet->len);
 						break;
 					default:
-						DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
+						//DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
+						assert(false);
 						break;
 				}
 			} // on_receive_query

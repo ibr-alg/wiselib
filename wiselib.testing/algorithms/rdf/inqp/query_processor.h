@@ -198,9 +198,6 @@ namespace wiselib {
 			 * Execute the given query.
 			 */
 			void execute(Query *query) {
-				#ifdef ISENSE
-					GET_OS.debug("xq%d", (int)query->id());
-				#endif
 				assert(query->ready());
 				query->build_tree();
 				
@@ -235,7 +232,7 @@ namespace wiselib {
 							(reinterpret_cast<DeleteT*>(op))->execute();
 							break;
 						default:
-							DBG("!eop typ %d", op->type());
+							assert(false);
 					}
 				}
 				
@@ -287,7 +284,7 @@ namespace wiselib {
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
 					default:
-						DBG("!op type %d", bod->type());
+						assert(false);
 						break;
 				}
 				if(query->ready()) {
@@ -313,10 +310,6 @@ namespace wiselib {
 			 * ditto.
 			 */
 			void handle_operator(query_id_t qid, size_type size, block_data_t* od) {
-				#ifdef ISENSE
-					GET_OS.debug("hop %d", (int)qid);
-				#endif
-					
 				BOD *bod = reinterpret_cast<BOD*>(od);
 				Query *query = get_query(qid);
 				if(!query) {
@@ -331,7 +324,6 @@ namespace wiselib {
 			 */
 			template<typename Message, typename node_id_t>
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
-				//DBG("h qinf");
 				query_id_t query_id = msg->query_id();
 				Query *query = get_query(query_id);
 				if(!query) {

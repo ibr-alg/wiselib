@@ -85,9 +85,6 @@ namespace wiselib {
 					TupleT t;
 					size_type j = 0;
 					for(size_type i = 0; i < 3; i++) {
-						DBG("i=%d j=%d aff=%d t=%d", (int)i, (int)j, (int)affected_[i],
-								(int)this->child(Base::CHILD_LEFT).result_type(j));
-						
 						if(affected_[i]) {
 							t.set_key(i, this->processor().reverse_translator().translate(values_[i]));
 						}

@@ -154,10 +154,6 @@ namespace wiselib {
 			 * safe to call @a build_tree().
 			 */
 			bool ready() {
-				DBG("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
-				#ifdef ISENSE
-					GET_OS.debug("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
-				#endif
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			
