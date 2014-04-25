@@ -125,6 +125,8 @@ namespace wiselib {
 				
 				result_radio_->enable_radio();
 				result_radio_->template reg_recv_callback<self_type, &self_type::on_receive_intermediate_result>(this);
+
+				receiving_ = false;
 			}
 			
 			void set_sink(typename ResultRadio::node_id_t sink) {
@@ -141,6 +143,7 @@ namespace wiselib {
 				for(size_type i = 0; i < columns; i++, p += sizeof(typename RowT::Value)) {
 					write<OsModel>(p, row[i]);
 				}
+				message->set_payload_size(columns * sizeof(typename RowT::Value));
 				
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
@@ -176,6 +179,9 @@ namespace wiselib {
 					typename QueryRadio::node_id_t from,
 					typename QueryRadio::size_t len,
 					typename QueryRadio::block_data_t* buf) {
+				if(receiving_) { return; }
+				receiving_ = true;
+
 				Packet *packet = &query_packet_;
 				packet->from = from;
 				packet->len = len;
@@ -188,6 +194,8 @@ namespace wiselib {
 					typename ResultRadio::size_t len,
 					typename ResultRadio::block_data_t* buf) {
 				if(from == result_radio_->id()) { return; }
+				if(receiving_) { return; }
+				receiving_ = true;
 				
 				Packet *packet = &query_packet_;
 				packet->from = from;
@@ -245,9 +253,11 @@ namespace wiselib {
 						ian_->handle_intermediate_result(msg, packet->from); //, packet->len);
 						break;
 					default:
-						DBG("unexpected message id: %d", msg->message_id());
+						//DBG("unexpected message id: %d", msg->message_id());
+						assert(false);
 						break;
 				}
+				receiving_ = false;
 				//::get_allocator().free(packet->data);
 				//::get_allocator().free(packet);
 			}
@@ -258,6 +268,7 @@ namespace wiselib {
 			typename QueryRadio::self_pointer_t query_radio_;
 			typename ResultRadio::node_id_t sink_id_;
 			typename Neighborhood::self_pointer_t nd_;
+			bool receiving_;
 		
 	}; // INQPCommunicator
 }

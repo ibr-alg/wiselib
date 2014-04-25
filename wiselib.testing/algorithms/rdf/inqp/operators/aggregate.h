@@ -95,6 +95,7 @@ namespace wiselib {
 				aggregation_types_ = ::get_allocator().template allocate_array< ::uint8_t>(aggregation_columns_logical_).raw();
 				memcpy(aggregation_types_, ad->aggregation_types(), aggregation_columns_logical_);
 				timer_info_ = 0;
+
 			}
 			#pragma GCC diagnostic pop
 			
@@ -202,8 +203,15 @@ namespace wiselib {
 					// Lets wait a little for possible child reports and then
 					// send out a result
 					
-					timer_info_ = ::get_allocator().template allocate<TimerInfo>().raw();
-					assert(timer_info_ != 0);
+					// This lives a little longer than this operator instance
+					// such that it can inform a potential pending aggregation
+					// timer that this operator is dead and it shall not
+					// dereference $this, which would lead to invalid memory
+					// access.
+					if(timer_info_ == 0) {
+						timer_info_ = ::get_allocator().template allocate<TimerInfo>().raw();
+						assert(timer_info_ != 0);
+					}
 					timer_info_->alive = true;
 					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, (void*)timer_info_);
 				}
@@ -304,16 +312,17 @@ namespace wiselib {
 				TimerInfo *ti = reinterpret_cast<TimerInfo*>(ti_);
 				if(!ti->alive) {
 					::get_allocator().free(ti);
-					return;
 				}
-				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
-					this->processor().send_row(
-							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
-							aggregation_columns_physical_, *iter, this->query().id(), this->id()
-					);
+				else {
+					for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
+						this->processor().send_row(
+								Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
+								aggregation_columns_physical_, *iter, this->query().id(), this->id()
+						);
+					}
+					updated_aggregates_.clear();
+					this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, ti_);
 				}
-				updated_aggregates_.clear();
-				this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, ti_);
 			}
 			
 			/*

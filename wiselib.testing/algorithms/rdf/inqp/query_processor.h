@@ -367,7 +367,7 @@ namespace wiselib {
 			 * Handle reception of an intermediate result message.
 			 */
 			template<typename Message, typename node_id_t>
-			void handle_intermediate_result(Message *msg, node_id_t from) { //, size_type size) {
+			void handle_intermediate_result(Message *msg, node_id_t from, size_type size) {
 				Query *query = get_query(msg->query_id());
 				if(query == 0) {
 					return;
@@ -384,7 +384,9 @@ namespace wiselib {
 					case BOD::DELETE:
 						break;
 					case BOD::AGGREGATE: {
+						assert(size >= Message::HEADER_SIZE);
 						size_type payload_length = msg->payload_size(); //size - Message::HEADER_SIZE;
+						assert(size == Message::HEADER_SIZE + payload_length);
 						size_type columns = payload_length / sizeof(Value);
 						
 						// TODO: be able to handle multiple rows here
@@ -399,7 +401,7 @@ namespace wiselib {
 						break;
 					}
 					default:
-						DBG("!op %d", op.type());
+						assert(false);
 						break;
 				}
 			}
