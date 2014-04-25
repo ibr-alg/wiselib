@@ -52,8 +52,10 @@ namespace wiselib
       typedef ContikiClockModel<OsModel> self_type;
       typedef self_type* self_pointer_t;
 
-      typedef clock_time_t time_t;
+      //typedef clock_time_t time_t;
       typedef uint16_t millis_t;
+
+      typedef ::uint32_t time_t;
 
       // --------------------------------------------------------------------
       enum ErrorCodes
@@ -89,7 +91,7 @@ namespace wiselib
       // --------------------------------------------------------------------
       time_t time()
       {
-         return clock_time();
+         return clock_seconds() * 1000 + (clock_time() % CLOCKS_PER_SEC) * 1000.0 / CLOCKS_PER_SEC;
       }
       // --------------------------------------------------------------------
       //int set_time( time_t time )
@@ -105,13 +107,16 @@ namespace wiselib
       // --------------------------------------------------------------------
       uint16_t milliseconds( time_t time )
       {
-         return ((time % CLOCKS_PER_SEC) * 1000.0) / CLOCKS_PER_SEC;
+         return time % 1000;
+         //return ((time % CLOCKS_PER_SEC) * 1000.0) / CLOCKS_PER_SEC;
             //(uint16_t)(time - int(time)) * 1000;
       }
       // --------------------------------------------------------------------
       uint32_t seconds( time_t time )
       {
-         return clock_seconds();
+         return time / 1000;
+         //return ((time / CLOCKS_PER_SEC) * 1000.0) / CLOCKS_PER_SEC;
+         //return clock_seconds();
       }
 
    private:

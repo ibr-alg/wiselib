@@ -54,7 +54,11 @@ namespace wiselib
          va_start( fmtargs, msg );
          vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
          va_end( fmtargs );
+#if SHAWN_DEBUG_ADD_NODE_ID
+         printf( "@%lu %s\n", (unsigned long)os().proc->id(), buffer );
+#else
          printf( "%s\n", buffer );
+#endif
       }
 
    private:

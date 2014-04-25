@@ -129,7 +129,6 @@ namespace wiselib {
 			/**
 			 */
 			void pop_caffeine(const char *s = "") {
-				assert(caffeine_ > 0);
 				caffeine_--;
 				#if !WISELIB_DISABLE_DEBUG
 				debug_->debug("node %lu caffeine %lu", (unsigned long)radio_->id(), (unsigned long)caffeine_);
@@ -138,6 +137,7 @@ namespace wiselib {
 				#if NAP_CONTROL_DEBUG_STATE
 					debug_->debug("@%lu caf%lu %s", (unsigned long)radio_->id(), (unsigned long)caffeine_, s);
 				#endif
+				assert(caffeine_ != (size_type)-1);
 				if(caffeine_ == 0) {
 					#if !NAP_CONTROL_ALWAYS_ON
 						#if defined(CONTIKI)

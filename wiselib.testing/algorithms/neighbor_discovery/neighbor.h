@@ -81,6 +81,9 @@ namespace wiselib
 			,trust_counter					( ND_MIN_TRUST_COUNTER ),
 			trust_counter_inverse			( ND_MIN_TRUST_COUNTER_INVERSE )
 #endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			,transmission_power_dB			( 0 )
+#endif
 		{}
 		// --------------------------------------------------------------------
 		Neighbor_Type(	node_id_t _id,
@@ -418,6 +421,17 @@ namespace wiselib
 		}
 #endif
 		// --------------------------------------------------------------------
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+		int8_t get_transmission_power_dB()
+		{
+			return transmission_power_dB;
+		}
+		// --------------------------------------------------------------------
+		void set_transmission_power_dB( int8_t _tp_dB )
+		{
+			transmission_power_dB = _tp_dB;
+		}
+#endif
 		Neighbor_Type& operator=( const Neighbor_Type& _n )
 		{
 			id = _n.id;
@@ -446,6 +460,9 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 			position = _n.position;
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+			transmission_power_dB = _n.transmission_power_dB;
 #endif
 			return *this;
 		}
@@ -508,6 +525,7 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 			avg_RSSI = read<Os, block_data_t, uint8_t> ( _buff + AVG_RSSI_POS + _offset );
 #endif
+
 			link_stab_ratio = read<Os, block_data_t, uint8_t> ( _buff + LINK_STAB_RATIO_POS + _offset );
 		}
 		// --------------------------------------------------------------------
@@ -533,11 +551,10 @@ namespace wiselib
 #endif
 #endif
 			return LINK_STAB_RATIO_POS + sizeof( uint8_t );
-
 		}
 		// --------------------------------------------------------------------
 #ifdef DEBUG_NEIGHBOR_H
-		void print( Debug& debug, Radio& radio
+		void print( Debug& debug, Radio& radio, uint32_t counter
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 				,Position pos = Position( 0, 0, 0 )
 #endif
@@ -574,13 +591,13 @@ namespace wiselib
 			{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_SHAWN
-				debug.debug( "DNB:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f:%f:%f:%d:%d\n",
+				debug.debug( "DDDDDD:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%f:%f:%f:%f:%d:%d:%d\n",
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_ISENSE
-				debug.debug( "DNB:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
 #else
-				debug.debug( "DNB:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
+				debug.debug( "DDDDDD:%x:%x:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n",
 #endif
 					radio.id(),
 					id,
@@ -616,7 +633,7 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 					,trust_counter
-					,trust_counter_inverse
+					,trust_counter_inverse, counter
 #endif
 				);
 			}
@@ -651,6 +668,9 @@ namespace wiselib
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+		int8_t transmission_power_dB;
 #endif
 	};
 }

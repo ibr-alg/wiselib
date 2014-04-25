@@ -16,8 +16,7 @@ using namespace wiselib;
 #include <algorithms/hash/sdbm.h>
 #include <algorithms/hash/crc16.h>
 #include <algorithms/hash/checksum_radio.h>
-#include <algorithms/semantic_entities/token_construction/token_scheduler.h>
-#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
+#include <algorithms/semantic_entities/token_scheduler.h>
 
 //#include "semantics_office1.h"
 #include "semantics_uniform.h"
@@ -27,8 +26,13 @@ typedef Sdbm<Os> Hash;
 typedef Crc16<Os> ChecksumHash;
 
 typedef Tuple<Os> TupleT;
-typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
-//typedef Os::Radio Radio;
+
+#if USE_CHECKSUM_RADIO
+	typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
+#else
+	typedef Os::Radio Radio;
+#endif
+//typedef ChecksumRadio<Os, Os::Radio, ChecksumHash> Radio;
 
 
 //#define SINK_ID 57

@@ -34,6 +34,7 @@ namespace wiselib {
 	/**
      * @brief Radio wrapper that uses a given hash implementation as checksum
      * to verify message integrity, discarding messages with wrong checksums.
+	 * This goes nice with e.g. a CRC16 hash and a nice glass of irish whiskey.
 	 * 
 	 * @ingroup Radio_concept
 	 * 
@@ -93,19 +94,20 @@ namespace wiselib {
 				MAX_MESSAGE_LENGTH = Radio::MAX_MESSAGE_LENGTH - HEADER_SIZE
 			};
 			
+			ChecksumRadio() : radio_(0) {
+			}
+			
 			int init(Radio& radio, Debug& debug) {
 				radio_ = &radio;
 				radio_->template reg_recv_callback<self_type, &self_type::on_receive>(this);
 				debug_ = &debug;
+				
+				check();
 				return SUCCESS;
 			}
 			
 			node_id_t id() {
-				//#ifdef ISENSE
-				//if(debug_ && radio_) {
-					//debug_->debug("ID %llx", (unsigned long long)radio_->id());
-				//}
-				//#endif
+				check();
 				return radio_->id();
 			}
 			
@@ -113,11 +115,9 @@ namespace wiselib {
 			int disable_radio() { return radio_->disable_radio(); }
 			
 			int send(node_id_t dest, size_t len, block_data_t *data) {
-				//#ifdef ISENSE
-					//debug_->debug("csnd l%d %d %d %d %d", (int)len, (int)data[0], (int)data[1],
-							//(int)data[2], (int)data[3]);
-				//#endif
+				assert(len <= MAX_MESSAGE_LENGTH);
 				
+				check();
 				
 				block_data_t buf[Radio::MAX_MESSAGE_LENGTH];
 				block_data_t *p = buf;
@@ -125,7 +125,6 @@ namespace wiselib {
 				++p;
 				
 				hash_t h = Hash::hash(data, len);
-				//DBG("checksum send: %04lx", (unsigned long)h);
 				wiselib::write<OsModel, block_data_t, hash_t>(p, h);
 				p += sizeof(hash_t);
 				
@@ -137,6 +136,8 @@ namespace wiselib {
 				
 				memcpy(p, data, len);
 				radio_->send(dest, len + HEADER_SIZE, buf);
+				
+				check();
 				return SUCCESS;
 			}
 			
@@ -148,9 +149,9 @@ namespace wiselib {
 			void on_receive(typename Radio::node_id_t from, typename Radio::size_t len, typename Radio::block_data_t *data, const typename Radio::ExtendedData& ex) {
 		#endif
 				
-				//#ifdef ISENSE
-				//debug_->debug("@%lu chksum from %lu", (unsigned long)id(), (unsigned long)from);
-				//#endif
+				assert(len < Radio::MAX_MESSAGE_LENGTH);
+				
+				check();
 				
 				if(len < HEADER_SIZE) {
 					#ifdef SHAWN 
@@ -167,15 +168,12 @@ namespace wiselib {
 					return;
 				}
 				
-				// hardcoded weird sources that send confusing things
-				//if(from == 49465) { return; }
-				
 				// checksum
 				hash_t h_msg = wiselib::read<OsModel, block_data_t, hash_t>(data + 1);
 				hash_t h_check = Hash::hash(data + HEADER_SIZE, len - HEADER_SIZE);
 				if(h_msg != h_check) {
-					#if defined(SHAWN) || defined(ISENSE)
-					debug_->debug("@%lu !C %x,%x", (unsigned long)id(), (unsigned)h_msg, (unsigned)h_check);
+					#if CHECKSUM_RADIO_DEBUG
+						debug_->debug("!C %lu l%d h%x,%x", (unsigned long)from, (int)len, (unsigned)h_msg, (unsigned)h_check);
 					#endif
 					return;
 				}
@@ -184,7 +182,9 @@ namespace wiselib {
 			#if CHECKSUM_RADIO_USE_REVISION
 				revision_t rev = wiselib::read<OsModel, block_data_t, revision_t>(data + 1 + sizeof(hash_t));
 				if(rev != REVISION) {
-					debug_->debug("@%lu %lu !R %lx,%lx", (unsigned long)id(), (unsigned long)from, (unsigned long)REVISION, (unsigned long)rev);
+					#if CHECKSUM_RADIO_DEBUG
+						debug_->debug("@%lu %lu !R %lx,%lx", (unsigned long)id(), (unsigned long)from, (unsigned long)REVISION, (unsigned long)rev);
+					#endif
 					return;
 				}
 			#endif
@@ -197,9 +197,17 @@ namespace wiselib {
 				//debug_->debug("recv %d %d %d %d", (int)d[0], (int)d[1], (int)d[2], (int)d[3]);
 				this->notify_receivers(from, (typename Radio::size_t)(len - HEADER_SIZE), (typename Radio::block_data_t*)(d), ex);
 			#endif
+				
+				check();
 			}
 		
 		private:
+			
+			void check() {
+				assert(radio_ != 0);
+				assert(debug_ != 0);
+			}
+			
 			typename Radio::self_pointer_t radio_;
 			typename Debug::self_pointer_t debug_;
 			

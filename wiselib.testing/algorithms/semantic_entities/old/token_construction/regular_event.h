@@ -97,6 +97,8 @@ namespace wiselib {
 				// again.
 				// 
 				if(t - last_encounter_ >= 1.8 * interval_ && tolerate_misses_ >= 2) {
+					DBG("EVT tolerating miss");
+					
 					last_encounter_ += interval_;
 					tolerate_misses_ -= 2;
 				}
@@ -107,7 +109,10 @@ namespace wiselib {
 				
 				abs_millis_t new_interval = t - last_encounter_;
 				
-				if(new_interval < DUPE_INTERVAL) { return; }
+				if(new_interval < DUPE_INTERVAL) {
+					DBG("EVT ign dup");
+					return;
+				}
 				
 				
 				#if !WISELIB_DISABLE_DEBUG_MESSAGES
@@ -118,16 +123,19 @@ namespace wiselib {
 				int h = hit_type(t, clock);
 				switch(h) {
 					case HIT_CLOSE:
+						DBG("EVT close");
 						window_ /= 2;
 						if(window_ < MIN_WINDOW_SIZE) { window_ = MIN_WINDOW_SIZE; }
 						update_interval(new_interval); //, ALPHA_CLOSE);
 						break;
 						
 					case HIT_STABLE:
+						DBG("EVT stable");
 						update_interval(new_interval); //, ALPHA_STABLE);
 						break;
 						
 					case HIT_FAR: {
+						DBG("EVT far");
 						abs_millis_t old_window = window_;
 						abs_millis_t old_interval = interval_;
 						update_interval(new_interval); //, ALPHA_FAR);
@@ -212,6 +220,7 @@ namespace wiselib {
 				userdata_ = userdata;
 				
 				if(early()) {
+					DBG("EVT early");
 					waiting_ = true;
 					begin_waiting_callback_(userdata_);
 				}

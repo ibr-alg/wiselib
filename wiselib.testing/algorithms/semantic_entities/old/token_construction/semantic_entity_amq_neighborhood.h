@@ -73,7 +73,7 @@ namespace wiselib {
 			}
 			
 			/**
-			 * Assuming we have the token, where should we send it to?
+			 * Assuming we had the token (actively), where should we send it to?
 			 */
 			node_id_t next_token_node(const SemanticEntityId& se_id) {
 				check();
@@ -147,8 +147,57 @@ namespace wiselib {
 			node_id_t forward_address(const SemanticEntityId& se_id, node_id_t sender, bool forward) {
 				check();
 				
+				/*
+				DBG("@%lu TF fwd %d src=%lu p=%lu rt%d has=%d child1=%d:%lu",
+						(unsigned long)radio_->id(),
+						(int)forward,
+						(unsigned long)sender,
+						(unsigned long)global_tree_->parent(),
+						(int)am_root(),
+						(int)(registry_->contains(se_id)),
+						(int)find_first_se_child(se_id, 0),
+						(unsigned long)(find_first_se_child(se_id, 0) == npos ? 0L : global_tree_->child(find_first_se_child(se_id, 0)))
+				);
+				*/
+				
 				if(forward) {
-					if(sender == global_tree_->parent()) {
+					
+					// CHILD -> NEXT CHILD
+					// 
+					size_type child_idx = global_tree_->child_index(sender);
+					if(child_idx != npos) {
+						size_type idx = find_first_se_child(se_id, child_idx + 1);
+						if(idx != npos) {
+						DBG("from child");
+							return global_tree_->child(idx);
+						}
+					}
+					
+					// $SELF -> FIRST CHILD
+					// 
+					if(sender == radio_->id()) {
+						size_type idx = find_first_se_child(se_id, 0);
+						if(idx != npos) {
+						DBG("from self");
+							return global_tree_->child(idx);
+						}
+					}
+					
+					// PARENT -> $SELF
+					if(!am_root() && sender == global_tree_->parent()) {
+						DBG("from parent");
+						return radio_->id();
+					}
+					
+					// Default (eg. from last child)
+					if(am_root()) {
+						DBG("default");
+						return radio_->id();
+					}
+					return global_tree_->parent();
+					
+					/*
+					if(sender == global_tree_->parent() && global_tree_->parent() != radio_->id()) {
 						if(registry_->contains(se_id)) { return radio_->id(); }
 						size_type idx = find_first_se_child(se_id, 0);
 						if(idx == npos) { return global_tree_->parent(); }
@@ -165,6 +214,7 @@ namespace wiselib {
 						return global_tree_->parent();
 					}
 					return global_tree_->child(idx);
+					*/
 				}
 				
 				// forward == false

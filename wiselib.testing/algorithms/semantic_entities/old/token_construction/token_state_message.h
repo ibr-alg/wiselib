@@ -147,6 +147,16 @@ namespace wiselib {
 				return POS_END;
 			}
 			
+			bool operator==(TokenStateMessage other) {
+				return type() == other.type() &&
+					token_state() == other.token_state() &&
+					cycle_time() == other.cycle_time() &&
+					cycle_window() == other.cycle_window() &&
+					source() == other.source() &&
+					sourcetime() == other.sourcetime();
+			}
+					
+			
 			/*
 			void set_informational(bool i) {
 				data_[POS_FLAGS] = (data_[POS_FLAGS] & ~FLAGS_INFORMATIONAL) | (i ? FLAGS_INFORMATIONAL : 0);

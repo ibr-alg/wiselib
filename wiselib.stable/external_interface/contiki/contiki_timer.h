@@ -94,8 +94,10 @@ namespace wiselib
       //if (secs == 0)
          //secs = 1;
       timer_item *item = get_timer_item_ref();
-      if ( !item )
+      if ( !item ) {
+		  printf("!tq\n");
          return ERR_UNSPEC;
+	  }
       item->p = PROCESS_CURRENT();
       item->cb = contiki_timer_delegate_t::from_method<T, TMethod>( obj_pnt );
       item->ptr = userdata;

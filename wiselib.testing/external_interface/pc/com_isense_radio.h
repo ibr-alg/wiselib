@@ -78,6 +78,10 @@ namespace wiselib {
 				MAX_MESSAGE_LENGTH = 116
 			};
 
+			enum {
+				SUCCESS = OsModel::SUCCESS
+			};
+
 			ComISenseRadioModel();
 			ComISenseRadioModel(typename OsModel::Os& os);
 
@@ -85,8 +89,8 @@ namespace wiselib {
 			void init();
 			void destruct();
 
-			void enable_radio();
-			void disable_radio();
+			int enable_radio();
+			int disable_radio();
 
 			node_id_t id();
 			ComUart& uart() { return *uart_; }
@@ -159,7 +163,7 @@ namespace wiselib {
 	}
 
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>
-	void ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
+	int ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
 	enable_radio() {
 		uart_->enable_serial_comm();
 
@@ -167,11 +171,13 @@ namespace wiselib {
 
 		packet_t p(packet_t::SUB_RADIO_GET_ADDRESS);
 		write_packet(p);                
+		return SUCCESS;
 	}
 
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>
-	void ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
+	int ComISenseRadioModel<OsModel_P, ComUart_P, ExtendedData_P>::
 	disable_radio() {
+		return SUCCESS;
 	}
 
 	template<typename OsModel_P, typename ComUart_P, typename ExtendedData_P>

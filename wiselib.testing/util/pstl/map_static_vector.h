@@ -157,16 +157,20 @@ namespace wiselib
       mapped_type& operator[]( const key_type& k )
       {
          iterator it = find(k);
-         if ( it != this->end() )
+         if ( it != this->end() ) {
+            assert(it->first == k);
             return it->second;
+         }
 
          value_type val;
          val.first = k;
          this->push_back( val );
 
          it = find(k);
-         if ( it != this->end() )
+         if ( it != this->end() ) {
+            assert(it->first == k);
             return it->second;
+         }
 
          // return dummy value that can be written to; this dummy value is
          // *only* returned if the static vector is full and can not hold

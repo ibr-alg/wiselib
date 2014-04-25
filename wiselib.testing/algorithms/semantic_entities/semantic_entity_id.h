@@ -90,6 +90,8 @@ namespace wiselib {
 			static SemanticEntityId root() { return SemanticEntityId(RULE_SPECIAL, VALUE_ROOT); }
 			
 			bool is_special() const { return rule_ == RULE_SPECIAL; }
+			bool is_normal() const { return rule_ != RULE_SPECIAL; }
+			bool is_valid() const { return !is_special() || value_ != VALUE_INVALID; }
 			bool is_invalid() const { return is_special() && value_ == VALUE_INVALID; }
 			bool is_all() const { return is_special() && value_ == VALUE_ALL; }
 			bool is_root() const { return is_special() && value_ == VALUE_ROOT; }

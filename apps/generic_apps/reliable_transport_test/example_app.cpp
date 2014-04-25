@@ -2,7 +2,7 @@
 #include "platform.h"
 
 using namespace wiselib;
-#include <algorithms/protocols/reliable_transport/reliable_transport.h>
+#include <algorithms/protocols/reliable_transport/one_at_a_time_reliable_transport.h>
 #include <util/debugging.h>
 #include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
 
@@ -10,54 +10,42 @@ typedef wiselib::OSMODEL Os;
 typedef Os::size_t size_type;
 typedef Os::block_data_t block_data_t;
 
-struct XMyChannelId {
-	bool operator==(const XMyChannelId& other) const {
-		return foo == other.foo && bar == other.bar;
-	}
-	
-	::uint32_t foo;
-	::uint8_t bar;
-};
+//typedef SemanticEntityId MyChannelId;
+typedef int MyChannelId;
 
-typedef SemanticEntityId MyChannelId;
-
-typedef ReliableTransport<Os, MyChannelId, Os::Radio, Os::Timer> Transport;
+typedef OneAtATimeReliableTransport<Os, MyChannelId, 'R'> Transport;
 typedef Os::Radio::node_id_t node_id_t;
+
+		const char *payloads[] = {
+			"ene", "mene", "miste",
+			"es", "rappelt", "in", "der", "Kiste",
+			"ene2", "mene2", "meck",
+			"und", "du", "bist", "weg"
+		};
 
 class ExampleApplication {
 	public:
-		ExampleApplication() : cid_(123, 1234567) {
+		ExampleApplication() {
 		}
 		
 		void init(Os::AppMainParameter& value) {
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
+			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 			
-			radio_->reg_recv_callback<ExampleApplication, &ExampleApplication::forward>(this);
-				
-			transport_.init(radio_, timer_, false);
+			//radio_->reg_recv_callback<ExampleApplication, &ExampleApplication::forward>(this);
+			
+			transport_.init(radio_, timer_, clock_, rand_, debug_, true);
+			
+			transport_.register_event_callback(
+					Transport::callback_t::from_method<ExampleApplication, &ExampleApplication::on_event>(this)
+			);
+			
+			state = 0;
+			
 			buffer_size_ = 0;
-			
-			//cid_.foo = 0x12345678;
-			//cid_.bar = 0xAA;
-			
-			switch(radio_->id()) {
-				case 0:
-					reg_endpoint(1, true);
-					reg_endpoint(3, false);
-					break;
-					
-				case 1:
-				case 2:
-				case 3:
-					reg_endpoint(0, true);
-					reg_endpoint(0, false);
-					break;
-			}
-			
-			DBG("endpoints registered @%d", radio_->id());
-			
 			if(radio_->id() == 0) {
 				DBG("starting to send pings @%d", radio_->id());
 				ping_number_ = 0;
@@ -67,42 +55,59 @@ class ExampleApplication {
 				buffer_[n] = '\0';
 				buffer_size_ = n + 1;
 				
-				timer_->set_timer<ExampleApplication, &ExampleApplication::trigger_produce>(1000, this, 0);
+				transport_.open(MyChannelId(1234), 1);
+				
+				//timer_->set_timer<ExampleApplication, &ExampleApplication::trigger_produce>(1000, this, 0);
 			}
 		}
 		
-		void reg_endpoint(node_id_t n, bool initiator) {
-			transport_.register_endpoint(
-					n,
-					cid_, initiator,
-					Transport::produce_callback_t::from_method<ExampleApplication, &ExampleApplication::produce>(this),
-					Transport::consume_callback_t::from_method<ExampleApplication, &ExampleApplication::consume>(this)
-			);
-			
+		bool on_event(int event, Transport::Message& msg) {
+			switch(event) {
+				case Transport::EVENT_PRODUCE:
+					return produce(msg);
+					break;
+					
+				case Transport::EVENT_CONSUME:
+					consume(msg);
+					break;
+			}
+			return false;
 		}
 		
-		void trigger_produce(void*) {
-			//DBG("trigger produce @%d", radio_->id());
-			transport_.request_send(cid_, true);
-			//timer_->set_timer<ExampleApplication, &ExampleApplication::trigger_produce>(1000, this, 0);
+		// convenience method
+		void set_payload(Transport::Message& msg, const char* s) {
+			memcpy(msg.payload(), s, strlen(s) + 1);
+			msg.set_payload_size(strlen(s) + 1);
 		}
 		
-		bool produce(Transport::Message& msg, Transport::Endpoint& endpoint) {
+		
+		enum { STATES = sizeof(payloads) / sizeof(char*) };
+		int state;
+		
+		bool produce(Transport::Message& msg) {
 			DBG("produce @%d", radio_->id());
-			memcpy(msg.payload(), buffer_, buffer_size_);
-			msg.set_payload_size(buffer_size_);
+			
+			
+			set_payload(msg, payloads[state]);
+			if(state == STATES - 1) {
+				msg.set_close();
+			}
+			
 			return true;
 		}
 		
-		void consume(Transport::Message& msg, Transport::Endpoint& endpoint) {
-			DBG("@%d: %s", radio_->id(), (char*)msg.payload());
-			//debug_->debug("++++++++++++++++++++++++");
-			//debug_buffer<Os, 16, Os::Debug>(debug_, buffer, buffer_size);
-			//debug_->debug("++++++++++++++++++++++++");
-			if(!endpoint.initiator()) {
-				memcpy(buffer_, msg.payload(), msg.payload_size());
-				buffer_size_ = msg.payload_size();
-				transport_.request_send(cid_, true);
+		void consume(Transport::Message& msg) {
+			
+			for(int s = 0; s < STATES; s++) {
+				if(strcmp(payloads[s], (char*)msg.payload()) == 0) {
+					state = s + 1;
+				}
+			}
+			
+			DBG("consume @%d: %s -> state %d", radio_->id(), (char*)msg.payload(), (int)state);
+			
+			if(!msg.is_close()) {
+				transport_.request_send();
 			}
 		}
 		
@@ -144,12 +149,13 @@ class ExampleApplication {
 		}
 		
 	private:
-		MyChannelId cid_;
 		size_type ping_number_;
 	
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Radio::self_pointer_t radio_;
+		Os::Clock::self_pointer_t clock_;
+		Os::Rand::self_pointer_t rand_;
 		
 		Transport transport_;
 		
