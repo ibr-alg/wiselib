@@ -23,12 +23,18 @@
 #include <external_interface/external_interface.h>
 #include <util/base_classes/radio_base.h>
 #include <util/serialization/serialization.h>
+#include <util/pstl/queue_static.h>
 
 #include "forward_on_directed_nd_message.h"
 #include "forward_on_directed_nd_ack_message.h"
 
 namespace wiselib {
-	
+
+	template<typename Os, typename Value_P>
+	struct ForwardOnDirectedNd_DefaultQueueMaker {
+		typedef queue_static<Os, Value_P, 3> T;
+	};
+
 	/**
 	 * @brief Forward messages along all outgoing edges given by ND.
 	 * This routing will forward any message along all outgoing edges given by
@@ -49,6 +55,7 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename Neighborhood_P,
+		template<typename, typename> class QueueMaker_P = ForwardOnDirectedNd_DefaultQueueMaker,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
 		typename Debug_P = typename OsModel_P::Debug
@@ -71,10 +78,13 @@ namespace wiselib {
 			typedef self_type* self_pointer_t;
 			
 			typedef ForwardOnDirectedNdMessage<OsModel, Radio> Message;
+			typedef typename Message::sequence_number_t sequence_number_t;
 			typedef ForwardOnDirectedNdAckMessage<OsModel, Radio> AckMessage;
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
-			
+
+			typedef typename QueueMaker_P<OsModel, Message>::T Queue;
+
 			enum SpecialValues {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
 				NULL_NODE_ID = Radio::NULL_NODE_ID
@@ -114,7 +124,7 @@ namespace wiselib {
 
 				// choose initial sequence number "randomly".
 				// (just make it unlikely that they collide all the time)
-				sending_.set_sequence_number(id());
+				sequence_number_ = id();
 
 				this->radio().template reg_recv_callback<self_type, &self_type::on_receive>(this);
 
@@ -132,38 +142,29 @@ namespace wiselib {
 
 				if(receiver == id()) {
 					this->notify_receivers(id(), size, data);
+					return SUCCESS;
 				}
-				else {
-					size_type out_neighbors = nd_->neighbors_count(Neighbor::OUT_EDGE);
-					if(out_neighbors == 0) {
-						return ERR_HOSTUNREACH;
-					}
-					if(reliable_ && out_neighbors > 1) {
-						assert(false && "reliable multicast not supported!");
-						return ERR_NOTIMPL;
-					}
 
-					if(tries_ > 0) {
-						// still waiting for ack of previous message
-						return ERR_BUSY;
-					}
-
-					sending_.set_message_id(MESSAGE_ID_FODND);
-					sending_.set_source(radio_->id());
-					sending_.set_target(receiver);
-					sending_.set_payload(size, data);
-					sending_.set_request_ack(reliable_);
-					sending_.increase_sequence_number();
-					
-					for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
-							iter != nd_->neighbors_end();
-							++iter
-					) {
-						tries_ = ACK_RETRIES;
-						radio_->send(iter->id(), Message::HEADER_LENGTH + size, sending_.data());
-						start_ack_timer();
-					}
+				size_type out_neighbors = nd_->neighbors_count(Neighbor::OUT_EDGE);
+				if(out_neighbors == 0) {
+					return ERR_HOSTUNREACH;
 				}
+
+				if(reliable_ && out_neighbors > 1) {
+					assert(false && "reliable multicast not supported!");
+					return ERR_NOTIMPL;
+				}
+
+				if(queue().full()) {
+					return ERR_BUSY;
+				}
+
+				Message msg;
+				msg.set_target(receiver);
+				msg.set_payload(size, data);
+				msg.set_request_ack(reliable_);
+				queue().push(msg);
+				check_queue();
 
 				check();
 				return SUCCESS;
@@ -174,9 +175,12 @@ namespace wiselib {
 				abort_ack_timer();
 			}
 
+			bool sending() { return tries_ > 0; }
+
 			Radio& radio() { return *radio_; }
 			Timer& timer() { return *timer_; }
 			Debug& debug() { return *debug_; }
+			Queue& queue() { return queue_; }
 		
 		private:
 			void check() {
@@ -191,6 +195,30 @@ namespace wiselib {
 				}
 			}
 
+			void check_queue() {
+				if(!sending() && nd_->neighbors_count(Neighbor::OUT_EDGE) > 0) {
+					tries_ = ACK_RETRIES;
+					Message& msg = queue().front();
+					msg.set_message_id(MESSAGE_ID_FODND);
+					msg.set_source(radio_->id());
+					msg.set_sequence_number(sequence_number_++);
+
+					if(msg.requests_ack()) {
+						radio_->send(nd_->neighbors_begin(Neighbor::OUT_EDGE)->id(), msg.size(), msg.data());
+						start_ack_timer();
+					}
+					else {
+						for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
+								iter != nd_->neighbors_end();
+								++iter
+						) {
+							radio_->send(iter->id(), msg.size(), msg.data());
+						}
+						queue().pop();
+					}
+				} // if !sending
+			} // check_queue()
+
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
 				Message *message = reinterpret_cast<Message*>(data);
 				
@@ -199,27 +227,24 @@ namespace wiselib {
 						this->notify_receivers(message->source(), message->payload_size(), message->payload_data());
 					}
 					else {
-						if(nd_->neighbors_begin(Neighbor::OUT_EDGE) ==  nd_->neighbors_end()) {
+						if(nd_->neighbors_begin(Neighbor::OUT_EDGE) == nd_->neighbors_end()) {
 							//DBG("ALART: node %d has no parent to send to!", radio_->id());
 							return;
 						}
-						
-						for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
-								iter != nd_->neighbors_end();
-								++iter
-						) {
-							tries_ = ACK_RETRIES;
-							radio_->send(iter->id(), size, data);
-							start_ack_timer();
-						}
+						queue().push(*message);
+						check_queue();
 					}
 				} // if msg id
 				else if(message->message_id() == MESSAGE_ID_ACK) {
 					AckMessage &ack = *reinterpret_cast<AckMessage*>(data);
-					if(ack.sequence_number() == sending_.sequence_number()) {
+					if(!queue().empty() && ack.sequence_number() == queue().front().sequence_number()) {
 						abort_ack_timer();
 						tries_ = 0;
+						queue().pop();
+						check_queue();
 					}
+				}
+				else {
 				}
 				
 			} // on_receive()
@@ -242,25 +267,45 @@ namespace wiselib {
 
 			void on_ack_timeout(void *guard) {
 				if(guard != (void*)ack_timer_guard_) { return; }
+				if(queue().empty()) {
+					tries_ = 0;
+					return;
+				}
+
 				tries_--;
 				if(tries_ == 0) {
 					// Give up!
 					abort_ack_timer();
+					queue().pop();
 				}
 				else {
-					radio().send(parent_, sending_.size(), sending_.data());
-				}
+					Message& msg = queue().front();
+					if(msg.requests_ack()) {
+						radio_->send(nd_->neighbors_begin(Neighbor::OUT_EDGE)->id(), msg.size(), msg.data());
+						start_ack_timer();
+					}
+					else {
+						for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
+								iter != nd_->neighbors_end();
+								++iter
+						) {
+							radio_->send(iter->id(), msg.size(), msg.data());
+						}
+						queue().pop();
+					}
+				} // if tries
 			}
 
 			typename Radio::self_pointer_t radio_;
 			typename Neighborhood::self_pointer_t nd_;
 			typename Timer::self_pointer_t timer_;
 			typename Debug::self_pointer_t debug_;
-			Message sending_;
 			bool reliable_;
 			node_id_t parent_;
 			int tries_;
 			Uvoid ack_timer_guard_;
+			Queue queue_;
+			sequence_number_t sequence_number_;
 		
 	}; // ForwardOnDirectedNd
 }

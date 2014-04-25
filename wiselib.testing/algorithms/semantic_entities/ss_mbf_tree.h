@@ -25,7 +25,7 @@
 #include "tree_message.h"
 #include <util/pstl/vector_static.h>
 
-#define SS_MBF_TREE_DEBUG 0
+#define SS_MBF_TREE_DEBUG 1
 #define SS_MBF_TREE_DEBUG_VERBOSE 0
 
 namespace wiselib {

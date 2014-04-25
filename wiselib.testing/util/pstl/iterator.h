@@ -279,7 +279,7 @@ typename iterator_traits<RandomAccessIterator>::difference_type distance(
 template<class InputIterator>
 typename iterator_traits<InputIterator>::difference_type distance(
 		InputIterator first, InputIterator last) {
-	return __distance(first, last,
+	return distance(first, last,
 			typename iterator_traits<InputIterator>::iterator_category());
 }
 

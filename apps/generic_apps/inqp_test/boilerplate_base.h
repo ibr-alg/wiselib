@@ -60,8 +60,6 @@ typedef Processor::Value Value;
 //typedef PackingRadio<Os, FloodingNd<Os, Os::Radio> > OneShotQueryRadio;
 typedef FloodingNd<Os, Os::Radio> OneShotQueryRadio;
 
-class App;
-
 class AppBase {
 	public:
 		
@@ -114,9 +112,4 @@ class AppBase {
 		Dictionary dictionary_;
 		TS tuplestore_;
 };
-
-wiselib::WiselibApplication<Os, App> example_app;
-void application_main(Os::AppMainParameter& value) {
-  example_app.init(value);
-}
 

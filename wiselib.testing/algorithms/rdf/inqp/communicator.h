@@ -46,10 +46,7 @@ namespace wiselib {
 		typename QueryRadio_P =
 			PackingRadio<
 				OsModel_P,
-				FloodingNd<
-					OsModel_P,
-					typename OsModel_P::Radio
-				>
+				FloodingNd<OsModel_P>
 			>,
 			
 		// Send results along a directed nd (in this case: a directed nd that
@@ -59,11 +56,7 @@ namespace wiselib {
 				OsModel_P,
 				ForwardOnDirectedNd<
 					OsModel_P,
-					FloodingNd<
-						OsModel_P,
-						typename OsModel_P::Radio
-					>,
-					typename OsModel_P::Radio
+					FloodingNd<OsModel_P>
 				>
 			>,
 		typename Neighborhood_P =
@@ -250,7 +243,7 @@ namespace wiselib {
 				
 				switch(msg->message_id()) {
 					case MESSAGE_ID_INTERMEDIATE_RESULT:
-						ian_->handle_intermediate_result(msg, packet->from); //, packet->len);
+						ian_->handle_intermediate_result(msg, packet->from, packet->len);
 						break;
 					default:
 						//DBG("unexpected message id: %d", msg->message_id());

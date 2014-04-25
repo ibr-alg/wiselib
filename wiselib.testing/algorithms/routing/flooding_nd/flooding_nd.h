@@ -45,7 +45,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename Radio_P = typename OsModel_P::Radio_P
 	>
 	class FloodingNd : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t> {
 		

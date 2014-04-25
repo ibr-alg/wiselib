@@ -22,10 +22,10 @@ const char* rdf[][3] = {
 <http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
  */
 enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
-enum { ROOT = 0 };
+enum { OP_ROOT = 0 };
 enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
 enum { QID = 1 };
-block_data_t op100[] = { OP, QID, 100, 'a', ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
+block_data_t op100[] = { OP, QID, 100, 'a', OP_ROOT, BIN(010101), BIN(0), BIN(0), BIN(0), 3, MIN | AGAIN, AVG | AGAIN, MAX };
 block_data_t op90[]  = { OP, QID,  90, 'j', LEFT | 100, BIN(010000), BIN(0), BIN(0), BIN(0), LEFT_COL(0) | RIGHT_COL(0) };
 block_data_t op80[]  = { OP, QID,  80, 'g', RIGHT | 90, BIN(010011), BIN(0), BIN(0), BIN(0), BIN(010), 0x4d, 0x0f, 0x60, 0xb4 };
 block_data_t op70[]  = { OP, QID,  70, 'g', LEFT | 90, BIN(11), BIN(0), BIN(0), BIN(0), BIN(110), 0xbf, 0x26, 0xb8, 0x2e, 0xb2, 0x38, 0x60, 0xb3 };
