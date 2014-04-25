@@ -1,0 +1,17 @@
+# ------------------------------------------------
+# Environment variable WISELIB_PATH_TESTING needed
+# ------------------------------------------------
+
+all: pc
+
+#export PC_CXX_FLAGS=-m32
+#export PC_CXX_FLAGS=-m32 -Wno-format -Wno-unused-variable
+export PC_COMPILE_DEBUG=1
+export ADD_CXX_FLAGS=-DUSE_CODEC=0
+
+export APP_SRC=hash_test.cpp
+export BIN_OUT=hash_test
+export WISELIB_EXIT_MAIN=1
+
+include ../Makefile
+
