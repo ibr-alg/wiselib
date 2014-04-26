@@ -12,7 +12,7 @@ extern "C" {
 typedef StaticNeighborhood<Os> Neighborhood;
 typedef ForwardOnDirectedNd<Os, Neighborhood> StaticResultRadio;
 
-typedef INQPCommunicator<Os, Processor, Os::Timer, OneShotQueryRadio, StaticResultRadio, Neighborhood> Communicator;
+typedef INQPCommunicator<Os, Processor, Os::Timer, Os::Debug, OneShotQueryRadio, StaticResultRadio, Neighborhood> Communicator;
 
 // Convert mote IDs to node addresses at compile time
 
@@ -143,7 +143,7 @@ class AppBoilerplate : public AppBase {
 			result_radio_.init(neighborhood_, *radio_, *timer_, *debug_);
 			result_radio_.enable_radio();
 
-			communicator_.init(query_processor_, query_radio_, result_radio_, neighborhood_, *timer_);
+			communicator_.init(query_processor_, query_radio_, result_radio_, neighborhood_, *timer_, *debug_);
 			communicator_.set_sink(ROOT);
 		}
 
