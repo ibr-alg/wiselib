@@ -393,7 +393,7 @@ namespace wiselib {
 						
 						RowT *row = RowT::create(columns);
 						for(size_type i = 0; i < columns; i++) {
-							(*row)[i] = wiselib::read<OsModel, block_data_t, Value>(msg->payload() + i * sizeof(Value));
+							(*row)[i] = wiselib::read<OsModel, block_data_t, Value>(msg->payload_data() + i * sizeof(Value));
 						}
 						reinterpret_cast<AggregateT&>(op).on_receive_row(*row, from);
 						

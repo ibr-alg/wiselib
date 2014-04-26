@@ -41,6 +41,7 @@ namespace wiselib {
 		typename OsModel_P,
 		typename QueryProcessor_P,
 		typename Timer_P = typename OsModel_P::Timer,
+		typename Debug_P = typename OsModel_P::Debug,
 		
 		// Send queries via flooding constructing a directed tree towards root
 		typename QueryRadio_P =
@@ -73,13 +74,13 @@ namespace wiselib {
 			typedef Timer_P Timer;
 			typedef QueryRadio_P QueryRadio;
 			typedef ResultRadio_P ResultRadio;
+			typedef Debug_P Debug;
 			
 			typedef INQPCommunicator self_type;
 			
 			typedef typename QueryProcessor::RowT RowT;
 			typedef ::uint8_t operator_id_t;
 			typedef ::uint8_t query_id_t;
-			//typedef QueryMessage<OsModel, ResultRadio, Query> ResultMessage;
 			typedef IntermediateResultMessage<OsModel, ResultRadio, Query> ResultMessage;
 			
 			typedef typename QueryProcessor::hash_t hash_t;
@@ -103,12 +104,13 @@ namespace wiselib {
 			typedef typename QueryProcessor::CommunicationType CommunicationType;
 			typedef QueryMessage<OsModel, QueryRadio, Query> QMessage;
 			
-			void init(QueryProcessor& qp, QueryRadio& qr, ResultRadio& rr, Neighborhood& nd, Timer& timer) {
+			void init(QueryProcessor& qp, QueryRadio& qr, ResultRadio& rr, Neighborhood& nd, Timer& timer, Debug& debug) {
 				ian_ = &qp;
 				query_radio_ = &qr;
 				result_radio_ = &rr;
 				nd_ = &nd;
 				timer_ = &timer;
+				debug_ = &debug;
 				
 				ian_->template reg_row_callback<self_type, &self_type::on_send_row>(this);
 				ian_->template reg_resolve_callback<self_type, &self_type::on_send_resolve>(this);
@@ -127,28 +129,27 @@ namespace wiselib {
 			}
 			
 			void on_send_row(int type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
-				block_data_t buf[ResultRadio::MAX_MESSAGE_LENGTH];
-				ResultMessage *message = reinterpret_cast<ResultMessage*>(buf);
-				message->set_message_id(MESSAGE_ID_INTERMEDIATE_RESULT);
-				message->set_query_id(query_id);
-				message->set_operator_id(operator_id);
-				block_data_t *p = message->payload();
-				for(size_type i = 0; i < columns; i++, p += sizeof(typename RowT::Value)) {
-					write<OsModel>(p, row[i]);
+				block_data_t row_data[RowT::MAX_COLUMNS * sizeof(typename RowT::Value)];
+				for(size_type i = 0; i < columns; i++) {
+					write<OsModel, block_data_t, typename RowT::Value>(row_data + i * sizeof(typename RowT::Value), row[i]);
 				}
-				message->set_payload_size(columns * sizeof(typename RowT::Value));
-				
+
+				ResultMessage msg;
+				msg.set_message_id(MESSAGE_ID_INTERMEDIATE_RESULT);
+				msg.set_query_id(query_id);
+				msg.set_from(result_radio_->id());
+				msg.set_operator_id(operator_id);
+				msg.set_payload(columns * sizeof(typename RowT::Value), row_data);
+
 				switch(type) {
 					case QueryProcessor::COMMUNICATION_TYPE_SINK: {
-						result_radio_->send(sink_id_, ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
+						result_radio_->send(sink_id_, msg.size(), msg.data());
 						break;
 					}
 					case QueryProcessor::COMMUNICATION_TYPE_AGGREGATE: {
 						typename Neighborhood::iterator ni = nd_->neighbors_begin(Neighbor::OUT_EDGE);
-						if(ni == nd_->neighbors_end()) {
-						}
-						else {
-							result_radio_->send(ni->id(), ResultMessage::HEADER_SIZE + sizeof(typename RowT::Value) * columns, buf);
+						if(ni != nd_->neighbors_end()) {
+							result_radio_->send(ni->id(), msg.size(), msg.data());
 						}
 						break;
 					}
@@ -251,12 +252,11 @@ namespace wiselib {
 						break;
 				}
 				receiving_ = false;
-				//::get_allocator().free(packet->data);
-				//::get_allocator().free(packet);
 			}
 				
 			QueryProcessor *ian_;
 			typename Timer::self_pointer_t timer_;
+			typename Debug::self_pointer_t debug_;
 			typename ResultRadio::self_pointer_t result_radio_;
 			typename QueryRadio::self_pointer_t query_radio_;
 			typename ResultRadio::node_id_t sink_id_;

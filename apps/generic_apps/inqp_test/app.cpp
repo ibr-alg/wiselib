@@ -14,7 +14,7 @@ class App : public AppBoilerplate {
 
 			insert_tuples(rdf);
 
-			timer_->set_timer<App, &App::load_predefined_query>(30000, this, 0);
+			timer_->set_timer<App, &App::load_predefined_query>(3000, this, 0);
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
 		}
 

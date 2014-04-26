@@ -178,6 +178,14 @@ namespace wiselib {
 					::get_allocator().template free_array(aggregation_types_);
 					aggregation_types_ = 0;
 				}
+
+				local_aggregates_.clear();
+				updated_aggregates_.clear();
+
+				for(typename ChildStates::iterator iter = child_states_.begin(); iter != child_states_.end(); ++iter) {
+					iter->second.clear();
+				}
+				child_states_.clear();
 			}
 			
 			void push(size_type port, RowT& row) {
