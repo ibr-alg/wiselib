@@ -20,11 +20,12 @@ class App : public AppBoilerplate {
 		}
 
 		void load_predefined_query(void* x) {
-			//debug_->debug("loading pre-installed query...");
 			Uvoid x2 = (Uvoid)x;
+			debug_->debug("<3");
 			x2--;
 			if(x2 == 0) {
-				x2 = 10;
+				x2 = 30;
+				debug_->debug("loading pre-installed query...");
 				query_processor().erase_query(QID);
 
 				process(sizeof(op100), op100);
