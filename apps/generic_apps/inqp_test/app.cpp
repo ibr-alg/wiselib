@@ -15,7 +15,7 @@ class App : public AppBoilerplate {
 
 			insert_tuples(rdf);
 
-			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)10);
+			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)3);
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
 		}
 
@@ -24,8 +24,8 @@ class App : public AppBoilerplate {
 			debug_->debug("<3");
 			x2--;
 			if(x2 == 0) {
-				x2 = 30;
-				debug_->debug("loading pre-installed query...");
+				x2 = 3;
+				debug_->debug("QRY");
 				query_processor().erase_query(QID);
 
 				process(sizeof(op100), op100);
@@ -58,8 +58,12 @@ class App : public AppBoilerplate {
 			//debug_->debug("@%lu sink recv %lu -> %lu s=%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)result_radio_.id(), (unsigned long)SINK);
 			
 			if(from == SINK) {
-				debug_->debug("sink recv from %lu", (unsigned long)from);
-				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
+				//debug_->debug("sink recv from %lu", (unsigned long)from);
+				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
+				//debug_->debug("ANS %lu", (unsigned long)
+				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
+				Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
+				debug_->debug("RESULT %lu", (unsigned long)row[0]);
 			}
 		}
 

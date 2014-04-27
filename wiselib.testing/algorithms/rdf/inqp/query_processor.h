@@ -42,6 +42,16 @@
 #include "dictionary_translator.h"
 #include "hash_translator.h"
 
+#define INQP_ENABLE_Delete                0
+#define INQP_ENABLE_GraphPatternSelection 1
+#define INQP_ENABLE_Selection             1
+#define INQP_ENABLE_SimpleLocalJoin       1
+#define INQP_ENABLE_Collect               1
+#define INQP_ENABLE_Construct             0
+#define INQP_ENABLE_Aggregate             1
+
+
+
 namespace wiselib {
 	
 	/**
@@ -103,7 +113,60 @@ namespace wiselib {
 			typedef OperatorDescription<OsModel, self_type> BasicOperatorDescription;
 			typedef BasicOperatorDescription BOD;
 			typedef Operator<OsModel, self_type> BasicOperator;
+
+		private:
+			struct NotImplementedDescription : public BasicOperatorDescription {
+			};
+
+			struct NotImplementedOperator : public BasicOperator {
+				//void init(NotImplementedDescription<OsModel, self_type> *cd, Query *query) {
+					// TODO: Would be nice to be able to print some
+					// kind of warning here, unfortunately we dont have a
+					// debug_
+				//}
+				void execute() { }
+			};
+
+			template<bool B, template<typename, typename> class Op>
+			struct IfOperator { typedef NotImplementedOperator T; };
+
+			template<template<typename, typename> class Op>
+			struct IfOperator<true, Op> { typedef Op<OsModel, self_type> T; };
+
+			template<bool B, template<typename, typename> class Op>
+			struct IfOperatorDescription { typedef NotImplementedDescription T; };
+
+			template<template<typename, typename> class Op>
+			struct IfOperatorDescription<true, Op> { typedef Op<OsModel, self_type> T; };
+
+		public:
+
+			typedef typename IfOperator<INQP_ENABLE_Delete, Delete>::T DeleteT;
+			typedef typename IfOperator<INQP_ENABLE_GraphPatternSelection, GraphPatternSelection>::T GraphPatternSelectionT;
+			typedef typename IfOperator<INQP_ENABLE_Selection, Selection>::T SelectionT;
+			typedef typename IfOperator<INQP_ENABLE_SimpleLocalJoin, SimpleLocalJoin>::T SimpleLocalJoinT;
+			//typedef typename IfOperator<INQP_ENABLE_Collect, Collect>::T CollectT;
+		#if INQP_ENABLE_Collect
+			typedef Collect<OsModel, self_type> CollectT;
+		#endif
+			typedef typename IfOperator<INQP_ENABLE_Construct, Construct>::T ConstructT;
+			//typedef typename IfOperator<INQP_ENABLE_Aggregate, Aggregate>::T AggregateT;
+		#if INQP_ENABLE_Aggregate
+			typedef Aggregate<OsModel, self_type, MAX_NEIGHBORS> AggregateT;
+		#endif
+
+			typedef typename IfOperatorDescription<INQP_ENABLE_Delete, DeleteDescription>::T DeleteDescriptionT;
+			typedef typename IfOperatorDescription<INQP_ENABLE_GraphPatternSelection, GraphPatternSelectionDescription>::T GraphPatternSelectionDescriptionT;
+			typedef typename IfOperatorDescription<INQP_ENABLE_Selection, SelectionDescription>::T SelectionDescriptionT;
+			typedef typename IfOperatorDescription<INQP_ENABLE_SimpleLocalJoin, SimpleLocalJoinDescription>::T SimpleLocalJoinDescriptionT;
+			typedef typename IfOperatorDescription<INQP_ENABLE_Collect, CollectDescription>::T CollectDescriptionT;
+			typedef typename IfOperatorDescription<INQP_ENABLE_Construct, ConstructDescription>::T ConstructDescriptionT;
+			typedef typename IfOperatorDescription<INQP_ENABLE_Aggregate, AggregateDescription>::T AggregateDescriptionT;
+
+			typedef Collect<OsModel, self_type, COMMUNICATION_TYPE_CONSTRUCTION_RULE> ConstructionRuleT;
+			typedef CollectDescription<OsModel, self_type> ConstructionRuleDescriptionT;
 			
+			/*
 			typedef GraphPatternSelection<OsModel, self_type> GraphPatternSelectionT;
 			typedef GraphPatternSelectionDescription<OsModel, self_type> GraphPatternSelectionDescriptionT;
 			typedef Selection<OsModel, self_type> SelectionT;
@@ -113,13 +176,17 @@ namespace wiselib {
 			typedef Collect<OsModel, self_type> CollectT;
 			typedef Collect<OsModel, self_type, COMMUNICATION_TYPE_CONSTRUCTION_RULE> ConstructionRuleT;
 			typedef Construct<OsModel, self_type> ConstructT;
-			typedef Delete<OsModel, self_type> DeleteT;
+			//typedef Delete<OsModel, self_type> DeleteT;
+			//typedef NotImplementedOperator DeleteT;
+			typedef typename IfOperator<INQP_ENABLE_DELETE, Delete>::T DeleteT;
 			typedef CollectDescription<OsModel, self_type> CollectDescriptionT;
 			typedef CollectDescription<OsModel, self_type> ConstructionRuleDescriptionT;
 			typedef ConstructDescription<OsModel, self_type> ConstructDescriptionT;
-			typedef DeleteDescription<OsModel, self_type> DeleteDescriptionT;
+			//typedef DeleteDescription<OsModel, self_type> DeleteDescriptionT;
+			typedef NotImplementedDescription DeleteDescriptionT;
 			typedef Aggregate<OsModel, self_type, MAX_NEIGHBORS> AggregateT;
 			typedef AggregateDescription<OsModel, self_type> AggregateDescriptionT;
+			*/
 			
 			/// }
 			

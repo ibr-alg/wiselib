@@ -17,7 +17,8 @@ using namespace wiselib;
 #if defined(CONTIKI)
 	#warning "Using BITMAP allocator"
 	#include <util/allocators/bitmap_allocator.h>
-	typedef wiselib::BitmapAllocator<Os, 2000> Allocator;
+	//typedef wiselib::BitmapAllocator<Os, 2000> Allocator;
+	typedef wiselib::BitmapAllocator<Os, 1000> Allocator;
 #else
 	#include <util/allocators/malloc_free_allocator.h>
 	typedef wiselib::MallocFreeAllocator<Os> Allocator;
@@ -41,7 +42,7 @@ Allocator& get_allocator() { return allocator_; }
 
 typedef Tuple<Os> TupleT;
 
-typedef vector_static<Os, TupleT, 100> TupleContainer;
+typedef vector_static<Os, TupleT, 50> TupleContainer;
 typedef StaticDictionary<Os, 50, 15> Dictionary;
 typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 
@@ -92,7 +93,7 @@ class AppBase {
 
 		void insert_tuples(const char* (*rdf)[3]) {
 			for(const char* (*p)[3] = rdf; **p; ++p) {
-				debug_->debug("ins (%s %s %s)", (*p)[0], (*p)[1], (*p)[2]);
+				//debug_->debug("ins (%s %s %s)", (*p)[0], (*p)[1], (*p)[2]);
 				insert_tuple((*p)[0], (*p)[1], (*p)[2]);
 			}
 		}

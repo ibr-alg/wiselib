@@ -101,7 +101,12 @@ namespace wiselib {
 			
 			enum {
 				ACK_RETRIES = 3,
-				ACK_TIMEOUT = 200
+			#ifdef SHAWN
+				ACK_TIMEOUT = 1000
+			#else
+				//ACK_TIMEOUT = 200
+				ACK_TIMEOUT = 1000
+			#endif
 			};
 
 			enum ErrorCodes {
@@ -147,13 +152,13 @@ namespace wiselib {
 
 				size_type out_neighbors = nd_->neighbors_count(Neighbor::OUT_EDGE);
 				if(out_neighbors == 0) {
-					debug_->debug("@%lu NOPAREN", (unsigned long)radio_->id());
+					//debug_->debug("@%lu NOPAREN", (unsigned long)radio_->id());
 					return ERR_HOSTUNREACH;
 				}
 
 				if(reliable_ && out_neighbors > 1) {
-					debug_->debug("@%lu NOMULTI", (unsigned long)radio_->id());
-					assert(false && "reliable multicast not supported!");
+					//debug_->debug("@%lu NOMULTI", (unsigned long)radio_->id());
+					//assert(false && "reliable multicast not supported!");
 					return ERR_NOTIMPL;
 				}
 
@@ -289,7 +294,7 @@ namespace wiselib {
 				tries_--;
 				if(tries_ == 0) {
 					// Give up!
-					debug_->debug("@%lu ABRTt%lu", (unsigned long)radio_->id(), (unsigned long)nd_->neighbors_begin(Neighbor::OUT_EDGE)->id());
+					debug_->debug("@%lu ABRT %lu", (unsigned long)radio_->id(), (unsigned long)nd_->neighbors_begin(Neighbor::OUT_EDGE)->id());
 					abort_ack_timer();
 					queue().pop();
 					check_queue();
