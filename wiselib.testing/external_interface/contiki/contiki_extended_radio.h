@@ -38,9 +38,11 @@ namespace wiselib
    namespace contiki
    {
       extern abc_conn contiki_extdata_radio_conn;
+      extern unicast_conn contiki_unicast_radio_conn;
 
       typedef delegate1<void, struct abc_conn*> contiki_extended_receive_delegate_t;
-      void contiki_register_receive( contiki_extended_receive_delegate_t& delegate );
+      typedef delegate2<void, struct unicast_conn*, const rimeaddr_t*> contiki_unicast_receive_delegate_t;
+      void contiki_register_receive( contiki_extended_receive_delegate_t&, contiki_unicast_receive_delegate_t& );
 
       void init_contiki_extdata_radio( void );
    }
@@ -95,14 +97,17 @@ namespace wiselib
       {
          contiki::contiki_extended_receive_delegate_t d =
             contiki::contiki_extended_receive_delegate_t::from_method<self_type, &self_type::receive>( this );
-         contiki::contiki_register_receive( d );
+         contiki::contiki_unicast_receive_delegate_t d2 =
+            contiki::contiki_unicast_receive_delegate_t::from_method<self_type, &self_type::receive_unicast>( this );
+         contiki::contiki_register_receive( d, d2 );
          return SUCCESS;
       }
       // --------------------------------------------------------------------
       int disable_radio()
       {
          contiki::contiki_extended_receive_delegate_t d;
-         contiki::contiki_register_receive( d );
+         contiki::contiki_unicast_receive_delegate_t d2;
+         contiki::contiki_register_receive( d, d2 );
          return SUCCESS;
       }
       // --------------------------------------------------------------------
@@ -115,25 +120,35 @@ namespace wiselib
       // --------------------------------------------------------------------
       int send( node_id_t dest, size_t len, block_data_t *data )
       {
-         //printf("l%d PB%d L%d\n", (int)len, (int)PACKETBUF_SIZE, (int)MAX_MESSAGE_LENGTH);
          uint8_t buf[PACKETBUF_SIZE];
          if(len > MAX_MESSAGE_LENGTH) {
             printf("!s %d>%d\n", (int)len, (int)MAX_MESSAGE_LENGTH);
             return ERR_UNSPEC;
          }
 
-         // wirte own id and destination in first 4 bytes of buffer
-         uint16_t addr = id();
-         write<OsModel, block_data_t, node_id_t>( buf, addr );
-         write<OsModel, block_data_t, node_id_t>( buf + sizeof(node_id_t), dest );
-         // write payload
-         memcpy( buf + 2*sizeof(node_id_t), data, len );
+         if(dest == BROADCAST_ADDRESS) {
+            // wirte own id and destination in first 4 bytes of buffer
+            uint16_t addr = id();
+            write<OsModel, block_data_t, node_id_t>( buf, addr );
+            write<OsModel, block_data_t, node_id_t>( buf + sizeof(node_id_t), dest );
 
-         packetbuf_clear();
-         packetbuf_copyfrom( buf, len + 2*sizeof(node_id_t) );
-         if(abc_send( &contiki::contiki_extdata_radio_conn ) == 0) {
-            printf("!s %d+%d\n", (int)len, (int)2*sizeof(node_id_t));
-            return ERR_UNSPEC;
+            // write payload
+            memcpy( buf + 2*sizeof(node_id_t), data, len );
+
+            packetbuf_clear();
+            packetbuf_copyfrom( buf, len + 2*sizeof(node_id_t) );
+            if(abc_send( &contiki::contiki_extdata_radio_conn ) == 0) {
+               printf("!s %d+%d\n", (int)len, (int)2*sizeof(node_id_t));
+               return ERR_UNSPEC;
+            }
+         }
+         else {
+            packetbuf_copyfrom(data, len);
+
+            rimeaddr_t addr;
+            addr.u8[0] = dest & 0xff;
+            addr.u8[1] = (dest >> 8) & 0xff;
+            unicast_send(&contiki::contiki_unicast_radio_conn, &addr);
          }
 
          return SUCCESS;
@@ -148,7 +163,6 @@ namespace wiselib
 
          uint16_t src = read<OsModel, block_data_t, node_id_t>( buffer );
          uint16_t dst = read<OsModel, block_data_t, node_id_t>( buffer + 2 );
-//          printf( "RCVD: src=%u, dst=%u, myaddr=%u of len=%u\n", src, dst, addr, len );
 
          if ( dst == addr || dst == BROADCAST_ADDRESS )
          {
@@ -161,6 +175,19 @@ namespace wiselib
             this->notify_receivers( src, len - 4, buffer + 4, ex );
          }
       }
+      // --------------------------------------------------------------------
+      void receive_unicast(struct unicast_conn *c, const rimeaddr_t *from) {
+         uint8_t buffer[PACKETBUF_SIZE];
+         int len = packetbuf_copyto( buffer );
+         node_id_t src = from->u8[0] | (from->u8[1] << 8);
+         uint16_t  signal_strength = (uint16_t) packetbuf_attr(PACKETBUF_ATTR_RSSI);
+         ExtendedData ex;
+         ex.set_link_metric( signal_strength + 255 );
+
+         this->notify_receivers( src, len, buffer );
+         this->notify_receivers( src, len, buffer, ex );
+      }
+
    };
 
 }
