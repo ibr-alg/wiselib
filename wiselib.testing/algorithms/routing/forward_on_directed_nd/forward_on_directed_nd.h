@@ -32,7 +32,7 @@ namespace wiselib {
 
 	template<typename Os, typename Value_P>
 	struct ForwardOnDirectedNd_DefaultQueueMaker {
-		typedef queue_static<Os, Value_P, 3> T;
+		typedef queue_static<Os, Value_P, 7> T;
 	};
 
 	/**
@@ -58,6 +58,7 @@ namespace wiselib {
 		template<typename, typename> class QueueMaker_P = ForwardOnDirectedNd_DefaultQueueMaker,
 		typename Radio_P = typename OsModel_P::Radio,
 		typename Timer_P = typename OsModel_P::Timer,
+		typename Rand_P = typename OsModel_P::Rand,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class ForwardOnDirectedNd : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t> {
@@ -82,6 +83,7 @@ namespace wiselib {
 			typedef ForwardOnDirectedNdAckMessage<OsModel, Radio> AckMessage;
 			typedef Timer_P Timer;
 			typedef Debug_P Debug;
+			typedef Rand_P Rand;
 
 			typedef typename QueueMaker_P<OsModel, Message>::T Queue;
 
@@ -100,13 +102,15 @@ namespace wiselib {
 			};
 			
 			enum {
-				ACK_RETRIES = 3,
+				ACK_RETRIES = 5,
 			#ifdef SHAWN
-				ACK_TIMEOUT = 1000
+				ACK_TIMEOUT = 1000,
 			#else
 				//ACK_TIMEOUT = 200
-				ACK_TIMEOUT = 1000
+				//ACK_TIMEOUT = 750,
+				ACK_TIMEOUT = 1000,
 			#endif
+				ACK_TIMEOUT_RAND = 100
 			};
 
 			enum ErrorCodes {
@@ -119,9 +123,10 @@ namespace wiselib {
 				ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
 			};
 
-			int init(Neighborhood& nd, Radio& radio, Timer& timer, Debug& debug) {
+			int init(Neighborhood& nd, Radio& radio, Timer& timer, Rand& rand, Debug& debug) {
 				radio_ = &radio;
 				timer_ = &timer;
+				rand_ = &rand;
 				debug_ = &debug;
 				nd_ = &nd;
 				parent_ = NULL_NODE_ID;
@@ -212,7 +217,9 @@ namespace wiselib {
 					msg.set_sequence_number(sequence_number_++);
 
 					if(msg.requests_ack()) {
-						radio_->send(nd_->neighbors_begin(Neighbor::OUT_EDGE)->id(), msg.size(), msg.data());
+						node_id_t to = nd_->neighbors_begin(Neighbor::OUT_EDGE)->id();
+						//debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+						radio_->send(to, msg.size(), msg.data());
 						start_ack_timer();
 					}
 					else {
@@ -281,7 +288,10 @@ namespace wiselib {
 			}
 
 			void start_ack_timer() {
-				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(ACK_TIMEOUT, this, (void*)ack_timer_guard_);
+				timer_->template set_timer<self_type, &self_type::on_ack_timeout>(
+						ACK_TIMEOUT + (rand_->operator()() % ACK_TIMEOUT_RAND),
+						this, (void*)ack_timer_guard_
+						);
 			}
 
 			void on_ack_timeout(void *guard) {
@@ -302,27 +312,17 @@ namespace wiselib {
 				else {
 					Message& msg = queue().front();
 					assert(msg.requests_ack());
-					//if(msg.requests_ack()) {
-						radio_->send(nd_->neighbors_begin(Neighbor::OUT_EDGE)->id(), msg.size(), msg.data());
-						start_ack_timer();
-					//}
-					
-					//else {
-						//for(typename Neighborhood::iterator iter = nd_->neighbors_begin(Neighbor::OUT_EDGE);
-								//iter != nd_->neighbors_end();
-								//++iter
-						//) {
-							//radio_->send(iter->id(), msg.size(), msg.data());
-						//}
-						//queue().pop();
-						//check_queue();
-					//}
+					node_id_t to = nd_->neighbors_begin(Neighbor::OUT_EDGE)->id();
+					//debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+					radio_->send(to, msg.size(), msg.data());
+					start_ack_timer();
 				} // if tries
 			}
 
 			typename Radio::self_pointer_t radio_;
 			typename Neighborhood::self_pointer_t nd_;
 			typename Timer::self_pointer_t timer_;
+			typename Rand::self_pointer_t rand_;
 			typename Debug::self_pointer_t debug_;
 			bool reliable_;
 			node_id_t parent_;
