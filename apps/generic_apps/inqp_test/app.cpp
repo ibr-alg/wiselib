@@ -21,21 +21,28 @@ class App : public AppBoilerplate {
 
 		void load_predefined_query(void* x) {
 			Uvoid x2 = (Uvoid)x;
-			debug_->debug("<3");
+			//debug_->debug("<3");
 			x2--;
 			if(x2 == 0) {
-				x2 = 3;
-				debug_->debug("QRY");
+				x2 = 30;
 				query_processor().erase_query(QID);
-
-				process(sizeof(op100), op100);
-				process(sizeof(op90), op90);
-				process(sizeof(op80), op80);
-				process(sizeof(op70), op70);
-				process(sizeof(cmd), cmd);
+				// wait some time between queries so aggregate can properly
+				// destruct
+				timer_->set_timer<App, &App::run_query>(2000, this, 0);
 			}
 
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)x2);
+		}
+
+		void run_query(void*) {
+			//debug_->debug("QRY");
+
+			process(sizeof(op100), op100);
+			process(sizeof(op90), op90);
+			process(sizeof(op80), op80);
+			process(sizeof(op70), op70);
+			process(sizeof(cmd), cmd);
+			//debug_->debug("/QRY");
 		}
 
 		/**
@@ -54,16 +61,16 @@ class App : public AppBoilerplate {
 
 		void on_sink_receive(ResultRadio::node_id_t from, ResultRadio::size_t size, ResultRadio::block_data_t *data) {
 			ResultRadio::message_id_t msgid = wiselib::read<Os, block_data_t, ResultRadio::message_id_t>(data);
-
-			//debug_->debug("@%lu sink recv %lu -> %lu s=%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)result_radio_.id(), (unsigned long)SINK);
 			
 			if(from == SINK) {
 				//debug_->debug("sink recv from %lu", (unsigned long)from);
-				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
 				//debug_->debug("ANS %lu", (unsigned long)
-				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
-				Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
-				debug_->debug("RESULT %lu", (unsigned long)row[0]);
+				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
+				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, msg.payload_data(), msg.payload_size());
+
+				//Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
+				//Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
+				//debug_->debug("RESULT %08lx", (unsigned long)row[0]);
 			}
 		}
 

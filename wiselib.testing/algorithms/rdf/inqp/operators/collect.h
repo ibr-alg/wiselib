@@ -88,7 +88,7 @@ namespace wiselib {
 					count_++;
 				
 					//for(size_type i = 0; i < this->child(Base::CHILD_LEFT).columns(); i++) {
-						//DBG("result row [%lu] = %08x F%d", i, row[i], (int)mem->mem_free());
+						//printf("result row [%lu] = %08lx \n", (unsigned long)i, (unsigned long)row[i]); //, (int)mem->mem_free());
 					//}
 					
 					this->processor().send_row(

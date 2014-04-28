@@ -244,7 +244,7 @@ class AppBoilerplate : public AppBase {
 			query_radio_.init(radio_);
 			query_radio_.enable_radio();
 
-			result_radio_.init(neighborhood_, *radio_, *timer_, *debug_);
+			result_radio_.init(neighborhood_, *radio_, *timer_, *rand_, *debug_);
 			result_radio_.enable_radio();
 
 			communicator_.init(query_processor_, query_radio_, result_radio_, neighborhood_, *timer_, *debug_);

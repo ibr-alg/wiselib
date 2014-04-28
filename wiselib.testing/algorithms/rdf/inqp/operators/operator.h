@@ -25,6 +25,8 @@
 #include "../projection_info.h"
 #include "../operator_descriptions/operator_description.h"
 
+#define INQP_DEBUG_OPERATORS 0
+
 namespace wiselib {
 	
 	/**
@@ -66,7 +68,12 @@ namespace wiselib {
 				uint8_t id_;
 				uint8_t port_;
 				
-				void push(Row<OsModel>& row) { push_(port_, row); }
+				void push(Row<OsModel>& row) {
+					#if defined(CONTIKI) && INQP_DEBUG_OPERATORS
+						printf("psh %d.%d %p.%p\n", (int)id_, (int)port_, (void*)push_.object_ptr, (void*)push_.stub_ptr);
+					#endif
+					push_(port_, row);
+				}
 			};
 			
 			Operator() : destruct_(0) {
@@ -79,6 +86,10 @@ namespace wiselib {
 				projection_info_ = od->projection_info();
 				parent_.id_ = od->parent_id();
 				parent_.port_ = od->parent_port();
+
+				#if defined(CONTIKI) && INQP_DEBUG_OPERATORS
+					printf("op[%d]=%c\n", (int)id_, (char)type_);
+				#endif
 			}
 			
 			void init(uint8_t type, Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection) {
@@ -91,13 +102,9 @@ namespace wiselib {
 			}
 			
 			void destruct() {
-				//DBG("destr o");
-				//DBG("d=%p", destruct_);
 				if(destruct_) {
-					//DBG("dstr cal");
 					destruct_t d = destruct_t::from_stub((void*)this, destruct_);
 					d();
-					//destruct_();
 				}
 			}
 			

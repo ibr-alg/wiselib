@@ -54,7 +54,7 @@ namespace wiselib {
 			typedef typename QueryProcessor::BasicOperator BasicOperator;
 			
 			/// Operator id => Operator* map of operators.
-			typedef MapStaticVector<OsModel, size_type, BasicOperator*, 16> Operators;
+			typedef MapStaticVector<OsModel, ::uint8_t, BasicOperator*, 16> Operators;
 			
 			typedef ::uint8_t query_id_t;
 			typedef ::uint8_t sequence_number_t;
@@ -185,12 +185,12 @@ namespace wiselib {
 			
 			
 		private:
-			query_id_t query_id_;
 			Operators operators_;
 			QueryProcessor* processor_;
-			size_type expected_operators_;
-			bool expected_operators_set_;
 			SemanticEntityId entity_;
+			size_type expected_operators_;
+			query_id_t query_id_;
+			bool expected_operators_set_;
 			
 		
 	}; // INQPQuery

@@ -157,18 +157,15 @@ namespace wiselib {
 
 				size_type out_neighbors = nd_->neighbors_count(Neighbor::OUT_EDGE);
 				if(out_neighbors == 0) {
-					//debug_->debug("@%lu NOPAREN", (unsigned long)radio_->id());
 					return ERR_HOSTUNREACH;
 				}
 
 				if(reliable_ && out_neighbors > 1) {
-					//debug_->debug("@%lu NOMULTI", (unsigned long)radio_->id());
-					//assert(false && "reliable multicast not supported!");
 					return ERR_NOTIMPL;
 				}
 
 				if(queue().full()) {
-					debug_->debug("@%lu QUEUE", (unsigned long)radio_->id());
+					//debug_->debug("@%lu QUEUE", (unsigned long)radio_->id());
 					return ERR_BUSY;
 				}
 
@@ -232,9 +229,6 @@ namespace wiselib {
 						queue().pop();
 					}
 				} // if !sending
-				//else {
-					//debug_->debug("@%lu NOPAREN", (unsigned long)radio_->id());
-				//}
 			} // check_queue()
 
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
@@ -263,19 +257,28 @@ namespace wiselib {
 				else if(message->message_id() == MESSAGE_ID_ACK) {
 					AckMessage &ack = *reinterpret_cast<AckMessage*>(data);
 					if(!queue().empty() && ack.sequence_number() == queue().front().sequence_number()) {
-						debug_->debug("@%lu ACKED t%lu", (unsigned long)radio_->id(), (unsigned long)from);
+						//debug_->debug("@%lu ACKED f%lu", (unsigned long)radio_->id(), (unsigned long)from);
 						abort_ack_timer();
 						tries_ = 0;
 						queue().pop();
 						check_queue();
 					}
-				}
-				else {
+					/*
+					else {
+						debug_->debug("@%lu IGNACK f%lu q%d s%lu,%lu",
+								(unsigned long)radio_->id(),
+								(unsigned long)from,
+								(int)queue().size(),
+								(unsigned long)ack.sequence_number(),
+								(unsigned long)(queue().empty() ? 0 : queue().front().sequence_number()));
+					}
+					*/
 				}
 				
 			} // on_receive()
 				
 			void send_ack(node_id_t to, typename Message::sequence_number_t s) {
+				//debug_->debug("@%lu SNDACK t%lu %lu", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)s);
 				AckMessage msg;
 				msg.set_type(MESSAGE_ID_ACK);
 				msg.set_sequence_number(s);
@@ -304,7 +307,7 @@ namespace wiselib {
 				tries_--;
 				if(tries_ == 0) {
 					// Give up!
-					debug_->debug("@%lu ABRT %lu", (unsigned long)radio_->id(), (unsigned long)nd_->neighbors_begin(Neighbor::OUT_EDGE)->id());
+					//debug_->debug("@%lu ABRT %lu", (unsigned long)radio_->id(), (unsigned long)nd_->neighbors_begin(Neighbor::OUT_EDGE)->id());
 					abort_ack_timer();
 					queue().pop();
 					check_queue();

@@ -122,7 +122,7 @@ namespace wiselib {
 				//void init(NotImplementedDescription<OsModel, self_type> *cd, Query *query) {
 					// TODO: Would be nice to be able to print some
 					// kind of warning here, unfortunately we dont have a
-					// debug_
+					// debug_ or similar
 				//}
 				void execute() { }
 			};
@@ -165,28 +165,6 @@ namespace wiselib {
 
 			typedef Collect<OsModel, self_type, COMMUNICATION_TYPE_CONSTRUCTION_RULE> ConstructionRuleT;
 			typedef CollectDescription<OsModel, self_type> ConstructionRuleDescriptionT;
-			
-			/*
-			typedef GraphPatternSelection<OsModel, self_type> GraphPatternSelectionT;
-			typedef GraphPatternSelectionDescription<OsModel, self_type> GraphPatternSelectionDescriptionT;
-			typedef Selection<OsModel, self_type> SelectionT;
-			typedef SelectionDescription<OsModel, self_type> SelectionDescriptionT;
-			typedef SimpleLocalJoin<OsModel, self_type> SimpleLocalJoinT;
-			typedef SimpleLocalJoinDescription<OsModel, self_type> SimpleLocalJoinDescriptionT;
-			typedef Collect<OsModel, self_type> CollectT;
-			typedef Collect<OsModel, self_type, COMMUNICATION_TYPE_CONSTRUCTION_RULE> ConstructionRuleT;
-			typedef Construct<OsModel, self_type> ConstructT;
-			//typedef Delete<OsModel, self_type> DeleteT;
-			//typedef NotImplementedOperator DeleteT;
-			typedef typename IfOperator<INQP_ENABLE_DELETE, Delete>::T DeleteT;
-			typedef CollectDescription<OsModel, self_type> CollectDescriptionT;
-			typedef CollectDescription<OsModel, self_type> ConstructionRuleDescriptionT;
-			typedef ConstructDescription<OsModel, self_type> ConstructDescriptionT;
-			//typedef DeleteDescription<OsModel, self_type> DeleteDescriptionT;
-			typedef NotImplementedDescription DeleteDescriptionT;
-			typedef Aggregate<OsModel, self_type, MAX_NEIGHBORS> AggregateT;
-			typedef AggregateDescription<OsModel, self_type> AggregateDescriptionT;
-			*/
 			
 			/// }
 			
@@ -488,7 +466,7 @@ namespace wiselib {
 				Query *q = ::get_allocator().template allocate<Query>().raw();
 				q->init(this, qid);
 				if(queries_.size() >= queries_.capacity()) {
-					assert(false && "queries full, clean them up from time to time!");
+					assert(false && "queries full");
 				}
 				queries_[qid] = q;
 				return q;
@@ -498,7 +476,7 @@ namespace wiselib {
 			 */
 			void add_query(query_id_t qid, Query* query) {
 				if(queries_.size() >= queries_.capacity()) {
-					assert(false && "queries full, clean them up from time to time!");
+					assert(false && "queries full");
 				}
 				else {
 					queries_[qid] = query;

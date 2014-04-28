@@ -18,7 +18,7 @@ using namespace wiselib;
 	#warning "Using BITMAP allocator"
 	#include <util/allocators/bitmap_allocator.h>
 	//typedef wiselib::BitmapAllocator<Os, 2000> Allocator;
-	typedef wiselib::BitmapAllocator<Os, 1000> Allocator;
+	typedef wiselib::BitmapAllocator<Os, 1500> Allocator;
 #else
 	#include <util/allocators/malloc_free_allocator.h>
 	typedef wiselib::MallocFreeAllocator<Os> Allocator;
@@ -42,7 +42,7 @@ Allocator& get_allocator() { return allocator_; }
 
 typedef Tuple<Os> TupleT;
 
-typedef vector_static<Os, TupleT, 50> TupleContainer;
+typedef vector_static<Os, TupleT, 20> TupleContainer;
 typedef StaticDictionary<Os, 50, 15> Dictionary;
 typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 
@@ -67,6 +67,7 @@ class AppBase {
 		void init( Os::AppMainParameter& value ) {
 			radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
+			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
 
@@ -106,6 +107,7 @@ class AppBase {
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
+		Os::Rand::self_pointer_t rand_;
 
 		Processor query_processor_;
 

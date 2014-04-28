@@ -55,8 +55,9 @@ namespace wiselib {
 			 * allocator.
 			 */
 			static Row* create(size_type n) {
-				return reinterpret_cast<Row*>( ::get_allocator()
-					.template allocate_array<block_data_t>(sizeof(self_type) + sizeof(Value) * n).raw() );
+				Row* p = reinterpret_cast<Row*>( ::get_allocator()
+					.template allocate_array<block_data_t>(/*sizeof(self_type) +*/ sizeof(Value) * n).raw() );
+				return p;
 			}
 			
 			/**
