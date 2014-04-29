@@ -1,217 +1,208 @@
 #!/usr/bin/env python3
 
 import numpy as np
+from collections import defaultdict
 import matplotlib.pyplot as plt
-#from pylab import setup
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from pylab import setp
+import math
 import re
 import io
-import sys
-# Measurement: 4th sep 2013, 220 Ohm resistor
-# U = 5.04V
-# I = 22.4 mA
-# c = 42.6372445553
-# v = 520.366288731
-# Aref = 2,56V internal
- 
-F_U = (5.04 / 520.366288731)
-F_I = (22.4 / 42.6372445553)
-
 from matplotlib import rc
-#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-## for Palatino and other serif fonts use:
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
+import sys
+import time
+from matplotlib import ticker
+
+PLOT_DIR = 'plots'
+
+# seconds
+MEASUREMENT_INTERVAL = 64.0 / 3000.0
+
+# mA
+CURRENT_FACTOR = 70.0 / 4095.0
+
+# mA * 3300mV = microJoule (uJ)
+CURRENT_DISPLAY_FACTOR = 3300.0
+
+# mA
+IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
+        + 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) / 20.0
+#print(IDLE_CONSUMPTION)
+
+rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
+fs = (12, 5)
 
-t0 =     600000
-tdelta = 600000 #2400000
+#blacklist = set([10019, 10029])
 
-t0 = 0
-tdelta = None
+class Timer:
+    def __init__(self, name):
+        self.name = name
 
-def correct_arduino_time(t):
-	return t # * 1.795 # nullrdc, contikimac8_nooff
-	#return t * 2.2 # contikimac8
+    def __enter__(self):
+        print('{}...'.format(self.name))
+        self.t = time.time()
 
-def gliding_mean(l, n = 100):
-	l_new = []
-	for i, x in enumerate(l):
-		values = min(n, i+1)
-		l_new.append(sum(l[i - values + 1:i+1]) / float(values))
-	return l_new
+    def __exit__(self, *args):
+        print(' {} done ({}s)'.format(self.name, time.time() - self.t))
 
 
-def parse_energy(f):
-	ts = []
-	vs = []
-	p1s = []
-	p2s = []
-	c1s = []
-	c2s = []
-	
-	n = 1
-	start = False
-	for line in f:
-		#if "messduino" in line:
-			#start = True
-			#continue
-		try:
-			t, c2, c1, v = line.split()
-		except ValueError:
-			continue;
-		
-		
-		try:
-			t = int(t)
-			c1 = int(c1)
-			c2 = int(c2)
-			v = int(v)
-		except Exception:
-			continue
-			
-		if t < 1510 and t >= 1500: start = True
-		if not start: continue
-		
-		t = correct_arduino_time(t)
-		
-		if t < t0: continue
-		#if c == 0: continue
-		
-		ts.append(t)
-		vs.append(v)
-		c1s.append(c1)
-		c2s.append(c2)
-		#ps.append(((c) * F_I) * (v * F_U)) # * float(v))
-		p1s.append(((c1) * F_I) * (v * F_U)) # * float(v))
-		#p1s_mean.append(ema((((c1) * F_I) * (v * F_U))))
-		p2s.append(((c2) * F_I) ) #* (v * F_U)) # * float(v))
-		n += 1
-		
-	#p1s_mean = gliding_mean(p1s, 100)
-	#p1s = gliding_mean(p1s, 100)
-	#print (p1s)
-	
-	return (ts, vs, p1s, p2s, c1s, c2s)
+def parse(fn):
+    with Timer("reading {}...".format(fn)):
+        data = np.genfromtxt(fn, delimiter = '\t', skip_header=0, names=True, usecols=('avg','motelabMoteID'),
+                dtype=[('avg', 'i4'), ('motelabMoteID', 'i4')])
 
-def sum_peaks(ts, vs, t0, tmax, v_thres, v_base):
-	rt = []
-	r = []
-	s = 0
-	tprev = ts[0]
-	tstart = None
-	for t, v in zip(ts[1:], vs[1:]):
-		if t < t0:
-			tprev = t
-			continue
-		if t >= tmax: break
-		
-		if v < v_thres:
-			if tstart is not None:
-				print("tdelta: {}".format(t-tstart))
-				if t - tstart > 100:
-					rt.append(tstart)
-					r.append(s)
-				tstart = None
-		else:
-			if tstart is None:
-				s = 0
-				tstart = t
-			a = (t - tprev) * (v - v_base) / 1000.0 # mA * V * mS / 1000 = mJ
-			s += a
-			
-		tprev = t
-		
-	return rt, r
+    energy_measurements_broken = set([
+        10004, 10037, 10044
+    ])
 
+    # Nodes that did not connect (permanently) in 3600s
+    always_active = set([
+        10008, 10009, 10013, 10050
+    ])
 
-	
+    # Nodes that consume energy as if the radio was permanently on when
+    # a MAC layer should have been active
+    high_energy =  set([
+        10042
+    ])
 
-def cum(t, y):
-	rt = t[1:]
-	ry = []
+    root = set([
+        #10029
+    ])
 
-	cy = y[0]
-	ct = t[1] - t[0]
-	
-	t_prev = t[0]
-	pv = 0
-	#ry.append(0)
-	for ct, cy in zip(t[1:], y[1:]):
-		#print(cy, (ct - t_prev), cy * (ct - t_prev))
-		pv += cy * (ct - t_prev)
-		ry.append(pv / 1000000.0) # mA * V * mS / 10^6 = Joule
-		t_prev = ct
-	print("Joule:", ry[-1])
-	return rt, ry
+    blacklist = root | energy_measurements_broken | always_active | {
+            '25458.csv': set([10029]),
+            '25464.csv': set([10005, 10010]),
+            '25465.csv': set([10005, 10017]),
+            '25466.csv': set([10200]),
+            '25469.csv': set([10035, 10056, 10037, 104117, 10199, 10200]),
+            '25470.csv': set([10033, 10030]),
+            '25473.csv': set([10039]),
+            '25474.csv': set([10027, 10041]),
+            '25475.csv': set([10031, 10027, 10037, 10044]),
+            '25476.csv': set([]),
+            '25477.csv': set([10007,10010,10023,10046,10047]),
+            '25478.csv': set([10042,10018,10008,10025]),
+            '25479.csv': set([10035]),
+            '25480.csv': set([]),
+            '25487.csv': set([10037, 10031, 10009, 10038]),
+            '25488.csv': set([10009, 10199]),
+            '25489.csv': set([]),
+            '25493.csv': set([10037, 10044]),
+            '25516.csv': set([10027, 10050, 10042, 10037, 10044]),
+            '25515.csv': set([10010]),
+            '25577.csv': set([10014, 10007, 10004, 10037, 10044]),
+            '26034.csv': set([10200]),
+    }.get(fn, set())
 
-def plot_energy(d, p, **kws):
-	p.plot(d['x'], d['y'], *d.get('args', []), **kws)
+    with Timer('refudelling'):
+        # split into columns
+        d = defaultdict(list)
+        for avg, mote_id in data:
+            if mote_id not in blacklist:
+                d[mote_id].append(avg)
 
-def boxplots(vs, labels, p):
-	bp = p.boxplot(vs)
-	#print([v[0] for v in vs])
-	print(vs)
-	p.set_xticks(range(1, len(labels) + 1))
-	p.set_xticklabels(labels)
-	return bp
+    print("  considered {} motes".format(len(d)))
+
+    with Timer('converting'):
+        for k in d.keys():
+            d[k] = np.array(d[k])
+            #print(k, d[k])
+
+    return d
+
+def moving_average(a, n=3) :
+    """
+    sauce: http://stackoverflow.com/questions/14313510/moving-average-function-on-numpy-scipy
+    """
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = (ret[n:] - ret[:-n]) / n
+    ret[:n] = ret[:n] / (np.arange(n) + 1)
+    return ret
+
+def plot(ax, vs, name, style):
+    print("plotting {}...".format(name))
+    #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
+    #ax.set_xlim((2000, 2100))
+    #ax.set_ylim((0, 2))
+    #for k, vs in d.items():
+    ts = np.arange(len(vs)) * MEASUREMENT_INTERVAL
+    vs = vs * CURRENT_FACTOR
+    #ax.plot(ts, vs, color='#aadddd')
+
+    vs = moving_average(vs, int(60.0 / MEASUREMENT_INTERVAL)) # avg over 10s
+    ax.plot(ts, vs, label=name, **style)
+
+    #ax.plot([0, ts[-1]], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], color='#ff9999', linewidth=3)
 
 
-		
-fig = plt.figure(figsize=(10, 4))
-penergy = fig.add_subplot(111)
-#div.append_axes("bottom", size="150%", pad = 0.05)
-#penergy.set_ylim((0, 150))
-#penergy.set_xlim((0, 5000))
-penergy.set_ylabel('Energy consumption / query (mJ)')
+#d = parse('25446.csv')
+#d = parse('25458.csv.tmp')
 
 
-#ts, vs, p1s, p2s, c1s, c2s = parse_energy(open(sys.argv[1], 'r'))
+def plotone(vs, name):
+    #print("plotting {}...".format(name))
+    fig = plt.figure(figsize=fs)
+    ax = fig.add_subplot(111)
+    #ax.set_ylim((0, 10))
+    ax.set_ylabel('$I$ / mA')
+    ax.set_xlabel('$t$ / s')
+    #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
+    ax.set_xlim((1000, 1500))
+    #ax.set_xlim((760, 850))
+    #ax.set_ylim((0, 2))
+    #for k, vs in d.items():
+    ts = np.arange(len(vs)) * MEASUREMENT_INTERVAL
+    vs = vs * CURRENT_FACTOR
+    #ax.plot(ts, vs, color='#aadddd')
 
-#ttemp, _, ptemp, _, _, _ = parse_energy(open('./inqp_isense_standalone_temp.log', 'r'))
-#_, vtemp = sum_peaks(ttemp, ptemp, 3500, 180, 130)
+    vs = moving_average(vs, int(0.1 / MEASUREMENT_INTERVAL)) # avg over 10s
+    #ax.set_xlim((500, 510))
+    ax.plot(ts, vs, 'k-')
+    ax.grid()
+    fig.savefig(PLOT_DIR + '/energy_{}.pdf'.format(name), bbox_inches='tight', pad_inches=.1)
+    fig.savefig(PLOT_DIR + '/energy_{}.png'.format(name), bbox_inches='tight', pad_inches=.1)
+    plt.close(fig)
 
+data = [
+        ('Test', parse('26034.csv'), {}),
+]
 
-BASEDIR = '/home/henning/annexe/experiments/2013-09-inqp-energy-local/'
+fig = plt.figure(figsize=fs)
+ax = fig.add_subplot(111)
+#ax.set_ylim((0, 10))
+ax.set_ylabel('$I$ / mA')
+ax.set_xlabel('$t$ / s')
 
-ttemp_gps1, _, ptemp_gps1, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_temp_gps1.log', 'r'))
-_, vtemp_gps1 = sum_peaks(ttemp_gps1, ptemp_gps1, 3000, 9000, 150, 90)
+#ax.set_xlim((0, 3600))
+#ax.set_ylim((.7, 21))
+#ax.set_yscale('log')
+#ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+#ax.yaxis.set_minor_formatter(ticker.FormatStrFormatter('%.1f'))
 
-ttemp2, _, ptemp2, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_temp3.log', 'r'))
-_, vtemp2 = sum_peaks(ttemp2, ptemp2, 2000, 10000, 150, 90)
+for label, d, style in data:
+    l = min((len(x) for x in d.values() if len(x)))
+    print("l({})={}".format(label, l))
+    print('\n'.join(['{}:{}'.format(k, len(x)) for k, x in d.items()]))
+    sums = np.zeros(l)
+    for k,v in d.items():
+        plotone(v, label + '_' + str(k))
+        sums += v[:l]
 
-tall, _, pall, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_all.log', 'r'))
-#_, vall = sum_peaks(tall, pall, 3000, 49000, 180, 130)
-_, vall = sum_peaks(tall, pall, 3000, 12000, 150, 90)
+    plot(ax, sums / len(d), label, style)
 
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 2')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 3')
+#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 4')
 
-# for cross join its one run/file per experiment
-# t0/tmax for cross join datasets
-cross_limits = [(3000, 6000), (2000, 4000), (2000, 5000), (3000, 5000), (3000, 6000), (3000, 6000), (2500, 5000), (2000, 4500), (2200, 5000), (2000, 4000)]
+ax.grid(True, which='both')
+ax.legend(bbox_to_anchor=(1.0, .95), loc='upper right')
+#ax.legend(loc='upper right')
 
-vcross = []
-for i in range(10):
-	s = '' if i == 0 else str(i + 1)
-	print("i=" + s)
-	tcross, _, pcross, _, _, _ = parse_energy(open(BASEDIR + '/isense_standalone_cross{}.log'.format(s), 'r'))
-	_, vc = sum_peaks(tcross, pcross, cross_limits[i][0], cross_limits[i][1], 150, 90)
-	vcross.extend(vc)
+fig.savefig(PLOT_DIR + '/energy_sum.png')
+fig.savefig(PLOT_DIR + '/energy_sum.pdf', bbox_inches='tight', pad_inches=.1)
+plt.close(fig)
 
-
-#penergy.set_xlim((40000, 55000))
-#penergy.set_xlim((0, 30000))
-#plot_energy(dict(x=ttemp_gps1, y=ptemp_gps1, args=('k-',)), penergy)
-#plot_energy(dict(x=ttemp2, y=ptemp2, args=('k-',)), penergy)
-#plot_energy(dict(x=tall, y=pall, args=('k-',)), penergy)
-bp = boxplots([vtemp_gps1, vtemp2, vall, vcross], ['GPS 1', 'Temperature', 'All', 'Cross-Join'], penergy)
-#print (vtemp2)
-
-try:
-	plt.setp(bp['boxes'], color='black')
-	plt.setp(bp['medians'], color='black')
-	plt.setp(bp['whiskers'], color='black')
-	plt.setp(bp['fliers'], color='black')
-except Exception:
-	pass
-
-fig.savefig('p.pdf')
+# vim: set ts=4 sw=4 expandtab:
 
