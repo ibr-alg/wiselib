@@ -243,6 +243,7 @@ namespace wiselib {
 			 * Execute the given query.
 			 */
 			void execute(Query *query) {
+				//printf("EXECUTE\n");
 				assert(query->ready());
 				query->build_tree();
 				

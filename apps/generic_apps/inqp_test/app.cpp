@@ -37,9 +37,9 @@ class App : public AppBoilerplate {
 		void run_query(void*) {
 			//debug_->debug("QRY");
 
-			process(sizeof(op100), op100);
+			//process(sizeof(op100), op100);
 			process(sizeof(op90), op90);
-			process(sizeof(op80), op80);
+			//process(sizeof(op80), op80);
 			process(sizeof(op70), op70);
 			process(sizeof(cmd), cmd);
 			//debug_->debug("/QRY");
