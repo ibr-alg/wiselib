@@ -11,6 +11,11 @@ from matplotlib import rc
 import sys
 import time
 from matplotlib import ticker
+import os.path
+import pickle
+
+sys.path.append('/home/henning/bin')
+from experiment_utils import quantize, fold, median, join_boxes, average, materialize
 
 PLOT_DIR = 'plots'
 
@@ -26,7 +31,12 @@ CURRENT_DISPLAY_FACTOR = 3300.0
 # mA
 IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
         + 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) / 20.0
-#print(IDLE_CONSUMPTION)
+
+
+EXPERIMENT_INTERVAL = 300.0
+BOX_INTERVAL = 5.0
+
+
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
@@ -47,7 +57,12 @@ class Timer:
 
 
 def parse(fn):
-    with Timer("reading {}...".format(fn)):
+    pickled_fn = fn + '.p'
+    if os.path.exists(pickled_fn):
+        with Timer("unpickling {}".format(pickled_fn)):
+            return pickle.load(open(pickled_fn, 'rb'))
+
+    with Timer("reading {}".format(fn)):
         data = np.genfromtxt(fn, delimiter = '\t', skip_header=0, names=True, usecols=('avg','motelabMoteID'),
                 dtype=[('avg', 'i4'), ('motelabMoteID', 'i4')])
 
@@ -93,6 +108,8 @@ def parse(fn):
             '25515.csv': set([10010]),
             '25577.csv': set([10014, 10007, 10004, 10037, 10044]),
             '26034.csv': set([10200]),
+            '26045.csv': set([10200]),
+            '26064.csv': set([10007, 10011, 10027, 10029, 10039]),
     }.get(fn, set())
 
     with Timer('refudelling'):
@@ -108,6 +125,9 @@ def parse(fn):
         for k in d.keys():
             d[k] = np.array(d[k])
             #print(k, d[k])
+
+    with Timer("pickling {}".format(pickled_fn)):
+        pickle.dump(d, open(pickled_fn, 'wb'))
 
     return d
 
@@ -140,15 +160,16 @@ def plot(ax, vs, name, style):
 #d = parse('25458.csv.tmp')
 
 
-def plotone(vs, name):
+def plotone(vs, name, style):
     #print("plotting {}...".format(name))
     fig = plt.figure(figsize=fs)
     ax = fig.add_subplot(111)
     #ax.set_ylim((0, 10))
     ax.set_ylabel('$I$ / mA')
     ax.set_xlabel('$t$ / s')
+    ax.set_ylim((0, 5))
     #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
-    ax.set_xlim((1000, 1500))
+    #ax.set_xlim((1000, 1500))
     #ax.set_xlim((760, 850))
     #ax.set_ylim((0, 2))
     #for k, vs in d.items():
@@ -156,46 +177,80 @@ def plotone(vs, name):
     vs = vs * CURRENT_FACTOR
     #ax.plot(ts, vs, color='#aadddd')
 
-    vs = moving_average(vs, int(0.1 / MEASUREMENT_INTERVAL)) # avg over 10s
+    vs = moving_average(vs, int(5.0 / MEASUREMENT_INTERVAL)) # avg over 10s
     #ax.set_xlim((500, 510))
-    ax.plot(ts, vs, 'k-')
+    ax.plot(ts, vs, **style)
     ax.grid()
     fig.savefig(PLOT_DIR + '/energy_{}.pdf'.format(name), bbox_inches='tight', pad_inches=.1)
     fig.savefig(PLOT_DIR + '/energy_{}.png'.format(name), bbox_inches='tight', pad_inches=.1)
     plt.close(fig)
 
-data = [
-        ('Test', parse('26034.csv'), {}),
-]
+
+def compute_boxplot(vs):
+    #box_entries = int(10.0 / MEASUREMENT_INTERVAL)
+    box_entries = int(BOX_INTERVAL / MEASUREMENT_INTERVAL)
+
+    ts = np.arange(len(vs)) * MEASUREMENT_INTERVAL
+    return fold(quantize(zip(ts, vs), box_entries), int(EXPERIMENT_INTERVAL / (box_entries * MEASUREMENT_INTERVAL)), skip = 1)
+
+def style_box(bp, s):
+    for key in ('boxes', 'whiskers', 'fliers', 'caps', 'medians'):
+        plt.setp(bp[key], **s)
+    plt.setp(bp['fliers'], marker='+')
+
+def data_to_boxes(d, label, style):
+    l = min((len(x) for x in d.values() if len(x)))
+    #print("l({})={}".format(label, l))
+    with Timer("summing up"):
+        sums = np.zeros(l)
+        for k,v in d.items():
+            #plotone(v, label + '_' + str(k), style)
+            sums += v[:l]
+    with Timer("computing box plot"):
+        r = compute_boxplot(CURRENT_FACTOR * sums / len(d))
+    r = materialize(r)
+    return r
+
+def plot_boxes(ax, it, label, style):
+    #print(list(it))
+    vs2 = [v for (t, v) in it]
+    print("-- {} {}".format(label, ' '.join(str(len(x)) for x in vs2)))
+    bp = ax.boxplot(vs2)
+    style_box(bp, style)
+    ax.plot(range(1, len(vs2) + 1), [average(x) for x in vs2], label=label, **style)
+
+#data = [
+        ##('Test', parse('26034.csv'), {'color': '#bbaa88'}), #{'color': '#88bbbb'}),
+        ##('Simple Temperature', parse('26034.csv'), {'color': '#dd7777'}), #{'color': '#88bbbb'}),
+        #('Simple Temperature II', parse('26052.csv'), {'color': '#dd7777'}), #{'color': '#88bbbb'}),
+        #('Simple Temperature III', parse('26064.csv'), {'color': 'black'}), #{'color': '#88bbbb'}),
+        ##('Idle', parse('26053.csv'), {'color': '#88bbbb'}), #{'color': '#88bbbb'}),
+        ##('Collect-All', parse('26045.csv'), {'color': '#bbaa88'}),
+#]
 
 fig = plt.figure(figsize=fs)
 ax = fig.add_subplot(111)
-#ax.set_ylim((0, 10))
 ax.set_ylabel('$I$ / mA')
 ax.set_xlabel('$t$ / s')
+ax.set_ylim((0, 2.2))
 
-#ax.set_xlim((0, 3600))
-#ax.set_ylim((.7, 21))
-#ax.set_yscale('log')
-#ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
-#ax.yaxis.set_minor_formatter(ticker.FormatStrFormatter('%.1f'))
+# 
+# Experiments for simple temperature query
+#
+kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Temperature' }
+boxes = materialize(data_to_boxes(parse(x + '.csv'), **kws) for x in ('26052', '26064'))
+#it = join_boxes(boxes)
+j = list(join_boxes(*boxes))
+plot_boxes(ax, j, **kws)
 
-for label, d, style in data:
-    l = min((len(x) for x in d.values() if len(x)))
-    print("l({})={}".format(label, l))
-    print('\n'.join(['{}:{}'.format(k, len(x)) for k, x in d.items()]))
-    sums = np.zeros(l)
-    for k,v in d.items():
-        plotone(v, label + '_' + str(k))
-        sums += v[:l]
+kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'label': 'Idle' }
+plot_boxes(ax, data_to_boxes(parse('26053.csv'), **kws), **kws)
 
-    plot(ax, sums / len(d), label, style)
+kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'label': 'Collect' }
+plot_boxes(ax, data_to_boxes(parse('26045.csv'), **kws), **kws)
 
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle')
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 2')
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 3')
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 4')
-
+ax.set_xticks(range(0, int(EXPERIMENT_INTERVAL / BOX_INTERVAL) + 1, int(60.0 / BOX_INTERVAL)))
+ax.set_xticklabels(range(0, int(EXPERIMENT_INTERVAL + BOX_INTERVAL), 60))
 ax.grid(True, which='both')
 ax.legend(bbox_to_anchor=(1.0, .95), loc='upper right')
 #ax.legend(loc='upper right')

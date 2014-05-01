@@ -1,4 +1,7 @@
 
+#define QUERY_SIMPLE_TEMPERATURE 1
+#define QUERY_COLLECT 0
+
 #ifdef SHAWN
 	#include "boilerplate_shawn.h"
 #elif CONTIKI_TARGET_SKY
@@ -15,7 +18,9 @@ class App : public AppBoilerplate {
 
 			insert_tuples(rdf);
 
+		#if QUERY_COLLECT || QUERY_SIMPLE_TEMPERATURE
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)3);
+		#endif
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
 		}
 
@@ -37,11 +42,19 @@ class App : public AppBoilerplate {
 		void run_query(void*) {
 			//debug_->debug("QRY");
 
-			//process(sizeof(op100), op100);
-			process(sizeof(op90), op90);
-			//process(sizeof(op80), op80);
-			process(sizeof(op70), op70);
-			process(sizeof(cmd), cmd);
+			#if QUERY_COLLECT
+				//process(sizeof(op100), op100);
+				process(sizeof(op90), op90);
+				//process(sizeof(op80), op80);
+				process(sizeof(op70), op70);
+				process(sizeof(cmd), cmd);
+			#elif QUERY_SIMPLE_TEMPERATURE
+				process(sizeof(op100), op100);
+				process(sizeof(op90), op90);
+				process(sizeof(op80), op80);
+				process(sizeof(op70), op70);
+				process(sizeof(cmd), cmd);
+			#endif
 			//debug_->debug("/QRY");
 		}
 
@@ -68,8 +81,8 @@ class App : public AppBoilerplate {
 				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
 				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, msg.payload_data(), msg.payload_size());
 
-				//Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
-				//Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
+				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
+				Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
 				//debug_->debug("RESULT %08lx", (unsigned long)row[0]);
 			}
 		}
