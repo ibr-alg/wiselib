@@ -20,4 +20,5 @@ echo "SHOW TABLES" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -u
 
 echo "SELECT avg,motelabMoteID FROM inqp_test_${EXP_ID}_1242" | ssh $USER@$HOST "mysql -B -h www.wilab.atlantis.ugent.be -uhasemann -preude123 hasemann |gzip" >  ${EXP_ID}.csv.gz
 gunzip ${EXP_ID}.csv.gz
+rm ${EXP_ID}.csv.p
 

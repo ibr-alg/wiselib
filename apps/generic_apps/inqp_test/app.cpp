@@ -1,6 +1,9 @@
 
-#define QUERY_SIMPLE_TEMPERATURE 1
-#define QUERY_COLLECT 0
+//#define QUERY_SIMPLE_TEMPERATURE 0
+//#define QUERY_COLLECT 0
+
+#define ENABLE_DEBUG 1
+#define ENABLE_PREINSTALLED_QUERY 1
 
 #ifdef SHAWN
 	#include "boilerplate_shawn.h"
@@ -8,17 +11,33 @@
 	#include "boilerplate_sky.h"
 #endif
 
-#include "static_data.h"
+const char* rdf[][3] = {
+	#include "node2.h"
+	{ 0, 0, 0 }
+};
+
+//#include "static_data.h"
+
+// Simple temperature aggregation query
+//#include "query_node2_aggregate_temperature.h"
+#include "query_collect.h"
+
 #include <util/meta.h>
 
 class App : public AppBoilerplate {
 	public:
+		typedef ::uint32_t abs_millis_t;
+		typedef Os::Clock::time_t time_t;
+
+		abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+		abs_millis_t now() { return absolute_millis(clock_->time()); }
+			
 		void init(Os::AppMainParameter& v) {
 			AppBoilerplate::init(v);
 
 			insert_tuples(rdf);
 
-		#if QUERY_COLLECT || QUERY_SIMPLE_TEMPERATURE
+		#if ENABLE_PREINSTALLED_QUERY
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)3);
 		#endif
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
@@ -26,7 +45,9 @@ class App : public AppBoilerplate {
 
 		void load_predefined_query(void* x) {
 			Uvoid x2 = (Uvoid)x;
-			//debug_->debug("<3");
+			#if ENABLE_DEBUG
+				debug_->debug("<3 %lu", (unsigned long)now());
+			#endif
 			x2--;
 			if(x2 == 0) {
 				x2 = 30;
@@ -40,22 +61,13 @@ class App : public AppBoilerplate {
 		}
 
 		void run_query(void*) {
-			//debug_->debug("QRY");
-
-			#if QUERY_COLLECT
-				//process(sizeof(op100), op100);
-				process(sizeof(op90), op90);
-				//process(sizeof(op80), op80);
-				process(sizeof(op70), op70);
-				process(sizeof(cmd), cmd);
-			#elif QUERY_SIMPLE_TEMPERATURE
-				process(sizeof(op100), op100);
-				process(sizeof(op90), op90);
-				process(sizeof(op80), op80);
-				process(sizeof(op70), op70);
-				process(sizeof(cmd), cmd);
+			#if ENABLE_DEBUG
+				debug_->debug("QRY");
 			#endif
-			//debug_->debug("/QRY");
+			
+			for(OpInfo *q = g_query; q->len; q++) {
+				process(q->len, q->op);
+			}
 		}
 
 		/**
@@ -76,14 +88,17 @@ class App : public AppBoilerplate {
 			ResultRadio::message_id_t msgid = wiselib::read<Os, block_data_t, ResultRadio::message_id_t>(data);
 			
 			if(from == SINK) {
-				//debug_->debug("sink recv from %lu", (unsigned long)from);
+				#if ENABLE_DEBUG
+				debug_->debug("sink recv from %lu", (unsigned long)from);
 				//debug_->debug("ANS %lu", (unsigned long)
 				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
-				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, msg.payload_data(), msg.payload_size());
-
+				//debug_->debug("RESULT");
 				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
-				Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
-				//debug_->debug("RESULT %08lx", (unsigned long)row[0]);
+				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, msg.payload_data(), msg.payload_size());
+
+				//Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
+				//debug_->debug("RESULT %lu ", (int)row.as_int(0), (float)row.as_float(1));
+				#endif
 			}
 		}
 

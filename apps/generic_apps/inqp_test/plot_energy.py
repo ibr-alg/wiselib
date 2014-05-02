@@ -110,6 +110,7 @@ def parse(fn):
             '26034.csv': set([10200]),
             '26045.csv': set([10200]),
             '26064.csv': set([10007, 10011, 10027, 10029, 10039]),
+            '26073.csv': set([10012, 10027, 10029, 10033, ]),
     }.get(fn, set())
 
     with Timer('refudelling'):
@@ -181,7 +182,7 @@ def plotone(vs, name, style):
     #ax.set_xlim((500, 510))
     ax.plot(ts, vs, **style)
     ax.grid()
-    fig.savefig(PLOT_DIR + '/energy_{}.pdf'.format(name), bbox_inches='tight', pad_inches=.1)
+    #fig.savefig(PLOT_DIR + '/energy_{}.pdf'.format(name), bbox_inches='tight', pad_inches=.1)
     fig.savefig(PLOT_DIR + '/energy_{}.png'.format(name), bbox_inches='tight', pad_inches=.1)
     plt.close(fig)
 
@@ -199,7 +200,15 @@ def style_box(bp, s):
     plt.setp(bp['fliers'], marker='+')
 
 def data_to_boxes(d, label, style):
-    l = min((len(x) for x in d.values() if len(x)))
+    #l = min((len(x) for x in d.values() if len(x)))
+    #l = None
+    #for k, v in d.values():
+
+    l, k = max(((len(v), k) for k, v in d.items() if len(v)))
+    print("max l={} k={}".format(l, k))
+    l, k = min(((len(v), k) for k, v in d.items() if len(v)))
+    print("min l={} k={}".format(l, k))
+
     #print("l({})={}".format(label, l))
     with Timer("summing up"):
         sums = np.zeros(l)
@@ -237,17 +246,23 @@ ax.set_ylim((0, 2.2))
 # 
 # Experiments for simple temperature query
 #
-kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Temperature' }
+kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Temperature Old' }
 boxes = materialize(data_to_boxes(parse(x + '.csv'), **kws) for x in ('26052', '26064'))
 #it = join_boxes(boxes)
 j = list(join_boxes(*boxes))
 plot_boxes(ax, j, **kws)
 
-kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'label': 'Idle' }
+kws = { 'style': { 'color': '#88bbbb', 'linestyle': ':'}, 'label': 'Idle Old' }
 plot_boxes(ax, data_to_boxes(parse('26053.csv'), **kws), **kws)
 
-kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'label': 'Collect' }
+kws = { 'style': { 'color': '#dd7777', 'linestyle': ':'}, 'label': 'Collect Old' }
 plot_boxes(ax, data_to_boxes(parse('26045.csv'), **kws), **kws)
+
+kws = { 'style': { 'color': '#bbaa88', 'linestyle': '-'}, 'label': 'Temperature' }
+plot_boxes(ax, data_to_boxes(parse('26073.csv'), **kws), **kws)
+
+kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'label': 'Collect' }
+plot_boxes(ax, data_to_boxes(parse('26074.csv'), **kws), **kws)
 
 ax.set_xticks(range(0, int(EXPERIMENT_INTERVAL / BOX_INTERVAL) + 1, int(60.0 / BOX_INTERVAL)))
 ax.set_xticklabels(range(0, int(EXPERIMENT_INTERVAL + BOX_INTERVAL), 60))

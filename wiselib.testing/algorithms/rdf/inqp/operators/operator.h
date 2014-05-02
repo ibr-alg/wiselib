@@ -69,7 +69,7 @@ namespace wiselib {
 				uint8_t port_;
 				
 				void push(Row<OsModel>& row) {
-					#if defined(CONTIKI) && INQP_DEBUG_OPERATORS
+					#if ENABLE_DEBUG || (defined(CONTIKI) && INQP_DEBUG_OPERATORS)
 						printf("psh %d.%d %p.%p\n", (int)id_, (int)port_, (void*)push_.object_ptr, (void*)push_.stub_ptr);
 					#endif
 					push_(port_, row);
@@ -87,7 +87,7 @@ namespace wiselib {
 				parent_.id_ = od->parent_id();
 				parent_.port_ = od->parent_port();
 
-				#if defined(CONTIKI) && INQP_DEBUG_OPERATORS
+				#if ENABLE_DEBUG || (defined(CONTIKI) && INQP_DEBUG_OPERATORS)
 					printf("op[%d]=%c\n", (int)id_, (char)type_);
 				#endif
 			}

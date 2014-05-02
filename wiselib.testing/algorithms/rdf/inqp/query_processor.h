@@ -94,6 +94,10 @@ namespace wiselib {
 			typedef ReverseTranslator_P ReverseTranslator;
 			typedef Row<OsModel, Value> RowT;
 			typedef Timer_P Timer;
+
+			enum {
+				QUERY_DELAY = 10000
+			};
 			
 			enum {
 				MAX_QUERIES = MAX_QUERIES_P,
@@ -238,12 +242,18 @@ namespace wiselib {
 					execute(it->second);
 				}
 			}
+
+			void on_execute(void *p) {
+				execute(reinterpret_cast<Query*>(p));
+			}
 				
 			/**
 			 * Execute the given query.
 			 */
 			void execute(Query *query) {
-				//printf("EXECUTE\n");
+				#if ENABLE_DEBUG
+					printf("xq %d\n", (int)query->id());
+				#endif
 				assert(query->ready());
 				query->build_tree();
 				
@@ -334,7 +344,8 @@ namespace wiselib {
 						break;
 				}
 				if(query->ready()) {
-					execute(query);
+					timer_->template set_timer<self_type, &self_type::on_execute>(QUERY_DELAY, this, reinterpret_cast<void*>(query));
+					//execute(query);
 				}
 			}
 			
@@ -377,7 +388,8 @@ namespace wiselib {
 				}
 				query->set_expected_operators(msg->operators());
 				if(query->ready()) {
-					execute(query);
+					//execute(query);
+					timer_->template set_timer<self_type, &self_type::on_execute>(QUERY_DELAY, this, reinterpret_cast<void*>(query));
 				}
 			}
 			
@@ -391,7 +403,8 @@ namespace wiselib {
 				}
 				query->set_expected_operators(nops);
 				if(query->ready()) {
-					execute(query);
+					timer_->template set_timer<self_type, &self_type::on_execute>(QUERY_DELAY, this, reinterpret_cast<void*>(query));
+					//execute(query);
 				}
 			}
 			

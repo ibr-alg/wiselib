@@ -42,8 +42,8 @@ Allocator& get_allocator() { return allocator_; }
 
 typedef Tuple<Os> TupleT;
 
-typedef vector_static<Os, TupleT, 20> TupleContainer;
-typedef StaticDictionary<Os, 50, 15> Dictionary;
+typedef vector_static<Os, TupleT, 25> TupleContainer;
+typedef StaticDictionary<Os, 120, 8> Dictionary;
 typedef TupleStore<Os, TupleContainer, Dictionary, Os::Debug, BIN(111), &TupleT::compare> TS;
 
 // --- QueryProcessor

@@ -165,7 +165,9 @@ namespace wiselib {
 				}
 
 				if(queue().full()) {
-					//debug_->debug("@%lu QUEUE", (unsigned long)radio_->id());
+					#if ENABLE_DEBUG
+					debug_->debug("@%lu QUEUE", (unsigned long)radio_->id());
+					#endif
 					return ERR_BUSY;
 				}
 
@@ -215,7 +217,9 @@ namespace wiselib {
 
 					if(msg.requests_ack()) {
 						node_id_t to = nd_->neighbors_begin(Neighbor::OUT_EDGE)->id();
-						//debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+						#if ENABLE_DEBUG
+							debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+						#endif
 						radio_->send(to, msg.size(), msg.data());
 						start_ack_timer();
 					}
@@ -257,28 +261,32 @@ namespace wiselib {
 				else if(message->message_id() == MESSAGE_ID_ACK) {
 					AckMessage &ack = *reinterpret_cast<AckMessage*>(data);
 					if(!queue().empty() && ack.sequence_number() == queue().front().sequence_number()) {
-						//debug_->debug("@%lu ACKED f%lu", (unsigned long)radio_->id(), (unsigned long)from);
+					#if ENABLE_DEBUG
+						debug_->debug("@%lu ACKED f%lu", (unsigned long)radio_->id(), (unsigned long)from);
+					#endif
 						abort_ack_timer();
 						tries_ = 0;
 						queue().pop();
 						check_queue();
 					}
-					/*
 					else {
+					#if ENABLE_DEBUG
 						debug_->debug("@%lu IGNACK f%lu q%d s%lu,%lu",
 								(unsigned long)radio_->id(),
 								(unsigned long)from,
 								(int)queue().size(),
 								(unsigned long)ack.sequence_number(),
 								(unsigned long)(queue().empty() ? 0 : queue().front().sequence_number()));
+					#endif
 					}
-					*/
 				}
 				
 			} // on_receive()
 				
 			void send_ack(node_id_t to, typename Message::sequence_number_t s) {
-				//debug_->debug("@%lu SNDACK t%lu %lu", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)s);
+				#if ENABLE_DEBUG
+					debug_->debug("@%lu SNDACK t%lu %lu", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)s);
+				#endif
 				AckMessage msg;
 				msg.set_type(MESSAGE_ID_ACK);
 				msg.set_sequence_number(s);
@@ -307,7 +315,9 @@ namespace wiselib {
 				tries_--;
 				if(tries_ == 0) {
 					// Give up!
-					//debug_->debug("@%lu ABRT %lu", (unsigned long)radio_->id(), (unsigned long)nd_->neighbors_begin(Neighbor::OUT_EDGE)->id());
+					#if ENABLE_DEBUG
+						debug_->debug("@%lu ABRT %lu", (unsigned long)radio_->id(), (unsigned long)nd_->neighbors_begin(Neighbor::OUT_EDGE)->id());
+					#endif
 					abort_ack_timer();
 					queue().pop();
 					check_queue();
@@ -316,7 +326,9 @@ namespace wiselib {
 					Message& msg = queue().front();
 					assert(msg.requests_ack());
 					node_id_t to = nd_->neighbors_begin(Neighbor::OUT_EDGE)->id();
-					//debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+					#if ENABLE_DEBUG
+					debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+					#endif
 					radio_->send(to, msg.size(), msg.data());
 					start_ack_timer();
 				} // if tries

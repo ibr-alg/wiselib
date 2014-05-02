@@ -93,6 +93,12 @@ namespace wiselib {
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
+								#if ENABLE_DEBUG
+									printf("gps o%d !m @%d %08lx != %08lx\n",
+											(int)this->id(), (int)i,
+											(unsigned long)values_[i],
+											(unsigned long)v);
+								#endif // ENABLE_DEBUG
 								match = false;
 								break;
 							}
@@ -105,6 +111,7 @@ namespace wiselib {
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
+								//row->set(row_idx++, l);
 								this->dictionary().free_value(s);
 								break;
 							}
@@ -122,7 +129,28 @@ namespace wiselib {
 						}
 					}
 					if(match) {
+						#if ENABLE_DEBUG
+							printf("psh gps o%d\n", (int)this->id());
+						#endif
 						this->parent().push(*row);
+					}
+					else {
+						#if ENABLE_DEBUG
+							block_data_t *s1, *s2, *s3;
+							s1 = this->dictionary().get_value(iter->get_key(0));
+							s2 = this->dictionary().get_value(iter->get_key(1));
+							s3 = this->dictionary().get_value(iter->get_key(2));
+							printf("gps o%d !match (%s %s %s) = (%08lx %08lx %08lx)\n",
+									(int)this->id(),
+									(char*)s1, (char*)s2, (char*)s3,
+									this->translator().translate(iter->get_key(0)),
+									this->translator().translate(iter->get_key(1)),
+									this->translator().translate(iter->get_key(2))
+							);
+							this->dictionary().free_value(s1);
+							this->dictionary().free_value(s2);
+							this->dictionary().free_value(s3);
+						#endif // ENABLE_DEBUG
 					}
 				}
 				

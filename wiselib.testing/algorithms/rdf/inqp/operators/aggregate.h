@@ -205,8 +205,8 @@ namespace wiselib {
 				else {
 					local_aggregates_.pack();
 
-					#if INQP_DEBUG_AGGREGATE && defined(CONTIKI)
-						printf("AGGR: close-push\n");
+					#if ENABLE_DEBUG || (INQP_DEBUG_AGGREGATE && defined(CONTIKI))
+						printf("close a o%d\n", (int)this->id());
 					#endif
 					
 					for(typename TableT::iterator iter = local_aggregates_.begin(); iter != local_aggregates_.end(); ++iter) {
@@ -333,7 +333,7 @@ namespace wiselib {
 				}
 				else {
 					for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
-						#if INQP_DEBUG_AGGREGATE && defined(CONTIKI)
+						#if ENABLE_DEBUG || (INQP_DEBUG_AGGREGATE && defined(CONTIKI))
 							printf("AGGR: send_row\n");
 						#endif
 							
