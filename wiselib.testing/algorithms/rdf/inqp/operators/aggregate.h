@@ -95,6 +95,7 @@ namespace wiselib {
 				aggregation_types_ = ::get_allocator().template allocate_array< ::uint8_t>(aggregation_columns_logical_).raw();
 				memcpy(aggregation_types_, ad->aggregation_types(), aggregation_columns_logical_);
 				timer_info_ = 0;
+
 			}
 			#pragma GCC diagnostic pop
 			
@@ -177,6 +178,14 @@ namespace wiselib {
 					::get_allocator().template free_array(aggregation_types_);
 					aggregation_types_ = 0;
 				}
+
+				local_aggregates_.clear();
+				updated_aggregates_.clear();
+
+				for(typename ChildStates::iterator iter = child_states_.begin(); iter != child_states_.end(); ++iter) {
+					iter->second.clear();
+				}
+				child_states_.clear();
 			}
 			
 			void push(size_type port, RowT& row) {
@@ -195,7 +204,6 @@ namespace wiselib {
 					local_aggregates_.pack();
 					
 					for(typename TableT::iterator iter = local_aggregates_.begin(); iter != local_aggregates_.end(); ++iter) {
-						DBG("cal refresh for local row");
 						refresh_group(*iter, true);
 					}
 					
@@ -203,8 +211,15 @@ namespace wiselib {
 					// Lets wait a little for possible child reports and then
 					// send out a result
 					
-					timer_info_ = ::get_allocator().template allocate<TimerInfo>().raw();
-					assert(timer_info_ != 0);
+					// This lives a little longer than this operator instance
+					// such that it can inform a potential pending aggregation
+					// timer that this operator is dead and it shall not
+					// dereference $this, which would lead to invalid memory
+					// access.
+					if(timer_info_ == 0) {
+						timer_info_ = ::get_allocator().template allocate<TimerInfo>().raw();
+						assert(timer_info_ != 0);
+					}
 					timer_info_->alive = true;
 					this->timer().template set_timer<self_type, &self_type::on_sending_time>(WAIT_AFTER_LOCAL, this, (void*)timer_info_);
 				}
@@ -305,16 +320,17 @@ namespace wiselib {
 				TimerInfo *ti = reinterpret_cast<TimerInfo*>(ti_);
 				if(!ti->alive) {
 					::get_allocator().free(ti);
-					return;
 				}
-				for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
-					this->processor().send_row(
-							Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
-							aggregation_columns_physical_, *iter, this->query().id(), this->id()
-					);
+				else {
+					for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
+						this->processor().send_row(
+								Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
+								aggregation_columns_physical_, *iter, this->query().id(), this->id()
+						);
+					}
+					updated_aggregates_.clear();
+					this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, ti_);
 				}
-				updated_aggregates_.clear();
-				this->timer().template set_timer<self_type, &self_type::on_sending_time>(CHECK_INTERVAL, this, ti_);
 			}
 			
 			/*
@@ -342,16 +358,6 @@ namespace wiselib {
 						
 						if((aggregation_types_[i] & ~AD::AGAIN) == AD::GROUP
 								&& row[row_is_output ? operations_[i].aggregate_column_ : operations_[i].data_column_] != aggregate[operations_[i].aggregate_column_]) {
-							
-							
-							DBG("nomatch: i %d aggrtype %d datacol %d aggrcol %d row[aggrcol] %08lx aggr[aggrcol] %08lx",
-									(int)i,
-									(int)aggregation_types_[i],
-									(int)operations_[i].data_column_,
-									(int)operations_[i].aggregate_column_,
-									(unsigned long)row[operations_[i].aggregate_column_],
-									(unsigned long)aggregate[operations_[i].aggregate_column_]);
-							
 							match = false;
 							break;
 						}
@@ -384,6 +390,7 @@ namespace wiselib {
 				for(size_type i = 0; i < aggregation_columns_logical_; i++) {
 					
 					// {{{ DEBUG
+					/*
 					if((aggregation_types_[i] & ~AD::AGAIN) == AD::GROUP) {
 						if(
 							a[operations_[i].aggregate_column_] != b[operations_[i].aggregate_column_]
@@ -394,6 +401,7 @@ namespace wiselib {
 							);
 						}
 					}
+					*/
 					// }}}
 					
 					operations_[i].aggregate(a, b);
@@ -408,10 +416,8 @@ namespace wiselib {
 			void add_to_aggregate(RowT& aggregate, RowT& row) {
 				RowT *converted = RowT::create(aggregation_columns_physical_);
 				for(size_type i = 0; i < aggregation_columns_logical_; i++) {
-					//DBG("ad op %d %d", (int)i, (operations_[i].init_ != 0));
 					operations_[i].init(*converted, row);
 				}
-				//DBG("ad merge");
 				merge_aggregates(aggregate, *converted);
 				 //BG("ad free");
 				converted->destroy();
@@ -473,7 +479,6 @@ namespace wiselib {
 					Value r = 0;
 					switch(type_) {
 						case ProjectionInfoBase::IGNORE:
-							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
 							long sum = *reinterpret_cast<long*>(&v1) + *reinterpret_cast<long*>(&v2);
@@ -486,7 +491,6 @@ namespace wiselib {
 							break;
 						}
 						case ProjectionInfoBase::STRING:
-							DBG("!sum str");
 							break;
 					};
 					v1 = r;
@@ -502,35 +506,21 @@ namespace wiselib {
 					Value r = 0;
 					switch(type_) {
 						case ProjectionInfoBase::IGNORE:
-							DBG("aggr col noex");
 							break;
 						case ProjectionInfoBase::INTEGER: {
-							DBG("AVG INT");
-							//long long avg = *reinterpret_cast<long*>(&v1) * (long long)n1 + *reinterpret_cast<long*>(&v2) * (long long)n2;
-							//avg /= ((long long)n1 + (long long)n2);
-							//long avg2 = avg;
-							//r = *reinterpret_cast<Value*>(&avg2);
 							typedef unsigned long long ULL;
 							ULL avg = (ULL)v1 * (ULL)n1 + (ULL)v2 * (ULL)n2;
 							ULL avg2 = avg / ((ULL)n1 + (ULL)n2);
 							r = avg2;
-							
-							//DBG("avg int (%08lx %08lx, %08lx %08lx) -> %08lx -> %08lx -> %08lx",
-									//(unsigned long)v1, (unsigned long)n1,
-									//(unsigned long)v2, (unsigned long)n2,
-									//(unsigned long)avg, (unsigned long)avg2,
-									//(unsigned long)r);
 							break;
 						}
 						case ProjectionInfoBase::FLOAT: {
-							DBG("avg float");
 							float avg = *reinterpret_cast<float*>(&v1) * (float)n1/(float)(n1 + n2)
 								+ *reinterpret_cast<float*>(&v2) * (float)n2/(float)(n1 + n2);
 							r = *reinterpret_cast<Value*>(&avg);
 							break;
 						}
 						case ProjectionInfoBase::STRING:
-							DBG("!avg str");
 							break;
 					};
 					

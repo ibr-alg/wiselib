@@ -44,21 +44,14 @@ namespace wiselib {
 	void initial_semantics(TS& ts, RadioPtr radio, RandPtr rand) {
 		DBG("initial semantics");
 		
-#if APP_EVAL
 		const char *room1 = "<room1>";
-#else
-		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
-#endif
 		
 		// Generate sensor URI
 		enum { MAX_URI_LENGTH = 256, DIGITPOS = 45 };
 		char myuri[MAX_URI_LENGTH];
 		
-#if APP_EVAL
 		snprintf(myuri, MAX_URI_LENGTH, "<v%lx>", (unsigned long)radio->id());
-#else
-		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)radio->id());
-	#endif
+		//snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)radio->id());
 		myuri[MAX_URI_LENGTH - 1] = '\0';
 		
 		/*
@@ -73,16 +66,9 @@ namespace wiselib {
 		snprintf(v, 10, "%d", radio->id());
 		v[9] = '\0';
 		
-#if APP_EVAL
-		ins(ts, myuri, "<featureOfInterest>", room1);
-		ins(ts, myuri, "<observedProperty>", "<Temperature>");
-		ins(ts, myuri, "<hasValue>", v);
-#else
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>", "<http://spitfire-project.eu/property/Temperature>");
 		ins(ts, myuri, "<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>", v);
-		
-#endif
 	}
 	
 }

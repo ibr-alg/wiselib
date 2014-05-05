@@ -30,12 +30,13 @@
 #include "protocol_payload.h"
 #include "protocol.h"
 #include "beacon.h"
+#include "util/serialization/simple_types.h"
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 #ifdef UNIGE_TESTBED
-#include "../topologies/UNIGE_ISENSE_topology.h"
+#include "../../../apps/generic_apps/topologies/UNIGE_ISENSE_topology.h"
 #endif
 #ifdef CTI_TESTBED
-#include "../topologies/CTI_ISENSE_topology.h"
+#include "../../../apps/generic_apps/topologies/CTI_ISENSE_topology.h"
 #endif
 #endif
 
@@ -46,7 +47,11 @@ namespace wiselib
 				typename Clock_P,
 				typename Timer_P,
 				typename Rand_P,
-				typename Debug_P>
+				typename Debug_P
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+				,typename iSenseBatterySensor_P
+#endif
+				>
 	class NeighborDiscovery_Type
 	{
 	public:
@@ -64,7 +69,12 @@ namespace wiselib
 		typedef typename Radio::ExtendedData ExData;
 		typedef typename Radio::TxPower TxPower;
 		typedef typename Timer::millis_t millis_t;
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+		typedef iSenseBatterySensor_P iSenseBatterySensor;
+		typedef NeighborDiscovery_Type	<Os, Radio,	Clock, Timer, Rand, Debug, iSenseBatterySensor> self_t;
+#else
 		typedef NeighborDiscovery_Type	<Os, Radio,	Clock, Timer, Rand, Debug> self_t;
+#endif
 		typedef Message_Type<Os, Radio, Debug> Message;
 		typedef Neighbor_Type<Os, Radio, Clock, Timer, Debug> Neighbor;
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
@@ -81,6 +91,7 @@ namespace wiselib
 		typedef vector_static<Os, Protocol, ND_MAX_REGISTERED_PROTOCOLS> Protocol_vector;
 		typedef typename Protocol_vector::iterator Protocol_vector_iterator;
 		typedef delegate4<void, uint8_t, node_id_t, size_t, uint8_t*> event_notifier_delegate_t;
+
 		// --------------------------------------------------------------------
 		NeighborDiscovery_Type()	:
 			status								( WAITING_STATUS ),
@@ -92,16 +103,32 @@ namespace wiselib
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 			,messages_received					( 0 ),
 			bytes_received						( 0 ),
+			bytes_received_0					( 0 ),
+			bytes_received_6					( 0 ),
+			bytes_received_12					( 0 ),
+			bytes_received_18					( 0 ),
+			bytes_received_24					( 0 ),
+			bytes_received_30					( 0 ),
 			avg_bytes_size_received				( 0 ),
 			messages_send						( 0 ),
 			bytes_send							( 0 ),
+			bytes_send_0						( 0 ),
+			bytes_send_6						( 0 ),
+			bytes_send_12						( 0 ),
+			bytes_send_18						( 0 ),
+			bytes_send_24						( 0 ),
+			bytes_send_30						( 0 ),
 			avg_bytes_size_send					( 0 ),
 			corrupted_messages_received			( 0 ),
 			corrupted_bytes_received			( 0 ),
 			avg_corrupted_byte_size_received	( 0 ),
 			clock_paradox_message_drops			( 0 ),
+			bytes_received_periodic				( 0 ),
 			metrics_counter						( 0 )
-
+#endif
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+			,energy_counter1						( 0 ),
+			energy_counter2							( 0 )
 #endif
 		{};
 		// --------------------------------------------------------------------
@@ -116,7 +143,7 @@ namespace wiselib
 			Neighbor n;
 			n.set_id( radio().id() );
 			n.set_active();
-#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT_ISENSE
 			n.set_position( get_node_info<Position, Radio>( &radio() ) );
 			set_position( get_node_info<Position, Radio>( &radio() ).get_x(), get_node_info<Position, Radio>( &radio() ).get_y(), get_node_info<Position, Radio>( &radio() ).get_z() );
 #endif
@@ -124,8 +151,7 @@ namespace wiselib
 			neighbors.push_back( n );
 			ProtocolPayload pp;
 			pp.set_protocol_id( ND_PROTOCOL_ID );
-			pp.set_payload_size( 0 );
-
+			pp.set_payload_size( 1 );
 			uint8_t events_flag = 	ProtocolSettings::NEW_NB|
 									ProtocolSettings::UPDATE_NB|
 									ProtocolSettings::NEW_PAYLOAD|
@@ -225,6 +251,30 @@ namespace wiselib
 			messages_send = messages_send + 1;
 			bytes_send = bytes_send + message.serial_size() + sizeof( size_t ) + sizeof( node_id_t );
 			avg_bytes_size_send = bytes_send / messages_send;
+			if ( get_transmission_power_dB() == 0 )
+			{
+				bytes_send_0++;
+			}
+			else if ( get_transmission_power_dB() == -6 )
+			{
+				bytes_send_6++;
+			}
+			else if ( get_transmission_power_dB() == -12 )
+			{
+				bytes_send_12++;
+			}
+			else if ( get_transmission_power_dB() == -18 )
+			{
+				bytes_send_18++;
+			}
+			else if ( get_transmission_power_dB() == -24 )
+			{
+				bytes_send_24++;
+			}
+			else if ( get_transmission_power_dB() == -30 )
+			{
+				bytes_send_30++;
+			}
 #endif
 		}
 		// --------------------------------------------------------------------
@@ -237,7 +287,7 @@ namespace wiselib
 			uint32_t backoff_beacon_period = rand()() % ( bp - 50 );
 			time_t current_time = clock().time();
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
-//			debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
+			//debug().debug("BEAC_SCH:%x:%d:%d:%d:%d\n", radio().id(), clock().seconds( current_time ), clock().milliseconds( current_time ), backoff_beacon_period, bp );
 #endif
 			timer().template set_timer<self_t, &self_t::beacons>( backoff_beacon_period, this, 0 );
 			timer().template set_timer<self_t, &self_t::beacon_scheduler> ( bp, this, 0 );
@@ -280,6 +330,9 @@ namespace wiselib
 						beacon.set_protocol_payloads( protocols );
 						beacon.set_beacon_period( bp );
 						beacon.set_beacon_period_update_counter( n->get_beacon_period_update_counter() );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRANSMISSION_POWER_PIGGY
+						beacon.set_TP( get_transmission_power_dB() );
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_SMALL_PAYLOAD
 						Neighbor_vector nv_SCL;
 						Neighbor_vector nv_non_SCL;
@@ -344,12 +397,11 @@ namespace wiselib
 								i->print( debug(), radio() );
 							}
 #endif
-#else
-						Neighbor_vector nv = p_ptr->get_neighborhood();
-#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ACTIVE_SCLD
 						beacon.set_SCLD( SCLD );
-
+#endif
+#else
+						Neighbor_vector nv = p_ptr->get_neighborhood();
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 						beacon.set_position( position );
@@ -386,9 +438,56 @@ namespace wiselib
 #endif
 #endif
 
-						send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+						if ( (  radio().id() == 0x1c74 ) )
+						{
+							block_data_t bufff[20];
+							block_data_t* buffff = bufff;
+							size_t VOLTAGE_POS = 0;
+							size_t TEMP_POS = VOLTAGE_POS + sizeof(uint16_t);
+							size_t CURRENT_POS = TEMP_POS + sizeof(int16_t);
+							size_t CHARGE_POS = CURRENT_POS + sizeof(int32_t);
+							size_t COUNTER_POS = CHARGE_POS + sizeof(uint32_t);
+							size_t MILLIS_POS = COUNTER_POS + sizeof(uint32_t);
+							size_t payload_size = MILLIS_POS + sizeof(millis_t);
+							uint16_t voltage = iSBS->BS().voltage;
+							int16_t temp = iSBS->BS().temp;
+							int32_t current = iSBS->BS().current;
+							uint32_t charge = iSBS->BS().charge;
+							time_t current_time = clock().time();
+							millis_t mils = clock().milliseconds( current_time ) + clock().seconds( current_time ) * 1000;
+							//debug().debug("ENERGY_SCL:%x:%d:%i:%i:%d", radio().id(), voltage, temp, current, charge);//, payload_size );
+							write<Os, block_data_t, uint16_t>( buffff + VOLTAGE_POS, voltage );
+							write<Os, block_data_t, int16_t>( buffff + TEMP_POS, temp );
+							write<Os, block_data_t, int32_t>( buffff + CURRENT_POS, current );
+							write<Os, block_data_t, uint32_t>( buffff + CHARGE_POS, charge );
+							write<Os, block_data_t, uint32_t>( buffff + COUNTER_POS, energy_counter2 );
+							energy_counter2++;
+							write<Os, block_data_t, millis_t>( buffff + MILLIS_POS, mils );
+							for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
+							{
+								if ( ppit->get_protocol_id() == ND_PROTOCOL_ID )
+								{
+									//debug().debug("payload_found for ND_PROTO_ID");
+									ppit->set_payload( buffff, payload_size );
+								}
+							}
+						}
+						if ( beacon.get_beacon_period_update_counter() < 28800 )
+						{
+#endif
+							send( Radio::BROADCAST_ADDRESS, beacon.serial_size(), beacon.serialize( buff ), ND_MESSAGE );
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+						}
+						else
+						{
+							Neighbor* n = p_ptr->get_neighbor_ref( radio().id() );
+							n->set_beacon_period_update_counter( 0 );
+							transmission_power_dB = transmission_power_dB + 6;
+						}
+#endif
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_BEACONS
-						debug().debug( "NeighborDiscovery - beacons - Sending beacon.\n" );
+						debug().debug( "NeighborDiscovery - beacons - Sending beacon %d.\n", beacon.get_beacon_period_update_counter() );
 #endif
 #ifndef CONFIG_NEIGHBOR_DISCOVER_H_RAND_BACKOFF_BEACONS
 						timer().template set_timer<self_t, &self_t::beacons> ( bp, this, 0 );
@@ -459,7 +558,39 @@ namespace wiselib
 #endif
 #endif
 #endif
-
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+					if (radio().id() == 0x1b4c )
+					{
+						uint8_t found_flag = 0;
+						ProtocolPayload pp;
+						for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
+						{
+							if ( ppit->get_protocol_id() == ND_PROTOCOL_ID )
+							{
+								pp = *ppit;
+								found_flag = 1;
+							}
+						}
+						if ( found_flag )
+						{
+							size_t VOLTAGE_POS = 0;
+							size_t TEMP_POS = VOLTAGE_POS + sizeof(uint16_t);
+							size_t CURRENT_POS = TEMP_POS + sizeof(int16_t);
+							size_t CHARGE_POS = CURRENT_POS + sizeof(int32_t);
+							size_t COUNTER_POS = CHARGE_POS + sizeof(uint32_t);
+							size_t MILLIS_POS = COUNTER_POS + sizeof(uint32_t);
+							block_data_t* buff = pp.get_payload_data();
+							uint16_t voltage = read<Os, block_data_t, uint16_t>( buff + VOLTAGE_POS );
+							int16_t temp = read<Os, block_data_t, int16_t>( buff + TEMP_POS );
+							int32_t current = read<Os, block_data_t, int32_t>( buff + CURRENT_POS );
+							uint32_t charge = read<Os, block_data_t, uint32_t>( buff + CHARGE_POS );
+							uint32_t energy_counter3 = read<Os, block_data_t, uint32_t>( buff + COUNTER_POS );
+							millis_t mils = read<Os, block_data_t, millis_t>( buff + MILLIS_POS );
+							debug().debug("ENERGY:%d:%d:%d:%x:%i:%d:%i:%i:%d:%d", energy_counter1, energy_counter3, mils, _from, transmission_power_dB, voltage, temp, current, charge, pp.get_payload_size() );
+							energy_counter1++;
+						}
+					}
+#endif
 					for ( Protocol_vector_iterator pit = protocols.begin(); pit != protocols.end(); ++pit )
 					{
 						uint8_t found_flag = 0;
@@ -515,6 +646,7 @@ namespace wiselib
 										}
 #endif
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.update_link_stab_ratio();
@@ -524,11 +656,16 @@ namespace wiselib
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -543,6 +680,7 @@ namespace wiselib
 										}
 #endif
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( ( dead_time / nit->get_beacon_period() ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
@@ -552,11 +690,16 @@ namespace wiselib
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -574,6 +717,7 @@ namespace wiselib
 										}
 #endif
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.inc_total_beacons_expected( 1 * pit->resolve_beacon_weight( _from ) );
 										new_neighbor.update_link_stab_ratio();
@@ -583,11 +727,16 @@ namespace wiselib
 										debug().debug( "LSR:%x:%x:%d", radio().id(), new_neighbor.get_id(), new_neighbor.get_total_beacons_expected() );
 										}
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -595,12 +744,12 @@ namespace wiselib
 									}
 									else
 									{
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID )/* && ( radio().id() == 0x96f4 )*/ )
 										{
 										debug().debug( "NeighborDiscovery - receive %x - Neighbor %x is late and not as advertised for protocol %id with dead_time : %d.\n", radio().id(), _from, pit->get_protocol_id(), dead_time );
 										}
-//#endif
+#endif
 										//TODO overflow here.
 										//uint32_t last_beacon_period_update = beacon.get_beacon_period_update_counter() * beacon.get_beacon_period();
 										millis_t approximate_beacon_period = 0;
@@ -608,34 +757,40 @@ namespace wiselib
 										{
 											approximate_beacon_period = beacon.get_beacon_period();
 										}
-//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::OLD_DEAD_TIME_PERIOD )
-//										{
-//											approximate_beacon_period = nit->get_beacon_period();
-//										}
-//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::MEAN_DEAD_TIME_PERIOD )
-//										{
-//											approximate_beacon_period = ( beacon.get_beacon_period() + nit->get_beacon_period() ) / 2;
-//										}
-//										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::WEIGHTED_MEAN_DEAD_TIME_PERIOD )
-//										{
-//											approximate_beacon_period = ( beacon.get_beacon_period() * pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() + nit->get_beacon_period() * pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() ) / ( pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() + pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() );
-//										}
-										uint32_t dead_time_messages_lost = ( dead_time/* - last_beacon_period_update*/ ) / approximate_beacon_period;
+										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::OLD_DEAD_TIME_PERIOD )
+										{
+											approximate_beacon_period = nit->get_beacon_period();
+										}
+										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::MEAN_DEAD_TIME_PERIOD )
+										{
+											approximate_beacon_period = ( beacon.get_beacon_period() + nit->get_beacon_period() ) / 2;
+										}
+										else if ( pit->get_protocol_settings_ref()->get_dead_time_strategy() == ProtocolSettings::WEIGHTED_MEAN_DEAD_TIME_PERIOD )
+										{
+											approximate_beacon_period = ( beacon.get_beacon_period() * pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() + nit->get_beacon_period() * pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() ) / ( pit->get_protocol_settings_ref()->get_old_dead_time_period_weight() + pit->get_protocol_settings_ref()->get_new_dead_time_period_weight() );
+										}
+										uint32_t dead_time_messages_lost = dead_time / approximate_beacon_period;
 										new_neighbor = *nit;
+										new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 										new_neighbor.inc_total_beacons( 1 * pit->resolve_beacon_weight( _from ) );
-										new_neighbor.inc_total_beacons_expected( /*(*/ dead_time_messages_lost /*+ beacon.get_beacon_period_update_counter() )*/ * ( pit->resolve_lost_beacon_weight( _from ) ) );
+										new_neighbor.inc_total_beacons_expected( ( dead_time_messages_lost + 1 ) * ( pit->resolve_lost_beacon_weight( _from ) ) );
 										new_neighbor.update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 										if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 										{
 										debug().debug( "LSR:%x:%x:%d:%d:%d:%d:%d\n", radio().id(), new_neighbor.get_id(), dead_time_messages_lost, beacon.get_beacon_period(), nit->get_beacon_period(), dead_time, pit->resolve_beacon_weight( _from ), new_neighbor.get_total_beacons_expected() );
 										}
-//#endif
+#endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 										new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 										new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+										new_neighbor.set_avg_LQI( signal_quality );
+										new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 										new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 										new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -656,6 +811,7 @@ namespace wiselib
 							}
 #endif
 							new_neighbor.set_id( _from );
+							new_neighbor.set_transmission_power_dB( beacon.get_TP() );
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 							new_neighbor.set_position( beacon.get_position() );
 #endif
@@ -666,8 +822,13 @@ namespace wiselib
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
 							new_neighbor.update_avg_LQI( signal_quality, 1 );
 #endif
+#ifndef CONFIG_NEIGHBOR_DISCOVERY_H_DTPC
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
 							new_neighbor.update_avg_RSSI( signal_strength, 1 );
+#endif
+#else
+							new_neighbor.set_avg_LQI( signal_quality );
+							new_neighbor.set_avg_RSSI( signal_strength );
 #endif
 							new_neighbor.set_beacon_period( beacon.get_beacon_period() );
 							new_neighbor.set_beacon_period_update_counter( beacon.get_beacon_period_update_counter() );
@@ -723,19 +884,6 @@ namespace wiselib
 						{
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 							new_neighbor.dec_trust_counter_inverse();
-
-//							if ( new_neighbor.get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
-//							{
-//#endif
-//								new_neighbor.set_link_stab_ratio_inverse( 0 );
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-//								new_neighbor.set_avg_RSSI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-//								new_neighbor.set_avg_LQI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							}
 #endif
 						}
 						uint8_t events_flag = 0;
@@ -757,10 +905,10 @@ namespace wiselib
 								( new_neighbor.get_link_stab_ratio_inverse() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_inverse_threshold() ) &&
 								( new_neighbor.get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() )
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-								&& ( new_neighbor.get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
+							&&	( new_neighbor.get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
 								( new_neighbor.get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
 #endif
-					)
+							)
 						{
 							new_neighbor.set_active();
 							if ( found_flag == 1 )
@@ -813,7 +961,7 @@ namespace wiselib
 							ProtocolPayload pp;
 							for ( ProtocolPayload_vector_iterator ppit = beacon.get_protocol_payloads_ref()->begin(); ppit != beacon.get_protocol_payloads_ref()->end(); ++ppit )
 							{
-								if ( ppit->get_protocol_id() == pit->get_protocol_id() )
+								if ( ( ppit->get_protocol_id() == pit->get_protocol_id() ) && ( pit->get_protocol_id() != ND_PROTOCOL_ID ) )
 								{
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 									debug().debug("NeighborDiscovery - receive - Beacon carried a payload for protocol %i.\n", pit->get_protocol_id() );
@@ -883,14 +1031,38 @@ namespace wiselib
 							}
 						}
 					}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+					messages_received = messages_received + 1;
+					bytes_received = bytes_received + _len;
+					avg_bytes_size_received = bytes_received / messages_received;
+					if ( beacon.get_TP() == 0 )
+					{
+						bytes_received_0++;
+					}
+					else if ( get_transmission_power_dB() == -6 )
+					{
+						bytes_received_6++;
+					}
+					else if ( get_transmission_power_dB() == -12 )
+					{
+						bytes_received_12++;
+					}
+					else if ( get_transmission_power_dB() == -18 )
+					{
+						bytes_received_18++;
+					}
+					else if ( get_transmission_power_dB() == -24 )
+					{
+						bytes_received_24++;
+					}
+					else if ( get_transmission_power_dB() == -30 )
+					{
+						bytes_received_30++;
+					}
+#endif
 				}
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_RECEIVE
 				debug().debug("NeighborDiscovery - receive - From %x Exiting.\n", _from );
-#endif
-#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
-				messages_received = messages_received + 1;
-				bytes_received = bytes_received + _len;
-				avg_bytes_size_received = bytes_received / messages_received;
 #endif
 			}
 		}
@@ -996,12 +1168,12 @@ namespace wiselib
 #endif
 							nit->inc_total_beacons_expected( dead_time / nit->get_beacon_period() * ( pit->resolve_lost_beacon_weight( nit->get_id() ) ) );
 							nit->update_link_stab_ratio();
-//#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
 							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
 								debug().debug( "LSRD1:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
-//#endif
+#endif
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
 							for ( uint16_t b = 0; b < ( dead_time / nit->get_beacon_period() ); b++ )
 							{
@@ -1009,38 +1181,12 @@ namespace wiselib
 								nit->dec_trust_counter_inverse();
 							}
 #endif
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
 							if ( ( pit->get_protocol_id() == ATP_PROTOCOL_ID ) /*&& ( radio().id() == 0x96f4 )*/ )
 							{
 								debug().debug( "LSRD2:%x:%x:%d:%d:%d:%d:[%d:%d]", radio().id(), nit->get_id(), dead_time, nit->get_beacon_period(), nit->get_total_beacons_expected(), dead_time / nit->get_beacon_period(),nit->get_trust_counter(), nit->get_trust_counter_inverse() );
 							}
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							if ( nit->get_trust_counter() < ND_TRUST_COUNTER_THRESHOLD )
-//							{
-//#endif
-//								nit->set_link_stab_ratio( 0 );
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-//								nit->set_avg_LQI( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-//								nit->set_avg_RSSI( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							}
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							if ( nit->get_trust_counter_inverse() < ND_TRUST_COUNTER_THRESHOLD_INVERSE )
-//							{
-//#endif
-//								nit->set_link_stab_ratio_inverse( 0 );
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_LQI_FILTERING
-//								nit->set_avg_LQI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_RSSI_FILTERING
-//								nit->set_avg_RSSI_inverse( 0 );
-//#endif
-//#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-//							}
-//#endif
+#endif
 							nit->set_beacon_period( nit->get_beacon_period() );
 							nit->set_last_beacon( current_time );
 							uint8_t events_flag = 0;
@@ -1062,7 +1208,7 @@ namespace wiselib
 									( nit->get_link_stab_ratio_inverse() <= pit->get_protocol_settings_ref()->get_max_link_stab_ratio_inverse_threshold() ) &&
 									( nit->get_link_stab_ratio_inverse() >= pit->get_protocol_settings_ref()->get_min_link_stab_ratio_inverse_threshold() )
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_TRUST_FILTERING
-								&&	( nit->get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
+							&&		( nit->get_trust_counter() >= ND_TRUST_COUNTER_THRESHOLD ) &&
 									( nit->get_trust_counter_inverse() >= ND_TRUST_COUNTER_THRESHOLD_INVERSE )
 #endif
 								)
@@ -1083,6 +1229,14 @@ namespace wiselib
 						}
 					}
 				}
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+				if ( bytes_received_periodic > 6250 )
+				{
+					bytes_received_periodic = bytes_received - bytes_received_periodic;
+					debug().debug("BR:%x:%d:%d", radio().id(), bytes_received_periodic, bytes_received );
+					bytes_received_periodic = bytes_received;
+				}
+#endif
 				timer().template set_timer<self_t, &self_t::nd_daemon> ( nd_daemon_period, this, 0 );
 			}
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_H_ND_DAEMON
@@ -1416,13 +1570,163 @@ namespace wiselib
 		}
 #endif
 		// --------------------------------------------------------------------
+#ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
+		uint32_t get_bytes_received()
+		{
+			return bytes_received;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send()
+		{
+			return bytes_send;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_messages_received()
+		{
+			return messages_received;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_messages_send()
+		{
+			return messages_send;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_0()
+		{
+			return bytes_send_0;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_6()
+		{
+			return bytes_send_6;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_12()
+		{
+			return bytes_send_12;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_18()
+		{
+			return bytes_send_18;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_24()
+		{
+			return bytes_send_24;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_send_30()
+		{
+			return bytes_send_30;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_0()
+		{
+			return bytes_received_0;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_6()
+		{
+			return bytes_received_6;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_12()
+		{
+			return bytes_received_12;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_18()
+		{
+			return bytes_received_18;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_24()
+		{
+			return bytes_received_24;
+		}
+		// --------------------------------------------------------------------
+		uint32_t get_bytes_received_30()
+		{
+			return bytes_received_30;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_send_0( uint32_t _bs0 )
+		{
+			bytes_send_0 = _bs0;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_send_6( uint32_t _bs6 )
+		{
+			bytes_send_6 = _bs6;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_send_12( uint32_t _bs12 )
+		{
+			bytes_send_12 = _bs12;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_send_18( uint32_t _bs18 )
+		{
+			bytes_send_18 = _bs18;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_send_24( uint32_t _bs24 )
+		{
+			bytes_send_24 = _bs24;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_send_30( uint32_t _bs30 )
+		{
+			bytes_send_30 = _bs30;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_received_0( uint32_t _br0 )
+		{
+			bytes_received_0 = _br0;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_received_6( uint32_t _br6)
+		{
+			bytes_received_6 = _br6;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_received_12(uint32_t _br12)
+		{
+			bytes_received_12 = _br12;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_received_18(uint32_t _br18)
+		{
+			bytes_received_18 = _br18;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_received_24(uint32_t _br24)
+		{
+			bytes_received_24 = _br24;
+		}
+		// --------------------------------------------------------------------
+		void set_bytes_received_30(uint32_t _br30)
+		{
+			bytes_received_30 = _br30;
+		}
+		// --------------------------------------------------------------------
+#endif
+		// --------------------------------------------------------------------
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+		void init( Radio& _radio, Timer& _timer, Debug& _debug, Clock& _clock, Rand& _rand, iSenseBatterySensor& _iSBS )
+#else
 		void init( Radio& _radio, Timer& _timer, Debug& _debug, Clock& _clock, Rand& _rand )
+#endif
 		{
 			radio_ = &_radio;
 			timer_ = &_timer;
 			debug_ = &_debug;
 			clock_ = &_clock;
 			rand_ = &_rand;
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+			iSBS = &_iSBS;
+#endif
 		}
 		// --------------------------------------------------------------------
 		Radio& radio()
@@ -1494,15 +1798,29 @@ namespace wiselib
 #ifdef DEBUG_NEIGHBOR_DISCOVERY_STATS
 		uint32_t messages_received;
 		uint32_t bytes_received;
+		uint32_t bytes_received_0;
+		uint32_t bytes_received_6;
+		uint32_t bytes_received_12;
+		uint32_t bytes_received_18;
+		uint32_t bytes_received_24;
+		uint32_t bytes_received_30;
 		uint32_t avg_bytes_size_received;
 		uint32_t messages_send;
 		uint32_t bytes_send;
+		uint32_t bytes_send_0;
+		uint32_t bytes_send_6;
+		uint32_t bytes_send_12;
+		uint32_t bytes_send_18;
+		uint32_t bytes_send_24;
+		uint32_t bytes_send_30;
 		uint32_t avg_bytes_size_send;
 		uint32_t corrupted_messages_received;
 		uint32_t corrupted_bytes_received;
 		uint32_t avg_corrupted_byte_size_received;
 		uint32_t clock_paradox_message_drops;
+		uint32_t bytes_received_periodic;
 #endif
+
 #ifdef CONFIG_NEIGHBOR_DISCOVERY_H_COORD_SUPPORT
 		Position position;
 #endif
@@ -1512,6 +1830,11 @@ namespace wiselib
         Debug * debug_;
         Rand * rand_;
         uint32_t metrics_counter;
+#ifdef CONFIG_NEIGHBOR_DISCOVERY_H_ENERGY
+        iSenseBatterySensor * iSBS;
+        uint32_t energy_counter1;
+        uint32_t energy_counter2;
+#endif
     };
 }
 #endif

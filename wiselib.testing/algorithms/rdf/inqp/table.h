@@ -246,6 +246,7 @@ namespace wiselib {
 			
 			void change_capacity(size_type n) {
 				assert((row_size_ == 0) <= (n == 0));
+				assert(n >= size_);
 				
 				block_data_t *new_buffer = 0;
 				if(n > 0) {

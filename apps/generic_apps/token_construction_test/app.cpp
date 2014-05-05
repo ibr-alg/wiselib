@@ -1,32 +1,21 @@
 
 #include "app.h"
 
-#ifdef CONTIKI_TARGET_sky
-	extern "C" {
-		#include <dev/light-sensor.h>
-	}
-#endif
-
-#if APP_QUERY
-	
-	#if ISENSE
-		#include <isense/modules/security_module/pir_sensor.h>
-		#include "isense_pir_data_provider.h"
-	#endif
-	
-	//static const char* tuples[][3] = {
-		//#include "nqxe_test.cpp"
-		//{ 0, 0, 0 }
-	//};
-#endif
-
 class App {
 	public:
 		
 		size_t initcount ;
 		
 		void init(Os::AppMainParameter& value) {
+			
 			hardware_radio_ = &wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+		#if USE_CHECKSUM_RADIO
+			radio_ = &checksum_radio_;
+		#else
+			radio_ = hardware_radio_; //&wiselib::FacetProvider<Os, Os::Radio>::get_facet( value );
+		#endif
+
+
 			timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
@@ -39,6 +28,9 @@ class App {
 			uart_query_pos = 0;
 		#endif
 			uart_query_pos = 0;
+			
+			debug_->debug("INSE boot. max_neighbors=%d", INSE_MAX_NEIGHBORS);
+			
 			
 			initcount = INSE_START_WAIT;
 			//debug_->debug("\npre-boot @%lu t%lu\n", (unsigned long)hardware_radio_->id(), (unsigned long)now());
@@ -58,13 +50,17 @@ class App {
 		}
 		
 		void init3() {
-			monitor_.report("bt0");
-			hardware_radio_->enable_radio();
-			radio_.init(*hardware_radio_, *debug_);
+			debug_->debug("@%lu bt", (unsigned long)hardware_radio_->id());
 			
-			rand_->srand(radio_.id());
+			hardware_radio_->enable_radio();
+			
+			//hardware_radio_->enable_radio();
+			#if USE_CHECKSUM_RADIO
+				radio_->init(*hardware_radio_, *debug_);
+			#endif
+			
+			rand_->srand(hardware_radio_->id());
 			monitor_.init(debug_);
-			//monitor_.report("bt");
 			
 			// TupleStore
 			
@@ -80,49 +76,19 @@ class App {
 			
 			// Token Scheduler
 			 
-			token_construction_.init(&ts, &radio_, timer_, clock_, debug_, rand_);
-			
-			#if INSE_USE_AGGREGATOR
-				token_construction_.set_end_activity_callback(
-					TC::end_activity_callback_t::from_method<App, &App::on_end_activity>(this)
-				);
-			#endif
-			token_construction_.disable_immediate_answer_mode();
+			token_construction_.init(&ts, radio_, timer_, clock_, debug_, rand_);
 			
 			init_inqp();
 			init_simple_rule_processor();
 			
 			// Fill node with initial semantics and construction rules
 			
-			#if APP_QUERY
-				#if defined(ISENSE)
-					snprintf(rdf_uri_, sizeof(rdf_uri_), "<http://spitfire-project.eu/nodes/%08lx/>", (unsigned long)radio_.id());
-					
-					
-					snprintf(pir_uri_, sizeof(pir_uri_), "<http://spitfire-project.eu/nodes/%08lx/pir>", (unsigned long)radio_.id());
-					
-					#if INSE_USE_AGGREGATOR
-						data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry(), &token_construction_.aggregator());
-					#else
-						data_provider_.init(new isense::PirSensor(GET_OS), pir_uri_, &ts, &token_construction_.semantic_entity_registry());
-					#endif
-				#endif
-				insert_tuples();
-			#endif
-			
-			#if APP_EVAL
-				initial_semantics(ts, &radio_, rand_);
-			#endif
+			initial_semantics(ts, radio_, rand_);
 				
-			#if APP_EVAL || APP_QUERY
-				create_rules();
-				rule_processor_.execute_all();
-			#endif
+			create_rules();
+			rule_processor_.execute_all();
 			
 			monitor_.report("/init");
-			#if USE_INQP && !APP_QUERY
-				timer_->set_timer<App, &App::distribute_query>(10 * 1000 * WISELIB_TIME_FACTOR, this, 0);
-			#endif
 			
 			#if defined(CONTIKI_TARGET_sky) && APP_BLINK
 				//light_sensor
@@ -131,7 +97,7 @@ class App {
 				
 				//sensors_light_init();
 				/*
-				if(radio_.id() == token_construction_.tree().root()) {
+				if(radio_->id() == token_construction_.tree().root()) {
 					light_on = true;
 					leds_on(LEDS_BLUE);
 				}
@@ -200,14 +166,14 @@ class App {
 						debug_, timer_, clock_, rand_
 				);
 				
-				row_anycast_radio_.init(
+				row_anycast_radio_->init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
 						&radio_, timer_, debug_
 				);
 				
 			#if USE_STRING_INQUIRY
-				string_anycast_radio_.init(
+				string_anycast_radio_->init(
 						&token_construction_.semantic_entity_registry(),
 						&token_construction_.neighborhood(),
 						&radio_, timer_, debug_
@@ -217,12 +183,12 @@ class App {
 				// Transport rows for collect and aggregation operators
 				
 				// --- packing on top of anycast
-				row_radio_.init(row_anycast_radio_, *debug_, *timer_);
+				row_radio_->init(row_anycast_radio_, *debug_, *timer_);
 				
 				// --- anycast on top of packing
 				//static PackingOsRadio packing_radio_;
-				//packing_radio_.init(*radio_, *debug_, *timer_);
-				//row_radio_.init(
+				//packing_radio_->init(*radio_, *debug_, *timer_);
+				//row_radio_->init(
 						//&token_construction_.semantic_entity_registry(),
 						//&token_construction_.neighborhood(),
 						//&packing_radio_, timer_, debug_
@@ -244,7 +210,7 @@ class App {
 			#endif
 				
 				/*
-				anycast_radio_.reg_recv_callback<
+				anycast_radio_->reg_recv_callback<
 					ExampleApplication, &ExampleApplication::on_test_anycast_receive
 				>(this);
 				*/
@@ -257,39 +223,17 @@ class App {
 			#endif
 		}
 		
-	#if USE_INQP
-		Query q1;
-		Cons cons1;
-		GPS gps1;
-		
 		void create_rules() {
 			/*
 			 * Add rule 1: (* <...#featureOfInterest> X)
 			 */
-			::uint8_t qid = 101;
-			q1.init(&query_processor_, qid);
-			q1.set_expected_operators(2);
-			
-			cons1.init(
-					&q1, 2 /* opid */, 0 /* parent */, 0 /* parent port */,
-					Projection((long)BIN(11))
-					);
-			q1.add_operator(&cons1);
-			
-			gps1.init(
-					&q1, 1 /* op id */, 2 /* parent */, 0 /* parent port */,
-					Projection((long)BIN(110000)),
-					false, true, false,
-					0, STRHASH("<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>"), 0
-					);
-			q1.add_operator<GPS>(&gps1);
-			
-			rule_processor_.add_rule(qid, &q1);
+			::uint8_t qid = 1;
+			const char *p = "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>";
+			TupleT t;
+			t.set(1, (block_data_t*)p);
+			rule_processor_.add_rule(qid, t, BIN(010), 2);
 		}
-	#endif
 		
-		
-	//#if APP_QUERY || APP_EVAL
 		template<typename TS>
 		void ins(TS& ts, const char* s, const char* p, const char* o) {
 			debug_->debug("ins(%s %s %s)", s, p, o);
@@ -326,16 +270,16 @@ class App {
 			
 			int room = 1;
 			
-			if(radio_.id() <= 0x1202) {
+			if(radio_->id() <= 0x1202) {
 				insert_room(1);
 				insert_room(2);
 				insert_room(3);
 				insert_room(4);
 			
 			}
-			else if(radio_.id() <= 0x1204) { insert_room(2); }
-			else if(radio_.id() <= 0x1206) { insert_room(3); }
-			else if(radio_.id() <= 0x1208) { insert_room(4); }
+			else if(radio_->id() <= 0x1204) { insert_room(2); }
+			else if(radio_->id() <= 0x1206) { insert_room(3); }
+			else if(radio_->id() <= 0x1208) { insert_room(4); }
 			
 			ins(ts, rdf_uri_, hasloc, "CTI Conference Room");
 			ins(ts, rdf_uri_, "<http://www.w3.org/2003/01/geo/wgs84_pos#lat>", "38.2909");
@@ -687,14 +631,14 @@ class App {
 					//(unsigned)light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC),
 					//(unsigned)light_sensor.value(LIGHT_SENSOR_TOTAL_SOLAR)
 			//);
-			if(light_on && light_val < LIGHT_OFF && (radio_.id() != token_construction_.tree().root())) {
-				debug_->debug("@%lu leave %u", (unsigned long)radio_.id(), light_val);
+			if(light_on && light_val < LIGHT_OFF && (radio_->id() != token_construction_.tree().root())) {
+				debug_->debug("@%lu leave %u", (unsigned long)radio_->id(), light_val);
 				// unregister se
 				light_on = false;
 				token_construction_.erase_entity(light_se);
 			}
-			else if(!light_on && (light_val > LIGHT_ON || (radio_.id() == token_construction_.tree().root()))) {
-				debug_->debug("@%lu join %u", (unsigned long)radio_.id(), light_val);
+			else if(!light_on && (light_val > LIGHT_ON || (radio_->id() == token_construction_.tree().root()))) {
+				debug_->debug("@%lu join %u", (unsigned long)radio_->id(), light_val);
 				light_on = true;
 				token_construction_.add_entity(light_se);
 			}
@@ -718,8 +662,12 @@ class App {
 		TupleContainer container;
 		TS ts;
 		
+		//Os::Radio::self_pointer_t hardware_radio_;
+		#if USE_CHECKSUM_RADIO
+			Radio checksum_radio_;
+		#endif
 		Os::Radio::self_pointer_t hardware_radio_;
-		Radio radio_;
+		Radio::self_pointer_t radio_;
 		
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
@@ -737,15 +685,6 @@ class App {
 		TC token_construction_;
 		RuleProcessor rule_processor_;
 		
-		#if USE_INQP
-			QueryProcessor query_processor_;
-			//INQPCommunicator<Os, QueryProcessor> query_communicator_;
-			Distributor distributor_;
-			RowAnycastRadio row_anycast_radio_;
-			RowRadio row_radio_;
-			RowCollectorT row_collector_;
-		#endif
-			
 		#if USE_STRING_INQUIRY
 			StringAnycastRadio string_anycast_radio_;
 			StringInquiryT string_inquiry_;
@@ -759,10 +698,6 @@ class App {
 		#if USE_BLOCK_DICTIONARY || USE_BLOCK_CONTAINER
 			BlockMemory block_memory_;
 			BlockAllocator block_allocator_;
-		#endif
-			
-		#if APP_QUERY
-			Os::Uart::self_pointer_t uart_;
 		#endif
 };
 

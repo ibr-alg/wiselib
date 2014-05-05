@@ -156,7 +156,6 @@ namespace wiselib {
 				exec_done_callback_ = exec_done_callback_t();
 				translator_.init(&dictionary());
 				reverse_translator_.init(&dictionary());
-				//DBG("%p send_row init cbs %d", this, (int)row_callbacks_.size());
 			}
 		
 			/**
@@ -166,7 +165,6 @@ namespace wiselib {
 			template<typename T, void (T::*fn)(int, size_type, RowT&, query_id_t, operator_id_t)>
 			void reg_row_callback(T* obj) {
 				row_callbacks_.push_back(row_callback_t::template from_method<T, fn>(obj));
-				//DBG("%p send_row reg cbs %d", this, (int)row_callbacks_.size());
 			}
 			
 			/**
@@ -182,9 +180,7 @@ namespace wiselib {
 			 * Call all registered row callbacks.
 			 */
 			void send_row(int type, size_type columns, RowT& row, query_id_t qid, operator_id_t oid) {
-				//DBG("%p send_row snd cbs %d", this, (int)row_callbacks_.size());
 				for(typename RowCallbacks::iterator it = row_callbacks_.begin(); it != row_callbacks_.end(); ++it) {
-					//DBG("send_row");
 					(*it)(type, columns, row, qid, oid);
 				}
 			}
@@ -198,14 +194,10 @@ namespace wiselib {
 				}
 			}
 				
-
 			/**
 			 * Execute the given query.
 			 */
 			void execute(Query *query) {
-				#ifdef ISENSE
-					GET_OS.debug("xq%d", (int)query->id());
-				#endif
 				assert(query->ready());
 				query->build_tree();
 				
@@ -240,7 +232,7 @@ namespace wiselib {
 							(reinterpret_cast<DeleteT*>(op))->execute();
 							break;
 						default:
-							DBG("!eop typ %d", op->type());
+							assert(false);
 					}
 				}
 				
@@ -292,7 +284,7 @@ namespace wiselib {
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
 					default:
-						DBG("!op type %d", bod->type());
+						assert(false);
 						break;
 				}
 				if(query->ready()) {
@@ -318,10 +310,6 @@ namespace wiselib {
 			 * ditto.
 			 */
 			void handle_operator(query_id_t qid, size_type size, block_data_t* od) {
-				#ifdef ISENSE
-					GET_OS.debug("hop %d", (int)qid);
-				#endif
-					
 				BOD *bod = reinterpret_cast<BOD*>(od);
 				Query *query = get_query(qid);
 				if(!query) {
@@ -336,7 +324,6 @@ namespace wiselib {
 			 */
 			template<typename Message, typename node_id_t>
 			void handle_query_info(Message *msg, node_id_t from, size_type size) {
-				//DBG("h qinf");
 				query_id_t query_id = msg->query_id();
 				Query *query = get_query(query_id);
 				if(!query) {
@@ -380,8 +367,12 @@ namespace wiselib {
 			 * Handle reception of an intermediate result message.
 			 */
 			template<typename Message, typename node_id_t>
-			void handle_intermediate_result(Message *msg, node_id_t from) { //, size_type size) {
+			void handle_intermediate_result(Message *msg, node_id_t from, size_type size) {
 				Query *query = get_query(msg->query_id());
+				if(query == 0) {
+					return;
+				}
+				
 				BasicOperator &op = *query->operators()[msg->operator_id()];
 				switch(op.type()) {
 					case BOD::GRAPH_PATTERN_SELECTION:
@@ -393,14 +384,16 @@ namespace wiselib {
 					case BOD::DELETE:
 						break;
 					case BOD::AGGREGATE: {
+						assert(size >= Message::HEADER_SIZE);
 						size_type payload_length = msg->payload_size(); //size - Message::HEADER_SIZE;
+						assert(size == Message::HEADER_SIZE + payload_length);
 						size_type columns = payload_length / sizeof(Value);
 						
 						// TODO: be able to handle multiple rows here
 						
 						RowT *row = RowT::create(columns);
 						for(size_type i = 0; i < columns; i++) {
-							(*row)[i] = wiselib::read<OsModel, block_data_t, Value>(msg->payload() + i * sizeof(Value));
+							(*row)[i] = wiselib::read<OsModel, block_data_t, Value>(msg->payload_data() + i * sizeof(Value));
 						}
 						reinterpret_cast<AggregateT&>(op).on_receive_row(*row, from);
 						
@@ -408,7 +401,7 @@ namespace wiselib {
 						break;
 					}
 					default:
-						DBG("!op %d", op.type());
+						assert(false);
 						break;
 				}
 			}
@@ -455,19 +448,10 @@ namespace wiselib {
 				}
 			}
 			
-			///
 			TupleStoreT& tuple_store() { return *tuple_store_; }
-			
-			///
 			Dictionary& dictionary() { return tuple_store_->dictionary(); }
-			
-			///
 			Translator& translator() { return translator_; }
-			
-			///
 			ReverseTranslator& reverse_translator() { return reverse_translator_; }
-			
-			///
 			Timer& timer() { return *timer_; }
 			
 		private:

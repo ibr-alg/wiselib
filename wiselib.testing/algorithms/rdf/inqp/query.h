@@ -25,7 +25,7 @@
 #include "operator_descriptions/operator_description.h"
 
 #include "query_message.h"
-#include <algorithms/semantic_entities/token_construction/semantic_entity_id.h>
+#include <algorithms/semantic_entities/semantic_entity_id.h>
 
 namespace wiselib {
 	
@@ -90,6 +90,7 @@ namespace wiselib {
 			 * @a BasicOperator.
 			 * @param op Operator instance to add.
 			 */
+			/*
 			template<typename OperatorT>
 			void add_operator(OperatorT* op) {
 				if(!operators_.contains(op->id()) && operators_.full()) {
@@ -99,6 +100,7 @@ namespace wiselib {
 					operators_[op->id()] = reinterpret_cast<BasicOperator*>(op);
 				}
 			}
+			*/
 			
 			/**
 			 * Add an operator to this query by description.
@@ -112,13 +114,20 @@ namespace wiselib {
 			void add_operator(BOD *bod) {
 				DescriptionT *description = reinterpret_cast<DescriptionT*>(bod);
 				OperatorT *op = ::get_allocator().template allocate<OperatorT>().raw();
+				assert(op != 0);
 				op->init(description, this);
-				if(!operators_.contains(bod->id()) && operators_.full()) {
-					assert(false);
+
+				// If operator exists, destruct old version and replace with
+				// new
+				if(operators_.contains(bod->id())) {
+					BasicOperator *op_old = operators_[bod->id()];
+					op_old->destruct();
+					::get_allocator().free(op_old);
+					operators_.erase(bod->id());
 				}
-				else {
-					operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
-				}
+
+				assert(!operators_.full());
+				operators_[bod->id()] = reinterpret_cast<BasicOperator*>(op);
 			}
 			
 			/**
@@ -152,10 +161,6 @@ namespace wiselib {
 			 * safe to call @a build_tree().
 			 */
 			bool ready() {
-				DBG("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
-				#ifdef ISENSE
-					GET_OS.debug("q%d s%d ex%d got%d", (int)query_id_, (int)expected_operators_set_, (int)expected_operators_, (int)operators_.size());
-				#endif
 				return expected_operators_set_ && (expected_operators_ == operators_.size());
 			}
 			

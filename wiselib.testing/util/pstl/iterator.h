@@ -279,13 +279,59 @@ typename iterator_traits<RandomAccessIterator>::difference_type distance(
 template<class InputIterator>
 typename iterator_traits<InputIterator>::difference_type distance(
 		InputIterator first, InputIterator last) {
-	__distance(first, last,
+	return distance(first, last,
 			typename iterator_traits<InputIterator>::iterator_category());
 }
 
 /*
  * End
  */
+
+
+/**
+ * @tparam Iterator iterator to filter over.
+ * @tparam Predicate a class that overrides operator()()
+ *   to accept a value (*iterator), returning a bool to decide which elements
+ *   are to be considered.
+ */
+template<class Iterator, class Predicate>
+class filter {
+	public:
+		//typedef typename Iterator::iterator_category iterator_category;
+		typedef forward_iterator_tag iterator_category;
+		typedef typename Iterator::value_type value_type;
+		typedef typename Iterator::difference_type difference_type;
+		typedef typename Iterator::pointer pointer;
+		typedef typename Iterator::reference reference;
+
+		filter(Iterator it, Iterator end, Predicate p) : it_(it), end_(end), p_(p) {
+			forward();
+		}
+
+		filter& operator++() {
+			++it_;
+			forward();
+			return *this;
+		}
+
+		bool operator==(const filter& other) { return it_ == other.it_; }
+		bool operator!=(const filter& other) { return it_ != other.it_; }
+		value_type& operator*() { return *it_; }
+		value_type* operator->() { return &*it_; }
+
+	private:
+		void forward() {
+			while(it_ != end_ && !p_(*it_)) {
+				++it_;
+			}
+		}
+
+		Iterator it_;
+		Iterator end_;
+		Predicate p_;
+};
+
+
 
 }
 

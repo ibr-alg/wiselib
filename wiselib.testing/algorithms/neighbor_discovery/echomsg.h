@@ -54,9 +54,11 @@ namespace wiselib {
         enum data_positions {
          MSG_ID_POS  = 0, // message id position inside the message [uint8]
          NBS_NUM = 1,
-         PG_NUM = 2,
-         PAYLOAD_POS = 3   // position of the payload length
+         SPECIAL_POS = 2,
+         PG_NUM = 6,
+         PAYLOAD_POS = 7,   // position of the payload length
                            // (the payload starts at +1)
+			MIN_SIZE = 8
         };
 
         // --------------------------------------------------------------------
@@ -82,6 +84,15 @@ namespace wiselib {
 
         inline void set_msg_id(message_id_t id) {
             write<OsModel, block_data_t, uint8_t > (buffer + MSG_ID_POS, id);
+        };
+
+        inline uint32_t special() {
+            return read<OsModel, block_data_t, uint32_t > (buffer + SPECIAL_POS);
+        };
+        // --------------------------------------------------------------------
+
+        inline void set_special(uint32_t id) {
+            write<OsModel, block_data_t, uint32_t > (buffer + SPECIAL_POS, id);
         };
 
         inline uint8_t * payload() {
