@@ -9,7 +9,7 @@ using namespace wiselib;
 
 #define WISELIB_TIME_FACTOR 1
 #define INQP_AGGREGATE_CHECK_INTERVAL 1000
-#define WISELIB_MAX_NEIGHBORS 40
+#define WISELIB_MAX_NEIGHBORS 10
 
 // --- BEGIN Allocator Section
 //     Allocators must be defined before most wiselib includes
@@ -81,7 +81,7 @@ class AppBase {
 		}
 
 		void init_query_processor() {
-			query_processor_.init(&tuplestore_, timer_);
+			query_processor_.init(&tuplestore_, timer_, clock_);
 		}
 
 		void insert_tuple(const char* s, const char* p, const char* o) {

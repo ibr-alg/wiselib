@@ -44,7 +44,7 @@
 
 #define INQP_ENABLE_Delete                0
 #define INQP_ENABLE_GraphPatternSelection 1
-#define INQP_ENABLE_Selection             1
+#define INQP_ENABLE_Selection             0
 #define INQP_ENABLE_SimpleLocalJoin       1
 #define INQP_ENABLE_Collect               1
 #define INQP_ENABLE_Construct             0
@@ -76,7 +76,8 @@ namespace wiselib {
 		// hash value --> dict key / string
 		typename ReverseTranslator_P = HashTranslator<OsModel_P, Dictionary_P, Hash_P, 4>,
 		typename Value_P = ::uint32_t,
-		typename Timer_P = typename OsModel_P::Timer
+		typename Timer_P = typename OsModel_P::Timer,
+		typename Clock_P = typename OsModel_P::Clock
 	>
 	class INQPQueryProcessor {
 		
@@ -94,6 +95,9 @@ namespace wiselib {
 			typedef ReverseTranslator_P ReverseTranslator;
 			typedef Row<OsModel, Value> RowT;
 			typedef Timer_P Timer;
+			typedef Clock_P Clock;
+			//typedef typename Clock::time_t time_t;
+			//typedef ::uint32_t abs_millis_t;
 
 			enum {
 				QUERY_DELAY = 10000
@@ -101,7 +105,8 @@ namespace wiselib {
 			
 			enum {
 				MAX_QUERIES = MAX_QUERIES_P,
-				MAX_NEIGHBORS = MAX_NEIGHBORS_P
+				MAX_NEIGHBORS = MAX_NEIGHBORS_P,
+				MIN_SEND_INTERVAL = 5000,
 			};
 			
 			/**
@@ -198,9 +203,10 @@ namespace wiselib {
 			
 			/**
 			 */
-			void init(typename TupleStoreT::self_pointer_t tuple_store, typename Timer::self_pointer_t timer) {
+			void init(typename TupleStoreT::self_pointer_t tuple_store, typename Timer::self_pointer_t timer, typename Clock::self_pointer_t clock) {
 				tuple_store_ = tuple_store;
 				timer_ = timer;
+				//clock_ = clock;
 				row_callbacks_.clear();
 				exec_done_callback_ = exec_done_callback_t();
 				translator_.init(&dictionary());
@@ -232,16 +238,18 @@ namespace wiselib {
 				for(typename RowCallbacks::iterator it = row_callbacks_.begin(); it != row_callbacks_.end(); ++it) {
 					(*it)(type, columns, row, qid, oid);
 				}
+				//last_send_ = now();
+				sent_ = true;
 			}
 			
 			/**
 			 * Execute all registered queries.
 			 */
-			void execute_all() {
-				for(typename Queries::iterator it = queries_.begin(); it != queries_.end(); ++it) {
-					execute(it->second);
-				}
-			}
+			//void execute_all() {
+				//for(typename Queries::iterator it = queries_.begin(); it != queries_.end(); ++it) {
+					//execute(it->second);
+				//}
+			//}
 
 			void on_execute(void *p) {
 				execute(reinterpret_cast<Query*>(p));
@@ -255,46 +263,7 @@ namespace wiselib {
 					printf("xq %d\n", (int)query->id());
 				#endif
 				assert(query->ready());
-				query->build_tree();
-				
-				for(operator_id_t id = 0; id < MAX_OPERATOR_ID; id++) {
-					if(!query->operators().contains(id)) { continue; }
-					
-					BasicOperator *op = query->operators()[id];
-					
-					switch(op->type()) {
-						case BOD::GRAPH_PATTERN_SELECTION:
-							(reinterpret_cast<GraphPatternSelectionT*>(op))->execute(*tuple_store_);
-							break;
-						case BOD::SELECTION:
-							(reinterpret_cast<SelectionT*>(op))->execute();
-							break;
-						case BOD::SIMPLE_LOCAL_JOIN:
-							(reinterpret_cast<SimpleLocalJoinT*>(op))->execute();
-							break;
-						case BOD::AGGREGATE:
-							(reinterpret_cast<AggregateT*>(op))->execute();
-							break;
-						case BOD::COLLECT:
-							(reinterpret_cast<CollectT*>(op))->execute();
-							break;
-						case BOD::CONSTRUCTION_RULE:
-							(reinterpret_cast<ConstructionRuleT*>(op))->execute();
-							break;
-						case BOD::CONSTRUCT:
-							(reinterpret_cast<ConstructT*>(op))->execute();
-							break;
-						case BOD::DELETE:
-							(reinterpret_cast<DeleteT*>(op))->execute();
-							break;
-						default:
-							assert(false);
-					}
-				}
-				
-				if(exec_done_callback_) {
-					exec_done_callback_();
-				}
+				start_execution(query);
 			}
 			
 			
@@ -318,9 +287,11 @@ namespace wiselib {
 					case BOD::GRAPH_PATTERN_SELECTION:
 						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
 						break;
+				#if INQP_ENABLE_Selection
 					case BOD::SELECTION:
 						query->template add_operator<SelectionDescriptionT, SelectionT>(bod);
 						break;
+				#endif
 					case BOD::SIMPLE_LOCAL_JOIN:
 						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
 						break;
@@ -330,12 +301,16 @@ namespace wiselib {
 					case BOD::CONSTRUCTION_RULE:
 						query->template add_operator<ConstructionRuleDescriptionT, ConstructionRuleT>(bod);
 						break;
+				#if INQP_ENABLE_Construct
 					case BOD::CONSTRUCT:
 						query->template add_operator<ConstructDescriptionT, ConstructT>(bod);
 						break;
+				#endif
+				#if INQP_ENABLE_Delete
 					case BOD::DELETE:
 						query->template add_operator<DeleteDescriptionT, DeleteT>(bod);
 						break;
+				#endif
 					case BOD::AGGREGATE:
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
@@ -501,6 +476,13 @@ namespace wiselib {
 			 */
 			void erase_query(query_id_t qid) {
 				if(queries_.contains(qid)) {
+					if(executing_query_ == queries_[qid]) {
+						// abort current execution
+						executing_query_ = 0;
+						executing_iterator_ = tuple_store_->container().end();
+						executing_operator_ = MAX_OPERATOR_ID;
+					}
+
 					queries_[qid]->destruct();
 					::get_allocator().free(queries_[qid]);
 					queries_.erase(qid);
@@ -514,9 +496,110 @@ namespace wiselib {
 			Timer& timer() { return *timer_; }
 			
 		private:
+
+			void start_execution(Query *query) {
+				query->build_tree();
+
+				executing_query_ = query;
+				executing_operator_ = 0;
+				executing_iterator_ = tuple_store_->container().begin();
+				execute_until_send(0);
+			}
+
+			void execute_until_send(void *) {
+				//abs_millis_t function_start_ = now();
+				sent_ = false;
+				for( ; executing_operator_ < MAX_OPERATOR_ID; executing_operator_++) {
+					// Processing of this query was cancelled
+					if(executing_query_ == 0) {
+						return;
+					}
+					if(!executing_query_->operators().contains(executing_operator_)) {
+						continue;
+					}
+					BasicOperator *op = executing_query_->operators()[executing_operator_];
+
+					for( ; executing_iterator_ != tuple_store_->container().end(); ++executing_iterator_) {
+						// Processing of this query was cancelled
+						if(executing_query_ == 0) {
+							return;
+						}
+
+						send_to_operator(op, *executing_iterator_);
+
+						// Rate-limit the sent results if the root operator is
+						// collect (the only other actually sending operator,
+						// aggregate, times sending by itself).
+						if(sent_ && executing_query_->root_type() == 'c') {
+							++executing_iterator_;
+							// execution produced a sent-out result, go wait a
+							// little so we do not produce a bazillion
+							// messages in one instant
+							//timer_->template set_timer<self_type, &self_type::execute_until_send>(last_send_ + MIN_SEND_INTERVAL - now(), this, 0);
+							timer_->template set_timer<self_type, &self_type::execute_until_send>(MIN_SEND_INTERVAL, this, 0);
+							return;
+						}
+					} // for iterator
+
+					// send null reference for closing
+					typename TupleStoreT::Tuple *t = 0;
+					send_to_operator(op, *t);
+
+					executing_iterator_ = tuple_store_->container().begin();
+				} // for operator
+				
+				#if ENABLE_DEBUG
+					printf("/xq %d\n", (int)executing_query_->id());
+				#endif
+				if(exec_done_callback_) {
+					exec_done_callback_();
+				}
+				return;
+			}
+
+			void send_to_operator(BasicOperator *op, typename TupleStoreT::Tuple& t) {
+				switch(op->type()) {
+					case BOD::GRAPH_PATTERN_SELECTION:
+						(reinterpret_cast<GraphPatternSelectionT*>(op))->execute(t);
+						break;
+					case BOD::SELECTION:
+						(reinterpret_cast<SelectionT*>(op))->execute();
+						break;
+					case BOD::SIMPLE_LOCAL_JOIN:
+						(reinterpret_cast<SimpleLocalJoinT*>(op))->execute();
+						break;
+					case BOD::AGGREGATE:
+						(reinterpret_cast<AggregateT*>(op))->execute();
+						break;
+					case BOD::COLLECT:
+						(reinterpret_cast<CollectT*>(op))->execute();
+						break;
+					case BOD::CONSTRUCTION_RULE:
+						(reinterpret_cast<ConstructionRuleT*>(op))->execute();
+						break;
+					case BOD::CONSTRUCT:
+						(reinterpret_cast<ConstructT*>(op))->execute();
+						break;
+					case BOD::DELETE:
+						(reinterpret_cast<DeleteT*>(op))->execute();
+						break;
+					default:
+						assert(false);
+				}
+			}
+
+			//abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+			//abs_millis_t now() { return absolute_millis(clock_->time()); }
+
+			Query *executing_query_;
+			operator_id_t executing_operator_;
+			//abs_millis_t last_send_;
+			typename TupleStoreT::ContainerIterator executing_iterator_;
+			bool sent_;
 			
 			typename TupleStoreT::self_pointer_t tuple_store_;
 			typename Timer::self_pointer_t timer_;
+			//typename Clock::self_pointer_t clock_;
 			RowCallbacks row_callbacks_;
 			resolve_callback_t resolve_callback_;
 			Queries queries_;

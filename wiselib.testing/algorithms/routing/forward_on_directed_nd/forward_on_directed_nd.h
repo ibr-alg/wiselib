@@ -102,15 +102,16 @@ namespace wiselib {
 			};
 			
 			enum {
-				ACK_RETRIES = 5,
 			#ifdef SHAWN
+				ACK_RETRIES = 5,
 				ACK_TIMEOUT = 1000,
 			#else
 				//ACK_TIMEOUT = 200
 				//ACK_TIMEOUT = 750,
-				ACK_TIMEOUT = 1000,
+				ACK_RETRIES = 3,
+				ACK_TIMEOUT = 3000,
 			#endif
-				ACK_TIMEOUT_RAND = 100
+				ACK_TIMEOUT_RAND = 500
 			};
 
 			enum ErrorCodes {
@@ -166,7 +167,7 @@ namespace wiselib {
 
 				if(queue().full()) {
 					#if ENABLE_DEBUG
-					debug_->debug("@%lu QUEUE", (unsigned long)radio_->id());
+						debug_->debug("@%lu QUEUE", (unsigned long)radio_->id());
 					#endif
 					return ERR_BUSY;
 				}
@@ -217,9 +218,9 @@ namespace wiselib {
 
 					if(msg.requests_ack()) {
 						node_id_t to = nd_->neighbors_begin(Neighbor::OUT_EDGE)->id();
-						#if ENABLE_DEBUG
-							debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
-						#endif
+						//#if ENABLE_DEBUG
+							//debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+						//#endif
 						radio_->send(to, msg.size(), msg.data());
 						start_ack_timer();
 					}
@@ -284,9 +285,9 @@ namespace wiselib {
 			} // on_receive()
 				
 			void send_ack(node_id_t to, typename Message::sequence_number_t s) {
-				#if ENABLE_DEBUG
-					debug_->debug("@%lu SNDACK t%lu %lu", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)s);
-				#endif
+				//#if ENABLE_DEBUG
+					//debug_->debug("@%lu SNDACK t%lu %lu", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)s);
+				//#endif
 				AckMessage msg;
 				msg.set_type(MESSAGE_ID_ACK);
 				msg.set_sequence_number(s);
@@ -326,9 +327,9 @@ namespace wiselib {
 					Message& msg = queue().front();
 					assert(msg.requests_ack());
 					node_id_t to = nd_->neighbors_begin(Neighbor::OUT_EDGE)->id();
-					#if ENABLE_DEBUG
-					debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
-					#endif
+					//#if ENABLE_DEBUG
+						//debug_->debug("@%lu SND t%lu s%lu r%d", (unsigned long)radio_->id(), (unsigned long)to, (unsigned long)msg.sequence_number(), (int)tries_);
+					//#endif
 					radio_->send(to, msg.size(), msg.data());
 					start_ack_timer();
 				} // if tries

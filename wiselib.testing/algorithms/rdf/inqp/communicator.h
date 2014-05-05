@@ -129,9 +129,9 @@ namespace wiselib {
 			}
 			
 			void on_send_row(int type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
-				#if ENABLE_DEBUG
-					debug_->debug("send_row q%d o%d cols%d %08lx %08lx...", (int)query_id, (int)operator_id, (int)columns, (unsigned long)row[0], (unsigned long)row[1]);
-				#endif
+				//#if ENABLE_DEBUG
+					//debug_->debug("send_row q%d o%d cols%d %08lx %08lx...", (int)query_id, (int)operator_id, (int)columns, (unsigned long)row[0], (unsigned long)row[1]);
+				//#endif
 				static block_data_t row_data[RowT::MAX_COLUMNS * sizeof(typename RowT::Value)];
 
 				for(size_type i = 0; i < columns; i++) {

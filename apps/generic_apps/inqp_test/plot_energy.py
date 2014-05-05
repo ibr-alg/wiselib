@@ -110,7 +110,9 @@ def parse(fn):
             '26034.csv': set([10200]),
             '26045.csv': set([10200]),
             '26064.csv': set([10007, 10011, 10027, 10029, 10039]),
-            '26073.csv': set([10012, 10027, 10029, 10033, ]),
+            '26073.csv': set([10012, 10027, 10029, 10033, 10053]),
+            '26080.csv': set([10010, 10054, 10038]),
+            '26082.csv': set([10041, 10053, 10041]),
     }.get(fn, set())
 
     with Timer('refudelling'):
@@ -226,7 +228,8 @@ def plot_boxes(ax, it, label, style):
     print("-- {} {}".format(label, ' '.join(str(len(x)) for x in vs2)))
     bp = ax.boxplot(vs2)
     style_box(bp, style)
-    ax.plot(range(1, len(vs2) + 1), [average(x) for x in vs2], label=label, **style)
+    #ax.plot(range(1, len(vs2) + 1), [average(x) for x in vs2], label=label, **style)
+    ax.plot([0], [0], label=label, **style)
 
 #data = [
         ##('Test', parse('26034.csv'), {'color': '#bbaa88'}), #{'color': '#88bbbb'}),
@@ -246,28 +249,55 @@ ax.set_ylim((0, 2.2))
 # 
 # Experiments for simple temperature query
 #
-kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Temperature Old' }
-boxes = materialize(data_to_boxes(parse(x + '.csv'), **kws) for x in ('26052', '26064'))
-#it = join_boxes(boxes)
-j = list(join_boxes(*boxes))
-plot_boxes(ax, j, **kws)
+#kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Temperature Old' }
+#boxes = materialize(data_to_boxes(parse(x + '.csv'), **kws) for x in ('26052', '26064'))
+##it = join_boxes(boxes)
+#j = list(join_boxes(*boxes))
+#plot_boxes(ax, j, **kws)
 
-kws = { 'style': { 'color': '#88bbbb', 'linestyle': ':'}, 'label': 'Idle Old' }
+kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'label': 'Idle' }
 plot_boxes(ax, data_to_boxes(parse('26053.csv'), **kws), **kws)
 
-kws = { 'style': { 'color': '#dd7777', 'linestyle': ':'}, 'label': 'Collect Old' }
-plot_boxes(ax, data_to_boxes(parse('26045.csv'), **kws), **kws)
+#kws = { 'style': { 'color': '#dd7777', 'linestyle': ':'}, 'label': 'Collect Old' }
+#plot_boxes(ax, data_to_boxes(parse('26045.csv'), **kws), **kws)
 
-kws = { 'style': { 'color': '#bbaa88', 'linestyle': '-'}, 'label': 'Temperature' }
-plot_boxes(ax, data_to_boxes(parse('26073.csv'), **kws), **kws)
+#kws = { 'style': { 'color': 'grey', 'linestyle': '-'}, 'label': 'Temperature' }
+#plot_boxes(ax, data_to_boxes(parse('26073.csv'), **kws), **kws)
 
+# Broken! Lost lots of messages due to send storming,
+# after this implemented rate-limited queries
+#kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'label': 'Collect' }
+#plot_boxes(ax, data_to_boxes(parse('26074.csv'), **kws), **kws)
+
+# This is the debug run of the code of 26080 (...79):
+#generic_apps/inqp_test evaluation/snes M?% grep ACKED 26079/*/output.txt |wc -l
+#4263
+#generic_apps/inqp_test evaluation/snes M?% grep ABRT 26079/*/output.txt |wc -l
+#368
+#generic_apps/inqp_test evaluation/snes M?% grep QUEUE 26079/*/output.txt |wc -l
+#57
 kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'label': 'Collect' }
-plot_boxes(ax, data_to_boxes(parse('26074.csv'), **kws), **kws)
+plot_boxes(ax, data_to_boxes(parse('26080.csv'), **kws), **kws)
+
+
+# Debug run for 26082 (...81):
+#
+#generic_apps/inqp_test evaluation/snes M?% grep ACKED 26081/*/output.txt |wc -l
+#445
+#generic_apps/inqp_test evaluation/snes M?% grep ABRT 26081/*/output.txt |wc -l 
+#58
+#generic_apps/inqp_test evaluation/snes M?% grep QUEUE 26081/*/output.txt |wc -l
+#1
+kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Temperature' }
+plot_boxes(ax, data_to_boxes(parse('26082.csv'), **kws), **kws)
+
+
+
 
 ax.set_xticks(range(0, int(EXPERIMENT_INTERVAL / BOX_INTERVAL) + 1, int(60.0 / BOX_INTERVAL)))
 ax.set_xticklabels(range(0, int(EXPERIMENT_INTERVAL + BOX_INTERVAL), 60))
 ax.grid(True, which='both')
-ax.legend(bbox_to_anchor=(1.0, .95), loc='upper right')
+ax.legend(ncol=3, bbox_to_anchor=(1.0, 0), loc='lower right')
 #ax.legend(loc='upper right')
 
 fig.savefig(PLOT_DIR + '/energy_sum.png')

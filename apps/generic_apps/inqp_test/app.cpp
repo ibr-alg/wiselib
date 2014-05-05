@@ -2,7 +2,7 @@
 //#define QUERY_SIMPLE_TEMPERATURE 0
 //#define QUERY_COLLECT 0
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #define ENABLE_PREINSTALLED_QUERY 1
 
 #ifdef SHAWN
@@ -19,8 +19,8 @@ const char* rdf[][3] = {
 //#include "static_data.h"
 
 // Simple temperature aggregation query
-//#include "query_node2_aggregate_temperature.h"
-#include "query_collect.h"
+#include "query_node2_aggregate_temperature.h"
+//#include "query_collect.h"
 
 #include <util/meta.h>
 

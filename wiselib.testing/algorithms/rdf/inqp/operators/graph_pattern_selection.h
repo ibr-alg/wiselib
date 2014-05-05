@@ -47,6 +47,7 @@ namespace wiselib {
 			
 			typedef Processor_P Processor;
 			typedef typename Processor::TupleStoreT TupleStoreT;
+			typedef typename TupleStoreT::Tuple TupleT;
 			typedef typename Processor::RowT RowT;
 			typedef Operator<OsModel_P, Processor_P> Base;
 			typedef typename Base::Query Query;
@@ -64,6 +65,8 @@ namespace wiselib {
 						values_[i] = gpsd->value(i);
 					}
 				}
+
+				row = RowT::create(this->projection_info().columns());
 			}
 			
 			void init(Query* query, uint8_t id, uint8_t parent_id, uint8_t parent_port, ProjectionInfo<OsModel> projection,
@@ -77,88 +80,87 @@ namespace wiselib {
 				values_[1] = value1;
 				values_[2] = value2;
 				
+				row = RowT::create(this->projection_info().columns());
 			}
 			
-			void execute(TupleStoreT& ts) {
-				typedef typename TupleStoreT::TupleContainer Container;
-				typedef typename Container::iterator Citer;
-				
-				RowT *row = RowT::create(this->projection_info().columns()); //TupleStoreT::COLUMNS);
-				
-				for(Citer iter = ts.container().begin(); iter != ts.container().end(); ++iter) {
-					bool match = true;
-					size_type row_idx = 0;
-					for(size_type i = 0; i < TS_SEMANTIC_COLUMNS; i++) {
-						typename Processor::Value v = this->translator().translate(iter->get_key(i));
-						
-						if(affected_[i]) {
-							if(values_[i] != v) {
-								#if ENABLE_DEBUG
-									printf("gps o%d !m @%d %08lx != %08lx\n",
-											(int)this->id(), (int)i,
-											(unsigned long)values_[i],
-											(unsigned long)v);
-								#endif // ENABLE_DEBUG
-								match = false;
-								break;
-							}
-						}
-						
-						switch(this->projection_info().type(i)) {
-							case ProjectionInfoBase::IGNORE:
-								break;
-							case ProjectionInfoBase::INTEGER: {
-								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
-								long l = atol((char*)s);
-								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
-								//row->set(row_idx++, l);
-								this->dictionary().free_value(s);
-								break;
-							}
-							case ProjectionInfoBase::FLOAT: {
-								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
-								float f = atof((char*)s);
-								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
-								this->dictionary().free_value(s);
-								break;
-							}
-							case ProjectionInfoBase::STRING:
-								(*row)[row_idx++] = v;
-								this->reverse_translator().offer(iter->get_key(i), v);
-								break;
-						}
-					}
-					if(match) {
-						#if ENABLE_DEBUG
-							printf("psh gps o%d\n", (int)this->id());
-						#endif
-						this->parent().push(*row);
-					}
-					else {
-						#if ENABLE_DEBUG
-							block_data_t *s1, *s2, *s3;
-							s1 = this->dictionary().get_value(iter->get_key(0));
-							s2 = this->dictionary().get_value(iter->get_key(1));
-							s3 = this->dictionary().get_value(iter->get_key(2));
-							printf("gps o%d !match (%s %s %s) = (%08lx %08lx %08lx)\n",
-									(int)this->id(),
-									(char*)s1, (char*)s2, (char*)s3,
-									this->translator().translate(iter->get_key(0)),
-									this->translator().translate(iter->get_key(1)),
-									this->translator().translate(iter->get_key(2))
-							);
-							this->dictionary().free_value(s1);
-							this->dictionary().free_value(s2);
-							this->dictionary().free_value(s3);
-						#endif // ENABLE_DEBUG
-					}
+			void execute(TupleT& t) {
+				if(&t == 0) {
+					row->destroy();
+					row = 0;
+					this->parent().push(Base::END_OF_INPUT);
+					return;
 				}
-				
-				row->destroy();
-				this->parent().push(Base::END_OF_INPUT);
+
+				bool match = true;
+				size_type row_idx = 0;
+				for(size_type i = 0; i < TS_SEMANTIC_COLUMNS; i++) {
+					typename Processor::Value v = this->translator().translate(t.get_key(i));
+					
+					if(affected_[i]) {
+						if(values_[i] != v) {
+							#if ENABLE_DEBUG
+								//printf("gps o%d !m @%d %08lx != %08lx\n",
+										//(int)this->id(), (int)i,
+										//(unsigned long)values_[i],
+										//(unsigned long)v);
+							#endif // ENABLE_DEBUG
+							match = false;
+							break;
+						}
+					}
+					
+					switch(this->projection_info().type(i)) {
+						case ProjectionInfoBase::IGNORE:
+							break;
+						case ProjectionInfoBase::INTEGER: {
+							block_data_t *s = this->dictionary().get_value(t.get_key(i));
+							long l = atol((char*)s);
+							(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
+							this->dictionary().free_value(s);
+							break;
+						}
+						case ProjectionInfoBase::FLOAT: {
+							block_data_t *s = this->dictionary().get_value(t.get_key(i));
+							float f = atof((char*)s);
+							(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
+							this->dictionary().free_value(s);
+							break;
+						}
+						case ProjectionInfoBase::STRING:
+							(*row)[row_idx++] = v;
+							this->reverse_translator().offer(t.get_key(i), v);
+							break;
+					}
+				} // for columns
+
+				if(match) {
+					#if ENABLE_DEBUG
+						//printf("psh gps o%d\n", (int)this->id());
+					#endif
+					this->parent().push(*row);
+				}
+				else {
+					#if ENABLE_DEBUG
+						//block_data_t *s1, *s2, *s3;
+						//s1 = this->dictionary().get_value(t.get_key(0));
+						//s2 = this->dictionary().get_value(t.get_key(1));
+						//s3 = this->dictionary().get_value(t.get_key(2));
+						//printf("gps o%d !match (%s %s %s) = (%08lx %08lx %08lx)\n",
+								//(int)this->id(),
+								//(char*)s1, (char*)s2, (char*)s3,
+								//this->translator().translate(t.get_key(0)),
+								//this->translator().translate(t.get_key(1)),
+								//this->translator().translate(t.get_key(2))
+						//);
+						//this->dictionary().free_value(s1);
+						//this->dictionary().free_value(s2);
+						//this->dictionary().free_value(s3);
+					#endif // ENABLE_DEBUG
+				}
 			}
 			
 		private:
+			RowT *row;
 			typename Processor::Value values_[3];
 			bool affected_[3];
 		
