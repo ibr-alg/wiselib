@@ -56,6 +56,7 @@ namespace wiselib
 
 void application_main(wiselib::ArduinoOsModel&);
 
+#if WISELIB_CREATE_MAIN
 int main(int argc, const char** argv) {
    wiselib::ArduinoOsModel app_main_arg;
    init();
@@ -110,6 +111,7 @@ int main(int argc, const char** argv) {
    }
    return 0;
 }
+#endif
 
 #if 0
 //****************************************************************

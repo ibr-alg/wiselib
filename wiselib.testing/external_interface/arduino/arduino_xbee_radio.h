@@ -176,8 +176,8 @@ namespace wiselib
       if(!initialized_) {
          //baud_rate_ = DEFAULT_BAUD_RATE;
          if(software_serial_ == 0) {
-            Serial1.begin(BAUDRATE);
-            xbee_.setSerial(Serial1);
+            Serial.begin(BAUDRATE);
+            xbee_.setSerial(Serial);
          }
          //xbee_.begin(BAUDRATE);
          initialized_ = true;
