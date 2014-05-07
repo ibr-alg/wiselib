@@ -75,6 +75,12 @@ namespace wiselib {
 			}
 	};
 	
+	/**
+	 * @brief Implementation of the FNV1 hash function.
+	 * @tparam Hash_P numeric type to be used for hash values. Supported types
+	 * are @a ::uint16_t, @a ::uint32_t and @a ::uint64_t (depending on platform).
+	 * @ingroup Hash_concept
+	 */
 	template<
 		typename OsModel_P,
 		typename Hash_P
@@ -114,6 +120,12 @@ namespace wiselib {
 	};
 	
 	
+	/**
+	 * @brief Implementation of the FNV1A hash function.
+	 * @tparam Hash_P numeric type to be used for hash values. Supported types
+	 * are @a ::uint16_t, @a ::uint32_t and @a ::uint64_t (depending on platform).
+	 * @ingroup Hash_concept
+	 */
 	template<
 		typename OsModel_P,
 		typename Hash_P
@@ -156,3 +168,4 @@ namespace wiselib {
 
 #endif // FNV_H
 
+/* vim: set ts=4 sw=4 tw=78 noexpandtab :*/

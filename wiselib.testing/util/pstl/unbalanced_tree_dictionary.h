@@ -52,10 +52,13 @@ namespace wiselib {
 					::uint16_t l = strlen((char*)s) + 1;
 					
 					block_data_t* p = get_allocator().template allocate_array<block_data_t>(l + sizeof(Node)).raw();
+					
 					Node *e = reinterpret_cast<Node*>(p);
 					//e->length = l;
 					e->refcount = 1;
-					memset(e->childs, 0, sizeof(e->childs));
+					//memset(e->childs, 0, sizeof(e->childs));
+					e->childs[0] = 0;
+					e->childs[1] = 0;
 					memcpy(e->value, s, l);
 					return e;
 				}
@@ -63,10 +66,18 @@ namespace wiselib {
 				bool is_leaf() {
 					return childs[0] == 0 && childs[1] == 0;
 				}
+
+				void substitute_child(Node *c, Node *c2) {
+					childs[childs[1] == c] = c2;
+					assert(childs[0] != c || c == 0);
+					assert(childs[1] != c || c == 0);
+					assert(childs[0] == c2 || childs[1] == c2);
+				}
 				
 				Node *childs[2], *parent;
 				::uint16_t refcount;
-				block_data_t value[];
+				::uint16_t blub;
+				block_data_t value[0];
 				// }}}
 			};
 		
@@ -99,6 +110,8 @@ namespace wiselib {
 						if(node_->parent) {
 							bool right;
 							do {
+								if(!node_->parent) { node_ = 0; return *this; }
+								
 								right = (node_ == node_->parent->childs[Node::RIGHT]);
 								node_ = node_->parent;
 							} while(right);
@@ -118,12 +131,14 @@ namespace wiselib {
 			
 			int init() {
 				root_ = 0;
+				size_ = 0;
 				return SUCCESS;
 			}
 			
 			template<typename Debug>
 			void init(Debug*) {
 				root_ = 0;
+				size_ = 0;
 			}
 			
 			key_type insert(mapped_type v) {
@@ -139,6 +154,7 @@ namespace wiselib {
 					return to_key(p);
 				}
 				else if(c == 0 && !p) {
+					size_++;
 					root_ = Node::make(v);
 					root_->parent = 0;
 					
@@ -146,6 +162,7 @@ namespace wiselib {
 					return to_key(root_);
 				}
 				else {
+					size_++;
 					Node *n = Node::make(v);
 					n->parent = p;
 					if(c < 0) { p->childs[Node::LEFT] = n; }
@@ -183,11 +200,7 @@ namespace wiselib {
 			
 			size_type erase(key_type p_) {
 				check();
-				
 				Node *p = to_node(p_);
-				//int c;
-				//Node *p = find_node(k, c);
-				//if(c != 0) { return 0; }
 				
 				if(p->refcount > 1) {
 					p->refcount--;
@@ -196,38 +209,69 @@ namespace wiselib {
 					return 1;
 				}
 				
+				return 1;
+				
 				if(p->is_leaf()) {
 					if(p->parent) {
 						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
 						p->parent->childs[child_idx] = 0;
 					}
 				}
-				else {
+				else if(p->childs[0] && p->childs[1]) {
 					bool successor_side = 1;
 					Node *s = find_successor(p, successor_side);
 					assert(s != 0);
 					
 					// remove successor from subtree
-					s->parent->childs[!successor_side] = s->childs[successor_side];
-					if(s->childs[successor_side]) {
-						s->childs[successor_side]->parent = s->parent->childs[!successor_side];
+					//s->parent->childs[successor_side] = s->childs[1];
+					s->parent->substitute_child(s, s->childs[1]);
+					if(s->childs[1]) {
+						s->childs[1]->parent = s->parent;
 					}
-					
+
+					size_--;
+					check();
+					size_++;
+
+					// substitute p with s
 					if(p->parent) {
-						bool child_idx = (p == p->parent->childs[Node::RIGHT]);
-						p->parent->childs[child_idx] = s;
+						p->parent->substitute_child(p, s);
 					}
-					if(p->childs[!successor_side]) { p->childs[!successor_side]->parent = s; }
-					if(p->childs[successor_side]) { p->childs[successor_side]->parent = s; }
-					
+					else {
+						root_ = s;
+					}
 					s->parent = p->parent;
-					s->childs[!successor_side] = p->childs[!successor_side];
-					s->childs[successor_side] = p->childs[successor_side];
+
+					p->childs[0]->parent = s;
+					if(p->childs[1]) {
+						// p's right child might have been s
+						// which is not here anymore, that is why
+						// for the right side we have to check
+						p->childs[1]->parent = s;
+					}
+					
+					s->childs[0] = p->childs[0];
+					s->childs[1] = p->childs[1];
 				}
+				else {
+					assert(!!p->childs[0] != !!p->childs[1]);
+
+					int side = (p->childs[1] != 0);
+					p->childs[side]->parent = p->parent;
+					if(p->parent) {
+						p->parent->substitute_child(p, p->childs[side]);
+					}
+					else {
+						root_ = p->childs[side];
+					}
+				}
+
 				
+				size_--;
 				get_allocator().free_array(
 						reinterpret_cast<block_data_t*>(p)
 				);
+				*/
 				
 				if(root_ == p) { root_ = 0; }
 				
@@ -238,21 +282,23 @@ namespace wiselib {
 			
 			void check() {
 				#if !WISELIB_DISABLE_DEBUG
-					check_node(root_, 0, 0);
+					assert(check_node(root_, 0, 0) == size_);
 				#endif
 			}
 			
-			void check_node(Node* n, block_data_t* v_l = 0, block_data_t* v_r = 0) {
+			size_type check_node(Node* n, block_data_t* v_l = 0, block_data_t* v_r = 0) {
 				#if !WISELIB_DISABLE_DEBUG
-					if(!n) { return; }
+					if(!n) { return 0; }
 					assert(!v_l || strcmp((char*)v_l, (char*)n->value) > 0);
 					assert(!v_r || strcmp((char*)v_r, (char*)n->value) < 0);
 					assert(!n->childs[0] || n->childs[0]->parent == n);
 					assert(!n->childs[1] || n->childs[1]->parent == n);
-					check_node(n->childs[0], v_l, n->value);
+					return 1 + check_node(n->childs[0], v_l, n->value) +
 					check_node(n->childs[1], n->value, v_r);
 				#endif
 			}
+
+			size_type size() { return size_; }
 		
 		private:
 			
@@ -274,8 +320,6 @@ namespace wiselib {
 				Node *p = root_, *prev = root_;
 				while(p) {
 					assert(p->value != 0);
-					
-					//DBG("strcmp(%lx, %lx, %lx)", (long int)(void*)p, (long int)(void*)p->value, (long int)(void*)v);
 					c = strcmp((char*)p->value, (char*)v);
 					if(c == 0) {
 						return p;
@@ -315,6 +359,7 @@ namespace wiselib {
 			static Node* to_node(key_type p) { return reinterpret_cast<Node*>(p); }
 			
 			Node *root_;
+			size_type size_;
 		
 	}; // UnbalancedTreeDictionary
 }

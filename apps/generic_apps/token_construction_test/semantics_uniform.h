@@ -25,27 +25,50 @@ namespace wiselib {
 	
 	template<typename TS>
 	void ins(TS& ts, const char* s, const char* p, const char* o) {
+		DBG("ins(%s %s %s)", s, p, o);
 		typename TS::Tuple t;
 		t.set(0, (typename TS::block_data_t*)s);
 		t.set(1, (typename TS::block_data_t*)p);
 		t.set(2, (typename TS::block_data_t*)o);
+		
+		DBG("ins t (%s %s %s)", s, p, o);
 		ts.insert(t);
 	}
 	
 	
 	template<
 		typename TS,
-		typename node_id_t
+		typename RadioPtr,
+		typename RandPtr
 	>
-	void initial_semantics(TS& ts, node_id_t id) {
-		const char *room1 = "<http://spitfire-project.eu/rooms/officeroom1>";
+	void initial_semantics(TS& ts, RadioPtr radio, RandPtr rand) {
+		DBG("initial semantics");
 		
-		enum { MAX_URI_LENGTH = 256 };
+		const char *room1 = "<room1>";
+		
+		// Generate sensor URI
+		enum { MAX_URI_LENGTH = 256, DIGITPOS = 45 };
 		char myuri[MAX_URI_LENGTH];
-		snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%d>", id);
+		
+		snprintf(myuri, MAX_URI_LENGTH, "<v%lx>", (unsigned long)radio->id());
+		//snprintf(myuri, MAX_URI_LENGTH, "<http://spitfire-project.eu/sensor/office1/v%lx>", (unsigned long)radio->id());
 		myuri[MAX_URI_LENGTH - 1] = '\0';
 		
+		/*
+		strncpy(myuri, "<http://spitfire-project.eu/sensor/office1/v", MAX_URI_LENGTH);
+		int n = ltoa(MAX_URI_LENGTH - DIGITPOS - 1, myuri + DIGITPOS, id, 16);
+		myuri[DIGITPOS + n] = '\0';
+		*/
+		
+		// Generate sensor value
+		char v[10];
+		//snprintf(v, 10, "%d", (rand->operator()() % 10) + 15);
+		snprintf(v, 10, "%d", radio->id());
+		v[9] = '\0';
+		
 		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest>", room1);
+		ins(ts, myuri, "<http://purl.oclc.org/NET/ssnx/ssn#observedProperty>", "<http://spitfire-project.eu/property/Temperature>");
+		ins(ts, myuri, "<http://www.loa-cnr.it/ontologies/DUL.owl#hasValue>", v);
 	}
 	
 }

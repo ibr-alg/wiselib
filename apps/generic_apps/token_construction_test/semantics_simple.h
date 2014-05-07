@@ -35,9 +35,10 @@ namespace wiselib {
 	
 	template<
 		typename TS,
-		typename node_id_t
+		typename node_id_t,
+		typename RandPtr
 	>
-	void initial_semantics(TS& ts, node_id_t id) {
+	void initial_semantics(TS& ts, node_id_t id, RandPtr _) {
 		static const char *table1 = "<table1>";
 		//static const char *table2 = "<table2>";
 		static const char *window1 = "<window1>";

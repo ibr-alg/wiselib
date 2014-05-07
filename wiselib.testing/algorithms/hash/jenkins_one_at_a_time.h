@@ -26,9 +26,7 @@ namespace wiselib {
 	 * @brief The Jenkins One-at-a-time hash from
 	 * http://www.burtleburtle.net/bob/hash/doobs.html
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @ingroup Hash_concept
 	 */
 	template<
 		typename OsModel_P

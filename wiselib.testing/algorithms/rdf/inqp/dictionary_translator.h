@@ -23,11 +23,8 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @brief INQP Dictionary Translator.
+	 * Translates dictionary keys into hash values.
 	 */
 	template<
 		typename OsModel_P,
@@ -67,8 +64,15 @@ namespace wiselib {
 			
 			void init(typename Dictionary::self_pointer_t dict) {
 				dictionary_ = dict;
+				for(int i = 0; i<MAX_SIZE; i++) {
+					lookup_table_[i] = KeyHashPair();
+				}
 			}
 			
+			/**
+			 * Translate the given dictionary key into the according hash
+			 * value.
+			 */
 			hash_t translate(dict_key_t dict_key) {
 				size_type idx = dict_key_to_index(dict_key);
 				KeyHashPair &p = lookup_table_[idx];
@@ -76,15 +80,28 @@ namespace wiselib {
 					p.dict_key() = dict_key;
 					block_data_t *s = dictionary_->get_value(dict_key);
 					p.hash() = Hash::hash(s, strlen((char*)s));
+					
+				#if ISENSE
+					GET_OS.debug("dt h(k=%lx->%s) = %08lx %d %d %d %d",
+							(unsigned long)p.dict_key(),
+							reinterpret_cast<char*>(s),
+							(unsigned long)p.hash(),
+							(int)((p.hash() >> 24) & 0xff),
+							(int)((p.hash() >> 16) & 0xff),
+							(int)((p.hash() >>  8) & 0xff),
+							(int)((p.hash() >>  0) & 0xff)
+					);
+				#endif
+					dictionary_->free_value(s);
 				}
 				return p.hash();
 			}
 			
+		private:
 			size_type dict_key_to_index(dict_key_t dict_key) {
 				return (dict_key ^ (dict_key >> 4)) % MAX_SIZE;
 			}
 			
-		private:
 			typename Dictionary::self_pointer_t dictionary_;
 			KeyHashPair lookup_table_[MAX_SIZE];
 		

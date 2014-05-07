@@ -60,7 +60,11 @@ namespace wiselib {
 			};
 			
 			int init() {
-				return wipe();
+				return SUCCESS;
+			}
+			
+			address_t size() {
+				return SIZE;
 			}
 			
 			int wipe() {

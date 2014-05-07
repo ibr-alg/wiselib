@@ -64,6 +64,7 @@ namespace wiselib {
 			void init(SD *ad, Query *query) {
 				Base::init(ad, query);
 				hardcore_cast(this->push_, &self_type::push);
+				hardcore_cast(this->destruct_, &self_type::destruct);
 				
 				selection_columns_logical_ = ad->selection_columns();
 				selection_criteria_ = ::get_allocator().template allocate_array< ::uint8_t>(selection_columns_logical_).raw();
@@ -71,7 +72,6 @@ namespace wiselib {
 				
 				value_count_ = ad->value_count();
 				values_ = ::get_allocator().template allocate_array<Value>(value_count_).raw();
-				//memcpy(values_, ad->values(), value_count_);
 				for(size_type i = 0; i < value_count_; i++) {
 					values_[i] = ad->value(i);
 				}
@@ -85,7 +85,6 @@ namespace wiselib {
 			}
 			
 			void destruct() {
-				// TODO
 				if(selection_criteria_) {
 					::get_allocator().free_array(selection_criteria_);
 					selection_criteria_ = 0;
@@ -104,8 +103,6 @@ namespace wiselib {
 					return;
 				}
 				
-				DBG("selection row %08lx %08lx", (long)row[0], (long)row[1]);
-				
 				bool match = true;
 				size_type col = 0;
 				for(size_type i = 0; i < selection_columns_logical_; i++) {
@@ -117,23 +114,18 @@ namespace wiselib {
 					int type = this->child(Base::CHILD_LEFT).result_type(col);
 					int c = compare_values(type, row[col], v);
 					
-					DBG("col=%d row[col]=%08lx vidx=%d v=%08lx",
-							(int)col, (long)row[col], (int)value_index, (long)v);
-					
 					if(!again) { col++; }
 					
 					if(!(((criterion & SD::EQ) && c == 0) ||
 							((criterion & SD::LT) && c < 0) ||
 							((criterion & SD::GT) && c > 0) ||
 							(criterion == SD::IGNORE))) {
-						DBG("criterion=%d c=%d", (int)criterion, (int)c);
 						match = false;
 						break;
 					}
 				}
 				
 				if(match) {
-					DBG("------> selection row %08lx %08lx", (long)row[0], (long)row[1]);
 					this->parent().push(row);
 				}
 				

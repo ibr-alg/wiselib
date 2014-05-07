@@ -24,7 +24,7 @@
 
 #include <external_interface/external_interface.h>
 
-#define time_t posix_time_t
+#define posix_time_t time_t
 #include <time.h>
 #undef time_t
 

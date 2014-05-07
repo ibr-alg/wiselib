@@ -1,0 +1,34 @@
+
+@prefix gr: <http://www.heppnetz.de/ontologies/goodrelations/v1#> .
+@prefix pto: <http://www.productontology.org/id/> .
+@prefix teds: <http://example.org/teds/> .
+@prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn#> .
+@prefix dul: <http://www.loa-cnr.it/ontologies/DUL.owl#> .
+@prefix spt: <http://spitfire-project.eu/ontology/ns#> .
+@prefix owl: <http://w3.org/2002/07/owl#> .
+@prefix ex: <http://example.org/ex/> .
+
+ex:Sensor a pto:Thermistor ;
+	gr:hasManufacturer ex:Torchwood ;
+	gr:hasMakeAndModel ex:SonicScrewdriver_v12 ;
+
+	teds:minTemperature "-90.0" ;
+	teds:maxTemperature "130.0" ;
+	teds:minResistance "0" ;
+	teds:maxResistance "262" ;
+	teds:resistanceAt0C "550000" ;
+	teds:steinhartA "100" ;
+	teds:steinhartB "200" ;
+	teds:steinhartC "300" ;
+	ssn:hasMeasurementProperty [
+		a ssn:ResponseTime ;
+		owl:hasValue "0.0001"
+	] ;
+	teds:currentExcitation "100" ;
+	teds:currentExcitationMax "200" ;
+	teds:selfHeating "100" ;
+	teds:calibrated "12-04-02T12:48Z" ;
+	teds:calibratedBy ex:JackHarkness ;
+	teds:calibrationPeriod "100" ;
+	dul:hasLocation ex:London .
+

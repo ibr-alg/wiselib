@@ -59,8 +59,12 @@ namespace wiselib {
 			FileBlockMemory() : filename_("block_memory.img") {
 			}
 			
-			size_type size() {
+			address_t size() {
 				return filesize_ / BLOCK_SIZE;
+			}
+			
+			void set_size(size_type sz) {
+				filesize_ = sz;
 			}
 
 			int init() {

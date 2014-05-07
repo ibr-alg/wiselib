@@ -25,11 +25,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @brief Description of a COLLECT operator.
 	 */
 	template<
 		typename OsModel_P,

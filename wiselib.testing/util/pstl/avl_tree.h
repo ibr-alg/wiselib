@@ -5,7 +5,7 @@
 #define AVL_TREE_H
 
 #include <util/standalone_math.h>
-#include <util/pstl/list_dynamic.h> // TODO: Implement & use vector_dynamic instead!
+//#include <util/pstl/list_dynamic.h> // TODO: Implement & use vector_dynamic instead!
 //#include <util/pstl/string_dynamic.h>
 #include <util/delegates/delegate.hpp>
 
@@ -45,6 +45,11 @@ namespace wiselib {
 		
 		struct Node;
 		typedef Node* node_ptr_t;
+
+		enum { MAX_DEPTH = 20 };
+		
+			//list_dynamic<OsModel, node_ptr_t> path_;
+		typedef vector_static<OsModel, node_ptr_t, MAX_DEPTH> Path;
 		
 		enum ErrorCodes {
 			SUCCESS = OsModel::SUCCESS
@@ -56,9 +61,11 @@ namespace wiselib {
 		class Node {
 			// {{{
 		public:
-			enum Side { LEFT, RIGHT };
+			enum Side { LEFT = 0, RIGHT = 1 };
 			
-			Node() : balance_(0) {
+			Node() : data_(0), balance_(0) {
+				childs_[0] = 0;
+				childs_[1] = 0;
 			}
 			
 			Node(value_type data) : data_(data), balance_(0) {
@@ -67,11 +74,15 @@ namespace wiselib {
 			}
 			
 			void init() {
+				data_ = 0;
 				balance_ = 0;
 				childs_[0] = 0;
 				childs_[1] = 0;
 			}
-			void init(value_type d) { init(); data_ = d; }
+			void init(value_type d) {
+				init();
+				data_ = d;
+			}
 			
 			node_ptr_t left()  { return childs_[LEFT]; }
 			node_ptr_t right()  { return childs_[RIGHT]; }
@@ -201,24 +212,24 @@ namespace wiselib {
 			
 			friend class AVLTree;
 		private:
-			list_dynamic<OsModel, node_ptr_t> path_;
+			Path path_;
 			// }}}
 		};
 		typedef inorder_iterator iterator;
 		
-		template<typename T>
-		static typename T::self_pointer_t to_t_ptr(value_type a) {
-			typename T::self_pointer_t r;
-			memcpy((void*)&r, (void*)&a, sizeof(typename T::self_pointer_t));
-			//return *reinterpret_cast<typename T::self_pointer_t*>(&a);
-			return r;
-		}
+		//template<typename T>
+		//static typename T::self_pointer_t to_t_ptr(value_type a) {
+			//typename T::self_pointer_t r;
+			//memcpy((void*)&r, (void*)&a, sizeof(typename T::self_pointer_t));
+			////return *reinterpret_cast<typename T::self_pointer_t*>(&a);
+			//return r;
+		//}
 		
-		template<typename T>
-		static int ptr_cmp_comparator(value_type a, value_type b, void*) {
-			return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
-			//return reinterpret_cast<T*>(a)->cmp(*reinterpret_cast<T*>(b));
-		}
+		//template<typename T>
+		//static int ptr_cmp_comparator(value_type a, value_type b, void*) {
+			//return to_t_ptr<T>(a)->cmp(*to_t_ptr<T>(b));
+			////return reinterpret_cast<T*>(a)->cmp(*reinterpret_cast<T*>(b));
+		//}
 		
 		static int string_comparator(value_type a, value_type b, void*) {
 			return strcmp((char*)a, (char*)b);
@@ -310,8 +321,7 @@ namespace wiselib {
 			node_ptr_t r;
 			if(!root_) {
 				root_ = get_allocator().template allocate<Node>() .raw();
-				root_->init();
-				root_->data_ = data;
+				root_->init(data);
 				size_++;
 				r = root_;
 			}
@@ -538,6 +548,8 @@ namespace wiselib {
 		
 		// Return the root node
 		 node_ptr_t root()  { return root_; }
+
+
 		
 		/* 
 		 * \param data data to insert
@@ -545,9 +557,61 @@ namespace wiselib {
 		 * \param height_change reference to integer for tracking height changes of subtrees.
 		 */
 		node_ptr_t insert(value_type data, node_ptr_t& base, int& height_change, void* arg=0) {
+
+			inorder_iterator iter;
+			
+			// first, find place to insert
+			find(data, base, iter, arg);
+
+			// create new child node and connect it to parent
+			node_ptr_t p = iter.path_.back();
+			node_ptr_t n = get_allocator().template allocate<Node>() .raw();
+			node_ptr_t new_node = n;
+			n->init(data);
+			size_++;
+			int c = compare_(p->data(), n->data(), arg);
+			//printf("--- ins %s below %s c=%d\n", (char*)data, (char*)iter.path_.back()->data(), (int)c);
+			typename Node::Side side = (c > 0) ? Node::LEFT : Node::RIGHT;
+			p->set_child(side, n);
+			if(p->balance() != 0) { height_change = +1; }
+			else { height_change = 0; }
+			iter.path_.pop_back();
+			n = p;
+
+			// now walk up, checking balance
+			while(iter.path_.size() > 0) {
+				p = iter.path_.back();
+				int c = compare_(p->data(), n->data(), arg);
+	
+				//printf("--- post ins n=%s p=%s c=%d\n", (char*)n->data(), (char*)p->data(), (int)c);
+
+				typename Node::Side side = (c > 0) ? Node::LEFT : Node::RIGHT;
+				p->set_child(side, n);
+				p->balance_ += (side == Node::RIGHT) ? height_change : -height_change;
+				if(p->imbalanced()) {
+					p = rebalance(p);
+					//printf("---- rebal: %s at top\n", (char*)p->data());
+					height_change = 0;
+				}
+				if(height_change == +1 && p->balance() != 0) { height_change = +1; }
+				else { height_change = 0; }
+
+				n = p;
+				iter.path_.pop_back();
+			}
+			base = p;
+			return new_node;
+		}
+			
+
+		/*
+		node_ptr_t insert(value_type data, node_ptr_t& base, int& height_change, void* arg=0) {
 			node_ptr_t r;
 			
 			int c = compare_(base->data(), data, arg);
+
+			printf("-ins %p %s<>%s c=%d\n", (void*)base, (char*)data, (char*)base->data(), (int)c);
+
 			
 			if(c == 0) { // equivalent node already there, return existing node
 				height_change = 0;
@@ -581,7 +645,7 @@ namespace wiselib {
 			
 			return r;
 		} // insert()
-		
+		*/	
 		
 		/*
 		 * \param data Element to search for
@@ -595,6 +659,20 @@ namespace wiselib {
 		void find(const T& data, node_ptr_t r, inorder_iterator& iter, void* arg=0)  {
 			assert(data != 0);
 			
+			while(r) {
+				iter.path_.push_back(r);
+				int c = compare_(r->data(), data, arg);
+				if(c > 0 && r->left()) { r = r->left(); }
+				else if(c < 0 && r->right()) { r = r->right(); }
+				else { break; }
+			}
+		}
+		
+		/* Recursive implementation
+		 * 
+		void find(const T& data, node_ptr_t r, inorder_iterator& iter, void* arg=0)  {
+			assert(data != 0);
+			
 			if(r) {
 				iter.path_.push_back(r);
 				int c = compare_(r->data(), data, arg);
@@ -602,6 +680,7 @@ namespace wiselib {
 				else if(c < 0 && r->right()) { find(data, r->right(), iter, arg); }
 			}
 		}
+		*/
 		
 		/*
 		 * Unlink node pointed to by iter. (i.e. remove it from the tree but

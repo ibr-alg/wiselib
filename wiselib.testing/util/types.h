@@ -35,6 +35,19 @@ namespace wiselib {
 	void hardcore_cast(A& a, const B& b) {
 		memcpy(&a, &b, (Min<sizeof(A), sizeof(B)>::value) );
 	}
+	
+	template<typename T, typename U>
+	T loose_precision_cast(U& u) {
+		typedef typename Uint<sizeof(U)>::t R;
+		return (T)((R)u & (T)-1);
+	}
+	
+	template<typename T, typename U>
+	T gain_precision_cast(U& u) {
+		assert(sizeof(T) >= sizeof(U));
+		typedef typename Uint<sizeof(T)>::t R;
+		return (T)(R)u;
+	}
 }
 
 #endif // TYPES_H

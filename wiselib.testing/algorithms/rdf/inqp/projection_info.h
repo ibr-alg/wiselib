@@ -31,11 +31,8 @@ namespace wiselib {
 	
 	
 	/**
-	 * @brief
+	 * @brief Projection info for INQP operators.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
@@ -67,7 +64,7 @@ namespace wiselib {
 			}
 			
 			/**
-			 * Return the number of not-ignored columns.
+			 * @return the number of not-ignored columns.
 			 */
 			size_type columns() {
 				size_type r = 0;
@@ -80,12 +77,17 @@ namespace wiselib {
 				return r;
 			}
 			
+			/**
+			 * @return TypeInfo value for the given column.
+			 */
 			int type(size_type col) {
 				return (columns_[col / 4] >> ((col % 4) * 2)) & 0x3;
 			}
 			
-			/*
-			 * Return the type of given column as seen by the parent operator.
+			/**
+			 * @return Type of given column as seen by the parent operator
+			 * (that is, in contrast to @a type this does not count ignored
+			 * columns).
 			 */
 			int result_type(size_type col) {
 				size_type j = 0;

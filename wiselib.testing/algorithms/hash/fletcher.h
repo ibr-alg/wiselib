@@ -26,9 +26,7 @@ namespace wiselib {
 	 * @brief Implementation of "Fletcher's Checksum"
 	 * (Fletcher 1982: "An Arithemetic Checksum for Serial Transmissions")
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @ingroup Hash_concept
 	 */
 	template<
 		typename OsModel_P,

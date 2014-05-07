@@ -3,12 +3,15 @@
 *.d
 *.swp
 *.pyc
+*.a
+*.map
 Makefile.local
 wiselib.testing/config_testing.h
 wiselib.stable/config.h
 bin/
 out/
 build/
+data/
 *.so
 *.pdf
 doxygen_output/
@@ -23,3 +26,9 @@ Wiselib.includes
 *.log
 example_app
 tags
+.cproject
+.project
+.settings
+dot/
+symbols.c
+symbols.h

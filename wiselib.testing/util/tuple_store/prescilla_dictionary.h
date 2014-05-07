@@ -64,7 +64,9 @@ namespace wiselib
             }
             
             ~Node() {
-               get_allocator().free_array(data_);
+               if(data_) {
+                  get_allocator().free_array(data_);
+               }
             }
 
             void init()
@@ -192,6 +194,8 @@ namespace wiselib
                     node_ = node_->children_[0];
                  }
               }
+
+              node_pointer node() { return node_; }
               
            private:
               Node *node_;
@@ -206,7 +210,7 @@ namespace wiselib
         
         ~PrescillaDictionary() {
            if(root_) {
-              get_allocator().free(root_);
+              ::get_allocator().free(root_);
            }
         }
 
@@ -214,7 +218,7 @@ namespace wiselib
         {
             if (!root_)
             {
-                root_ = get_allocator().template allocate<Node > ().raw();
+                root_ = ::get_allocator().template allocate<Node > ().raw();
             }
            debug_ = debug;
             return OsModel::SUCCESS;
@@ -235,7 +239,7 @@ namespace wiselib
             node_pointer current_node = root_;
             if (!current_node->children_[v[0]])
             {
-                node_pointer new_node = get_allocator().template allocate<Node > ().raw();
+                node_pointer new_node = ::get_allocator().template allocate<Node > ().raw();
                 //printf("--- A\n");
                 typename bitarray_t::self_pointer_t bits_copy = bitarray_t::make(::get_allocator(), v_size);
                 v.copy(bits_copy, 0, 0, v_size);
@@ -274,7 +278,7 @@ namespace wiselib
                         typename bitarray_t::self_pointer_t bits_left = bitarray_t::make(::get_allocator(), v_size - string_index);
 
                                 v.copy(bits_left, 0, string_index, v_size - string_index);
-                                node_pointer new_node = get_allocator().template allocate<Node > ().raw();
+                                node_pointer new_node = ::get_allocator().template allocate<Node > ().raw();
                                 //printf("--- B\n");
                                 new_node->init(bits_left, 0, 0, current_node, v_size - string_index);
                                 string_index = v_size;
@@ -319,14 +323,14 @@ namespace wiselib
                         //bit_string_back->c_str(), bit_string_back->size()
                         //);
 
-                        node_pointer split_node = get_allocator().template allocate<Node > ().raw();
+                        node_pointer split_node = ::get_allocator().template allocate<Node > ().raw();
                         //printf("--- C\n");
                         split_node->init(bit_string_front, 0, 0, current_node->parent_, frontsize);
                         current_node_string_index = current_node->data_size();
                         current_node->parent_->children_[split_node->data_->operator[](0)] = split_node;
                         
                         if(current_node->data_) {
-                           get_allocator().free_array(current_node->data_);
+                           ::get_allocator().free_array(current_node->data_);
                         }
                         
                         current_node->data_ = bit_string_back;
@@ -352,7 +356,7 @@ namespace wiselib
             //debug_->debug("g");
                 ///string shares prefix in tree up to string_index but has differnet suffix, append string as new branch after split
                 // valid here: current_node->data_[current_node_string_index] != value[string_index]
-                node_pointer value_rest = get_allocator().template allocate<Node > ().raw();
+                node_pointer value_rest = ::get_allocator().template allocate<Node > ().raw();
                         typename bitarray_t::self_pointer_t bitString = bitarray_t::make(::get_allocator(), v_size - string_index);
                         v.copy(bitString, 0, string_index, v_size - string_index);
                         //printf("--- D\n");
@@ -428,6 +432,8 @@ namespace wiselib
                 return;
             }
 
+            size_--;
+
             if (!current_node->is_root() && !current_node->children_[0]
                     && !current_node->children_[1] && !current_node->count_)
             {
@@ -439,7 +445,7 @@ namespace wiselib
                         current_node = current_node->parent_;
            //printf("erase.free(%p)\n", del_this);
            //fflush(stdout);
-                        get_allocator().free(del_this);
+                        ::get_allocator().free(del_this);
             }
 
             // check for merge
@@ -463,7 +469,7 @@ namespace wiselib
                             current_node->data_->copy(bit_string, 0, 0, current_node->data_size());
                             node_to_merge->data_->copy(bit_string, current_node->data_size(), 0, node_to_merge->data_size());
                             if(node_to_merge->data_ != 0) {
-                               get_allocator().free_array(node_to_merge->data_);
+                               ::get_allocator().free_array(node_to_merge->data_);
                             }
                             node_to_merge->data_ = bit_string;
                             node_to_merge->data_size_ = current_node->data_size() + node_to_merge->data_size();
@@ -471,7 +477,7 @@ namespace wiselib
                             node_to_merge->parent_->children_[node_to_merge->data_->operator[](0)] = node_to_merge;
            //printf("erase.free(%p)\n", current_node);
            //fflush(stdout);
-                            get_allocator().free(current_node);
+                            ::get_allocator().free(current_node);
                 }
             }
 
@@ -489,6 +495,11 @@ namespace wiselib
         size_type count(key_type k) {
            node_pointer current_node = reinterpret_cast<node_pointer>(k);
            return current_node->count_;
+        }
+
+        size_type count(iterator iter) {
+           node_pointer n = iter.node();
+           return n->count_;
         }
 
         value_type get_copy(key_type k)
@@ -549,7 +560,7 @@ namespace wiselib
                     //printf("\n");
                     current_node->data_->copy(out, out_pos, 0, current_node->data_size());
 
-                    get_allocator().free_array(path);
+                    ::get_allocator().free_array(path);
                     out->terminate(len); //set(len, '\0');
 
             return reinterpret_cast<block_data_t*> (out);
@@ -557,7 +568,9 @@ namespace wiselib
         
         value_type get_value(key_type k) { return get_copy(k); }
 
-        void free_value(value_type v) { get_allocator().free_array(v); }
+        void free_value(value_type v) { ::get_allocator().free_array(v); }
+
+        size_type size() { return size_; }
 
     private:
         size_type size_;

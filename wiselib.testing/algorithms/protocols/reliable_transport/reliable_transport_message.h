@@ -35,7 +35,8 @@ namespace wiselib {
 	template<
 		typename OsModel_P,
 		typename ChannelId_P,
-		typename Radio_P
+		typename Radio_P,
+		::uint8_t MESSAGE_TYPE_P = 0x42
 	>
 	class ReliableTransportMessage {
 		
@@ -51,13 +52,13 @@ namespace wiselib {
 			typedef ::uint32_t delay_t;
 			
 			enum MessageIds {
-				MESSAGE_TYPE = 0x42,
-				SUBTYPE_DATA = 0x00, SUBTYPE_ACK = 0x01
+				MESSAGE_TYPE = MESSAGE_TYPE_P,
+				//SUBTYPE_DATA = 0x00, SUBTYPE_ACK = 0x01
 			};
 			
 			enum Flags {
 				FLAG_OPEN = 0x01, FLAG_ACK = 0x02, FLAG_CLOSE = 0x04,
-				FLAG_INITIATOR = 0x08, FLAG_SUPPLEMENTARY = 0x10,
+				FLAG_INITIATOR = 0x08, FLAG_SUPPLEMENTARY = 0x10, FLAG_NACK = 0x20,
 				FLAGS_DATA = 0x00
 			};
 			
@@ -98,13 +99,17 @@ namespace wiselib {
 			}
 			
 			bool is_ack() { return flags() & FLAG_ACK; }
-			bool is_data() { return !is_ack(); }
+			bool is_nack() { return flags() & FLAG_NACK; }
+			bool is_data() { return !is_ack() && !is_nack(); }
 			bool is_open() { return flags() & FLAG_OPEN; }
 			bool is_supplementary() { return flags() & FLAG_SUPPLEMENTARY; }
 			void set_open() { set_flags(flags() | FLAG_OPEN); }
+			void clear_open() { set_flags(flags() & ~FLAG_OPEN); }
+			void set_ack() { set_flags(flags() | FLAG_ACK); }
 			
 			bool is_close() { return flags() & FLAG_CLOSE; }
 			void set_close() { set_flags(flags() | FLAG_CLOSE); }
+			void clear_close() { set_flags(flags() & ~FLAG_CLOSE); }
 			void set_supplementary() { set_flags(flags() | FLAG_SUPPLEMENTARY); }
 			
 			bool initiator() { return flags() & FLAG_INITIATOR; }

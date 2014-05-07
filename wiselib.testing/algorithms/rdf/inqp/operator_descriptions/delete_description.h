@@ -23,11 +23,7 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
-	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @brief Description of a DELETE operator.
 	 */
 	template<
 		typename OsModel_P,

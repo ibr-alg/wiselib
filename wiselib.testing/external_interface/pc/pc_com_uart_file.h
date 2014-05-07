@@ -52,7 +52,7 @@
 namespace wiselib {
 	
 	namespace {
-		enum { BUFFER_SIZE = 256 }; // should be enough for 19200 Baud (technically 20 should suffice)
+		enum { BUFFER_SIZE = 256 * 4 * 4 }; // should be enough for 19200 Baud (technically 20 should suffice)
 	}
 	
 	/** \brief Uart model for PC
@@ -208,7 +208,7 @@ namespace wiselib {
 		size_t written = 0;
 
 		do {
-                    std::cout << (uint16_t)buf[0] << std::endl;
+                    //std::cout << (uint16_t)buf[0] << std::endl;
 			r = ::write(port_fd_, reinterpret_cast<void*>(buf+written), len-written);
 //                        std::cout << "r = " << r <<" len = " << len << std::endl;
 			if(r < 0) {
@@ -229,9 +229,9 @@ namespace wiselib {
 			}
 		} while(written < len);
 		
-		#if PC_COM_UART_DEBUG >= 100
+		//#if PC_COM_UART_DEBUG >= 100
 		std::cout << "[pc_com_uart] wrote: " << len << " bytes." << std::endl;
-		#endif
+		//#endif
 		
 		// Unblock SIGALRM.
 		if( sigismember( &old_signal_set, SIGALRM ) == 0 )
@@ -281,9 +281,9 @@ namespace wiselib {
 		
 			self_type::notify_receivers(bytes, buffer);
 			
-			#if PC_COM_UART_DEBUG >= 100
+			//#if PC_COM_UART_DEBUG >= 100
 			std::cout << "[pc_com_uart] try_read read " << bytes << " bytes.\n";
-			#endif
+			//#endif
 		
 		}
 
@@ -298,7 +298,8 @@ namespace wiselib {
 			}
 		}
 
-		timer_.template set_timer<self_type, &self_type::try_read>(10, this, 0);
+		//timer_.template set_timer<self_type, &self_type::try_read>(10, this, 0);
+		timer_.template set_timer<self_type, &self_type::try_read>(1, this, 0);
 	} // try_read
 	
 } // ns wiselib

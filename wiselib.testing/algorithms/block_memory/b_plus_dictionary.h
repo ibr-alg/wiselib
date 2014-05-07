@@ -65,6 +65,30 @@ namespace wiselib {
 				SUCCESS = OsModel::SUCCESS, ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
 			
+			class key_iterator {
+				public:
+					key_iterator() {
+					}
+					
+					key_iterator(const typename HashSet::iterator& it) : set_iterator_(it) {
+					}
+					
+					bool operator==(const key_iterator& other) { return set_iterator_ == other.set_iterator_; }
+					bool operator!=(const key_iterator& other) { return set_iterator_ != other.set_iterator_; }
+					
+					const key_iterator& operator++() {
+						++set_iterator_;
+						return *this;
+					}
+					
+					key_type operator*() { return set_iterator_.chunk_address(); }
+					const key_type* operator->() const { return &(set_iterator_.chunk_address()); }
+					
+				private:
+					typename HashSet::iterator set_iterator_;
+			};
+			typedef key_iterator iterator;
+			
 		public:
 			
 			BPlusDictionary() {
@@ -75,6 +99,14 @@ namespace wiselib {
 				block_memory_ = block_memory;
 				hash_set_.init(block_memory_, debug_);
 				return SUCCESS;
+			}
+			
+			key_iterator begin_keys() {
+				return key_iterator(hash_set_.begin());
+			}
+			
+			key_iterator end_keys() {
+				return key_iterator(hash_set_.end());
 			}
 			
 			key_type insert(block_data_t* ptr) { return insert(PL::from_data(ptr)); }

@@ -16,6 +16,7 @@ typedef Os::size_t size_type;
 
 #ifdef PC
 	#include <iostream>
+	#include <iomanip>
 #endif
 
 #include <algorithms/hash/bernstein.h>
@@ -120,7 +121,22 @@ class App {
 			while(std::cin) {
 				std::cin.getline(line, 20480);
 				if(strlen(line) > 0) {
-					std::cout << (unsigned long long)Hash::hash((const block_data_t*)line, strlen(line)) << std::endl;
+					typename Hash::hash_t h = Hash::hash((const block_data_t*)line, strlen(line));
+					std::cout
+						<< std::setfill('0')
+						
+						<< std::setw(0)
+						<< std::dec << (unsigned long long)h << " "
+						
+						<< std::setw(16)
+						<< std::hex << (unsigned long long)h << " "
+						
+						<< std::dec << (unsigned)((h >> 24) & 0xff) << " "
+						<< std::dec << (unsigned)((h >> 16) & 0xff) << " "
+						<< std::dec << (unsigned)((h >>  8) & 0xff) << " "
+						<< std::dec << (unsigned)((h >>  0) & 0xff) << " "
+						
+						<< std::endl;
 				}
 			}
 		}

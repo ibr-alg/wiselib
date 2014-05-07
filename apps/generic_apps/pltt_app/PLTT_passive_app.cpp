@@ -9,7 +9,7 @@
 #include "algorithms/tracking/PLTT_passive.h"
 #include "algorithms/tracking/PLTT_agent.h"
 #include "algorithms/neighbor_discovery/neighbor_discovery.h"
-#include "radio/reliable/reliable_radio_simple.h"
+#include "radio/reliable/reliable_radio.h"
 #include "PLTT_app_config.h"
 
 #ifdef CONFIG_PLTT_SECURE

@@ -28,6 +28,8 @@
 #include "arduino_os.h"
 #include "arduino_debug.h"
 
+#define WISELIB_ARDUINO_SD_WAIT 1000
+
 namespace wiselib {
 
 	/**
@@ -60,11 +62,13 @@ namespace wiselib {
 			};
 			
 			int init() {
-#if ARDUINO_USE_ETHERNET
-				card_.init();
-#else
-				card_.init(0,4);
-#endif
+				size_known_ = false;
+//#if ARDUINO_USE_ETHERNET
+				//card_.init();
+//#else
+				//Serial.println("initing SD");
+				card_.init(SPI_FULL_SPEED, 4 /* chip select pin */);
+//#endif
 				return SUCCESS;
 			}
 			
@@ -77,11 +81,14 @@ namespace wiselib {
 			int read(block_data_t* buffer, address_t start_block, address_t blocks = 1) {
 				bool r;
 				for(address_t written = 0; written < blocks; written++) {
-					//delay(3);
+					wait();
 					r = card_.readBlock(start_block + written, buffer + written * BLOCK_SIZE);
 					if(!r) {
-						DBG("read(%p, std=%d count=%d) fail, read=%d", buffer, start_block, blocks, written);
+						DBG("!read st%d+%d n%d E%d:%d", (int)start_block, (int)written, (int)blocks, (int)card_.errorCode(), (int)card_.errorData());
 						return ERR_UNSPEC;
+					}
+					else {
+						DBG("read succ st%d+%d n%d E%d:%d", (int)start_block, (int)written, (int)blocks, (int)card_.errorCode(), (int)card_.errorData());
 					}
 				}
 				//delay(50);
@@ -98,7 +105,7 @@ namespace wiselib {
 					return ERR_UNSPEC;
 				}
 				for(address_t written = 0; written < blocks; written++) {
-					//delay(3);
+					wait();
 					r = card_.writeData(buffer + written * BLOCK_SIZE);
 					if(!r) {
 						DBG("write(%p, st=%d, count=%d) data %p fail", buffer, start_block, blocks, buffer + written * BLOCK_SIZE);
@@ -117,7 +124,7 @@ namespace wiselib {
 			
 			int erase(address_t start_block, address_t blocks = 1) {
 				bool r;
-				//delay(3);
+				wait();
 				r = card_.erase(start_block, start_block + blocks);
 				if(!r) return ERR_UNSPEC;
 				//delay(50);
@@ -129,11 +136,25 @@ namespace wiselib {
 			}
 			
 			size_type size() { 
+				if(!size_known_) {
+					size_ = card_.cardSize();
+					size_known_ = true;
+				}
+				//Serial.println("size SD");
 				//assert(sizeof(address_t) >= sizeof(uint32_t));
-				return card_.cardSize(); //cardSize() returns a uint32_t
+				return size_; //cardSize() returns a uint32_t
 			}
 			
 		private:
+			
+			void wait() {
+				#if defined(WISELIB_ARDUINO_SD_WAIT)
+				delay(WISELIB_ARDUINO_SD_WAIT);
+				#endif
+			}
+			::uint32_t size_;
+			bool size_known_;
+			
 			Sd2Card card_;
 	};
 

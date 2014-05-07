@@ -50,10 +50,15 @@ namespace wiselib
       {
          va_list fmtargs;
          char buffer[1024];
+		 memset(buffer, 0, 1024);
          va_start( fmtargs, msg );
          vsnprintf( buffer, sizeof(buffer) - 1, msg, fmtargs );
          va_end( fmtargs );
+#if SHAWN_DEBUG_ADD_NODE_ID
+         printf( "@%lu %s\n", (unsigned long)os().proc->id(), buffer );
+#else
          printf( "%s\n", buffer );
+#endif
       }
 
    private:

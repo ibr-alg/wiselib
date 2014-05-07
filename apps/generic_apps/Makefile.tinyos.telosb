@@ -1,5 +1,6 @@
 CXXFLAGS    = -Os  -Wall -pedantic -mdisable-hwmul \
 				-fno-defer-pop -fno-exceptions -fno-rtti \
+				-finline-limit=5120 -MMD \
 				-fomit-frame-pointer -fno-strength-reduce -fno-use-cxa-atexit $(ADD_CXXFLAGS)
 INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)
 DEFINITIONS = -DTINYOS -DOSMODEL=TinyOsModel

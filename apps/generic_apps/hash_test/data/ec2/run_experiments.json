@@ -1,0 +1,258 @@
+{
+"__all__": {
+  "elements_unique":  3320193 ,
+  "hashes": {
+     "bernstein8": {
+  "hash_time_real": 56.758, "hash_time_user": 40.160, "hash_time_sys": 16.287,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  653218.87304688 
+      }
+,     "bernstein16": {
+  "hash_time_real": 55.483, "hash_time_user": 39.353, "hash_time_sys": 15.757,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.70749417 
+      }
+,     "bernstein32": {
+  "hash_time_real": 55.968, "hash_time_user": 39.963, "hash_time_sys": 15.553,
+        "collisions":  1959 ,
+        "colliding_hashes":  1957,
+        "values_per_hash_mean":  1.00059037 ,
+        "values_per_hash_variance":  1.00059037 
+      }
+,     "bernstein64": {
+  "hash_time_real": 58.250, "hash_time_user": 40.773, "hash_time_sys": 16.777,
+        "collisions":  99 ,
+        "colliding_hashes":  98,
+        "values_per_hash_mean":  1.00002981 ,
+        "values_per_hash_variance":  1.00002981 
+      }
+,     "bernstein2_8": {
+  "hash_time_real": 60.131, "hash_time_user": 43.190, "hash_time_sys": 16.603,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  702752.90429688 
+      }
+,     "bernstein2_16": {
+  "hash_time_real": 60.309, "hash_time_user": 43.100, "hash_time_sys": 16.827,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.68575039 
+      }
+,     "bernstein2_32": {
+  "hash_time_real": 59.712, "hash_time_user": 42.597, "hash_time_sys": 16.867,
+        "collisions":  1219 ,
+        "colliding_hashes":  1219,
+        "values_per_hash_mean":  1.00036728 ,
+        "values_per_hash_variance":  1.00036728 
+      }
+,     "bernstein2_64": {
+  "hash_time_real": 62.887, "hash_time_user": 44.567, "hash_time_sys": 17.613,
+        "collisions":  71 ,
+        "colliding_hashes":  71,
+        "values_per_hash_mean":  1.00002138 ,
+        "values_per_hash_variance":  1.00002138 
+      }
+,     "elf32": {
+  "hash_time_real": 68.263, "hash_time_user": 50.320, "hash_time_sys": 17.070,
+        "collisions":  170101 ,
+        "colliding_hashes":  105909,
+        "values_per_hash_mean":  1.05399875 ,
+        "values_per_hash_variance":  1.05399874 
+      }
+,     "firstchar8": {
+  "hash_time_real": 56.521, "hash_time_user": 39.617, "hash_time_sys": 16.690,
+        "collisions":  3320111 ,
+        "colliding_hashes":  72,
+        "values_per_hash_mean":  40990.02469135 ,
+        "values_per_hash_variance":  40510.09846060 
+      }
+,     "fletcher16": {
+  "hash_time_real": 61.285, "hash_time_user": 43.433, "hash_time_sys": 17.473,
+        "collisions":  3255297 ,
+        "colliding_hashes":  64581,
+        "values_per_hash_mean":  51.16252407 ,
+        "values_per_hash_variance":  51.17654423 
+      }
+,     "fnv1_16": {
+  "hash_time_real": 60.887, "hash_time_user": 44.007, "hash_time_sys": 16.517,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.69649258 
+      }
+,     "fnv1_32": {
+  "hash_time_real": 63.671, "hash_time_user": 45.387, "hash_time_sys": 17.537,
+        "collisions":  1303 ,
+        "colliding_hashes":  1303,
+        "values_per_hash_mean":  1.00039260 ,
+        "values_per_hash_variance":  1.00039260 
+      }
+,     "fnv1_64": {
+  "hash_time_real": 64.337, "hash_time_user": 45.503, "hash_time_sys": 17.760,
+        "collisions":  0 ,
+        "colliding_hashes":  0,
+        "values_per_hash_mean":  1.00000000 ,
+        "values_per_hash_variance":  1.00000000 
+      }
+,     "fnv1a_16": {
+  "hash_time_real": 68.881, "hash_time_user": 50.870, "hash_time_sys": 17.430,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.73610440 
+      }
+,     "fnv1a_32": {
+  "hash_time_real": 63.862, "hash_time_user": 45.947, "hash_time_sys": 17.837,
+        "collisions":  1569 ,
+        "colliding_hashes":  1569,
+        "values_per_hash_mean":  1.00047278 ,
+        "values_per_hash_variance":  1.00047278 
+      }
+,     "fnv1a_64": {
+  "hash_time_real": 64.111, "hash_time_user": 45.597, "hash_time_sys": 17.933,
+        "collisions":  0 ,
+        "colliding_hashes":  0,
+        "values_per_hash_mean":  1.00000000 ,
+        "values_per_hash_variance":  1.00000000 
+      }
+,     "lookup2_32": {
+  "hash_time_real": 63.974, "hash_time_user": 46.273, "hash_time_sys": 17.273,
+        "collisions":  1219 ,
+        "colliding_hashes":  1218,
+        "values_per_hash_mean":  1.00036728 ,
+        "values_per_hash_variance":  1.00036728 
+      }
+,     "lookup3_32": {
+  "hash_time_real": 63.371, "hash_time_user": 45.193, "hash_time_sys": 17.763,
+        "collisions":  1269 ,
+        "colliding_hashes":  1269,
+        "values_per_hash_mean":  1.00038235 ,
+        "values_per_hash_variance":  1.00038235 
+      }
+,     "oneatatime_32": {
+  "hash_time_real": 66.500, "hash_time_user": 48.187, "hash_time_sys": 17.963,
+        "collisions":  1392 ,
+        "colliding_hashes":  1391,
+        "values_per_hash_mean":  1.00041942 ,
+        "values_per_hash_variance":  1.00041943 
+      }
+,     "kr8": {
+  "hash_time_real": 59.569, "hash_time_user": 42.453, "hash_time_sys": 16.810,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  843751.08789063 
+      }
+,     "kr16": {
+  "hash_time_real": 59.205, "hash_time_user": 42.263, "hash_time_sys": 16.487,
+        "collisions":  3271265 ,
+        "colliding_hashes":  37580,
+        "values_per_hash_mean":  67.86011813 ,
+        "values_per_hash_variance":  67.86774460 
+      }
+,     "kr32": {
+  "hash_time_real": 61.546, "hash_time_user": 43.570, "hash_time_sys": 17.530,
+        "collisions":  3267131 ,
+        "colliding_hashes":  37438,
+        "values_per_hash_mean":  62.57311396 ,
+        "values_per_hash_variance":  62.57195354 
+      }
+,     "kr64": {
+  "hash_time_real": 66.467, "hash_time_user": 47.013, "hash_time_sys": 18.713,
+        "collisions":  3267131 ,
+        "colliding_hashes":  37438,
+        "values_per_hash_mean":  62.57311396 ,
+        "values_per_hash_variance":  62.57195354 
+      }
+,     "larson8": {
+  "hash_time_real": 60.183, "hash_time_user": 42.200, "hash_time_sys": 16.903,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  636623.90039063 
+      }
+,     "larson16": {
+  "hash_time_real": 59.781, "hash_time_user": 43.130, "hash_time_sys": 16.570,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.70259610 
+      }
+,     "larson32": {
+  "hash_time_real": 59.836, "hash_time_user": 42.510, "hash_time_sys": 17.240,
+        "collisions":  1088 ,
+        "colliding_hashes":  1088,
+        "values_per_hash_mean":  1.00032779 ,
+        "values_per_hash_variance":  1.00032780 
+      }
+,     "larson64": {
+  "hash_time_real": 62.102, "hash_time_user": 44.077, "hash_time_sys": 17.670,
+        "collisions":  0 ,
+        "colliding_hashes":  0,
+        "values_per_hash_mean":  1.00000000 ,
+        "values_per_hash_variance":  1.00000000 
+      }
+,     "novak8": {
+  "hash_time_real": 59.711, "hash_time_user": 42.673, "hash_time_sys": 16.760,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  658430.65429688 
+      }
+,     "novak16": {
+  "hash_time_real": 60.584, "hash_time_user": 43.590, "hash_time_sys": 16.647,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.68954983 
+      }
+,     "novak32": {
+  "hash_time_real": 59.063, "hash_time_user": 41.880, "hash_time_sys": 16.837,
+        "collisions":  1060380 ,
+        "colliding_hashes":  297439,
+        "values_per_hash_mean":  1.46923372 ,
+        "values_per_hash_variance":  1.46923351 
+      }
+,     "novak64": {
+  "hash_time_real": 60.185, "hash_time_user": 42.670, "hash_time_sys": 16.913,
+        "collisions":  1059493 ,
+        "colliding_hashes":  296884,
+        "values_per_hash_mean":  1.46865726 ,
+        "values_per_hash_variance":  1.46865706 
+      }
+,     "sdbm8": {
+  "hash_time_real": 56.326, "hash_time_user": 40.160, "hash_time_sys": 15.880,
+        "collisions":  3319936 ,
+        "colliding_hashes":  256,
+        "values_per_hash_mean":  12969.50000000 ,
+        "values_per_hash_variance":  483857.90039063 
+      }
+,     "sdbm16": {
+  "hash_time_real": 60.796, "hash_time_user": 43.003, "hash_time_sys": 17.697,
+        "collisions":  3254656 ,
+        "colliding_hashes":  65536,
+        "values_per_hash_mean":  50.66210937 ,
+        "values_per_hash_variance":  50.71266690 
+      }
+,     "sdbm32": {
+  "hash_time_real": 60.259, "hash_time_user": 42.687, "hash_time_sys": 17.380,
+        "collisions":  1070 ,
+        "colliding_hashes":  1070,
+        "values_per_hash_mean":  1.00032237 ,
+        "values_per_hash_variance":  1.00032237 
+      }
+,     "sdbm64": {
+  "hash_time_real": 61.893, "hash_time_user": 44.247, "hash_time_sys": 17.443,
+        "collisions":  0 ,
+        "colliding_hashes":  0,
+        "values_per_hash_mean":  1.00000000 ,
+        "values_per_hash_variance":  1.00000000 
+      }
+}}
+}

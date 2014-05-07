@@ -20,7 +20,7 @@
 #ifndef META_H
 #define META_H
 
-#include <external_interface/external_interface.h>
+//#include <external_interface/external_interface.h>
 
 /**
  * Provide for binary literals (up to 8 bits).
@@ -113,6 +113,20 @@ struct Log<x, base, true> {
 	static const unsigned long value = 0;
 };
 
+
+template<unsigned long long base, unsigned long exp>
+struct Pow {
+	//static const unsigned long value = ;base * Pow<base, exp - 1>::value
+	enum { value = base * Pow<base, exp - 1>::value };
+};
+
+template<unsigned long long base>
+struct Pow<base, 0> {
+	//static const unsigned long value = 1UL;
+	enum { value = 1UL };
+};
+
+
 template<unsigned long x, unsigned long base, bool layer0 = (x <= 1)>
 struct TreeNodes {
 	static const unsigned long value = x + TreeNodes< DivCeil<x, base>::value , base>::value;
@@ -162,6 +176,8 @@ template<> struct Uint<2> { typedef ::uint16_t t; };
 template<> struct Uint<4> { typedef ::uint32_t t; };
 template<> struct Uint<8> { typedef ::uint64_t t; };
 
+typedef Uint<sizeof(void*)>::t Uvoid ;
+
 template<int N_> struct Sint { };
 template<> struct Sint<1> { typedef ::int8_t t; };
 template<> struct Sint<2> { typedef ::int16_t t; };
@@ -173,10 +189,8 @@ template<> struct Sint<8> { typedef ::int64_t t; };
  *
  */
 template<typename T>
-//struct AsUint {
-//	typedef typename Uint<sizeof(T)>::t t;
-	typename Uint<sizeof(T)>::t as_uint(T& src) { return *reinterpret_cast<typename Uint<sizeof(T)>::t*>(&src); }
-//};
+typename Uint<sizeof(T)>::t as_uint(const T& src) { return *reinterpret_cast<const typename Uint<sizeof(T)>::t*>(&src); }
+
 
 template<int N_ >
 struct UintWithAtLeastBits {

@@ -36,10 +36,22 @@ class BitmapAllocator {
 	public:
 		typedef OsModel_P OsModel;
 		enum { BUFFER_SIZE = BUFFER_SIZE_P };
-		//enum { BITMAP_SIZE = (BUFFER_SIZE + 1 + 7) / 8 };
+
+		/// Size of smallest allocatable chunk.
 		enum { BLOCK_SIZE = BLOCK_SIZE_P };
-		enum { BITMAP_BLOCKS = ((BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE) };
-		enum { BITMAP_SIZE = ((BITMAP_BLOCKS + 7) / 8) };
+
+		/// Number of blocks available for allocation.
+		//enum { BITMAP_BLOCKS = ((BUFFER_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE) };
+		enum { BITMAP_BLOCKS = BUFFER_SIZE / BLOCK_SIZE };
+
+		/// Number of bytes needed for bitmap.
+		// Note like with BITMAP_BLOCKS we round *down* here, thus potentially
+		// wasting a few blocks for the sake of a more manageable
+		// implementation.
+		// If you want to avoid this wasting, make sure
+		// to pass a BUFFER_SIZE that is a multiple of 8 * BLOCK_SIZE
+		//enum { BITMAP_SIZE = ((BITMAP_BLOCKS + 7) / 8) };
+		enum { BITMAP_SIZE = BITMAP_BLOCKS / 8 };
 		
 		typedef BitmapAllocator<OsModel, BUFFER_SIZE> self_type;
 		typedef typename OsModel::size_t size_type;
@@ -70,10 +82,14 @@ class BitmapAllocator {
 		}; // __attribute__((__packed__));
 		
 		BitmapAllocator() {
-			for(size_type i=0; i<BITMAP_SIZE; i++) {
+			/*
+			for(size_type i=0; i<BITMAP_BLOCKS; i++) {
 				used_[i] = 0;
 				start_[i] = 0;
 			}
+			*/
+			memset(used_, 0, BITMAP_SIZE);
+			memset(start_, 0, BITMAP_SIZE);
 		}
 		
 		template<typename T>
@@ -83,7 +99,10 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate_raw() {
-			block_data_t* r = first_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			//#ifdef CONTIKI
+				//printf("araw %d<=%d*%d\n", (int)sizeof(T), (int)(sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE, (int)BLOCK_SIZE);
+			//#endif
+			block_data_t* r = best_fit((sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			new((void*)r, true) T;
 			return (T*)r;
 		}
@@ -95,7 +114,10 @@ class BitmapAllocator {
 		
 		template<typename T>
 		T* allocate_array_raw(size_type n) {
-			block_data_t *r = first_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
+			//#ifdef CONTIKI
+				//printf("aarr %d*%d<=%d*%d\n", (int)n, (int)sizeof(T), (int)(n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE, (int)BLOCK_SIZE);
+			//#endif
+			block_data_t *r = best_fit((n * sizeof(T) + BLOCK_SIZE - 1) / BLOCK_SIZE);
 			for(size_type i=0; i<n; i++) {
 				new((T*)r + i, true) T;
 			}
@@ -125,8 +147,8 @@ class BitmapAllocator {
 		
 		block_data_t* first_fit(size_type required_blocks) {
 			size_type start_pos = 0, length = 0;
-			for(size_type i=0; i<BITMAP_SIZE; i++) {
-				if(used()[i]) {
+			for(size_type i=0; i<BITMAP_BLOCKS; i++) {
+				if(used().get(i)) {
 					length = 0;
 					start_pos = i+1;
 				}
@@ -137,25 +159,119 @@ class BitmapAllocator {
 					}
 				}
 			}
+			
+			#ifdef CONTIKI
+			printf("!allocf %dx%d\n", (int)required_blocks, (int)BLOCK_SIZE);
+			#endif
+			
 			return 0;
 		}
 		
+		block_data_t* best_fit(size_type required_blocks) {
+			//#if defined(CONTIKI) || defined(PC)
+			//printf("a(%d)\n", required_blocks);
+			//#endif
+			
+			size_type best_start_pos = 0, best_length = -1;
+			size_type start_pos = 0, length = 0;
+			
+			for(size_type i=0; i<BITMAP_BLOCKS; i++) {
+				if(used().get(i)) {
+					if(length >= required_blocks && length < best_length) {
+						best_length = length;
+						best_start_pos = start_pos;
+						if(best_length == required_blocks) {
+							break;
+						}
+					}
+					length = 0;
+					start_pos = i+1;
+				}
+				else {
+					length++;
+				}
+			}
+			
+			
+			if(length >= required_blocks && length < best_length && length >= required_blocks) {
+				best_length = length;
+				best_start_pos = start_pos;
+			}
+			
+			if(best_length == (size_type)(-1)) {
+				#if defined(CONTIKI) || defined(PC)
+				printf("!allocb %dx%d\n", (int)required_blocks, (int)BLOCK_SIZE);
+				#endif
+				return 0;
+			}
+			
+			//#if defined(CONTIKI) || defined(PC)
+			//printf("a(%d)->%d\n", (int)required_blocks, (int)best_start_pos);
+			//#endif
+			return allocate_chunk(best_start_pos, required_blocks);
+		}
+		
 		block_data_t* allocate_chunk(size_type pos, size_type required_blocks) {
-			start().set(pos, true);
 			for(size_type i=pos; i<pos + required_blocks; i++) {
+				start().set(i, false);
+
+				assert(used().get(i) == false);
 				used().set(i, true);
 			}
+			start().set(pos, true);
 			start().set(pos + required_blocks, true);
+			debug();
 			return buffer_ + BLOCK_SIZE * pos;
 		}
 		
 		void free_chunk(block_data_t* ptr) {
 			size_type pos = (ptr - buffer_) / BLOCK_SIZE;
-			
-			start().set(pos, false);
+			size_type p0 = pos;
+
+			assert(start().get(p0) == true);
+			//start().set(pos, false);
+
+			size_type freed = 0;
 			do {
+				assert(used().get(pos) == true);
 				used().set(pos, false);
-			} while(!start()[pos++]);
+				freed++;
+				pos++;
+			} while(!start()[pos] && pos < BITMAP_BLOCKS);
+
+			// If previous block is free, merge!
+			if(p0 > 0 && !used()[p0 - 1]) {
+				start().set(p0, false);
+			}
+			else {
+				start().set(p0, true);
+			}
+			
+			// If the following block is free, merge!
+			if(pos < BITMAP_BLOCKS && !used()[pos]) {
+				assert(start().get(pos) == true);
+				start().set(pos, false);
+			}
+
+			//#if defined(CONTIKI) || defined(PC)
+			//printf("f(%d)->%d\n", (int)p0, (int)freed);
+			//#endif
+			debug();
+		}
+
+		void debug() {
+			#if defined(PC)
+				enum { L = 16 };
+				char u[L + 1], s[L + 1];
+				for(int i = 0; i < L; i++) {
+					u[i] = used().get(i) ? '1' : '0';
+					s[i] = start().get(i) ? '1' : '0';
+				}
+				u[L] = '\0';
+				s[L] = '\0';
+				printf("used : %s\n", u);
+				printf("start: %s\n", s);
+			#endif
 		}
 		
 		bitarray_t& start() { return *((bitarray_t*)start_); }

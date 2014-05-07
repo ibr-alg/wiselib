@@ -53,7 +53,7 @@ namespace wiselib {
 			typedef GraphPatternSelection<OsModel_P, Processor_P> self_type;
 			typedef typename RowT::Value Value;
 			
-			enum { MAX_STRING_LENGTH = 256 };
+			//enum { MAX_STRING_LENGTH = 256 };
 			enum { TS_SEMANTIC_COLUMNS = 3 };
 			
 			void init(GraphPatternSelectionDescription<OsModel, Processor> *gpsd, Query *query) {
@@ -80,7 +80,6 @@ namespace wiselib {
 			}
 			
 			void execute(TupleStoreT& ts) {
-				//DBG("GPS execute");
 				typedef typename TupleStoreT::TupleContainer Container;
 				typedef typename Container::iterator Citer;
 				
@@ -94,8 +93,6 @@ namespace wiselib {
 						
 						if(affected_[i]) {
 							if(values_[i] != v) {
-								//DBG("not matching because [%d] = %08lx != %08lx",
-										//(int)i, (unsigned long)values_[i], (unsigned long)v);
 								match = false;
 								break;
 							}
@@ -103,10 +100,8 @@ namespace wiselib {
 						
 						switch(this->projection_info().type(i)) {
 							case ProjectionInfoBase::IGNORE:
-								//DBG("col %d ignore", i);
 								break;
 							case ProjectionInfoBase::INTEGER: {
-								//DBG("col %d INT", i);
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								long l = atol((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&l);
@@ -114,7 +109,6 @@ namespace wiselib {
 								break;
 							}
 							case ProjectionInfoBase::FLOAT: {
-								//DBG("col %d FLOAT", i);
 								block_data_t *s = this->dictionary().get_value(iter->get_key(i));
 								float f = atof((char*)s);
 								(*row)[row_idx++] = *reinterpret_cast<Value*>(&f);
@@ -122,7 +116,6 @@ namespace wiselib {
 								break;
 							}
 							case ProjectionInfoBase::STRING:
-								//DBG("col %d STRING", i);
 								(*row)[row_idx++] = v;
 								this->reverse_translator().offer(iter->get_key(i), v);
 								break;

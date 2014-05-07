@@ -112,7 +112,6 @@ namespace wiselib {
 			void mark(size_type offset, size_type n) {
 				size_type pos = offset / WORDBITS;
 				if(offset % WORDBITS) {
-					//GET_OS.debug("offset %% WORDBITS != 0");
 					word_t &w = *reinterpret_cast<word_t*>(data_ + pos * sizeof(word_t));
 					// word 'starts' at lsb, ends at msb
 					// set to 0 all bits from offset % WORDBITS to msb.

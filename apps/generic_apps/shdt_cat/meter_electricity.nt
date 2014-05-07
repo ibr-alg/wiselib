@@ -1,0 +1,4 @@
+<http://example.org/ex/Sensor> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/ex/ElectricityMeter> .
+<http://example.org/ex/Sensor> <http://purl.oclc.org/NET/ssnx/ssn#featureOfInterest> <http://example.org/ex/EffectivePowerDraw> .
+<http://example.org/ex/Sensor> <http://purl.oclc.org/NET/ssnx/ssn#detects> <http://example.org/ex/TimeIntegral> .
+<http://example.org/ex/Sensor> <http://example.org/ex/chargeModel> <http://example.org/ex/Free> .

@@ -117,7 +117,7 @@ namespace wiselib {
 					 * header size of the instruction else.
 					 */
 					int header_size() {
-						return (data_[0] == nidx) ? header_size(command()) : -1;
+						return is_tuple() ? -1 : header_size(command());
 					}
 					
 					static bool has_payload(block_data_t cmd) {
@@ -245,7 +245,9 @@ namespace wiselib {
 									data, data_size,
 									buffer_current_, buffer_end_ - buffer_current_,
 									pos, n_avoid, avoid);
-							if(call_again) { write_callback_(*this); }
+							if(call_again) {
+								write_callback_(*this);
+							}
 						}
 						while(call_again);
 						
@@ -260,6 +262,7 @@ namespace wiselib {
 						Instruction in;
 						for(size_type i = 0; i < serializer_->tuple_size(); ++i) {
 							in.tuple()[i] = write_data(t.get(i), t.length(i), i, in.tuple());
+							assert(in.tuple()[i] != -1);
 						}
 						write_instruction(in);
 						
@@ -314,7 +317,9 @@ namespace wiselib {
 							call_again = serializer_->write_instruction(in, buffer_current_, buffer_end_);
 							check();
 							
-							if(call_again) { write_callback_(*this); }
+							if(call_again) {
+								write_callback_(*this);
+							}
 							check();
 						}
 						while(call_again);
@@ -342,6 +347,7 @@ namespace wiselib {
 					 */
 					bool read_field(field_id_t& field_id, block_data_t*& data, size_type& data_size) {
 						Instruction in = serializer_->read_instruction(buffer_current_, buffer_end_);
+						
 						while(buffer_current_ < buffer_end_ && in.command() != CMD_VALUE && in.command() != CMD_TABLE_VALUE && in.command() != CMD_END) {
 							serializer_->process_instruction(in);
 							in = serializer_->read_instruction(buffer_current_, buffer_end_);
@@ -596,7 +602,6 @@ namespace wiselib {
 			bool write_instruction(Instruction& in, block_data_t*& buffer, block_data_t* buffer_end) {
 				int hs = in.header_size();
 				if(hs == -1) { hs = tuple_size_; }
-				
 				if(buffer + hs + (in.has_payload() ? in.payload_size() : 0) > buffer_end) { return true; }
 				
 				memcpy(buffer, &in, hs);
@@ -613,7 +618,6 @@ namespace wiselib {
 			 */
 			Instruction read_instruction(block_data_t*& buffer, block_data_t* buffer_end) {
 				Instruction in;
-				
 				if((buffer_end - buffer) < MIN_INSTRUCTION_HEADER_SIZE) {
 					return in;
 				}
@@ -639,65 +643,49 @@ namespace wiselib {
 					in.payload() = buffer;
 					buffer += in.payload_size();
 				}
+				
 				return in;
 			}
 			
 			/**
 			 */
 			void process_instruction(Instruction& in) {
-				switch(in.command()) {
-					case CMD_HEADER: {
-						HeaderInstruction& head = (HeaderInstruction&)in;
-						table_size_ = head.table_size();
-						assert(table_size_ > 0);
-						tuple_size_ = head.tuple_size();
-						
-						// TODO: Do something appropriate if we receive a
-						// wrong version number!
-						break;
-					}
-						
-					case CMD_INSERT: {
-						InsertInstruction& ins = (InsertInstruction&)in;
-						assert(ins.index() < table_size());
-						assert(ins.payload_size() > 0);
-						set_table(ins.index(), ins.payload(), ins.payload_size());
-						break;
-					}
-						
-					case CMD_VALUE:
-					case CMD_TABLE_VALUE:
-					case CMD_TUPLE:
-						assert(false && "dunno how to process this");
-						break;
-						
-					case CMD_END:
-						break;
-						
-					case CMD_CAT: {
-						CatInstruction& cat = (CatInstruction&)in;
-						
-						assert(cat.source_index() < table_size_);
-						assert(cat.target_index() < table_size_);
-						
-						size_type current_size;
-						block_data_t *current = get_table(cat.source_index(), current_size);
-						assert(current != 0);
-						
-						size_type l = cat.source_prefix() + cat.payload_size();
-						block_data_t buf[l];
-						memcpy(buf, current, cat.source_prefix()); //current_size);
-						memcpy(buf + cat.source_prefix(), cat.payload(), cat.payload_size());
-						set_table(cat.target_index(), buf, l);
-						break;
-					}
+				
+				if(in.command() == CMD_HEADER) {
+					HeaderInstruction *head = reinterpret_cast<HeaderInstruction*>(&in);
+					table_size_ = head->table_size();
+					assert(table_size_ > 0);
+					tuple_size_ = head->tuple_size();
 					
+					// TODO: Do something appropriate if we receive a
+					// wrong version number!
+				}
+				else if(in.command() == CMD_INSERT) {
+					InsertInstruction *ins = reinterpret_cast<InsertInstruction*>(&in);
+					//assert(ins->index() < table_size());
+					//assert(ins->payload_size() > 0);
+					
+					set_table(ins->index(), ins->payload(), ins->payload_size());
+				}
+				else if(in.command() == CMD_CAT) {
+					CatInstruction *cat = reinterpret_cast<CatInstruction*>(&in);
+					
+					//assert(cat->source_index() < table_size_);
+					//assert(cat->target_index() < table_size_);
+					
+					size_type current_size;
+					block_data_t *current = get_table(cat->source_index(), current_size);
+					assert(current != 0);
+					
+					size_type l = cat->source_prefix() + cat->payload_size();
+					block_data_t buf[512];
+					memcpy(buf, current, cat->source_prefix()); //current_size);
+					memcpy(buf + cat->source_prefix(), cat->payload(), cat->payload_size());
+					set_table(cat->target_index(), buf, l);
 				}
 			}
-			
+
 			void set_table(table_id_t id, block_data_t* data, sz_t data_size) {
-				//assert(strlen((char*)data) + 1 >= data_size);
-				
 				if(lookup_table_[id]) {
 					get_allocator().free_array(lookup_table_[id]);
 					lookup_table_[id] = 0;

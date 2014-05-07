@@ -45,7 +45,7 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
-		typename Radio_P
+		typename Radio_P = typename OsModel_P::Radio_P
 	>
 	class FloodingNd : public RadioBase<OsModel_P, typename Radio_P::node_id_t, typename Radio_P::size_t, typename Radio_P::block_data_t> {
 		
@@ -122,20 +122,30 @@ namespace wiselib {
 			
 			void enable() { }
 			
+			block_data_t message[Radio::MAX_MESSAGE_LENGTH];
+
 			int send(node_id_t _, size_t size, block_data_t* data) {
+				printf("FL0\n");
 				
 				base_type::notify_receivers(radio_->id(), size, data);
 				
-				block_data_t message[Radio::MAX_MESSAGE_LENGTH];
+				printf("FL1\n");
 				message_id_t m = MESSAGE_ID_FLOODING;
 				
+				printf("FL2\n");
 				wiselib::write<OsModel>(message, m);
 				sequence_number_++;
+				printf("FL3\n");
 				wiselib::write<OsModel>(message + sizeof(message_id_t), sequence_number_);
+				printf("FL4\n");
 				memcpy(message + sizeof(message_id_t) + sizeof(sequence_number_t), data, size);
 				
+				//Serial.println("fnd bcast");
 				//on_receive(radio_->id(), size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				printf("FL5\n");
 				radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				//radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
+				//radio_->send(Radio::BROADCAST_ADDRESS, size + sizeof(message_id_t) + sizeof(sequence_number_t), message);
 				return SUCCESS;
 			}
 			
@@ -155,7 +165,7 @@ namespace wiselib {
 				return iterator(0);
 			}
 			
-			iterator neighbors_count(typename Neighbor::State state) {
+			size_type neighbors_count(typename Neighbor::State state) {
 				return (state & Neighbor::OUT_EDGE) && parent_set_;
 			}
 			
@@ -175,18 +185,27 @@ namespace wiselib {
 			
 		private:
 			void on_receive(node_id_t from, size_t size, block_data_t* data) {
-				if(from == radio_->id()) { return; }
-				
+				//if(from == radio_->id()) { return; }
+
+				//Serial.println("fnd recv1");
 				message_id_t msg_id = wiselib::read<OsModel, block_data_t, message_id_t>(data);
 				
 				block_data_t *d_seq = data + sizeof(message_id_t);
 				block_data_t *d_payload = d_seq + sizeof(sequence_number_t);
 				
+				//Serial.println("fnd recv2");
 				if(msg_id == MESSAGE_ID_FLOODING) {
+					printf("flood recv\n");
+
+				//Serial.println("fnd recv3");
 					sequence_number_t seq = wiselib::read<OsModel, block_data_t, sequence_number_t>(d_seq);
 					if(seq > sequence_number_) { // || (sequence_number_ == MAX_SEQUENCE_NUMBER && seq != sequence_number_)) {
+				//Serial.println("fnd recv4");
 						base_type::notify_receivers(from,
 								size - sizeof(sequence_number_t) - sizeof(message_id_t), d_payload);
+						
+						if(from == radio_->id()) { return; }
+
 						radio_->send(Radio::BROADCAST_ADDRESS, size, data);
 						sequence_number_ = seq;
 						parent_.set_id(from);

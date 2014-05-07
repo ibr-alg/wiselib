@@ -23,11 +23,11 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Trivial hash function that returns the value of the first byte
+     * in the string (or 0, if the length of the string is 0).
+     * Useful as baseline for performance comparisons.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
+	 * @ingroup Hash_concept
 	 */
 	template<
 		typename OsModel_P

@@ -24,7 +24,17 @@
 #include "config_testing.h"
 #include <isense/os.h>
 #include <isense/radio.h>
+
+#define class struct
+#define private public
+#define protected public
+
 #include <isense/hardware_radio.h>
+
+#undef private
+#undef protected
+#undef class
+
 #include <isense/dispatcher.h>
 #include <isense/time.h>
 
@@ -121,7 +131,7 @@ namespace wiselib {
         };
 #else //ISENSE_RADIO_ADDRESS_LENGTH == 64
         enum Restrictions {
-            MAX_MESSAGE_LENGTH = 104 ///< Maximal number of bytes in payload
+            MAX_MESSAGE_LENGTH = 116 - 12 ///< Maximal number of bytes in payload
         };
 #endif
 
@@ -142,12 +152,14 @@ namespace wiselib {
             os_.srand(os_.id());
 #endif
             enabled_ = true;
+            //id_ = id();
         }
         // --------------------------------------------------------------------
 
         int
         send(node_id_t id, size_t len, block_data_t *data) {
             if(!enabled_) {
+                //os().debug("=== not enabled!");
                 return ERR_UNSPEC;
             }
             
@@ -163,6 +175,17 @@ namespace wiselib {
 #endif
 
             //os().debug("isense::send(%d, %d)\n", (uint32)(id & 0xffffffff), (uint32)(len & 0xffffffff));
+            
+            
+            //node_id_t isense::HardwareRadio::*p = &isense::HardwareRadio::src_addr_;
+            //unsigned long long d = *reinterpret_cast<unsigned long long*>(p);
+    //        *(&os().radio().hardware_radio().src_addr_) = id_;
+            //unsigned long d = reinterpret_cast<unsigned long>(&isense::HardwareRadio::src_addr_);
+            //*(node_id_t*)((uint8_t*)os().radio() + d) = id_;
+            
+            
+            //os().debug("==== isense sending: l%d %d %d %d %d -> %8llx", (int)len, (int)data[0], (int)data[1], (int)data[2], (int)data[3], (unsigned long long)id);
+            
 #ifdef DEBUG_ISENSE_EXTENDED_TX_RADIO
             uint8 options = isense::Radio::ISENSE_RADIO_TX_OPTION_NONE;
             if ( id != BROADCAST_ADDRESS ) {
@@ -211,13 +234,16 @@ namespace wiselib {
         // --------------------------------------------------------------------
 
         int disable_radio() {
+            enabled_ = false;
             os().radio().disable();
             enabled_ = false;
+            os().radio().disable();
             return SUCCESS;
         }
         // --------------------------------------------------------------------
 
         node_id_t id() {
+            //return id_;
             return os().id();
         }
         // --------------------------------------------------------------------
@@ -236,6 +262,7 @@ namespace wiselib {
                     return i;
                 }
             }
+            os().fatal("!rrecv");
             return -1;
         }
         // --------------------------------------------------------------------
@@ -249,6 +276,7 @@ namespace wiselib {
                     return i;
                 }
             }
+            os().fatal("!rerecv");
             return -1;
         }
         // --------------------------------------------------------------------
@@ -279,6 +307,7 @@ namespace wiselib {
         {
           //os_.fatal("RECV %d from %x len=%d\n", buf[0], src_addr, len);
           //os_.debug("RECV!!!\n");
+            //os().debug("==== @%8llx isense receiving: l%d %d %d %d %d %8llx->%8llx", (unsigned long long)id(), (int)len, (int)buf[0], (int)buf[1], (int)buf[2], (int)buf[3], (unsigned long long)src_addr, (unsigned long long)dest_addr);
             for (int i = 0; i < MAX_INTERNAL_RECEIVERS; i++) {
                 if (isense_radio_callbacks_[i])
                     isense_radio_callbacks_[i](src_addr, len, const_cast<uint8*> (buf));
@@ -304,6 +333,7 @@ namespace wiselib {
         isense_radio_delegate_t isense_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
         extended_radio_delegate_t isense_ext_radio_callbacks_[MAX_EXTENDED_RECEIVERS];
         bool enabled_;
+        node_id_t id_;
     };
     // --------------------------------------------------------------------
 

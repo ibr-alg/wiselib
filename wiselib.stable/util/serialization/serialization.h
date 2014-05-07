@@ -42,7 +42,7 @@ namespace wiselib
       static inline size_t write( BlockData *target, Type& value )
       {
          for ( unsigned int i = 0; i < sizeof(Type); i++ )
-            target[sizeof(Type) - 1 - i] = *((BlockData*)&value + i);
+            target[sizeof(Type) - 1 - i] = *(((BlockData*)&value) + i);
          return sizeof(Type);
       }
       // --------------------------------------------------------------------
@@ -50,7 +50,7 @@ namespace wiselib
       {
          Type value;
          for ( unsigned int i = 0; i < sizeof(Type); i++ )
-            *((BlockData*)&value + i) = target[sizeof(Type) - 1 - i];
+            *(((BlockData*)&value) + i) = target[sizeof(Type) - 1 - i];
          return value;
       }
 
@@ -73,7 +73,7 @@ namespace wiselib
       static inline size_t write( BlockData *target, Type& value )
       {
          for ( unsigned int i = 0; i < sizeof(Type); i++ )
-            target[i] = *((BlockData*)&value + i);
+            target[i] = *(((BlockData*)&value) + i);
          return sizeof(Type);
       }
       // --------------------------------------------------------------------
@@ -81,7 +81,7 @@ namespace wiselib
       {
          Type value;
          for ( unsigned int i = 0; i < sizeof(Type); i++ )
-            *((BlockData*)&value + i) = target[i];
+            *(((BlockData*)&value) + i) = target[i];
          return value;
       }
 

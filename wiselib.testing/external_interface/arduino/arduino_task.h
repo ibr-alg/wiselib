@@ -16,7 +16,7 @@
  ** License along with the Wiselib.                                       **
  ** If not, see <http://www.gnu.org/licenses/>.                           **
  ***************************************************************************/
-//------------This file is copied from the commit by Henning(Droggelbecher) in the integration/inse branch--------------//
+
 #ifndef ARDUINO_TASK_H
 #define ARDUINO_TASK_H
 

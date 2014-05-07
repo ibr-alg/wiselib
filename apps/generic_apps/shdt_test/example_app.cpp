@@ -1,5 +1,7 @@
 
 #define SHDT_REUSE_PREFIXES 1
+#define USE_CODEC 1
+#define MAX_STRING_LENGTH 2048
 
 #include "platform.h"
 
@@ -12,6 +14,10 @@ typedef Os::size_t size_type;
 typedef Os::block_data_t block_data_t;
 
 typedef wiselib::ShdtSerializer<Os, 128, 4> Shdt;
+
+#include <algorithms/codecs/huffman_codec.h>
+typedef HuffmanCodec<Os> Codec;
+
 
 struct Tuple {
 	void set(size_t idx, block_data_t* data) {
@@ -103,6 +109,36 @@ class ExampleApplication {
 		}
 		
 		
+		/*
+		block_data_t* escape_ff(block_data_t *s) {
+			static block_data_t r[MAX_STRING_LENGTH];
+			for(block_data_t *p = r; *s; s++, p++) {
+				if(s == 0xff) {
+					*p++ = 0xff;
+				}
+				*p = *s;
+			}
+			*p = '\0';
+			return r;
+		}
+		
+		block_data_t* unescape_ff(block_data_t *s) {
+			static block_data_t r[MAX_STRING_LENGTH];
+			bool escaped = false;
+			for(block_data_t *p = r; *s; s++, p++) {
+				if(s == 0xff) {
+					if(escaped) {
+						assert(*s == 0xff);
+						*p = 0xff;
+					*p++ = 0xff;
+				}
+				*p = *s;
+			}
+			*p = '\0';
+			return r;
+		}
+		*/
+		
 		void shdt_test_send_tuples() {
 			
 			Shdt::Writer w(&sender, buffer_, bufsize_,
@@ -111,11 +147,28 @@ class ExampleApplication {
 			
 			for(block_data_t** t = test_tuples_; t[0]; t += 3) {
 				Tuple tuple;
-				tuple.set(0, t[0]); cstr_size_ += strlen((char*)t[0]) + 1;
-				tuple.set(1, t[1]); cstr_size_ += strlen((char*)t[1]) + 1;
-				tuple.set(2, t[2]); cstr_size_ += strlen((char*)t[2]) + 1;
+				
+				#if USE_CODEC
+					block_data_t *s = Codec::encode(t[0]);
+					tuple.set(0, s); cstr_size_ += strlen((char*)s) + 1;
+					s = Codec::encode(t[1]);
+					tuple.set(1, s); cstr_size_ += strlen((char*)s) + 1;
+					s = Codec::encode(t[2]);
+					tuple.set(2, s); cstr_size_ += strlen((char*)s) + 1;
+				
+				#else
+					tuple.set(0, t[0]); cstr_size_ += strlen((char*)t[0]) + 1;
+					tuple.set(1, t[1]); cstr_size_ += strlen((char*)t[1]) + 1;
+					tuple.set(2, t[2]); cstr_size_ += strlen((char*)t[2]) + 1;
+				#endif
 				
 				w.write_tuple(tuple);
+				
+				#if USE_CODEC
+					::get_allocator().free_array(tuple.get(0));
+					::get_allocator().free_array(tuple.get(1));
+					::get_allocator().free_array(tuple.get(2));
+				#endif
 			}
 			
 			w.flush();
@@ -136,11 +189,24 @@ class ExampleApplication {
 				if(!found) { break; }
 				
 				for(size_type i = 0; i < 3; i++, verify_idx_++) {
+					char *s;
+					#if USE_CODEC
+						s = (char*)Codec::decode(t.get(i));
+					#else
+						s = (char*)t.get(i);
+					#endif
+					
+					
 					//DBG("t[%d]=%s test[%d]=%s", i, t.get(i), verify_idx_, test_tuples_[verify_idx_]);
-					if(strcmp((char*)t.get(i), (char*)test_tuples_[verify_idx_]) != 0) {
+					if(strcmp(s, (char*)test_tuples_[verify_idx_]) != 0) {
 						debug_->debug("\x1b[31merror: t[%d]=%s != vrfy[%d]=%s\x1b[m", (int)i, (char*)t.get(i),
 								(int)verify_idx_, (char*)test_tuples_[verify_idx_]);
+						assert(false);
 					}
+					
+					#if USE_CODEC
+						::get_allocator().free_array(s);
+					#endif
 				}
 			}
 			
@@ -151,7 +217,7 @@ class ExampleApplication {
 		Shdt sender;
 		Shdt receiver;
 		
-		block_data_t buffer_[512];
+		block_data_t buffer_[512000];
 		Os::Timer::self_pointer_t timer_;
 		Os::Debug::self_pointer_t debug_;
 };

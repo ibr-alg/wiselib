@@ -23,6 +23,16 @@
 #include "external_interface/arduino/arduino_os.h"
 #include "arduino_task.h"
 
+#include <avr/sleep.h>
+#include <avr/wdt.h>
+
+#ifndef cbi
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
+#endif
+#ifndef sbi
+#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
+#endif
+
 namespace wiselib
 {
 
@@ -33,29 +43,79 @@ namespace wiselib
       typedef ArduinoOsModel OsModel;
       typedef Application_P Application;
       // --------------------------------------------------------------------
-      void init(typename OsModel::AppMainParameter& amp)
+      //void init(typename OsModel::AppMainParameter& amp)
+      void init(ArduinoOsModel& amp)
       {
          app.init(amp);
       };
    private:
       Application app;
    };
+
 }
 
-ISR(TIMER1_COMPA_vect)
+void application_main(wiselib::ArduinoOsModel&);
+
+#if WISELIB_CREATE_MAIN
+int main(int argc, const char** argv) {
+   wiselib::ArduinoOsModel app_main_arg;
+   init();
+   
+   #if defined(USBCON)
+      USBDevice.attach();
+   #endif
+      
+   pinMode(13, OUTPUT);
+   
+   digitalWrite(13, HIGH);
+   
+   Serial.begin(9600);
+   application_main(app_main_arg);
+   
+   digitalWrite(13, LOW);
+   
+   while(true) {
+      while(true) {
+         cli();
+         if(wiselib::ArduinoTask::tasks_.empty()) {
+            sleep_enable();
+            sei();
+            sleep_cpu();
+            sleep_disable();
+            sei();
+            delay(10);
+         }
+         else {
+            sei();
+            break;
+         }
+      }
+      
+      wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+      wiselib::ArduinoTask::tasks_.pop();
+      t.callback_(t.userdata_);
+      delay(10);
+   }
+   return 0;
+}
+#endif
+
+ISR(TIMER2_COMPA_vect)
 {
-   TIMSK1 &= ~(1<<OCIE1A);
    typedef wiselib::ArduinoTimer<wiselib::ArduinoOsModel> Timer;
+   
+   TIMSK2 &= ~(1<<OCIE2A);
+   
    ::uint32_t now = millis();
    wiselib::current_arduino_timer = Timer::arduino_queue.top();
-   if(wiselib::current_arduino_timer.event_time <= now)
-   {
-     wiselib::current_arduino_timer = Timer::arduino_queue.pop();
-     wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
+   if(wiselib::current_arduino_timer.event_time <= now) {
+      wiselib::current_arduino_timer = Timer::arduino_queue.pop();
+      wiselib::ArduinoTask::enqueue(wiselib::current_arduino_timer.cb, wiselib::current_arduino_timer.ptr);
    }
-   Timer::fix_rate(); // fix_rate() does this for us (if it deems
-		      //necessary, that is!)
+   
+   Timer::fix_rate();
 }
+
 
 #endif
 

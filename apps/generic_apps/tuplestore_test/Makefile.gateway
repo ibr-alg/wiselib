@@ -1,0 +1,11 @@
+
+all: contiki_sky
+
+export APP_SRC=app_gateway.cpp
+export BIN_OUT=app_gateway
+
+export ADD_CXXFLAGS="-Wno-write-strings"
+export WISELIB_EXIT_MAIN=0
+
+include ../Makefile
+

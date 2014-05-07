@@ -26,11 +26,8 @@
 namespace wiselib {
 	
 	/**
-	 * @brief
+	 * @brief Message for intermediate INQP results.
 	 * 
-	 * @ingroup
-	 * 
-	 * @tparam 
 	 */
 	template<
 		typename OsModel_P,
@@ -49,13 +46,16 @@ namespace wiselib {
 			typedef typename Query::query_id_t query_id_t;
 			typedef typename Query::BOD BOD;
 			typedef typename Query::BOD::operator_id_t operator_id_t;
+			typedef typename Radio::node_id_t physical_node_id_t;
 			
 			enum {
 				POS_MESSAGE_ID = 0,
 				POS_QUERY_ID = POS_MESSAGE_ID + sizeof(message_id_t),
 				POS_OPERATOR_ID = POS_QUERY_ID + sizeof(query_id_t),
-				HEADER_SIZE = POS_OPERATOR_ID + sizeof(operator_id_t),
-				POS_PAYLOAD = HEADER_SIZE,
+				POS_FROM = POS_OPERATOR_ID + sizeof(operator_id_t),
+				POS_PAYLOAD_SIZE = POS_FROM + sizeof(physical_node_id_t),
+				POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof(::uint8_t),
+				HEADER_SIZE = POS_PAYLOAD,
 			};
 			
 			message_id_t message_id() {
@@ -66,6 +66,15 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_MESSAGE_ID, msgid);
 			}
 			
+			physical_node_id_t from() {
+				return wiselib::read<OsModel, block_data_t, physical_node_id_t>(data_ + POS_FROM);
+			}
+			
+			void set_from(physical_node_id_t f) {
+				wiselib::write<OsModel>(data_ + POS_FROM, f);
+			}
+			
+			
 			query_id_t query_id() {
 				return wiselib::read<OsModel, block_data_t, query_id_t>(data_ + POS_QUERY_ID);
 			}
@@ -74,16 +83,50 @@ namespace wiselib {
 				wiselib::write<OsModel>(data_ + POS_QUERY_ID, qid);
 			}
 			
-			block_data_t* payload() { return data_ + POS_PAYLOAD; }
+			//block_data_t* payload() { return data_ + POS_PAYLOAD; }
+			//size_type payload_size() { return wiselib::read<OsModel, block_data_t, ::uint8_t>(data_ + POS_PAYLOAD_SIZE); }
+			//void set_payload_size(::uint8_t s) {
+				//wiselib::write<OsModel, block_data_t, ::uint8_t>(data_ + POS_PAYLOAD_SIZE, s);
+			//}
+			void set_payload(size_type len, block_data_t* payload) {
+				//payload_length_ = len;
+				assert(len > 0 && (payload != 0));
+				wr< ::uint8_t>(POS_PAYLOAD_SIZE, (::uint8_t)len);
+				memcpy(data_ + POS_PAYLOAD, payload, len);
+			}
+			
+			block_data_t* payload_data() {
+				return data_ + POS_PAYLOAD;
+			}
+			
+			/**
+			 * Given the total packet size, return the payload size.
+			 */
+			size_type payload_size() {
+				return rd< ::uint8_t>(POS_PAYLOAD_SIZE);
+			}
 			
 			operator_id_t operator_id() { return wiselib::read<OsModel, block_data_t, operator_id_t>(data_ + POS_OPERATOR_ID); }
 			
 			void set_operator_id(operator_id_t oid) {
 				wiselib::write<OsModel>(data_ + POS_OPERATOR_ID, oid);
 			}
+
+			block_data_t* data() { return data_; }
+			size_type size() { return HEADER_SIZE + payload_size(); }
 		
 		private:
-			block_data_t data_[0];
+			template<typename T>
+			void wr(size_type pos, T v) {
+				wiselib::write<OsModel, block_data_t, T>(data_ + pos, v);
+			}
+
+			template<typename T>
+			T rd(size_type pos) {
+				return wiselib::read<OsModel, block_data_t, T>(data_ + pos);
+			}
+
+			block_data_t data_[Radio::MAX_MESSAGE_LENGTH];
 		
 	}; // IntermediateResultMessage
 }
