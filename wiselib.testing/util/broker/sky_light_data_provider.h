@@ -19,7 +19,17 @@
 #ifndef __SKY_LIGHT_DATA_PROVIDER_H__
 #define __SKY_LIGHT_DATA_PROVIDER_H__
 
+#if defined(CONTIKI)
+	extern "C" {
+		#include <string.h>
+		#include <contiki.h>
+		#include <netstack.h>
+		#include <dev/light-sensor.h>
+	}
+#endif
 #include <external_interface/external_interface.h>
+#include <util/standalone_math.h>
+#include <util/string_util.h>
 
 namespace wiselib {
 
@@ -32,6 +42,8 @@ namespace wiselib {
 	 */
 	template<
 		typename OsModel_P,
+		typename Tuplestore_P,
+		typename Timer_P = typename OsModel_P::Timer,
 		typename Debug_P = typename OsModel_P::Debug
 	>
 	class SkyLightDataProvider {
@@ -40,9 +52,14 @@ namespace wiselib {
 			typedef self_type* self_pointer_t;
 
 			typedef OsModel_P OsModel;
-			typedef typename OsModel::size_type size_type;
+			typedef typename OsModel::size_t size_type;
+			typedef typename OsModel::size_t size_t;
 			typedef typename OsModel::block_data_t block_data_t;
+			typedef StandaloneMath<OsModel> Math;
 
+			typedef Tuplestore_P TupleStore;
+			typedef typename TupleStore::Tuple Tuple;
+			typedef typename TupleStore::iterator iterator;
 			typedef Debug_P Debug;
 			typedef Timer_P Timer;
 
@@ -56,15 +73,23 @@ namespace wiselib {
 				ERR_HOSTUNREACH = OsModel::ERR_HOSTUNREACH
 			};
 
-			SkyLightDataProvider() : debug_(0) {
+			enum {
+				MEASUREMENT_INTERVAL = 5000,
+				UPDATE_THRESHOLD = 1,
+				LIGHT_ALPHA = 50,
+			};
+
+			SkyLightDataProvider() : timer_(0), debug_(0) {
 			}
 
 			int init(
 					const char *ov,
+					TupleStore& tuple_store,
 					Timer& timer,
 					Debug& debug
 			) {
 				ov_ = ov;
+				tuple_store_ = &tuple_store;
 				timer_ = &timer;
 				debug_ = &debug;
 
@@ -72,6 +97,8 @@ namespace wiselib {
 				sensor_value_ = 0;
 
 				SENSORS_ACTIVATE(light_sensor);
+
+				take_measurement();
 
 				check();
 				return SUCCESS;
@@ -81,7 +108,10 @@ namespace wiselib {
 				return SUCCESS;
 			}
 
+			TupleStore& tuple_store() { return *tuple_store_; }
+
 			Debug& debug() { return *debug_; }
+			Timer& timer() { return *timer_; }
 
 		private:
 			void check() {
@@ -89,21 +119,29 @@ namespace wiselib {
 				assert(timer_ != 0);
 			}
 
-			void take_measurement(void *_ = 0) {
+			/**
+			 * @param p user data, a value != 0 indicates the first run (and
+			 *   guarantees a value to be inserted into the tuple store).
+			 */
+			void take_measurement(void *p = (void*)1) {
 				unsigned v = light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC);
-				sensor_value_ = (1.0 - LIGHT_ALPHA / 100.0) * sensor_value_;
+				vvv = v;
+				sensor_value_ = (
+						((1.0 - (float)LIGHT_ALPHA / 100.0) * (float)sensor_value_) +
+						(((float)LIGHT_ALPHA / 100.0) * (float)v)
+				);
 
-				if(Math::abs(sensor_value_ - saved_value_) > UPDATE_THRESHOLD) {
+				if(p != 0 || Math::abs(sensor_value_ - saved_value_) > UPDATE_THRESHOLD) {
 					update_rdf();
 				}
 
-				timer_->set_timer<self_type, &self_type::take_measurement>(MEASUREMENT_INTERVAL, this, 0);
+				timer_->template set_timer<self_type, &self_type::take_measurement>(MEASUREMENT_INTERVAL, this, 0);
 			}
 
 			void update_rdf() {
 				Tuple t;
-				t.set(0, ov_);
-				t.set(1, "<http://spitfire-project.eu/ontology/ns/value>");
+				t.set(0, (block_data_t*)ov_);
+				t.set(1, (block_data_t*)"<http://spitfire-project.eu/ontology/ns/value>");
 
 				// delete old tuple
 				iterator iter = tuple_store().begin(&t);
@@ -113,18 +151,24 @@ namespace wiselib {
 
 				char buffer[20];
 				buffer[0] = '"';
-				int l = ftoa(sizeof(buffer - 2), buffer + 1, sensor_value_, 3);
+				int l = ftoa(sizeof(buffer) - 2, buffer + 1, sensor_value_, 3);
 				assert(l != -1 && l < sizeof(buffer) - 1);
 				buffer[l] = '"';
 				buffer[l + 1] = '\0';
+				saved_value_ = sensor_value_;
 
-				t.set(2, buffer);
+				t.set(2, (block_data_t*)buffer);
+
+				//debug_->debug("+ (%s %s %s) %d %d", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2), (int)sensor_value_, (int)vvv);
 				tuple_store().insert(t);
 			}
 
 			float saved_value_;
+			int vvv;
 			float sensor_value_;
+			const char *ov_;
 
+			typename TupleStore::self_pointer_t tuple_store_;
 			typename Debug::self_pointer_t debug_;
 			typename Timer::self_pointer_t timer_;
 	};

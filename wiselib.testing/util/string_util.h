@@ -102,28 +102,30 @@ namespace wiselib {
 	
 	template<typename Value>
 	int ftoa(unsigned long buflen, char* buffer, Value v, unsigned long prec) {
-		int digits = 0;
+		int digits = 0; // digits before decimal point
 		Value v2 = v;
 		int base = 10;
 		for( ; v2 >= 1; digits++) { v2 /= base; }
-		if(digits + 1 + prec >= buflen) { return -1; }
+		if(digits == 0) { digits = 1; }
+		if(digits + 1 + prec >= buflen) {
+			return -1;
+		}
 		
 		v2 = v;
 		v2 -= (long)v; // TODO: use standalone math to improve this
-		int l = digitns + 1 + prec + 1;
+		int l = digits + 1 + prec + 1;
 		buffer[l] = '\0';
-		buffer[digits + 1] = '.';
+		buffer[digits] = '.';
 		long b = base;
 		for(unsigned long i = 0; i < prec; i++) {
 			Value x = (long)(v * b) % base;
 			buffer[digits + 1 + i] = (char)x + '0';
-			//v -= (x / );
 			b *= 10;
 		}
 		
 		long vl = v;
 		for( ; digits; digits--) {
-			buffer[digits] = vl % 10;
+			buffer[digits - 1] = '0' + (char)vl % 10;
 			vl /= 10;
 		}
 		return l;
