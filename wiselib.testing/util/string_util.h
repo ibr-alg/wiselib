@@ -110,7 +110,8 @@ namespace wiselib {
 		
 		v2 = v;
 		v2 -= (long)v; // TODO: use standalone math to improve this
-		buffer[digits + 1 + prec + 1] = '\0';
+		int l = digitns + 1 + prec + 1;
+		buffer[l] = '\0';
 		buffer[digits + 1] = '.';
 		long b = base;
 		for(unsigned long i = 0; i < prec; i++) {
@@ -120,13 +121,12 @@ namespace wiselib {
 			b *= 10;
 		}
 		
-		
 		long vl = v;
 		for( ; digits; digits--) {
 			buffer[digits] = vl % 10;
 			vl /= 10;
 		}
-		return 0;
+		return l;
 	}
 	
 	size_t prefix_length(char *a, char *b) {
