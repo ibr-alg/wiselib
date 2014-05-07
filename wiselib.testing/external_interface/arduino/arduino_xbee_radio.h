@@ -97,11 +97,11 @@ namespace wiselib
          ENABLED_LED_PIN = -1
       };
 
-      enum
-      {
-	BAUDRATE = 9600,
-	POLL_INTERVAL = 20
-      };
+      //enum
+      //{
+	//BAUDRATE = 9600,
+	//POLL_INTERVAL = 20
+      //};
       ArduinoXBeeRadio();
       ~ArduinoXBeeRadio();
 

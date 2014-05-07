@@ -200,6 +200,7 @@ namespace wiselib
          TCNT2 = 0;
       }
 
+      /*
       static void fix_rate() {
          if(arduino_queue.empty()) {
 	    TIMSK1 &= ~(1<<OCIE1A);
@@ -227,6 +228,7 @@ namespace wiselib
 	 TCNT1H = 0;
 	 TCNT1L = 0;
       }
+      */
 
    private:
       uint8_t ocr2a_;
@@ -238,9 +240,6 @@ namespace wiselib
    template<typename OsModel_P>
    ArduinoTimerQueue<MAX_REGISTERED_ARDUINO_TIMER> ArduinoTimer<OsModel_P>::arduino_queue;
    
-   template<typename OsModel_P>
-   float ArduinoTimer<OsModel_P>::prescaler;
-
    template<typename OsModel_P>
    float ArduinoTimer<OsModel_P>::prescaler;
 

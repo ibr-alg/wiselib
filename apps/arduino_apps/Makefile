@@ -23,7 +23,7 @@ LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group -lspi -larduino -let
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
 CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
-	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
+	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -fno-exceptions -fno-use-cxa-atexit
 
 PORT=/dev/ttyUSB0
 

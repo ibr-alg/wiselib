@@ -1,9 +1,9 @@
-WISELIB_PATH=/home/parita/gsoc/wiselib
+WISELIB_PATH=/home/henning/repos/wiselib
 
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
-ARDUINO_PATH=/home/parita/gsoc/Arduino
+ARDUINO_PATH=/home/henning/repos/Arduino
 VARIANTS=standard
 
 SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
@@ -27,7 +27,7 @@ LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lxbee -lsoftwarese
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
 CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_USE_XBEE -DARDUINO_LITE -Os -w \
-	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
+	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -fno-exceptions -fno-use-cxa-atexit
 
 PORT=/dev/ttyACM0
 
