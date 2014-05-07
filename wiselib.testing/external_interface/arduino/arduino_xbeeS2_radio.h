@@ -33,6 +33,9 @@
 #include "arduino_timer.h"
 #include "arduino_os.h"
 
+#define ZB_SUCCESS 0x0
+#undef SUCCESS
+
 namespace wiselib
 {
    /** \brief Arduino Implementation of \ref radio_concept "Radio concept".
@@ -53,7 +56,7 @@ namespace wiselib
       typedef ArduinoXBeeS2Radio<OsModel> self_type;
       typedef self_type* self_pointer_t;
 
-      typedef uint32_t* node_id_t;
+      typedef uint64_t node_id_t;
       typedef uint8_t  block_data_t;
       typedef uint8_t  size_t;
       typedef uint8_t  message_id_t;
@@ -69,14 +72,21 @@ namespace wiselib
       // --------------------------------------------------------------------
       enum { MAX_INTERNAL_RECEIVERS = 5 };
       // --------------------------------------------------------------------
-      //enum SpecialNodeIds
-      //{
-      //   BROADCAST_ADDRESS = 0xFFFF       ///< Unknown/No node id
-      //};
-      // --------------------------------------------------------------------
+      enum SpecialNodeIds
+      {
+	 NULL_NODE_ID = 0,
+         BROADCAST_ADDRESS = ZB_BROADCAST_ADDRESS       ///< Unknown/No node id
+      };
+      //---------------------------------------------------------------------
       enum Restrictions
       {
          MAX_MESSAGE_LENGTH = 100 ///< Maximal number of bytes in payload
+      };
+
+      enum
+      {
+         POLL_INTERVAL = 20,
+	 BAUDRATE = 9600
       };
 
       ArduinoXBeeS2Radio();
@@ -99,17 +109,22 @@ namespace wiselib
       void read_recv_packet(void*);
 
    private:
-      typename OsModel::Debug debug;
+//       typename OsModel::Debug debug;
       node_id_t id_;
       typename OsModel::Timer* timer_;
       unsigned long baud_rate_;
       arduino_radio_delegate_t arduino_radio_callbacks_[MAX_INTERNAL_RECEIVERS];
-      ::XBee xbee_;      
+      ::XBee xbee_;
+
+      uint32_t getSH();
+      uint32_t getSL();
+
+      bool initialized_;
    };
 
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
-   ArduinoXBeeS2Radio<OsModel_P>::ArduinoXBeeS2Radio()
+   ArduinoXBeeS2Radio<OsModel_P>::ArduinoXBeeS2Radio():initialized_(false),id_(0)
    {
    }
    // -----------------------------------------------------------------------
@@ -121,12 +136,16 @@ namespace wiselib
    template<typename OsModel_P>
    int ArduinoXBeeS2Radio<OsModel_P>::enable_radio()
    {
-	baud_rate_ = 9600;
-	xbee_.begin(baud_rate_);
-	id_ = id();
-	timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( 1000, this , ( void* )timer_ );
-	if(id_[0] == -1 || id_[1] == -1)
-	  return ERR_UNSPEC;
+	if(!initialized_)
+	{
+	  xbee_.begin(BAUDRATE);
+	  id_ = getSH();
+// 	  DBG("MSB: %#lx",id_);
+	  id_ = (id_<<32)|getSL();
+// 	  DBG("LSB: %#lx",id_);s
+	  initialized_ = true;
+	}
+	timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
 	return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -139,92 +158,127 @@ namespace wiselib
    template<typename OsModel_P>
    typename ArduinoXBeeS2Radio<OsModel_P>::node_id_t ArduinoXBeeS2Radio<OsModel_P>::id()
    {
-      node_id_t temp_id;
-      size_t shCmd[] = {'S','H'};
-      size_t slCmd[] = {'S','L'};
-      AtCommandRequest atRequest = AtCommandRequest(shCmd);
-      AtCommandResponse atResponse = AtCommandResponse();
+      return id_;
+   }
+   // -----------------------------------------------------------------------
+   template<typename OsModel_P>
+   uint32_t ArduinoXBeeS2Radio<OsModel_P>::getSH()
+   {
+	node_id_t temp_id = 0;
+	size_t shCmd[] = {'S','H'};
+	AtCommandRequest atRequest = AtCommandRequest(shCmd);
+	AtCommandResponse atResponse = AtCommandResponse();
 
-      xbee_.send(atRequest);
-      if (xbee_.readPacket(2500))
-      {
-	if (xbee_.getResponse().getApiId() == AT_COMMAND_RESPONSE)
+	xbee_.send(atRequest);
+	if (xbee_.readPacket(2500))
 	{
-	  xbee_.getResponse().getAtCommandResponse(atResponse);
-	  if (atResponse.isOk())
+	  if (xbee_.getResponse().getApiId() == AT_COMMAND_RESPONSE)
 	  {
-	    size_t MY_hb = atResponse.getValue()[0];
-	    size_t MY_lb = atResponse.getValue()[1];
-
-	    temp_id[0] = (MY_hb<<8)|(MY_lb);
+	    xbee_.getResponse().getAtCommandResponse(atResponse);
+	    if (atResponse.isOk())
+	    {
+	      int ValueLen = atResponse.getValueLength();
+	      uint8_t* value = atResponse.getValue();
+	      for(int i = 0;i < 4; i++)
+	      {
+		
+		if(value[i] != 0)
+		{
+		  temp_id = (temp_id << 8)|(uint32_t)value[i];
+		}
+		else
+		  temp_id = (temp_id << 8);
+	      }
+	      return temp_id;	      
+	    }
+	    else return 0;
 	  }
-	  else
-	    temp_id[0] = -1;
+	  else return 0;
 	}
-	else
-	  temp_id[0] = -1;
-      }
-      else
-	temp_id[0] = -1;
-      
-      atRequest.setCommand(slCmd);
+	else return 0;
+   }
+   //----------------------------------------------------------------------------------------------
+   template<typename OsModel_P>
+   uint32_t ArduinoXBeeS2Radio<OsModel_P>::getSL()
+   {
+	uint32_t temp_id = 0;
+	size_t slCmd[] = {'S','L'};
+	AtCommandRequest atRequest = AtCommandRequest(slCmd);
+	AtCommandResponse atResponse = AtCommandResponse();
 
-      xbee_.send(atRequest);
-      if (xbee_.readPacket(2500))
-      {
-	if (xbee_.getResponse().getApiId() == AT_COMMAND_RESPONSE)
+	xbee_.send(atRequest);
+	if (xbee_.readPacket(2500))
 	{
-	  xbee_.getResponse().getAtCommandResponse(atResponse);
-	  if (atResponse.isOk())
+	  if (xbee_.getResponse().getApiId() == AT_COMMAND_RESPONSE)
 	  {
-	    size_t MY_hb = atResponse.getValue()[0];
-	    size_t MY_lb = atResponse.getValue()[1];
-
-	    temp_id[1] = (MY_hb<<8)|(MY_lb);
+	    xbee_.getResponse().getAtCommandResponse(atResponse);
+	    if (atResponse.isOk())
+	    {
+	      int ValueLen = atResponse.getValueLength();
+	      uint8_t* value = atResponse.getValue();
+	      for(int i = 0;i < ValueLen; i++)
+	      {
+		if(value[i] != 0)
+		  temp_id = (temp_id << 8)|(uint32_t)value[i];
+		else
+		  temp_id = (temp_id << 8);
+	      }
+	      return temp_id;
+	    }
+	    else return 0;
 	  }
-	  else
-	    temp_id[1] = -1;
+	  else return 0;
 	}
-	else
-	  temp_id[1] = -1;
-      }
-      else
-	temp_id[1] = -1;
-      return temp_id;
+	else return 0;
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
    int ArduinoXBeeS2Radio<OsModel_P>::
    send( node_id_t dest, size_t len, block_data_t* data )
    {
-     XBeeAddress64 addr64;	//= XBeeAddress64(dest[0],dest[1]);
-     addr64.setMsb(dest[0]);
-     addr64.setLsb(dest[1]);
-     //XBeeAddress64 addr64 = XBeeAddress64(0x0013a200,0x40a11e78);
+     uint32_t lsb = (uint32_t)dest;
+     dest &= 0xFFFFFFFF00000000;
+     uint32_t msb = (uint32_t)(dest>>32);
+//      DBG("MSB: %#lx",msb);
+//      DBG("LSB: %#lx",lsb);
+     XBeeAddress64 addr64 = XBeeAddress64(msb,lsb);
+//      XBeeAddress64 addr64 = XBeeAddress64(0x0013a200,0x40a11ed4);
+     
      ZBTxRequest zbTx = ZBTxRequest(addr64, data, len);
      ZBTxStatusResponse txStatus = ZBTxStatusResponse();
-
-     debug.debug("Sending Xbee packet...");
+     DBG("Sending Xbee packet...");
      xbee_.send(zbTx);
      typename OsModel::Debug debug;
      if (xbee_.readPacket(500))
      {
-       debug.debug("Response received");
-       if (xbee_.getResponse().getApiId() == TX_STATUS_RESPONSE)
+       DBG("Response received");
+       if (xbee_.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE)
        {
-	 debug.debug("Tx status response");
+	 DBG("Tx status response");
+	 DBG("API id: %#x",(int)xbee_.getResponse().getApiId());
 	 xbee_.getResponse().getZBTxStatusResponse(txStatus);
-	 if (txStatus.getDeliveryStatus() == SUCCESS)
+	 if (txStatus.isSuccess())
+	 {
+	   timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
+	   sei();
 	   return SUCCESS;
+	 }
 	 else
-	   return ERR_UNSPEC;
+	   DBG("snd tx %d", (int)txStatus.getDeliveryStatus());
        }
        else if (xbee_.getResponse().isError())
-	 return ERR_UNSPEC;
+	 DBG("snd err %d", (int)xbee_.getResponse().getErrorCode());
+       else
+	 DBG("API id: %#d",(int)xbee_.getResponse().getApiId());
      }
      else
-	return ERR_UNSPEC;
-     
+     {
+       sei();
+       timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
+       return ERR_UNSPEC;
+     }
+     sei();
+     timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
      return SUCCESS;
    }
    // -----------------------------------------------------------------------
@@ -234,6 +288,7 @@ namespace wiselib
     xbee_.readPacket();
     if(xbee_.getResponse().isAvailable())
     {
+      DBG("Response available");
       ZBRxResponse rx = ZBRxResponse();
       ModemStatusResponse msr = ModemStatusResponse();
       node_id_t from_id;
@@ -242,19 +297,27 @@ namespace wiselib
 
       if (xbee_.getResponse().getApiId() == ZB_RX_RESPONSE)
       {
-	debug.debug("Rx response");
+	DBG("Rx response");
 	xbee_.getResponse().getZBRxResponse(rx);
 	if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED)
 	{
-	  from_id[0] = rx.getRemoteAddress64().getMsb();
-	  from_id[1] = rx.getRemoteAddress64().getLsb();
+	  uint32_t msb = rx.getRemoteAddress64().getMsb();
+	  uint32_t lsb = rx.getRemoteAddress64().getLsb();
+	  from_id = (uint64_t)msb;
+	  from_id = (from_id<<32);
+	  from_id |=(uint64_t)lsb;
+// 	  DBG("From SH: %#lx",msb);
+// 	  DBG("From SL: %#lx",lsb);
+	    
 	  data = rx.getData();
 	  length = rx.getDataLength();
 	}
       }
+      else
+	DBG("snd APIid %d",(int)xbee_.getResponse().getApiId());
       received(data, length, from_id);
     }
-    timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( 1000, this , ( void* )timer_ );
+    timer_->template set_timer<ArduinoXBeeS2Radio<OsModel_P> , &ArduinoXBeeS2Radio<OsModel_P>::read_recv_packet > ( POLL_INTERVAL, this , ( void* )timer_ );
   }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>

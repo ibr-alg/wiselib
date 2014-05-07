@@ -97,6 +97,11 @@ namespace wiselib
          ENABLED_LED_PIN = -1
       };
 
+      enum
+      {
+	BAUDRATE = 9600,
+	POLL_INTERVAL = 20
+      };
       ArduinoXBeeRadio();
       ~ArduinoXBeeRadio();
 
@@ -305,8 +310,8 @@ namespace wiselib
          disable();
          return;
       }
-      Serial.print(".");
-      Serial.flush();
+      /*Serial.print(".");*/
+      /*Serial.flush();*/
       
       ::uint32_t t_read = millis();
       xbee_.readPacket();
@@ -319,7 +324,7 @@ namespace wiselib
 
          if (xbee_.getResponse().getApiId() == RX_16_RESPONSE)
          {
-            Serial.println("--> recv");
+            /*Serial.println("--> recv");*/
             xbee_.getResponse().getRx16Response(rx16);
             from_id = rx16.getRemoteAddress16();
             data = rx16.getData();

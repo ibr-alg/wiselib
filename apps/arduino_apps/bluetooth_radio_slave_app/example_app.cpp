@@ -4,36 +4,41 @@
 #include "external_interface/arduino/arduino_application.h"
 #include "external_interface/arduino/arduino_os.h"
 #include "external_interface/arduino/arduino_debug.h"
-#include "external_interface/arduino/arduino_clock.h"
-#include "algorithms/neighbor_discovery/arduino_zeroconf.h"
 #include "external_interface/arduino/arduino_bluetooth_radio.h"
 
 typedef wiselib::ArduinoOsModel Os;
 
-Os::Debug debug;
-Os::Clock clock;
+Os::Debug debug_;
 Os::BluetoothRadio radio;
-
 class ExampleApplication
 {
 public:
    // --------------------------------------------------------------------
    void init(Os::AppMainParameter& amp)
    {
-      Os::BluetoothRadio::block_data_t message[] = "Test\0";
-      radio.get_slave_name(";BTSlave");
+      debug_.debug( "Hello!\n" );
       radio.enable_radio();
-      radio.connect_radio(1);
-
-      debug.debug( "Hello World from Example Application!\n" );
-
+      radio.connect_radio(0);
+      radio.reg_recv_callback<ExampleApplication, &ExampleApplication::onReceive>(this);
       while ( 1 )
       {
-         radio.send( Os::BluetoothRadio::BROADCAST_ADDRESS, 4, message);
-
-         if ( serialEventRun ) serialEventRun();
+	if ( serialEventRun )
+	  serialEventRun();
+	if(wiselib::ArduinoTask::tasks_.empty());
+	else
+	{
+	  wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+	  wiselib::ArduinoTask::tasks_.pop();
+	  t.callback_(t.userdata_);
+	  delay(10);
+	}
       }
-
+   }
+   
+   void onReceive(Os::BluetoothRadio::node_id_t id, Os::BluetoothRadio::size_t len,Os::BluetoothRadio::block_data_t* data)
+   {
+     wiselib::ArduinoDebug<wiselib::ArduinoOsModel>(true).debug("Len:%d",len);
+     wiselib::ArduinoDebug<wiselib::ArduinoOsModel>(true).debug("s: %s",data);
    }
 };
 // --------------------------------------------------------------------------
@@ -48,4 +53,3 @@ int main(Os::AppMainParameter& amp)
    example_app.init(amp);
    return 0;
 }
-			

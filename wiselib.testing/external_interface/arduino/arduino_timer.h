@@ -165,7 +165,6 @@ namespace wiselib
       // --------------------------------------------------------------------
       ArduinoTimer()
       {
-
          init_arduino_timer();		//initializes the timer variables
       }
 
@@ -201,16 +200,47 @@ namespace wiselib
          TCNT2 = 0;
       }
 
+      static void fix_rate() {
+         if(arduino_queue.empty()) {
+	    TIMSK1 &= ~(1<<OCIE1A);
+            return;
+         }
+         else {
+		TIMSK1 |= (1<<OCIE1A);
+         }
+
+         current_arduino_timer = arduino_queue.top();
+         ::uint32_t now = millis();
+         ::uint32_t delta = 1;
+         if(current_arduino_timer.event_time > now) {
+            delta = current_arduino_timer.event_time - now;
+         }
+         float want = (F_CPU * delta * 0.001 / prescaler) - 1.0;
+	 if(want >= 65535)
+	 {
+	   OCR1A = 65535;
+	 }
+	 else
+	 {
+	   OCR1A = (::uint16_t)want;
+	 }
+	 TCNT1H = 0;
+	 TCNT1L = 0;
+      }
+
    private:
       uint8_t ocr2a_;
       static float prescaler;
       uint32_t time_elapsed();					//returns current time
       void init_arduino_timer( void);
    };
-   
+
    template<typename OsModel_P>
    ArduinoTimerQueue<MAX_REGISTERED_ARDUINO_TIMER> ArduinoTimer<OsModel_P>::arduino_queue;
    
+   template<typename OsModel_P>
+   float ArduinoTimer<OsModel_P>::prescaler;
+
    template<typename OsModel_P>
    float ArduinoTimer<OsModel_P>::prescaler;
 
@@ -223,36 +253,24 @@ namespace wiselib
    template<typename OsModel_P>
    void ArduinoTimer<OsModel_P>::init_arduino_timer(void)
    {
-      //---initializing TIMER2 registers---//
-      //noInterrupts();
-      TIMSK2 &= ~(1<<OCIE2A);			//disable timer overflow interrupt
-      TIMSK2 &= ~(1<<TOIE2);
-      TCCR2A &= ~(1<<WGM20);
-      TCCR2A |= (1<<WGM21);
-      TCCR2B &= ~(1<<WGM22);			//normal PWM mode
-      ASSR &= ~(1<<AS2);
-      TIMSK2 &= ~(1<<OCIE2A);			//disable OCR match interrupt
+      TIMSK1 &= ~(1<<OCIE1A);
+      TCCR1A &= ~((1<<WGM11)|(1<<WGM10));
+      TCCR1B &= ~(1<<WGM13);
+      TCCR1B |= (1<<WGM12);
 
-      if ((F_CPU >= 1000000UL) && (F_CPU <= 16000000UL))
-      {	// prescaler set to 64
-	TCCR2B |= (1<<CS22);
-	TCCR2B &= ~((1<<CS21) | (1<<CS20));
-	prescaler = 64.0;
-      }
-      else if (F_CPU < 1000000UL)
-      {	// prescaler set to 8
-	TCCR2B |= (1<<CS21);
-	TCCR2B &= ~((1<<CS22) | (1<<CS20));
-	prescaler = 8.0;
+      if ((F_CPU >= 1000000UL))
+      {	// prescaler set to 1024
+	TCCR1B |= ((1<<CS12)| (1<<CS10));
+	TCCR1B &= ~(1<<CS11) ;
+	prescaler = 1024.0;
       }
       else
-      { // F_CPU > 16Mhz, prescaler set to 128
-	TCCR2B |= ((1<<CS22) | (1<<CS20));
-	TCCR2B &= ~(1<<CS21);
-	prescaler = 128.0;
-      }
+      { // F_CPU < 1Mhz, prescaler set to 256
+	TCCR1B |= (1<<CS11);
+	TCCR1B &= ~((1<<CS11)| (1<<CS10));
+	prescaler = 256.0;
 
-      ocr2a_ = (int)((float)F_CPU * 0.001 / prescaler) - 1;
+      }
    }
    // -----------------------------------------------------------------------
    template<typename OsModel_P>
@@ -309,3 +327,4 @@ namespace wiselib
 
 // vim: set expandtab ts=3 sw=3:
 
+// 

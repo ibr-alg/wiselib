@@ -1,9 +1,9 @@
-WISELIB_PATH=/home/parita/wiselib
+WISELIB_PATH=/home/parita/gsoc/wiselib
 
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
-ARDUINO_PATH=/home/parita/Arduino
+ARDUINO_PATH=/home/parita/gsoc/Arduino
 VARIANTS=standard
 
 SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
@@ -12,29 +12,28 @@ WIRING_PATH=$(ARDUINO_PATH)/hardware/arduino/cores/arduino
 ETHERNET_PATH=$(ARDUINO_PATH)/libraries/Ethernet
 SD_PATH=$(ARDUINO_PATH)/libraries/SD
 SOFTWARE_SERIAL_PATH=$(ARDUINO_PATH)/libraries/SoftwareSerial
-MSTIMER2_PATH=$(ARDUINO_PATH)/libraries/MsTimer2
 
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
-	-I$(ETHERNET_PATH)/utility -I$(SD_PATH) -I$(SOFTWARE_SERIAL_PATH) -I$(SD_PATH)/utility -I$(MSTIMER2_PATH)
+	-I$(ETHERNET_PATH)/utility -I$(SD_PATH) -I$(SOFTWARE_SERIAL_PATH) -I$(SD_PATH)/utility
 
 ZEROCONF_PATH=/home/parita/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -lspi -larduino -lethernet -lzeroconf -lstring -lmstimer2 -Wl,--end-group
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group -larduino -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
 CFLAGS=$(MCU) $(CPU_SPEED) -DARDUINO_WIRING_DIGITAL -DARDUINO_LITE -Os -w \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 
-PORT=/dev/ttyUSB0
+PORT=/dev/ttyACM0
 
 default: build-libs build upload
 
 build-libs: libarduino libzeroconf
 
-libarduino:
+libarduino: 
 	make -C $(ARDUINO_PATH)
 
 libzeroconf:
