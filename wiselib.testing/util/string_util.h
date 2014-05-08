@@ -88,14 +88,17 @@ namespace wiselib {
 	float atof(char *s) {
 		float r = 0;
 		float f = 1.0;
-		for( ; *s != '\0' && *s != '.'; s++) {
+		for( ; (*s < '0' || *s > '9') && *s != '\0'; s++) ;
+		for( ; *s >= '0' && *s <= '9'; s++) {
 			r *= 10;
 			r += (*s - '0');
 		}
-		if(*s == '.') { s++; }
-		for( ; *s != '\0'; s++) {
-			f /= 10;
-			r += (*s - '0') * f;
+		if(*s == '.') {
+			s++;
+			for( ; *s >= '0' && *s <= '9'; s++) {
+				f /= 10;
+				r += (*s - '0') * f;
+			}
 		}
 		return r;
 	}

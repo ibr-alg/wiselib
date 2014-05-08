@@ -70,7 +70,7 @@ namespace wiselib {
 				
 				void push(Row<OsModel>& row) {
 					#if ENABLE_DEBUG || (defined(CONTIKI) && INQP_DEBUG_OPERATORS)
-						printf("psh %d.%d %p.%p\n", (int)id_, (int)port_, (void*)push_.object_ptr, (void*)push_.stub_ptr);
+						printf("psh %d.%d %p.%p %p\n", (int)id_, (int)port_, (void*)push_.object_ptr, (void*)push_.stub_ptr, (void*)&row);
 					#endif
 					push_(port_, row);
 				}

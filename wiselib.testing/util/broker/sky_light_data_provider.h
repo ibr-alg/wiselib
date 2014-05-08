@@ -140,12 +140,16 @@ namespace wiselib {
 
 			void update_rdf() {
 				Tuple t;
+
 				t.set(0, (block_data_t*)ov_);
 				t.set(1, (block_data_t*)"<http://spitfire-project.eu/ontology/ns/value>");
 
 				// delete old tuple
-				iterator iter = tuple_store().begin(&t);
+				iterator iter = tuple_store().begin(&t, BIN(011));
 				while(iter != tuple_store().end()) {
+#if ENABLE_DEBUG
+						debug_->debug("erase (%d %d %d)", (int)iter->get_key(0), (int)iter->get_key(1), (int)iter->get_key(2));
+#endif
 					iter = tuple_store().erase(iter);
 				}
 
@@ -159,7 +163,9 @@ namespace wiselib {
 
 				t.set(2, (block_data_t*)buffer);
 
-				//debug_->debug("+ (%s %s %s) %d %d", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2), (int)sensor_value_, (int)vvv);
+#if ENABLE_DEBUG
+				debug_->debug("+ (%s %s %s) %d %d", (char*)t.get(0), (char*)t.get(1), (char*)t.get(2), (int)sensor_value_, (int)vvv);
+#endif
 				tuple_store().insert(t);
 			}
 

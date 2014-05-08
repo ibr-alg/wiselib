@@ -2,7 +2,7 @@
 //#define QUERY_SIMPLE_TEMPERATURE 0
 //#define QUERY_COLLECT 0
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #define ENABLE_PREINSTALLED_QUERY 1
 
 #ifdef SHAWN
@@ -16,11 +16,18 @@ const char* rdf[][3] = {
 	{ 0, 0, 0 }
 };
 
+enum {
+	// multiples of 10s
+	LOAD_PREINSTALLED_AFTER = 3,
+	REPEAT_PREINSTALLED = 3,
+};
+
 //#include "static_data.h"
 
 // Simple temperature aggregation query
-#include "query_node2_aggregate_temperature.h"
+//#include "query_node2_aggregate_temperature.h"
 //#include "query_collect.h"
+#include "query_both.h"
 
 #include <util/meta.h>
 
@@ -38,7 +45,7 @@ class App : public AppBoilerplate {
 			insert_tuples(rdf);
 
 		#if ENABLE_PREINSTALLED_QUERY
-			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)3);
+			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)LOAD_PREINSTALLED_AFTER);
 		#endif
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
 		}
@@ -46,11 +53,11 @@ class App : public AppBoilerplate {
 		void load_predefined_query(void* x) {
 			Uvoid x2 = (Uvoid)x;
 			#if ENABLE_DEBUG
-				debug_->debug("<3 %lu", (unsigned long)now());
+				//debug_->debug("<3 %lu", (unsigned long)now());
 			#endif
 			x2--;
 			if(x2 == 0) {
-				x2 = 30;
+				x2 = REPEAT_PREINSTALLED;
 				query_processor().erase_query(QID);
 				// wait some time between queries so aggregate can properly
 				// destruct
@@ -84,23 +91,47 @@ class App : public AppBoilerplate {
 			}
 		}
 
+		Communicator::RowT::Value row[10];
+
 		void on_sink_receive(ResultRadio::node_id_t from, ResultRadio::size_t size, ResultRadio::block_data_t *data) {
 			ResultRadio::message_id_t msgid = wiselib::read<Os, block_data_t, ResultRadio::message_id_t>(data);
+
+			typedef Communicator::RowT::Value Value;
+
+			debug_->debug("@%lu rcv from %lu sink %lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)SINK);
 			
 			if(from == SINK) {
+				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
+
+				for(size_t i = 0; i < msg.payload_size() / sizeof(Value); i++) {
+					//row[i / sizeof(Communicator::RowT::Value)] = wiselib::read<Os, block_data_t, Value>(msg.payload_data() + i);
+					//wiselib::write<Os, block_data_t, Value>((block_data_t*)&row + i * sizeof(Value), 
+					//row[i] = *(Value*)(msg.payload_data() + i * sizeof(Value));
+					row[i] = wiselib::read<Os, block_data_t, Value>(msg.payload_data() + i * sizeof(Value));
+				}
+
+				//Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
+
 				#if ENABLE_DEBUG
 				debug_->debug("sink recv from %lu", (unsigned long)from);
 				//debug_->debug("ANS %lu", (unsigned long)
 				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
 				//debug_->debug("RESULT");
-				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
 				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, msg.payload_data(), msg.payload_size());
+				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, (block_data_t*)&row, msg.payload_size());
 
-				//Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
 				//debug_->debug("RESULT %lu ", (int)row.as_int(0), (float)row.as_float(1));
 				#endif
+
+				send_result_row_to_selda(msg.query_id(), msg.operator_id(), *(Communicator::RowT*)(void*)&row);
+				//Processor::query_id_t query_id,
+				//Processor::operator_id_t operator_id,
+				//Processor::RowT& row
+		//) {
 			}
 		}
+
+	private:
 
 };
 

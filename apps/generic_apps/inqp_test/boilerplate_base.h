@@ -59,7 +59,8 @@ typedef Processor::Value Value;
 // --- Communicator / Radios
 
 //typedef PackingRadio<Os, FloodingNd<Os, Os::Radio> > OneShotQueryRadio;
-typedef FloodingNd<Os, Os::Radio> OneShotQueryRadio;
+//typedef FloodingNd<Os, Os::Radio> OneShotQueryRadio;
+typedef Os::Radio OneShotQueryRadio;
 
 class AppBase {
 	public:
@@ -70,6 +71,7 @@ class AppBase {
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet(value);
 
 			init_tuplestore();
 			init_query_processor();
@@ -90,15 +92,98 @@ class AppBase {
 			t.set(1, (block_data_t*)const_cast<char*>(p));
 			t.set(2, (block_data_t*)const_cast<char*>(o));
 			tuplestore_.insert(t);
+			//debug_->debug("ts %d c %d", (int)tuplestore_.size(), (int)tuplestore_.container().size9());
 		}
 
 		void insert_tuples(const char* (*rdf)[3]) {
 			for(const char* (*p)[3] = rdf; **p; ++p) {
-				//debug_->debug("ins (%s %s %s)", (*p)[0], (*p)[1], (*p)[2]);
+				#if ENABLE_DEBUG
+					debug_->debug("ins (%s %s %s)", (*p)[0], (*p)[1], (*p)[2]);
+				#endif
 				insert_tuple((*p)[0], (*p)[1], (*p)[2]);
 			}
 		}
 
+			block_data_t msg[100];
+		void send_result_row_to_selda(
+				Processor::query_id_t query_id,
+				Processor::operator_id_t operator_id,
+				Processor::RowT& row
+		) {
+
+			Query *q = query_processor().get_query(query_id);
+			if(!q) {
+				//debug_->debug("!q %d", (int)query_id);
+				return;
+			}
+			Processor::BasicOperator *op = q->get_operator(operator_id);
+			if(!op) {
+				//debug_->debug("!op %d", (int)operator_id);
+				return;
+			}
+			
+			int cols = op->projection_info().columns();
+			if(op->type() == Processor::BOD::AGGREGATE) {
+				Processor::AggregateT *aggr = (Processor::AggregateT*)op;
+				cols = aggr->columns_logical();
+			}
+			
+			int msglen =  1 + 1 + 1 + 1 + 4*cols;
+			block_data_t chk = 0;
+			msg[0] = 'R';
+			msg[1] = 2 + 4 * cols; // # bytes to follow after this one
+			msg[2] = query_id;
+			msg[3] = operator_id;
+			
+			if(op->type() == Processor::BOD::AGGREGATE) {
+				Processor::AggregateT *aggr = (Processor::AggregateT*)op;
+				int j = 0; // physical column
+				for(int i = 0; i< cols; i++, j++) { // logical column
+					//printf("tach %d", Processor::AggregateT::AD::AGAIN);
+					enum { AGAIN = 0x80 };
+					if((aggr->aggregation_types()[i] & ~AGAIN) == Processor::AggregateT::AD::AVG) {
+						j++;
+					}
+					
+					Value v;
+					memcpy(&v, &row[j], sizeof(Value));
+					wiselib::write<Os, block_data_t, Processor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			else {
+				for(int i = 0; i< cols; i++) {
+					Value v;
+					memcpy(&v, &row[i], sizeof(Value));
+					wiselib::write<Os, block_data_t, Processor::Value>(msg + 4 + 4*i, v);
+				}
+			}
+			
+			for(int i = 0; i<msglen; i++) { chk ^= msg[i]; }
+			msg[msglen] = chk;
+			//uart_->write(msglen + 1, (Os::Uart::block_data_t*)msg);
+			write_uart_isensestyle(msg, msglen + 1);
+		} // send_result_row_to_nqxe()
+
+		void write_uart_isensestyle(block_data_t *msg, size_t msglen) {
+			block_data_t dle = 0x10, stx = 0x02, etx = 0x03;
+			uart_->write(1, &dle);
+			uart_->write(1, &stx);
+
+			block_data_t b;
+			b = 105; uart_->write(1, &b);
+			for(size_t i = 0; i<msglen; i++) {
+				if(msg[i] == dle) {
+					uart_->write(1, &dle);
+					uart_->write(1, &dle);
+				}
+				else {
+					uart_->write(1, msg + i);
+				}
+			}
+
+			uart_->write(1, &dle);
+			uart_->write(1, &etx);
+		}
 
 		Processor& query_processor() { return query_processor_; }
 
@@ -108,6 +193,7 @@ class AppBase {
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
 		Os::Rand::self_pointer_t rand_;
+		Os::Uart::self_pointer_t uart_;
 
 		Processor query_processor_;
 

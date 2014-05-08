@@ -149,6 +149,7 @@ namespace wiselib {
 			
 			
 			int send(node_id_t receiver, size_t size, block_data_t* data) {
+				debug_->debug("@%lu: snd to %lu", (unsigned long)radio_->id(), (unsigned long)receiver);
 				check();
 
 				if(receiver == id()) {
@@ -197,6 +198,7 @@ namespace wiselib {
 		
 		private:
 			void check() {
+#if !NDEBUG
 				assert(radio_ != 0);
 				assert(timer_ != 0);
 				assert(debug_ != 0);
@@ -206,6 +208,7 @@ namespace wiselib {
 					size_type out_neighbors = nd_->neighbors_count(Neighbor::OUT_EDGE);
 					assert((out_neighbors > 1) <= !reliable_);
 				}
+#endif
 			}
 
 			void check_queue() {

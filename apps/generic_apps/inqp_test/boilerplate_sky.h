@@ -12,10 +12,12 @@ extern "C" {
 
 typedef StaticNeighborhood<Os> Neighborhood;
 typedef ForwardOnDirectedNd<Os, Neighborhood> StaticResultRadio;
+//typedef ForwardOnDirectedNd<Os, Neighborhood, Neighborhood::Neighbor::IN_EDGE> OneShotQueryRadio;
 
 typedef INQPCommunicator<Os, Processor, Os::Timer, Os::Debug, OneShotQueryRadio, StaticResultRadio, Neighborhood> Communicator;
 
-enum { ROOT = 53851 }; // 29
+//enum { ROOT = 53851 }; // 29
+enum { ROOT = 18045 }; // blue node without battery box
 
 Os::Radio::node_id_t tree_[][2] = {
 	{ 55323, 53952 },
@@ -91,16 +93,20 @@ class AppBoilerplate : public AppBase {
 					neighborhood_.add_neighbor((*p)[1], Neighborhood::Neighbor::OUT_EDGE);
 					break;
 				}
+				//else if((*p)[1] == radio_->id()) {
+					//neighborhood_.add_neighbor((*p)[0], Neighborhood::Neighbor::IN_EDGE);
+				//}
 			}
 		}
 
 		void init_communicator() {
-			query_radio_.init(radio_);
-			query_radio_.enable_radio();
+			//query_radio_.init(radio_);
+			//query_radio_.enable_radio();
 
 			result_radio_.init(neighborhood_, *radio_, *timer_, *rand_, *debug_);
 			result_radio_.enable_radio();
 
+			//debug_->debug("init com rt=%lu", (unsigned long)ROOT);
 			communicator_.init(query_processor_, query_radio_, result_radio_, neighborhood_, *timer_, *debug_);
 			communicator_.set_sink(ROOT);
 		}
