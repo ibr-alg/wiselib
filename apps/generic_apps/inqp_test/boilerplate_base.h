@@ -87,6 +87,9 @@ class AppBase {
 		}
 
 		void insert_tuple(const char* s, const char* p, const char* o) {
+			#if ENABLE_DEBUG
+				debug_->debug("ins (%s %s %s)", s, p, o);
+			#endif
 			TupleT t;
 			t.set(0, (block_data_t*)const_cast<char*>(s));
 			t.set(1, (block_data_t*)const_cast<char*>(p));
@@ -97,9 +100,6 @@ class AppBase {
 
 		void insert_tuples(const char* (*rdf)[3]) {
 			for(const char* (*p)[3] = rdf; **p; ++p) {
-				#if ENABLE_DEBUG
-					debug_->debug("ins (%s %s %s)", (*p)[0], (*p)[1], (*p)[2]);
-				#endif
 				insert_tuple((*p)[0], (*p)[1], (*p)[2]);
 			}
 		}

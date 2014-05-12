@@ -2,7 +2,7 @@
 //#define QUERY_SIMPLE_TEMPERATURE 0
 //#define QUERY_COLLECT 0
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #define ENABLE_PREINSTALLED_QUERY 1
 
 #ifdef SHAWN
@@ -24,10 +24,30 @@ enum {
 
 //#include "static_data.h"
 
+//
+// Preinstalled query
+//
+
+#define LEFT 0
+#define RIGHT 0x80
+#define AGAIN 0x80
+#define LEFT_COL(X) ((X) << 4)
+#define RIGHT_COL(X) ((X) & 0x0f)
+#define COL(L, R) (LEFT_COL(L) | RIGHT_COL(R))
+enum { QID = 1 };
+struct OpInfo { int len; block_data_t *op; };
+
 // Simple temperature aggregation query
 //#include "query_node2_aggregate_temperature.h"
 //#include "query_collect.h"
-#include "query_both.h"
+#include "query_test_both.h"
+
+// query should now be available as OpInfo g_query[];
+
+//
+//
+//
+
 
 #include <util/meta.h>
 
@@ -43,6 +63,7 @@ class App : public AppBoilerplate {
 			AppBoilerplate::init(v);
 
 			insert_tuples(rdf);
+			insert_special_tuples();
 
 		#if ENABLE_PREINSTALLED_QUERY
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)LOAD_PREINSTALLED_AFTER);
@@ -98,7 +119,7 @@ class App : public AppBoilerplate {
 
 			typedef Communicator::RowT::Value Value;
 
-			debug_->debug("@%lu rcv from %lu sink %lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)SINK);
+			//debug_->debug("@%lu rcv from %lu sink %lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)SINK);
 			
 			if(from == SINK) {
 				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);

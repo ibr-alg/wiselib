@@ -149,7 +149,9 @@ namespace wiselib {
 			
 			
 			int send(node_id_t receiver, size_t size, block_data_t* data) {
+#if ENABLE_DEBUG
 				debug_->debug("@%lu: snd to %lu", (unsigned long)radio_->id(), (unsigned long)receiver);
+#endif
 				check();
 
 				if(receiver == id()) {
