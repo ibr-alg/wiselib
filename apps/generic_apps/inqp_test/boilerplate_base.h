@@ -4,12 +4,10 @@
 
 typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
-typedef Os::Radio Radio;
+//typedef Os::Radio Radio;
 using namespace wiselib;
 
 #define WISELIB_TIME_FACTOR 1
-#define INQP_AGGREGATE_CHECK_INTERVAL 1000
-#define WISELIB_MAX_NEIGHBORS 10
 
 // --- BEGIN Allocator Section
 //     Allocators must be defined before most wiselib includes
@@ -71,7 +69,9 @@ class AppBase {
 			rand_ = &wiselib::FacetProvider<Os, Os::Rand>::get_facet( value );
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			clock_ = &wiselib::FacetProvider<Os, Os::Clock>::get_facet( value );
+		#if ENABLE_UART
 			uart_ = &wiselib::FacetProvider<Os, Os::Uart>::get_facet(value);
+		#endif
 
 			init_tuplestore();
 			init_query_processor();
@@ -111,6 +111,7 @@ class AppBase {
 				Processor::RowT& row
 		) {
 
+#if ENABLE_UART
 			Query *q = query_processor().get_query(query_id);
 			if(!q) {
 				//debug_->debug("!q %d", (int)query_id);
@@ -162,28 +163,39 @@ class AppBase {
 			msg[msglen] = chk;
 			//uart_->write(msglen + 1, (Os::Uart::block_data_t*)msg);
 			write_uart_isensestyle(msg, msglen + 1);
+#endif // ENABLE_UART
 		} // send_result_row_to_nqxe()
 
+#if ENABLE_UART
 		void write_uart_isensestyle(block_data_t *msg, size_t msglen) {
 			block_data_t dle = 0x10, stx = 0x02, etx = 0x03;
 			uart_->write(1, &dle);
+			clock_wait(10);
 			uart_->write(1, &stx);
+			clock_wait(10);
 
 			block_data_t b;
 			b = 105; uart_->write(1, &b);
+			clock_wait(10);
 			for(size_t i = 0; i<msglen; i++) {
 				if(msg[i] == dle) {
 					uart_->write(1, &dle);
+			clock_wait(10);
 					uart_->write(1, &dle);
+			clock_wait(10);
 				}
 				else {
 					uart_->write(1, msg + i);
+			clock_wait(10);
 				}
 			}
 
 			uart_->write(1, &dle);
+			clock_wait(10);
 			uart_->write(1, &etx);
+			clock_wait(10);
 		}
+#endif // ENABLE_UART
 
 		Processor& query_processor() { return query_processor_; }
 
@@ -193,7 +205,9 @@ class AppBase {
 		Os::Debug::self_pointer_t debug_;
 		Os::Clock::self_pointer_t clock_;
 		Os::Rand::self_pointer_t rand_;
+#if ENABLE_UART
 		Os::Uart::self_pointer_t uart_;
+#endif // ENABLE_UART
 
 		Processor query_processor_;
 

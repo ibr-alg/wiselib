@@ -29,7 +29,7 @@
 #include "../compare_values.h"
 #include <util/pstl/map_static_vector.h>
 
-#define INQP_DEBUG_AGGREGATE 0
+#define INQP_DEBUG_AGGREGATE ENABLE_DEBUG
 
 namespace wiselib {
 	

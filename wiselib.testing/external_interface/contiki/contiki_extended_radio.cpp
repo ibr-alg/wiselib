@@ -73,7 +73,7 @@ namespace wiselib
       while(1)
       {
          static struct etimer et;
-         rimeaddr_t addr;
+         //rimeaddr_t addr;
          etimer_set( &et, CLOCK_SECOND );
 
          PROCESS_WAIT_EVENT_UNTIL( etimer_expired(&et) );

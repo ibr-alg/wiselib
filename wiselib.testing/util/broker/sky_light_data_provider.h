@@ -95,6 +95,7 @@ namespace wiselib {
 
 				saved_value_ = 0;
 				sensor_value_ = 0;
+				enabled_ = true;
 
 				SENSORS_ACTIVATE(light_sensor);
 
@@ -104,8 +105,12 @@ namespace wiselib {
 				return SUCCESS;
 			}
 
-			int init() {
-				return SUCCESS;
+			//int init() {
+				//return SUCCESS;
+			//}
+
+			void disable() {
+				enabled_ = false;
 			}
 
 			TupleStore& tuple_store() { return *tuple_store_; }
@@ -135,7 +140,9 @@ namespace wiselib {
 					update_rdf();
 				}
 
-				timer_->template set_timer<self_type, &self_type::take_measurement>(MEASUREMENT_INTERVAL, this, 0);
+				if(enabled_) {
+					timer_->template set_timer<self_type, &self_type::take_measurement>(MEASUREMENT_INTERVAL, this, 0);
+				}
 			}
 
 			void update_rdf() {
@@ -156,7 +163,7 @@ namespace wiselib {
 				char buffer[20];
 				buffer[0] = '"';
 				int l = ftoa(sizeof(buffer) - 2, buffer + 1, sensor_value_, 3);
-				assert(l != -1 && l < sizeof(buffer) - 1);
+				assert(l != -1 && l < (int)sizeof(buffer) - 1);
 				buffer[l] = '"';
 				buffer[l + 1] = '\0';
 				saved_value_ = sensor_value_;
@@ -173,10 +180,11 @@ namespace wiselib {
 			int vvv;
 			float sensor_value_;
 			const char *ov_;
+			bool enabled_;
 
 			typename TupleStore::self_pointer_t tuple_store_;
-			typename Debug::self_pointer_t debug_;
 			typename Timer::self_pointer_t timer_;
+			typename Debug::self_pointer_t debug_;
 	};
 
 } // namespace wiselib

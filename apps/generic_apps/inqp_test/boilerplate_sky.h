@@ -9,9 +9,14 @@ extern "C" {
 #include "boilerplate_base.h"
 #include <algorithms/neighbor_discovery/static_neighborhood.h>
 #include <util/broker/sky_light_data_provider.h>
+//#include <algorithms/hash/checksum_radio.h>
+//#include <algorithms/hash/crc16.h>
 
 typedef StaticNeighborhood<Os> Neighborhood;
-typedef ForwardOnDirectedNd<Os, Neighborhood> StaticResultRadio;
+
+//typedef ChecksumRadio<Os, Os::Radio, Crc16<Os> > Radio;
+typedef Os::Radio Radio;
+typedef ForwardOnDirectedNd<Os, Neighborhood, ForwardOnDirectedNd_DefaultQueueMaker, Os::Radio > StaticResultRadio;
 //typedef ForwardOnDirectedNd<Os, Neighborhood, Neighborhood::Neighbor::IN_EDGE> OneShotQueryRadio;
 
 typedef INQPCommunicator<Os, Processor, Os::Timer, Os::Debug, OneShotQueryRadio, StaticResultRadio, Neighborhood> Communicator;
@@ -196,7 +201,7 @@ class AppBoilerplate : public AppBase {
 
 			init_communicator();
 
-			sensor_data_provider_.init("_:b2", this->tuplestore_, *this->timer_, *this->debug_);
+			//sensor_data_provider_.init("_:b2", this->tuplestore_, *this->timer_, *this->debug_);
 		}
 
 		void insert_special_tuples() {
@@ -248,6 +253,8 @@ class AppBoilerplate : public AppBase {
 			//query_radio_.init(radio_);
 			//query_radio_.enable_radio();
 
+			//checksum_radio_.init(*radio_, *debug_);
+
 			result_radio_.init(neighborhood_, *radio_, *timer_, *rand_, *debug_);
 			result_radio_.enable_radio();
 
@@ -260,11 +267,12 @@ class AppBoilerplate : public AppBase {
 
 	protected:
 		Neighborhood neighborhood_;
+		//Radio checksum_radio_;
 		StaticResultRadio result_radio_;
 		OneShotQueryRadio query_radio_;
 		Communicator communicator_;
 
-		SkyLightDataProvider<Os, TS> sensor_data_provider_;
+		//SkyLightDataProvider<Os, TS> sensor_data_provider_;
 
 };
 

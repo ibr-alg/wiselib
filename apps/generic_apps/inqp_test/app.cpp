@@ -4,6 +4,10 @@
 
 #define ENABLE_DEBUG 0
 #define ENABLE_PREINSTALLED_QUERY 1
+#define ENABLE_UART 0
+
+#define INQP_AGGREGATE_CHECK_INTERVAL 1000
+#define WISELIB_MAX_NEIGHBORS 10
 
 #ifdef SHAWN
 	#include "boilerplate_shawn.h"
@@ -19,7 +23,7 @@ const char* rdf[][3] = {
 enum {
 	// multiples of 10s
 	LOAD_PREINSTALLED_AFTER = 3,
-	REPEAT_PREINSTALLED = 3,
+	REPEAT_PREINSTALLED = 30,
 };
 
 //#include "static_data.h"
@@ -39,8 +43,9 @@ struct OpInfo { int len; block_data_t *op; };
 
 // Simple temperature aggregation query
 //#include "query_node2_aggregate_temperature.h"
-//#include "query_collect.h"
-#include "query_test_both.h"
+#include "query_collect.h"
+//#include "query_test_both.h"
+//#include "query_roomlight10.h"
 
 // query should now be available as OpInfo g_query[];
 
@@ -80,6 +85,7 @@ class App : public AppBoilerplate {
 			if(x2 == 0) {
 				x2 = REPEAT_PREINSTALLED;
 				query_processor().erase_query(QID);
+				//sensor_data_provider_.disable();
 				// wait some time between queries so aggregate can properly
 				// destruct
 				timer_->set_timer<App, &App::run_query>(2000, this, 0);
@@ -92,9 +98,13 @@ class App : public AppBoilerplate {
 			#if ENABLE_DEBUG
 				debug_->debug("QRY");
 			#endif
+
 			
 			for(OpInfo *q = g_query; q->len; q++) {
 				process(q->len, q->op);
+			#if ENABLE_DEBUG
+				debug_->debug("/proc l=%d", (int)q->len);
+			#endif
 			}
 		}
 
@@ -105,9 +115,15 @@ class App : public AppBoilerplate {
 			//ian_.handle_operator(op100, 0, sizeof(op100));
 			//communicator_.on_receive_query(radio_->id(), sz, op);
 			if(op[0] == 'O') {
+			#if ENABLE_DEBUG
+				debug_->debug("proc op=%d %d %d %d sz=%d", (int)op[1], (int)op[2], (int)op[3], (int)op[4], (int)sz);
+			#endif
 				query_processor().handle_operator(op[1], sz - 2, op + 2);
 			}
 			else if(op[0] == 'Q') {
+			#if ENABLE_DEBUG
+				debug_->debug("proc Q %d %d", (int)op[1], (int)op[2]);
+			#endif
 				query_processor().handle_query_info(op[1], op[2]);
 			}
 		}
