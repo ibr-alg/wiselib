@@ -21,25 +21,25 @@ _:b1
 
  */
 
-#define LEFT 0
-#define RIGHT 0x80
-#define AGAIN 0x80
-#define LEFT_COL(X) ((X) << 4)
-#define RIGHT_COL(X) ((X) & 0x0f)
-#define COL(L, R) (LEFT_COL(L) | RIGHT_COL(R))
+//#define LEFT 0
+//#define RIGHT 0x80
+//#define AGAIN 0x80
+//#define LEFT_COL(X) ((X) << 4)
+//#define RIGHT_COL(X) ((X) & 0x0f)
+//#define COL(L, R) (LEFT_COL(L) | RIGHT_COL(R))
 
 enum {
-   QID = 1,
+   //QID = 1,
    Q = Communicator::MESSAGE_ID_QUERY,
    OP = Communicator::MESSAGE_ID_OPERATOR,
    OP_ROOT = 0,
 };
 enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
 
-struct OpInfo {
-	int len;
-	block_data_t *op;
-};
+//struct OpInfo {
+	//int len;
+	//block_data_t *op;
+//};
 
 
 // obs, temperature

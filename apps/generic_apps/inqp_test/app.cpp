@@ -2,9 +2,13 @@
 //#define QUERY_SIMPLE_TEMPERATURE 0
 //#define QUERY_COLLECT 0
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #define ENABLE_PREINSTALLED_QUERY 1
-#define ENABLE_UART 0
+#define ENABLE_TIME_TRIGGER 0
+
+#define ENABLE_UART 1
+#define ENABLE_UART_RESULTS 0
+#define ENABLE_UART_TRIGGER 1
 
 #define INQP_AGGREGATE_CHECK_INTERVAL 1000
 #define WISELIB_MAX_NEIGHBORS 10
@@ -41,9 +45,10 @@ enum {
 enum { QID = 1 };
 struct OpInfo { int len; block_data_t *op; };
 
-// Simple temperature aggregation query
-//#include "query_node2_aggregate_temperature.h"
-#include "query_collect.h"
+//OLD: Simple temperature aggregation query
+#include "query_node2_aggregate_temperature.h"
+
+//#include "query_collect.h"
 //#include "query_test_both.h"
 //#include "query_roomlight10.h"
 
@@ -67,19 +72,35 @@ class App : public AppBoilerplate {
 		void init(Os::AppMainParameter& v) {
 			AppBoilerplate::init(v);
 
+		#if ENABLE_UART_TRIGGER
+			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
+		#endif
+
 			insert_tuples(rdf);
 			insert_special_tuples();
 
-		#if ENABLE_PREINSTALLED_QUERY
+		#if ENABLE_TIME_TRIGGER //ENABLE_PREINSTALLED_QUERY
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)LOAD_PREINSTALLED_AFTER);
 		#endif
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
 		}
 
+#if ENABLE_UART_TRIGGER
+		void on_receive_uart(Os::Uart::size_t size, Os::Uart::block_data_t *data) {
+			//debug_->debug("recv: %d %c %c %c ...", (int)size, (char)data[0], (char)data[1], (char)data[2]);
+			if(size >= 1 && (char)data[0] == 'X') { // && data[1] == '\n') {
+				//debug_->debug("go!");
+				load_predefined_query((void*)1);
+			}
+
+		}
+#endif // ENABLE_UART_TIME
+
+
 		void load_predefined_query(void* x) {
 			Uvoid x2 = (Uvoid)x;
 			#if ENABLE_DEBUG
-				//debug_->debug("<3 %lu", (unsigned long)now());
+				debug_->debug("<3 %d %lu", (int)x, (unsigned long)now());
 			#endif
 			x2--;
 			if(x2 == 0) {
@@ -91,7 +112,9 @@ class App : public AppBoilerplate {
 				timer_->set_timer<App, &App::run_query>(2000, this, 0);
 			}
 
+		#if ENABLE_TIME_TRIGGER
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)x2);
+		#endif
 		}
 
 		void run_query(void*) {

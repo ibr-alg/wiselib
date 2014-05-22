@@ -111,7 +111,7 @@ class AppBase {
 				Processor::RowT& row
 		) {
 
-#if ENABLE_UART
+#if ENABLE_UART_RESULTS
 			Query *q = query_processor().get_query(query_id);
 			if(!q) {
 				//debug_->debug("!q %d", (int)query_id);
@@ -166,7 +166,7 @@ class AppBase {
 #endif // ENABLE_UART
 		} // send_result_row_to_nqxe()
 
-#if ENABLE_UART
+#if ENABLE_UART_RESULTS
 		void write_uart_isensestyle(block_data_t *msg, size_t msglen) {
 			block_data_t dle = 0x10, stx = 0x02, etx = 0x03;
 			uart_->write(1, &dle);

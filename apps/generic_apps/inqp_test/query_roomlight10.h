@@ -1,3 +1,10 @@
+
+
+
+
+
+
+
 //PREFIX  ex:   <http://example.org/>
 //PREFIX  dbpedia-owl: <http://dbpedia.org/ontology/>
 //PREFIX  prop: <http://140.203.155.101:8182/ld4s/resource/property/>
