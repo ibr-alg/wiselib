@@ -29,11 +29,11 @@ CURRENT_FACTOR = 70.0 / 4095.0
 CURRENT_DISPLAY_FACTOR = 3300.0
 
 # mA
-IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
-        + 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) / 20.0
+#IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
+        #+ 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) / 20.0
 
 
-EXPERIMENT_INTERVAL = 300.0
+EXPERIMENT_INTERVAL = 600.0
 BOX_INTERVAL = 5.0
 
 
@@ -98,6 +98,10 @@ blacklist = {
         '26205.csv': { 10009, 10037, 10044, 10005, 10018, 10042 },
         '26207.csv': { 10020, 10037, 10044, 10053, 10054 },
         '26210.csv': { 10035, 10037, 10039, 10044, 10053, 10054 },
+
+        '26245.csv': { 10014, 10025, 10037, 10044, 10052, 10031, 10027, 10200 },
+        '26246.csv': { 10019, 10044, 10047 },
+        '26247.csv': { 10008, 10018, 10037, 10039, 10044, 10045 },
 }
 
 
@@ -156,6 +160,7 @@ def moving_average(a, n=3) :
     """
     ret = np.cumsum(a, dtype=float)
     ret[n:] = (ret[n:] - ret[:-n]) / n
+    #print(len(a), len(ret), n)
     ret[:n] = ret[:n] / (np.arange(n) + 1)
     return ret
 
@@ -180,15 +185,15 @@ def plot(ax, vs, name, style):
 
 
 def plotone(vs, name, style):
-    #print("plotting {}...".format(name))
+    #print("  plotting {}...".format(name))
     fig = plt.figure(figsize=fs)
     ax = fig.add_subplot(111)
     #ax.set_ylim((0, 10))
     ax.set_ylabel('$I$ / mA')
     ax.set_xlabel('$t$ / s')
-    ax.set_ylim((0, 5))
+    ax.set_ylim((0, 3))
     #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
-    #ax.set_xlim((1000, 1500))
+    ax.set_xlim((4000, 5000))
     #ax.set_xlim((760, 850))
     #ax.set_ylim((0, 2))
     #for k, vs in d.items():
@@ -205,19 +210,19 @@ def plotone(vs, name, style):
     plt.close(fig)
 
 
-def compute_boxplot(vs):
+def compute_boxplot(vs, experiment_interval=EXPERIMENT_INTERVAL):
     #box_entries = int(10.0 / MEASUREMENT_INTERVAL)
     box_entries = int(BOX_INTERVAL / MEASUREMENT_INTERVAL)
 
     ts = np.arange(len(vs)) * MEASUREMENT_INTERVAL
-    return fold(quantize(zip(ts, vs), box_entries), int(EXPERIMENT_INTERVAL / (box_entries * MEASUREMENT_INTERVAL)), skip = 1)
+    return fold(quantize(zip(ts, vs), box_entries), int(experiment_interval / (box_entries * MEASUREMENT_INTERVAL)), skip = 1)
 
 def style_box(bp, s):
     for key in ('boxes', 'whiskers', 'fliers', 'caps', 'medians'):
         plt.setp(bp[key], **s)
     plt.setp(bp['fliers'], marker='+')
 
-def data_to_boxes(d, label, style):
+def data_to_boxes(d, label, style, experiment_interval=EXPERIMENT_INTERVAL):
     #l = min((len(x) for x in d.values() if len(x)))
     #l = None
     #for k, v in d.values():
@@ -234,15 +239,15 @@ def data_to_boxes(d, label, style):
             #plotone(v, label + '_' + str(k), style)
             sums += v[:l]
     with Timer("computing box plot"):
-        r = compute_boxplot(CURRENT_FACTOR * sums / len(d))
+        r = compute_boxplot(CURRENT_FACTOR * sums / len(d), experiment_interval)
     r = materialize(r)
     return r
 
-def plot_boxes(ax, it, label, style):
+def plot_boxes(ax, it, label, style, **kws):
     #print(list(it))
     vs2 = [v for (t, v) in it]
     print("-- {} {}".format(label, ' '.join(str(len(x)) for x in vs2)))
-    bp = ax.boxplot(vs2)
+    bp = ax.boxplot(vs2, positions=[x+.5 for x in range(len(vs2))])
     style_box(bp, style)
     #ax.plot(range(1, len(vs2) + 1), [average(x) for x in vs2], label=label, **style)
     ax.plot([0], [0], label=label, **style)
@@ -260,7 +265,9 @@ fig = plt.figure(figsize=fs)
 ax = fig.add_subplot(111)
 ax.set_ylabel('$I$ / mA')
 ax.set_xlabel('$t$ / s')
-#ax.set_ylim((0, 2.2))
+#ax.set_ylim((0.7, 2.0))
+#ax.set_yscale('log')
+#ax.set_ylim((0.7, 2.0))
 
 # 
 # Experiments for simple temperature query
@@ -274,8 +281,13 @@ ax.set_xlabel('$t$ / s')
 #kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'label': 'Idle' }
 #plot_boxes(ax, data_to_boxes(parse('26053.csv'), **kws), **kws)
 
-kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'label': 'Idle' }
-plot_boxes(ax, data_to_boxes(parse('26205.csv'), **kws), **kws)
+kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'experiment_interval': 300.0, 'label': 'Idle' }
+plot_boxes(
+    ax,
+    join_boxes(
+        data_to_boxes(parse('26205.csv'), **kws),
+        data_to_boxes(parse('26245.csv'), **kws),
+    ), **kws)
 
 #kws = { 'style': { 'color': '#dd7777', 'linestyle': ':'}, 'label': 'Collect Old' }
 #plot_boxes(ax, data_to_boxes(parse('26045.csv'), **kws), **kws)
@@ -299,7 +311,12 @@ plot_boxes(ax, data_to_boxes(parse('26205.csv'), **kws), **kws)
 #plot_boxes(ax, data_to_boxes(parse('26080.csv'), **kws), **kws)
 
 kws = { 'style': { 'color': '#bbaa88', 'linestyle': '-'}, 'label': 'Collect' }
-plot_boxes(ax, data_to_boxes(parse('26210.csv'), **kws), **kws)
+plot_boxes(
+    ax,
+    #data_to_boxes(parse('26210.csv'), **kws),
+    #data_to_boxes(parse('26247.csv'), **kws),
+    data_to_boxes(parse('26248.csv'), **kws),
+    **kws)
 
 
 # Debug run for 26082 (...81):
@@ -310,7 +327,7 @@ plot_boxes(ax, data_to_boxes(parse('26210.csv'), **kws), **kws)
 #58
 #generic_apps/inqp_test evaluation/snes M?% grep QUEUE 26081/*/output.txt |wc -l
 #1
-kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'label': 'Temperature' }
+kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'experiment_interval': 300.0, 'label': 'Temperature' }
 plot_boxes(ax, data_to_boxes(parse('26082.csv'), **kws), **kws)
 
 
@@ -325,8 +342,13 @@ plot_boxes(ax, data_to_boxes(parse('26082.csv'), **kws), **kws)
 
 
 # query_roomlight10, CSMA, NULLRDC, aggrinterval = 5000
-kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'label': 'Light in Room 10' }
-plot_boxes(ax, data_to_boxes(parse('26207.csv'), **kws), **kws)
+kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'experiment_interval': 300.0, 'label': 'Light in Room 10' }
+plot_boxes(
+        ax,
+        join_boxes(
+            data_to_boxes(parse('26207.csv'), **kws),
+            data_to_boxes(parse('26246.csv'), **kws)
+        ), **kws)
 
 
 
@@ -334,6 +356,7 @@ ax.set_xticks(range(0, int(EXPERIMENT_INTERVAL / BOX_INTERVAL) + 1, int(60.0 / B
 ax.set_xticklabels(range(0, int(EXPERIMENT_INTERVAL + BOX_INTERVAL), 60))
 ax.grid(True, which='both')
 ax.legend(ncol=4, bbox_to_anchor=(1.0, 0), loc='lower right')
+#ax.legend(ncol=2, bbox_to_anchor=(1.0, 1.00), loc='upper right')
 #ax.legend(loc='upper right')
 
 fig.savefig(PLOT_DIR + '/energy_sum.png')

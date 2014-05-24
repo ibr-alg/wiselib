@@ -2,13 +2,13 @@
 //#define QUERY_SIMPLE_TEMPERATURE 0
 //#define QUERY_COLLECT 0
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #define ENABLE_PREINSTALLED_QUERY 1
-#define ENABLE_TIME_TRIGGER 0
+#define ENABLE_TIME_TRIGGER 1
 
-#define ENABLE_UART 1
+#define ENABLE_UART 0
 #define ENABLE_UART_RESULTS 0
-#define ENABLE_UART_TRIGGER 1
+#define ENABLE_UART_TRIGGER 0
 
 #define INQP_AGGREGATE_CHECK_INTERVAL 1000
 #define WISELIB_MAX_NEIGHBORS 10
@@ -27,7 +27,7 @@ const char* rdf[][3] = {
 enum {
 	// multiples of 10s
 	LOAD_PREINSTALLED_AFTER = 3,
-	REPEAT_PREINSTALLED = 30,
+	REPEAT_PREINSTALLED = 60,
 };
 
 //#include "static_data.h"
@@ -45,13 +45,12 @@ enum {
 enum { QID = 1 };
 struct OpInfo { int len; block_data_t *op; };
 
-//OLD: Simple temperature aggregation query
-#include "query_node2_aggregate_temperature.h"
-
-//#include "query_collect.h"
-//#include "query_test_both.h"
+// Simple temperature aggregation query
+//#include "query_node2_aggregate_temperature.h"
+#include "query_collect.h"
 //#include "query_roomlight10.h"
 
+//#include "query_test_both.h"
 // query should now be available as OpInfo g_query[];
 
 //
