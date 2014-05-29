@@ -17,6 +17,10 @@ import pickle
 sys.path.append('/home/henning/bin')
 from experiment_utils import quantize, fold, median, join_boxes, average, materialize
 
+INDIVIDUAL_PLOTS = False
+#INDIVIDUAL_PLOTS = True
+
+
 PLOT_DIR = 'plots'
 
 # seconds
@@ -27,11 +31,6 @@ CURRENT_FACTOR = 70.0 / 4095.0
 
 # mA * 3300mV = microJoule (uJ)
 CURRENT_DISPLAY_FACTOR = 3300.0
-
-# mA
-#IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
-        #+ 0.81 + 1.05 + 0.39 + 0.41 + 0.76 + 0.8 + 0.55 + 0.82 + 0.61 + 0.75 + 0.6) / 20.0
-
 
 EXPERIMENT_INTERVAL = 600.0
 BOX_INTERVAL = 5.0
@@ -102,6 +101,17 @@ blacklist = {
         '26245.csv': { 10014, 10025, 10037, 10044, 10052, 10031, 10027, 10200 },
         '26246.csv': { 10019, 10044, 10047 },
         '26247.csv': { 10008, 10018, 10037, 10039, 10044, 10045 },
+        '26249.csv': { 10018, 10030, 10025, 10037, 10039, 10044, 10045, },
+
+        # Temperature
+        '26250.csv': { 10001, 10018, 10030, 10012, 10020, 10021, 10027, 10037, 10038, 10039, 10041,
+            10043, 10044, 10050, 10054, },
+        '26251.csv': { 10037, 10044, 10053 },
+        '26252.csv': { 10008, 10021, 10023, 10027, 10029, 10037, 10041, 10045, 10053, 10054 },
+
+        # Room Light 10
+        '26253.csv': { 10001, 10005, 10008, 10010, 10011, 10014, 10019, 10025, 10037,
+            10042, 10044, 10045, 10053, },
 }
 
 
@@ -121,6 +131,7 @@ class Timer:
 
 
 def parse(fn):
+    print("=== {}".format(fn))
     pickled_fn = fn + '.p'
     if os.path.exists(pickled_fn):
         with Timer("unpickling {}".format(pickled_fn)):
@@ -193,7 +204,7 @@ def plotone(vs, name, style):
     ax.set_xlabel('$t$ / s')
     ax.set_ylim((0, 3))
     #ax.set_xlim((50000 * MEASUREMENT_INTERVAL, 100000 * MEASUREMENT_INTERVAL))
-    ax.set_xlim((4000, 5000))
+    #ax.set_xlim((4000, 5000))
     #ax.set_xlim((760, 850))
     #ax.set_ylim((0, 2))
     #for k, vs in d.items():
@@ -227,16 +238,19 @@ def data_to_boxes(d, label, style, experiment_interval=EXPERIMENT_INTERVAL):
     #l = None
     #for k, v in d.values():
 
+    print("=== {}".format(label))
+
     l, k = max(((len(v), k) for k, v in d.items() if len(v)))
-    print("max l={} k={}".format(l, k))
+    print("  max l={} k={}".format(l, k))
     l, k = min(((len(v), k) for k, v in d.items() if len(v)))
-    print("min l={} k={}".format(l, k))
+    print("  min l={} k={}".format(l, k))
 
     #print("l({})={}".format(label, l))
     with Timer("summing up"):
         sums = np.zeros(l)
         for k,v in d.items():
-            #plotone(v, label + '_' + str(k), style)
+            if INDIVIDUAL_PLOTS:
+                plotone(v, label + '_' + str(k), style)
             sums += v[:l]
     with Timer("computing box plot"):
         r = compute_boxplot(CURRENT_FACTOR * sums / len(d), experiment_interval)
@@ -281,13 +295,14 @@ ax.set_xlabel('$t$ / s')
 #kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'label': 'Idle' }
 #plot_boxes(ax, data_to_boxes(parse('26053.csv'), **kws), **kws)
 
-kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'experiment_interval': 300.0, 'label': 'Idle' }
+kws = { 'style': { 'color': 'black', 'linestyle': '-'}, 'experiment_interval': 600.0, 'label': 'Idle' }
 plot_boxes(
     ax,
-    join_boxes(
-        data_to_boxes(parse('26205.csv'), **kws),
-        data_to_boxes(parse('26245.csv'), **kws),
-    ), **kws)
+    data_to_boxes(parse('26252.csv'), **kws),
+    #join_boxes(
+        #data_to_boxes(parse('26205.csv'), **kws),
+        #data_to_boxes(parse('26245.csv'), **kws),
+    **kws)
 
 #kws = { 'style': { 'color': '#dd7777', 'linestyle': ':'}, 'label': 'Collect Old' }
 #plot_boxes(ax, data_to_boxes(parse('26045.csv'), **kws), **kws)
@@ -315,7 +330,8 @@ plot_boxes(
     ax,
     #data_to_boxes(parse('26210.csv'), **kws),
     #data_to_boxes(parse('26247.csv'), **kws),
-    data_to_boxes(parse('26248.csv'), **kws),
+    #data_to_boxes(parse('26248.csv'), **kws),
+    data_to_boxes(parse('26249.csv'), **kws),
     **kws)
 
 
@@ -327,8 +343,11 @@ plot_boxes(
 #58
 #generic_apps/inqp_test evaluation/snes M?% grep QUEUE 26081/*/output.txt |wc -l
 #1
-kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'experiment_interval': 300.0, 'label': 'Temperature' }
-plot_boxes(ax, data_to_boxes(parse('26082.csv'), **kws), **kws)
+kws = { 'style': { 'color': '#88bbbb', 'linestyle': '-'}, 'experiment_interval': 600.0, 'label': 'Temperature' }
+plot_boxes(ax,
+        #data_to_boxes(parse('26082.csv'), **kws),
+        data_to_boxes(parse('26250.csv'), **kws),
+        **kws)
 
 
 # query_roomlight10, CSMA, NULLRDC
@@ -342,13 +361,16 @@ plot_boxes(ax, data_to_boxes(parse('26082.csv'), **kws), **kws)
 
 
 # query_roomlight10, CSMA, NULLRDC, aggrinterval = 5000
-kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'experiment_interval': 300.0, 'label': 'Light in Room 10' }
+kws = { 'style': { 'color': '#dd7777', 'linestyle': '-'}, 'experiment_interval': 600.0, 'label': 'Light in Room 10' }
 plot_boxes(
         ax,
-        join_boxes(
-            data_to_boxes(parse('26207.csv'), **kws),
-            data_to_boxes(parse('26246.csv'), **kws)
-        ), **kws)
+        #join_boxes(
+            #data_to_boxes(parse('26207.csv'), **kws),
+            #data_to_boxes(parse('26246.csv'), **kws)
+        #),
+        data_to_boxes(parse('26253.csv'), **kws),
+        **kws
+)
 
 
 

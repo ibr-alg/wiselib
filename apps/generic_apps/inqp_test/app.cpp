@@ -47,8 +47,8 @@ struct OpInfo { int len; block_data_t *op; };
 
 // Simple temperature aggregation query
 //#include "query_node2_aggregate_temperature.h"
-#include "query_collect.h"
-//#include "query_roomlight10.h"
+//#include "query_collect.h"
+#include "query_roomlight10.h"
 
 //#include "query_test_both.h"
 // query should now be available as OpInfo g_query[];
