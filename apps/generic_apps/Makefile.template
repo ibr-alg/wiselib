@@ -7,6 +7,7 @@ export WISELIB_BASE=/home/wiselib/wiselib
 export WISELIB_PATH=$(WISELIB_BASE)/wiselib.stable
 export WISELIB_PATH_TESTING=$(WISELIB_BASE)/wiselib.testing
 
+export ARDUINO_PATH=/home/wiselib/Arduino
 
 #############################################################################
 #####                        Shawn                                      #####

@@ -56,60 +56,50 @@ namespace wiselib
 
 void application_main(wiselib::ArduinoOsModel&);
 
-int main(int argc, const char** argv) {
-   wiselib::ArduinoOsModel app_main_arg;
-   init();
-   
-   #if defined(USBCON)
-      USBDevice.attach();
-   #endif
+#if defined(OSMODEL)
+   // If and only if OSMODEL is defined this is
+   // a generic Wiselib application. (At least we assume so)
+   // Only then Wiselib should provide main(), else
+   // the OS (in this case arduino) will do it.
+
+   int main(int argc, const char** argv) {
+      wiselib::ArduinoOsModel app_main_arg;
+      init();
       
-   pinMode(13, OUTPUT);
-   pinMode(12, OUTPUT);
-   
-   digitalWrite(13, HIGH);
-   
-   Serial.begin(9600);
-   application_main(app_main_arg);
-   
-   //cbi( SMCR,SE );      // sleep enable, power down mode
-   //cbi( SMCR,SM0 );     // power down mode
-   //sbi( SMCR,SM1 );     // power down mode
-   //cbi( SMCR,SM2 );     // power down mode
-   
-   //set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-   
-   digitalWrite(13, LOW);
-   digitalWrite(12, HIGH);
-   
-   while(true) {
-      digitalWrite(12, LOW);
+      #if defined(USBCON)
+         USBDevice.attach();
+      #endif
+         
+      Serial.begin(9600);
+      application_main(app_main_arg);
+      
       while(true) {
-         cli();
-         if(wiselib::ArduinoTask::tasks_.empty()) {
-         //#if ARDUINO_ALLOW_SLEEP
-            sleep_enable();
-            sei();
-            sleep_cpu();
-            sleep_disable();
-         //#endif
-            sei();
-            delay(10);
+         while(true) {
+            cli();
+            if(wiselib::ArduinoTask::tasks_.empty()) {
+            #if ARDUINO_ALLOW_SLEEP
+               sleep_enable();
+               sei();
+               sleep_cpu();
+               sleep_disable();
+            #endif
+               sei();
+               delay(10);
+            }
+            else {
+               sei();
+               break;
+            }
          }
-         else {
-            sei();
-            break;
-         }
+         
+         wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+         wiselib::ArduinoTask::tasks_.pop();
+         t.callback_(t.userdata_);
+         delay(10);
       }
-      
-      digitalWrite(12, HIGH);
-      wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
-      wiselib::ArduinoTask::tasks_.pop();
-      t.callback_(t.userdata_);
-      delay(10);
+      return 0;
    }
-   return 0;
-}
+#endif
 
 #if 0
 //****************************************************************
