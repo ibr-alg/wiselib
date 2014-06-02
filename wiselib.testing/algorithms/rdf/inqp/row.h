@@ -55,8 +55,10 @@ namespace wiselib {
 			 * allocator.
 			 */
 			static Row* create(size_type n) {
-				return reinterpret_cast<Row*>( ::get_allocator()
-					.template allocate_array<block_data_t>(sizeof(self_type) + sizeof(Value) * n).raw() );
+				//printf("create row %lu", (unsigned long)n);
+				Row* p = reinterpret_cast<Row*>( ::get_allocator()
+					.template allocate_array<block_data_t>(/*sizeof(self_type) +*/ sizeof(Value) * n).raw() );
+				return p;
 			}
 			
 			/**
@@ -73,6 +75,13 @@ namespace wiselib {
 				return data_[i];
 			}
 			
+			float as_float(size_type i) {
+				return *reinterpret_cast<float*>(data_ + i);
+			}
+
+			typename Sint<sizeof(Value)>::t as_int(size_type i) {
+				return data_[i];
+			}
 			
 		private:
 			// not implementable as we dont know our own size!

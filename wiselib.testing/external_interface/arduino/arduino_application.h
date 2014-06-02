@@ -65,23 +65,25 @@ int main(int argc, const char** argv) {
       USBDevice.attach();
    #endif
       
-   pinMode(13, OUTPUT);
+   //pinMode(13, OUTPUT);
    
-   digitalWrite(13, HIGH);
+   //digitalWrite(13, HIGH);
    
    Serial.begin(9600);
    application_main(app_main_arg);
    
-   digitalWrite(13, LOW);
+   //digitalWrite(13, LOW);
    
    while(true) {
       while(true) {
          cli();
          if(wiselib::ArduinoTask::tasks_.empty()) {
+            #if ARDUINO_ALLOW_SLEEP
             sleep_enable();
             sei();
             sleep_cpu();
             sleep_disable();
+            #endif
             sei();
             delay(10);
          }
@@ -89,6 +91,11 @@ int main(int argc, const char** argv) {
             sei();
             break;
          }
+         
+         //wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+         //wiselib::ArduinoTask::tasks_.pop();
+         //t.callback_(t.userdata_);
+         //delay(10);
       }
       
       wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();

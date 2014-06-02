@@ -129,7 +129,11 @@ namespace wiselib {
 			}
 			
 			void on_send_row(int type, size_type columns, RowT& row, query_id_t query_id, operator_id_t operator_id) {
-				block_data_t row_data[RowT::MAX_COLUMNS * sizeof(typename RowT::Value)];
+				//#if ENABLE_DEBUG
+					//debug_->debug("send_row q%d o%d cols%d %08lx %08lx...", (int)query_id, (int)operator_id, (int)columns, (unsigned long)row[0], (unsigned long)row[1]);
+				//#endif
+				static block_data_t row_data[RowT::MAX_COLUMNS * sizeof(typename RowT::Value)];
+
 				for(size_type i = 0; i < columns; i++) {
 					write<OsModel, block_data_t, typename RowT::Value>(row_data + i * sizeof(typename RowT::Value), row[i]);
 				}
@@ -228,7 +232,6 @@ namespace wiselib {
 						ian_->handle_resolve(packet->resolve_message(), packet->from, packet->len);
 						break;
 					default:
-						//DBG("unexpected message id: %d, op=%d query=%d", packet->query_message()->message_id(), MESSAGE_ID_OPERATOR, MESSAGE_ID_QUERY);
 						assert(false);
 						break;
 				}
@@ -247,7 +250,6 @@ namespace wiselib {
 						ian_->handle_intermediate_result(msg, packet->from, packet->len);
 						break;
 					default:
-						//DBG("unexpected message id: %d", msg->message_id());
 						assert(false);
 						break;
 				}

@@ -1,40 +1,133 @@
 
+//#define QUERY_SIMPLE_TEMPERATURE 0
+//#define QUERY_COLLECT 0
+
+#define ENABLE_DEBUG 0
+#define ENABLE_PREINSTALLED_QUERY 1
+#define ENABLE_TIME_TRIGGER 1
+
+#define ENABLE_UART 0
+#define ENABLE_UART_RESULTS 0
+#define ENABLE_UART_TRIGGER 0
+
+#define INQP_AGGREGATE_CHECK_INTERVAL 1000
+#define WISELIB_MAX_NEIGHBORS 10
+
 #ifdef SHAWN
 	#include "boilerplate_shawn.h"
 #elif CONTIKI_TARGET_SKY
 	#include "boilerplate_sky.h"
 #endif
 
-#include "static_data.h"
+const char* rdf[][3] = {
+	#include "node2.h"
+	{ 0, 0, 0 }
+};
+
+enum {
+	// multiples of 10s
+	LOAD_PREINSTALLED_AFTER = 3,
+	REPEAT_PREINSTALLED = 60,
+};
+
+//#include "static_data.h"
+
+//
+// Preinstalled query
+//
+
+#define LEFT 0
+#define RIGHT 0x80
+#define AGAIN 0x80
+#define LEFT_COL(X) ((X) << 4)
+#define RIGHT_COL(X) ((X) & 0x0f)
+#define COL(L, R) (LEFT_COL(L) | RIGHT_COL(R))
+enum { QID = 1 };
+struct OpInfo { int len; block_data_t *op; };
+
+// Simple temperature aggregation query
+//#include "query_node2_aggregate_temperature.h"
+//#include "query_collect.h"
+#include "query_roomlight10.h"
+
+//#include "query_test_both.h"
+// query should now be available as OpInfo g_query[];
+
+//
+//
+//
+
+
 #include <util/meta.h>
 
 class App : public AppBoilerplate {
 	public:
+		typedef ::uint32_t abs_millis_t;
+		typedef Os::Clock::time_t time_t;
+
+		abs_millis_t absolute_millis(const time_t& t) { return clock_->seconds(t) * 1000 + clock_->milliseconds(t); }
+		abs_millis_t now() { return absolute_millis(clock_->time()); }
+			
 		void init(Os::AppMainParameter& v) {
 			AppBoilerplate::init(v);
 
-			insert_tuples(rdf);
+		#if ENABLE_UART_TRIGGER
+			uart_->reg_read_callback<App, &App::on_receive_uart>(this);
+		#endif
 
-			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)10);
+			insert_tuples(rdf);
+			insert_special_tuples();
+
+		#if ENABLE_TIME_TRIGGER //ENABLE_PREINSTALLED_QUERY
+			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)LOAD_PREINSTALLED_AFTER);
+		#endif
 			result_radio().reg_recv_callback<App, &App::on_sink_receive>(this);
 		}
 
-		void load_predefined_query(void* x) {
-			//debug_->debug("loading pre-installed query...");
-			Uvoid x2 = (Uvoid)x;
-			x2--;
-			if(x2 == 0) {
-				x2 = 10;
-				query_processor().erase_query(QID);
-
-				process(sizeof(op100), op100);
-				process(sizeof(op90), op90);
-				process(sizeof(op80), op80);
-				process(sizeof(op70), op70);
-				process(sizeof(cmd), cmd);
+#if ENABLE_UART_TRIGGER
+		void on_receive_uart(Os::Uart::size_t size, Os::Uart::block_data_t *data) {
+			//debug_->debug("recv: %d %c %c %c ...", (int)size, (char)data[0], (char)data[1], (char)data[2]);
+			if(size >= 1 && (char)data[0] == 'X') { // && data[1] == '\n') {
+				//debug_->debug("go!");
+				load_predefined_query((void*)1);
 			}
 
+		}
+#endif // ENABLE_UART_TIME
+
+
+		void load_predefined_query(void* x) {
+			Uvoid x2 = (Uvoid)x;
+			#if ENABLE_DEBUG
+				debug_->debug("<3 %d %lu", (int)x, (unsigned long)now());
+			#endif
+			x2--;
+			if(x2 == 0) {
+				x2 = REPEAT_PREINSTALLED;
+				query_processor().erase_query(QID);
+				//sensor_data_provider_.disable();
+				// wait some time between queries so aggregate can properly
+				// destruct
+				timer_->set_timer<App, &App::run_query>(2000, this, 0);
+			}
+
+		#if ENABLE_TIME_TRIGGER
 			timer_->set_timer<App, &App::load_predefined_query>(10000, this, (void*)x2);
+		#endif
+		}
+
+		void run_query(void*) {
+			#if ENABLE_DEBUG
+				debug_->debug("QRY");
+			#endif
+
+			
+			for(OpInfo *q = g_query; q->len; q++) {
+				process(q->len, q->op);
+			#if ENABLE_DEBUG
+				debug_->debug("/proc l=%d", (int)q->len);
+			#endif
+			}
 		}
 
 		/**
@@ -44,23 +137,60 @@ class App : public AppBoilerplate {
 			//ian_.handle_operator(op100, 0, sizeof(op100));
 			//communicator_.on_receive_query(radio_->id(), sz, op);
 			if(op[0] == 'O') {
+			#if ENABLE_DEBUG
+				debug_->debug("proc op=%d %d %d %d sz=%d", (int)op[1], (int)op[2], (int)op[3], (int)op[4], (int)sz);
+			#endif
 				query_processor().handle_operator(op[1], sz - 2, op + 2);
 			}
 			else if(op[0] == 'Q') {
+			#if ENABLE_DEBUG
+				debug_->debug("proc Q %d %d", (int)op[1], (int)op[2]);
+			#endif
 				query_processor().handle_query_info(op[1], op[2]);
 			}
 		}
 
+		Communicator::RowT::Value row[10];
+
 		void on_sink_receive(ResultRadio::node_id_t from, ResultRadio::size_t size, ResultRadio::block_data_t *data) {
 			ResultRadio::message_id_t msgid = wiselib::read<Os, block_data_t, ResultRadio::message_id_t>(data);
 
-			//debug_->debug("@%lu sink recv %lu -> %lu s=%lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)result_radio_.id(), (unsigned long)SINK);
+			typedef Communicator::RowT::Value Value;
+
+			//debug_->debug("@%lu rcv from %lu sink %lu", (unsigned long)radio_->id(), (unsigned long)from, (unsigned long)SINK);
 			
 			if(from == SINK) {
+				Communicator::ResultMessage &msg = *reinterpret_cast<Communicator::ResultMessage*>(data);
+
+				for(size_t i = 0; i < msg.payload_size() / sizeof(Value); i++) {
+					//row[i / sizeof(Communicator::RowT::Value)] = wiselib::read<Os, block_data_t, Value>(msg.payload_data() + i);
+					//wiselib::write<Os, block_data_t, Value>((block_data_t*)&row + i * sizeof(Value), 
+					//row[i] = *(Value*)(msg.payload_data() + i * sizeof(Value));
+					row[i] = wiselib::read<Os, block_data_t, Value>(msg.payload_data() + i * sizeof(Value));
+				}
+
+				//Communicator::RowT &row = *reinterpret_cast<Communicator::RowT*>(msg.payload_data());
+
+				#if ENABLE_DEBUG
 				debug_->debug("sink recv from %lu", (unsigned long)from);
-				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
+				//debug_->debug("ANS %lu", (unsigned long)
+				//wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, data, size);
+				//debug_->debug("RESULT");
+				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, msg.payload_data(), msg.payload_size());
+				wiselib::debug_buffer<Os, 16, Os::Debug>(debug_, (block_data_t*)&row, msg.payload_size());
+
+				//debug_->debug("RESULT %lu ", (int)row.as_int(0), (float)row.as_float(1));
+				#endif
+
+				send_result_row_to_selda(msg.query_id(), msg.operator_id(), *(Communicator::RowT*)(void*)&row);
+				//Processor::query_id_t query_id,
+				//Processor::operator_id_t operator_id,
+				//Processor::RowT& row
+		//) {
 			}
 		}
+
+	private:
 
 };
 

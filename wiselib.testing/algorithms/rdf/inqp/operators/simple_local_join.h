@@ -160,8 +160,16 @@ namespace wiselib {
 									assert(false);
 								}
 								
+								#if ENABLE_DEBUG
+									printf("psh j o%d\n", (int)this->id());
+								#endif
 								this->parent().push(result);
 							} // if c == 0
+							else {
+								#if ENABLE_DEBUG
+									//printf("!j [%d] %08lx != [%d] %08lx", (int)left_column_, (unsigned long)(*iter)[left_column_], (int)right_column_, (unsigned long)row[right_column_]);
+								#endif
+							}
 						} // for iter
 						
 						result.destroy();
@@ -178,9 +186,12 @@ namespace wiselib {
 						#endif
 						assert(false);
 					}
+					#if ENABLE_DEBUG
+						//printf("close j o%d\n", (int)this->id());
+					#endif
 					this->parent().push(row);
 				}
-			}
+			} // push()
 			
 			void execute() { }
 			

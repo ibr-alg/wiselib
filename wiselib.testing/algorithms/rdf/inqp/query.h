@@ -54,10 +54,11 @@ namespace wiselib {
 			typedef typename QueryProcessor::BasicOperator BasicOperator;
 			
 			/// Operator id => Operator* map of operators.
-			typedef MapStaticVector<OsModel, size_type, BasicOperator*, 16> Operators;
+			typedef MapStaticVector<OsModel, ::uint8_t, BasicOperator*, 16> Operators;
 			
 			typedef ::uint8_t query_id_t;
 			typedef ::uint8_t sequence_number_t;
+			typedef ::uint8_t operator_id_t;
 			
 			/**
 			 */
@@ -135,11 +136,15 @@ namespace wiselib {
 			 * tree.
 			 */
 			void build_tree() {
+				root_id_ = 0;
 				for(typename Operators::iterator iter = operators_.begin(); iter != operators_.end(); ++iter) {
 					
 					BasicOperator* op = iter->second;
 					if(op->parent_id() != 0) {
 						op->attach_to(operators_[op->parent_id()]);
+					}
+					else {
+						root_id_ = op->id();
 					}
 				}
 			}
@@ -151,7 +156,14 @@ namespace wiselib {
 			/**
 			 */
 			query_id_t id() { return query_id_; }
-			
+
+			::uint8_t root_type() {
+				if(operators_.contains(root_id_)) {
+					return operators_[root_id_]->type();
+				}
+				return (::uint8_t)(-1);
+			}
+
 			/**
 			 */
 			BasicOperator* get_operator(size_type i) { return operators_[i]; }
@@ -182,15 +194,16 @@ namespace wiselib {
 			 * Return the ID of the SE this query is associated to.
 			 */
 			const SemanticEntityId& entity() { return entity_; }
-			
+
 			
 		private:
-			query_id_t query_id_;
 			Operators operators_;
 			QueryProcessor* processor_;
-			size_type expected_operators_;
-			bool expected_operators_set_;
 			SemanticEntityId entity_;
+			size_type expected_operators_;
+			query_id_t query_id_;
+			bool expected_operators_set_;
+			operator_id_t root_id_;
 			
 		
 	}; // INQPQuery

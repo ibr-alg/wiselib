@@ -7,6 +7,7 @@ export WISELIB_BASE=/home/wiselib/wiselib
 export WISELIB_PATH=$(WISELIB_BASE)/wiselib.stable
 export WISELIB_PATH_TESTING=$(WISELIB_BASE)/wiselib.testing
 
+export ARDUINO_PATH=/home/wiselib/Arduino
 
 #############################################################################
 #####                        Shawn                                      #####
@@ -20,7 +21,7 @@ export SHAWN_INCLUDE_DIR=/home/wiselib/shawn
 ####
 # Location of Shawn libs - default (when not canged by user via ccmake) is
 # $SHAWN_INCLUDE_DIR/buildfiles
-export SHAWN_LIB_DIR=$(SHAWN_INCLUDE_DIR)/buildfiles
+export SHAWN_LIB_DIR=$(SHAWN_INCLUDE_DIR)/libraries
 
 ####
 # Small example with only basic libs
@@ -42,7 +43,7 @@ export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -llegacyapps -lapps_exampleslib \
 	-lapps_localizationlib -lapps_topologylib -lapps_readinglib \
 	-lapps_vislib -lapps_externalapplib -lapps_wiseliblib\
 	-ldl -lCGAL -lcairo -lpixman-1 -lpng -lfreetype -lfontconfig -lz \
-	-lboost_regex-mt -lboost_date_time-mt -lboost_thread-mt -lboost_system-mt \
+	-lboost_regex -lboost_date_time -lboost_thread -lboost_system \
 	-lGL -lglut -lGLU
 
 
