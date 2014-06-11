@@ -1,9 +1,9 @@
-WISELIB_PATH=/home/parita/gsoc/wiselib
+WISELIB_PATH ?=/home/wiselib/wiselib
 
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
-ARDUINO_PATH=/home/parita/gsoc/Arduino
+ARDUINO_PATH ?=/home/wiselib/Arduino
 VARIANTS=standard
 
 SPI_PATH=$(ARDUINO_PATH)/libraries/SPI
@@ -20,7 +20,8 @@ ZEROCONF_PATH=/home/parita/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_STABLE) -I$(WISELIB_TESTING)
-LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group -larduino -Wl,--end-group
+#LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -lspi -larduino -lethernet -lzeroconf -lstring -lmstimer2 -Wl,--end-group
+LIBS=-L$(ARDUINO_PATH) -L$(ZEROCONF_PATH) -Wl,--start-group  -lsoftwareserial -lspi -larduino -lstring -lmstimer2 -Wl,--end-group
 
 MCU=-mmcu=atmega328p
 CPU_SPEED=-DF_CPU=16000000UL
@@ -31,7 +32,8 @@ PORT=/dev/ttyACM0
 
 default: build-libs build upload
 
-build-libs: libarduino libzeroconf
+build-libs: libarduino
+	#libzeroconf
 
 libarduino: 
 	make -C $(ARDUINO_PATH)

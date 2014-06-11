@@ -231,6 +231,7 @@ namespace wiselib {
 					change_capacity(MIN_CAPACITY);
 				}
 				else {
+					//printf("table growing to %lu.", (unsigned long)capacity_ * 2);
 					change_capacity(capacity_ * 2);
 				}
 			}

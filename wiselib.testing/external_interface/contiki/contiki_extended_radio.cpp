@@ -32,11 +32,14 @@ namespace wiselib
    {
 
    struct abc_conn contiki_extdata_radio_conn;
+   struct unicast_conn contiki_unicast_radio_conn;
    static contiki_extended_receive_delegate_t radio_receive_delegate;
+   static contiki_unicast_receive_delegate_t unicast_receive_delegate;
    // -----------------------------------------------------------------------
-   void contiki_register_receive( contiki_extended_receive_delegate_t& d )
+   void contiki_register_receive( contiki_extended_receive_delegate_t& d, contiki_unicast_receive_delegate_t& d2 )
    {
       radio_receive_delegate = d;
+      unicast_receive_delegate = d2;
    }
    // -----------------------------------------------------------------------
    static void abc_recv( struct abc_conn *c )
@@ -45,20 +48,32 @@ namespace wiselib
          radio_receive_delegate( c );
    }
    // -----------------------------------------------------------------------
+   static void unicast_recv(struct unicast_conn *c, const rimeaddr_t *from) {
+      if(unicast_receive_delegate) {
+         unicast_receive_delegate(c, from);
+      }
+   }
+   // -----------------------------------------------------------------------
    static const struct abc_callbacks abc_call = { abc_recv };
+   static const struct unicast_callbacks unicast_call = { unicast_recv };
    // -----------------------------------------------------------------------
    PROCESS( contiki_ext_radio_process, "Contiki Extended Radio" );
    PROCESS_THREAD( contiki_ext_radio_process, ev, data )
    {
-      PROCESS_EXITHANDLER( abc_close(&wiselib::contiki::contiki_extdata_radio_conn) );
+      PROCESS_EXITHANDLER(
+            abc_close(&wiselib::contiki::contiki_extdata_radio_conn);
+            unicast_close(&wiselib::contiki::contiki_unicast_radio_conn);
+            );
 
       PROCESS_BEGIN();
 
       abc_open( &wiselib::contiki::contiki_extdata_radio_conn, 128, &wiselib::contiki::abc_call );
+      unicast_open( &wiselib::contiki::contiki_unicast_radio_conn, 146, &wiselib::contiki::unicast_call );
 
       while(1)
       {
          static struct etimer et;
+         //rimeaddr_t addr;
          etimer_set( &et, CLOCK_SECOND );
 
          PROCESS_WAIT_EVENT_UNTIL( etimer_expired(&et) );
@@ -75,3 +90,4 @@ namespace wiselib
 
    }
 }
+/* vim: set ts=3 sw=3 tw=78 expandtab :*/

@@ -50,9 +50,9 @@
 
 	#undef NETSTACK_CONF_RDC
 	//#define NETSTACK_CONF_RDC nullrdc_driver
-	#define NETSTACK_CONF_RDC cxmac_driver
+	//#define NETSTACK_CONF_RDC cxmac_driver
 	//#define NETSTACK_CONF_RDC xmac_driver
-	//#define NETSTACK_CONF_RDC contikimac_driver
+	#define NETSTACK_CONF_RDC contikimac_driver
 	
 	//#define NETSTACK_CONF_RDC lpp_driver
 

@@ -102,7 +102,12 @@ def write_mac(port, mac):
 	
 def receive(port, nodetype, baud):
 	trans.connect_serial(port, nodetype, baud)
+	t = threading.Thread(target=trans.send_stdin, args=(port,))
+	t.start()
+
 	trans.read_serial_forever()
+
+	t.join()
 	
 def send(port, rdf, recv, nodetype, baud):
 	trans.connect_serial(port, nodetype, baud)

@@ -23,15 +23,28 @@ const char* rdf[][3] = {
 <http://spitfire-project.eu/property/Temperature>            b23860b3
 <http://purl.oclc.org/NET/ssnx/ssn#observedProperty>         bf26b82e
  */
+
+enum { QID = 1 };
 enum { Q = Communicator::MESSAGE_ID_QUERY, OP = Communicator::MESSAGE_ID_OPERATOR };
 enum { OP_ROOT = 0 };
 enum AggregationType { GROUP = 0, SUM = 1, AVG = 2, COUNT = 3, MIN = 4, MAX = 5 };
-enum { QID = 1 };
+
+#if QUERY_SIMPLE_TEMPERATURE
 block_data_t op100[] = { OP , QID , 100  , 'a' , OP_ROOT    , BIN(010101) , BIN(0) , BIN(0) , BIN(0) , 4        , COUNT | AGAIN, MIN | AGAIN , AVG | AGAIN , MAX };
 block_data_t op90[]  = { OP , QID , 90   , 'j' , LEFT | 100 , BIN(010000) , BIN(0) , BIN(0) , BIN(0) , COL(0,0) };
 block_data_t op80[]  = { OP , QID , 80   , 'g' , RIGHT | 90 , BIN(010011) , BIN(0) , BIN(0) , BIN(0) , BIN(010) , 0x4d , 0x0f , 0x60 , 0xb4 };
 block_data_t op70[]  = { OP , QID , 70   , 'g' , LEFT | 90  , BIN(11)     , BIN(0) , BIN(0) , BIN(0) , BIN(110) , 0xbf , 0x26 , 0xb8 , 0x2e    , 0xb2 , 0x38 , 0x60 , 0xb3 };
 block_data_t cmd[]   = { Q  , QID , 4 };
+#endif
 
+/*
+ * COLLECT(?s ?p ?o) {
+ * 	?s ?p ?o .
+ */
 
+#if QUERY_COLLECT
+block_data_t op90[] = { OP , QID , 90   , 'c' , OP_ROOT    , BIN(111111) , BIN(0) , BIN(0) , BIN(0) };
+block_data_t op70[] = { OP , QID , 70   , 'g' , LEFT | 90  , BIN(111111) , BIN(0) , BIN(0) , BIN(0) , BIN(000) };
+block_data_t cmd[]  = { Q  , QID , 2 };
+#endif
 

@@ -171,43 +171,12 @@ namespace wiselib {
 					key_type key_;
 			}; // class iterator
 
-			/*
-			class linear_iterator {
-				public:
-					iterator(Slot* s, key_type k) : slots_(s), key_(k) { forward(); }
-					iterator(const iterator& other) { slots_ = other.slots_; key_ = other.key_; }
-					bool operator==(const iterator& other) { return key_ == other.key_; }
-					bool operator!=(const iterator& other) { return !(*this == other); }
-					key_type operator*() { return key_; }
-					iterator& operator++() {
-						key_++;
-						forward();
-						return *this;
-					}
-
-				private:
-					void forward() {
-						// TODO: This will skip oneslot keys!
-						// can we mark them somehow without spending
-						// additional space?
-						for( ; key_ < SLOTS && (!slots_[key_].refcount || !slots_[key_].meta); ++key_) {
-						}
-					}
-
-					Slot *slots_;
-					key_type key_;
-			}; // class iterator
-			*/
-
 			void init() {
-				//strncpy(reinterpret_cast<char*>(slots_[0].data), "<http://www.", SLOT_WIDTH);
-				//slots_[0].refcount = 1;
-
-			#if !STATIC_DICTIONARY_OUTSOURCE
-				for(key_type k = 0; k < SLOTS; k++) {
-					slots_[k].refcount = 0;
-				}
-			#endif
+				#if !STATIC_DICTIONARY_OUTSOURCE
+					for(key_type k = 0; k < SLOTS; k++) {
+						slots_[k].refcount = 0;
+					}
+				#endif
 
 				root_ = NULL_KEY;
 				root_meta_ = NULL_KEY;
@@ -260,7 +229,6 @@ namespace wiselib {
 					assert(size_ > 0);
 
 					check();
-					//debug_->debug("|%s| direct -> %d", (char*)v, (int)x);
 					return x;
 				}
 				else {
@@ -269,7 +237,6 @@ namespace wiselib {
 					make_meta(s);
 
 					int i = 0;
-					//for( ; p < end; p += SLOT_WIDTH, i++) {
 					block_data_t *split;
 					while(p < end) {
 						split = next_split(p);
@@ -336,13 +303,6 @@ namespace wiselib {
 					return slots_[k].data;
 				}
 
-				// first, find out how much space we need to represent the
-				// result
-				//size_type len = 0;
-				//for(len = 0; len < SLOT_WIDTH; len++) {
-					//if(slots_[k].data[len] == NULL_KEY) { break; }
-				//}
-
 				int cnt = slots_[k].refcount;
 
 				key_type i = 0;
@@ -353,7 +313,6 @@ namespace wiselib {
 					memcpy(buffer_ + j, slots_[slots_[k].data[i]].data, l);
 					j += l;
 				}
-				//buffer_[i * SLOT_WIDTH] = 0;
 				buffer_[j] = 0;
 				
 				check();
@@ -362,7 +321,6 @@ namespace wiselib {
 			block_data_t buffer_[SLOT_WIDTH * SLOT_WIDTH + 1];
 
 			void free_value(mapped_type v) {
-				//::get_allocator().template free_array(v);
 				buffer_[0] = 0;
 			}
 
@@ -402,7 +360,6 @@ namespace wiselib {
 						i++;
 					}
 
-					//bool found;
 					key_type x;
 					// See if this exact meta slot is already there.
 					// If not, find a free slot and put it there.
@@ -464,11 +421,6 @@ namespace wiselib {
 				for(key_type k = 0; k<SLOTS; k++) {
 					if(slots_[k].refcount) {
 						int i = 0;
-						//for(; i<SLOT_WIDTH; i++) {
-							//unsigned x = slots_[k].data[i] & 0xff;
-							//snprintf(dec + 4*i, 5, "%3u ", (unsigned)x);
-						//}
-						//dec[4 * i] = '\0';
 						debug_->debug(
 								"%03d %c x%2d: %c%c%c%c... %3u %3u %3u %3u... (%d %d %d)",
 								(unsigned)k,
@@ -519,7 +471,6 @@ namespace wiselib {
 			 * accordingly, or the according root pointer.
 			 */
 			void substitute_slot(key_type s_old, key_type s_new, bool childs=false) {
-				//debug_->debug("subst(%d,%d)", (int)s_old, (int)s_new);
 				if(childs && s_new != NULL_KEY && s_old != NULL_KEY) {
 					key_type c0, c1;
 					c0 = slots_[s_new].childs[0];
@@ -593,14 +544,6 @@ namespace wiselib {
 				}
 				return c;
 			}
-
-			//key_type& find_root(key_type k) {
-				//while(slots_[k].parent != NULL_KEY) {
-					//k = slots_[k].parent;
-				//}
-				//if(k == root_) { return root_; }
-				//return root_meta_;
-			//}
 
 			/**
 			 * @param k string slot containing a string of length l
@@ -819,3 +762,4 @@ namespace wiselib {
 
 #endif // STATIC_DICTIONARY_H
 
+/* vim: set ts=3 sw=3 tw=78 noexpandtab :*/

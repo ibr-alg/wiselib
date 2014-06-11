@@ -29,6 +29,8 @@
 #include "../compare_values.h"
 #include <util/pstl/map_static_vector.h>
 
+#define INQP_DEBUG_AGGREGATE ENABLE_DEBUG
+
 namespace wiselib {
 	
 	/**
@@ -202,6 +204,10 @@ namespace wiselib {
 				}
 				else {
 					local_aggregates_.pack();
+
+					#if ENABLE_DEBUG || (INQP_DEBUG_AGGREGATE && defined(CONTIKI))
+						printf("close a o%d\n", (int)this->id());
+					#endif
 					
 					for(typename TableT::iterator iter = local_aggregates_.begin(); iter != local_aggregates_.end(); ++iter) {
 						refresh_group(*iter, true);
@@ -301,6 +307,10 @@ namespace wiselib {
 			}
 			
 			void on_receive_row(RowT& row, node_id_t from) {
+				#if INQP_DEBUG_AGGREGATE && defined(CONTIKI)
+					printf("AGGR: recv row %lu\n", (unsigned long)from);
+				#endif
+
 				if(!child_states_.contains(from)) {
 					child_states_[from].init(aggregation_columns_physical_);
 				}
@@ -323,6 +333,10 @@ namespace wiselib {
 				}
 				else {
 					for(typename TableT::iterator iter = updated_aggregates_.begin(); iter != updated_aggregates_.end(); ++iter) {
+						#if ENABLE_DEBUG || (INQP_DEBUG_AGGREGATE && defined(CONTIKI))
+							printf("AGGR: send_row\n");
+						#endif
+							
 						this->processor().send_row(
 								Base::Processor::COMMUNICATION_TYPE_AGGREGATE,
 								aggregation_columns_physical_, *iter, this->query().id(), this->id()
