@@ -1,9 +1,9 @@
-WISELIB_PATH ?=/home/wiselib/wiselib
+WISELIB_PATH ?= /home/wiselib/wiselib
 
 WISELIB_STABLE=$(WISELIB_PATH)/wiselib.stable
 WISELIB_TESTING=$(WISELIB_PATH)/wiselib.testing
 
-ARDUINO_PATH ?=/home/wiselib/Arduino
+ARDUINO_PATH ?= /home/wiselib/Arduino
 VARIANTS=standard
 
 SPI_PATH=$(ARDUINO_PATH)/libraries/SPI

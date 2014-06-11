@@ -56,80 +56,54 @@ namespace wiselib
 
 void application_main(wiselib::ArduinoOsModel&);
 
-#if defined(OSMODEL)
-   // If and only if OSMODEL is defined this is
-   // a generic Wiselib application. (At least we assume so)
-   // Only then Wiselib should provide main(), else
-   // the OS (in this case arduino) will do it.
-
-   int main(int argc, const char** argv) {
-      wiselib::ArduinoOsModel app_main_arg;
-      init();
+#if WISELIB_CREATE_MAIN
+int main(int argc, const char** argv) {
+   wiselib::ArduinoOsModel app_main_arg;
+   init();
+   
+   #if defined(USBCON)
+      USBDevice.attach();
+   #endif
       
-      #if defined(USBCON)
-         USBDevice.attach();
-      #endif
-         
-      Serial.begin(9600);
-      application_main(app_main_arg);
-      
+   //pinMode(13, OUTPUT);
+   
+   //digitalWrite(13, HIGH);
+   
+   Serial.begin(9600);
+   application_main(app_main_arg);
+   
+   //digitalWrite(13, LOW);
+   
+   while(true) {
       while(true) {
-         while(true) {
-            cli();
-            if(wiselib::ArduinoTask::tasks_.empty()) {
+         cli();
+         if(wiselib::ArduinoTask::tasks_.empty()) {
             #if ARDUINO_ALLOW_SLEEP
-               sleep_enable();
-               sei();
-               sleep_cpu();
-               sleep_disable();
+            sleep_enable();
+            sei();
+            sleep_cpu();
+            sleep_disable();
             #endif
-               sei();
-               delay(10);
-            }
-            else {
-               sei();
-               break;
-            }
+            sei();
+            delay(10);
+         }
+         else {
+            sei();
+            break;
          }
          
-         wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
-         wiselib::ArduinoTask::tasks_.pop();
-         t.callback_(t.userdata_);
-         delay(10);
+         //wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+         //wiselib::ArduinoTask::tasks_.pop();
+         //t.callback_(t.userdata_);
+         //delay(10);
       }
-      return 0;
+      
+      wiselib::ArduinoTask t = wiselib::ArduinoTask::tasks_.front();
+      wiselib::ArduinoTask::tasks_.pop();
+      t.callback_(t.userdata_);
+      delay(10);
    }
-#endif
-
-#if 0
-//****************************************************************
-// 0=16ms, 1=32ms,2=64ms,3=128ms,4=250ms,5=500ms
-// 6=1 sec,7=2 sec, 8=4 sec, 9= 8sec
-void setup_watchdog(int ii) {
-
-  byte bb;
-  int ww;
-  if (ii > 9 ) ii=9;
-  bb=ii & 7;
-  if (ii > 7) bb|= (1<<5);
-  bb|= (1<<WDCE);
-  ww=bb;
-  Serial.println(ww);
-
-
-  MCUSR &= ~(1<<WDRF);
-  // start timed sequence
-  WDTCSR |= (1<<WDCE) | (1<<WDE);
-  // set new watchdog timeout value
-  WDTCSR = bb;
-  WDTCSR |= _BV(WDIE);
-
-
-}
-//****************************************************************  
-// Watchdog Interrupt Service / is executed when  watchdog timed out
-ISR(WDT_vect) {
-  f_wdt=1;  // set global flag
+   return 0;
 }
 #endif
 
