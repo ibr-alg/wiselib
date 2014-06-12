@@ -39,6 +39,7 @@
 #include "external_interface/isense/isense_distance.h"
 #include "external_interface/isense/isense_com_bufferuart.h"
 #include "external_interface/isense/isense_duty_cycling.h"
+#include "external_interface/isense/isense_dac.h"
 //#include "external_interface/isense/isense_internal_flash.h"
 //#include "external_interface/isense/isense_sdcard.h"
 
@@ -91,6 +92,8 @@ namespace wiselib
       typedef iSenseSerialComUartModel<iSenseOsModel> Uart;
       typedef iSenseSerialComBufferUartModel<iSenseOsModel> B_Uart;
       typedef iSenseDutyCycling<iSenseOsModel> DutyCycling;
+      typedef iSenseDAC<iSenseOsModel> DAC;
+
 
 #ifdef USE_INTERNAL_FLASH
       typedef iSenseInternalFlash<iSenseOsModel> BlockMemory;
