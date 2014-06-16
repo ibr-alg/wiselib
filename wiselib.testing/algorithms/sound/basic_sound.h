@@ -46,6 +46,40 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
             return OsModel::SUCCESS;
          }
 
+         uint16_t flipBytes(uint16_t bytes) {
+            uint16_t bytes_low = bytes << 8;
+            uint16_t bytes_high = bytes >> 8;  
+            return bytes_low+bytes_high;          
+         }
+
+         void play( const uint8_t sounddata_data[] , uint32_t length ) {
+            #ifdef ISENSE_JENNIC_JN5148
+               // Since we are performing a very-long loop, we need to disable the watchdog
+               vAHI_WatchdogStop();
+               // Disable interrupts, so that we are not disturbed by them (they may cause pop / click sounds)
+               uint32_t int_vec = disable_interrupts();
+            #endif
+
+            uint32_t idx = 0;
+            while (idx < length) {
+               uint8_t times = 67;
+               while (times > 0) {
+                  times--;
+                  #ifdef ISENSE
+                     dac().write( (sounddata_data[idx]*12) );
+                  #endif
+               }
+               idx++;
+            }
+
+            #ifdef ISENSE_JENNIC_JN5148
+               // Restore the interrupts (we want to receive Radio / UART packets again!)
+               restore_interrupts(int_vec);
+               // Restart the Watchdog (we want to detect endless loops again!)
+               vAHI_WatchdogRestart();
+            #endif
+         }
+
          void tone(double frequency, uint32_t duration) {
             debug().debug( "play_sine(freq= %d duration= %i)", frequency, (int)duration );
 
