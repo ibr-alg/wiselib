@@ -163,7 +163,7 @@ class UARTSlave:
 				self.receiving = ''
 
 def w(x): slave.tty.write(chr(x))
-def send_string(s, pkttype=0x0a):
+def send_string(s, pkttype=0x0a): # 0x0a = MESSAGE_TYPE_CUSTOM_IN_1
 	w(DLE); w(STX); w(pkttype)
 	slave.tty.write(s);
 	#w(0x00)
@@ -183,6 +183,13 @@ def transfer_rdf(port, rdf): #@nodename, room):
 		print line
 		send_string(line, pkttype=0x0b)
 		time.sleep(.2)
+def send_stdin(port):
+	global slave
+	while True:
+		line = sys.stdin.readline()
+		if not line: break
+		send_string(line)
+
 	
 def send_loop(port, s, interval, n):
 	global slave
