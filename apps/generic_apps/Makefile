@@ -1,6 +1,8 @@
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(TOP)/Makefile.local
 
+ARDUINO_PATH=/home/wiselib/Arduino
+
 ###############################################################
 ##
 ## Parameters

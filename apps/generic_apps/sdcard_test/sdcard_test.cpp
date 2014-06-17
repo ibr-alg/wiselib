@@ -1,3 +1,4 @@
+#define USE_RAM_BLOCK_MEMORY 1
 #include <external_interface/external_interface.h>
 
 typedef wiselib::OSMODEL Os;
@@ -49,12 +50,14 @@ class App {
 				Rand::value_t *v1_end = reinterpret_cast<Rand::value_t*>(buf1 + sizeof(buf1));
 				for( ; v1 < v1_end; v1++) { *v1 = rand_->operator()(); }
 				
-				int r = sd_.write(buf1, address_, TEST_BUFFER_SIZE);
+				// int r = sd_.write(buf1, address_, TEST_BUFFER_SIZE);
+				int r = sd_.write(buf1, address_);
 				if(r != Os::SUCCESS) {
 					debug_->debug("error writing %d blocks at %d code %d", TEST_BUFFER_SIZE, address_, r);
 				}
 				
-				r = sd_.read(buf2, address_, TEST_BUFFER_SIZE);
+				// r = sd_.read(buf2, address_, TEST_BUFFER_SIZE);
+				r = sd_.read(buf2, address_);
 				if(r != Os::SUCCESS) {
 					debug_->debug("error reading %d blocks at %d code %d", TEST_BUFFER_SIZE, address_, r);
 				}

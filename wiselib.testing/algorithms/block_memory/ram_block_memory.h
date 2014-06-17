@@ -72,12 +72,12 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
-			int read(block_data_t* buffer, address_t a) {
-				memcpy(buffer, data_ + a * BLOCK_SIZE, BLOCK_SIZE);
+			int read(block_data_t* buffer, address_t a, address_t b=1) {
+				memcpy(buffer, data_ + a * BLOCK_SIZE, sizeof(buffer) /*BLOCK_SIZE*/);
 				return SUCCESS;
 			}
 			
-			int write(block_data_t* buffer, address_t a) {
+			int write(block_data_t* buffer, address_t a, address_t b=1) {
 				memcpy(data_ + a * BLOCK_SIZE, buffer, BLOCK_SIZE);
 				return SUCCESS;
 			}

@@ -1,7 +1,7 @@
 
 
 BOARD ?= mega2560
-ARDUINO_PATH ?= /usr/share/arduino
+ARDUINO_PATH ?= /home/wiselib/Arduino
 
 #ARDUINO_BOARD=atmega328
 ARDUINO_BOARD=$(BOARD)
@@ -35,7 +35,7 @@ ASSERIAL_PATH=$(ARDUINO_PATH)/libraries/AltSoftSerial
 ARDUINO_HEADERS=-I$(SPI_PATH) -I$(PINS_PATH) -I$(WIRING_PATH) -I$(ETHERNET_PATH) \
 	-I$(ETHERNET_PATH)/utility -I$(SD_PATH)/utility -I$(XBEE_PATH) -I$(SSERIAL_PATH) -I$(ASSERIAL_PATH)
 
-ZEROCONF_PATH=/home/henning/repos/EthernetBonjour-rraf
+ZEROCONF_PATH=/home/wiselib/EthernetBonjour
 
 CXX=avr-g++
 INCLUDE=$(ARDUINO_HEADERS) -I$(ZEROCONF_PATH) -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)

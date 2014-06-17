@@ -89,7 +89,7 @@ namespace wiselib {
 				return SUCCESS;
 			}
 
-			int read(block_data_t* buffer, address_t a) {
+			int read(block_data_t* buffer, address_t a, address_t b = 1) {
 				open();
 				stream_.seekg(a * BLOCK_SIZE);
 				stream_.read(reinterpret_cast<char*>(buffer), BLOCK_SIZE);
@@ -97,7 +97,7 @@ namespace wiselib {
 				return SUCCESS;
 			}
 
-			int write(block_data_t* buffer, address_t a) {
+			int write(block_data_t* buffer, address_t a, address_t b = 1) {
 				open();
 				stream_.seekp(a * BLOCK_SIZE);
 				stream_.write(reinterpret_cast<char*>(buffer), BLOCK_SIZE);
