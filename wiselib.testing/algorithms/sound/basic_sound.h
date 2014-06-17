@@ -40,16 +40,87 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
          typedef Debug_P Debug;
          typedef DAC_P DAC;
 
+         struct midi_header {
+            char chunk_id[4];
+            uint8_t size;
+            uint8_t format_type;
+            uint16_t number_of_tracks;
+            uint16_t time_division;        
+         };
+
+         struct midi_message {
+            uint8_t type;
+            uint16_t length;
+            uint8_t data_bytes[]; 
+         };
+
+         struct midi_event {
+            uint16_t delta_time;
+            struct midi_message message[];
+         };
+
+         struct midi_track_chunk {
+            char id[4];
+            uint32_t length;
+            struct midi_event events[];
+         };
+
          int init(DAC& dac, Debug& debug) { 
             dac_ = &dac;
             debug_ = &debug;
             return OsModel::SUCCESS;
          }
 
-         uint16_t flipBytes(uint16_t bytes) {
-            uint16_t bytes_low = bytes << 8;
-            uint16_t bytes_high = bytes >> 8;  
-            return bytes_low+bytes_high;          
+         void play( const uint16_t midi_data[] ) {
+            struct midi_header file_header;
+            file_header.chunk_id[0] = midi_data[0] >> 8;
+            file_header.chunk_id[1] = midi_data[0];
+            file_header.chunk_id[2] = midi_data[1] >> 8;
+            file_header.chunk_id[3] = midi_data[1];
+            file_header.size = midi_data[3];
+            file_header.format_type = midi_data[4];
+            file_header.time_division = midi_data[5];
+
+            debug().debug("Playing midi file in fomrat %i and time division %i", file_header.format_type, file_header.time_division);
+
+            struct midi_track_chunk track;
+
+            track.id[0] = midi_data[6] >> 8;
+            track.id[1] = midi_data[6];
+            track.id[2] = midi_data[7] >> 8;
+            track.id[3] = midi_data[7];
+
+            track.length = ((uint32_t) midi_data[8] << 16) + midi_data[9];
+
+            uint32_t idx = 10;
+            uint32_t file_lenght = sizeof(midi_data)/sizeof(*midi_data);
+
+            while(idx < file_lenght) {
+               if(midi_data[idx] > 127)  {                // state-byte
+                  if((midi_data[idx] >> 4) == 8) {        // note off
+                     uint8_t channel = midi_data[idx];
+                     idx++;
+                     uint16_t note = midi_data[idx];
+                     idx++;
+                     uint16_t strength = midi_data[idx];
+                     //STOP
+                     idx++;
+                  }
+                  else if((midi_data[idx] >> 4) == 9) {   // note on
+                     uint8_t channel = midi_data[idx];
+                     idx++;
+                     uint16_t note = midi_data[idx];
+                     idx++;
+                     uint16_t strength = midi_data[idx];
+                     //PLAY
+                     idx++;                                          
+                  }
+                  idx++;
+               }
+               else {                                     // data-byte
+                  idx++;
+               }
+            }
          }
 
          void play( const uint8_t sounddata_data[] , uint32_t length ) {

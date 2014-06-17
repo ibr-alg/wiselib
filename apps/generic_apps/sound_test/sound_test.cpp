@@ -5,7 +5,7 @@
 #include "external_interface/external_interface.h"
 #include "algorithms/sound/basic_sound.h"
 
-#include "axel_f.h"
+#include "test.mid.h"
 
 typedef wiselib::OSMODEL Os;
 typedef wiselib::BasicSound<Os, Os::DAC, Os::Debug> basic_sound_t;
@@ -22,7 +22,7 @@ class AudioApplication {
 			basic_sound_.init( *dac_, *debug_ );
 
 			//playSong();
-			basic_sound_.play( sounddata_data, sounddata_length );
+			basic_sound_.play( midi_data );
 		}
 
 		/**
