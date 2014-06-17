@@ -30,6 +30,7 @@ CXXFLAGS += -DCONTIKI -DAUTOSTART_ENABLE -DOSMODEL=ContikiOsModel $(ADD_CXXFLAGS
 
 LDFLAGS += -L. -L$(WISELIB_BASE)/applications/lib \
 	$(OBJECTDIR)/contiki-$(TARGET)-main.o \
+	$(OBJECTDIR)/unicast.o \
    contiki-$(TARGET).a
 
 #ADD_LDFLAGS :=

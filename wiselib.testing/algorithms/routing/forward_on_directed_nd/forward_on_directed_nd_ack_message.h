@@ -52,7 +52,7 @@ namespace wiselib {
 			enum Positions {
 				POS_MESSAGE_ID = 0,
 				POS_SEQUENCE_NUMBER = POS_MESSAGE_ID + sizeof(message_id_t),
-				HEADER_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t),
+				HEADER_SIZE = POS_SEQUENCE_NUMBER + sizeof(sequence_number_t)
 				//POS_PAYLOAD_SIZE = HEADER_SIZE,
 				//POS_PAYLOAD = POS_PAYLOAD_SIZE + sizeof( ::uint8_t),
 			};

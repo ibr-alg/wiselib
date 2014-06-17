@@ -2,7 +2,7 @@ CXXFLAGS    = -Os  -Wall -pedantic -mdisable-hwmul \
 				-fno-defer-pop -fno-exceptions -fno-rtti \
 				-finline-limit=5120 -MMD \
 				-fomit-frame-pointer -fno-strength-reduce -fno-use-cxa-atexit $(ADD_CXXFLAGS)
-INCLUDES    = -I. -I$(WISELIB_PATH) -I$(WISELIB_PATH_TESTING)
+INCLUDES    = -I. -I$(WISELIB_PATH_TESTING) -I$(WISELIB_PATH)
 DEFINITIONS = -DTINYOS -DOSMODEL=TinyOsModel
 # --------------------------------------------------------
 OUTPUT = out/tinyos-telosb
@@ -13,10 +13,11 @@ PFLAGS += -fnesc-separator=__ -I$(WISELIB_PATH)/external_interface/tinyos/ \
 	-I$(WISELIB_PATH_TESTING)/external_interface/tinyos/
 CFLAGS += -I$(TOSDIR)/lib/printf
 LDFLAGS += $(OUTPUT)/tinyos_timer.o $(OUTPUT)/tinyos_radio.o $(OUTPUT)/tinyos_os.o \
-	$(OUTPUT)/tinyos_com_uart.o $(OUTPUT)/tinyos_$(BIN_OUT).o
+	$(OUTPUT)/tinyos_com_uart.o $(OUTPUT)/tinyos_$(BIN_OUT).o  -lc -lgcc
 BUILD_EXTRA_DEPS = $(OUTPUT)/tinyos_timer.o $(OUTPUT)/tinyos_radio.o $(OUTPUT)/tinyos_os.o \
 	$(OUTPUT)/tinyos_com_uart.o $(OUTPUT)/tinyos_$(BIN_OUT).o
 # --------------------------------------------------------
+.PHONY: telosb tinyos-telosb
 include $(MAKERULES)
 # --------------------------------------------------------
 $(OUTPUT)/tinyos_timer.o: $(WISELIB_PATH)/external_interface/tinyos/tinyos_timer.cpp
@@ -40,7 +41,10 @@ $(OUTPUT)/tinyos_$(BIN_OUT).o: ./$(APP_SRC)
 	msp430-g++ $(CXXFLAGS) $(DEFINITIONS) $(INCLUDES) \
 	  -o $(OUTPUT)/tinyos_$(BIN_OUT).o -c ./$(APP_SRC)
 # --------------------------------------------------------
-tinyos-telosb:
+telosb: tinyos-telosb
+
+tinyos-telosb: build/telosb/main.exe
+	@echo "if this fails mysteriously, try running '. ~/sensor-os/tinyos-2.1.1/tinyos.sh' in your shell to set up the envirenment"
 	@echo "make hex..."
 	msp430-objcopy -O ihex build/telosb/main.exe $(OUTPUT)/$(BIN_OUT).hex
 	msp430-objcopy -O binary build/telosb/main.exe $(OUTPUT)/$(BIN_OUT).bin

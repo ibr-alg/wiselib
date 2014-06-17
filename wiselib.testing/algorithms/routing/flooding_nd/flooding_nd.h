@@ -97,7 +97,7 @@ namespace wiselib {
 			
 			enum SpecialValues {
 				BROADCAST_ADDRESS = Radio::BROADCAST_ADDRESS,
-				NULL_NODE_ID = Radio::NULL_NODE_ID,
+				NULL_NODE_ID = Radio::NULL_NODE_ID
 			};
 			
 			enum Restrictions {
