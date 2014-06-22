@@ -1,5 +1,5 @@
-//#define USE_FILE_BLOCK_MEMORY 1
-#define USE_RAM_BLOCK_MEMORY 1
+#define USE_FILE_BLOCK_MEMORY 1
+//#define USE_RAM_BLOCK_MEMORY 1
 #include <external_interface/external_interface.h>
 
 typedef wiselib::OSMODEL Os;
@@ -27,15 +27,43 @@ class App {
 			//timer_ = &wiselib::FacetProvider<Os, Os::Timer>::get_facet(value);
 			rand_ = &wiselib::FacetProvider<Os, Rand>::get_facet(value);
 
-			sd_.init();
+			int a = sd_.init("myfile.img");
 
-			debug_->debug( "SD Card test application running" );
+			debug_->debug( "SD Card test application running, fs = %d", a );
 
 			address_ = 0;
 			//progress(0);
 
-			fs.init(*debug_, sd_);
-			debug_->debug( "Here now after fs.init()" );
+			if(fs.init(*debug_, sd_)==FR_OK)
+                debug_->debug( "File System Mount successful" );
+            else
+                debug_->debug( "Could not mount file System" );
+
+//            FIL *fp;
+//            a = fs.wf_open("MYDIR/MYFILE01.TXT");
+            a = fs.wf_open("FOOBAR02.TXT");
+//            a = fs.wf_open(fp,"FOOBAR01.TXT", 0);
+            debug_->debug(" Opening file %d", a);
+
+            WORD btr = 150;
+            BYTE buf[btr];
+//            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
+//            BYTE *buf2 = "abcdefghi";
+//            BYTE buf2[10];
+//            buf2 = "abcdefghi";
+            WORD br = 0;
+            WORD bw = 0;
+            a = fs.wf_read(buf, btr, &br);
+            debug_->debug(" Reading file %c \n\nREAD - %d", buf[1498], br);
+
+            a = fs.wf_open("FOOBAR01.TXT");
+            debug_->debug(" Opening file %d", a);
+
+            a = fs.wf_lseek(2000);
+            debug_->debug(" Seeking file %d", a);
+
+            a = fs.wf_write(buf, btr, &bw);
+            debug_->debug(" Writing file %d \n\nWROTE - %d", a, bw);
 //			test_sd();
 		}
 

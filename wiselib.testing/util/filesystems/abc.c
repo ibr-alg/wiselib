@@ -2,9 +2,12 @@
 #include "integer.h"
 
 int main() {
-
-BYTE abc;
-abc = 0x5;
-    printf("%x %d %lx %ld",abc, abc, abc, abc);
-return 0;
+const char* path = "  /hello/world.txt";
+printf("%s\n", path);
+    while (*path == ' ') path++;		/* Skip leading spaces */
+	if (*path == '/') path++;			/* Strip heading separator */
+    if ((BYTE)*path <= ' ')
+        printf("Heya");
+    printf("%s\n", path);
+    return 0;
 }
