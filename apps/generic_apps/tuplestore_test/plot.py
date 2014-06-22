@@ -18,7 +18,7 @@ import sys
 sys.path.append('/home/henning/bin')
 from experiment_utils import Situation, Repeat, ExperimentModel, t_average, band_stop
 
-PLOT_ENERGY = True
+PLOT_ENERGY = False
 
 #rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('font', family='serif',serif=['Palatino'], size=8)
@@ -389,6 +389,9 @@ def main():
         if k.database == 'tuplestore' and k.ts_dict == 'tree' and int(k.job) <= 25143:
             return False
 
+        if k.database == 'tuplestore' and k.ts_dict == 'prescilla':
+            return False
+
         # Ignore ERASE experiments on buggy TS/static dict and bitmap
         # allocator code
         #if k.database == 'tuplestore' and k.mode == 'erase' and int(k.job) < 25064:
@@ -591,7 +594,8 @@ def main():
     
     ax_e_e.set_xticks(range(0,100,5))
     ax_e_e.set_xlim((0, 75))
-    #ax_e_e.set_ylim((0, 55))
+    #ax_e_e.set_ylim((0, 250))
+    ax_e_e.set_ylim((0, 70))
     ax_e_e.set_xlabel(r"\#tuples in store")
     ax_e_e.set_ylabel(r"$\mu J$ / erase")
 
