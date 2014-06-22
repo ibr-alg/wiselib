@@ -9,10 +9,41 @@ in MBR:
 446-509 -> Partition Table
 510-511 -> Boot Signature
 
+Debugging wf_open(*path) {
+dj.fn = sfn;
+	follow_path() {
+	dj->sclust = 0;
+	for(;;)
+		create_name(dj, &path) {
+		sfn = dj->fn;
+		dj->fn has name in "FOOBAR01TXT" format
+		path has dummy text~~~~
+		}
+		
+		dir_find(dj, dir) {
+			dir_rewind(dj) {
+			dj->index = 0;
+			clst = dj->sclust; (0)
+			if(FAT32 and !clst)
+				clst = (CLUST)fs->dirbase; (3798)
+			dj->clust = clst; (3798)
+			dj->sect = clst ? clust2sect(clst) : fs->dirbase; (####)
+			}
+		}
+	}
+
+}
 #C8C8C8
 #A0A0A0
 #BEBEE6
-
+dir_rewind(dj) {
+		dj->index = 0;
+		clst = dj->sclust;
+		if(FAT32 and !clst)
+			clst = (CLUST)fs->dirbase;
+		dj->clust = clst;
+		dj->sect = clst ? clust2sect(clst) : fs->dirbase;
+		}
 Yep, the idea in the wiselib is that basically everything is a
 templated class (and thus should be defined completely in one header
 file, also you can write method in inline-syntax the compiler will

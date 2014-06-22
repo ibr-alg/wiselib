@@ -58,11 +58,11 @@ namespace wiselib {
 
 			FileBlockMemory() : filename_("block_memory.img") {
 			}
-			
+
 			address_t size() {
 				return filesize_ / BLOCK_SIZE;
 			}
-			
+
 			void set_size(size_type sz) {
 				filesize_ = sz;
 			}
@@ -70,7 +70,7 @@ namespace wiselib {
 			int init() {
 				return SUCCESS;
 			}
-			
+
 			int init(const char *filename) {
 				filename_ = filename;
 				std::ifstream file(filename_, std::ios::binary | std::ios::ate);
@@ -92,7 +92,7 @@ namespace wiselib {
 			int read(block_data_t* buffer, address_t a, address_t b = 1) {
 				open();
 				stream_.seekg(a * BLOCK_SIZE);
-				stream_.read(reinterpret_cast<char*>(buffer), BLOCK_SIZE);
+				stream_.read(reinterpret_cast<char*>(buffer), b * BLOCK_SIZE);
 				close();
 				return SUCCESS;
 			}
@@ -100,7 +100,7 @@ namespace wiselib {
 			int write(block_data_t* buffer, address_t a, address_t b = 1) {
 				open();
 				stream_.seekp(a * BLOCK_SIZE);
-				stream_.write(reinterpret_cast<char*>(buffer), BLOCK_SIZE);
+				stream_.write(reinterpret_cast<char*>(buffer), b * BLOCK_SIZE);
 				close();
 				return SUCCESS;
 			}

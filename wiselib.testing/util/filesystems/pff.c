@@ -664,7 +664,6 @@ FRESULT follow_path (	/* FR_OK(0): successful, !=0: error code */
 {
 	FRESULT res;
 
-
 	while (*path == ' ') path++;		/* Skip leading spaces */
 	if (*path == '/') path++;			/* Strip heading separator */
 	dj->sclust = 0;						/* Set start directory (always root dir) */
@@ -838,7 +837,7 @@ FRESULT pf_open (
 
 	fs->org_clust = LD_CLUST(dir);			/* File start cluster */
 	fs->fsize = LD_DWORD(dir+DIR_FileSize);	/* File size */
-	fs->fptr = 0;						/* File pointer */
+	fs->fptr = 0;					    	/* File pointer */
 	fs->flag = FA_OPENED;
 
 	return FR_OK;
