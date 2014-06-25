@@ -34,35 +34,32 @@ class App {
 			address_ = 0;
 			//progress(0);
 
-			if(fs.init(*debug_, sd_)==FR_OK)
+			if(!fs.init(*debug_, sd_))
                 debug_->debug( "File System Mount successful" );
             else
                 debug_->debug( "Could not mount file System" );
 
-//            FIL *fp;
-//            a = fs.wf_open("MYDIR/MYFILE01.TXT");
-            a = fs.wf_open("FOOBAR02.TXT");
-//            a = fs.wf_open(fp,"FOOBAR01.TXT", 0);
+//            a = fs.open("MYDIR/MYFILE01.TXT");
+            a = fs.open("FOOBAR02.TXT");
             debug_->debug(" Opening file %d", a);
 
-            WORD btr = 150;
+            WORD btr = 5;
             BYTE buf[btr];
 //            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
 //            BYTE *buf2 = "abcdefghi";
-//            BYTE buf2[10];
-//            buf2 = "abcdefghi";
+            BYTE buf2[10];
             WORD br = 0;
             WORD bw = 0;
-            a = fs.wf_read(buf, btr, &br);
-            debug_->debug(" Reading file %c \n\nREAD - %d", buf[1498], br);
+            a = fs.read(buf, btr, &br);
+            debug_->debug(" Reading file %c \n\nREAD - %d", buf[btr-1], br);
 
-            a = fs.wf_open("FOOBAR01.TXT");
+            a = fs.open("FOOBAR01.TXT");
             debug_->debug(" Opening file %d", a);
 
-            a = fs.wf_lseek(2000);
+            a = fs.lseek(0);
             debug_->debug(" Seeking file %d", a);
 
-            a = fs.wf_write(buf, btr, &bw);
+            a = fs.write(buf, btr, &bw);
             debug_->debug(" Writing file %d \n\nWROTE - %d", a, bw);
 //			test_sd();
 		}

@@ -21,26 +21,34 @@
 #define STRING_UTIL_H
 
 namespace wiselib {
-	
+
 	bool is_whitespace(char c) {
 		return (c == ' ') || (c == '\t') || (c == '\x0a') || (c == '\x0d');
 	}
-	
+
 	char* skip_whitespace(char* p) {
 		for( ; is_whitespace(*p); p++) { }
 		return p;
 	}
-	
+
 	bool is_printable(char c) {
 		unsigned char uc = (unsigned char)c;
 		return (uc >= 0x20) && (uc <= 0x7e);
 	}
-	
+
 	char hexchar(::uint8_t n) {
 		assert(n < 16);
 		return (n < 10) ? ('0' + n) : ('a' + n - 10);
 	}
-	
+
+	bool is_upper(char c) {
+        return (((c)>='A')&&((c)<='Z'));
+	}
+
+	bool is_lower(char c) {
+        return (((c)>='a')&&((c)<='z'));
+	}
+
 #if STRING_UTIL_USE_ALLOC
 	/**
 	 * Allocate memory large enough for the concatenation
@@ -51,7 +59,7 @@ namespace wiselib {
 	 */
 	char *alloc_strcat(char* s1, char* s2) {
 		size_t l1 = strlen(s1), l2 = strlen(s2);
-			
+
 		char *r = ::get_allocator().allocate_array<char>(l1 + l2 + 1) .raw();
 		memcpy((void*)r, (void*)s1, l1);
 		memcpy((void*)(r + l1), (void*)s2, l2);
@@ -59,7 +67,7 @@ namespace wiselib {
 		return r;
 	}
 #endif
-	
+
 	long atol(char *s) {
 		long r = 0;
 		for( ; *s != '\0'; s++) {
@@ -68,7 +76,7 @@ namespace wiselib {
 		}
 		return r;
 	}
-	
+
 	template<typename Value>
 	int ltoa(unsigned long buflen, char* buffer, Value v, int base = 10) {
 		int digits = 0;
@@ -76,7 +84,7 @@ namespace wiselib {
 		//int base = 10;
 		for( ; v2; digits++) { v2 /= base; }
 		if((unsigned long)digits >= buflen) { return 0; }
-		
+
 		buffer[digits + 1] = '\0';
 		for( ; digits; digits--) {
 			buffer[digits] = v % 10 + '0';
@@ -84,7 +92,7 @@ namespace wiselib {
 		}
 		return digits;
 	}
-	
+
 	float atof(char *s) {
 		float r = 0;
 		float f = 1.0;
@@ -102,7 +110,7 @@ namespace wiselib {
 		}
 		return r;
 	}
-	
+
 	template<typename Value>
 	int ftoa(unsigned long buflen, char* buffer, Value v, unsigned long prec) {
 		int digits = 0; // digits before decimal point
@@ -113,7 +121,7 @@ namespace wiselib {
 		if(digits + 1 + prec >= buflen) {
 			return -1;
 		}
-		
+
 		v2 = v;
 		v2 -= (long)v; // TODO: use standalone math to improve this
 		int l = digits + 1 + prec + 1;
@@ -125,7 +133,7 @@ namespace wiselib {
 			buffer[digits + 1 + i] = (char)x + '0';
 			b *= 10;
 		}
-		
+
 		long vl = v;
 		for( ; digits; digits--) {
 			buffer[digits - 1] = '0' + (char)vl % 10;
@@ -133,7 +141,7 @@ namespace wiselib {
 		}
 		return l;
 	}
-	
+
 	size_t prefix_length(char *a, char *b) {
 		size_t r = 0;
 		for( ; *a && (*a == *b); ++a, ++b) {
@@ -141,7 +149,7 @@ namespace wiselib {
 		}
 		return r;
 	}
-	
+
 	/**
 	 * In contrast to @a prefix_length, this will ignore 0-termination!
 	 */
@@ -153,8 +161,8 @@ namespace wiselib {
 		}
 		return r;
 	}
-	
-	
+
+
 }
 
 #endif // STRING_UTIL_H

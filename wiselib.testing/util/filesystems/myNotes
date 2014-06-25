@@ -31,19 +31,34 @@ dj.fn = sfn;
 			}
 		}
 	}
-
 }
+
+Debugging f_open() {
+	...
+	follow_path()
+	dir_register(&dj) {
+		dir_alloc(dp, 1) {
+			dir_sdi(dp, 0);
+			loop {
+				move_window(dp->fs, dp->sect) {
+					sync_window(fs)		// Writes dirty block to disk
+					...					// read data from dp->sect into buffer
+				}
+				...		// Find empty or deleted dir entry
+			}
+		}
+		...				// move window to dp->sect
+		...				// clear and copy dp->fn to dir[32]	
+	}
+	
+}
+
+*****sync_window flushes buffer, its called by move_window, dir_next, mk_dir.
+
 #C8C8C8
 #A0A0A0
 #BEBEE6
-dir_rewind(dj) {
-		dj->index = 0;
-		clst = dj->sclust;
-		if(FAT32 and !clst)
-			clst = (CLUST)fs->dirbase;
-		dj->clust = clst;
-		dj->sect = clst ? clust2sect(clst) : fs->dirbase;
-		}
+
 Yep, the idea in the wiselib is that basically everything is a
 templated class (and thus should be defined completely in one header
 file, also you can write method in inline-syntax the compiler will
