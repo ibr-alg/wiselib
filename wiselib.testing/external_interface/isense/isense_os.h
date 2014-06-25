@@ -39,7 +39,7 @@
 #include "external_interface/isense/isense_distance.h"
 #include "external_interface/isense/isense_com_bufferuart.h"
 #include "external_interface/isense/isense_duty_cycling.h"
-//#include "external_interface/isense/isense_internal_flash.h"
+#include "external_interface/isense/isense_internal_flash.h"
 //#include "external_interface/isense/isense_sdcard.h"
 
 #include "util/serialization/endian.h"

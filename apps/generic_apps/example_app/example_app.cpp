@@ -2,7 +2,7 @@
  * Simple Wiselib Example
  */
 #include "external_interface/external_interface.h"
-#include "integer.h"
+//#include "integer.h"
 
 typedef wiselib::OSMODEL Os;
 
@@ -18,9 +18,9 @@ class ExampleApplication
          //radio_->enable_radio();
 
          debug_->debug( "Hello World from Example Application!\n" );
-         DWORD abc;
-        abc = 5;
-        debug_->debug("%x %d %lx %ld",abc, abc, abc, abc);
+  //       DWORD abc;
+  //      abc = 5;
+  //      debug_->debug("%x %d %lx %ld",abc, abc, abc, abc);
 
          //radio_->reg_recv_callback<ExampleApplication,
                                    //&ExampleApplication::receive_radio_message>( this );
