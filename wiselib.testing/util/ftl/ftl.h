@@ -21,29 +21,7 @@ int PAGES_PER_SECTOR_P=512
 class Flash
 {
 
-#ifdef ISENSE	
-	enum {
-		PAGE_SIZE = 8, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 
-	};
-
-	enum {
-		PAGE_NO = 16, // PAGE_NO is the number of pages in a sector.
-
-	};
-			
-	enum { 
-		SECTOR_SIZE = 128 // SECTOR_SIZE is the smallest amount of data which is erased at a time.
-	};
-
-	enum { 
-		SECTOR_NO = 2// SECTOR_NO is the number of sectors in a memory
-	};
-
-	enum { 
-		MEMORY_SIZE = 256 // SECTOR_NO is the number of sectors in a memory
-	};
-#else	
 	enum {
 		PAGE_SIZE = PAGE_SIZE_P, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 
@@ -66,8 +44,6 @@ class Flash
 		MEMORY_SIZE = SECTOR_NO * SECTOR_SIZE // SECTOR_NO is the number of sectors in a memory
 	};
 
-#endif
-
 
 	enum {
 		SUCCESS = OsModel_P::SUCCESS, 
@@ -76,7 +52,14 @@ class Flash
 
 	public:
 
-	//Initialise the flash memory.
+
+	/* 
+	 * Setup / initialization needed to get the block memory device initialized. This 
+	 * method can also be used to reset the state of the block memory object to its original
+	 * state, but without erasing any of the data, whether on the block memroy device or
+	 * in volatile memory.
+	 * @return SUCCESS iff the block memory device was initialized successfully
+	 */
 	int init()
 	{
 		int i;
@@ -95,32 +78,97 @@ class Flash
 		header[PAGE_SIZE-2]=0x55;
 		header[PAGE_SIZE-1]=0xaa;
 		count=2;
-		//displayerased();
+		return SUCCESS;
+	}
+			
+	/**
+	* Init method allowing initialization of block memory device using the FacetProvider
+	* @return SUCCESS iff the block memeory device was initialized successfully
+	*/
+	int init(typename Os::AppMainParameter& value)
+	{
+		int i;
+		VFlash_.init();
+		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
+		{
+			LookupTable[i]=0;
+			ValidPage[i]=0;
+			FreePage[i]=1;		
+		}
+		headerpointer=0;
+		datapointer=PAGE_NO - 1;
+		sectorpointer=0;
+		header[0]=0x55;
+		header[1]=0xaa;
+		header[PAGE_SIZE-2]=0x55;
+		header[PAGE_SIZE-1]=0xaa;
+		count=2;
 		return SUCCESS;
 	}
 
+	/**
+	 * Reads data from multiple sucessive blocks at once and stores it into a buffer.
+	 * @param buffer The buffer to store the data into. It is assumed to be of lenth length*blocksize
+	 * @param addr The number of the block where to start reading from.
+	 * @param blocks the number of blocks to read. (blocks==0 allowed)
+	 * @return SUCCESS iff the block was read successfully
+	 */
+	int read(block_data_t* buffer, address_t addr, address_t blocks = 1)
+	{	if(addr%PAGE_SIZE!=0)
+			return ERR_UNSPEC;
+		
+		address_t i=0;
+		for(i=0;i<blocks*2;i++)
+			if(read_(buffer+i*PAGE_SIZE,addr+i*PAGE_SIZE)==ERR_UNSPEC)
+				return ERR_UNSPEC;
+		return SUCCESS;
+	}
 
-	int read(block_data_t* buffer, int logical_sector, int logical_page)
+	int read_(block_data_t* buffer, address_t addr)
 	{
-		if(ValidPage[LookupTable[logical_sector*PAGE_NO+logical_page]]==1)
-			VFlash_.read(buffer, LookupTable[logical_sector*PAGE_NO+logical_page]/PAGE_NO, LookupTable[logical_sector*PAGE_NO+logical_page]%PAGE_NO);
+		//debug_->debug("1: %d %d\n",LookupTable[addr/PAGE_SIZE]*PAGE_SIZE,addr/PAGE_SIZE*PAGE_SIZE);
+
+		if(addr%PAGE_SIZE!=0)
+			return ERR_UNSPEC;
+		if(ValidPage[LookupTable[addr/PAGE_SIZE]]==1)
+			VFlash_.read(LookupTable[addr/PAGE_SIZE]*PAGE_SIZE, PAGE_SIZE, buffer);
 		else
 			return ERR_UNSPEC;
-		//displayerased();
 		return SUCCESS;
 	}
 
-
-	int write(block_data_t* buffer, int logical_sector, int logical_page)
+	/**
+	 * Writes data from a big array into multiple successive blocks.
+	 * @param buffer The array of data to be written. The array is assumed to be of size blocks*blocksize.
+	 * @param addr The number of the block where to start writing the data.
+	 * @param blocks The number of blocks to write into. (blocks==0 allowed)
+	 * @return SUCCESS iff the block was written successfully
+	 */
+	int write(block_data_t* buffer, address_t addr, address_t blocks = 1)
 	{
+		if(addr%PAGE_SIZE!=0)
+			return ERR_UNSPEC;
+		
+		address_t i=0;
+		for(i=0;i<blocks*2;i++)
+			if(write_(buffer+i*PAGE_SIZE,addr+i*PAGE_SIZE)==ERR_UNSPEC)
+				return ERR_UNSPEC;
+		return SUCCESS;
+	}
 
+			
+
+	int write_(block_data_t* buffer, address_t addr)
+	{	if(addr%PAGE_SIZE!=0)
+			return ERR_UNSPEC;
+		//debug_->debug("1: %d %d %d\n",addr/PAGE_SIZE,sectorpointer*PAGE_NO+datapointer,LookupTable[addr/PAGE_SIZE]);
 			if(FreePage[sectorpointer*PAGE_NO+datapointer]==1)
 			{
-				VFlash_.write(buffer,sectorpointer,datapointer);
-				FreePage[sectorpointer*PAGE_NO+datapointer]=0;	
-				ValidPage[sectorpointer*PAGE_NO+datapointer]=1;
-				LookupTable[logical_sector*PAGE_NO+logical_page]=sectorpointer*PAGE_NO+datapointer;
-				header[count]=logical_sector*PAGE_NO+logical_page;
+				LookupTable[addr/PAGE_SIZE]=sectorpointer*PAGE_NO+datapointer;				
+				VFlash_.write(LookupTable[addr/PAGE_SIZE]*PAGE_SIZE,PAGE_SIZE,buffer);
+				FreePage[LookupTable[addr/PAGE_SIZE]]=0;	
+				ValidPage[LookupTable[addr/PAGE_SIZE]]=1;
+				header[count]=addr/PAGE_SIZE;
 				count++;
 				header[count]=sectorpointer*PAGE_NO+datapointer;
 				count++;
@@ -130,7 +178,7 @@ class Flash
 			if(datapointer<=headerpointer)
 				{
 					FreePage[sectorpointer*PAGE_NO+headerpointer]=0;
-					VFlash_.write(header,sectorpointer,headerpointer);
+					VFlash_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
 					headerpointer=0;
 					datapointer=PAGE_NO-1;
 					sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -142,18 +190,26 @@ class Flash
 				{			
 					FreePage[sectorpointer*PAGE_NO+headerpointer]=0;
 								
-					VFlash_.write(header,sectorpointer,headerpointer);
+					VFlash_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
 					headerpointer++;
 					count=2;
 				}
 		
 			}
-		
-		//displayerased();
+		//debug_->debug("2: %d %d %d\n",addr/PAGE_SIZE,sectorpointer*PAGE_NO+datapointer,LookupTable[addr/PAGE_SIZE]);
+
+		//print();
 		return SUCCESS;
 	}
-	
-	int erase(int sector)
+
+
+	/**
+	 * @param addr The number of the first block to be erased.
+	 * @param blocks The number of blocks to erase. (blocks==0 allowed)
+	 * @return SUCCESS iff the block was erased successfully
+	 */
+	//int erase(address_t addr, address_t blocks = 1)
+	int erase(int sector)	
 	{
 		int i;
 		VFlash_.erase(sector);
@@ -162,54 +218,53 @@ class Flash
 			ValidPage[sector*SECTOR_SIZE+i]=0;
 			FreePage[sector*SECTOR_SIZE+i]=1;
 		}	
-
-	//	displayerased();
 		return SUCCESS;
 	}
-
-
-	int erase()
-	{
+			
+	/**
+	 * Erase the whole disk,
+	 * @return SUCCESS iff the memory was wiped successfully
+	 */
+	int wipe() 
+	{ 
 		int i;
-		VFlash_.erase();
 		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
 		{
 			ValidPage[i]=0;
 			FreePage[i]=1;
 		}	
-		//displayerased();
-		return SUCCESS;
+		if(VFlash_.erase()==true)
+			return SUCCESS;
+		else
+			return ERR_UNSPEC;
 	}
 
-	/*void displayerased()
+	/*void print()
 	{
-		int i,j;
-		VFlash_.displayerased();
-		cout<<"Valid  : ";
-		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
-			cout<<ValidPage[i]<<" ";
-		cout<<endl;
-		cout<<"Free   : ";
-		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
-			cout<<FreePage[i]<<" ";
-		cout<<endl;
-		
-		for(i=0;i<PAGE_NO*SECTOR_NO;i++)
-		{
-			cout<<i <<" "<<LookupTable[i]<<endl;
-		}
-
+		int i;
+		for(i=0;i<PAGE_NO;i++)
+			debug_->debug("%d %d\n",i,LookupTable[i]);
 	}*/
+
+	/**
+	 *@return size of the block memory device in blocks
+	 */
+	address_t size()
+	{
+		return VFlash_.page_size();
+	}
+
+
 
 	int uninit()
 	{
-		VFlash_.write(header,sectorpointer,headerpointer);	
+		VFlash_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
 		return SUCCESS;
 	}
 
 
 	private:
-	wiselib::RAMFlashMemory <Os> VFlash_;
+	wiselib::RAMFlashMemory < Os, SECTOR_P, PAGE_SIZE_P, PAGES_PER_SECTOR_P> VFlash_;
 	int LookupTable[SECTOR_NO*PAGE_NO] ;			
 	int ValidPage[SECTOR_NO*PAGE_NO] ;			
 	int FreePage[SECTOR_NO*PAGE_NO] ;			
@@ -218,7 +273,7 @@ class Flash
 	int headerpointer;				// Points to the headers
 	int datapointer;				// Points to the data
 	int sectorpointer;
-	
+			Os::Debug::self_pointer_t debug_;
 };
 
 }

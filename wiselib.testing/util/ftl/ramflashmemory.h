@@ -3,8 +3,10 @@
 
 #include <external_interface/external_interface.h>
 
+
 typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
+typedef Os::size_t address_t;
 
 namespace wiselib
 
@@ -23,7 +25,7 @@ namespace wiselib
 	
 template < 
 typename OsModel_P, 
-int SECTOR_P = 4,
+int NO_SECTOR_P = 4,
 int PAGE_SIZE_P = 256,
 int PAGES_PER_SECTOR_P=512
 >
@@ -31,36 +33,13 @@ int PAGES_PER_SECTOR_P=512
 class RAMFlashMemory
 {
 
-#ifdef ISENSE	
-	enum {
-		PAGE_SIZE = 8, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
-
-	};
-
-	enum {
-		PAGE_NO = 16, // PAGE_NO is the number of pages in a sector.
-
-	};
-			
-	enum { 
-		SECTOR_SIZE = 128 // SECTOR_SIZE is the smallest amount of data which is erased at a time.
-	};
-
-	enum { 
-		SECTOR_NO = 2// SECTOR_NO is the number of sectors in a memory
-	};
-
-	enum { 
-		MEMORY_SIZE = 256 // SECTOR_NO is the number of sectors in a memory
-	};
-#else	
 	enum {
 		PAGE_SIZE = PAGE_SIZE_P, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 
 	};
 
 	enum {
-		PAGE_NO = PAGES_PER_SECTOR_P, // PAGE_NO is the number of pages in a sector.
+		PAGES_PER_SECTOR = PAGES_PER_SECTOR_P, // PAGES_PER_SECTOR is the number of pages in a sector.
 
 	};
 			
@@ -69,92 +48,138 @@ class RAMFlashMemory
 	};
 
 	enum { 
-		SECTOR_NO = SECTOR_P// SECTOR_NO is the number of sectors in a memory
+		NO_SECTOR = NO_SECTOR_P// SECTOR_NO is the number of sectors in a memory
 	};
 
 	enum { 
-		MEMORY_SIZE = SECTOR_NO * SECTOR_SIZE // SECTOR_NO is the number of sectors in a memory
+		MEMORY_SIZE = NO_SECTOR * SECTOR_SIZE // SECTOR_NO is the number of sectors in a memory
 	};
 
-#endif
-
-	enum {
-		SUCCESS = OsModel_P::SUCCESS, 
-		ERR_UNSPEC = OsModel_P::ERR_UNSPEC,
-	};
 
 	public:
 
-	//Initialise the flash memory.
-	int init()
-	{
-		int i;
 
-			erase();	
-
-			i=0;
-			//fstream fread("data.txt",ios::in);
-			//while(fread!=NULL)
-			//{
-			//	fread>>data[i];
-			//	i++;
-			//}
-			//fread.close();		
-		
-		return SUCCESS;
-	}
-
-	// Read 1 page
-	int read(block_data_t* buffer, int sector, int page)
-	{
-		int i;
-		for(i=0;i<PAGE_SIZE;i++)
-			buffer[i]=data[sector*SECTOR_SIZE+page*PAGE_SIZE+i];
-		return SUCCESS;
-	}
-
-	// write 1 page
-	int write(block_data_t* buffer, int sector, int page)
-	{
-		int i;
-		if(erased[(sector*PAGE_NO + page)] != 0)
-			return ERR_UNSPEC;
-		else
-		{
-		for(i=0;i<PAGE_SIZE;i++)
-			data[sector*SECTOR_SIZE+page*PAGE_SIZE+i]=buffer[i];
-		erased[(sector*PAGE_NO + page)]=1;
-		}		
-		return SUCCESS;
-	}
-	
-	// erase 1 sector	
-	int erase(int sector)
-	{
-		int i;
-		for(i=0;i<SECTOR_SIZE;i++)
-			data[sector*SECTOR_SIZE+i]=0xff;
-		for(i=0;i<PAGE_NO;i++)
-			erased[sector*PAGE_NO+i]=0;
-		return SUCCESS;
-	}
-
-	// erase full chip	
-	int erase()
+	//----------------------------------------------------------------------------
+	/** Erases the whole Flash memory. Returns after erase is completed.
+	 * Sets all bits in flash to 1.
+	 * @return true if flash was erased successfully, false otherwise
+	 */
+	bool erase()				
 	{
 		int i;
 		for(i=0;i<MEMORY_SIZE;i++)
-			data[i]=0xff;
-		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
-			erased[i]=0;
-		return SUCCESS;
+			memory_data[i]=0xff;
+		for(i=0;i<NO_SECTOR*PAGES_PER_SECTOR;i++)
+			erased[i]=true;
+		return true;
+	}		
+
+	//----------------------------------------------------------------------------
+	/** Erases one sector of the Flash memory. Returns after erase is completed. 
+	 * Sets all bits in the referenced flash page to 1.
+	 * 
+	 * @return true if page was erased successfully, false otherwise
+	 * 
+	 * @param page The page to erase
+	 */
+	bool erase(address_t sector)
+	{
+		int i;
+		for(i=0;i<SECTOR_SIZE;i++)
+			memory_data[sector*SECTOR_SIZE+i]=0xff;
+		for(i=0;i<PAGES_PER_SECTOR;i++)
+			erased[sector*PAGES_PER_SECTOR+i]=true;
+		return true;
+	}
+		
+	//----------------------------------------------------------------------------
+	/** Write data into the flash memory.  
+	 * 
+	 * @param start_address flash address to start writing at
+	 * @param byte_count write length in bytes, must be <= 256
+	 * @param data Pointer to the buffer that contains the data to be written to flash
+	 * 
+	 * @return true if write was successful and data was written, false otherwise
+	 * 
+	 * @note Data can only be written to area erased before, since data cannot be 'overwritten'
+	 * @note Each write access to the flash must not affect multiple pages
+	 * @note Because flash operations take long, the function should not be called from the interrupt context.
+	 */
+	bool write(address_t start_address, address_t byte_count, block_data_t* data)
+	{
+		int i;
+
+		//Check alignment
+		if(start_address%PAGE_SIZE!=0)
+			return false;
+
+		if(erased[start_address/PAGE_SIZE] != true)
+			return false;
+		else
+		{
+		for(i=0;i<byte_count;i++)
+			memory_data[start_address+i]=data[i];
+		erased[start_address/PAGE_SIZE]=false;
+		}		
+		return true;
+	}
+		
+		
+	//----------------------------------------------------------------------------
+	/** Read flash.
+	 *  
+	 * @param start_address flash address to start reading from
+	 * @param byte_count read length in bytes
+	 * @param data Pointer to the buffer the data is written to
+	 *
+	 * @return true if read was successful and data contain valid data, false otherwise
+	  *
+	 */	
+	bool read(address_t start_address, address_t byte_count, block_data_t* data)
+	{
+		int i;
+
+		//Check alignment
+		if(start_address%PAGE_SIZE!=0)
+			return false;
+
+		for(i=0;i<PAGE_SIZE;i++)
+			data[i]=memory_data[start_address+i];
+		return true;
+	}
+		
+	//----------------------------------------------------------------------------
+	/** Returns the size of the flash pages.
+	 *  
+	 * @return size of each page. For the Jennic flash, the page size is 08000h or 32 kbytes
+	 *
+	 */	
+	address_t page_size() 
+	{
+		return PAGE_SIZE;
+	}
+		
+	//----------------------------------------------------------------------------
+	/**
+	 */
+	//Initialise the flash memory.
+	void init()
+	{
+		int i;
+		erase();	
+		//i=0;
+		//fstream fread("data.txt",ios::in);
+		//while(fread!=NULL)
+		//{
+		//	fread>>data[i];
+		//	i++;
+		//}
+		//fread.close();		
 	}
 
-
-
 	private:
-	block_data_t data[MEMORY_SIZE];				// store the flash memory
-	int erased[SECTOR_NO*PAGE_NO] ;			
+	block_data_t memory_data[MEMORY_SIZE];				// store the flash memory
+	bool erased[NO_SECTOR*PAGES_PER_SECTOR];			
 	
 };
 
