@@ -1,3 +1,4 @@
+scp out/arduino/FATFS_sdcard_test.hex dhruv@algwsn.ibr.cs.tu-bs.de:
 By default MBR sector is 1st sector.
 Drives without MBR 1st 3 bytes are EBh 3Ch 90h (FAT16) and EBh 58h and 90h (FAT32).
 
@@ -54,6 +55,22 @@ Debugging f_open() {
 }
 
 *****sync_window flushes buffer, its called by move_window, dir_next, mk_dir.
+
+fptr points to exact Byte offset in file where to start writing. It will over-write without warning. To append, use lseek(filesize()) to move pointer to end of file. In case of blank file, use create_chain(0) to allocate first cluster. To extend length of file and allocate new clusters, use create_chain(clst).
+
+lseek() sets curr_clst, org_clst, dsect for non-empty files.
+
+My write ----->>>>>
+Possible cases:
+a) fptr points to start/mid cluster, cluster has empty space.
+start writing straightaway
+b) fptr points to end of cluster
+c) fptr points to 0 (new file)
+allocate new cluster and start writing
+
+determine if new cluster needed?
+-> 	if(512 - (fptr % 512) >= btw) then no need of cluster
+	else
 
 #C8C8C8
 #A0A0A0

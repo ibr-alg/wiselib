@@ -28,6 +28,7 @@ class App {
 			rand_ = &wiselib::FacetProvider<Os, Rand>::get_facet(value);
 
 			int a = sd_.init("myfile.img");
+//            int a = sd_.init();
 
 			debug_->debug( "SD Card test application running, fs = %d", a );
 
@@ -40,27 +41,37 @@ class App {
                 debug_->debug( "Could not mount file System" );
 
 //            a = fs.open("MYDIR/MYFILE01.TXT");
-            a = fs.open("FOOBAR02.TXT");
+            a = fs.open("FOOBAR00.TXT");
             debug_->debug(" Opening file %d", a);
 
-            WORD btr = 5;
+            WORD btr = 10;
             BYTE buf[btr];
-//            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
-//            BYTE *buf2 = "abcdefghi";
-            BYTE buf2[10];
+            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
+            buf2[9] = 0x0A;
+//            BYTE *buf2 = "abcdefghi\n";
+//            BYTE buf2[10];
             WORD br = 0;
             WORD bw = 0;
-            a = fs.read(buf, btr, &br);
-            debug_->debug(" Reading file %c \n\nREAD - %d", buf[btr-1], br);
+            WORD t = 110;
+//            a = fs.read(buf, btr, &br);
+//            debug_->debug(" Reading file %c \n\nREAD - %d", buf[btr-1], br);
 
-            a = fs.open("FOOBAR01.TXT");
-            debug_->debug(" Opening file %d", a);
-
+//            a = fs.open("minefile.TXT");
+//            debug_->debug(" Opening file %d", a);
+//
             a = fs.lseek(0);
             debug_->debug(" Seeking file %d", a);
 
-            a = fs.write(buf, btr, &bw);
-            debug_->debug(" Writing file %d \n\nWROTE - %d", a, bw);
+            while(t--) {
+                a = fs.write(buf2, btr, &bw);
+                debug_->debug(" Writing file %d \n\nWROTE - %d, t = %d", a, bw, t);
+            }
+            debug_->debug("t = %d", t);
+
+
+            a = fs.lseek(0);
+            a = fs.read(buf, btr, &br);
+            debug_->debug(" Reading file %s \n\nREAD - %d", buf, br);
 //			test_sd();
 		}
 
