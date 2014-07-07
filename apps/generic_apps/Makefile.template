@@ -23,15 +23,19 @@ export SHAWN_INCLUDE_DIR=/home/wiselib/shawn
 # $SHAWN_INCLUDE_DIR/buildfiles
 export SHAWN_LIB_DIR=$(SHAWN_INCLUDE_DIR)/libraries
 
+export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -lapps_wiseliblib -lapps_topologylib -lapps_readinglib \
+                       -lapps_testbedservicelib -lapps_exampleslib -lapps_externalapplib -lshawnlib \
+                       -ldl -lboost_date_time -lboost_thread -lboost_system -lboost_regex -lapps_wisemllib \
+					   -lapps_vislib -lapps_localizationlib -lcairo -lpng -lfreetype -lfontconfig -lz -lGL -lglut -lGLU
 ####
 # Small example with only basic libs
 #   * legacyapps, examples, and externalapp
 # enabled. If you have more modules enabled in your Shawn configuration, see
 # "full example" below.
 #
-export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -llegacyapps -lapps_exampleslib \
-	-lapps_externalapplib -lshawnlib \
-	-ldl
+#export SHAWN_LINK_LIBS=-rdynamic -lshawnlib -llegacyapps -lapps_exampleslib \
+	#-lapps_externalapplib -lshawnlib \
+	#-ldl
 
 ####
 # Full example when
