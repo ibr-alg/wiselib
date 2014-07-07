@@ -42,13 +42,38 @@
 #include "dictionary_translator.h"
 #include "hash_translator.h"
 
-#define INQP_ENABLE_Delete                0
-#define INQP_ENABLE_GraphPatternSelection 1
-#define INQP_ENABLE_Selection             0
-#define INQP_ENABLE_SimpleLocalJoin       1
-#define INQP_ENABLE_Collect               1
-#define INQP_ENABLE_Construct             0
-#define INQP_ENABLE_Aggregate             1
+#if !defined(INQP_ENABLE_Delete)
+	#define INQP_ENABLE_Delete                0
+#endif
+
+#if !defined(INQP_ENABLE_GraphPatternSelection)
+	#define INQP_ENABLE_GraphPatternSelection 1
+#endif
+
+#if !defined(INQP_ENABLE_Selection)
+	#define INQP_ENABLE_Selection             0
+#endif
+
+#if !defined(INQP_ENABLE_SimpleLocalJoin)
+	#define INQP_ENABLE_SimpleLocalJoin       1
+#endif
+
+#if !defined(INQP_ENABLE_Collect)
+	#define INQP_ENABLE_Collect               1
+#endif
+
+#if !defined(INQP_ENABLE_Construct)
+	#define INQP_ENABLE_Construct             0
+#endif
+
+#if !defined(INQP_ENABLE_Aggregate)
+	#define INQP_ENABLE_Aggregate             1
+#endif
+
+
+#if INQP_ENABLE_Delete
+	#warning "Delete"
+#endif
 
 
 
@@ -284,23 +309,31 @@ namespace wiselib {
 			 */
 			void handle_operator(Query* query, BOD *bod) {
 				switch(bod->type()) {
+				#if INQP_ENABLE_GraphPatternSelection
 					case BOD::GRAPH_PATTERN_SELECTION:
 						query->template add_operator<GraphPatternSelectionDescriptionT, GraphPatternSelectionT>(bod);
 						break;
+				#endif
 				#if INQP_ENABLE_Selection
 					case BOD::SELECTION:
 						query->template add_operator<SelectionDescriptionT, SelectionT>(bod);
 						break;
 				#endif
+				#if INQP_ENABLE_SimpleLocalJoin
 					case BOD::SIMPLE_LOCAL_JOIN:
 						query->template add_operator<SimpleLocalJoinDescriptionT, SimpleLocalJoinT>(bod);
 						break;
+				#endif
+				#if INQP_ENABLE_Collect
 					case BOD::COLLECT:
 						query->template add_operator<CollectDescriptionT, CollectT>(bod);
 						break;
+				#endif
+				#if INQP_ENABLE_Construct
 					case BOD::CONSTRUCTION_RULE:
 						query->template add_operator<ConstructionRuleDescriptionT, ConstructionRuleT>(bod);
 						break;
+				#endif
 				#if INQP_ENABLE_Construct
 					case BOD::CONSTRUCT:
 						query->template add_operator<ConstructDescriptionT, ConstructT>(bod);
@@ -311,9 +344,11 @@ namespace wiselib {
 						query->template add_operator<DeleteDescriptionT, DeleteT>(bod);
 						break;
 				#endif
+				#if INQP_ENABLE_Aggregate
 					case BOD::AGGREGATE:
 						query->template add_operator<AggregateDescriptionT, AggregateT>(bod);
 						break;
+				#endif
 					default:
 						assert(false);
 						break;
@@ -409,14 +444,27 @@ namespace wiselib {
 				
 				BasicOperator &op = *query->operators()[msg->operator_id()];
 				switch(op.type()) {
+				#if INQP_ENABLE_GraphPatternSelection
 					case BOD::GRAPH_PATTERN_SELECTION:
+				#endif
+				#if INQP_ENABLE_Selection
 					case BOD::SELECTION:
+				#endif
+				#if INQP_ENABLE_SimpleLocalJoin
 					case BOD::SIMPLE_LOCAL_JOIN:
+				#endif
+				#if INQP_ENABLE_Collect
 					case BOD::COLLECT:
+				#endif
+				#if INQP_ENABLE_Construct
 					case BOD::CONSTRUCTION_RULE:
 					case BOD::CONSTRUCT:
+				#endif
+				#if INQP_ENABLE_Delete
 					case BOD::DELETE:
+				#endif
 						break;
+				#if INQP_ENABLE_Aggregate
 					case BOD::AGGREGATE: {
 						assert(size >= Message::HEADER_SIZE);
 						size_type payload_length = msg->payload_size(); //size - Message::HEADER_SIZE;
@@ -434,6 +482,7 @@ namespace wiselib {
 						row->destroy();
 						break;
 					}
+				#endif
 					default:
 						assert(false);
 						break;
@@ -559,30 +608,44 @@ namespace wiselib {
 
 			void send_to_operator(BasicOperator *op, typename TupleStoreT::Tuple& t) {
 				switch(op->type()) {
+				#if INQP_ENABLE_GraphPatternSelection
 					case BOD::GRAPH_PATTERN_SELECTION:
 						(reinterpret_cast<GraphPatternSelectionT*>(op))->execute(t);
 						break;
+				#endif
+				#if INQP_ENABLE_Selection
 					case BOD::SELECTION:
 						(reinterpret_cast<SelectionT*>(op))->execute();
 						break;
+				#endif
+				#if INQP_ENABLE_SimpleLocalJoin
 					case BOD::SIMPLE_LOCAL_JOIN:
 						(reinterpret_cast<SimpleLocalJoinT*>(op))->execute();
 						break;
+				#endif
+				#if INQP_ENABLE_Aggregate
 					case BOD::AGGREGATE:
 						(reinterpret_cast<AggregateT*>(op))->execute();
 						break;
+				#endif
+				#if INQP_ENABLE_Collect
 					case BOD::COLLECT:
 						(reinterpret_cast<CollectT*>(op))->execute();
 						break;
+				#endif
+				#if INQP_ENABLE_Construct
 					case BOD::CONSTRUCTION_RULE:
 						(reinterpret_cast<ConstructionRuleT*>(op))->execute();
 						break;
 					case BOD::CONSTRUCT:
 						(reinterpret_cast<ConstructT*>(op))->execute();
 						break;
+				#endif
+				#if INQP_ENABLE_Delete
 					case BOD::DELETE:
 						(reinterpret_cast<DeleteT*>(op))->execute();
 						break;
+				#endif
 					default:
 						assert(false);
 				}

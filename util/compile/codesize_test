@@ -231,11 +231,12 @@ if __name__ == '__main__':
 
 	def print_latex():
 		print " " * 20,
-		print "  & %-15s" % conf_pretty[0],
+		print "	& %-15s" % conf_pretty[0],
 		for conf in conf_pretty[1:]:
 			print " & %-15s" % conf,
 		print " \\\\"
 
+		# go through all platforms
 		for cs in codesizes:
 			print "%20s " % cs['platform']['name'],
 			tara_broken = (cs['tara'][0] == -1)
@@ -243,10 +244,49 @@ if __name__ == '__main__':
 				cs['tara'] = (0, 0)
 		
 			for sz in cs['sizes']:
-				print " & %5s / %5s  " % (
+				print " & %5s / %5s	" % (
 					'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
 					'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
 				),
+			print " \\\\"
+
+	def print_latex_rotated():
+		print " " * 20,
+		for cs in codesizes:
+			print " & %-20s" % cs['platform']['name'],
+		print " \\\\"
+
+		for i, conf in enumerate(conf_pretty):
+			print "%-20s " % conf,
+			for cs in codesizes:
+				name = cs['platform']['name']
+				tara_broken = (cs['tara'][0] == -1)
+				if tara_broken:
+					cs['tara'] = (0, 0)
+
+				sz = cs['sizes'][i]
+				print " & %5s / %5s    " % (
+					'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
+					'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
+				),
+			print " \\\\"
+
+	def print_latex_rotated_romram(romram):
+		print " " * 20,
+		for cs in codesizes:
+			print " & %-20s" % cs['platform']['name'],
+		print " \\\\"
+
+		for i, conf in enumerate(conf_pretty):
+			print "%-20s " % conf,
+			for cs in codesizes:
+				name = cs['platform']['name']
+				tara_broken = (cs['tara'][0] == -1)
+				if tara_broken:
+					cs['tara'] = (0, 0)
+
+				sz = cs['sizes'][i]
+				print " & %5s         " % ('err' if sz[romram] == -1 else sz[romram] - cs['tara'][romram]),
 			print " \\\\"
 
 
@@ -263,7 +303,7 @@ if __name__ == '__main__':
 	for cs in codesizes:
 		print "%20s " % cs['platform']['name'],
 		for sz in cs['sizes'] + [cs['tara']]:
-			print "%5s/%5s    " % (
+			print "%5s/%5s		" % (
 				'err' if sz[0] == -1 else sz[0],
 				'err' if sz[1] == -1 else sz[1]
 			),
@@ -277,7 +317,7 @@ if __name__ == '__main__':
 		if tara_broken:
 			cs['tara'] = (0, 0)
 		for sz in cs['sizes']:
-			print "%5s/%5s    " % (
+			print "%5s/%5s		" % (
 				'err' if sz[0] == -1 else sz[0] - cs['tara'][0],
 				'err' if sz[1] == -1 else sz[1] - cs['tara'][1]
 			),
@@ -289,8 +329,15 @@ if __name__ == '__main__':
 	print
 	print "----------"
 	print
-	print_latex()
+	#print_latex()
 	print
+	print "----------"
+	print
+	print_latex_rotated_romram(0)
+	print
+	print "----------"
+	print
+	print_latex_rotated_romram(1)
 	print
 
 	log.close()
