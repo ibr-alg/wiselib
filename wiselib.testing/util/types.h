@@ -39,7 +39,7 @@ namespace wiselib {
 	template<typename T, typename U>
 	T loose_precision_cast(U& u) {
 		typedef typename Uint<sizeof(U)>::t R;
-		return (T)((R)u & (T)-1);
+		return (T)((R)u & (R)(T)-1);
 	}
 	
 	template<typename T, typename U>

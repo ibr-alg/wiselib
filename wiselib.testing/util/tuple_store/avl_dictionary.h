@@ -30,9 +30,9 @@ namespace wiselib {
 			typedef block_data_t* mapped_type;
 			
 			typedef size_type refcount_t;
-			typedef AvlDictionary<OsModel, AvlTree> self_type;
+			typedef AvlDictionary self_type;
 
-			typedef typename AvlTree::iterator iterator;
+			//typedef typename AvlTree::iterator iterator;
 			
 			enum {
 				ABSTRACT_KEYS = false

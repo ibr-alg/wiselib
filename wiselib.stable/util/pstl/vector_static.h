@@ -26,15 +26,13 @@ namespace wiselib
 {
    template<typename OsModel_P,
             typename Value_P,
-            int VECTOR_SIZE,
-            bool Outsource_P>
+            int VECTOR_SIZE>
    class vector_static;
 }
 
 #include <util/meta.h>
 
 #if CONTIKI
-//#include <contiki.h>
 #include <stdio.h>
 #endif
 
@@ -43,8 +41,7 @@ namespace wiselib
 
    template<typename OsModel_P,
             typename Value_P,
-            int VECTOR_SIZE,
-            bool Outsource_P = false>
+            int VECTOR_SIZE>
    class vector_static
    {
    public:
@@ -64,12 +61,9 @@ namespace wiselib
       typedef typename iterator::difference_type difference_type;
       typedef typename OsModel_P::size_t size_type;
 
-
-   //#if VECTOR_STATIC_OUTSOURCE
       template<typename T>
       void set_data(T* v) {
          value_type *vec = reinterpret_cast<value_type*>(v);
-         //vec_ = vec;
          finish_ = vec + (finish_ - start_);
          start_ = vec;
          end_of_storage_ = start_ + VECTOR_SIZE;
@@ -78,7 +72,6 @@ namespace wiselib
       void set_size(size_type sz) {
          finish_ = start_ + sz;
       }
-   //#endif
 
       // --------------------------------------------------------------------
       vector_static()
@@ -323,15 +316,7 @@ namespace wiselib
       ///@}
 
    protected:
-//#if VECTOR_STATIC_OUTSOURCE
-      //value_type *vec_;
-//#else
-      //value_type vec_[VECTOR_SIZE];
-//#endif
-      //typedef ENABLE_IF(Outsource_P, value_type*, vec_);
-      //typedef ENABLE_IF(!Outsource_P, value_type X[VECTOR_SIZE]);
-
-      value_type vec_[VECTOR_SIZE * (1 - Outsource_P)];
+      value_type vec_[VECTOR_SIZE];
 
       pointer start_, finish_, end_of_storage_;
    };

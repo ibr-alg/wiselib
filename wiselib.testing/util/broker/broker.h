@@ -64,6 +64,10 @@ namespace wiselib {
 				bitmask_ = other.bitmask_;
 				return *this;
 			}
+
+			::uint32_t get_key(size_type i) const {
+				return (typename ::Uint<sizeof(block_data_t*)>::t)(spo_[i]);
+			}
 			
 			block_data_t* get(size_type i) const {
 				if(i < STRINGS) {
@@ -83,6 +87,10 @@ namespace wiselib {
 				return sizeof(bitmask_t);
 			}
 			
+			void set_key(size_type i, ::uint32_t k) {
+				spo_[i] = 0;
+				spo_[i] = reinterpret_cast<char*>((typename ::Uint<sizeof(char*)>::t)k);
+			}
 			void set(char* subject, char* predicate, char* object, bitmask_t bitmask) {
 				spo_[0] = subject;
 				spo_[1] = predicate;

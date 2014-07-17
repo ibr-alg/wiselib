@@ -271,7 +271,7 @@ namespace wiselib {
 				get_allocator().free_array(
 						reinterpret_cast<block_data_t*>(p)
 				);
-				*/
+				//*/
 				
 				if(root_ == p) { root_ = 0; }
 				
