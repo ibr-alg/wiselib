@@ -1,5 +1,5 @@
-#ifndef __RAMFLASHMEMORY_H__
-#define __RAMFLASHMEMORY_H__
+#ifndef __RAM_FLASH_MEMORY_H__
+#define __RAM_FLASH_MEMORY_H__
 
 #include <external_interface/external_interface.h>
 
@@ -32,7 +32,7 @@ int PAGES_PER_SECTOR_P=512
 
 class RAMFlashMemory
 {
-
+	public:
 	enum {
 		PAGE_SIZE = PAGE_SIZE_P, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 
@@ -56,7 +56,6 @@ class RAMFlashMemory
 	};
 
 
-	public:
 
 
 	//----------------------------------------------------------------------------
@@ -165,7 +164,7 @@ class RAMFlashMemory
 	//Initialise the flash memory.
 	void init()
 	{
-		int i;
+		//int i;
 		erase();	
 		//i=0;
 		//fstream fread("data.txt",ios::in);

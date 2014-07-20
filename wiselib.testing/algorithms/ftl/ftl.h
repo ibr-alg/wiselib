@@ -2,8 +2,8 @@
 #define __FTL_H__
 
 
-#include "ramflashmemory.h"
 #include <external_interface/external_interface.h>
+#include <algorithms/block_memory/ram_flash_memory.h>
 
 typedef wiselib::OSMODEL Os;
 typedef Os::block_data_t block_data_t;
@@ -14,34 +14,32 @@ namespace wiselib
 	
 template < 
 typename OsModel_P, 
-int SECTOR_P = 4,
-int PAGE_SIZE_P = 256,
-int PAGES_PER_SECTOR_P=512
+typename FlashMemory_P
 >
 class Flash
 {
 
 
 	enum {
-		PAGE_SIZE = PAGE_SIZE_P, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
+		PAGE_SIZE = FlashMemory_P::PAGE_SIZE, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 
 	};
 
 	enum {
-		PAGE_NO = PAGES_PER_SECTOR_P, // PAGE_NO is the number of pages in a sector.
+		PAGE_NO = FlashMemory_P::PAGES_PER_SECTOR, // PAGE_NO is the number of pages in a sector.
 
 	};
 			
 	enum { 
-		SECTOR_SIZE = PAGE_SIZE_P*PAGES_PER_SECTOR_P // SECTOR_SIZE is the smallest amount of data which is erased at a time.
+		SECTOR_SIZE = FlashMemory_P::SECTOR_SIZE // SECTOR_SIZE is the smallest amount of data which is erased at a time.
 	};
 
 	enum { 
-		SECTOR_NO = SECTOR_P// SECTOR_NO is the number of sectors in a memory
+		SECTOR_NO = FlashMemory_P::NO_SECTOR// SECTOR_NO is the number of sectors in a memory
 	};
 
 	enum { 
-		MEMORY_SIZE = SECTOR_NO * SECTOR_SIZE // SECTOR_NO is the number of sectors in a memory
+		MEMORY_SIZE = FlashMemory_P::MEMORY_SIZE // SECTOR_NO is the number of sectors in a memory
 	};
 
 
@@ -63,7 +61,7 @@ class Flash
 	int init()
 	{
 		int i;
-		VFlash_.init();
+		FlashMemory_.init();
 		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
 		{
 			LookupTable[i]=0;
@@ -88,7 +86,7 @@ class Flash
 	int init(typename Os::AppMainParameter& value)
 	{
 		int i;
-		VFlash_.init();
+		FlashMemory_.init();
 		for(i=0;i<SECTOR_NO*PAGE_NO;i++)
 		{
 			LookupTable[i]=0;
@@ -131,7 +129,7 @@ class Flash
 		if(addr%PAGE_SIZE!=0)
 			return ERR_UNSPEC;
 		if(ValidPage[LookupTable[addr/PAGE_SIZE]]==1)
-			VFlash_.read(LookupTable[addr/PAGE_SIZE]*PAGE_SIZE, PAGE_SIZE, buffer);
+			FlashMemory_.read(LookupTable[addr/PAGE_SIZE]*PAGE_SIZE, PAGE_SIZE, buffer);
 		else
 			return ERR_UNSPEC;
 		return SUCCESS;
@@ -165,7 +163,7 @@ class Flash
 			if(FreePage[sectorpointer*PAGE_NO+datapointer]==1)
 			{
 				LookupTable[addr/PAGE_SIZE]=sectorpointer*PAGE_NO+datapointer;				
-				VFlash_.write(LookupTable[addr/PAGE_SIZE]*PAGE_SIZE,PAGE_SIZE,buffer);
+				FlashMemory_.write(LookupTable[addr/PAGE_SIZE]*PAGE_SIZE,PAGE_SIZE,buffer);
 				FreePage[LookupTable[addr/PAGE_SIZE]]=0;	
 				ValidPage[LookupTable[addr/PAGE_SIZE]]=1;
 				header[count]=addr/PAGE_SIZE;
@@ -178,7 +176,7 @@ class Flash
 			if(datapointer<=headerpointer)
 				{
 					FreePage[sectorpointer*PAGE_NO+headerpointer]=0;
-					VFlash_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
 					headerpointer=0;
 					datapointer=PAGE_NO-1;
 					sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -190,7 +188,7 @@ class Flash
 				{			
 					FreePage[sectorpointer*PAGE_NO+headerpointer]=0;
 								
-					VFlash_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
 					headerpointer++;
 					count=2;
 				}
@@ -212,7 +210,7 @@ class Flash
 	int erase(int sector)	
 	{
 		int i;
-		VFlash_.erase(sector);
+		FlashMemory_.erase(sector);
 		for(i=0;i<SECTOR_NO;i++)
 		{
 			ValidPage[sector*SECTOR_SIZE+i]=0;
@@ -233,7 +231,7 @@ class Flash
 			ValidPage[i]=0;
 			FreePage[i]=1;
 		}	
-		if(VFlash_.erase()==true)
+		if(FlashMemory_.erase()==true)
 			return SUCCESS;
 		else
 			return ERR_UNSPEC;
@@ -251,20 +249,20 @@ class Flash
 	 */
 	address_t size()
 	{
-		return VFlash_.page_size();
+		return FlashMemory_.page_size();
 	}
 
 
 
 	int uninit()
 	{
-		VFlash_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+		FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
 		return SUCCESS;
 	}
 
 
 	private:
-	wiselib::RAMFlashMemory < Os, SECTOR_P, PAGE_SIZE_P, PAGES_PER_SECTOR_P> VFlash_;
+	FlashMemory_P FlashMemory_;
 	int LookupTable[SECTOR_NO*PAGE_NO] ;			
 	int ValidPage[SECTOR_NO*PAGE_NO] ;			
 	int FreePage[SECTOR_NO*PAGE_NO] ;			

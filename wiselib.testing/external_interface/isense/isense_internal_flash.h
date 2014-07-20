@@ -26,8 +26,6 @@
 #include <isense/platforms/jennic/jennic_flash.h>
 #include <isense/os.h>
 
-
-
 namespace wiselib {
 
 	/**
@@ -66,9 +64,6 @@ namespace wiselib {
 			iSenseInternalFlash(isense::Os& os) : os_(&os) {
 			}
 			
-			iSenseInternalFlash() {
-			}
-			
 			int init() {
 				return SUCCESS;
 			}
@@ -80,9 +75,7 @@ namespace wiselib {
 			/**
 			 */
 			int erase(erase_block_address_t start_block) {
-			//os_->debug("Erasing");
-						
-			return erase(start_block, 1);
+				return erase(start_block, 1);
 			}
 			
 			/// ditto.
@@ -93,17 +86,17 @@ namespace wiselib {
 				// sectors 0 and 1 contain the program code, you probably
 				// dont want to erase them
 				if(sector < 2 || sector >= (ERASE_BLOCKS + 2)) {
-				//	os_->debug("you wanted to erase hardware sector %d which i dont advise", sector);
+					os_->debug("you wanted to erase hardware sector %d which i dont advise", sector);
 					return ERR_UNSPEC;
 				}
 				
 				if(sector + blocks > (ERASE_BLOCKS + 2)) {
-				//	os_->debug("erase block range overlaps allowed area start_block=%d blocks=%d sector=%d", start_block, blocks, sector);
+					os_->debug("erase block range overlaps allowed area start_block=%d blocks=%d sector=%d", start_block, blocks, sector);
 					return ERR_UNSPEC;
 				}
 				
 				for(size_t i = sector; i<sector+blocks; i++) {
-				//	os_->debug("erasing sector %d", i);
+					//os_->debug("erasing sector %d", i);
 					bool r = os_->flash().erase(i);
 					if(!r) { return ERR_UNSPEC; }
 				}

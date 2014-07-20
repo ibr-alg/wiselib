@@ -38,8 +38,11 @@ Due to FTL, we can write data to a particular sector any number of times and the
 
 typedef wiselib::OSMODEL Os;
 
-#include <util/ftl/ftl.h>
-typedef wiselib::Flash<Os,4,256,512> Flash;
+#include <algorithms/block_memory/ram_flash_memory.h>
+typedef wiselib::RAMFlashMemory<Os,4,256,512> RAMFlashMemory_;
+
+#include <algorithms/ftl/ftl.h>
+typedef wiselib::Flash<Os,RAMFlashMemory_> Flash;
 
 
 typedef Os::block_data_t block_data_t;
