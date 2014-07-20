@@ -1,0 +1,114 @@
+namespace concepts {
+
+	/**
+	 * \brief Basic concept for file systems
+     *
+     * @ingroup file_system_concept
+	 * @ingroup block_memory_concept
+	 * @ingroup concepts
+	 */
+	class FileSystem_concept
+		: public BlockMemory_concept {
+
+		public:
+            typedef OsModel_P OsModel;
+            typedef BlockMemory_P BlockMemory;
+            typedef Debug_P Debug;
+
+            typedef ... block_data_t;
+			typedef ... address_t;
+
+            enum {
+                SUCCESS = OsModel::SUCCESS,
+                ERR_IO = OsModel::ERR_IO,
+                ERR_NOMEM = OsModel::ERR_NOMEM,
+                ERR_UNSPEC = OsModel::ERR_UNSPEC
+            };
+
+            /**
+              * Results of Disk Functions
+              */
+            typedef enum {
+                RES_OK = 0,				/**< 0: Function succeeded */
+                RES_ERROR,			    /**< 1: Disk error */
+                RES_NOTRDY,				/**< 2: Not ready */
+                RES_PARERR		    	/**< 3: Invalid parameter */
+            } DRESULT;
+
+            /**
+              * File function return code (FRESULT)
+              */
+            typedef enum {
+                FR_OK = 0,			    /**< 0 */
+                FR_DISK_ERR,		    /**< 1 */
+                FR_NOT_READY,			/**< 2 */
+                FR_NO_FILE,				/**< 3 */
+                FR_NO_PATH,				/**< 4 */
+                FR_NOT_OPENED,			/**< 5 */
+                FR_NOT_ENABLED,			/**< 6 */
+                FR_NO_FILESYSTEM		/**< 7 */
+            } FRESULT;
+
+            int init(Debug& debug, BlockMemory& block_memory);
+
+            /**
+              * Mount/Unmount a Locical Drive
+              */
+
+            FRESULT mount ();
+
+            /**
+              * Open or Create a File
+              */
+
+            FRESULT open (
+                const char* path	    /**< Pointer to the file name */
+            );
+
+            /**
+              * Read File
+              */
+
+            FRESULT read (
+                void* buff,		        /**< Pointer to the read buffer (NULL:Forward data to the stream)*/
+                ::uint16_t btr,	    	/**< Number of bytes to read */
+                ::uint16_t* br		    /**< Pointer to number of bytes read */
+            );
+
+            /**
+              * Write File
+              */
+
+            FRESULT write (
+                void* buff,	            /**< Pointer to the data to be written */
+                ::uint16_t btw,			/**< Number of bytes to write (0:Finalize the current write operation) */
+                ::uint16_t* bw			/**< Pointer to number of bytes written */
+            );
+
+
+
+            /**
+              * Seek File R/W Pointer
+              */
+
+            FRESULT lseek (
+                address_t ofs		    /**< File pointer from top of file */
+            );
+            
+            /**
+              * Delete a file
+              */
+            
+            FRESULT erase_file (
+	        	const TCHAR* path		/**< Pointer to the file or directory path */
+		    );
+		    
+		    /**
+			 * Create a Directory
+			 */
+			 
+			FRESULT mkdir (
+				const TCHAR* path		/**< Pointer to the directory path */
+			);
+
+} // namespace

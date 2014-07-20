@@ -459,6 +459,76 @@ class Fat32 {
         }
 
 /**
+ * Delete a File or Directory
+ */
+
+        FRESULT erase_file (
+            const TCHAR* path		/* Pointer to the file or directory path */
+        )
+        {
+            FRESULT res;
+            DIR dj, sdj;
+            BYTE *dir;
+            DWORD dclst;
+            BYTE sfn[12];
+            BYTE buf[bm_->BLOCK_SIZE];
+
+
+            /* Get logical drive number */
+//            res = find_volume(&dj.fs, &path, 1);
+
+            dj.fn = sfn;
+            res = follow_path(&dj, buf, dir, path);		/* Follow the file path */
+//                if (_FS_RPATH && res == FR_OK && (dj.fn[NS] & NS_DOT))
+//                    res = FR_INVALID_NAME;			/* Cannot remove dot entry */
+            debug_->debug("In delete res %d", res);
+            if (res == FR_OK) {					/* The object is accessible */
+                dir = buf + ((sdj.index % (bm_->BLOCK_SIZE / SZ_DIR)) * SZ_DIR);
+                if (!dir) {
+                    res = FR_NO_FILE;		/* Cannot remove the start directory */
+                } else {
+                    if (dir[DIR_Attr] & AM_RDO) {
+                        debug_->debug("In delete exit 1");
+                        res = FR_NOT_ENABLED;		/* Cannot remove R/O object */
+                    }
+                }
+                dclst = LD_CLUST(dir);
+                if (res == FR_OK && (dir[DIR_Attr] & AM_DIR)) {	/* Is it a sub-dir? */
+                    if (dclst < 2) {
+                        res = FR_DISK_ERR;
+                    } else {
+                        memcpy(&sdj, &dj, sizeof (DIR));	/* Check if the sub-directory is empty or not */
+                        sdj.sclust = dclst;
+                        res = dir_sdi(&sdj, buf, dir, 2);		/* Exclude dot entries */
+                        dir = buf + ((sdj.index % (bm_->BLOCK_SIZE / SZ_DIR)) * SZ_DIR);
+//                        if (res == FR_OK) {
+                        res = dir_read(&sdj, buf, dir);	/* Read an item */
+                        if (res == FR_OK)   {
+                            debug_->debug("In delete exit 2");
+                            res = FR_NOT_ENABLED;        /* Not empty directory */
+                        }
+                        if (res == FR_NO_FILE)  {
+                            res = FR_OK;	        /* Empty */
+                        }
+//                        }
+                    }
+                }
+                if (res == FR_OK) {
+                    res = dir_remove(buf, dir, &dj);		/* Remove the directory entry */
+                    if (res == FR_OK) {
+                        if (dclst)  {                       /* Remove the cluster chain if exist */
+                            res = remove_chain(dclst);
+                        }
+                        if (res == FR_OK)   {
+                            res = sync_fs();
+                        }
+                    }
+                }
+            }
+            return res;
+        }
+
+/**
  * Seek File R/W Pointer
  */
 
@@ -552,6 +622,19 @@ class Fat32 {
             FA_OPENED	=	0x01,
             FA_WPRT	    =	0x02,
             FA__WIP	    =	0x40
+        };
+
+/**
+ * Name status flags
+ */
+        enum {
+            NS          =   11,		/* Index of name status byte in fn[] */
+            NS_LOSS		=   0x01,	/* Out of 8.3 format */
+            NS_LFN		=   0x02,	/* Force to create LFN entry */
+            NS_LAST		=   0x04,	/* Last segment */
+            NS_BODY		=   0x08,	/* Lower case flag (body) */
+            NS_EXT		=   0x10,	/* Lower case flag (ext) */
+            NS_DOT		=   0x20	/* Dot entry */
         };
 
 /**
@@ -733,6 +816,9 @@ class Fat32 {
 
             res = put_fat(ncl, 0x0FFFFFFF);	/* Mark the new cluster "last link" */
             debug_->debug("In create_chain, clst = %lu, ncl = %d, res = %d", (long unsigned)cs, ncl, res);
+            if(res == FR_OK)    {
+                res = erase_cluster(ncl);   /* Erase contents of the cluster */
+            }
             if (res == FR_OK && clst != 0) {
                 res = put_fat(clst, ncl);	/* Link it to the previous one if needed */
             }
@@ -747,6 +833,79 @@ class Fat32 {
             }
 
             return ncl;		/* Return new cluster number or error code */
+        }
+
+/**
+ * FAT handling - Remove a cluster chain
+ */
+
+        FRESULT remove_chain (
+            DWORD clst			/* Cluster# to remove a chain from */
+        )
+        {
+            FRESULT res;
+            DWORD nxt;
+//            DWORD scl = clst, ecl = clst, rt[2];
+
+            if (clst < 2 || clst >= fs->n_fatent) {	/* Check range */
+                res = FR_DISK_ERR;
+
+            } else {
+                res = FR_OK;
+                while (clst < fs->n_fatent) {			/* Not a last link? */
+                    nxt = get_fat(clst);			    /* Get cluster status */
+                    if (nxt == 0)   {
+                        break;				/* Empty cluster? */
+                    }
+                    if (nxt == 1)   {
+                        res = FR_DISK_ERR;   /* Internal error? */
+                        break;
+                    }
+                    if (nxt == 0xFFFFFFFF)  {
+                        res = FR_DISK_ERR;  /* Disk error? */
+                        break;
+                    }
+                    res = put_fat(clst, 0);			/* Mark the cluster "empty" */
+                    if (res != FR_OK)   {
+                        break;
+                    }
+                    if (fs->free_clust != 0xFFFFFFFF) {	/* Update FSINFO */
+                        fs->free_clust++;
+//                        fs->fsi_flag |= 1;
+                    }
+//                    if (ecl + 1 == nxt) {	/* Is next cluster contiguous? */
+//                        ecl = nxt;
+//                    } else {				/* End of contiguous clusters */
+//                        rt[0] = clust2sect(scl);					/* Start sector */
+//                        rt[1] = clust2sect(ecl) + fs->csize - 1;	/* End sector */
+//                        disk_ioctl(fs->drv, CTRL_ERASE_SECTOR, rt);		/* Erase the block */
+//                        scl = ecl = nxt;
+//                    }
+                    clst = nxt;	/* Next cluster */
+                }
+            }
+
+            return res;
+        }
+
+/**
+ * Erase all sectors belonging to the cluster
+ */
+
+        FRESULT erase_cluster (
+            CLUST clst          /* Cluster to be erased */
+        )
+        {
+            FRESULT res;
+            res = FR_OK;
+            BYTE buf[bm_->BLOCK_SIZE];
+            memset(buf, 0, sizeof(buf));
+            DWORD sect;
+            sect = clust2sect(clst);
+            debug_->debug("In erase_cluster %d", clst);
+            bm_->write(buf,sect, fs->csize);
+
+            return res;
         }
 
 /**
@@ -1023,7 +1182,9 @@ class Fat32 {
                     /*res = */bm_->read(buf, dp->sect);
 
                     if (dir[0] == DDE || dir[0] == 0) {	/* Is it a blank/deleted dir entry (DDE)? */
-                        if (++n == nent) break;	/* A block of contiguous entries is found */
+                        if (++n == nent)    {
+                            break;	/* A block of contiguous entries is found */
+                        }
                     } else {
                         n = 0;					/* Not a blank entry. Restart to search */
                     }
@@ -1144,8 +1305,22 @@ class Fat32 {
                         if (clst <= 1)  {
                             return FR_DISK_ERR;
                         }
+                        if (clst == 0xFFFFFFFF) {
+                            return FR_DISK_ERR;
+                        }
                         if (clst >= fs->n_fatent)   {	/* When it reached end of dynamic table */
                             clst = create_chain(dj->clust);
+                            if (clst == 0)  {
+//                                return FR_DENIED;			/* No free cluster */
+                                return FR_NO_FILE;
+                            }
+                            if (clst == 1)  {
+//                                return FR_INT_ERR;
+                                return FR_NO_FILE;
+                            }
+                            if (clst == 0xFFFFFFFF) {
+                                return FR_DISK_ERR;
+                            }
 //                            return FR_NO_FILE;			/* Report EOT */
                         }
                         dj->clust = clst;				/* Initialize data for new cluster */
@@ -1197,7 +1372,10 @@ class Fat32 {
                     break;
                 }
                 c = dir[DIR_Name];	/* First character */
-                if (c == 0) { res = FR_NO_FILE; break; }	/* Reached to end of table */
+                if (c == 0) {
+                    res = FR_NO_FILE;
+                    break;
+                }	                /* Reached to end of table */
                 if (!(dir[DIR_Attr] & AM_VOL) && !memcmp(dir, dj->fn, 11)) { /* Is it a valid entry? */
                     debug_->debug("In dir_find BREAKING \"%c\" and res is %d", dir[0], res);
                     break;
@@ -1237,6 +1415,67 @@ class Fat32 {
         }
 
 /**
+ * Read an object from the directory
+ */
+
+        FRESULT dir_read (
+            DIR* dp,		/* Pointer to the directory object */
+            BYTE* buf,      /* Buffer to read sector */
+            BYTE* dir       /* Store directory entry */
+        )
+        {
+            FRESULT res;
+            BYTE a, c;
+
+            res = FR_NO_FILE;
+            while (dp->sect) {
+//                res = move_window(dp->fs, dp->sect);
+                bm_->read(buf, dp->sect);
+                dir = buf+(((WORD)dp->index % (bm_->BLOCK_SIZE/SZ_DIR)) * SZ_DIR);  /* Ptr to the dir entry of current index */
+                c = dir[DIR_Name];
+                if (c == 0) {       /* Reached to end of table */
+                    res = FR_NO_FILE;
+                    break;
+                }
+                a = dir[DIR_Attr] & AM_MASK;
+                if (c != DDE && (c != '.') && (a == AM_VOL)) {   /* Is it a valid entry? */
+                    break;
+                }
+                res = dir_next(dp);				/* Next entry */
+                if (res != FR_OK) break;
+            }
+
+            if (res != FR_OK)   {
+                dp->sect = 0;
+            }
+
+            return res;
+        }
+
+/**
+ * Remove an object from the directory
+ */
+
+        FRESULT dir_remove (	/* FR_OK: Successful, FR_DISK_ERR: A disk error */
+            BYTE* buf,          /* Buffer to read sector */
+            BYTE* dir,          /* Pointer to the directory entry */
+            DIR* dp				/* Directory object pointing the entry to be removed */
+        )
+        {
+            FRESULT res;
+            res = dir_sdi(dp, buf, dir, dp->index);
+            dir = buf+(((WORD)dp->index % (bm_->BLOCK_SIZE/SZ_DIR)) * SZ_DIR);  /* Ptr to the dir entry of current index */
+            if (res == FR_OK) {
+//                res = move_window(dp->fs, dp->sect);
+                bm_->read(buf, dp->sect);
+                memset(dir, 0, SZ_DIR);	/* Clear and mark the entry "deleted" */
+                *dir = DDE;
+                bm_->write(buf, dp->sect);
+            }
+            return res;
+        }
+
+/**
  * Pick a segment and create the object name in directory form
  */
 
@@ -1258,10 +1497,15 @@ class Fat32 {
             p = *path;
             for (;;) {
                 c = p[si++];
-                if (c <= ' ' || c == '/') break;	/* Break on end of segment */
+                if (c <= ' ' || c == '/')   {
+                    break;	/* Break on end of segment */
+                }
                 if (c == '.' || i >= ni) {
-                    if (ni != 8 || c != '.') break;
-                    i = 8; ni = 11;
+                    if (ni != 8 || c != '.')    {
+                        break;
+                    }
+                    i = 8;
+                    ni = 11;
                     continue;
                 }
 //                if (IsDBCS1(c) && i < ni - 1) {	/* DBC 1st byte? */
@@ -1269,7 +1513,9 @@ class Fat32 {
 //                    sfn[i++] = c;
 //                    sfn[i++] = d;
 //                } else {						/* Single byte code */
-                    if (is_lower(c)) c -= 0x20;	/* toupper */
+                    if (is_lower(c))    {
+                        c -= 0x20;	/* toupper */
+                    }
                     sfn[i++] = c;
 //                }
             }
@@ -1307,25 +1553,32 @@ class Fat32 {
                 // Taken from pff.c, compare dir_sdi() from ff.c
                 dir[0] = 0;
             }
-            else {							/* Follow path */
+            else {							            /* Follow path */
                 for (;;) {
-                    res = create_name(dj, &path);	/* Get a segment */
-                    if (res != FR_OK) break;
+                    res = create_name(dj, &path);   	/* Get a segment */
+                    if (res != FR_OK)   {
+                        break;
+                    }
                     res = dir_find(dj, buf, dir);		/* Find it */
                     dir = buf+(((WORD)dj->index % (bm_->BLOCK_SIZE/SZ_DIR)) * SZ_DIR);
-                    if(!dir)
+                    if(!dir)    {
                         debug_->debug("In follow_path about dir %d", res);
+                    }
                     debug_->debug("In follow_path for is %d (0)", res);
-                    if (res != FR_OK) {				/* Could not find the object */
-                        if (res == FR_NO_FILE && !*(dj->fn+11))
+                    if (res != FR_OK) {				    /* Could not find the object */
+                        if (res == FR_NO_FILE && !*(dj->fn+11)) {
                             res = FR_NO_PATH;
+                        }
                         break;
                     }
 
-                    if (*(dj->fn+11)) break;		/* Last segment match. Function completed. */
+                    if (*(dj->fn+11))   {
+                        break;	    	/* Last segment match. Function completed. */
+                    }
 
-                    if (!(dir[DIR_Attr] & AM_DIR)) { /* Cannot follow because it is a file */
-                        res = FR_NO_PATH; break;
+                    if (!(dir[DIR_Attr] & AM_DIR)) {    /* Cannot follow because it is a file */
+                        res = FR_NO_PATH;
+                        break;
                     }
                     dj->sclust = LD_CLUST(dir);
                 }

@@ -10,6 +10,10 @@ in MBR:
 446-509 -> Partition Table
 510-511 -> Boot Signature
 
+Creating and listing directories to be done.
+ex: for(fat::iterator itr = fat.begin_dir_listing("/foo"); itr!=fat.end_dir; itr++)
+{ do something with *itr	}
+
 Debugging wf_open(*path) {
 dj.fn = sfn;
 	follow_path() {
@@ -33,6 +37,11 @@ dj.fn = sfn;
 		}
 	}
 }
+
+//            a = fs.mkdir("MYFILE");
+//            debug_->debug("Creater dir %d", a);
+
+
 
 Debugging f_open() {
 	...
@@ -59,6 +68,12 @@ Debugging f_open() {
 fptr points to exact Byte offset in file where to start writing. It will over-write without warning. To append, use lseek(filesize()) to move pointer to end of file. In case of blank file, use create_chain(0) to allocate first cluster. To extend length of file and allocate new clusters, use create_chain(clst).
 
 lseek() sets curr_clst, org_clst, dsect for non-empty files.
+
+mkdir(), 
+
+in dir_next()	{
+	fs->winsect = dp->sect;
+}
 
 My write ----->>>>>
 Possible cases:

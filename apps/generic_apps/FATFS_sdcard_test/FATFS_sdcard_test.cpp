@@ -40,16 +40,16 @@ class App {
             else
                 debug_->debug( "Could not mount file System" );
 
-//            a = fs.open("MYDIR/MYFILE01.TXT");
-            a = fs.open("FOOBAR00.TXT");
+//            a = fs.open("MYFILE");
+//            a = fs.open("FOOBAR05.TXT");
             debug_->debug(" Opening file %d", a);
 
             WORD btr = 10;
             BYTE buf[btr];
-            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
+//            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
+            BYTE buf2[10] = {'1','2','3','4','5','6','7','8','9'};
             buf2[9] = 0x0A;
-//            BYTE *buf2 = "abcdefghi\n";
-//            BYTE buf2[10];
+//
             WORD br = 0;
             WORD bw = 0;
             WORD t = 110;
@@ -59,19 +59,21 @@ class App {
 //            a = fs.open("minefile.TXT");
 //            debug_->debug(" Opening file %d", a);
 //
-            a = fs.lseek(0);
-            debug_->debug(" Seeking file %d", a);
-
-            while(t--) {
-                a = fs.write(buf2, btr, &bw);
-                debug_->debug(" Writing file %d \n\nWROTE - %d, t = %d", a, bw, t);
-            }
+//            a = fs.lseek(0);
+//            debug_->debug(" Seeking file %d", a);
+//
+//            while(t--) {
+//                a = fs.write(buf2, btr, &bw);
+//                debug_->debug(" Writing file %d \n\nWROTE - %d, t = %d", a, bw, t);
+//            }
             debug_->debug("t = %d", t);
-
-
-            a = fs.lseek(0);
-            a = fs.read(buf, btr, &br);
-            debug_->debug(" Reading file %s \n\nREAD - %d", buf, br);
+//
+//
+//            a = fs.lseek(0);
+//            a = fs.read(buf, btr, &br);
+//            debug_->debug(" Reading file %s \n\nREAD - %d", buf, br);
+            a = fs.erase_file("FOOBAR01.TXT");
+            debug_->debug(" Deleted file %d", a);
 //			test_sd();
 		}
 
