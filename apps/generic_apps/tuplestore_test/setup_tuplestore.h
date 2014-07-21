@@ -162,12 +162,12 @@ class Tuple {
 	#if TS_USE_VECTOR_STATIC_CONTAINER
 		#include <util/pstl/vector_static.h>
 		//typedef wiselib::vector_static<Os, Tuple, 76, false> TupleContainer;
-		typedef wiselib::vector_static<Os, Tuple, TS_CONTAINER_SIZE, false> TupleContainer;
+		typedef wiselib::vector_static<Os, Tuple, TS_CONTAINER_SIZE> TupleContainer;
 
 	#elif TS_USE_SET_STATIC_CONTAINER
 		#include <util/pstl/vector_static.h>
 		#include <util/pstl/set_vector.h>
-		typedef wiselib::vector_static<Os, Tuple, TS_CONTAINER_SIZE, false> TupleVector;
+		typedef wiselib::vector_static<Os, Tuple, TS_CONTAINER_SIZE> TupleVector;
 		typedef wiselib::set_vector<Os, TupleVector> TupleContainer;
 
 	#endif

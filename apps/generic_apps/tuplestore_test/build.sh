@@ -215,8 +215,12 @@ rm *.exe
 DEBUG=0
 RDF=incontextsensing.rdf
 DB=tuplestore
-MODE=insert
-TS_DICT=prescilla
+#MODE=insert
+#MODE=find
+MODE=erase
+#TS_DICT=prescilla
+TS_DICT=chopper
+#TS_DICT=avl
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
 TS_CONTAINER_SIZE=76

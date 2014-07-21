@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 # vim: set ts=4 sw=4 expandtab foldenable fdm=indent:
+import sys
+#sys.settrace()
 
 import re
 import matplotlib.pyplot as plt
@@ -13,12 +15,12 @@ import gzip
 import itertools
 import math
 import matplotlib.ticker
-import sys
+import glob
 
 sys.path.append('/home/henning/bin')
 from experiment_utils import Situation, Repeat, ExperimentModel, t_average, band_stop
 
-PLOT_ENERGY = False
+PLOT_ENERGY = True
 
 #rc('font',**{'family':'serif','serif':['Palatino'], 'size': 6})
 rc('font', family='serif',serif=['Palatino'], size=8)
@@ -280,6 +282,11 @@ blacklist += [
     { 'job': '25215', 'inode_db': 'inode010', '_tmin': 410 }, 
     { 'job': '25215', 'inode_db': 'inode020', '_tmin': 410 }, 
     { 'job': '25215', 'inode_db': 'inode030', '_tmin': 410 }, 
+
+    { 'job': '26355_00', 'inode_db': 'inode018', '_tmin': 620, '_alpha': 0.5 },
+    { 'job': '26361', 'inode_db': 'inode018', '_tmin': 600, '_alpha': .01 },
+
+    #{ 'job': '26349': 'inode_db': 'inode008', '_tmin': 435 },
 ]
 
 
@@ -319,6 +326,10 @@ subsample_runs = set([
     '25209', # ts/avl erase
     '25210', # ts/avl erase
     '25215', # ts/prescilla erase
+    #'26349', # ts/chopper find
+    #'26351',
+    '26355',
+    '26361',
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -383,10 +394,10 @@ def main():
 
         # Ignore experiments on old TS/static dict code
         #if k.database == 'tuplestore' and int(k.job) < 25064:
-        if k.database == 'tuplestore' and int(k.job) < 25085:
+        if k.database == 'tuplestore' and int(k.job.split('_')[0]) < 25085:
             return False
 
-        if k.database == 'tuplestore' and k.ts_dict == 'tree' and int(k.job) <= 25143:
+        if k.database == 'tuplestore' and k.ts_dict == 'tree' and int(k.job.split('_')[0]) <= 25143:
             return False
 
         if k.database == 'tuplestore' and k.ts_dict == 'prescilla':
@@ -605,12 +616,18 @@ def main():
     ax_e_t.set_xlabel(r"\#tuples erased")
     ax_e_t.set_ylabel(r"ms / erase")
 
-    ax_i_e.legend()
-    ax_i_t.legend()
-    ax_f_e.legend(loc='lower right')
-    ax_f_t.legend()
-    ax_e_e.legend()
-    ax_e_t.legend(loc='lower right')
+    ax_i_e.grid()
+    ax_i_t.grid()
+    ax_f_e.grid()
+    ax_f_t.grid()
+    ax_e_e.grid()
+    ax_e_t.grid()
+    #ax_i_e.legend()
+    #ax_i_t.legend()
+    #ax_f_e.legend(loc='lower right')
+    #ax_f_t.legend()
+    #ax_e_e.legend()
+    #ax_e_t.legend(loc='lower right')
 
     fig_i_e.savefig('pdf_out/energies_insert.pdf', bbox_inches='tight', pad_inches=0.1)
     fig_i_t.savefig('pdf_out/times_insert.pdf', bbox_inches='tight',pad_inches=0.1)
@@ -625,8 +642,10 @@ def process_directories(dirs,f=lambda x: True):
 
 def process_directory(d, f=lambda x: True):
     d = str(d).strip('/')
-    teenylime = (d in teenylime_runs)
-    subsample = (d in subsample_runs)
+
+    dirname = EXP_DIR + d.split('_')[0]
+    teenylime = (d in teenylime_runs or dirname in teenylime_runs)
+    subsample = (d in subsample_runs or dirname in subsample_runs)
 
     print()
     print("*** iMinds exp #{} {} ***".format(d, '(teenylime mode)' if teenylime else ''))
@@ -639,8 +658,8 @@ def process_directory(d, f=lambda x: True):
     bl = {}
     all_invalid = True
     for gw, db in gateway_to_db.items():
-        fn_gwinfo = EXP_DIR + d + '/' + gw + '/' + gw + '.vars'
-        fn_gwout = EXP_DIR + d + '/' + gw + '/output.txt'
+        fn_gwinfo = dirname + '/' + gw + '/' + gw + '.vars'
+        fn_gwout = dirname + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
@@ -662,7 +681,7 @@ def process_directory(d, f=lambda x: True):
         for b in blacklist:
             for k, x in b.items():
                 if k.startswith('_'): continue
-                if hasattr(cls, k) and getattr(cls, k) != x:
+                if hasattr(cls, k) and (getattr(cls, k) != x and getattr(cls, k).split('_')[0] != x and getattr(cls, k) != x.split('_')[0]):
                     # does not match this blacklist entry
                     all_invalid = False
                     break
@@ -681,20 +700,44 @@ def process_directory(d, f=lambda x: True):
     # Now actually read energy values
     # we only need subsamples for teenylime as they only insert one value at a
     # time
-    energy = read_energy(EXP_DIR + d, bl, use_subsamples=teenylime or subsample, alpha=(.05 if (teenylime
-or subsample) else 1.0))
+    #
 
+    es = []
+    
+    # if there are files named 12345_00.csv, we have splitted csvs
+    #splitted_csvs = glob.glob(EXP_DIR + d + '_*')
+    #if splitted_csvs:
+        #print("  using {} splitted chunks".format(len(splitted_csvs)))
+        #for fn in splitted_csvs[1:2]:
+            #energy = read_energy(fn, bl, use_subsamples=teenylime or subsample, alpha=(.05 if (teenylime or subsample) else 1.0))
+            #procenergy(energy, d, gw, db, bl, teenylime)
+            ##es.append(energy)
+
+    #else:
+    for ext in ('.csv.gz', '.csv'):
+        fn = EXP_DIR + d + ext
+        if os.path.exists(fn):
+            energy = read_energy(fn, bl, use_subsamples=teenylime or subsample, alpha=(.05 if (teenylime or subsample) else 1.0))
+            #es.append(energy)
+            procenergy(energy, d, gw, db, bl, teenylime)
+            break
+
+def procenergy(energy, d, gw, db, bl, teenylime):
+    print("x")
+
+    dirname = EXP_DIR + d.split('_')[0]
     #
     # Process the energy measurements of each node
     #
     for gw, db in gateway_to_db.items():
+        print("y")
         
         # Read in some metadata and decide whether we want to look at this at
         # all
         
         if db in bl and not has_valid(bl[db]): continue
-        fn_gwinfo = EXP_DIR + d + '/' + gw + '/' + gw + '.vars'
-        fn_gwout = EXP_DIR + d + '/' + gw + '/output.txt'
+        fn_gwinfo = dirname + '/' + gw + '/' + gw + '.vars'
+        fn_gwout = dirname + '/' + gw + '/output.txt'
         if not os.path.exists(fn_gwinfo):
             print("{} not found, ignoring that area.".format(fn_gwinfo))
             continue
@@ -814,26 +857,43 @@ def read_vars(fn):
 def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
     r = {}
 
+    print("    {}".format(fn))
+
     f = None
-    if os.path.exists(fn + '.csv.gz'):
-        f = gzip.open(fn + '.csv.gz', 'rt', encoding='latin1')
+    if fn.endswith('.csv.gz'):
+        f = gzip.open(fn, 'rt', encoding='latin1')
     else:
-        f = open(fn + '.csv', 'r')
+        f = open(fn, 'r')
+
+    #if os.path.exists(fn + '.csv.gz'):
+        #f = gzip.open(fn + '.csv.gz', 'rt', encoding='latin1')
+    #else:
+        #f = open(fn + '.csv', 'r')
 
     #reader = csv.DictReader(f, delimiter=';', quotechar='"')
     reader = csv.DictReader(f, delimiter='\t', quotechar='"')
     #t = {}
     t = {}
+    tmax = 0
+    rownum = 0
     for row in reader:
+        #print(rownum)
+        rownum += 1
+        #print("    {}".format(row))
         mote_id = row['motelabMoteID']
         if mote_id not in r: r[mote_id] = {'ts':[], 'vs':[]}
         b = bl.get(mote_id_to_inode_id(mote_id))
 
         def add_sample(v, delta):
+            nonlocal tmax
             t[mote_id] = t.get(mote_id, -delta) + delta
+            tmax = max(tmax, t[mote_id])
     #r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
             if b is not None and not valid(b, t.get(mote_id, 0)):
                 return
+                #print("    aborting reading of {} at {}".format(fn,
+                    #t.get(mote_id, 0)))
+                #return False
             r[mote_id]['ts'].append(t[mote_id])
 
             a = alpha
@@ -850,6 +910,7 @@ def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
         else:
             add_sample(float(row['avg']) * CURRENT_FACTOR, MEASUREMENT_INTERVAL)
 
+    print("    {} contained {}s of measurements".format(fn, tmax))
     return r
 
 def parse_tuple_counts(f, expid):
@@ -878,6 +939,7 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None, maxvalues=200, b
     fig_energy(ts, vs, lbl)
 
     em = ExperimentModel(
+            #Situation('idle', max = 1.2, d_min=5.0),
             Situation('start', max = 1.2),
             Repeat(
                 Situation('prep', min=1.05, d_min=0.01, d_max=0.1),
@@ -895,13 +957,14 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None, maxvalues=200, b
 
     baseline = 0
     for m in em.match(ts, vs):
+        print("---- found: {} {}...{}".format(m.situation.name, m.t0, m.t0 + m.d))
         if m.situation.name == 'exp':
             print('-- {} {}-{} -> {} - {}'.format(m.situation.name, m.t0, m.t0+m.d, m.v_sum, baseline))
             ots.append(m.t0)
             tsums.append(m.d)
             esums.append(m.v_sum - baseline * m.d)
-        elif m.situation.name in ('start', 'between', 'after'):
-            print("---- setting baseline: ", m.situation.name, m.v_sum)
+        elif m.situation.name in ('idle', 'start', 'between', 'after'):
+            print("---- setting baseline: ", m.situation.name, m.v_average)
             baseline = m.v_average
 
 
@@ -1383,8 +1446,9 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     #ax.set_xlim((388.06, 388.1))
-    #ax.set_xlim((460, 480))
-    ax.set_xlim((400, 440))
+    ax.set_xlim((600, 660))
+    #ax.set_xlim((1210, 1220))
+    ax.set_ylim((0, 2.5))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 
