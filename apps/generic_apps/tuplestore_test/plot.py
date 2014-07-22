@@ -287,6 +287,9 @@ blacklist += [
     { 'job': '26361', 'inode_db': 'inode018', '_tmin': 600, '_alpha': .01 },
 
     #{ 'job': '26349': 'inode_db': 'inode008', '_tmin': 435 },
+    { 'job': '26364', 'inode_db': 'inode008', '_tmin': 700 },
+    { 'job': '26364', 'inode_db': 'inode018'},
+    { 'job': '26364', 'inode_db': 'inode020'},
 ]
 
 
@@ -330,6 +333,7 @@ subsample_runs = set([
     #'26351',
     '26355',
     '26361',
+    '26364',
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -1446,9 +1450,9 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     #ax.set_xlim((388.06, 388.1))
-    ax.set_xlim((600, 660))
+    #ax.set_xlim((680, 720))
     #ax.set_xlim((1210, 1220))
-    ax.set_ylim((0, 2.5))
+    #ax.set_ylim((0, 2.5))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 
