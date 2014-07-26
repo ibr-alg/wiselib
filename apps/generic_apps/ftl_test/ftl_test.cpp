@@ -1,4 +1,11 @@
 /*
+ * File:   ftl_test.cpp
+ * Author: Sachin
+ *
+ */
+
+
+/*
 
 Flash translation Layer Testing
 
@@ -6,29 +13,40 @@ The output on running with Shawn or iSense would be
 
 start of operation 
 
-Write at location 0x20000 successfully
+Write at block 2 successfully
 
-Write at location 0x21000 successfully
+Write at block 21 successfully
 
-Write at location 0x20000 successfully
+Write at at block 3 successfully
 
-Unable to Write at location 0x20001 
+Write at block 2 successfully
 
-Data at location 0x20000 : 5 
+Data at block 3 offset 0 : 5 
 
-Data at location 0x20001 : 2 
+Data at block 3 offset 1 : 2 
 
-Data at location 0x20002 : 4 
+Data at block 3 offset 2 : 4 
 
-Data at location 0x20003 : 2 
+Data at block 3 offset 3 : 2 
 
-Data at location 0x20004 : 1 
+Data at block 3 offset 4 : 1 
 
-Data at location 0x20005 : 1 
+Data at block 3 offset 5 : 1 
 
-Unable to read at location 0x30000 
+Data at block 2 offset 0 : 1 
+
+Data at block 2 offset 1 : 2 
+
+Data at block 2 offset 2 : 3 
+
+Data at block 2 offset 3 : 4 
+
+Data at block 2 offset 4 : 5 
+
+Data at block 2 offset 5 : 6 
 
 end of operation 
+
 
 Due to FTL, we can write data to a particular sector any number of times and the way data is stored is internally managed by FTL.
 
@@ -78,43 +96,43 @@ class App {
 			block_data_t buf2[512]={5,2,4,2,1,1};
 			int i;
 			buf2[259]=129;
-			int r = flash_.write(buf1,0x20000,1);
+			int r = flash_.write(buf1,2,1);
 			if(r!=SUCCESS)
-				debug_->debug("Unable to Write at location 0x20000 \n");
+				debug_->debug("Unable to Write at block 2 \n");
 			else
-				debug_->debug("Write at location 0x20000 successfully\n");
+				debug_->debug("Write at block 2 successfully\n");
 	
-			r = flash_.write(buf1,0x21000,1);
+			r = flash_.write(buf1,0x21,1);
 			if(r!=SUCCESS)
-				debug_->debug("Unable to Write at location 0x21000 \n");
+				debug_->debug("Unable to Write at block 21 \n");
 			else
-				debug_->debug("Write at location 0x21000 successfully\n");
+				debug_->debug("Write at block 21 successfully\n");
 
-			r = flash_.write(buf2,0x20000,1);
+			r = flash_.write(buf2,3,1);
 			if(r!=SUCCESS)
-				debug_->debug("Unable to Write at location 0x20000 \n");
+				debug_->debug("Unable to Write at block 3 \n");
 			else
-				debug_->debug("Write at location 0x20000 successfully\n");
+				debug_->debug("Write at block 3 successfully\n");
 
-			r = flash_.write(buf1,0x20001,1);
+			r = flash_.write(buf1,2,1);
 			if(r!=SUCCESS)
-				debug_->debug("Unable to Write at location 0x20001 \n");
+				debug_->debug("Unable to Write at block 2 \n");
 			else
-				debug_->debug("Write at location 0x20001 successfully\n");
+				debug_->debug("Write at block 2 successfully\n");
 
-			r = flash_.read(buf1,0x20000,1);
+			r = flash_.read(buf1,3,1);
 			if(r!=SUCCESS)
-				debug_->debug("Unable to read at location 0x20001 \n");
+				debug_->debug("Unable to read at block 3 \n");
 			else
 				for(i=0;i<6;i++)
-					debug_->debug("Data at location 0x2000%d : %d \n",i,buf1[i]);
+					debug_->debug("Data at block 3 offset %d : %d \n",i,buf1[i]);
 				
-			r = flash_.read(buf1,0x30000,1);
+			r = flash_.read(buf1,2,1);
 			if(r!=SUCCESS)
-				debug_->debug("Unable to read at location 0x30000 \n");
+				debug_->debug("Unable to read at block 2 \n");
 			else
 				for(i=0;i<6;i++)
-					debug_->debug("Data at location 0x3000%d : %d \n",i,buf1[i]);
+					debug_->debug("Data at block 2 offset %d : %d \n",i,buf1[i]);
 				
 			
 		/*	//is_.erase((size_t)3);
