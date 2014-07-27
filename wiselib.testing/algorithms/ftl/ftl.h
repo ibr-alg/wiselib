@@ -33,7 +33,8 @@ class Flash
 		PAGE = 1,
 		HEADER = 2,
 		DEAD = 3,
-		UNKNOWN = 4
+		UNKNOWN = 4,
+		TO_ERASE = 5
 	};
 
 	// FTL PAGE Tags
@@ -86,6 +87,7 @@ class Flash
 		headerpointer=0;
 		datapointer=PAGE_NO - 1;
 		sectorpointer=0;
+		rsectorpointer=SECTOR_NO-1;		
 		header[0]=0x55;
 		header[1]=0xaa;
 		header[PAGE_SIZE-2]=0x55;
@@ -147,6 +149,14 @@ class Flash
 	 * @return SUCCESS iff the block was written successfully
 	 */
 	int write(block_data_t* buffer, address_t addr, address_t blocks = 1)
+	{
+		if(write_(buffer,addr,blocks)!=SUCCESS)
+			return ERR_UNSPEC;
+		collect_garbage();
+		return SUCCESS;
+	}
+
+	int write_(block_data_t* buffer, address_t addr, address_t blocks)
 	{
 		address_t i=0;
 		for(i=0;i<blocks*2;i++)
@@ -237,7 +247,53 @@ class Flash
 	 * @param blocks The number of blocks to erase. (blocks==0 allowed)
 	 * @return SUCCESS iff the block was erased successfully
 	 */
-	//int erase(address_t addr, address_t blocks = 1)
+	int erase(address_t addr, address_t blocks = 1)
+	{
+		int i;
+		for(i=0;i<2*blocks;i++)
+			erase_((2*addr+i)*PAGE_SIZE);	
+		return SUCCESS;
+	}
+
+	int erase_(address_t addr)
+	{
+		if(addr%PAGE_SIZE!=0)
+			return ERR_UNSPEC;
+		if(ftlpagetag_[ftlpagetag_[addr/PAGE_SIZE].lookup].state==PAGE)
+		{
+			ftlpagetag_[ftlpagetag_[addr/PAGE_SIZE].lookup].state = TO_ERASE;
+			header[count]=TO_ERASE;
+			count++;
+			header[count]=ftlpagetag_[addr/PAGE_SIZE].lookup;
+			count++;
+			header[count]=TO_ERASE;
+			count++;
+			datapointer--;			
+			header[count]=TO_ERASE;
+			count++;				
+	
+			if(datapointer<=headerpointer)
+			{
+				ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].state=HEADER;
+				FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+				headerpointer=0;
+				datapointer=PAGE_NO-1;
+				sectorpointer=(sectorpointer+1)%SECTOR_NO;
+				count=2;					
+			}
+	
+
+			if(count>=PAGE_SIZE-5)
+			{			
+				ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].state=HEADER;								
+				FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+				headerpointer++;
+				count=2;
+			}
+		}
+		return SUCCESS;
+	}
+	
 	int erase(int sector)	
 	{
 		int i;
@@ -293,6 +349,42 @@ class Flash
 	}
 
 
+
+	void collect_garbage()
+	{
+		if((rsectorpointer==sectorpointer))
+		{
+			block_data_t buffer[PAGE_SIZE];
+			int i,j;			
+			rsectorpointer=(rsectorpointer+1);
+			for(i=rsectorpointer;i<SECTOR_NO;i++)
+			{
+				for(j=0;j<SECTOR_NO*PAGE_NO;j++)
+					if((ftlpagetag_[j].lookup/PAGE_NO)==i)
+						if(ftlpagetag_[ftlpagetag_[j].lookup].state==PAGE)
+						{
+							read_(buffer,ftlpagetag_[j].lookup*PAGE_SIZE);
+							write_(buffer,ftlpagetag_[j].lookup*PAGE_SIZE);
+						}
+				erase(i);
+			}
+			
+			for(i=0;i<(rsectorpointer-1);i++)
+			{
+				for(j=0;j<SECTOR_NO*PAGE_NO;j++)
+					if((ftlpagetag_[j].lookup/PAGE_NO)==i)
+						if(ftlpagetag_[ftlpagetag_[j].lookup].state==PAGE)
+						{
+							read_(buffer,ftlpagetag_[j].lookup*PAGE_SIZE);
+							write_(buffer,ftlpagetag_[j].lookup*PAGE_SIZE);
+						}
+				erase(i);
+			}
+			
+			rsectorpointer=rsectorpointer%SECTOR_NO;
+		}
+	}
+
 	private:
 	FlashMemory_P FlashMemory_;
 	FTLPageTag ftlpagetag_[SECTOR_NO*PAGE_NO];
@@ -302,6 +394,7 @@ class Flash
 	int headerpointer;				// Points to the headers
 	int datapointer;				// Points to the data
 	int sectorpointer;
+	int rsectorpointer;	
 	Os::Debug::self_pointer_t debug_;
 };
 
