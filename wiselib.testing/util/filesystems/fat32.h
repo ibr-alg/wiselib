@@ -590,6 +590,94 @@ class Fat32 {
             return FR_DISK_ERR;
         }
 
+/**
+ * Create a Directory
+ */
+
+        FRESULT mkdir (
+            const TCHAR* path		/* Pointer to the directory path */
+        )
+        {
+            FRESULT res;
+            DIR dj;
+            BYTE *dir/*, n*/;
+            DWORD dsc, dcl, pcl;
+            BYTE sfn[12], buf[bm_->BLOCK_SIZE];
+
+
+            dj.fn = sfn;
+            res = follow_path(&dj, buf, dir, path); 	/* Follow the file path */
+            if (res == FR_OK)   {
+//                res = FR_EXIST;		    /* Any object with same name is already existing */
+                res = FR_NO_PATH;
+            }
+            if (res == FR_NO_FILE && (dj.fn[NS] & NS_DOT))  {
+//                res = FR_INVALID_NAME;
+                res = FR_NO_PATH;
+            }
+            if (res == FR_NO_FILE) {				/* Can create a new directory */
+                dcl = create_chain(0);      		/* Allocate a cluster for the new directory table */
+                res = FR_OK;
+                if (dcl == 0)   {
+//                    res = FR_DENIED;		        /* No space to allocate a new cluster */
+                    res = FR_NO_FILE;
+                }
+                if (dcl == 1)   {
+//                    res = FR_INT_ERR;
+                    res = FR_NO_FILE;
+                }
+                if (dcl == 0xFFFFFFFF)  {
+                    res = FR_DISK_ERR;
+                }
+//                if (res == FR_OK)					/* Flush FAT */
+//                    res = sync_window(dj.fs);
+                debug_->debug("In mkdir, dj.sect %d", dj.sect);
+                if (res == FR_OK) {					/* Initialize the new directory table */
+                    dsc = clust2sect(dcl);
+                    dir = buf;
+                    memset(dir, 0, bm_->BLOCK_SIZE);
+                    memset(dir+DIR_Name, ' ', 11);	/* Create "." entry */
+                    dir[DIR_Name] = '.';
+                    dir[DIR_Attr] = AM_DIR;
+//                    ST_DWORD(dir+DIR_WrtTime, tm);
+                    st_clust(dir, dcl);
+                    memcpy(dir+SZ_DIR, dir, SZ_DIR); 	/* Create ".." entry */
+                    dir[SZ_DIR+1] = '.';
+                    pcl = dj.sclust;
+                    if (fs->fs_type == FS_FAT32 && pcl == fs->dirbase)    {
+                        pcl = 0;
+                    }
+                    st_clust(dir+SZ_DIR, pcl);
+                    bm_->write(buf, dsc);
+//                    for (n = fs->csize; n; n--) {	/* Write dot entries and clear following sectors */
+//                        dj.fs->winsect = dsc++;
+//                        dj.fs->wflag = 1;
+//                        res = sync_window(dj.fs);
+//                        if (res != FR_OK)   {
+//                            break;
+//                        }
+//                        memset(dir, 0, bm_->BLOCK_SIZE);
+//                    }
+                }
+                if (res == FR_OK)   {
+                    res = dir_register(&dj, buf, dir);	/* Register the object to the directoy */
+                }
+                if (res != FR_OK) {
+                    remove_chain(dcl);			        /* Could not register, remove cluster chain */
+                } else {
+//                    dir = dj.dir;
+                    dir = buf+((WORD)((dj.index % (bm_->BLOCK_SIZE / SZ_DIR)) * SZ_DIR));
+                    dir[DIR_Attr] = AM_DIR;				/* Attribute */
+//                    ST_DWORD(dir+DIR_WrtTime, tm);		/* Created time */
+                    st_clust(dir, dcl);					/* Table start cluster */
+//                    dj.fs->wflag = 1;
+//                    res = sync_fs(dj.fs);
+                    bm_->write(buf, dj.sect);
+                }
+            }
+            return res;
+        }
+
     private:
 
 /**
@@ -1672,8 +1760,7 @@ class Fat32 {
                 this->dirbase = LD_DWORD(buf+(BPB_RootClus));	/* Root directory start cluster */
             }
             else    {
-                this->dirbase = this->fatbase + fsize;				/* Root directory start sector
- (lba) */
+                this->dirbase = this->fatbase + fsize;          /* Root directory start sector (lba) */
             }
             this->database = this->fatbase + fsize + this->n_rootdir / 16;	/* Data start sector (lba) */
 
