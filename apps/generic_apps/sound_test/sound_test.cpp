@@ -5,7 +5,7 @@
 #include "external_interface/external_interface.h"
 #include "algorithms/sound/basic_sound.h"
 
-#include "test.mid.h"
+//#include "mario.mid.h"
 
 typedef wiselib::OSMODEL Os;
 typedef wiselib::BasicSound<Os, Os::DAC, Os::Debug> basic_sound_t;
@@ -22,7 +22,9 @@ class AudioApplication {
 			basic_sound_.init( *dac_, *debug_ );
 
 			//playSong();
-			basic_sound_.play( midi_data );
+			//playSong2();
+
+			//basic_sound_.play( midi_data, midi_length );
 		}
 
 		/**
@@ -65,6 +67,66 @@ class AudioApplication {
 			basic_sound_.tone(D4, 250);
 
 			basic_sound_.tone(C4, 1000);
+		}
+
+		void playSong2() {
+			double frequencies[3] = {E4, B4, E5};
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 250 );
+			basic_sound_.wait(125);
+			frequencies[0] = G3;
+			frequencies[1] = D4; 
+			frequencies[2] = G4;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.wait(125);
+			frequencies[0] = A3;
+			frequencies[1] = E4; 
+			frequencies[2] = A4;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.wait(125);
+			frequencies[0] = C4;
+			frequencies[1] = G4; 
+			frequencies[2] = C5;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.wait(125);
+			frequencies[0] = D4;
+			frequencies[1] = A4; 
+			frequencies[2] = D5;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 250 );
+
+			frequencies[0] = E4;
+			frequencies[1] = B4; 
+			frequencies[2] = E5;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 250 );
+			basic_sound_.wait(125);
+			frequencies[0] = G3;
+			frequencies[1] = D4; 
+			frequencies[2] = G4;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.wait(125);
+			frequencies[0] = A3;
+			frequencies[1] = E4; 
+			frequencies[2] = A4;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.wait(125);
+			frequencies[0] = C4;
+			frequencies[1] = G4; 
+			frequencies[2] = C5;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.wait(125);
+			frequencies[0] = D4;
+			frequencies[1] = A4; 
+			frequencies[2] = D5;
+			basic_sound_.sound( frequencies, 3, 125 );
+			basic_sound_.sound( frequencies, 3, 250 );
 		}
 
 	private:
