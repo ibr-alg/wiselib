@@ -1,3 +1,6 @@
+----> Removing Dir entry leaves a void, how is that handled?
+[later]
+
 scp out/arduino/FATFS_sdcard_test.hex dhruv@algwsn.ibr.cs.tu-bs.de:
 By default MBR sector is 1st sector.
 Drives without MBR 1st 3 bytes are EBh 3Ch 90h (FAT16) and EBh 58h and 90h (FAT32).
@@ -13,6 +16,21 @@ in MBR:
 Creating and listing directories to be done.
 ex: for(fat::iterator itr = fat.begin_dir_listing("/foo"); itr!=fat.end_dir; itr++)
 { do something with *itr	}
+
+//////////////
+Test case:
+In rootdir: 2-3 files and 2 folders
+1 folder contains 2 folders (with some files and folder, one of those files should have a cluster chain, one folder should have a cluster chain)
+Delete the above folder and everything should be deleted!
+Try by both manual creation and app creation.
+Manual:
+DIR01
+MYFILE01.TXT (1-9 * 160)
+MYFILE02.TXT (a-i * 10)
+DIR01->MYFILE03.TXT (1-9 * 160)
+DIR01->MYFILE04.TXT (a-i * 10)
+DIR01->DIR02
+DIR02->M1-M19
 
 Debugging wf_open(*path) {
 dj.fn = sfn;

@@ -99,7 +99,7 @@ namespace concepts {
               * Delete a file
               */
             
-            FRESULT erase_file (
+            FRESULT erase_obj (
 	        	const TCHAR* path		/**< Pointer to the file or directory path */
 		    );
 		    
