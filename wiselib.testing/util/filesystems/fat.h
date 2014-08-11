@@ -19,7 +19,7 @@
 
 /*
  * File:   fat.h
- * Author: Dhruv
+ * Author: Dhruv Joshi
  *
  */
 
