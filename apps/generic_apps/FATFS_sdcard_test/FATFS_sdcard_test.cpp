@@ -7,8 +7,8 @@ typedef wiselib::OSMODEL Os;
 #include <algorithms/rand/kiss.h>
 typedef wiselib::Kiss<Os> Rand;
 
-#include <util/filesystems/fat32.h>
-typedef wiselib::Fat32<Os> Fat32;
+#include <util/filesystems/fat.h>
+typedef wiselib::Fat<Os> Fat;
 
 class App {
 	public:
@@ -129,7 +129,7 @@ class App {
 		//Os::Timer::self_pointer_t timer_;
 		Os::BlockMemory sd_;
 
-		Fat32 fs;
+		Fat fs;
 };
 
 //Os::Debug App::dbg = Os::Debug();
