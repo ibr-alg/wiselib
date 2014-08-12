@@ -39,7 +39,8 @@ BOX_INTERVAL = 5.0
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
-fs = (12, 5)
+#fs = (12, 5)
+fs = (8, 3)
 
 
 #
@@ -226,7 +227,8 @@ def compute_boxplot(vs, experiment_interval=EXPERIMENT_INTERVAL):
     box_entries = int(BOX_INTERVAL / MEASUREMENT_INTERVAL)
 
     ts = np.arange(len(vs)) * MEASUREMENT_INTERVAL
-    return fold(quantize(zip(ts, vs), box_entries), int(experiment_interval / (box_entries * MEASUREMENT_INTERVAL)), skip = 1)
+    #return fold(quantize(zip(ts, vs), box_entries), int(experiment_interval / (box_entries * MEASUREMENT_INTERVAL)), skip = 1)
+    return fold(quantize(zip(ts, vs), box_entries), int(EXPERIMENT_INTERVAL / (box_entries * MEASUREMENT_INTERVAL)), skip = 1)
 
 def style_box(bp, s):
     for key in ('boxes', 'whiskers', 'fliers', 'caps', 'medians'):
@@ -253,7 +255,8 @@ def data_to_boxes(d, label, style, experiment_interval=EXPERIMENT_INTERVAL):
                 plotone(v, label + '_' + str(k), style)
             sums += v[:l]
     with Timer("computing box plot"):
-        r = compute_boxplot(CURRENT_FACTOR * sums / len(d), experiment_interval)
+        #r = compute_boxplot(CURRENT_FACTOR * sums / len(d), experiment_interval)
+        r = compute_boxplot(CURRENT_FACTOR * sums / len(d), EXPERIMENT_INTERVAL)
     r = materialize(r)
     return r
 
@@ -282,6 +285,7 @@ ax.set_xlabel('$t$ / s')
 #ax.set_ylim((0.7, 2.0))
 #ax.set_yscale('log')
 #ax.set_ylim((0.7, 2.0))
+#ax.set_xlim((0,300))
 
 # 
 # Experiments for simple temperature query
@@ -374,12 +378,13 @@ plot_boxes(
 
 
 
-ax.set_xticks(range(0, int(EXPERIMENT_INTERVAL / BOX_INTERVAL) + 1, int(60.0 / BOX_INTERVAL)))
-ax.set_xticklabels(range(0, int(EXPERIMENT_INTERVAL + BOX_INTERVAL), 60))
+ax.set_xticks(range(0, int(EXPERIMENT_INTERVAL / BOX_INTERVAL) + 1, int(EXPERIMENT_INTERVAL / (10 * BOX_INTERVAL))))
+ax.set_xticklabels(range(0, int(EXPERIMENT_INTERVAL + BOX_INTERVAL), int(EXPERIMENT_INTERVAL / 10.0)))
 ax.grid(True, which='both')
-ax.legend(ncol=4, bbox_to_anchor=(1.0, 0), loc='lower right')
+ax.legend(ncol=4, bbox_to_anchor=(1.0, 0), loc='lower right', prop={'size': 9})
 #ax.legend(ncol=2, bbox_to_anchor=(1.0, 1.00), loc='upper right')
 #ax.legend(loc='upper right')
+
 
 fig.savefig(PLOT_DIR + '/energy_sum.png')
 fig.savefig(PLOT_DIR + '/energy_sum.pdf', bbox_inches='tight', pad_inches=.1)

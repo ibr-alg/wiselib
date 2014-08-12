@@ -28,17 +28,18 @@ CLOSEUP = 1
 BOX_INTERVAL = 5.0
 
 if CLOSEUP:
-    TICK_INTERVAL = 5.0
-else:
     TICK_INTERVAL = 10.0
+else:
+    TICK_INTERVAL = 20.0
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
 
 if CLOSEUP:
-    fs = (4, 5)
+    fs = (2.16, 3)
 else:
-    fs = (12, 5)
+    #fs = (12, 5)
+    fs = (5.76, 3)
 
 #fs = (8, 3)
 
@@ -123,7 +124,9 @@ def print_last(acked):
 
 fig = plt.figure(figsize=fs)
 ax = fig.add_subplot(111)
-ax.set_ylabel('\# Msgs')
+
+if not CLOSEUP:
+    ax.set_ylabel('\# Msgs')
 ax.set_xlabel('$t$ / s')
 #ax.set_ylim((-1, 120))
 #ax.set_yscale('log')
@@ -175,7 +178,7 @@ else:
     ax.set_ylim((-1, 120))
 
 ax.grid(True, which='both')
-ax.legend(ncol=1, bbox_to_anchor=(1.0, 1.0), loc='upper right')
+#ax.legend(ncol=1, bbox_to_anchor=(1.0, 1.0), loc='upper right')
 #ax.legend(loc='upper right')
 
 if CLOSEUP:

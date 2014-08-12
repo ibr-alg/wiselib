@@ -23,6 +23,7 @@ echo 'Compressing log data (remote) ....'
 ssh $USER@$HOST "rm /tmp/${EXP_ID}.csv.gz; gzip /tmp/${EXP_ID}.csv"
 
 echo 'Copying log data from remote ....'
-rsync -P $USER@$HOST:/tmp/${EXP_ID}.csv.gz $EXP_DIR
+mv $EXP_DIR/${EXP_ID}.csv.gz  $EXP_DIR/${EXP_ID}.csv.gz.bak
+rsync -P $USER@$HOST:/tmp/${EXP_ID}.csv.gz $EXP_DIR/${EXP_ID}.csv.gz
 #  ${EXP_ID}.csv
 

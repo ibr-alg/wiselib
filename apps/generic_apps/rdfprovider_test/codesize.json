@@ -1,0 +1,39 @@
+{
+	"compile_platforms": [
+		"tinyos-telosb",
+		"tinyos-micaz",
+		"contiki_sky",
+		"contiki_micaz",
+		"pc",
+		"isense.5148"
+	],
+	"compile_common": {
+		"makefile": "Makefile.codesize",
+		"flags": "-DCODESIZE",
+		"include_paths": [
+			"/home/henning/repos/wiselib/wiselib.testing/",
+			"/home/henning/repos/wiselib/wiselib.stable/",
+			"../../../../wiselib.testing/",
+			"../../../../wiselib.stable/",
+			"/Developer/git/wiselib/wiselib.testing/",
+			"/Developer/git/wiselib/wiselib.stable/"
+		]
+	},
+	"compile_empty": {
+		"flags": "-DCODESIZE_EMPTY"
+	},
+	"compile_variants": [
+		{ "name": "empty", "flags": "-DCODESIZE_EMPTY" },
+		{ "name": "TS/Tree", "flags": "-DCODESIZE_CONTAINER -DCODESIZE_DICT_TREE" },
+		{ "name": "TS/Prescilla", "flags": "-DCODESIZE_CONTAINER -DCODESIZE_DICT_PRESCILLA" },
+		{ "name": "TS/Chopper", "flags": "-DCODESIZE_CONTAINER -DCODESIZE_DICT_CHOPPER" },
+		{ "name": "TS/Avl", "flags": "-DCODESIZE_CONTAINER -DCODESIZE_DICT_AVL" },
+		{ "name": "TS/Tree, Broker", "flags": "-DCODESIZE_CONTAINER -DCODESIZE_DICT_TREE -DCODESIZE_BROKER" },
+		{ "name": "TS/Tree, Broker, SHDT", "flags": "-DCODESIZE_CONTAINER -DCODESIZE_DICT_TREE -DCODESIZE_BROKER -DCODESIZE_SHDT" }
+	],
+	"use_detemplate": true,
+	"detemplate_path": "/home/henning/bin/detemplate",
+	"detemplate_flags": "-n wiselib -n std -f 2 -t 0 -a 0 -i",
+	"logfile_path": "codesize_test.log",
+	"binary_name": "codesize_test"
+}

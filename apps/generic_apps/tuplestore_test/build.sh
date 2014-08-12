@@ -129,7 +129,8 @@ function generate_stuff() {
 	elif [ "$TS_DICT" == "avl" ]; then
 		NTUPLES=32
 	elif [ "$TS_DICT" == "prescilla" ]; then
-		NTUPLES=17
+		#NTUPLES=17
+		NTUPLES=32
 	else
 		NTUPLES=$(wc -l ${RDF}|awk '{print $1}')
 	fi
@@ -181,6 +182,11 @@ function generate_stuff() {
 
 	cp $EXP_DIR/${INODE_GATEWAY}.vars $EXP_DIR/exp${EXP_NR}.vars
 
+	# 
+	# For teenylime build you want to comment out either
+	# building of the gateway or the DB node as there is (to our knowledge)
+	# no mspgcc version that can do both
+	#
 
 	make -f Makefile.gateway clean
 	make -f Makefile.gateway || exit 1
@@ -214,13 +220,20 @@ rm *.exe
 
 DEBUG=0
 RDF=incontextsensing.rdf
+
 DB=tuplestore
-#MODE=insert
-MODE=find
+#DB=teeny
+
+MODE=insert
+#MODE=find
 #MODE=erase
+
 #TS_DICT=prescilla
-#TS_DICT=chopper
-TS_DICT=avl
+TS_DICT=chopper
+#TS_DICT=avl
+#TS_DICT=tree
+
+
 #TS_CONTAINER=vector_static
 TS_CONTAINER=set_static
 TS_CONTAINER_SIZE=76

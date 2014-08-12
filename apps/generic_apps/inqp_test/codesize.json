@@ -1,0 +1,43 @@
+{
+	"compile_platforms": [
+		"tinyos-telosb",
+		"tinyos-micaz",
+		"contiki_sky",
+		"contiki_micaz",
+		"pc",
+		"isense.5148"
+	],
+	"compile_common": {
+		"makefile": "Makefile.codesize",
+		"flags": "-DCODESIZE",
+		"include_paths": [
+			"/home/henning/repos/wiselib/wiselib.testing/",
+			"/home/henning/repos/wiselib/wiselib.stable/",
+			"../../../../wiselib.testing/",
+			"../../../../wiselib.stable/",
+			"/Developer/git/wiselib/wiselib.testing/",
+			"/Developer/git/wiselib/wiselib.stable/"
+		]
+	},
+	"compile_empty": {
+		"flags": "-DCODESIZE_EMPTY"
+	},
+	"compile_variants": [
+		{ "name": "empty", "flags": "-DCODESIZE_EMPTY" },
+		{ "name": "TS only", "flags": "-DCODESIZE_TS" },
+		{ "name": "TS \\& LINQ", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ" },
+		{ "name": "TS \\& LINQ \\& DELETE", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_DELETE" },
+		{ "name": "TS \\& LINQ \\& GRAPHPATTERNSELECTION", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_GRAPHPATTERNSELECTION" },
+		{ "name": "TS \\& LINQ \\& SIMPLELOCALJOIN", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_SIMPLELOCALJOIN" },
+		{ "name": "TS \\& LINQ \\& COLLECT", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_COLLECT" },
+		{ "name": "TS \\& LINQ \\& CONSTRUCT", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_CONSTRUCT" },
+		{ "name": "TS \\& LINQ \\& AGGREGATE", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_AGGREGATE" },
+		{ "name": "TS \\& LINQ \\& SELECT", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_SELECT" },
+		{ "name": "complete", "flags": "-DCODESIZE_TS -DCODESIZE_LINQ -DCODESIZE_SELECT -DCODESIZE_DELETE -DCODESIZE_GRAPHPATTERNSELECTION -DCODESIZE_SIMPLELOCALJOIN -DCODESIZE_COLLECT -DCODESIZE_CONSTRUCT -DCODESIZE_AGGREGATE" }
+	],
+	"use_detemplate": true,
+	"detemplate_path": "/home/henning/bin/detemplate",
+	"detemplate_flags": "-n wiselib -n std -f 2 -t 0 -a 0 -i",
+	"logfile_path": "codesize_test.log",
+	"binary_name": "app_codesize"
+}

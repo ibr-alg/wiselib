@@ -15,7 +15,7 @@ from matplotlib import rc
 ## for Palatino and other serif fonts use:
 
 fig = None
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
+rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
 
 fs = (8, 3)
@@ -112,8 +112,8 @@ def parse_filesize(d):
     data = {}
 
     x = 'incontextsensing'
-    x = 'ssp'
-    x = 'btcsample0'
+    #x = 'ssp'
+    #x = 'btcsample0'
     
     os.chdir(d)
     for fn in glob.glob('*.hshdt'):
@@ -161,8 +161,8 @@ def fig_ratio():
     ax.set_ylim((0.0, 1))
     ax.set_xlim((0, 128))
     
-    ax.set_xlabel('Table Size (\#entries)')
-    ax.set_ylabel('Compression Ratio')
+    ax.set_xlabel('table size (\#entries)')
+    ax.set_ylabel('compression ratio')
     
     #markers = ['^', 'D', 'o', 's']
     
@@ -196,7 +196,7 @@ def fig_ratio():
         
     #fig.legend()
     ax.grid()
-    ax.legend(loc='upper right', ncol=int(len(data)/2))
+    ax.legend(loc='upper right', ncol=int(len(data)/2), prop={'size': 10})
     fig.savefig('ratio.pdf', bbox_inches='tight', pad_inches=0.1)
 
 parse_filesize('shdt_test')

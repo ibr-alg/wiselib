@@ -1,5 +1,8 @@
 
 digraph G {
+
+fontsize = 20;
+
 rankdir = BT;
 node [shape = none];
 55778 [label="   1"];

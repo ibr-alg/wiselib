@@ -11,7 +11,7 @@ import sys
 #from pandas import DataFrame, Series, to_datetime
 from collections import defaultdict
 
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
+rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
 
 parents = {}
@@ -120,6 +120,8 @@ def fig_phases():
     #ax.set_xlim((0, 10000))
     
     #for name, node in [('52570', nodes['52570'])]: #sorted(nodes.items(), cmp=namesort):
+    ax.set_ylabel('phase shift (s)')
+    ax.set_xlabel('$t$ / s')
 
     roots = ('inode019', '1')
 

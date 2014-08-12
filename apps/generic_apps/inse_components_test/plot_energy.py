@@ -11,6 +11,7 @@ from matplotlib import rc
 import sys
 import time
 from matplotlib import ticker
+import gc
 
 # seconds
 MEASUREMENT_INTERVAL = 64.0 / 3000.0
@@ -28,7 +29,8 @@ IDLE_CONSUMPTION = (0.55 + 0.62 + 0.78 + 0.45 + 1.1 + 0.9 + 0.85 + 0.55 + 0.85\
 
 rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
-fs = (12, 5)
+#fs = (12, 5)
+fs = (8, 5)
 
 #blacklist = set([10019, 10029])
 
@@ -47,7 +49,7 @@ class Timer:
 def parse(fn):
     with Timer("reading {}...".format(fn)):
         data = np.genfromtxt(fn, delimiter = '\t', skip_header=0, names=True, usecols=('avg','motelabMoteID'),
-                dtype=[('avg', 'i4'), ('motelabMoteID', 'i4')])
+                dtype=[('avg', 'i8'), ('motelabMoteID', 'i8')])
 
     energy_measurements_broken = set([
         10004, 10037, 10044
@@ -99,6 +101,9 @@ def parse(fn):
             if mote_id not in blacklist:
                 d[mote_id].append(avg)
 
+    del data
+    gc.collect()
+
     print("  considered {} motes".format(len(d)))
 
     with Timer('converting'):
@@ -112,8 +117,10 @@ def moving_average(a, n=3) :
     """
     sauce: http://stackoverflow.com/questions/14313510/moving-average-function-on-numpy-scipy
     """
+    if a.size < n: return a
     ret = np.cumsum(a, dtype=float)
     ret[n:] = (ret[n:] - ret[:-n]) / n
+    print(ret[:n], np.arange(n))
     ret[:n] = ret[:n] / (np.arange(n) + 1)
     return ret
 
@@ -161,78 +168,95 @@ def plotone(vs, name):
     fig.savefig('energy_{}.png'.format(name), bbox_inches='tight', pad_inches=.1)
     plt.close(fig)
 
-data = [
-        #('NullRDC @20', parse('25458.csv.tmp'), {}),
-        #('ContikiMAC 16 @20', parse('25464.csv.tmp'), {'color': 'black', 'linestyle': '--'}),
-        #('AINSE @40', parse('25466.csv'), {'color': 'black'}),
-        #('AINSE \& ContikiMAC/16 @40', parse('25469.csv'), {'color': 'black', 'linestyle': '--'}),
-        #('AINSE \& XMAC/16 @40', parse('25470.csv'), {'color': 'black', 'linestyle': ':'}),
-        #('NullRDC @40', parse('25465.csv'), {}),
-        #('No Scheduling @40', parse('25471.csv'), {'color': 'black', 'linestyle': ':', 'linewidth': 1}),
-        #('ContikiMAC @40', parse('25472.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
-        #('ContikiMAC Quiet @40', parse('25473.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
-        #('AINSE \& ContikiMAC CSMA Quiet NOLED @40', parse('25476.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('AINSE NOLED CSMA @40', parse('25477.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
+def main():
 
-        #('ContikiMAC Quiet NOLED @40', parse('25481.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('ContikiMAC Quiet NOLED @40', parse('25474.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+    global data
+    global fig
+    global ax
 
-        # XXX
-        ('No Scheduling', parse('25515.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 2}),
-        ('AINSE', parse('25516.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
-        ('ContikiMAC', parse('25493.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
-        ('AINSE \& ContikiMAC', parse('25475.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        ('AINSE \& CXMAC', parse('25577.csv'), {'color': '#808080', 'linestyle': '-', 'linewidth': 2}),
-        ('CXMAC', parse('25578.csv'), {'color': '#808080', 'linestyle': '--', 'linewidth': 2}),
+    data = [
+            #('NullRDC @20', parse('25458.csv.tmp'), {}),
+            #('ContikiMAC 16 @20', parse('25464.csv.tmp'), {'color': 'black', 'linestyle': '--'}),
+            #('AINSE @40', parse('25466.csv'), {'color': 'black'}),
+            #('AINSE \& ContikiMAC/16 @40', parse('25469.csv'), {'color': 'black', 'linestyle': '--'}),
+            #('AINSE \& XMAC/16 @40', parse('25470.csv'), {'color': 'black', 'linestyle': ':'}),
+            #('NullRDC @40', parse('25465.csv'), {}),
+            #('No Scheduling @40', parse('25471.csv'), {'color': 'black', 'linestyle': ':', 'linewidth': 1}),
+            #('ContikiMAC @40', parse('25472.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
+            #('ContikiMAC Quiet @40', parse('25473.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
+            #('AINSE \& ContikiMAC CSMA Quiet NOLED @40', parse('25476.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+            #('AINSE NOLED CSMA @40', parse('25477.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
 
-        #('LPP', parse('25520.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
-        #('NullRDC Loud 2 @40', parse('25518.csv'), {}),
-        #('AINSE NOLED @40', parse('25480.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
+            #('ContikiMAC Quiet NOLED @40', parse('25481.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+            #('ContikiMAC Quiet NOLED @40', parse('25474.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
 
-        # XMAC
-        # Problem: XMAC seems to sometimes leave the radio *completely* on for
-        # a whole token phase --> BUG?
-        #('XMAC Quiet NOLED @40', parse('25482.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('AINSE \& XMAC', parse('25487.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('AINSE \& XMAC CSMA NOLED @40', parse('25488.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
-        #('XMAC', parse('25489.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
-]
+            # XXX
+            ('No Scheduling', parse('25515.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
+            ('SSSEEE', parse('25516.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
 
-fig = plt.figure(figsize=fs)
-ax = fig.add_subplot(111)
-#ax.set_ylim((0, 10))
-ax.set_ylabel('$I$ / mA')
-ax.set_xlabel('$t$ / s')
+            ('ContikiMAC', parse('25493.csv'), {'color': '#88bbbb', 'linestyle': '--', 'linewidth': 1}),
+            ('SSSEEE \& ContikiMAC', parse('25475.csv'), {'color': '#88bbbb', 'linestyle': '-', 'linewidth': 1}),
 
-ax.set_xlim((0, 3600))
-ax.set_yscale('log')
-ax.set_ylim((.7, 21))
-ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
-ax.yaxis.set_minor_formatter(ticker.FormatStrFormatter('%.1f'))
+            ('CXMAC', parse('25578.csv'), {'color': '#dd7777', 'linestyle': '--', 'linewidth': 1}),
+            ('SSSEEE \& CXMAC', parse('25577.csv'), {'color': '#dd7777', 'linestyle': '-', 'linewidth': 1}),
 
-for label, d, style in data:
-    l = min((len(x) for x in d.values() if len(x)))
-    print("l({})={}".format(label, l))
-    print('\n'.join(['{}:{}'.format(k, len(x)) for k, x in d.items()]))
-    sums = np.zeros(l)
-    for k,v in d.items():
-        plotone(v, label + '_' + str(k))
-        sums += v[:l]
+        #if k.database == 'tuplestore':
+            #c = dict(tree = '#88bbbb', avl = '#bbaa88').get(k.ts_dict, 'black')
+        #elif k.database == 'teeny':
+            #c = '#dd7777'
 
-    plot(ax, sums / len(d), label, style)
+            #('LPP', parse('25520.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
+            #('NullRDC Loud 2 @40', parse('25518.csv'), {}),
+            #('AINSE NOLED @40', parse('25480.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 2}),
 
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle')
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 2')
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 3')
-#ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 4')
+            # XMAC
+            # Problem: XMAC seems to sometimes leave the radio *completely* on for
+            # a whole token phase --> BUG?
+            #('XMAC Quiet NOLED @40', parse('25482.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+            #('AINSE \& XMAC', parse('25487.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+            #('AINSE \& XMAC CSMA NOLED @40', parse('25488.csv'), {'color': 'black', 'linestyle': '-', 'linewidth': 1}),
+            #('XMAC', parse('25489.csv'), {'color': 'black', 'linestyle': '--', 'linewidth': 1}),
+    ]
 
-ax.grid(True, which='both')
-ax.legend(bbox_to_anchor=(1.0, .95), loc='upper right')
-#ax.legend(loc='upper right')
+    fig = plt.figure(figsize=fs)
+    ax = fig.add_subplot(111)
+    #ax.set_ylim((0, 10))
+    ax.set_ylabel('$I$ / mA')
+    ax.set_xlabel('$t$ / s')
 
-fig.savefig('energy_sum.png')
-fig.savefig('energy_sum.pdf', bbox_inches='tight', pad_inches=.1)
-plt.close(fig)
+    ax.set_xlim((0, 3600))
+    ax.set_yscale('log')
+    ax.set_ylim((.7, 21))
+    ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+    ax.yaxis.set_minor_formatter(ticker.FormatStrFormatter('%.1f'))
+
+    for label, d, style in data:
+        l = min((len(x) for x in d.values() if len(x)))
+        print("l({})={}".format(label, l))
+        print('\n'.join(['{}:{}'.format(k, len(x)) for k, x in d.items()]))
+        sums = np.zeros(l)
+        for k,v in d.items():
+            plotone(v, label + '_' + str(k))
+            sums += v[:l]
+
+        plot(ax, sums / len(d), label, style)
+
+    #ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle')
+    #ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 2')
+    #ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 3')
+    #ax.plot([0, 3600], [IDLE_CONSUMPTION, IDLE_CONSUMPTION], ':', linewidth=2, label='idle 4')
+
+    ax.grid(True, which='both')
+    ax.legend(bbox_to_anchor=(1.0, .95), loc='upper right', ncol=3,
+            prop={'size': 9})
+    #ax.legend(loc='upper right')
+
+    fig.savefig('energy_sum.png')
+    fig.savefig('energy_sum.pdf', bbox_inches='tight', pad_inches=.1)
+    plt.close(fig)
+
+if __name__ == '__main__':
+    main()
 
 # vim: set ts=4 sw=4 expandtab:
 

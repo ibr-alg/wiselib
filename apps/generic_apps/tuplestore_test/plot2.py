@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 # vim: set ts=4 sw=4 expandtab foldenable fdm=indent:
 import sys
@@ -77,15 +77,6 @@ blacklist += [ {'job': str(i), 'database': 'tuplestore'} for i in range(24814, 2
 # sed -n "s/^\\s*{ 'job': '\([0-9]\+\)' }.*$/\1/p" < plot.py
 #
 blacklist += [
-    # Mysterious segfaults in libpython,
-    # testing whether leaving out certain data sets circumvents the problem
-    #{ 'job': '26360', 'inode_db': 'inode030' },
-
-
-
-    # Actual black list
-
-
     { 'job': '24814', 'mode': 'find', 'database': 'antelope' },
     { 'job': '24814', 'inode_db': 'inode014', '_tmax': 3000 },
     { 'job': '24814', 'inode_db': 'inode010'},
@@ -387,11 +378,7 @@ blacklist += [
     { 'job': '26405', 'inode_db': 'inode008', '_tmin': 750},
     { 'job': '26405', 'inode_db': 'inode010'},
     { 'job': '26405', 'inode_db': 'inode014', '_tmin': 760, '_model_mode': 'relative'},
-    { 'job': '26405', 'inode_db': 'inode018', '_tmin': 750.5, '_model_mode': 'relative'},
-
-    #{ 'job': '26415', 'inode_db': 'inode008', '_tmin': 0, '_alpha': .1 },
-    { 'job': '26415', 'inode_db': 'inode008', '_tmin': 0 },
-    { 'job': '26415' },
+    { 'job': '26405', 'inode_db': 'inode018', '_tmin': 751, '_model_mode': 'relative'},
 
 ]
 
@@ -447,11 +434,6 @@ subsample_runs = set([
     '26376',
     '26403',
     '26405',
-
-    '26408',
-
-    # ts/prescilla find
-    #'26415',
 ])
 
 TEENYLIME_INSERT_AT_ONCE = 4
@@ -523,7 +505,7 @@ def main():
         if k.database == 'tuplestore' and k.ts_dict == 'tree' and int(k.job.split('_')[0]) <= 25143:
             return False
 
-        if k.database == 'tuplestore' and k.ts_dict == 'prescilla': # and int(k.job.split('_')[0]) < 26408:
+        if k.database == 'tuplestore' and k.ts_dict == 'prescilla':
             return False
 
         # Ignore ERASE experiments on buggy TS/static dict and bitmap
@@ -574,7 +556,6 @@ def main():
     #l_f = 1
     #l_e = 1
     for k, exp in experiments: #.items():
-        print("k.mode={}".format(k.mode))
 
         es = [[y * CURRENT_DISPLAY_FACTOR for y in x] for x in exp.energy]
 
@@ -600,7 +581,6 @@ def main():
             pos_e, es = cleanse(pos_e, es)
             pos_t, ts = cleanse(pos_t, ts)
 
-            print(" ntuples: {}".format(k.ntuples))
             pos_e = [x for x in pos_e if x <= k.ntuples]
             pos_t = [x for x in pos_t if x <= k.ntuples]
             es = es[:len(pos_e)]
@@ -718,7 +698,7 @@ def main():
 
     ax_f_e.set_xticks(range(0,100,5))
     ax_f_e.set_xlim((0, 75))
-    #ax_f_e.set_ylim((0, 25))
+    ax_f_e.set_ylim((0, 25))
     ax_f_e.set_xlabel(r"\#tuples stored")
     ax_f_e.set_ylabel(r"$\mu J$ / find")
 
@@ -861,7 +841,7 @@ def process_directory(d, f=lambda x: True):
             break
 
 def procenergy(energy, d, gw, db, bl, teenylime):
-    print("procenergy tl={}".format(teenylime))
+    print("x")
 
     dirname = EXP_DIR + d.split('_')[0]
     #
@@ -970,7 +950,7 @@ maxvalues=v['ntuples'],bl=bl.get(db, {}))
         for j, (ts, es) in enumerate(zip(runs_t, runs_e)):
             runs_count += 1
             print("  adding run {} of {} with {} entries".format(j, len(runs_e), len(es)))
-            print("  ts={} es={}".format(ts, es))
+            #print("  ts={} es={}".format(ts, es))
             for i, (t, e) in enumerate(zip(ts, es)):
                 if t is not None and e is not None: #t != 0 or e != 0:
                     exp.add_measurement(i, t, e)
@@ -1001,13 +981,15 @@ def read_vars(fn):
     return r
 
 def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
+    global tmax
     r = {}
 
     print("    {} (free ram: {})".format(fn, free_ram()))
 
     f = None
     if fn.endswith('.csv.gz'):
-        f = gzip.open(fn, 'rt', encoding='latin1')
+        #f = gzip.open(fn, 'rt', encoding='latin1')
+        f = gzip.open(fn, 'rt')
     else:
         f = open(fn, 'r')
 
@@ -1031,9 +1013,12 @@ def read_energy(fn, bl, use_subsamples=False, alpha=0.05):
         b = bl.get(mote_id_to_inode_id(mote_id))
 
         def add_sample(v, delta):
-            nonlocal tmax
+            global tmax
+            #nonlocal tmax
             t[mote_id] = t.get(mote_id, -delta) + delta
-            tmax = max(tmax, t[mote_id])
+            #tmax = max(tmax, t[mote_id])
+            if t[mote_id] > tmax:
+                tmax = t[mote_id]
 
     #r[mote_id]['ts'][-1] + MEASUREMENT_INTERVAL if len(r[mote_id]['ts']) else 0
             if b is not None and not valid(b, t.get(mote_id, 0)):
@@ -1079,7 +1064,6 @@ def parse_tuple_counts(f, expid):
                 r.append(int(m.groups()[0]) - (sum(r) if len(r) else 0))
             else:
                 r.append(int(m.groups()[0]))
-    print(" found tuplecounts {}".format(r))
     return r
 
 #
@@ -1142,10 +1126,10 @@ def process_energy_ts_erase(d, mode, lbl='', tmin=0, tmax=None, maxvalues=200, b
     for m in em.match(ts, vs):
         print("---- found: {} {}...{}".format(m.situation.name, m.t0, m.t0 + m.d))
         if m.situation.name == 'exp':
-            print('-- {} {}-{} -> {} - {}'.format(m.situation.name, m.t0, m.t0+m.d, m.v_sum*m.d, baseline))
+            print('-- {} {}-{} -> {} - {}'.format(m.situation.name, m.t0, m.t0+m.d, m.v_sum, baseline))
             ots.append(m.t0)
             tsums.append(m.d)
-            esums.append(m.v_sum * m.d - baseline * m.d)
+            esums.append(m.v_sum - baseline * m.d)
         elif m.situation.name in ('idle', 'start', 'between', 'after'):
             print("---- setting baseline: ", m.situation.name, m.v_average)
             baseline = m.v_average
@@ -1204,8 +1188,8 @@ def process_energy_ts_erase_(d, mode, lbl='', tmin=0, tmax=None,maxvalues=200,bl
     state = idle_low
 
     def change_state(s):
-        nonlocal state
-        nonlocal thigh
+        #nonlocal state
+        #nonlocal thigh
         if s is not state:
             print("{}: {} -> {} v={}".format(t, state, s, v))
             state = s
@@ -1313,7 +1297,7 @@ def process_energy_teenylime(d, mode, lbl='', tmin=0, tmax=None):
             print('-- {} {}-{} -> {} - {}'.format(m.situation.name, m.t0, m.t0+m.d, m.v_sum, baseline))
             ots.append(m.t0)
             tsums.append(m.d)
-            esums.append(m.v_sum * m.d - baseline * m.d)
+            esums.append(m.v_sum - baseline * m.d)
         elif m.situation.name == 'between':
             print("---- correcting baseline: ", m.situation.name, m.v_average)
             baseline = m.v_average
@@ -1367,8 +1351,8 @@ def process_energy_teenylime_(d, mode, lbl='', tmin=0, tmax=None):
     state = idle_low
 
     def change_state(s):
-        nonlocal state
-        nonlocal thigh
+        #nonlocal state
+        #nonlocal thigh
         if s is not state:
             print("{}: {} -> {} v={}".format(t, state, s, v))
             state = s
@@ -1422,7 +1406,7 @@ def process_energy_teenylime_(d, mode, lbl='', tmin=0, tmax=None):
     runs_ot.append(ots)
     return runs_t, runs_e, runs_ot
 
-def process_energy_BAK(d, mode, lbl='', tmin=0):
+def process_energy(d, mode, lbl='', tmin=0):
     ts = d['ts']
     vs = d['vs']
     fig_energy(ts, vs, lbl)
@@ -1481,10 +1465,10 @@ def process_energy_BAK(d, mode, lbl='', tmin=0):
     baseline_estimate_n = 0
 
     def change_state(s):
-        nonlocal state
-        nonlocal thigh
+        #nonlocal state
+        #nonlocal thigh
         if s is not state:
-            print("    {}: {} -> {}".format(t, state, s))
+            #print("    {}: {} -> {}".format(t, state, s))
             if s is idle_high:
                 thigh = t
             state = s
@@ -1580,7 +1564,7 @@ def process_energy_BAK(d, mode, lbl='', tmin=0):
                 change_state(idle_after)
                 if mode == 'find':
                     #print("    find measurement at {} - {} e {}".format(t0, t, esum))
-                    print("    t0={} t={} dt={} esum={}".format(t0, t, t - t0, esum))
+                    print("    t={} dt={} esum={}".format(t, t - t0, esum))
                     #esum += (t - tprev) * (v - BASELINE_ENERGY)
                     sums_t.append((t - t0) / FINDS_AT_ONCE)
                     sums_e.append(esum / FINDS_AT_ONCE)
@@ -1665,58 +1649,6 @@ def process_energy_BAK(d, mode, lbl='', tmin=0):
 
     return (runs_t, runs_e, runs_ot)
 
-
-def process_energy(d, mode, lbl='', tmin=0):
-    ts = d['ts']
-    vs = d['vs']
-    fig_energy(ts, vs, lbl)
-
-    if mode == 'find':
-        em = ExperimentModel(
-                Repeat(
-                    Situation('high', min=1.4, d_min=.1),
-                    Situation('before', max=1.5, d_min=.1),
-                    Situation('insert', min=1.4, max=5, d_min=.01, d_max=2.0),
-                    Situation('between', max=1.2, d_min=2.0, d_max=10.0),
-                    Situation('find', min=1.1, max=5, d_max=2.0),
-                    Situation('after_find', max=7.0, d_min=0.1, d_max=10.0),
-                )
-        )
-    else:
-        em = ExperimentModel(
-                Repeat(
-                    Situation('high', min=1.4, d_min=.1),
-                    Situation('before', max=1.5, d_min=.1),
-                    Situation('insert', min=1.4, max=5, d_min=.01, d_max=2.0),
-                    Situation('between', max=1.2, d_min=2.0, d_max=20.0),
-                )
-        )
-
-    tsums = []
-    esums = []
-    ots = []
-    baseline = 0
-
-    print("xxx")
-    for m in em.match(ts, vs):
-        print("xxx {}".format(m.situation.name))
-        if m.situation.name in ('before', 'between', 'after_find'):
-            baseline = m.v_average
-
-        elif m.situation.name == 'insert' and mode == 'insert':
-            ots.append(m.t0)
-            tsums.append(m.d)
-            esums.append(m.v_sum * m.d - baseline * m.d)
-
-        elif m.situation.name == 'find' and mode == 'find':
-            print("find t0={} d={} v_sum={} baseline={}".format(m.t0, m.d, m.v_sum * m.d, baseline))
-            ots.append(m.t0)
-            tsums.append(m.d / FINDS_AT_ONCE)
-            esums.append((m.v_sum * m.d - baseline * m.d) / FINDS_AT_ONCE)
-
-    return [tsums], [esums], [ots]
-
-
 #
 # Plotting
 #
@@ -1731,11 +1663,10 @@ def fig_energy(ts, vs, n):
     #ax.set_yticks(frange(0, 3, 0.2))
 
     #ax.set_xlim((388.06, 388.1))
-    ax.set_xlim((750, 760))
-    #ax.set_xlim((220, 230))
-    #ax.set_ylim((0, 5.0))
+    ax.set_xlim((700, 900))
+    #ax.set_ylim((0, 1.0))
     #ax.set_xlim((1210, 1220))
-    ax.set_ylim((0, 2.0))
+    #ax.set_ylim((0, 2.5))
     #ax.set_ylim((.5, 2.5))
     ax.grid()
 
@@ -1947,7 +1878,6 @@ def cleanse(l1, l2):
     ([1, [2, 3]], [[100], [200, 300]])
 
     """
-    print(" before cleanse: {}".format((l1, l2)))
 
     generator = type((x for x in []))
 
@@ -1962,7 +1892,6 @@ def cleanse(l1, l2):
         if x is not None and x != [] and y is not None and y != []:
             r1.append(x)
             r2.append(y)
-    print(" after cleanse: {}".format((r1, r2)))
     return r1, r2
 
 def plausible_observation_times(es, ts, ots, d):

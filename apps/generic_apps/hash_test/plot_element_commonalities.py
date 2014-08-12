@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 
-rc('font',**{'family':'serif','serif':['Palatino'], 'size': 8})
+rc('font',**{'family':'serif','serif':['Palatino'], 'size': 12})
 rc('text', usetex=True)
 fs = (4, 3)
 
@@ -49,7 +49,7 @@ def plot():
                 **get_style(fname)['plot']
         )
 
-    ax.legend(loc='lower right')
+    #ax.legend(loc='lower right')
     fig.savefig('element_commonalities.pdf', bbox_inches='tight', pad_inches=0.1)
 
 plot()

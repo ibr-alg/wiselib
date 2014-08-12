@@ -5,9 +5,46 @@ TL_DIR = /home/wiselib/teenylime/tl
 TL_OBJECT_FILE = tl_objs
 TLPFLAGS = -K
 CFLAGS += -DPRINTF_SUPPORT
+
+#
+# NOTE:
+# TeenyLime seems to work only with TinyOS 2.0.2
+# as that is an old version, current compilers wont work.
+#
+# The usual problem will be a shitload of syntax errors during assembly (.s
+# files)
+#
+# The necessary ancient MSP430 compilers can be found as RPM here:
+#
+# http://www.tinyos.net/tinyos-2.x/doc/html/upgrade-tinyos.html#external-tools
+#
+#  msp430tools-base-0.1-20050607.i386.rpm
+#  msp430tools-binutils-2.16-20050607.i386.rpm
+#  msp430tools-gcc-3.2.3-20050607.i386.rpm
+#  msp430tools-libc-20050308cvs-20050608.i386.rpm
+#
+# In a debian-based environment convert them to .deb's using 'alien'
+# Before installing you have to uninstall msp430-tinyos-base
+# as the packages collide
+#
+# Stuff then gets installed under /opt/msp430,
+# set your binary path to /opt/msp430/bin/
+#
+#
+# Note however that with these old compilers you cant compile the contiiki
+# gateway anymore :)
+# Yeah its messy....
+# 
+#
+
+
+
+MAKERULES=$(TOSROOT)/support/make/Makerules
+
 include $(TL_DIR)/Makefile
 
 PFLAGS += -I./ -I./config 
+CFLAGS += -I$(TOSDIR)/lib/
 CFLAGS += -I$(TOSDIR)/lib/printf/ 
 CFLAGS += -DNOACK_LOW_POWER_LISTENING
 CFLAGS += -DTL_LPL
