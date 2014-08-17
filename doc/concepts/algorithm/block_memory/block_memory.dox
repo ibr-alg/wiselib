@@ -29,7 +29,43 @@ namespace concepts {
 				ERR_NOMEM = OsModel::ERR_NOMEM,
 				ERR_UNSPEC = OsModel::ERR_UNSPEC,
 			};
-			
+		
+			// Page and Sector States
+			enum
+			{
+				FREE = 0,		// Page is free
+				PAGE = 1,		// Page stores a page
+				HEADER = 2,		// Page stores a header
+				DEAD = 3,		// Page is dead
+				UNKNOWN = 4,		// status of Page is unknown
+				TO_ERASE = 5		// Page has to be erased
+			};
+
+			// Different parameters of the flash memory
+			enum 
+			{
+				PAGE_SIZE = FlashMemory_P::PAGE_SIZE, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
+				PAGE_NO = FlashMemory_P::PAGES_PER_SECTOR, // PAGE_NO is the number of pages in a sector.
+				SECTOR_SIZE = FlashMemory_P::SECTOR_SIZE, // SECTOR_SIZE is the smallest amount of data which is erased at a time.
+				SECTOR_NO = FlashMemory_P::NO_SECTOR, // SECTOR_NO is the number of sectors in a memory
+				MEMORY_SIZE = FlashMemory_P::MEMORY_SIZE // MEMORY_SIZE is the size of the memory
+			};
+
+			// Required for status of garbage collector
+			enum
+		 	{
+				ON = 1,			// Garbage collector is on
+				OFF = 0			// Garbage collector is off
+			};
+
+			// Required for selecting the flash
+			enum
+			{
+				NEWFLASH = 1,		// Select new flash
+				OLDFLASH = 2		// Select existing flash
+			};
+	
+	
 			/* 
 			 * Any setup / initialization needed to get the block memory device initialized. This 
 			 * method can also be used to reset the state of the block memory object to its original
@@ -38,6 +74,14 @@ namespace concepts {
 			 * @return SUCCESS iff the block memory device was initialized successfully
 			 */
 			int init();
+	
+			/* 
+			 * Only for FTL based Flash memory. It is used for initialization of the flash memory.
+			 * This enables the user to decided if the flash memory should be erased before being
+			 * used or use the headers from the existing flash to rebuilt the lookup table for
+			 * using the flash.
+			 */  
+			int init(int Flashtype);		
 			
 			/**
 			* Init method allowing initialization of block memory device using the FacetProvider
