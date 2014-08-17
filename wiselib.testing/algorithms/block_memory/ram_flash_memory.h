@@ -1,3 +1,22 @@
+/***************************************************************************
+ ** This file is part of the generic algorithm library Wiselib.           **
+ ** Copyright (C) 2008,2009 by the Wisebed (www.wisebed.eu) project.      **
+ **                                                                       **
+ ** The Wiselib is free software: you can redistribute it and/or modify   **
+ ** it under the terms of the GNU Lesser General Public License as        **
+ ** published by the Free Software Foundation, either version 3 of the    **
+ ** License, or (at your option) any later version.                       **
+ **                                                                       **
+ ** The Wiselib is distributed in the hope that it will be useful,        **
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of        **
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         **
+ ** GNU Lesser General Public License for more details.                   **
+ **                                                                       **
+ ** You should have received a copy of the GNU Lesser General Public      **
+ ** License along with the Wiselib.                                       **
+ ** If not, see <http://www.gnu.org/licenses/>.                           **
+ ***************************************************************************/
+
 #ifndef __RAM_FLASH_MEMORY_H__
 #define __RAM_FLASH_MEMORY_H__
 
@@ -33,6 +52,8 @@ int PAGES_PER_SECTOR_P=512
 class RAMFlashMemory
 {
 	public:
+
+	
 	enum {
 		PAGE_SIZE = PAGE_SIZE_P, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 
@@ -52,7 +73,20 @@ class RAMFlashMemory
 	};
 
 	enum { 
-		MEMORY_SIZE = NO_SECTOR * SECTOR_SIZE // SECTOR_NO is the number of sectors in a memory
+		MEMORY_SIZE = NO_SECTOR * SECTOR_SIZE // MEMORY_SIZE is the total size of the memory
+	};
+
+	enum { 
+		BLOCK_SIZE = 512 // BLOCK_SIZE is the fixed block size in wiselib
+	};
+
+	enum { 
+		NO_ADDRESS = 0 // NO_ADDRESS is assigned as 0
+	};
+
+	enum {
+		SUCCESS = OsModel_P::SUCCESS, 
+		ERR_UNSPEC = OsModel_P::ERR_UNSPEC,
 	};
 
 
@@ -112,7 +146,7 @@ class RAMFlashMemory
 		if(start_address%PAGE_SIZE!=0)
 			return false;
 
-		if(erased[start_address/PAGE_SIZE] != true)
+		if(erased[start_address/PAGE_SIZE] != true)				// Check if the page is free
 			return false;
 		else
 		{
@@ -164,21 +198,12 @@ class RAMFlashMemory
 	//Initialise the flash memory.
 	void init()
 	{
-		//int i;
-		erase();	
-		//i=0;
-		//fstream fread("data.txt",ios::in);
-		//while(fread!=NULL)
-		//{
-		//	fread>>data[i];
-		//	i++;
-		//}
-		//fread.close();		
+		erase();			
 	}
 
 	private:
 	block_data_t memory_data[MEMORY_SIZE];				// store the flash memory
-	bool erased[NO_SECTOR*PAGES_PER_SECTOR];			
+	bool erased[NO_SECTOR*PAGES_PER_SECTOR];			// Checks whether a page is erased or not
 	
 };
 

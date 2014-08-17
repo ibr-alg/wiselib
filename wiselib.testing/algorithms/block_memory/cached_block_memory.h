@@ -20,6 +20,7 @@
 #ifndef CACHED_BLOCK_MEMORY_H
 #define CACHED_BLOCK_MEMORY_H
 
+
 #include <util/meta.h>
 
 namespace wiselib {
@@ -45,7 +46,7 @@ namespace wiselib {
 			typedef typename OsModel::size_t size_type;
 			
 			typedef BlockMemory_P BlockMemory;
-			typedef typename BlockMemory::address_t address_t;
+			typedef typename OsModel::size_t address_t;
 //			typedef typename BlockMemory::ChunkAddress ChunkAddress;
 
 			typedef CachedBlockMemory<OsModel_P, BlockMemory_P, CACHE_SIZE_P, SPECIAL_AREA_SIZE_P, WRITE_THROUGH_P> self_type;
@@ -55,7 +56,7 @@ namespace wiselib {
 				CACHE_SIZE = CACHE_SIZE_P,
 				SPECIAL_AREA_SIZE = SPECIAL_AREA_SIZE_P,
 				WRITE_THROUGH = WRITE_THROUGH_P,
-				BLOCK_SIZE = BlockMemory::BLOCK_SIZE,
+				BLOCK_SIZE = BlockMemory::PAGE_SIZE,
 				BUFFER_SIZE = BLOCK_SIZE,
 				NO_ADDRESS = BlockMemory::NO_ADDRESS
 			};
@@ -64,6 +65,15 @@ namespace wiselib {
 				SUCCESS = BlockMemory::SUCCESS,
 				ERR_UNSPEC = BlockMemory::ERR_UNSPEC
 			};
+
+			enum {
+				PAGE_SIZE = BlockMemory::PAGE_SIZE, // 32 PAGE_SIZE is the smallest amount of data which is read or written at a time.
+				PAGES_PER_SECTOR = BlockMemory::PAGES_PER_SECTOR, // 4 PAGES_PER_SECTOR is the number of pages in a sector.
+				SECTOR_SIZE = BlockMemory::PAGE_SIZE*PAGES_PER_SECTOR, // 128 SECTOR_SIZE is the smallest amount of data which is erased at a time.
+				NO_SECTOR = BlockMemory::NO_SECTOR,// 4 SECTOR_NO is the number of sectors in a memory
+				MEMORY_SIZE = BlockMemory::NO_SECTOR * BlockMemory::SECTOR_SIZE // 512 SECTOR_NO is the number of sectors in a memory
+			};
+
 
 			class CacheEntry {
 				public:
@@ -94,7 +104,10 @@ namespace wiselib {
 			
 			BlockMemory_P& physical() { return *(BlockMemory_P*)this; }
 			
+			
+
 			int init() {
+				block_memory().init();
 				memset(cache_, 0, sizeof(cache_));
 				start_ = 0;
 				end_ = (address_t)(-1);
@@ -108,11 +121,21 @@ namespace wiselib {
 			//
 
 			int wipe() {
-				block_memory().wipe();
+				block_memory().erase();
 				init();
 				return SUCCESS;
 			}
 			
+			int erase(int sector)
+			{
+				return block_memory().erase(sector);
+			}
+
+			int write(address_t a, address_t size,block_data_t* buffer)
+			{
+				return block_memory().write(a,size,buffer);	
+			}
+
 			int write(block_data_t* buffer, address_t a) {
 				update(buffer, a);
 				if(WRITE_THROUGH) {
@@ -124,6 +147,11 @@ namespace wiselib {
 				return SUCCESS;
 			}
 
+			int read(address_t a, address_t size,block_data_t* buffer)
+			{
+				block_memory().read(a,size,buffer);
+				return SUCCESS;
+			}
 			int read(block_data_t* buffer, address_t a) {
 				memcpy(buffer, get(a), BLOCK_SIZE);
 				return SUCCESS;
@@ -225,7 +253,7 @@ namespace wiselib {
 			}
 			
 			void print_stats() {
-				DBG("CBM phys reads: %ld phys writes: %ld", reads_, writes_);
+				//DBG("CBM phys reads: %ld phys writes: %ld", reads_, writes_);
 			}
 			
 		private:
