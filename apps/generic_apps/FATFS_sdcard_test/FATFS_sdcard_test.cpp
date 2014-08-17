@@ -7,8 +7,8 @@ typedef wiselib::OSMODEL Os;
 #include <algorithms/rand/kiss.h>
 typedef wiselib::Kiss<Os> Rand;
 
-#include <util/filesystems/fat32.h>
-typedef wiselib::Fat32<Os> Fat32;
+#include <util/filesystems/fat.h>
+typedef wiselib::Fat<Os> Fat;
 
 class App {
 	public:
@@ -42,17 +42,17 @@ class App {
 
 //            a = fs.open("MYFILE");
 //            a = fs.open("FOOBAR05.TXT");
-            debug_->debug(" Opening file %d", a);
+//            debug_->debug(" Opening file %d", a);
 
-            WORD btr = 10;
-            BYTE buf[btr];
-//            BYTE buf2[10] = {'a','b','c','d','e','f','g','h','i'};
-            BYTE buf2[10] = {'1','2','3','4','5','6','7','8','9'};
+            ::uint16_t btr = 10;
+            Os::block_data_t buf[btr];
+//            block_data_t buf2[10] = {'a','b','c','d','e','f','g','h','i'};
+            Os::block_data_t buf2[10] = {'1','2','3','4','5','6','7','8','9'};
             buf2[9] = 0x0A;
 //
-            WORD br = 0;
-            WORD bw = 0;
-            WORD t = 110;
+            ::uint16_t br = 0;
+            ::uint16_t bw = 0;
+            ::uint16_t t = 110;
 //            a = fs.read(buf, btr, &br);
 //            debug_->debug(" Reading file %c \n\nREAD - %d", buf[btr-1], br);
 
@@ -72,7 +72,7 @@ class App {
 //            a = fs.lseek(0);
 //            a = fs.read(buf, btr, &br);
 //            debug_->debug(" Reading file %s \n\nREAD - %d", buf, br);
-            a = fs.erase_file("FOOBAR01.TXT");
+            a = fs.erase_obj("DIR01");
             debug_->debug(" Deleted file %d", a);
 //			test_sd();
 		}
@@ -129,7 +129,7 @@ class App {
 		//Os::Timer::self_pointer_t timer_;
 		Os::BlockMemory sd_;
 
-		Fat32 fs;
+		Fat fs;
 };
 
 //Os::Debug App::dbg = Os::Debug();
