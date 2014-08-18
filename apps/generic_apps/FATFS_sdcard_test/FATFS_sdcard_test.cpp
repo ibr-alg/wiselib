@@ -28,6 +28,8 @@ class App {
 			rand_ = &wiselib::FacetProvider<Os, Rand>::get_facet(value);
 
 			int a = sd_.init("myfile.img");
+			debug_->debug("Got the file for FS %d",a);
+
 //            int a = sd_.init();
 
 			debug_->debug( "SD Card test application running, fs = %d", a );
@@ -36,28 +38,34 @@ class App {
 			//progress(0);
 
 			if(!fs.init(*debug_, sd_))
-                debug_->debug( "File System Mount successful" );
+                debug_->debug( "File System init successful" );
             else
                 debug_->debug( "Could not mount file System" );
+            fs.mount();
+
+//            fs.mkfs(0, sd_.BLOCK_SIZE);
 
 //            a = fs.open("MYFILE");
 //            a = fs.open("FOOBAR05.TXT");
 //            debug_->debug(" Opening file %d", a);
 
-            ::uint16_t btr = 10;
-            Os::block_data_t buf[btr];
+//            ::uint16_t btr = 10;
+//            Os::block_data_t buf[btr];
 //            block_data_t buf2[10] = {'a','b','c','d','e','f','g','h','i'};
-            Os::block_data_t buf2[10] = {'1','2','3','4','5','6','7','8','9'};
-            buf2[9] = 0x0A;
+//            Os::block_data_t buf2[10] = {'1','2','3','4','5','6','7','8','9'};
+//            buf2[9] = 0x0A;
 //
-            ::uint16_t br = 0;
-            ::uint16_t bw = 0;
+//            ::uint16_t br = 0;
+//            ::uint16_t bw = 0;
             ::uint16_t t = 110;
 //            a = fs.read(buf, btr, &br);
 //            debug_->debug(" Reading file %c \n\nREAD - %d", buf[btr-1], br);
 
 //            a = fs.open("minefile.TXT");
 //            debug_->debug(" Opening file %d", a);
+
+//            a = fs.mkdir("MYDIR");
+//            debug_->debug("Made Dir %d", a);
 //
 //            a = fs.lseek(0);
 //            debug_->debug(" Seeking file %d", a);
@@ -72,8 +80,8 @@ class App {
 //            a = fs.lseek(0);
 //            a = fs.read(buf, btr, &br);
 //            debug_->debug(" Reading file %s \n\nREAD - %d", buf, br);
-            a = fs.erase_obj("DIR01");
-            debug_->debug(" Deleted file %d", a);
+//            a = fs.erase("DIR01");
+//            debug_->debug(" Deleted file %d", a);
 //			test_sd();
 		}
 

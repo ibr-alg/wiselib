@@ -21,70 +21,70 @@
 #define RAM_BLOCK_MEMORY_H
 
 namespace wiselib {
-	
+
 	/**
 	 * @brief
-	 * 
+	 *
 	 * @ingroup
-	 * 
-	 * @tparam 
+	 *
+	 * @tparam
 	 */
 	template<
 		typename OsModel_P
 	>
 	class RamBlockMemory {
-		
+
 		public:
 			typedef OsModel_P OsModel;
 			typedef typename OsModel::block_data_t block_data_t;
 			typedef typename OsModel::size_t size_type;
 			typedef size_type address_t;
-			
+
 			typedef RamBlockMemory<OsModel_P> self_type;
 			typedef self_type* self_pointer_t;
-			
+
 			enum {
 				BLOCK_SIZE = 512,
 				//BLOCK_SIZE = 128,
 				BUFFER_SIZE = 512,
-				SIZE = 100 * 2048 // 2048 * 512 = 1 MiB
+				SIZE = 100 * 1024 // 2048 * 512 = 1 MiB
 			};
-			
+
 			enum {
 				SUCCESS = OsModel::SUCCESS,
 				ERR_UNSPEC = OsModel::ERR_UNSPEC
 			};
-			
+
 			enum {
 				NO_ADDRESS = (address_t)(-1)
 			};
-			
+
 			int init() {
 				return SUCCESS;
 			}
-			
+
 			address_t size() {
 				return SIZE;
 			}
-			
+
 			int wipe() {
 				memset(data_, 0xff, BLOCK_SIZE * SIZE);
 				return SUCCESS;
 			}
-			
+
 			int read(block_data_t* buffer, address_t a, address_t b=1) {
 				memcpy(buffer, data_ + a * BLOCK_SIZE, sizeof(buffer) /*BLOCK_SIZE*/);
 				return SUCCESS;
 			}
-			
+
 			int write(block_data_t* buffer, address_t a, address_t b=1) {
 				memcpy(data_ + a * BLOCK_SIZE, buffer, BLOCK_SIZE);
 				return SUCCESS;
 			}
-		
+
 		private:
 			block_data_t data_[BLOCK_SIZE * SIZE];
-		
+
 	}; // RamBlockMemory
 }
 
