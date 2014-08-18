@@ -70,13 +70,11 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
             file_header.chunk_id[1] = midi_data[1];
             file_header.chunk_id[2] = midi_data[2];
             file_header.chunk_id[3] = midi_data[3];
-            
+
             file_header.size = midi_data[7];
             file_header.format_type = midi_data[9];
             file_header.number_of_tracks = midi_data[11];
             file_header.time_division = ((uint16_t)midi_data[12] << 8)+midi_data[13];
-
-            //debug().debug("Playing midi file in format %i and time division %i", file_header.format_type, file_header.time_division);
 
             double ms_per_quarter_note = 198951/1000;
             double tick_in_ms = ms_per_quarter_note/file_header.time_division;
@@ -164,7 +162,7 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
                      if (midi_data[index] == 255){
                         if(midi_data[index+1] == 81)  { // 0xFF 0x51 tt tt tt - change tempo
                            uint32_t new_tempo = (midi_data[index+2] << 16) + (midi_data[index+3] << 8) + midi_data[index+4];
-                           //debug().debug("the new temp is %i", new_tempo);
+    
                            ms_per_quarter_note = new_tempo/1000;
                            tick_in_ms = ms_per_quarter_note/file_header.time_division;
                            //tick_in_ms *= 0.9;
@@ -193,13 +191,18 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
                uint32_t evt_length = (uint32_t)(delta_time*tick_in_ms);
 
                if(frequencies_index > 0) {
+                  debug().debug("play %i tones with lenght of %i ms", frequencies_index, evt_length);
                   sound(frequencies, frequencies_index, evt_length);
                }
                else {
+                  debug().debug("wait %i ms", evt_length);
                   wait(evt_length);
                }
             }
-               
+
+            #ifdef ISENSE
+                  dac().write(0);
+            #endif
             #ifdef ISENSE_JENNIC_JN5148
                vAHI_WatchdogRestart();
             #endif
@@ -347,9 +350,6 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
                uint32_t int_vec = disable_interrupts();
             #endif
 
-            //if(duration > 0)
-               //debug().debug("play sound with %i tones and a duration of %i ms",frequency_count,duration);
-
             // init tick timer
             vAHI_TickTimerConfigure( E_AHI_TICK_TIMER_DISABLE );
             vAHI_TickTimerWrite(0);
@@ -403,14 +403,11 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
             #endif          
          }
 
-         void sound(double frequencies[], uint8_t frequency_count, uint32_t duration) {
+         void sound( double frequencies[], uint8_t frequency_count, uint32_t duration ) {
             #ifdef ISENSE_JENNIC_JN5148
                vAHI_WatchdogStop();
                uint32_t int_vec = disable_interrupts();
             #endif
-
-            //if(duration > 0)
-               //debug().debug("play sound with %i tones and a duration of %i ms",frequency_count,duration);
 
             // init tick timer
             vAHI_TickTimerConfigure( E_AHI_TICK_TIMER_DISABLE );
@@ -452,11 +449,6 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
                   output += sine_lut[(int)phase[i]];
                }  
 
-               //if (firstLoop) {
-               //   debug().debug("Need %i ticks for %i tones", u32AHI_TickTimerRead(), frequency_count);
-               //   firstLoop = false;
-               //}
-
                if(frequency_count < 8) {
                   while(u32AHI_TickTimerRead() < 2800){ // 2800 for 6 tones - 3732 for 8 tones
                      // wait: beacuse the ticks in the for loop for 1-5 tones are significantly less
@@ -480,15 +472,12 @@ template<typename OsModel_P, typename DAC_P, typename Debug_P>
             #endif          
          }
 
-         void wait(uint32_t duration) {
+         void wait( uint32_t duration ) {
             #ifdef ISENSE_JENNIC_JN5148
                vAHI_WatchdogStop();
                uint32_t int_vec = disable_interrupts();
             #endif
-
-            //if(duration > 0)
-               //debug().debug("wait %i ms", duration);            
-
+    
             vAHI_TickTimerConfigure( E_AHI_TICK_TIMER_DISABLE );
             vAHI_TickTimerWrite(0);
             vAHI_TickTimerInterval(1);

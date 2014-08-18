@@ -5,7 +5,7 @@
 #include "external_interface/external_interface.h"
 #include "algorithms/sound/basic_sound.h"
 
-//#include "mario.mid.h"
+#include "mario.mid.h"
 
 typedef wiselib::OSMODEL Os;
 typedef wiselib::BasicSound<Os, Os::DAC, Os::Debug> basic_sound_t;
@@ -24,7 +24,7 @@ class AudioApplication {
 			//playSong();
 			//playSong2();
 
-			//basic_sound_.play( midi_data, midi_length );
+			basic_sound_.play( midi_data, midi_length );
 		}
 
 		/**
