@@ -78,18 +78,14 @@ class MqttsnExampleApplication
          //CALLBACK REGISTRATION
          mqttsn_client.reg_recv_publish<self_type, &self_type::myRecvPublish>( this );
 
-         //if not connected
-         if ( false == mqttsn_client.is_connected() )
-         {
-            //give some time to setup connection
-            timer_->set_timer<MqttsnExampleApplication, &MqttsnExampleApplication::registerTopic>( 4000, this, 0 );
+         //some time to setup connection
+         timer_->set_timer<MqttsnExampleApplication, &MqttsnExampleApplication::registerTopic>( 4000, this, 0 );
 
-            //wait 1 sec to subscribe
-            timer_->set_timer<MqttsnExampleApplication, &MqttsnExampleApplication::subscribeTopic>( 6000, this, 0 );
+         //wait 1 sec to subscribe
+         timer_->set_timer<MqttsnExampleApplication, &MqttsnExampleApplication::subscribeTopic>( 6000, this, 0 );
 
-            //start publishing after 2 seconds
-            timer_->set_timer<MqttsnExampleApplication, &MqttsnExampleApplication::sendPublish>( 8000, this, 0 );
-         }
+         //start publishing after 2 seconds
+         timer_->set_timer<MqttsnExampleApplication, &MqttsnExampleApplication::sendPublish>( 8000, this, 0 );
       }
 
       // --------------------------------------------------------------------
@@ -108,3 +104,4 @@ void application_main( Os::AppMainParameter& value )
 {
   example_app.init( value );
 }
+
