@@ -97,8 +97,20 @@ any one of the below
 
 typedef wiselib::OSMODEL Os;
 
+
+/* Modelling a Flash Device with 4 sectors and 512 pages each
+	The memory is organized as: 
+	131,072 bytes (8 bits each)
+	4 sectors (256 Kbits, 32768 bytes each),
+	Sector 0:  00000h 07FFFh,
+	Sector 1:  08000h 0FFFFh,
+	Sector 2:  10000h 17FFFh,
+	Sector 3: 18000h 1FFFFh 
+	512 pages (256 bytes each)
+*/
+	
 #include <algorithms/block_memory/ram_flash_memory.h>					// For Flash Simulation
-typedef wiselib::RAMFlashMemory<Os,4,256,4> RAMFlashMemory_;
+typedef wiselib::RAMFlashMemory<Os,4,256,512> RAMFlashMemory_;
 
 #include <algorithms/ftl/flash_interface.h>						// Interface between FLash and Block Memory
 typedef wiselib::FlashInterface<Os,RAMFlashMemory_> FlashInterface_;			
