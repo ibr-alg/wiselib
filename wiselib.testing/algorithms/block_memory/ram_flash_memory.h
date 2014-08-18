@@ -196,9 +196,10 @@ class RAMFlashMemory
 	/**
 	 */
 	//Initialise the flash memory.
-	void init()
+	bool init()
 	{
 		erase();			
+		return SUCCESS;
 	}
 
 	private:

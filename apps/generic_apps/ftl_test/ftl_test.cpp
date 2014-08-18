@@ -80,20 +80,34 @@ end of operation
 
 Due to FTL, we can write data to a particular block any number of times and the way data is stored is internally managed by FTL.
 
+The project uses t files
+1. ftl_test.cpp : the implementation of the test application for FTL
+2. ftl.h : the implementation of flash translation layer for Flash memory
+3. cached_block_memory.h : the implementation of caching
+4. flash_interface.h : acts as an interface between block memory interface and ISense/Shawn flash interface
+
+any one of the below
+5. ram_flash_memory.h : implementation of simulator for Flash memory (Used for Shawn)
+6. isense_flash.h : used for calling methods for using ISense flash (Used for ISense)
+
+
 */
 
 #include <external_interface/external_interface.h>
 
 typedef wiselib::OSMODEL Os;
 
-#include <algorithms/block_memory/ram_flash_memory.h>				// For RAM Flash Memory Simulator
-typedef wiselib::RAMFlashMemory<Os,64,512,4> RAMFlashMemory_;
+#include <algorithms/block_memory/ram_flash_memory.h>					// For Flash Simulation
+typedef wiselib::RAMFlashMemory<Os,4,256,4> RAMFlashMemory_;
 
-#include <algorithms/block_memory/cached_block_memory.h>			// For Caching
-typedef wiselib::CachedBlockMemory<Os,RAMFlashMemory_,4,0> CachedBlockMemory_;
+#include <algorithms/ftl/flash_interface.h>						// Interface between FLash and Block Memory
+typedef wiselib::FlashInterface<Os,RAMFlashMemory_> FlashInterface_;			
 
-#include <algorithms/ftl/ftl.h>							// For Flash translation Layer
-typedef wiselib::Flash<Os,CachedBlockMemory_> Flash;
+#include <algorithms/block_memory/cached_block_memory.h>				// For Caching
+typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;	
+
+#include <algorithms/ftl/ftl.h>								// For flash translation layer
+typedef wiselib::Flash<Os,CachedBlockMemory_> Flash;		
 
 
 typedef Os::block_data_t block_data_t;

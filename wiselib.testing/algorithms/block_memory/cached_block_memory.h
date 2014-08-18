@@ -116,12 +116,22 @@ namespace wiselib {
 				return SUCCESS;
 			}
 			
+			int init(int FlashType) {
+				block_memory().init(FlashType);
+				memset(cache_, 0, sizeof(cache_));
+				start_ = 0;
+				end_ = (address_t)(-1);
+				reads_ = 0;
+				writes_ = 0;
+				return SUCCESS;
+			}
+			
 			//
 			// Block operations
 			//
 
 			int wipe() {
-				block_memory().erase();
+				block_memory().wipe();
 				init();
 				return SUCCESS;
 			}
@@ -139,7 +149,7 @@ namespace wiselib {
 			int write(block_data_t* buffer, address_t a) {
 				update(buffer, a);
 				if(WRITE_THROUGH) {
-					physical_write(buffer, a);
+					return physical_write(buffer, a);
 				}
 				else {
 					assert(cache_[find(a)].used() && cache_[find(a)].address() == a);

@@ -145,7 +145,7 @@ class Flash
 
 			for(i=0;i<SECTOR_NO;i++)			// Search for the reserve sector
 			{
-				FlashMemory_.read((i)*PAGE_SIZE,PAGE_SIZE,buffer);
+				FlashMemory_.read(buffer,i*PAGE_NO);
 				if(buffer[0]==0xff && buffer[1]==0xff  && buffer[2]==0xff  && buffer[3]==0xff )
 				{	
 					rsectorpointer=i;
@@ -178,7 +178,7 @@ class Flash
 			{
 				for(j=0;j<PAGE_NO;j++)
 				{
-					FlashMemory_.read(i*SECTOR_SIZE+(j)*PAGE_SIZE,PAGE_SIZE,buffer);
+					FlashMemory_.read(buffer,i*PAGE_NO+(j));
 					if(buffer[0]==0x55 && buffer[1] == 0xaa)					// Found a header
 					{
 						for(k=2;k<PAGE_SIZE;k++)
@@ -219,7 +219,7 @@ class Flash
 			{
 				for(j=0;j<PAGE_NO;j++)
 				{
-					FlashMemory_.read(i*SECTOR_SIZE+(j)*PAGE_SIZE,PAGE_SIZE,buffer);
+					FlashMemory_.read(buffer,i*PAGE_NO+(j));
 					if(buffer[0]==0x55 && buffer[1] == 0xaa)
 					{
 						for(k=2;k<PAGE_SIZE;k++)
@@ -305,11 +305,11 @@ class Flash
 		if(addr%PAGE_SIZE!=0)							
 			return ERR_UNSPEC;
 
-		if(ftlpagetag_[addr/PAGE_SIZE].logical_state == PAGE)			// Check if the block is page or not
-			FlashMemory_.read(ftlpagetag_[addr/PAGE_SIZE].lookup*PAGE_SIZE, PAGE_SIZE, buffer);
-		else if(ftlpagetag_[addr/PAGE_SIZE].logical_state == FREE)
+		if(ftlpagetag_[addr/PAGE_SIZE].logical_state == FREE)
 			for(int i=0;i<PAGE_SIZE;i++)
 				buffer[i]=0xff;
+		else if(ftlpagetag_[addr/PAGE_SIZE].logical_state == PAGE)			// Check if the block is page or not
+			FlashMemory_.read(buffer,ftlpagetag_[addr/PAGE_SIZE].lookup);
 		else
 			return ERR_UNSPEC;
 		return SUCCESS;
@@ -346,12 +346,12 @@ class Flash
 	{	
 
 		int i;
-		bool write_success = false;
+		int write_success = ERR_UNSPEC;
 		
 		// Check for alignment	
 		if(addr%PAGE_SIZE!=0)
 			return ERR_UNSPEC;
-		for(i=0;i<5&&write_success==false;i++)
+		for(i=0;i<5&&write_success!=SUCCESS;i++)
 		{
 			if(ftlpagetag_[sectorpointer*PAGE_NO+datapointer].physical_state==FREE)
 			{
@@ -366,7 +366,7 @@ class Flash
 				if(datapointer<=headerpointer)
 				{
 					ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;
-					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 					headerpointer=0;
 					datapointer=PAGE_NO-1;
 					sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -374,8 +374,8 @@ class Flash
 				}
 	
 				// Write the block
-				write_success = FlashMemory_.write((sectorpointer*PAGE_NO+datapointer)*PAGE_SIZE,PAGE_SIZE,buffer);
-				if(write_success == true)
+				write_success = FlashMemory_.write(buffer,(sectorpointer*PAGE_NO+datapointer));
+				if(write_success == SUCCESS)
 				{
 					ftlpagetag_[sectorpointer*PAGE_NO+datapointer].physical_state=PAGE;	
 					ftlpagetag_[addr/PAGE_SIZE].logical_state=PAGE;		
@@ -416,7 +416,7 @@ class Flash
 				if(datapointer<=headerpointer)
 				{
 					ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;
-					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 					headerpointer=0;
 					datapointer=PAGE_NO-1;
 					sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -427,7 +427,7 @@ class Flash
 				if(count>=PAGE_SIZE-7)
 				{			
 					ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;								
-					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 					headerpointer++;
 					count=2;
 				}
@@ -436,7 +436,7 @@ class Flash
 				if(datapointer<=headerpointer)
 				{
 					ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;
-					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 					headerpointer=0;
 					datapointer=PAGE_NO-1;
 					sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -451,7 +451,7 @@ class Flash
 				if(datapointer<=headerpointer)
 				{
 					ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;
-					FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+					FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 					headerpointer=0;
 					datapointer=PAGE_NO-1;
 					sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -461,8 +461,9 @@ class Flash
 		}
 	
 		// Unable to write due large number of bad blocks
-		if(i==5 && write_success ==false)
+		if(i==5 && write_success ==SUCCESS)
 			return ERR_UNSPEC;
+
 		return SUCCESS;
 	}
 
@@ -504,7 +505,7 @@ class Flash
 			if(datapointer<=headerpointer)
 			{
 				ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;
-				FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+				FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 				headerpointer=0;
 				datapointer=PAGE_NO-1;
 				sectorpointer=(sectorpointer+1)%SECTOR_NO;
@@ -515,7 +516,7 @@ class Flash
 			if(count>=PAGE_SIZE-5)
 			{			
 				ftlpagetag_[sectorpointer*PAGE_NO+headerpointer].physical_state=HEADER;								
-				FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+				FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 				headerpointer++;
 				count=2;
 			}
@@ -579,7 +580,7 @@ class Flash
 
 	int uninit()
 	{
-		FlashMemory_.write(sectorpointer*SECTOR_SIZE+headerpointer*PAGE_SIZE,PAGE_SIZE,header);
+		FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
 		return SUCCESS;
 	}
 
