@@ -66,6 +66,10 @@
 #define ND_DEBUG
 #endif
 
+// ---------------- MQTT-SN -------------------------------------------------
+
+//#define MQTTSN_DEBUG
+
 // ---------------- Localization --------------------------------------------
 #define LOCALIZATION_DISTANCEBASED_DVHOP_DEBUG
 #define LOCALIZATION_DISTANCEBASED_SUMDIST_DEBUG
@@ -88,3 +92,4 @@
 #endif
 
 // #define DEBUG_DUTY_CYCLING
+
