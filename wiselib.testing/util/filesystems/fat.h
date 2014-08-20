@@ -115,7 +115,6 @@ class Fat {
         {
             bm_ = &block_memory;
             debug_ = &debug;
-            debug_->debug("Size is %d",bm_->size());
 
             return SUCCESS;
         }
@@ -180,7 +179,7 @@ class Fat {
             this->database = this->fatbase + fsize + this->n_rootdir / 16;	/* Data start sector (lba) */
             this->flag = 0;
 
-            this->laST_CLUST = this->free_clust = 0xFFFFFFFF;
+            this->last_clust = this->free_clust = 0xFFFFFFFF;
             this->fsi_sect = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(buf+BPB_FSInfo);
 
             if(!this->fsi_sect && fmt==FS_FAT32) {
@@ -189,7 +188,7 @@ class Fat {
                 && Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(buf+FSI_LeadSig) == 0x41615252
                 && Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(buf+FSI_StrucSig) == 0x61417272) {
                     this->free_clust = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(buf+FSI_Free_Count);
-                    this->laST_CLUST = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(buf+FSI_Nxt_Free);
+                    this->last_clust = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(buf+FSI_Nxt_Free);
                 }
             }
 
@@ -222,7 +221,6 @@ class Fat {
             if (res != FR_OK)   {                   	    /* Follow failed */
                 if (res == FR_NO_FILE) {                    /* No file, create new */
                     res = dir_register(&dj, buf, dir);
-                    // This writes entry to current CLuster. Handle the case where Cluster is full, new cluster needed for directory entry. [later]
                     bm_->write(buf, dj.sect);
                 }
             }
@@ -234,7 +232,7 @@ class Fat {
             fs->dir_sect = dj.sect;
             fs->dir_index = dj.index;
 
-            fs->org_clust = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(dir);			/* File start cluster */
+            fs->org_clust = get_clust(dir);			/* File start cluster */
             fs->fsize = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(dir+DIR_FileSize);	/* File size */
             fs->fptr = 0;						/* File pointer */
             fs->flag = FA_OPENED;
@@ -312,7 +310,7 @@ class Fat {
          */
         f_result_t write (
             void* buff,	        /* Pointer to the data to be written */
-            ::uint16_t btw,			/* Number of bytes to write (0:Finalize the current write operation) */
+            ::uint16_t btw,			/* Number of bytes to write */
             ::uint16_t* bw			/* Pointer to number of bytes written */
         )
         {
@@ -352,7 +350,6 @@ class Fat {
                                 clst = create_chain(0);     /* Create a new cluster chain */
                             }
                             else {                          /* Middle or end of the file */
-                //Assuming lseek() brought curr_clust to appropriate clst, DO VERIFY [later]
                                 clst = create_chain(fs->curr_clust);    /* Follow or stretch cluster
  chain on the FAT */
                             }
@@ -438,7 +435,7 @@ class Fat {
                         res = FR_NOT_ENABLED;		/* Cannot remove R/O object */
                     }
                 }
-                dclst = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(dir);
+                dclst = get_clust(dir);
                 if (res == FR_OK && (dir[DIR_Attr] & AM_DIR)) {	/* Is it a sub-dir? */
                     if (dclst < 2) {
                         res = FR_DISK_ERR;
@@ -569,14 +566,14 @@ class Fat {
                     memset(dir+DIR_Name, ' ', 11);	/* Create "." entry */
                     dir[DIR_Name] = '.';
                     dir[DIR_Attr] = AM_DIR;
-                    Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(dir, dcl);
+                    put_clust(dir, dcl);
                     memcpy(dir+SZ_DIR, dir, SZ_DIR); 	/* Create ".." entry */
                     dir[SZ_DIR+1] = '.';
                     pcl = dj.sclust;
                     if (fs->fs_type == FS_FAT32 && pcl == fs->dirbase)    {
                         pcl = 0;
                     }
-                    Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(dir+SZ_DIR, pcl);
+                    put_clust(dir+SZ_DIR, pcl);
                     bm_->write(buf, dsc);
                 }
                 if (res == FR_OK)   {
@@ -588,7 +585,7 @@ class Fat {
                     dir = buf+((::uint16_t)((dj.index % (bm_->BLOCK_SIZE / SZ_DIR)) * SZ_DIR));
                     dir[DIR_Attr] = AM_DIR;				/* Attribute */
 //                    Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(dir+DIR_WrtTime, tm);		/* Created time */
-                    Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(dir, dcl);					/* Table start cluster */
+                    put_clust(dir, dcl);					/* Table start cluster */
                     bm_->write(buf, dj.sect);
                 }
             }
@@ -659,7 +656,6 @@ class Fat {
 //            }
             b_vol = 0;
             n_vol = bm_->size();    /* Volume size */
-            debug_->debug("Here %d", n_vol);
             if (!au) {				/* AU auto selection */
                 vs = n_vol / (2000 / (bm_->BLOCK_SIZE / 512));
                 for (i = 0; vs < vst[i]; i++) ;
@@ -1013,9 +1009,34 @@ class Fat {
         ::uint32_t	dsect;		    /* File current data sector */
         ::uint32_t	dir_sect;		/* Sector number containing the directory entry */
         ::uint16_t	dir_index;		/* Pointer to the directory entry in the win[] */
-        ::uint32_t	laST_CLUST;		/* Last allocated cluster */
+        ::uint32_t	last_clust;		/* Last allocated cluster */
         ::uint32_t	free_clust;		/* Number of free clusters */
         block_data_t    fsi_sect;       /* Sector in which FSInfo is stored */
+
+
+        /**
+         *  Get Cluster number from raw byte buffer
+         */
+        ::uint32_t get_clust (
+            block_data_t* dir   /* Pointer to directory entry */
+        )
+        {
+            return (((::uint32_t)Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::read(dir+DIR_FstClusHI)<<16) | Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::read(dir+DIR_FstClusLO));
+        }
+
+        /**
+         *  Store Cluster number into raw byte buffer
+         */
+        void put_clust (
+            block_data_t* dir,	/* Pointer to the directory entry */
+            ::uint32_t cl	/* Value to be set */
+        )
+        {
+            ::uint16_t tmp = cl;
+            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(dir+DIR_FstClusLO, tmp);
+            tmp = cl >> 16;
+            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(dir+DIR_FstClusHI, tmp);
+        }
 
         /**
          * FAT handling - Stretch or Create a cluster chain
@@ -1028,7 +1049,7 @@ class Fat {
             f_result_t res;
 
             if (clst == 0) {		/* Create a new chain */
-                scl = fs->laST_CLUST;			/* Get suggested start point */
+                scl = fs->last_clust;			/* Get suggested start point */
                 if (!scl || scl >= fs->n_fatent)    {
                     scl = 1;
                 }
@@ -1077,7 +1098,7 @@ class Fat {
                 res = put_fat(clst, ncl);	/* Link it to the previous one if needed */
             }
             if (res == FR_OK) {
-                fs->laST_CLUST = ncl;			/* Update FSINFO */
+                fs->last_clust = ncl;			/* Update FSINFO */
                 if (fs->free_clust != 0xFFFFFFFF) {
                     fs->free_clust--;
                 }
@@ -1336,9 +1357,9 @@ class Fat {
                 tmp = 0x61417272;
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(buf+FSI_StrucSig, tmp);
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(buf+FSI_Free_Count, fs->free_clust);
-                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(buf+FSI_Nxt_Free, fs->laST_CLUST);
+                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(buf+FSI_Nxt_Free, fs->last_clust);
                 /* Write it into the FSINFO sector */
-                bm_->write(buf, fs->fsi_sect);
+                res = bm_->write(buf, fs->fsi_sect)==SUCCESS?FR_OK:FR_DISK_ERR;
             }
             return res;
         }
@@ -1357,7 +1378,7 @@ class Fat {
             dir = buf + (SZ_DIR * (fs->dir_index % (bm_->BLOCK_SIZE / SZ_DIR)));
             dir[DIR_Attr] |= AM_ARC;					/* Set archive bit */
             Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(dir+DIR_FileSize, fs->fsize);		/* Update file size */
-            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(dir, fs->org_clust);					/* Update start cluster */
+            put_clust(dir, fs->org_clust);					/* Update start cluster */
             bm_->write(buf, fs->dir_sect);
             return res;
         }
@@ -1708,7 +1729,7 @@ class Fat {
                         res = FR_NO_PATH;
                         break;
                     }
-                    dj->sclust = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(dir);
+                    dj->sclust = get_clust(dir);
                 }
             }
 
