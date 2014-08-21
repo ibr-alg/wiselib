@@ -6,11 +6,17 @@ typedef wiselib::OSMODEL Os;
 #include <util/filesystems/fat.h>
 typedef wiselib::Fat<Os> Fat;
 
-#include <algorithms/block_memory/ram_flash_memory.h>
+#include <algorithms/block_memory/ram_flash_memory.h>					// For Flash Simulation
 typedef wiselib::RAMFlashMemory<Os,4,256,512> RAMFlashMemory_;
 
-#include <algorithms/ftl/ftl.h>
-typedef wiselib::Flash<Os,RAMFlashMemory_> Flash;
+#include <algorithms/ftl/flash_interface.h>						// Interface between FLash and Block Memory
+typedef wiselib::FlashInterface<Os,RAMFlashMemory_> FlashInterface_;			
+
+#include <algorithms/block_memory/cached_block_memory.h>				// For Caching
+typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;	
+
+#include <algorithms/ftl/ftl.h>								// For flash translation layer
+typedef wiselib::FTL<Os,CachedBlockMemory_> Flash;		
 
 
 class App {
@@ -20,7 +26,7 @@ class App {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 
 			int res = sd_.init("myfile.img");
-//            int res = flash_.init();
+            int res = flash_.init();
 
 			if(res == Os::SUCCESS)
                 debug_->debug( "SD Card test application running, Block memory initialized " );
