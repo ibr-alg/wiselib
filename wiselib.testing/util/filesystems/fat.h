@@ -85,7 +85,7 @@ class Fat {
             FR_INVALID_DRIVE,		/* (11) The logical drive number is invalid */
             FR_NOT_ENABLED,			/* (12) The volume has no work area */
             FR_NO_FILESYSTEM,		/* (13) There is no valid FAT volume */
-            FR_MKFS_ABORTED,		/* (14) The f_mkfs() aborted due to any parameter error */
+            FR_MKFS_ABORTED,		/* (14) The mkfs() aborted due to any parameter error */
             FR_TIMEOUT,				/* (15) Could not get a grant to access the volume within defined period */
             FR_LOCKED,				/* (16) The operation is rejected according to the file sharing policy */
             FR_NOT_ENOUGH_CORE,		/* (17) LFN working buffer could not be allocated */
@@ -128,9 +128,6 @@ class Fat {
             ::uint32_t bsect, fsize, tsect, mclst;
 
             fs = 0;
-            if (!this)  {
-                return FR_OK;				/* Unregister fs object */
-            }
             /* Search FAT partition on the drive */
             bsect = 0;
             fmt = check_fs(buf, bsect);			/* Check sector 0 as an SFD format */
@@ -595,72 +592,37 @@ class Fat {
         /**
          * Create File System on the Drive
          */
-//        #define N_ROOTDIR	512		/* Number of root directory entries for FAT12/16 */
-//        #define N_FATS		1		/* Number of FAT copies (1 or 2) */
-
-
         f_result_t mkfs (
-//            const char* path,	        /* Logical drive number */
             block_data_t sfd,			/* Partitioning rule 0:FDISK, 1:SFD */
-            unsigned int au				/* Allocation unit [bytes] */
+            unsigned int au = 0			/* Allocation unit [bytes] */
         )
         {
-            static const ::uint16_t vst[] = { 1024,   512,  256,  128,   64,    32,   16,    8,    4,    2,   0};
-            static const ::uint16_t cst[] = {32768, 16384, 8192, 4096, 2048, 16384, 8192, 4096, 2048, 1024, 512};
-//            int vol;
-            block_data_t fmt, md, sys, *tbl, /*pdrv, part, */buf[bm_->BLOCK_SIZE];
-            ::uint32_t n_clst, vs, n, wsect, tmp;
+            ::uint16_t vst[] = { 1024,   512,  256,  128,   64,    32,   16,    8,    4,    2,   0};
+            ::uint16_t cst[] = {32768, 16384, 8192, 4096, 2048, 16384, 8192, 4096, 2048, 1024, 512};
+            block_data_t fmt, media_descriptor, sys, *tbl, buf[bm_->BLOCK_SIZE];
+            ::uint32_t n_clst, vs, n, wsect;
             ::uint32_t b_vol, b_fat, b_dir, b_data;	/* LBA */
-            ::uint32_t n_vol, n_rsv, n_fat, n_dir;	/* Size */
+            ::uint32_t n_vol, n_rsvd_sec, n_fat, n_rootdir;	/* Size */
             unsigned int i;
-            ::uint16_t tmp16;
-
-//            block_data_t stat;
-
+            ::uint16_t tmp16, backup_sector = 6;
+            ::uint32_t tmp;
 
             /* Check mounted drive and clear work area */
-//            vol = get_ldnumber(&path);
-//            if (vol < 0) return FR_INVALID_DRIVE;
-//            if (sfd > 1) return FR_INVALID_PARAMETER;
             if (au & (au - 1))  {
                 return FR_INVALID_PARAMETER;
             }
-//            fs = FatFs[vol];
-//            if (!fs) return FR_NOT_ENABLED;
+            if (!this) {
+                return FR_NOT_ENABLED;
+            }
             this->fs_type = 0;
-//            pdrv = LD2PD(vol);	/* Physical drive */
-//            part = LD2PT(vol);	/* Partition (0:auto detect, 1-4:get from partition table)*/
 
             /* Get disk statics */
-//            stat = disk_initialize(pdrv);
-//            if (stat & STA_NOINIT) return FR_NOT_READY;
-//            if (stat & STA_PROTECT) return FR_WRITE_PROTECTED;
-//        #if _MAX_SS != _MIN_SS		/* Get disk sector size */
-//            if (disk_ioctl(pdrv, GET_SECTOR_SIZE, &bm_->BLOCK_SIZE) != RES_OK || bm_->BLOCK_SIZE > _MAX_SS || bm_->BLOCK_SIZE < _MIN_SS)
-//                return FR_DISK_ERR;
-//        #endif
-//            if (_MULTI_PARTITION && part) {
-//                /* Get partition information from partition table in the MBR */
-//                if (disk_read(pdrv, buf, 0, 1)) return FR_DISK_ERR;
-//                if (Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::read(buf+BS_55AA) != 0xAA55) return FR_MKFS_ABORTED;
-//                tbl = &buf[MBR_Table + (part - 1) * SZ_PTE];
-//                if (!tbl[4]) return FR_MKFS_ABORTED;	/* No partition? */
-//                b_vol = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(tbl+8);	/* Volume start sector */
-//                n_vol = Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::read(tbl+12);	/* Volume size */
-//            } else {
-                /* Create a partition in this function */
-//                if (disk_ioctl(pdrv, GET_SECTOR_COUNT, &n_vol) != RES_OK || n_vol < 128)
-//                    return FR_DISK_ERR;
-//                b_vol = (sfd) ? 0 : 63;		/* Volume start sector */
-//                n_vol -= b_vol;				/* Volume size */
-//            }
             b_vol = 0;
             n_vol = bm_->size();    /* Volume size */
             if (!au) {				/* AU auto selection */
                 vs = n_vol / (2000 / (bm_->BLOCK_SIZE / 512));
                 for (i = 0; vs < vst[i]; i++) ;
                 au = cst[i];
-
             }
             au /= bm_->BLOCK_SIZE;		/* Number of sectors per cluster */
             if (au == 0) {
@@ -669,6 +631,7 @@ class Fat {
             if (au > 128) {
                 au = 128;
             }
+            debug_->debug("au %d",au);
 
             /* Pre-compute number of clusters and FAT sub-type */
             n_clst = n_vol / au;
@@ -679,42 +642,46 @@ class Fat {
             if (n_clst >= MIN_FAT32)    {
                 fmt = FS_FAT32;
             }
+            fmt = FS_FAT32;     // Automatic [later]
+            debug_->debug("fmt %d",fmt);
 
             /* Determine offset and size of FAT structure */
             if (fmt == FS_FAT32) {
                 n_fat = ((n_clst * 4) + 8 + bm_->BLOCK_SIZE - 1) / bm_->BLOCK_SIZE;
-                n_rsv = 32;
-                n_dir = 0;
+                n_rsvd_sec = 32;
+                n_rootdir = 0;
+                debug_->debug("n_fat=%d, n_vol = %d",n_fat,n_vol);
             } else {
                 n_fat = (fmt == FS_FAT12) ? (n_clst * 3 + 1) / 2 + 3 : (n_clst * 2) + 4;
                 n_fat = (n_fat + bm_->BLOCK_SIZE - 1) / bm_->BLOCK_SIZE;
-                n_rsv = 1;
-                n_dir = (::uint32_t)N_ROOTDIR * SZ_DIR / bm_->BLOCK_SIZE;
+                n_rsvd_sec = 1;
+                n_rootdir = (::uint32_t)N_ROOTDIR * SZ_DIR / bm_->BLOCK_SIZE;
             }
-            b_fat = b_vol + n_rsv;				/* FAT area start sector */
+            b_fat = b_vol + n_rsvd_sec;				/* FAT area start sector */
             b_dir = b_fat + n_fat * N_FATS;		/* Directory area start sector */
-            b_data = b_dir + n_dir;				/* Data area start sector */
+            b_data = b_dir + n_rootdir;				/* Data area start sector */
             if (n_vol < b_data + au - b_vol)    {
-                return FR_MKFS_ABORTED;	        /* Too small volume */
+//                return FR_MKFS_ABORTED;	        /* Too small volume */
             }
 
             /* Align data start sector to erase block boundary (for flash memory media) */
-//            if (disk_ioctl(pdrv, GET_BLOCK_SIZE, &n) != RES_OK || !n || n > 32768) n = 1;
-            n = bm_->BLOCK_SIZE;
-            n = (b_data + n - 1) & ~(n - 1);	/* Next nearest erase block from current data start */
-            n = (n - b_data) / N_FATS;
-            if (fmt == FS_FAT32) {		/* FAT32: Move FAT offset */
-                n_rsv += n;
-                b_fat += n;
-            } else {					/* FAT12/16: Expand FAT size */
-                n_fat += n;
-            }
+//            n = bm_->BLOCK_SIZE;
+//            n = (b_data + n - 1) & ~(n - 1);	/* Next nearest erase block from current data start */
+//            debug_->debug("n=%d, b_data = %d",n,b_data);
+//            n = (n - b_data) / N_FATS;
+//            debug_->debug("n=%d, b_data = %d",n,b_data);
+//            if (fmt == FS_FAT32) {		/* FAT32: Move FAT offset */
+//                n_rsvd_sec += n;
+//                b_fat += n;
+//            } else {					/* FAT12/16: Expand FAT size */
+//                n_fat += n;
+//            }
 
             /* Determine number of clusters and final check of validity of the FAT sub-type */
-            n_clst = (n_vol - n_rsv - n_fat * N_FATS - n_dir) / au;
-            if (   (fmt == FS_FAT16 && n_clst < MIN_FAT16)
-                || (fmt == FS_FAT32 && n_clst < MIN_FAT32))
-                return FR_MKFS_ABORTED;
+//            n_clst = (n_vol - n_rsvd_sec - n_fat * N_FATS - n_rootdir) / au;
+//            if (   (fmt == FS_FAT16 && n_clst < MIN_FAT16)
+//                || (fmt == FS_FAT32 && n_clst < MIN_FAT32))
+//                return FR_MKFS_ABORTED;
 
             /* Determine system ID in the partition table */
             if (fmt == FS_FAT32) {
@@ -727,37 +694,34 @@ class Fat {
                 }
             }
 
-//            if (_MULTI_PARTITION && part) {
-//                /* Update system ID in the partition table */
-//                tbl = &buf[MBR_Table + (part - 1) * SZ_PTE];
-//                tbl[4] = sys;
-//                if (bm_->write(buf, 0, 1))	/* Write it to teh MBR */
-//                    return FR_DISK_ERR;
-//                md = 0xF8;
-//            } else {
-            if (sfd) {	/* No partition table (SFD) */
-                md = 0xF0;
-            } else {	/* Create partition table (FDISK) */
-                memset(buf, 0, bm_->BLOCK_SIZE);
-                tbl = buf+MBR_Table;	/* Create partition table for single partition in the drive */
-                tbl[1] = 1;						/* Partition start head */
-                tbl[2] = 1;						/* Partition start sector */
-                tbl[3] = 0;						/* Partition start cylinder */
-                tbl[4] = sys;					/* System type */
-                tbl[5] = 254;					/* Partition end head */
-                n = (b_vol + n_vol) / 63 / 255;
-                tbl[6] = (block_data_t)(n >> 2 | 63);	/* Partition end sector */
-                tbl[7] = (block_data_t)n;				/* End cylinder */
-                tmp = 63;
-                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+8, tmp);			/* Partition start in LBA */
-                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+12, n_vol);		/* Partition size in LBA */
-                tmp16 = 0xAA55;
-                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BS_55AA, tmp16);	/* MBR signature */
-                if (bm_->write(buf, 0, 1)!=SUCCESS)	/* Write it to the MBR */
-                    return FR_DISK_ERR;
-                md = 0xF8;
-            }
-//            }
+
+            media_descriptor = 0xF0;
+
+            memset(buf, 0, bm_->BLOCK_SIZE);
+////            tmp16 = 512;
+////            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BPB_BytsPerSec, tmp16);
+////            buf[BPB_SecPerClus] = au;
+////            tmp = 1;            //[later]
+////            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BPB_RsvdSecCnt, tmp16);
+////            buf[BPB_NumFATs] = n_fats;
+
+
+//                tbl = buf+MBR_Table;	/* Create partition table for single partition in the drive */
+//                tbl[1] = 1;						/* Partition start head */
+//                tbl[2] = 1;						/* Partition start sector */
+//                tbl[3] = 0;						/* Partition start cylinder */
+//                tbl[4] = sys;					/* System type */
+//                tbl[5] = 254;					/* Partition end head */
+//                n = (b_vol + n_vol) / 63 / 255;
+//                tbl[6] = (block_data_t)(n >> 2 | 63);	/* Partition end sector */
+//                tbl[7] = (block_data_t)n;				/* End cylinder */
+//                tmp = 63;
+//                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+8, tmp);			/* Partition start in LBA */
+//            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+12, n_vol);		/* Partition size in LBA */
+//            tmp16 = 0xAA55;
+//            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BS_55AA, tmp16);	/* MBR signature */
+//            if (bm_->write(buf, 0, 1)!=SUCCESS)	/* Write it to the MBR */
+//                return FR_DISK_ERR;
 
             /* Create BPB in the VBR */
             tbl = buf;							/* Clear sector */
@@ -767,14 +731,14 @@ class Fat {
             tmp16 = (::uint16_t)i;
             Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_BytsPerSec, tmp16);
             tbl[BPB_SecPerClus] = (block_data_t)au;			/* Sectors per cluster */
-            tmp16 = (::uint16_t)n_rsv;
+            tmp16 = (::uint16_t)n_rsvd_sec;
             Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_RsvdSecCnt, tmp16);		/* Reserved sectors */
             tbl[BPB_NumFATs] = N_FATS;				/* Number of FATs */
             i = (fmt == FS_FAT32) ? 0 : N_ROOTDIR;	/* Number of root directory entries */
             tmp16 = (::uint16_t)i;
             Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_RootEntCnt, tmp16);
 
-// Replace by Type of fat [here]
+// Replace by Type of fat [here][later]
             if (n_vol < 0x10000) {					/* Number of total sectors */
                 tmp16 = (::uint16_t)n_vol;
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_TotSec16, tmp16);
@@ -782,7 +746,7 @@ class Fat {
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+BPB_TotSec32, n_vol);
             }
 
-            tbl[BPB_Media] = md;					/* Media descriptor */
+            tbl[BPB_Media] = media_descriptor;					/* Media descriptor */
             tmp16 = 63;
             Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_SecPerTrk, tmp16);			/* Number of sectors per track */
             tmp16 = 255;
@@ -796,8 +760,7 @@ class Fat {
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+BPB_RootClus, tmp);		/* Root directory start cluster (2) */
                 tmp16 = 1;
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_FSInfo, tmp16);			/* FSINFO record offset (VBR+1) */
-                tmp16 = 6;
-                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_BkBootSec, tmp16);		/* Backup boot record offset (VBR+6) */
+                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_BackupBootSec, backup_sector);		/* Backup boot record offset (VBR+6) */
                 tbl[BS_DrvNum32] = 0x80;			/* Drive number */
                 tbl[BS_BootSig32] = 0x29;			/* Extended boot signature */
                 memcpy(tbl+BS_VolLab32, "NO NAME    " "FAT32   ", 19);	/* Volume label, FAT signature */
@@ -814,13 +777,14 @@ class Fat {
             if (bm_->write(tbl, b_vol, 1)!=SUCCESS)	/* Write it to the VBR sector */
                 return FR_DISK_ERR;
             if (fmt == FS_FAT32)					/* Write backup VBR if needed (VBR+6) */
-                bm_->write(tbl, b_vol + 6, 1);
+                bm_->write(tbl, backup_sector, 1);
 
             /* Initialize FAT area */
             wsect = b_fat;
+            debug_->debug("Write successful b_fat = %d", b_fat);
             for (i = 0; i < N_FATS; i++) {		/* Initialize each FAT copy */
                 memset(tbl, 0, bm_->BLOCK_SIZE);			/* 1st sector of the FAT  */
-                n = md;								/* Media descriptor byte */
+                n = media_descriptor;								/* Media descriptor byte */
                 if (fmt != FS_FAT32) {
                     n |= (fmt == FS_FAT12) ? 0x00FFFF00 : 0xFFFFFF00;
                     Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+0, n);				/* Reserve cluster #0-1 (FAT12/16) */
@@ -842,7 +806,7 @@ class Fat {
             }
 
             /* Initialize root directory */
-            i = (fmt == FS_FAT32) ? au : (unsigned int)n_dir;
+            i = (fmt == FS_FAT32) ? au : (unsigned int)n_rootdir;
             do {
                 if (bm_->write(tbl, wsect++, 1)!=SUCCESS)
                     return FR_DISK_ERR;
@@ -955,7 +919,7 @@ class Fat {
             BPB_FSVer	    =	42,
             BPB_RootClus	=	44,
             BPB_FSInfo	    =	48,
-            BPB_BkBootSec	=	50,
+            BPB_BackupBootSec	=	50,
             BS_DrvNum32	    =	64,
             BS_BootSig32	=	66,
             BS_VolID32	    =	67,

@@ -1,33 +1,59 @@
-#define USE_FILE_BLOCK_MEMORY 1
-//#define USE_RAM_BLOCK_MEMORY 1
+//#define USE_FILE_BLOCK_MEMORY 1
+#define USE_RAM_BLOCK_MEMORY 1
 #include <external_interface/external_interface.h>
 typedef wiselib::OSMODEL Os;
 
-#include <util/filesystems/fat.h>
-typedef wiselib::Fat<Os> Fat;
-
-#include <algorithms/block_memory/ram_flash_memory.h>
+#include <algorithms/block_memory/ram_flash_memory.h>					/* For Flash Simulation */
 typedef wiselib::RAMFlashMemory<Os,4,256,512> RAMFlashMemory_;
 
-#include <algorithms/ftl/ftl.h>
-typedef wiselib::Flash<Os,RAMFlashMemory_> Flash;
+#include <algorithms/ftl/flash_interface.h>		/* Interface between FLash and Block Memory */
+typedef wiselib::FlashInterface<Os,RAMFlashMemory_> FlashInterface_;
 
+#include <algorithms/block_memory/cached_block_memory.h>				/* For Caching */
+typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;
+
+#include <algorithms/ftl/ftl.h>								/* For flash translation layer */
+typedef wiselib::Flash<Os,CachedBlockMemory_> Flash;
+
+#include <util/filesystems/fat.h>
+typedef wiselib::Fat<Os, Flash> Fat;
 
 class App {
 	public:
 
 		void init(Os::AppMainParameter& value) {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
+			int res;
 
-			int res = sd_.init("myfile.img");
-//            int res = flash_.init();
+//			res = sd_.init("myfile.img");
+			flash_.init(Flash::NEWFLASH);
+			debug_->debug("size %d",flash_.size());
 
 			if(res == Os::SUCCESS)
                 debug_->debug( "SD Card test application running, Block memory initialized " );
             else
                 debug_->debug( "Block memory not initialized " );
 
-			test_fs();
+//            res=fs.init(*debug_, sd_);
+            res=fs.init(*debug_, flash_);
+            if(res==0)
+                debug_->debug( "File System init successful" );
+            else
+                debug_->debug( "Could not init file System, error %d", res );
+
+            res=fs.mkfs(1);
+            if(res==0)
+                debug_->debug( "File System Format successful" );
+            else
+                debug_->debug( "Could not format file System, error %d", res );
+
+//            res = flash_.init(Flash::NEWFLASH);
+//            if(res == Os::SUCCESS)
+//                debug_->debug( "SD Card test application running, Flash memory initialized " );
+//            else
+//                debug_->debug( "Block memory not initialized " );
+
+//			test_fs();
 		}
 
 		Os::BlockMemory::address_t address_;
@@ -43,11 +69,6 @@ class App {
             write_buf[9] = 0x0A;
             write_buf2[9] = 0x0A;
             int count = 110;
-
-            if(!fs.init(*debug_, sd_))
-                debug_->debug( "File System init successful" );
-            else
-                debug_->debug( "Could not init file System" );
 
             /**
              *  mount() is used to mount a FAT file system existing on the initialized memory
@@ -110,12 +131,12 @@ class App {
              *  erase(const char *path) erases the file or directory defined by the absolute path.
              *  Even if the file is open, erase deletes the file anyway.
              */
-            file_name = "MYDIR";
-            res = fs.erase(file_name);
-            if(res == 0)
-                debug_->debug("File %s deletion successful", file_name);
-            else
-                debug_->debug("Could not delete file %s, error %d", file_name, res);
+////            file_name = "MYDIR";
+//            res = fs.erase(file_name);
+//            if(res == 0)
+//                debug_->debug("File %s deletion successful", file_name);
+//            else
+//                debug_->debug("Could not delete file %s, error %d", file_name, res);
 
             /**
              *  mkdir(const char* path) creates a directory in path specified as the parameter.
