@@ -37,7 +37,7 @@ typename FlashMemory_P
 >
 
 
-class Flash
+class FTL
 {
 
 	
@@ -581,6 +581,7 @@ class Flash
 	int uninit()
 	{
 		FlashMemory_.write(header,sectorpointer*PAGE_NO+headerpointer);
+		FlashMemory_.flush();
 		return SUCCESS;
 	}
 
