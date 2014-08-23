@@ -4,8 +4,6 @@
 typedef wiselib::OSMODEL Os;
 
 #include <algorithms/block_memory/ram_flash_memory.h>					/* For Flash Simulation */
-#include <util/filesystems/fat.h>
-typedef wiselib::Fat<Os> Fat;
 typedef wiselib::RAMFlashMemory<Os,4,256,512> RAMFlashMemory_;
 
 #include <algorithms/ftl/flash_interface.h>		/* Interface between FLash and Block Memory */
@@ -16,6 +14,10 @@ typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;
 
 #include <algorithms/ftl/ftl.h>								/* For flash translation layer */
 typedef wiselib::FTL<Os,CachedBlockMemory_> Flash;
+
+
+#include <util/filesystems/fat.h>
+typedef wiselib::Fat<Os,Flash> Fat;
 
 class App {
 	public:

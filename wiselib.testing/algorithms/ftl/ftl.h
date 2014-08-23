@@ -62,6 +62,10 @@ class FTL
 
 	public:
 
+	typedef FTL self_type;
+	typedef self_type* self_pointer_t;
+		
+
 	enum {
 		PAGE_SIZE = FlashMemory_P::PAGE_SIZE, // PAGE_SIZE is the smallest amount of data which is read or written at a time.
 		PAGE_NO = FlashMemory_P::PAGES_PER_SECTOR, // PAGE_NO is the number of pages in a sector.
@@ -569,7 +573,7 @@ class FTL
 	 */
 	address_t size()
 	{
-		return FlashMemory_.page_size();
+		return PAGE_SIZE;
 	}
 
 
