@@ -3,46 +3,19 @@
 #include <external_interface/external_interface.h>
 typedef wiselib::OSMODEL Os;
 
-<<<<<<< HEAD:apps/generic_apps/FAT_FTL_demo/FAT_FTL_demo.cpp
 #include <algorithms/block_memory/ram_flash_memory.h>					/* For Flash Simulation */
-||||||| merged common ancestors
 #include <util/filesystems/fat.h>
 typedef wiselib::Fat<Os> Fat;
-
-#include <algorithms/block_memory/ram_flash_memory.h>
-=======
-#include <util/filesystems/fat.h>
-typedef wiselib::Fat<Os> Fat;
-
-#include <algorithms/block_memory/ram_flash_memory.h>					// For Flash Simulation
->>>>>>> ba0866059338d1802620a6f913aa2b7e047cbafd:apps/generic_apps/fat_ftl_demo/FAT_FTL_demo.cpp
 typedef wiselib::RAMFlashMemory<Os,4,256,512> RAMFlashMemory_;
 
-<<<<<<< HEAD:apps/generic_apps/FAT_FTL_demo/FAT_FTL_demo.cpp
 #include <algorithms/ftl/flash_interface.h>		/* Interface between FLash and Block Memory */
 typedef wiselib::FlashInterface<Os,RAMFlashMemory_> FlashInterface_;
 
 #include <algorithms/block_memory/cached_block_memory.h>				/* For Caching */
 typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;
-||||||| merged common ancestors
-#include <algorithms/ftl/ftl.h>
-typedef wiselib::Flash<Os,RAMFlashMemory_> Flash;
-=======
-#include <algorithms/ftl/flash_interface.h>						// Interface between FLash and Block Memory
-typedef wiselib::FlashInterface<Os,RAMFlashMemory_> FlashInterface_;			
-
-#include <algorithms/block_memory/cached_block_memory.h>				// For Caching
-typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;	
-
-#include <algorithms/ftl/ftl.h>								// For flash translation layer
-typedef wiselib::FTL<Os,CachedBlockMemory_> Flash;		
->>>>>>> ba0866059338d1802620a6f913aa2b7e047cbafd:apps/generic_apps/fat_ftl_demo/FAT_FTL_demo.cpp
 
 #include <algorithms/ftl/ftl.h>								/* For flash translation layer */
-typedef wiselib::Flash<Os,CachedBlockMemory_> Flash;
-
-#include <util/filesystems/fat.h>
-typedef wiselib::Fat<Os, Flash> Fat;
+typedef wiselib::FTL<Os,CachedBlockMemory_> Flash;
 
 class App {
 	public:
@@ -51,17 +24,13 @@ class App {
 			debug_ = &wiselib::FacetProvider<Os, Os::Debug>::get_facet( value );
 			int res;
 
-<<<<<<< HEAD:apps/generic_apps/FAT_FTL_demo/FAT_FTL_demo.cpp
 //			res = sd_.init("myfile.img");
 			flash_.init(Flash::NEWFLASH);
 			debug_->debug("size %d",flash_.size());
-||||||| merged common ancestors
-			int res = sd_.init("myfile.img");
 //            int res = flash_.init();
-=======
-			int res = sd_.init("myfile.img");
-            int res = flash_.init();
->>>>>>> ba0866059338d1802620a6f913aa2b7e047cbafd:apps/generic_apps/fat_ftl_demo/FAT_FTL_demo.cpp
+
+//			int res = sd_.init("myfile.img");
+            res = flash_.init();
 
 			if(res == Os::SUCCESS)
                 debug_->debug( "SD Card test application running, Block memory initialized " );

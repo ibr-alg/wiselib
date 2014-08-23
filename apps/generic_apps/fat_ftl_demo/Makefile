@@ -10,7 +10,7 @@ all: shawn
 # all: tinyos-tossim
 # all: tinyos-micaz
 
-export APP_SRC=FAT_FTL_demo.cpp
-export BIN_OUT=FAT_FTL_demo
+export APP_SRC=fat_ftl_demo.cpp
+export BIN_OUT=fat_ftl_demo
 
 include ../Makefile
