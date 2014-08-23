@@ -28,10 +28,7 @@ class App {
 
 //			res = sd_.init("myfile.img");
 			flash_.init(Flash::NEWFLASH);
-			debug_->debug("size %d",flash_.size());
-//            int res = flash_.init();
 
-//			int res = sd_.init("myfile.img");
             res = flash_.init();
 
 			if(res == Os::SUCCESS)
@@ -46,19 +43,19 @@ class App {
             else
                 debug_->debug( "Could not init file System, error %d", res );
 
-            res=fs.mkfs(1);
+            /**
+             *  mkfs(unsigned int au=0) is used to format the memory with a FAT file system.
+             *  This function does not wipe the entire memory, just creates a basic FAT file system
+             *  au is size of allocation unit, default is 0 and the function will calculate
+             *  based on other parameters as per standards.
+             */
+            res=fs.mkfs();
             if(res==0)
                 debug_->debug( "File System Format successful" );
             else
                 debug_->debug( "Could not format file System, error %d", res );
 
-//            res = flash_.init(Flash::NEWFLASH);
-//            if(res == Os::SUCCESS)
-//                debug_->debug( "SD Card test application running, Flash memory initialized " );
-//            else
-//                debug_->debug( "Block memory not initialized " );
-
-//			test_fs();
+			test_fs();
 		}
 
 		Os::BlockMemory::address_t address_;

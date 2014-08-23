@@ -246,7 +246,6 @@ class Fat {
             ::uint16_t* br		/* Pointer to number of bytes read */
         )
         {
-            d_result_t dr;
             clust_t clst;
             ::uint32_t sect, remain;
             ::uint16_t rcnt;
@@ -593,7 +592,6 @@ class Fat {
          * Create File System on the Drive
          */
         f_result_t mkfs (
-            block_data_t sfd,			/* Partitioning rule 0:FDISK, 1:SFD */
             unsigned int au = 0			/* Allocation unit [bytes] */
         )
         {
@@ -661,27 +659,14 @@ class Fat {
             b_dir = b_fat + n_fat * N_FATS;		/* Directory area start sector */
             b_data = b_dir + n_rootdir;				/* Data area start sector */
             if (n_vol < b_data + au - b_vol)    {
-//                return FR_MKFS_ABORTED;	        /* Too small volume */
+                return FR_MKFS_ABORTED;	        /* Too small volume */
             }
 
-            /* Align data start sector to erase block boundary (for flash memory media) */
-//            n = bm_->BLOCK_SIZE;
-//            n = (b_data + n - 1) & ~(n - 1);	/* Next nearest erase block from current data start */
-//            debug_->debug("n=%d, b_data = %d",n,b_data);
-//            n = (n - b_data) / N_FATS;
-//            debug_->debug("n=%d, b_data = %d",n,b_data);
-//            if (fmt == FS_FAT32) {		/* FAT32: Move FAT offset */
-//                n_rsvd_sec += n;
-//                b_fat += n;
-//            } else {					/* FAT12/16: Expand FAT size */
-//                n_fat += n;
-//            }
-
             /* Determine number of clusters and final check of validity of the FAT sub-type */
-//            n_clst = (n_vol - n_rsvd_sec - n_fat * N_FATS - n_rootdir) / au;
-//            if (   (fmt == FS_FAT16 && n_clst < MIN_FAT16)
-//                || (fmt == FS_FAT32 && n_clst < MIN_FAT32))
-//                return FR_MKFS_ABORTED;
+            n_clst = (n_vol - n_rsvd_sec - n_fat * N_FATS - n_rootdir) / au;
+            if (   (fmt == FS_FAT16 && n_clst < MIN_FAT16)
+                || (fmt == FS_FAT32 && n_clst < MIN_FAT32))
+                return FR_MKFS_ABORTED;
 
             /* Determine system ID in the partition table */
             if (fmt == FS_FAT32) {
@@ -698,30 +683,12 @@ class Fat {
             media_descriptor = 0xF0;
 
             memset(buf, 0, bm_->BLOCK_SIZE);
-////            tmp16 = 512;
-////            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BPB_BytsPerSec, tmp16);
-////            buf[BPB_SecPerClus] = au;
-////            tmp = 1;            //[later]
-////            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BPB_RsvdSecCnt, tmp16);
-////            buf[BPB_NumFATs] = n_fats;
-
-
-//                tbl = buf+MBR_Table;	/* Create partition table for single partition in the drive */
-//                tbl[1] = 1;						/* Partition start head */
-//                tbl[2] = 1;						/* Partition start sector */
-//                tbl[3] = 0;						/* Partition start cylinder */
-//                tbl[4] = sys;					/* System type */
-//                tbl[5] = 254;					/* Partition end head */
-//                n = (b_vol + n_vol) / 63 / 255;
-//                tbl[6] = (block_data_t)(n >> 2 | 63);	/* Partition end sector */
-//                tbl[7] = (block_data_t)n;				/* End cylinder */
-//                tmp = 63;
-//                Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+8, tmp);			/* Partition start in LBA */
-//            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint32_t>::write(tbl+12, n_vol);		/* Partition size in LBA */
-//            tmp16 = 0xAA55;
-//            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BS_55AA, tmp16);	/* MBR signature */
-//            if (bm_->write(buf, 0, 1)!=SUCCESS)	/* Write it to the MBR */
-//                return FR_DISK_ERR;
+            tmp16 = 512;
+            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BPB_BytsPerSec, tmp16);
+            buf[BPB_SecPerClus] = au;
+            tmp16 = n_rsvd_sec;
+            Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(buf+BPB_RsvdSecCnt, tmp16);
+            buf[BPB_NumFATs] = n_fats;
 
             /* Create BPB in the VBR */
             tbl = buf;							/* Clear sector */
@@ -738,7 +705,6 @@ class Fat {
             tmp16 = (::uint16_t)i;
             Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_RootEntCnt, tmp16);
 
-// Replace by Type of fat [here][later]
             if (n_vol < 0x10000) {					/* Number of total sectors */
                 tmp16 = (::uint16_t)n_vol;
                 Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(tbl+BPB_TotSec16, tmp16);
@@ -811,16 +777,6 @@ class Fat {
                 if (bm_->write(tbl, wsect++, 1)!=SUCCESS)
                     return FR_DISK_ERR;
             } while (--i);
-
-//        #if _USE_ERASE	/* Erase data area if needed */
-//            {
-//                ::uint32_t eb[2];
-//
-//                eb[0] = wsect;
-//                eb[1] = wsect + (n_clst - ((fmt == FS_FAT32) ? 1 : 0)) * au - 1;
-//                disk_ioctl(pdrv, CTRL_ERASE_SECTOR, eb);
-//            }
-//        #endif
 
             /* Create FSINFO if needed */
             if (fmt == FS_FAT32) {
@@ -1189,7 +1145,7 @@ class Fat {
             unsigned int i;
             ::uint32_t fat_copy_sect;
             block_data_t *p;
-            f_result_t res;
+            f_result_t res = FR_NOT_READY;
             block_data_t buf[bm_->BLOCK_SIZE];
 
             if (clst < 2 || clst >= fs->n_fatent) {	/* Check range */
@@ -1228,7 +1184,9 @@ class Fat {
                             break;
                         }
                         p = &buf[clst * 2 % bm_->BLOCK_SIZE];
-                        Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(p, (::uint16_t&)val);
+                        ::uint16_t tmp16;
+                        tmp16 = (::uint16_t) val;
+                        Serialization<OsModel, WISELIB_BIG_ENDIAN, block_data_t, ::uint16_t>::write(p, tmp16);
                         if(bm_->write(buf, fat_copy_sect + (clst / (bm_->BLOCK_SIZE / 2)))) {
                             break;
                         }
