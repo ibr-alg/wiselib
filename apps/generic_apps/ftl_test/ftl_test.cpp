@@ -100,12 +100,12 @@ typedef wiselib::OSMODEL Os;
 
 /* Modelling a Flash Device with 4 sectors and 512 pages each
 	The memory is organized as: 
-	131,072 bytes (8 bits each)
-	4 sectors (256 Kbits, 32768 bytes each),
-	Sector 0:  00000h 07FFFh,
-	Sector 1:  08000h 0FFFFh,
-	Sector 2:  10000h 17FFFh,
-	Sector 3: 18000h 1FFFFh 
+	524,288 bytes (8 bits each)
+	4 sectors (131,072 bytes each),
+	Sector 0:  00000h 1FFFFh,
+	Sector 1:  20000h 3FFFFh,
+	Sector 2:  40000h 5FFFFh,
+	Sector 3:  60000h 7FFFFh 
 	512 pages (256 bytes each)
 */
 	
