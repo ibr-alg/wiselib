@@ -122,5 +122,4 @@ namespace concepts {
 		        block_data_t sfd,			/**< Partitioning rule 0:FDISK, 1:SFD */
 		        unsigned int au				/**< Allocation unit [bytes] */
 		    );
-
 } // namespace
