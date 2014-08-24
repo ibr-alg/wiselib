@@ -127,6 +127,13 @@ namespace concepts {
 			 *@return size of the block memory device in blocks
 			 */
 			address_t size();
+
+			/**
+			* Only for Flash Memory
+	 		* Uninitialse the flash memory, so that flash can be unmounted
+	 		* @return SUCCESS iff the memory has been uninitialsed
+	 		*/
+			int uninit();
 	}
 
 

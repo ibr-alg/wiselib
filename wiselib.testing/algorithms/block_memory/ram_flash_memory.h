@@ -140,7 +140,7 @@ class RAMFlashMemory
 	 */
 	bool write(address_t start_address, address_t byte_count, block_data_t* data)
 	{
-		int i;
+		address_t i;
 
 		//Check alignment
 		if(start_address%PAGE_SIZE!=0)
@@ -170,7 +170,7 @@ class RAMFlashMemory
 	 */	
 	bool read(address_t start_address, address_t byte_count, block_data_t* data)
 	{
-		int i;
+		address_t i;
 
 		//Check alignment
 		if(start_address%PAGE_SIZE!=0)
