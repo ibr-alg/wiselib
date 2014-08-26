@@ -15,7 +15,6 @@ typedef wiselib::CachedBlockMemory<Os,FlashInterface_,16,16> CachedBlockMemory_;
 #include <algorithms/ftl/ftl.h>								/* For flash translation layer */
 typedef wiselib::FTL<Os,CachedBlockMemory_> Flash;
 
-
 #include <util/filesystems/fat.h>
 typedef wiselib::Fat<Os,Flash> Fat;
 
